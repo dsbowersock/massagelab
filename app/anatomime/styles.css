@@ -1,0 +1,179 @@
+/* Game container */
+.game-container {
+  width: 100%;
+  max-width: 800px;
+  background: #2d2d2d;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Area selection */
+.area-selection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin: 1.25rem 0;
+  padding: 0.625rem;
+}
+
+.area-checkbox {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.area-label {
+  display: flex;
+  background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+  padding: 1.875rem 1.25rem;
+  border-radius: 0.938rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid #4d4d4d;
+  position: relative;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.area-label:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border-color: #ff7043;
+}
+
+.area-checkbox:checked + .area-label {
+  background: linear-gradient(135deg, #ff7043, #f4511e);
+  color: white;
+  border-color: #ff5722;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(255, 87, 34, 0.4);
+}
+
+/* Muscle cards */
+.muscle-card {
+  background: linear-gradient(135deg, #ff7043, #f4511e);
+  padding: 1.25rem;
+  border-radius: 0.938rem;
+  cursor: move;
+  user-select: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid #ff5722;
+  position: relative;
+  min-height: 6.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  margin-bottom: 0.625rem;
+}
+
+.muscle-card:last-child {
+  margin-bottom: 0;
+}
+
+.muscle-card:hover {
+  transform: scale(1.05) rotate(1deg);
+  box-shadow: 0 8px 16px rgba(255, 87, 34, 0.4);
+}
+
+/* Selected muscles area */
+.selected-muscles {
+  min-height: 6.25rem;
+  border: 3px dashed #ff7043;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  border-radius: 0.938rem;
+  background: rgba(255, 112, 67, 0.1);
+}
+
+/* Game phase elements */
+.game-phase {
+  text-align: center;
+}
+
+.timer {
+  font-size: 2.5em;
+  margin: 1.25rem 0;
+  color: #ff7043;
+  text-shadow: 0 0 10px rgba(255, 112, 67, 0.5);
+}
+
+.current-muscle {
+  font-size: 1.5em;
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  background: #3d3d3d;
+  border-radius: 0.313rem;
+  cursor: pointer;
+  color: white;
+}
+
+/* Score display */
+.score-board {
+  display: flex;
+  justify-content: space-around;
+  margin: 1.25rem 0;
+}
+
+.team-score {
+  font-size: 1.25rem;
+  padding: 0.625rem 1.25rem;
+  background: #3d3d3d;
+  border-radius: 0.625rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #ff7043;
+}
+
+/* Final scoreboard */
+.final-scoreboard {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 1000;
+  padding: 2rem;
+  display: none;
+}
+
+.final-scoreboard.flex {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.winner-announcement {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  color: #ff7043;
+  margin-bottom: 2.5rem;
+  text-shadow: 0 0 20px rgba(255, 112, 67, 0.5);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Add to your existing styles */
+.onboarding-phase {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+

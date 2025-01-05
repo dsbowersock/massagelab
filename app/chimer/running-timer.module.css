@@ -1,0 +1,131 @@
+.container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: black;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.clock {
+  position: fixed;
+  top: 60%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  font-size: clamp(8rem, 30vw, 20rem);
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+  transition: font-size 0.3s ease;
+}
+
+.timeUnit {
+  display: inline-block;
+}
+
+.colon {
+  display: inline-block;
+  width: 0.2em;
+  opacity: 0.8;
+}
+
+.control {
+  position: fixed;
+  z-index: 1001;
+  width: 60px;
+  height: 60px;
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+}
+
+.control:hover {
+  background-color: #ff7043;
+}
+
+.closeButton {
+  top: 20px;
+  right: 20px;
+}
+
+.fullscreenButton {
+  top: 20px;
+  left: 20px;
+}
+
+.fontControls {
+  position: fixed;
+  top: 90px;
+  left: 20px;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1001;
+  display: flex;
+}
+
+.fontButton {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.fontButton:hover {
+  background-color: #ff7043;
+}
+
+.pauseButton {
+  top: 230px;
+  left: 20px;
+  background-color: #ff7043;
+}
+
+.pauseButton:hover {
+  background-color: #f4511e;
+}
+
+.actualTime {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 7.5vw;
+  color: #ff7043;
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.7;
+  z-index: 1000;
+}
+
+@media (max-width: 640px) {
+  .control {
+    width: 50px;
+    height: 50px;
+  }
+}
+

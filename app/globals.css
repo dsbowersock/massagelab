@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core theme colors */
+    --background: 0 0% 10%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    
+    /* Brand colors */
+    --primary: 14 100% 63%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 16 100% 54%;
+    --secondary-foreground: 0 0% 98%;
+    
+    /* UI colors */
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Border radius */
+    --radius: 0.5rem;
+  }
+
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      max-width: none;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      max-width: none;
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Remove this class
+/*
+.content-container {
+  width: 100%;
+  max-width: 800px;
+  background-color: #2d2d2d;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+*/
+
+@layer components {
+  .page-container {
+    @apply min-h-screen bg-background p-4 sm:p-6 lg:p-8;
+  }
+
+  .content-wrapper {
+    @apply max-w-7xl mx-auto space-y-6;
+  }
+
+  .content-card {
+    @apply bg-[#2d2d2d] p-6 rounded-lg shadow-lg;
+  }
+}
+
+
+@layer utilities {
+  .game-button {
+    @apply w-full py-3 px-6 text-lg font-bold text-white bg-[#ff7043] rounded-lg shadow-md transition-all duration-300;
+  }
+
+  .game-button:hover {
+    @apply bg-[#f4511e] transform -translate-y-0.5 shadow-lg;
+  }
+
+  .game-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .form-group {
+    @apply mb-6;
+  }
+
+  .form-label {
+    @apply block mb-2 font-medium;
+  }
+
+  .form-select,
+  .form-input {
+    @apply w-full p-3 bg-white/10 border-2 border-[#4a4a4a] rounded-lg text-white text-base transition-colors;
+  }
+
+  .form-select:focus,
+  .form-input:focus {
+    @apply border-[#ff7043] outline-none;
+  }
+}
+

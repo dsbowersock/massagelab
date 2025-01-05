@@ -1,0 +1,102 @@
+.container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: #2d2d2d;
+  border-radius: 1rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.clock {
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+  user-select: none;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  width: 100%;
+  font-size: clamp(3rem, 15vw, 8rem);
+  margin: 2rem 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.timeUnit {
+  display: inline-block;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.timeUnit:hover {
+  color: #ff7043;
+}
+
+.colon {
+  display: inline-block;
+  width: 0.2em;
+  opacity: 0.8;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #e0e0e0;
+  font-size: 1rem;
+}
+
+.formGroup select,
+.formGroup input[type="number"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #4a4a4a;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  transition: border-color 0.3s ease;
+}
+
+.formGroup select:focus,
+.formGroup input[type="number"]:focus {
+  border-color: #ff7043;
+  outline: none;
+}
+
+.button {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  background-color: #ff7043;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1.125rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  margin-top: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.button:hover {
+  background-color: #f4511e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 87, 34, 0.4);
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .formGroup label {
+    font-size: 0.875rem;
+  }
+}
+
