@@ -14,31 +14,55 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Anatomime</CardTitle>
-                <CardDescription>Learn muscle anatomy through an interactive team-based game</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full bg-primary hover:bg-primary/90">
-                  <Link href="/anatomime">Play Now</Link>
-                </Button>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <Card className="bg-card">
+    <CardHeader>
+      <CardTitle>Anatomime</CardTitle>
+      <CardDescription>Learn muscle anatomy through an interactive team-based game</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Button asChild className="w-full bg-primary hover:bg-primary/90">
+        <Link href="/anatomime">Play Now</Link>
+      </Button>
+    </CardContent>
+  </Card>
 
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Chimer</CardTitle>
-                <CardDescription>Customizable interval timer for massage sessions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full bg-primary hover:bg-primary/90">
-                  <Link href="/chimer">Start Timer</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+  <Card className="bg-card">
+    <CardHeader>
+      <CardTitle>Chimer</CardTitle>
+      <CardDescription>Customizable interval timer for massage sessions</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Button asChild className="w-full bg-primary hover:bg-primary/90">
+        <Link href="/chimer">Start Timer</Link>
+      </Button>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-card">
+    <CardHeader>
+      <CardTitle>Note Taking Tools</CardTitle>
+      <CardDescription>Professional documentation tools for massage therapists</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Button asChild className="w-full bg-primary hover:bg-primary/90">
+        <Link href="/notes">Create Note</Link>
+      </Button>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-card">
+    <CardHeader>
+      <CardTitle>Calendar</CardTitle>
+      <CardDescription>Schedule and manage your massage appointments</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Button asChild className="w-full bg-primary hover:bg-primary/90">
+        <Link href="/calendar">View Calendar</Link>
+      </Button>
+    </CardContent>
+  </Card>
+</div>
         </div>
       </div>
     </div>
