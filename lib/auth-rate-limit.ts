@@ -1,4 +1,4 @@
-import type { AuthAttemptPurpose } from "@prisma/client"
+import type { AuthAttemptPurpose } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 
 const WINDOW_MS = 15 * 60 * 1000

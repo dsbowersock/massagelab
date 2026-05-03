@@ -1,11 +1,11 @@
 import Link from "next/link"
 import { Shield, UserRound } from "lucide-react"
-import type { Role } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { saveProfileAction } from "@/app/account/actions"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SignOutButton } from "@/app/account/sign-out-button"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
+import type { AccountRole } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,8 +45,9 @@ export default async function AccountPage() {
     prisma.noteTemplate.count({ where: { userId: session.user.id } }),
   ])
 
-  const roleRows = roles as Array<{ role: Role }>
-  const roleLabels: Role[] = roleRows.length > 0 ? roleRows.map((roleRow) => roleRow.role).sort() : [session.user.role as Role]
+  const roleRows = roles as Array<{ role: AccountRole }>
+  const roleLabels: AccountRole[] =
+    roleRows.length > 0 ? roleRows.map((roleRow) => roleRow.role).sort() : [session.user.role as AccountRole]
   const canManageAnatomy = canManageAnatomyContent(roleLabels)
 
   return (

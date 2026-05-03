@@ -1,8 +1,8 @@
-import type { Role } from "@prisma/client"
 import { isAdminEmail } from "@/lib/auth-env"
+import type { AccountRole } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 
-export function highestRole(roles: Role[]): Role {
+export function highestRole(roles: AccountRole[]): AccountRole {
   if (roles.includes("ADMIN")) return "ADMIN"
   if (roles.includes("EDITOR")) return "EDITOR"
   return "USER"
@@ -54,7 +54,7 @@ export async function getUserAuthState(userId: string) {
     },
   })
 
-  const roles = user?.roles.map((role) => role.role) ?? ["USER"]
+  const roles = (user?.roles.map((role) => role.role) ?? ["USER"]) as AccountRole[]
 
   if (user?.email && isAdminEmail(user.email) && !roles.includes("ADMIN")) {
     await ensureUserRole(userId, user.email)

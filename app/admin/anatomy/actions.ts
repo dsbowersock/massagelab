@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import type { AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus, Role } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
+import type { AccountRole, AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 
 const VALID_TERM_KINDS = new Set(["SYSTEM", "ORGAN", "TISSUE", "BONE", "MUSCLE", "JOINT", "NERVE", "VESSEL", "LIGAMENT", "TENDON", "CELL", "OTHER"])
@@ -47,7 +47,7 @@ async function requireEditor() {
     where: { userId: session.user.id },
     select: { role: true },
   })
-  const roleValues = (roles as Array<{ role: Role }>).map((roleRow) => roleRow.role)
+  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
 
   if (!canManageAnatomyContent(roleValues)) {
     redirect("/account")
