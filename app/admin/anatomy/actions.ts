@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import type { AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@prisma/client"
+import type { AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus, Role } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
 import { prisma } from "@/lib/prisma"
@@ -47,7 +47,7 @@ async function requireEditor() {
     where: { userId: session.user.id },
     select: { role: true },
   })
-  const roleValues = roles.map((roleRow) => roleRow.role)
+  const roleValues = (roles as Array<{ role: Role }>).map((roleRow) => roleRow.role)
 
   if (!canManageAnatomyContent(roleValues)) {
     redirect("/account")

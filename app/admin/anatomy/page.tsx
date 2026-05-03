@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import type { Role } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
 import { prisma } from "@/lib/prisma"
@@ -46,7 +47,7 @@ export default async function AnatomyAdminPage() {
     where: { userId: session.user.id },
     select: { role: true },
   })
-  const roleValues = roles.map((roleRow) => roleRow.role)
+  const roleValues = (roles as Array<{ role: Role }>).map((roleRow) => roleRow.role)
 
   if (!canManageAnatomyContent(roleValues)) {
     redirect("/account")
