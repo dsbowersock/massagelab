@@ -19,7 +19,7 @@ export function IdentifyingInfo({ formData, setFormData }: IdentifyingInfoProps)
     const today = new Date().toISOString().split('T')[0]
     
     // Pre-populate therapist information from settings
-    setFormData(prev => ({
+    setFormData((prev: any) => ({
       ...prev,
       date: today,
       therapistName: therapistSettings.name || prev.therapistName,

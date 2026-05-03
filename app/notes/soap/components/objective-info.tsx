@@ -3,9 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
 import { Plus, X, FileText, Activity, Ruler, FootprintsIcon, ClipboardList } from 'lucide-react'
 import { ObjectiveEntry, ObjectiveEntryType } from "../types"
 import { ObjectiveEntryForm } from "./objective-entry-form"
@@ -22,7 +20,7 @@ export function ObjectiveInfo({ formData, setFormData }: ObjectiveInfoProps) {
   const handleAddEntry = (entry: ObjectiveEntry) => {
     setFormData({
       ...formData,
-      entries: [...(formData.entries || []), entry]
+      objectiveEntries: [...(formData.objectiveEntries || []), entry]
     })
     setShowEntryForm(false)
     setSelectedType(null)
@@ -31,7 +29,7 @@ export function ObjectiveInfo({ formData, setFormData }: ObjectiveInfoProps) {
   const handleRemoveEntry = (index: number) => {
     setFormData({
       ...formData,
-      entries: formData.entries.filter((_: any, i: number) => i !== index)
+      objectiveEntries: formData.objectiveEntries.filter((_: any, i: number) => i !== index)
     })
   }
 
@@ -296,7 +294,7 @@ export function ObjectiveInfo({ formData, setFormData }: ObjectiveInfoProps) {
         )}
 
         <div className="space-y-4">
-          {formData.entries?.map((entry: ObjectiveEntry, index: number) => 
+          {formData.objectiveEntries?.map((entry: ObjectiveEntry, index: number) => 
             renderEntryCard(entry, index)
           )}
         </div>

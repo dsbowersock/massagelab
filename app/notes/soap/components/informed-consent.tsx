@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { format } from "date-fns"
 
 interface InformedConsentProps {
   formData: any
@@ -16,7 +15,7 @@ interface InformedConsentProps {
 
 export function InformedConsent({ formData, setFormData }: InformedConsentProps) {
   const [clientName, setClientName] = useState(formData.clientName || "")
-  const [date, setDate] = useState(formData.consentDate || format(new Date(), "yyyy-MM-dd"))
+  const [date, setDate] = useState(formData.consentDate || new Date().toISOString().slice(0, 10))
   const [initials, setInitials] = useState(formData.consentInitials || "")
   const [acknowledged, setAcknowledged] = useState(false)
 
@@ -69,7 +68,7 @@ export function InformedConsent({ formData, setFormData }: InformedConsentProps)
             <p>
               Because massage should not be performed under certain medical conditions, I affirm that I have stated all my known
               medical conditions, and answered all questions honestly. I agree to keep the therapist updated as to any changes in my
-              medical profile and understand that there shall be no liability on the therapist's part should I fail to do so.
+                medical profile and understand that there shall be no liability on the therapist&apos;s part should I fail to do so.
             </p>
           </div>
         </ScrollArea>

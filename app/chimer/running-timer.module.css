@@ -1,108 +1,226 @@
 .container {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-  background-color: black;
-  z-index: 50;
+  bottom: -4rem;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  width: 100vw;
+  min-height: calc(100vh + 4rem);
+  margin: 0;
+  padding: 0;
+  background-color: #050505;
+  color: white;
+  transition: background-color 80ms ease, color 80ms ease;
+  overflow: hidden;
+  isolation: isolate;
 }
 
-.clock {
+.alerting {
+  background-color: #ffffff;
+  color: #050505;
+}
+
+.runningBackground {
   position: fixed;
-  top: 60%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
+  inset: 0;
+  bottom: -4rem;
+  z-index: 0;
+  width: 100vw;
+  min-height: calc(100vh + 4rem);
+  pointer-events: none;
+}
+
+.displayButton {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.displayButton:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.displayButton:focus-visible {
+  outline: none;
+  text-shadow: 0 0 0.45rem currentColor;
+}
+
+.primaryDisplay {
+  position: relative;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100vw;
-  font-size: clamp(8rem, 30vw, 20rem);
-  color: white;
-  font-family: 'Orbitron', sans-serif;
+  max-width: 100vw;
+  min-height: 40dvh;
+  padding: 0 1rem;
+  overflow: hidden;
+  font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1;
+  letter-spacing: 0;
   text-align: center;
-  transition: font-size 0.3s ease;
+  transition: color 150ms ease, font-size 150ms ease, transform 150ms ease;
+  white-space: nowrap;
+}
+
+.primaryDisplay:not(:disabled):hover {
+  color: white;
+}
+
+.primaryDisplay:not(:disabled):active {
+  transform: scale(0.99);
+}
+
+.secondaryDisplay {
+  position: fixed;
+  top: 1.2rem;
+  left: 50%;
+  z-index: 10001;
+  max-width: calc(100vw - 9rem);
+  overflow: hidden;
+  transform: translateX(-50%);
+  color: #ff7043;
+  font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(1.4rem, 6vw, 4rem);
+  line-height: 1;
+  letter-spacing: 0;
+  opacity: 0.84;
+  text-overflow: ellipsis;
+  transition: color 150ms ease, opacity 150ms ease;
+  white-space: nowrap;
+}
+
+.secondaryDisplay:hover {
+  color: #ff8a65;
+  opacity: 1;
+}
+
+.timerDisplay {
+  font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.secondaryDisplay.timerDisplay {
+  font-size: clamp(1.15rem, 7vw, 3.25rem);
+}
+
+.primaryDisplay.currentTimeDisplay {
+  color: white;
+  font-size: clamp(3.5rem, 15vw, 12rem);
 }
 
 .timeUnit {
   display: inline-block;
+  min-width: 1.15em;
 }
 
 .colon {
   display: inline-block;
-  width: 0.2em;
-  opacity: 0.8;
+  width: 0.22em;
+  opacity: 0.82;
 }
 
-.control {
+.control,
+.fontButton {
   position: fixed;
-  z-index: 1001;
-  width: 60px;
-  height: 60px;
+  z-index: 10001;
+  display: flex;
+  width: 3.5rem;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
   color: white;
-  border: none;
   cursor: pointer;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 50%;
+  transition: background-color 150ms ease, transform 150ms ease;
 }
 
-.control:hover {
-  background-color: #ff7043;
-}
-
-.closeButton {
-  top: 20px;
-  right: 20px;
-}
-
-.fullscreenButton {
-  top: 20px;
-  left: 20px;
-}
-
-.fontControls {
-  position: fixed;
-  top: 90px;
-  left: 20px;
-  flex-direction: column;
-  gap: 0.5rem;
-  z-index: 1001;
-  display: flex;
-}
-
-.fontButton {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  color: white;
-  background: rgba(0, 0, 0, 0.5);
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
+.control:hover,
 .fontButton:hover {
   background-color: #ff7043;
 }
 
+.closeButton {
+  top: 1rem;
+  right: 1rem;
+}
+
+.fullscreenButton {
+  top: 1rem;
+  left: 1rem;
+}
+
+.settingsButton {
+  top: 1rem;
+  left: 5.25rem;
+}
+
+.settingsPanel {
+  position: fixed;
+  top: 5.25rem;
+  left: 1rem;
+  z-index: 10002;
+  display: grid;
+  width: min(20rem, calc(100vw - 2rem));
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.86);
+  color: white;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.35);
+}
+
+.settingsHeader {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.switchRow,
+.colorRow {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.95rem;
+}
+
+.switchRow input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #ff7043;
+}
+
+.colorRow input[type="color"] {
+  width: 3rem;
+  height: 2rem;
+  padding: 0.125rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fontButton {
+  position: fixed;
+}
+
 .pauseButton {
-  top: 230px;
-  left: 20px;
   background-color: #ff7043;
 }
 
@@ -110,22 +228,63 @@
   background-color: #f4511e;
 }
 
-.actualTime {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 7.5vw;
-  color: #ff7043;
+.alerting .primaryDisplay,
+.alerting .secondaryDisplay,
+.alerting .status {
+  color: #050505;
+}
+
+.alerting .control,
+.alerting .fontButton {
+  border-color: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.1);
+  color: #050505;
+}
+
+.status {
   position: fixed;
-  top: 20px;
+  top: 5.75rem;
   left: 50%;
+  z-index: 10001;
   transform: translateX(-50%);
-  opacity: 0.7;
-  z-index: 1000;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(0.875rem, 2vw, 1.25rem);
+  letter-spacing: 0;
+}
+
+.bottomControls {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transform: translateX(-50%);
+}
+
+.bottomControls .control,
+.bottomControls .fontButton {
+  position: relative;
+  inset: auto;
 }
 
 @media (max-width: 640px) {
-  .control {
-    width: 50px;
-    height: 50px;
+  .control,
+  .fontButton {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .settingsButton {
+    left: 4.75rem;
+  }
+
+  .primaryDisplay.currentTimeDisplay {
+    font-size: clamp(3rem, 16vw, 7rem);
+  }
+
+  .secondaryDisplay {
+    max-width: calc(100vw - 8rem);
   }
 }
-

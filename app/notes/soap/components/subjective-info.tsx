@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, X } from 'lucide-react'
 import { SubjectiveEntry, SubjectiveEntryType } from "../types"
@@ -21,7 +20,7 @@ export function SubjectiveInfo({ formData, setFormData }: SubjectiveInfoProps) {
   const handleAddEntry = (entry: SubjectiveEntry) => {
     setFormData({
       ...formData,
-      entries: [...(formData.entries || []), entry]
+      subjectiveEntries: [...(formData.subjectiveEntries || []), entry]
     })
     setShowEntryForm(false)
     setSelectedType(null)
@@ -30,7 +29,7 @@ export function SubjectiveInfo({ formData, setFormData }: SubjectiveInfoProps) {
   const handleRemoveEntry = (index: number) => {
     setFormData({
       ...formData,
-      entries: formData.entries.filter((_: any, i: number) => i !== index)
+      subjectiveEntries: formData.subjectiveEntries.filter((_: any, i: number) => i !== index)
     })
   }
 
@@ -196,7 +195,7 @@ export function SubjectiveInfo({ formData, setFormData }: SubjectiveInfoProps) {
         )}
 
         <div className="space-y-4">
-          {formData.entries?.map((entry: SubjectiveEntry, index: number) => 
+          {formData.subjectiveEntries?.map((entry: SubjectiveEntry, index: number) => 
             renderEntryCard(entry, index)
           )}
         </div>

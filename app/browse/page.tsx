@@ -1,19 +1,27 @@
-// Previous imports remain the same...
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { PageHeading } from "@/components/ui/page-heading"
 
 export default function BrowsePage() {
-  // Previous state and functions remain the same...
-
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="bg-[#2d2d2d] p-6 rounded-lg shadow-lg">
-          <h1 className="text-3xl font-bold mb-8 text-white">Browse Music</h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {/* Generator cards remain the same... */}
-          </div>
-        </div>
+    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeading>Music Browser</PageHeading>
+        <Card className="border-neutral-800 bg-[#202020]/90 backdrop-blur">
+          <CardHeader>
+            <CardTitle>Music tools are not part of the private alpha</CardTitle>
+            <CardDescription>
+              This route is intentionally gated until audio playback can be made reliable without external sample-service assumptions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+              <Link href="/chimer">Open Chimer</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
 }
-

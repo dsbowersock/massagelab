@@ -1,0 +1,60 @@
+import nodemailer from "nodemailer"
+import { getSiteUrl } from "@/lib/auth-env"
+
+type MailResult = {
+  delivered: boolean
+  devLink?: string
+}
+
+function hasSmtpConfig() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM)
+}
+
+async function sendMail(to: string, subject: string, text: string): Promise<MailResult> {
+  if (!hasSmtpConfig()) {
+    return { delivered: false } satisfies MailResult
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: Number(process.env.SMTP_PORT ?? 587) === 465,
+    auth: process.env.SMTP_USER
+      ? {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD,
+        }
+      : undefined,
+  })
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject,
+    text,
+  })
+
+  return { delivered: true } satisfies MailResult
+}
+
+export async function sendVerificationEmail(email: string, token: string) {
+  const link = `${getSiteUrl()}/verify-email?token=${encodeURIComponent(token)}`
+  const result = await sendMail(
+    email,
+    "Verify your MassageLab email",
+    `Verify your MassageLab account by opening this link:\n\n${link}\n\nThis link expires in 24 hours.`,
+  )
+
+  return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
+}
+
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const link = `${getSiteUrl()}/reset-password?token=${encodeURIComponent(token)}`
+  const result = await sendMail(
+    email,
+    "Reset your MassageLab password",
+    `Reset your MassageLab password by opening this link:\n\n${link}\n\nThis link expires in 60 minutes.`,
+  )
+
+  return process.env.NODE_ENV === "production" ? result : { ...result, devLink: link }
+}

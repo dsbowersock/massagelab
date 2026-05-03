@@ -1,25 +1,3 @@
-import NextAuth from "next-auth"
-import GithubProvider from "next-auth/providers/github"
-import GoogleProvider from "next-auth/providers/google"
+import { handlers } from "@/auth"
 
-const handler = NextAuth({
-  providers: [
-    GithubProvider({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_ID!,
-      clientSecret: process.env.GOOGLE_SECRET!,
-    }),
-  ],
-  pages: {
-    signIn: "/signin",
-  },
-  session: {
-    strategy: "jwt",
-  },
-})
-
-export { handler as GET, handler as POST }
-
+export const { GET, POST } = handlers

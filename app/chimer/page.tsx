@@ -1,59 +1,169 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Orbitron } from 'next/font/google'
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { SetTimer } from "./set-timer"
+import {
+  CHIMER_STORAGE_KEY,
+  DEFAULT_CHIMER_SETTINGS,
+  formatDurationParts,
+  getIntervalMs,
+  getTotalTimerMs,
+  sanitizeChimerSettings,
+} from "@/lib/chimer-timer"
+import { fetchWithTimeout } from "@/lib/client-fetch"
+import { SetTimer, type ChimerSettings } from "./set-timer"
+import { MovingBackground } from "./moving-background"
 import { RunningTimer } from "./running-timer"
 
-const orbitron = Orbitron({ subsets: ['latin'] })
+type TimerStatus = "idle" | "running" | "paused" | "complete"
+
+interface TimerState {
+  status: TimerStatus
+  totalMs: number
+  remainingMs: number
+  endsAtMs: number | null
+  intervalMs: number | null
+  nextAlertAtMs: number | null
+  msUntilNextAlert: number | null
+}
+
+const idleTimerState: TimerState = {
+  status: "idle",
+  totalMs: 0,
+  remainingMs: 0,
+  endsAtMs: null,
+  intervalMs: null,
+  nextAlertAtMs: null,
+  msUntilNextAlert: null,
+}
 
 export default function ChimerPage() {
-  // Timer state
-  const [isTimerRunning, setIsTimerRunning] = useState(false)
-  const [timeDisplay, setTimeDisplay] = useState({ hours: "00", minutes: "00", seconds: "00" })
-  const [isPaused, setIsPaused] = useState(false)
+  const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
+  const [timerState, setTimerState] = useState<TimerState>(idleTimerState)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [currentTime, setCurrentTime] = useState("")
-
-  // Settings state
-  const [intervalType, setIntervalType] = useState("preset")
-  const [customInterval, setCustomInterval] = useState(5)
-  const [areasToMassage, setAreasToMassage] = useState(4)
-  const [alertType, setAlertType] = useState("chime")
-
-  // Time selection modal state
   const [showTimeModal, setShowTimeModal] = useState(false)
   const [selectedTimeUnit, setSelectedTimeUnit] = useState<"hours" | "minutes">("minutes")
-
-  // Font size state for running timer
   const [fontSize, setFontSize] = useState(20)
+  const [error, setError] = useState<string | null>(null)
+  const [isAlerting, setIsAlerting] = useState(false)
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
+  const [canSync, setCanSync] = useState(false)
 
-  // Refs for timer functionality
-  const timerInterval = useRef<NodeJS.Timeout | null>(null)
-  const endTime = useRef<number | null>(null)
-  const remainingTime = useRef<number | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const alertTimeout = useRef<number | null>(null)
+  const timerStateRef = useRef(timerState)
+  const settingsRef = useRef(settings)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
-  // Initialize audio
+  const totalDurationMs = useMemo(
+    () => getTotalTimerMs(settings.hours, settings.minutes),
+    [settings.hours, settings.minutes],
+  )
+
   useEffect(() => {
-    audioRef.current = new Audio("/notification.mp3")
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
+    timerStateRef.current = timerState
+  }, [timerState])
+
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadLocalSettings = () => {
+      let nextSettings = DEFAULT_CHIMER_SETTINGS as ChimerSettings
+      const savedSettings = window.localStorage.getItem(CHIMER_STORAGE_KEY)
+
+      if (savedSettings) {
+        try {
+          nextSettings = sanitizeChimerSettings(JSON.parse(savedSettings)) as ChimerSettings
+        } catch {
+          window.localStorage.removeItem(CHIMER_STORAGE_KEY)
+        }
       }
+
+      setSettings(nextSettings)
+      window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+      setHasLoadedSettings(true)
+      return nextSettings
+    }
+
+    async function syncAccountSettings() {
+      try {
+        const response = await fetchWithTimeout("/api/account/preferences")
+
+        if (!isMounted) {
+          return
+        }
+
+        if (!response.ok) {
+          setCanSync(false)
+          return
+        }
+
+        const preferences = await response.json()
+
+        if (!isMounted) {
+          return
+        }
+
+        setCanSync(true)
+
+        if (preferences.chimerSettings && typeof preferences.chimerSettings === "object") {
+          const nextSettings = sanitizeChimerSettings(preferences.chimerSettings) as ChimerSettings
+          setSettings(nextSettings)
+          window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+        }
+      } catch {
+        if (!isMounted) {
+          return
+        }
+        setCanSync(false)
+      }
+    }
+
+    loadLocalSettings()
+    void syncAccountSettings()
+
+    return () => {
+      isMounted = false
     }
   }, [])
 
-  // Update current time
+  useEffect(() => {
+    if (hasLoadedSettings) {
+      window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(settings))
+
+      if (canSync) {
+        void fetchWithTimeout("/api/account/preferences", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chimerSettings: settings }),
+        }).catch(() => undefined)
+      }
+    }
+  }, [canSync, hasLoadedSettings, settings])
+
   useEffect(() => {
     const updateTime = () => {
-      const now = new Date()
-      const hours = now.getHours() % 12 || 12
-      const minutes = now.getMinutes().toString().padStart(2, '0')
-      const ampm = now.getHours() >= 12 ? 'PM' : 'AM'
-      setCurrentTime(`${hours}:${minutes} ${ampm}`)
+      const options: Intl.DateTimeFormatOptions = {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: settingsRef.current.showCurrentTimeAmPm,
+      }
+
+      if (settingsRef.current.showCurrentTimeSeconds) {
+        options.second = "2-digit"
+      }
+
+      let formattedTime = new Intl.DateTimeFormat(undefined, options).format(new Date())
+      if (!settingsRef.current.showCurrentTimeAmPm) {
+        formattedTime = formattedTime.replace(/\s?[AP]M$/i, "")
+      }
+
+      setCurrentTime(formattedTime)
     }
 
     updateTime()
@@ -61,67 +171,187 @@ export default function ChimerPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Timer countdown logic
-  const updateDisplay = (timeInMs: number) => {
-    const hours = Math.floor(timeInMs / (1000 * 60 * 60))
-    const minutes = Math.floor((timeInMs % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((timeInMs % (1000 * 60)) / 1000)
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener("fullscreenchange", syncFullscreen)
+    return () => document.removeEventListener("fullscreenchange", syncFullscreen)
+  }, [])
 
-    setTimeDisplay({
-      hours: hours.toString().padStart(2, '0'),
-      minutes: minutes.toString().padStart(2, '0'),
-      seconds: seconds.toString().padStart(2, '0')
-    })
-  }
+  useEffect(() => {
+    document.body.classList.toggle("chimer-running", timerState.status !== "idle")
+    return () => document.body.classList.remove("chimer-running")
+  }, [timerState.status])
 
-  const startCountdown = () => {
-    if (timerInterval.current) clearInterval(timerInterval.current)
+  useEffect(() => {
+    document.body.classList.toggle("chimer-alerting", isAlerting)
+    return () => document.body.classList.remove("chimer-alerting")
+  }, [isAlerting])
 
-    timerInterval.current = setInterval(() => {
-      if (endTime.current && remainingTime.current) {
-        const now = Date.now()
-        const remaining = endTime.current - now
+  const clearTimerInterval = useCallback(() => {
+    if (timerInterval.current) {
+      clearInterval(timerInterval.current)
+      timerInterval.current = null
+    }
+  }, [])
 
-        if (remaining <= 0) {
-          handleInterval()
-        } else {
-          remainingTime.current = remaining
-          updateDisplay(remaining)
-        }
+  const showFlashAlert = useCallback(() => {
+    if (alertTimeout.current) {
+      clearTimeout(alertTimeout.current)
+    }
+
+    setIsAlerting(true)
+    alertTimeout.current = window.setTimeout(() => {
+      setIsAlerting(false)
+      alertTimeout.current = null
+    }, 350)
+  }, [])
+
+  const getAudioContext = useCallback(() => {
+    if (audioContextRef.current) {
+      return audioContextRef.current
+    }
+
+    const AudioContextCtor =
+      window.AudioContext ??
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+
+    if (!AudioContextCtor) {
+      return null
+    }
+
+    audioContextRef.current = new AudioContextCtor()
+    return audioContextRef.current
+  }, [])
+
+  const unlockAudio = useCallback(async () => {
+    const context = getAudioContext()
+    if (!context) {
+      return false
+    }
+
+    let timeoutId: number | undefined
+
+    try {
+      if (context.state !== "running") {
+        await Promise.race([
+          context.resume(),
+          new Promise<void>((_, reject) => {
+            timeoutId = window.setTimeout(() => reject(new Error("Audio unlock timed out")), 800)
+          }),
+        ])
       }
-    }, 100)
-  }
+      return context.state === "running"
+    } catch {
+      return false
+    } finally {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [getAudioContext])
 
-  const handleInterval = () => {
-    if (timerInterval.current) clearInterval(timerInterval.current)
-
-    // Play sound alert if selected
-    if (alertType === "chime" && audioRef.current) {
-      audioRef.current.play().catch(console.error)
+  const playChime = useCallback(() => {
+    const context = audioContextRef.current
+    if (!context || context.state !== "running") {
+      if (timerStateRef.current.status !== "idle") {
+        setError("Audio is not ready yet. Tap Test Alert or restart the timer.")
+      }
+      return
     }
 
-    // Visual alert if selected
-    if (alertType === "flash") {
-      document.body.style.backgroundColor = "#ffffff"
-      setTimeout(() => {
-        document.body.style.backgroundColor = ""
-      }, 100)
+    const now = context.currentTime
+    const gain = context.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9)
+    gain.connect(context.destination)
+
+    const firstTone = context.createOscillator()
+    firstTone.type = "sine"
+    firstTone.frequency.setValueAtTime(784, now)
+    firstTone.connect(gain)
+    firstTone.start(now)
+    firstTone.stop(now + 0.32)
+
+    const secondTone = context.createOscillator()
+    secondTone.type = "sine"
+    secondTone.frequency.setValueAtTime(1046.5, now + 0.28)
+    secondTone.connect(gain)
+    secondTone.start(now + 0.28)
+    secondTone.stop(now + 0.9)
+  }, [])
+
+  const triggerAlert = useCallback(() => {
+    const alertType = settingsRef.current.alertType
+
+    if (alertType === "chime" || alertType === "both") {
+      playChime()
     }
 
-    // Calculate next interval
-    let intervalMs: number
-    if (intervalType === "preset" || intervalType === "custom") {
-      intervalMs = customInterval * 60 * 1000 // Convert minutes to milliseconds
-    } else {
-      // For areas mode, divide total time by number of areas
-      const totalTimeMs = remainingTime.current || 0
-      intervalMs = totalTimeMs / areasToMassage
+    if (alertType === "flash" || alertType === "both") {
+      showFlashAlert()
+    }
+  }, [playChime, showFlashAlert])
+
+  const tick = useCallback(() => {
+    const state = timerStateRef.current
+    if (state.status !== "running" || !state.endsAtMs) {
+      return
     }
 
-    // Set up next interval
-    endTime.current = Date.now() + intervalMs
-    remainingTime.current = intervalMs
-    startCountdown()
+    const now = Date.now()
+    const remainingMs = Math.max(0, state.endsAtMs - now)
+    let nextAlertAtMs = state.nextAlertAtMs
+    let shouldAlert = false
+
+    if (state.intervalMs && nextAlertAtMs && remainingMs > 0 && now >= nextAlertAtMs) {
+      shouldAlert = true
+      while (nextAlertAtMs && now >= nextAlertAtMs) {
+        nextAlertAtMs += state.intervalMs
+      }
+      if (nextAlertAtMs >= state.endsAtMs) {
+        nextAlertAtMs = null
+      }
+    }
+
+    if (remainingMs <= 0) {
+      clearTimerInterval()
+      const completedState: TimerState = {
+        ...state,
+        status: "complete",
+        remainingMs: 0,
+        endsAtMs: null,
+        nextAlertAtMs: null,
+        msUntilNextAlert: null,
+      }
+      timerStateRef.current = completedState
+      setTimerState(completedState)
+      triggerAlert()
+      return
+    }
+
+    const nextState = {
+      ...state,
+      remainingMs,
+      nextAlertAtMs,
+    }
+    timerStateRef.current = nextState
+    setTimerState(nextState)
+
+    if (shouldAlert) {
+      triggerAlert()
+    }
+  }, [clearTimerInterval, triggerAlert])
+
+  const startTicking = useCallback(() => {
+    clearTimerInterval()
+    timerInterval.current = setInterval(tick, 250)
+    window.setTimeout(tick, 0)
+  }, [clearTimerInterval, tick])
+
+  const updateSettings = (nextSettings: Partial<ChimerSettings>) => {
+    setError(null)
+    setSettings((current) => sanitizeChimerSettings({ ...current, ...nextSettings }) as ChimerSettings)
   }
 
   const openTimeModal = (unit: "hours" | "minutes") => {
@@ -129,139 +359,195 @@ export default function ChimerPage() {
     setShowTimeModal(true)
   }
 
-  const handleTimeSelection = (value: string) => {
-    setTimeDisplay(prev => ({
-      ...prev,
-      [selectedTimeUnit]: value.padStart(2, '0')
-    }))
+  const handleTimeSelection = (value: number) => {
+    updateSettings({ [selectedTimeUnit]: value })
     setShowTimeModal(false)
   }
 
-  const startTimer = () => {
-    // Convert display time to milliseconds
-    const hours = parseInt(timeDisplay.hours) * 60 * 60 * 1000
-    const minutes = parseInt(timeDisplay.minutes) * 60 * 1000
-    const totalTime = hours + minutes
+  const testAlert = async () => {
+    setError(null)
+    const alertType = settingsRef.current.alertType
+    if ((alertType === "chime" || alertType === "both") && !(await unlockAudio())) {
+      setError("Audio could not be started by this browser. Check site sound permissions and try Test Alert again.")
+      if (alertType === "both") {
+        showFlashAlert()
+      }
+      return
+    }
+    triggerAlert()
+  }
 
-    if (totalTime <= 0) {
-      alert("Please set a time greater than zero")
+  const startTimer = async () => {
+    const totalMs = getTotalTimerMs(settings.hours, settings.minutes)
+    if (totalMs <= 0) {
+      setError("Set a duration greater than zero.")
       return
     }
 
-    endTime.current = Date.now() + totalTime
-    remainingTime.current = totalTime
-    setIsTimerRunning(true)
-    setIsPaused(false)
-    startCountdown()
+    const alertType = settings.alertType
+    if ((alertType === "chime" || alertType === "both") && !(await unlockAudio())) {
+      setError("Audio could not be started by this browser. The timer will run, but the chime may not sound.")
+    } else {
+      setError(null)
+    }
+
+    const now = Date.now()
+    const intervalMs = getIntervalMs(settings, totalMs)
+    const nextAlertAtMs = intervalMs && intervalMs < totalMs ? now + intervalMs : null
+    const nextState: TimerState = {
+      status: "running",
+      totalMs,
+      remainingMs: totalMs,
+      endsAtMs: now + totalMs,
+      intervalMs,
+      nextAlertAtMs,
+      msUntilNextAlert: null,
+    }
+
+    timerStateRef.current = nextState
+    setTimerState(nextState)
+    startTicking()
   }
 
   const endTimer = () => {
-    if (timerInterval.current) clearInterval(timerInterval.current)
-    setIsTimerRunning(false)
+    clearTimerInterval()
+    if (alertTimeout.current) {
+      clearTimeout(alertTimeout.current)
+      alertTimeout.current = null
+    }
+    setError(null)
+    setIsAlerting(false)
+    timerStateRef.current = idleTimerState
+    setTimerState(idleTimerState)
     setIsFullscreen(false)
-    setTimeDisplay({ hours: "00", minutes: "00", seconds: "00" })
-    endTime.current = null
-    remainingTime.current = null
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined)
+    }
   }
 
-  const togglePause = () => {
-    setIsPaused(prev => {
-      if (!prev) { // Pausing
-        if (timerInterval.current) clearInterval(timerInterval.current)
-        if (endTime.current) {
-          remainingTime.current = endTime.current - Date.now()
-        }
-      } else { // Resuming
-        if (remainingTime.current) {
-          endTime.current = Date.now() + remainingTime.current
-          startCountdown()
-        }
+  const togglePause = useCallback(() => {
+    const state = timerStateRef.current
+
+    if (state.status === "running" && state.endsAtMs) {
+      const now = Date.now()
+      const pausedState: TimerState = {
+        ...state,
+        status: "paused",
+        remainingMs: Math.max(0, state.endsAtMs - now),
+        endsAtMs: null,
+        msUntilNextAlert: state.nextAlertAtMs ? Math.max(0, state.nextAlertAtMs - now) : null,
       }
-      return !prev
-    })
-  }
+      clearTimerInterval()
+      timerStateRef.current = pausedState
+      setTimerState(pausedState)
+      return
+    }
+
+    if (state.status === "paused") {
+      const now = Date.now()
+      const resumedState: TimerState = {
+        ...state,
+        status: "running",
+        endsAtMs: now + state.remainingMs,
+        nextAlertAtMs: state.msUntilNextAlert ? now + state.msUntilNextAlert : null,
+        msUntilNextAlert: null,
+      }
+      timerStateRef.current = resumedState
+      setTimerState(resumedState)
+      startTicking()
+    }
+  }, [clearTimerInterval, startTicking])
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen()
-      setIsFullscreen(true)
+      document.documentElement.requestFullscreen().catch(() => setError("Fullscreen is not available in this browser."))
     } else {
-      document.exitFullscreen()
-      setIsFullscreen(false)
+      document.exitFullscreen().catch(() => undefined)
     }
   }
 
-  const handleIncreaseFontSize = () => {
-    setFontSize(prev => Math.min(prev + 5, 40))
-  }
-
-  const handleDecreaseFontSize = () => {
-    setFontSize(prev => Math.max(prev - 5, 10))
-  }
-
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerInterval.current) clearInterval(timerInterval.current)
+      clearTimerInterval()
+      if (alertTimeout.current) {
+        clearTimeout(alertTimeout.current)
+      }
+      audioContextRef.current?.close().catch(() => undefined)
     }
-  }, [])
+  }, [clearTimerInterval])
+
+  const timeDisplay = formatDurationParts(timerState.remainingMs)
+  const isTimerActive = timerState.status !== "idle"
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="w-full bg-[#2d2d2d] p-5 rounded-lg shadow-lg">
-          {!isTimerRunning ? (
-            <SetTimer
-              timeDisplay={timeDisplay}
-              intervalType={intervalType}
-              customInterval={customInterval}
-              areasToMassage={areasToMassage}
-              alertType={alertType}
-              onTimeClick={openTimeModal}
-              onIntervalTypeChange={setIntervalType}
-              onCustomIntervalChange={setCustomInterval}
-              onAreasChange={setAreasToMassage}
-              onAlertTypeChange={setAlertType}
-              onStartTimer={startTimer}
-            />
-          ) : (
-            <RunningTimer
-              timeDisplay={timeDisplay}
-              currentTime={currentTime}
-              isPaused={isPaused}
-              isFullscreen={isFullscreen}
-              fontSize={fontSize}
-              onClose={endTimer}
-              onPause={togglePause}
-              onFullscreen={toggleFullscreen}
-              onIncreaseFontSize={handleIncreaseFontSize}
-              onDecreaseFontSize={handleDecreaseFontSize}
-            />
-          )}
+    <div className="relative min-h-screen overflow-hidden bg-[#050505] p-4 sm:p-6 lg:p-8">
+      {settings.movingBackgroundEnabled && !isTimerActive && (
+        <MovingBackground
+          mainColor={settings.movingBackgroundMainColor}
+          orbColor={settings.movingBackgroundOrbColor}
+        />
+      )}
+      <div className="relative z-10 mx-auto max-w-5xl">
+        {!isTimerActive ? (
+          <SetTimer
+            settings={settings}
+            totalDurationMs={totalDurationMs}
+            error={error}
+            onTimeClick={openTimeModal}
+            onSettingsChange={updateSettings}
+            onStartTimer={startTimer}
+            onTestAlert={testAlert}
+          />
+        ) : (
+          <RunningTimer
+            timeDisplay={timeDisplay}
+            currentTime={currentTime}
+            status={timerState.status as "running" | "paused" | "complete"}
+            isFullscreen={isFullscreen}
+            isAlerting={isAlerting}
+            fontSize={fontSize}
+            movingBackgroundEnabled={settings.movingBackgroundEnabled}
+            showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
+            showCurrentTimeAmPm={settings.showCurrentTimeAmPm}
+            movingBackgroundMainColor={settings.movingBackgroundMainColor}
+            movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
+            onClose={endTimer}
+            onPause={togglePause}
+            onFullscreen={toggleFullscreen}
+            onSettingsChange={updateSettings}
+            onIncreaseFontSize={() => setFontSize((current) => Math.min(current + 3, 34))}
+            onDecreaseFontSize={() => setFontSize((current) => Math.max(current - 3, 12))}
+          />
+        )}
 
-          <Dialog open={showTimeModal} onOpenChange={setShowTimeModal}>
-            <DialogContent className="bg-[#2a2a2a] border-[#444] p-6">
-              <DialogHeader>
-                <DialogTitle className="text-center text-xl">
-                  Set {selectedTimeUnit.charAt(0).toUpperCase() + selectedTimeUnit.slice(1)}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-4">
-                {Array.from({ length: selectedTimeUnit === 'hours' ? 24 : 60 }).map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleTimeSelection(i.toString())}
-                    className="p-3 bg-[#1a1a1a] hover:bg-[#FF7F50] text-white rounded-lg transition-colors"
-                  >
-                    {i.toString().padStart(2, '0')}
-                  </button>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Dialog open={showTimeModal} onOpenChange={setShowTimeModal}>
+          <DialogContent className="max-h-[80dvh] overflow-auto bg-[#202020] border-[#444] p-6">
+            <DialogHeader>
+              <DialogTitle className="text-center text-xl">
+                Set {selectedTimeUnit === "hours" ? "Hours" : "Minutes"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+              {Array.from({ length: selectedTimeUnit === "hours" ? 24 : 60 }).map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleTimeSelection(index)}
+                  className="rounded-md bg-[#141414] p-3 text-white transition-colors hover:bg-[#ff7043] focus:outline-none focus:ring-2 focus:ring-[#ff7043]"
+                >
+                  {index.toString().padStart(2, "0")}
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+        {isAlerting && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-x-0 top-0 bottom-[-4rem] z-[20000] bg-white"
+          />
+        )}
       </div>
     </div>
   )
 }
-
