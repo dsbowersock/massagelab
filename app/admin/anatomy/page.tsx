@@ -31,6 +31,17 @@ type AnatomyTermRow = {
   status: string
 }
 
+type CorrectionFlagRow = {
+  id: string
+  issueType: string
+  message: string
+  status: string
+  resolutionNote: string | null
+  term: {
+    preferredName: string
+  } | null
+}
+
 const TERM_KINDS = ["SYSTEM", "ORGAN", "TISSUE", "BONE", "MUSCLE", "JOINT", "NERVE", "VESSEL", "LIGAMENT", "TENDON", "CELL", "OTHER"]
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"]
 const STATUSES = ["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]
@@ -53,7 +64,7 @@ export default async function AnatomyAdminPage() {
     redirect("/account")
   }
 
-  const [terms, flags] = await Promise.all([
+  const [termRows, flagRows] = await Promise.all([
     prisma.anatomyTerm.findMany({
       select: {
         id: true,
@@ -79,6 +90,8 @@ export default async function AnatomyAdminPage() {
       take: 20,
     }),
   ])
+  const terms = termRows as AnatomyTermRow[]
+  const flags = flagRows as CorrectionFlagRow[]
 
   return (
     <AdminShell>
