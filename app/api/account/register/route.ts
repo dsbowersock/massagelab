@@ -57,9 +57,7 @@ export async function POST(request: Request) {
   const mailResult = await sendVerificationEmail(email, verificationToken)
 
   return NextResponse.json({
-    message: mailResult.delivered
-      ? "Check your email to verify your account."
-      : "Account created. Configure SMTP to send verification email.",
+    message: "Check your email to verify your account.",
     devLink: mailResult.devLink,
   })
 }

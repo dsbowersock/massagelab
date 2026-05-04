@@ -1,13 +1,13 @@
 import NextAuth, { CredentialsSignin } from "next-auth"
 import type { NextAuthConfig } from "next-auth"
-import type { Role } from "@prisma/client"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
-import { getGoogleAuthConfig } from "@/lib/auth-env"
+import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
 import { assertRateLimit, clearAttempts, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
 import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/auth-users"
+import type { AccountRole } from "@/lib/domain-types"
 import {
   decryptSecret,
   normalizeEmail,
@@ -16,8 +16,8 @@ import {
   verifyTotpCode,
 } from "@/lib/auth-security"
 
-if (!process.env.NEXTAUTH_URL && process.env.AUTH_URL) {
-  process.env.NEXTAUTH_URL = process.env.AUTH_URL
+if (!process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = getSiteUrl()
 }
 
 type LoginErrorCode =
@@ -149,7 +149,7 @@ if (googleAuthConfig) {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  secret: process.env.AUTH_SECRET,
+  secret: getAuthSecret(),
   session: {
     strategy: "jwt",
   },
@@ -187,13 +187,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         const sessionUser = session.user as {
           id: string
-          role: Role
+          role: AccountRole
           emailVerified: boolean
           twoFactorEnabled: boolean
         }
 
         sessionUser.id = String(token.id ?? token.sub ?? "")
-        sessionUser.role = (token.role ?? "USER") as Role
+        sessionUser.role = (token.role ?? "USER") as AccountRole
         sessionUser.emailVerified = Boolean(token.emailVerified)
         sessionUser.twoFactorEnabled = Boolean(token.twoFactorEnabled)
       }

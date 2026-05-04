@@ -7,7 +7,7 @@ type MailResult = {
 }
 
 function hasSmtpConfig() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM)
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && (!process.env.SMTP_USER || process.env.SMTP_PASSWORD))
 }
 
 async function sendMail(to: string, subject: string, text: string): Promise<MailResult> {
@@ -27,12 +27,17 @@ async function sendMail(to: string, subject: string, text: string): Promise<Mail
       : undefined,
   })
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to,
-    subject,
-    text,
-  })
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject,
+      text,
+    })
+  } catch (error) {
+    console.error("SMTP delivery failed", error)
+    return { delivered: false } satisfies MailResult
+  }
 
   return { delivered: true } satisfies MailResult
 }

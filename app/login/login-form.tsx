@@ -121,7 +121,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
           </Button>
         ) : (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
-            Add `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` to enable Google login.
+            Set the Google OAuth environment variables in Vercel to enable Google login.
           </div>
         )}
 

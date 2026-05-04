@@ -3,6 +3,8 @@ import { hasGoogleAuthConfig } from "@/lib/auth-env"
 import { PageHeading } from "@/components/ui/page-heading"
 import { LoginForm } from "./login-form"
 
+export const dynamic = "force-dynamic"
+
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">

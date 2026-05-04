@@ -10,11 +10,25 @@ const globalForPrisma = globalThis as unknown as {
 neonConfig.webSocketConstructor = ws
 
 function databaseUrl() {
-  if (!process.env.DATABASE_URL) {
+  const value = process.env.DATABASE_URL?.trim()
+
+  if (!value) {
     throw new Error("DATABASE_URL is required. Use the pooled Neon connection string for Prisma Client.")
   }
 
-  return process.env.DATABASE_URL
+  let url: URL
+
+  try {
+    url = new URL(value)
+  } catch {
+    throw new Error("DATABASE_URL must be a valid postgres:// or postgresql:// URL. Check the Vercel Production DATABASE_URL value.")
+  }
+
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new Error("DATABASE_URL must use the postgres:// or postgresql:// protocol. Check the Vercel Production DATABASE_URL value.")
+  }
+
+  return value
 }
 
 const adapter = new PrismaNeon({ connectionString: databaseUrl() })
