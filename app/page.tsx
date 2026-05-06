@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Brain, ClipboardList, Timer } from "lucide-react"
+import { Brain, ClipboardList, HeartHandshake, ShieldCheck, Timer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -14,7 +14,7 @@ const tools = [
   },
   {
     title: "Local-First Notes",
-    description: "SOAP notes and intake forms that stay on the user's device unless exported.",
+    description: "SOAP notes, intake forms, journals, and ROM data that stay on the user's device unless exported.",
     href: "/notes",
     action: "Open Notes",
     icon: ClipboardList,
@@ -39,7 +39,7 @@ export default function Home() {
             <p className="mb-3 text-sm font-medium uppercase tracking-normal text-[#ff7043]">Private alpha</p>
             <h1 className="mb-4 text-4xl font-bold tracking-normal">MassageLab</h1>
             <p className="text-lg text-muted-foreground">
-              Practical tools for massage therapists and students. Chimer is the first production-quality surface; PHI tools are local-first.
+              Practical tools for massage therapists, students, and clients. Clinical tools are local-first until compliant hosted sync is funded and reviewed.
             </p>
           </div>
 
@@ -67,6 +67,37 @@ export default function Home() {
               )
             })}
           </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+            <CardHeader>
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-[#ff7043]" />
+                <CardTitle>Local-first clinical boundary</CardTitle>
+              </div>
+              <CardDescription>
+                MassageLab does not host notes, journals, intake forms, or movement data in this alpha. Exported files stay under user control.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+            <CardHeader>
+              <div className="mb-3 flex items-center gap-2">
+                <HeartHandshake className="h-5 w-5 text-[#ff7043]" />
+                <CardTitle>Support compliant sync</CardTitle>
+              </div>
+              <CardDescription>
+                Memberships and donations will help fund HIPAA-capable infrastructure, BAAs, audit logging, security review, and future cross-device clinical sync.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline">
+                <Link href="/support">Open roadmap</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </section>
       </div>
     </div>

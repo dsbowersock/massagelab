@@ -29,8 +29,11 @@ describe("Account preference helpers", () => {
       notePreferences: {
         defaultNoteType: "soap",
         soapDraft: "client symptoms",
+        painJournal: [{ intensity: 8, notes: "neck pain" }],
+        romMeasurements: [{ movement: "rotation", degrees: 45 }],
         nested: {
           clientName: "Jane Example",
+          sensationJournal: "tingling",
           treatmentDetails: "session details",
           safeDefault: "include stretching prompt",
         },

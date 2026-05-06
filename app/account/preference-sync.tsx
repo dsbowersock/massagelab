@@ -94,7 +94,7 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        SOAP notes, intake contents, client names, dates of birth, and treatment details are not read from local storage or sent to your account.
+        SOAP notes, intake contents, journals, ROM measurements, client names, dates of birth, and treatment details are not read from local storage or sent to your account.
       </p>
       {status && <p className="text-sm text-muted-foreground">{status}</p>}
     </div>

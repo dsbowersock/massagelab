@@ -1,0 +1,324 @@
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html
+                          lang="en"
+                          className="overflow-hidden"
+-                         data-darkreader-proxy-injected="true"
+                        >
+                  ...
+ 
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/account" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html
+                          lang="en"
+                          className="overflow-hidden"
+-                         data-darkreader-mode="dynamic"
+-                         data-darkreader-scheme="dark"
+-                         data-darkreader-proxy-injected="true"
+                        >
+                          ...
+                            <div className="flex flex-...">
+                              ...
+                                <nav className="flex gap-2...">
+                                  <div className="flex gap-2...">
+                                    ...
+                                      <a className={"inline-f..."} ref={function} onClick={function onClick} ...>
+                                        <House className="h-4 w-4">
+                                          <svg
+                                            ref={null}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width={24}
+                                            height={24}
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="lucide lucide-house h-4 w-4"
+-                                           data-darkreader-inline-stroke=""
+-                                           style={{--darkreader-inline-stroke:"currentColor"}}
+                                          >
+                                    ...
+                                      <a className={"inline-f..."} ref={function} onClick={function onClick} ...>
+                                        <Timer className="h-4 w-4">
+                                          <svg
+                                            ref={null}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width={24}
+                                            height={24}
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="lucide lucide-timer h-4 w-4"
+-                                           data-darkreader-inline-stroke=""
+-                                           style={{--darkreader-inline-stroke:"currentColor"}}
+                                          >
+                                    ...
+                                      <a className={"inline-f..."} ref={function} onClick={function onClick} ...>
+                                        <FileText className="h-4 w-4">
+                                          <svg
+                                            ref={null}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width={24}
+                                            height={24}
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="lucide lucide-file-text h-4 w-4"
+-                                           data-darkreader-inline-stroke=""
+-                                           style={{--darkreader-inline-stroke:"currentColor"}}
+                                          >
+                                    ...
+                                      <a className={"inline-f..."} ref={function} onClick={function onClick} ...>
+                                        <Brain className="h-4 w-4">
+                                          <svg
+                                            ref={null}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width={24}
+                                            height={24}
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="lucide lucide-brain h-4 w-4"
+-                                           data-darkreader-inline-stroke=""
+-                                           style={{--darkreader-inline-stroke:"currentColor"}}
+                                          >
+                                  <div className="flex gap-2...">
+                                    ...
+                                      <a className={"inline-f..."} ref={function} onClick={function onClick} ...>
+                                        <UserRound className="h-4 w-4">
+                                          <svg
+                                            ref={null}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width={24}
+                                            height={24}
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="lucide lucide-user-round h-4 w-4"
+-                                           data-darkreader-inline-stroke=""
+-                                           style={{--darkreader-inline-stroke:"currentColor"}}
+                                          >
+                                    ...
+                                      <a className={"inline-f..."} ref={function} onClick={function onClick} ...>
+                                        <Settings className="h-4 w-4">
+                                          <svg
+                                            ref={null}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width={24}
+                                            height={24}
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="lucide lucide-settings h-4 w-4"
+-                                           data-darkreader-inline-stroke=""
+-                                           style={{--darkreader-inline-stroke:"currentColor"}}
+                                          >
+                              ...
+                                <div className="relative i...">
+                                  <MovingBackground className="pointer-ev..." testId="app-moving...">
+                                    <div aria-hidden="true" className="pointer-ev..." data-testid="app-moving...">
+                                      <div
+                                        className="massagelab-background-fallback"
+                                        style={{
++                                         --ml-background-main: "#FF7F50"
+-                                         --ml-background-main: "#FF7F50"
++                                         --ml-background-orb: "#4169E1"
+-                                         --ml-background-orb: "#4169E1"
+-                                         --darkreader-bg--ml-background-main: "var(--darkreader-background-ff7f50, #8..."
+-                                         --darkreader-bg--ml-background-orb: "var(--darkreader-background-4169e1, #23..."
+                                        }}
+                                      >
+                                      ...
+                                  ...
+                                  ...
+                                    <Card>
+                                      <div className="rounded-lg...">
+                                        <CardHeader>
+                                          <div className="flex flex-...">
+                                            <CardTitle>
+                                              <div className="text-2xl f...">
+                                                <UserRound>
+                                                  <>
+                                                    <svg
+                                                      xmlns="http://www.w3.org/2000/svg"
+                                                      width={24}
+                                                      height={24}
+                                                      viewBox="0 0 24 24"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      strokeWidth={2}
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      className="lucide lucide-user-round h-5 w-5 text-[#ff7043]"
+-                                                     data-darkreader-inline-stroke=""
+-                                                     style={{--darkreader-inline-stroke:"currentColor"}}
+                                                    >
+                                                ...
+                                            ...
+                                        ...
+                                          <button className={"inline-f..."} ref={null} type="button" ...>
+                                            <Cloud className="mr-2 h-4 w-4">
+                                              <svg
+                                                ref={null}
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                width={24}
+                                                height={24}
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth={2}
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                className="lucide lucide-cloud mr-2 h-4 w-4"
+-                                               data-darkreader-inline-stroke=""
+-                                               style={{--darkreader-inline-stroke:"currentColor"}}
+                                              >
+                                            ...
+                                    <Card>
+                                      <div className="rounded-lg...">
+                                        <CardHeader>
+                                          <div className="flex flex-...">
+                                            <CardTitle>
+                                              <div className="text-2xl f...">
+                                                <BadgeCheck>
+                                                  <>
+                                                    <svg
+                                                      xmlns="http://www.w3.org/2000/svg"
+                                                      width={24}
+                                                      height={24}
+                                                      viewBox="0 0 24 24"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      strokeWidth={2}
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      className="lucide lucide-badge-check h-5 w-5 text-[#ff7043]"
+-                                                     data-darkreader-inline-stroke=""
+-                                                     style={{--darkreader-inline-stroke:"currentColor"}}
+                                                    >
+                                                ...
+                                            ...
+                                        ...
+                                    <Card>
+                                      <div className="rounded-lg...">
+                                        <CardHeader>
+                                          <div className="p-6 flex f...">
+                                            <ShieldAlert>
+                                              <>
+                                                <svg
+                                                  xmlns="http://www.w3.org/2000/svg"
+                                                  width={24}
+                                                  height={24}
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  strokeWidth={2}
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  className="lucide lucide-shield-alert mt-1 h-5 w-5 text-[#ff7043]"
+-                                                 data-darkreader-inline-stroke=""
+-                                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                                >
+                                            ...
+                                        ...
+                                    <div>
+                                    <Card>
+                                      <div className="rounded-lg...">
+                                        <CardHeader>
+                                          <div className="flex flex-...">
+                                            <CardTitle>
+                                              <div className="text-2xl f...">
+                                                <Shield>
+                                                  <>
+                                                    <svg
+                                                      xmlns="http://www.w3.org/2000/svg"
+                                                      width={24}
+                                                      height={24}
+                                                      viewBox="0 0 24 24"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      strokeWidth={2}
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      className="lucide lucide-shield h-5 w-5 text-[#ff7043]"
+-                                                     data-darkreader-inline-stroke=""
+-                                                     style={{--darkreader-inline-stroke:"currentColor"}}
+                                                    >
+                                                ...
+                                            ...
+                                        ...
+                  ...
+ 

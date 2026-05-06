@@ -1,7 +1,7 @@
 "use client"
 
 import { ChangeEvent, useEffect, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Download, FileText, FolderOpen, Save, ShieldCheck } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, FileText, FolderOpen, Printer, Save, ShieldCheck } from "lucide-react"
 import { Assessment } from "./components/assessment"
 import { BodyDiagram } from "./components/body-diagram"
 import { IdentifyingInfo } from "./components/identifying-info"
@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
+  createEditableDocumentHtml,
   createLocalDocumentExport,
   createLocalDocumentFilename,
   parseLocalDocumentJson,
@@ -123,6 +124,19 @@ function downloadFile(filename: string, content: string, type: string) {
   anchor.download = filename
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+function openPrintDocument(html: string) {
+  const printWindow = window.open("", "_blank", "noopener,noreferrer")
+  if (!printWindow) {
+    return false
+  }
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.print()
+  return true
 }
 
 function formatLine(label: string, value: unknown) {
@@ -243,6 +257,27 @@ export default function SoapNotesPage() {
     setMessage("Exported a user-controlled text file. MassageLab did not upload this note.")
   }
 
+  const exportDoc = () => {
+    const filename = createLocalDocumentFilename({
+      prefix: "massagelab-soap",
+      subject: formData.clientName,
+      extension: "doc",
+    })
+    downloadFile(
+      filename,
+      createEditableDocumentHtml({ title: "MassageLab SOAP Note", body: generateSoapText(formData) }),
+      "application/msword",
+    )
+    setMessage("Exported an editable document. MassageLab did not upload this note.")
+  }
+
+  const printPdf = () => {
+    const opened = openPrintDocument(
+      createEditableDocumentHtml({ title: "MassageLab SOAP Note", body: generateSoapText(formData) }),
+    )
+    setMessage(opened ? "Opened a print view. Choose Save as PDF in your browser to export a PDF." : "Could not open the print view.")
+  }
+
   const importJson = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -342,6 +377,14 @@ export default function SoapNotesPage() {
                     <Button variant="outline" type="button" onClick={exportText}>
                       <FileText className="mr-2 h-4 w-4" />
                       Export Text
+                    </Button>
+                    <Button variant="outline" type="button" onClick={exportDoc}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export DOC
+                    </Button>
+                    <Button variant="outline" type="button" onClick={printPdf}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Save PDF
                     </Button>
                     <Button className="bg-[#ff7043] hover:bg-[#f4511e]" type="button" onClick={exportJson}>
                       <Download className="mr-2 h-4 w-4" />
