@@ -41,7 +41,9 @@ export default function RegisterPage() {
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle>Email account</CardTitle>
-            <CardDescription>Verify your email before signing in. Authenticator-app 2FA can be enabled after registration.</CardDescription>
+            <CardDescription>
+              Verify your email before signing in. If you already used Google, sign in and set an email password from Security.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -67,9 +69,14 @@ export default function RegisterPage() {
                 Development verification link: <Link className="underline" href={devLink}>{devLink}</Link>
               </p>
             )}
-            <Link href="/login" className="text-sm text-[#ffb199] underline-offset-4 hover:underline">
-              Back to login
-            </Link>
+            <div className="flex flex-wrap gap-4 text-sm text-[#ffb199]">
+              <Link href="/login" className="underline-offset-4 hover:underline">
+                Back to login
+              </Link>
+              <Link href="/forgot-password" className="underline-offset-4 hover:underline">
+                Set or reset password
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

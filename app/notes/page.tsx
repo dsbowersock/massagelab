@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { ClipboardList, FileText, ShieldCheck } from "lucide-react"
+import { Activity, ClipboardList, FileText, HeartPulse, ShieldCheck } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeading } from "@/components/ui/page-heading"
 
@@ -18,13 +19,26 @@ const noteTypes = [
     href: "/notes/intake",
     available: true,
   },
+  {
+    title: "Client Journal",
+    description: "Track pain, sensation, and incidents as local-first entries.",
+    icon: HeartPulse,
+    href: "/notes/journal",
+    available: true,
+  },
+  {
+    title: "Range of Motion",
+    description: "Capture manual or phone-orientation movement measurements locally.",
+    icon: Activity,
+    href: "/notes/rom",
+    available: true,
+  },
 ]
 
 const plannedTools = [
   "Postural assessment",
   "Muscle testing",
   "Gait assessment",
-  "Range of motion testing",
   "Orthopedic tests",
 ]
 
@@ -40,7 +54,7 @@ export default function NotesPage() {
             <div>
               <CardTitle>PHI stays under user control</CardTitle>
               <CardDescription>
-                MassageLab does not upload notes or intake forms in this alpha. Users are responsible for how exported files are stored or shared.
+                MassageLab does not upload notes, intake forms, journals, or movement data in this alpha. Users are responsible for how exported files are stored or shared.
               </CardDescription>
             </div>
           </CardHeader>
@@ -67,6 +81,20 @@ export default function NotesPage() {
             )
           })}
         </div>
+
+        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <CardHeader>
+            <CardTitle>Future compliant sync</CardTitle>
+            <CardDescription>
+              Cross-device clinical sync is planned, but hosted clinical data stays disabled until MassageLab can pay for compliant infrastructure, signed BAAs, risk review, audit controls, and PHI-safe operations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/support">Support the sync roadmap</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card className="border-neutral-800 bg-[#202020]/90 backdrop-blur">
           <CardHeader>

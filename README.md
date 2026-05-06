@@ -5,24 +5,39 @@ MassageLab is a private-alpha toolkit for massage therapists and students. The f
 ## Current Alpha
 
 - Chimer: treatment-room timer with local preference persistence, pause/resume, fullscreen mode, current-time display, font sizing, and interval alerts.
-- Local-first documentation: SOAP notes and intake forms can be saved as browser-local drafts, imported from MassageLab JSON files, and exported as user-controlled files.
+- Local-first documentation: SOAP notes, intake forms, client journals, and ROM/movement sessions can be saved as browser-local drafts, imported from MassageLab JSON files, and exported as user-controlled files.
 - Anatomime: classroom anatomy game backed by the local bones-and-muscles anatomy content, with Prisma-backed anatomy publishing work in progress.
-- Optional accounts: Auth.js and Prisma support preference sync, therapist profile defaults, templates, roles, 2FA, and learning/progress data only.
+- Optional accounts: Auth.js and Prisma support preference sync, therapist profile defaults, templates, multi-role account state, credential verification requests, 2FA, and learning/progress data only.
 - Admin anatomy tools: account-gated anatomy content and correction workflows are present for editor/admin use.
 - Music tools and managed HIPAA storage are intentionally out of alpha scope until their workflows are reviewed, hardened, and legally/compliance reviewed.
 
 ## PHI Posture
 
-SOAP notes, intake forms, and other PHI-bearing workflows are designed to keep data under the user's control.
+SOAP notes, intake forms, journals, ROM measurements, and other PHI-bearing or health-sensitive workflows are designed to keep data under the user's control.
 
 - SOAP drafts stay in the current browser under `massagelab-soap-draft`.
 - Intake drafts stay in the current browser under `massagelab-intake-draft`.
+- Journal drafts stay in the current browser under `massagelab-client-journal-draft`.
+- ROM drafts stay in the current browser under `massagelab-rom-session-draft`.
 - SOAP exports use `schemaVersion: 1` and `noteType: "soap"`.
 - Intake exports use `schemaVersion: 1` and `formType: "intake"`.
+- Journal exports use `schemaVersion: 1` and `documentType: "client-journal"`.
+- ROM exports use `schemaVersion: 1` and `documentType: "rom-session"`.
+- Local clinical tools support structured JSON, editable DOC, and browser print-to-PDF export paths.
 - Exported files are the user's responsibility to store, transmit, or back up appropriately.
-- Account sync must not include SOAP note or intake form content.
+- Account sync must not include SOAP note, intake form, journal, ROM, client, or treatment content.
 
-Future managed HIPAA-compliant storage should be treated as a separate paid product. It must include legal and compliance review, BAAs, access controls, audit logging, encryption, incident response, and operational policies before implementation.
+Future managed HIPAA-compliant storage should be treated as a separate paid product. It must include legal and compliance review, BAAs, access controls, audit logging, encryption, incident response, PHI-safe logging/email rules, and operational policies before implementation.
+
+Hosted clinical sync is hard-disabled unless all of these environment flags are set:
+
+```text
+MASSAGELAB_ENABLE_HOSTED_PHI_SYNC=true
+MASSAGELAB_HIPAA_BAA_CONFIRMED=true
+MASSAGELAB_HIPAA_RISK_REVIEW_CONFIRMED=true
+```
+
+Even when those flags are set, the current API returns `501` because hosted clinical storage is not implemented yet.
 
 ## Getting Started
 
@@ -41,11 +56,11 @@ npm run dev
 
 Open http://localhost:3000.
 
-Anonymous use should work for Chimer, Anatomime, SOAP notes, and intake forms.
+Anonymous use should work for Chimer, Anatomime, SOAP notes, intake forms, client journals, and ROM tools.
 
 ## Accounts, Auth.js, And Prisma
 
-Accounts are optional for alpha use. They enable preference sync, therapist profile defaults, note/form templates, learning progress, roles, and account security features.
+Accounts are optional for alpha use. They enable preference sync, therapist profile defaults, note/form templates, learning progress, multi-role account state, credential verification requests, and account security features.
 
 1. Create a Neon project and copy its connection strings.
 2. Copy `.env.example` to `.env.local`.
@@ -91,6 +106,8 @@ npm run anatomy:seed
 ```
 
 Email/password accounts require verification and support password reset through the configured SMTP server. Emails listed in `ADMIN_EMAILS` are granted the `ADMIN` role when they sign in or register. Authenticator-app 2FA is available from `/account/security` after sign-in; backup codes are shown once and stored only as hashes.
+
+Student and licensed therapist roles can be requested from `/account`. Requests are stored as pending credential verification records. Ohio has a public lookup source configured as the first verifier reference; other jurisdictions fall back to pending/manual review until a reliable adapter exists.
 
 If the account already exists and `ADMIN_EMAILS` was added later, grant the role manually:
 
@@ -140,7 +157,7 @@ Do not run migrations from `next build`.
 ## Near-Term Direction
 
 1. Keep Chimer as the production-quality alpha surface and continue manual browser checks across desktop and mobile.
-2. Keep SOAP and intake local-first while validating import/export with anonymous sample files.
+2. Keep SOAP, intake, journals, and ROM tools local-first while validating import/export with anonymous sample files.
 3. Expand the shared anatomy dataset for Anatomime, flashcards, SOAP assistance, and study tools.
 4. Wire tools to read published anatomy content from Prisma with the local content module as fallback.
 5. Add direct cloud-provider export only after the local file model is stable.

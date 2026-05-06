@@ -23,7 +23,10 @@ export async function POST(request: Request) {
   const existingUser = await prisma.user.findUnique({ where: { email } })
   if (existingUser) {
     await recordFailedAttempt("REGISTER", key)
-    return NextResponse.json({ message: "An account already exists for that email." }, { status: 409 })
+    return NextResponse.json(
+      { message: "An account already exists for that email. Sign in instead, or use forgot password to set or reset an email password." },
+      { status: 409 },
+    )
   }
 
   const verificationToken = generateRandomToken()

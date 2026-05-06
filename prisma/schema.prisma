@@ -8,6 +8,9 @@ datasource db {
 
 enum Role {
   USER
+  STUDENT
+  LICENSED_THERAPIST
+  CLIENT
   EDITOR
   ADMIN
 }
@@ -60,6 +63,64 @@ enum CorrectionFlagStatus {
   REJECTED
 }
 
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  EXPIRED
+  REJECTED
+  REVOKED
+}
+
+enum CredentialKind {
+  MASSAGE_LICENSE
+  STUDENT_ENROLLMENT
+  INTERSTATE_MASSAGE_COMPACT
+  MANUAL_REVIEW
+}
+
+enum VerificationSourceType {
+  SELF_ATTESTATION
+  STATE_LICENSE_LOOKUP
+  DOCUMENT_REVIEW
+  MANUAL_REVIEW
+  COMPACT_REGISTRY
+}
+
+enum JurisdictionSupportStatus {
+  ADAPTER_AVAILABLE
+  PUBLIC_LOOKUP_AVAILABLE
+  MANUAL_REVIEW_REQUIRED
+  PLANNED
+  UNSUPPORTED
+}
+
+enum TherapistClientStatus {
+  INVITED
+  ACTIVE
+  PAUSED
+  REVOKED
+}
+
+enum ClinicalArtifactKind {
+  SOAP_NOTE
+  INTAKE_FORM
+  PAIN_JOURNAL
+  SENSATION_JOURNAL
+  INCIDENT_JOURNAL
+  ROM_MEASUREMENT
+  MOVEMENT_SESSION
+}
+
+enum ClinicalArtifactStatus {
+  LOCAL_ONLY
+  DRAFT
+  FINALIZED
+  RELEASE_REQUESTED
+  RELEASED
+  ARCHIVED
+}
+
 model User {
   id                    String                   @id @default(cuid())
   name                  String?
@@ -69,6 +130,7 @@ model User {
   accounts              Account[]
   sessions              Session[]
   roles                 UserRole[]
+  grantedRoles          UserRole[]                @relation("GrantedUserRoles")
   profile               UserProfile?
   preference            UserPreference?
   passwordCredential    PasswordCredential?
@@ -81,6 +143,16 @@ model User {
   noteTemplates         NoteTemplate[]
   formTemplates         FormTemplate[]
   documentationPreference DocumentationPreference?
+  credentialVerifications CredentialVerification[] @relation("CredentialVerificationUser")
+  verifiedCredentialClaims VerifiedCredentialClaim[]
+  reviewedCredentialVerifications CredentialVerification[] @relation("CredentialVerificationReviewer")
+  therapistRelationships TherapistClientRelationship[] @relation("TherapistClientRelationships")
+  clientRelationships   TherapistClientRelationship[] @relation("ClientClientRelationships")
+  authoredClinicalArtifactManifests ClinicalArtifactManifest[] @relation("ClinicalArtifactAuthor")
+  subjectClinicalArtifactManifests ClinicalArtifactManifest[] @relation("ClinicalArtifactSubject")
+  therapistClinicalArtifactManifests ClinicalArtifactManifest[] @relation("ClinicalArtifactTherapist")
+  clinicalAuditLogs     ClinicalAccessAuditLog[]  @relation("ClinicalAuditActor")
+  clinicalAuditTargets  ClinicalAccessAuditLog[]  @relation("ClinicalAuditTarget")
   correctionFlags       AnatomyCorrectionFlag[]  @relation("CorrectionFlagCreator")
   reviewedFlags         AnatomyCorrectionFlag[]  @relation("CorrectionFlagReviewer")
   createdTerms          AnatomyTerm[]            @relation("AnatomyTermCreator")
@@ -177,13 +249,24 @@ model BackupCode {
 }
 
 model UserRole {
-  id        String   @id @default(cuid())
-  userId    String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String             @id @default(cuid())
+  userId      String
+  role        Role               @default(USER)
+  status      VerificationStatus @default(VERIFIED)
+  source      String             @default("system")
+  metadata    Json               @default("{}")
+  verifiedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  grantedById String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy   User?              @relation("GrantedUserRoles", fields: [grantedById], references: [id], onDelete: SetNull)
 
   @@unique([userId, role])
+  @@index([role, status])
+  @@index([userId, status])
 }
 
 model UserProfile {
@@ -197,6 +280,144 @@ model UserProfile {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CredentialVerification {
+  id                  String                 @id @default(cuid())
+  userId              String
+  kind                CredentialKind
+  role                Role?
+  status              VerificationStatus     @default(PENDING)
+  jurisdictionCode    String?
+  credentialNumber    String?
+  issuingAuthority    String?
+  displayLabel        String?
+  sourceType          VerificationSourceType @default(SELF_ATTESTATION)
+  sourceUrl           String?
+  evidenceDescription String?
+  verificationPayload Json                   @default("{}")
+  checkedAt           DateTime?
+  verifiedAt          DateTime?
+  expiresAt           DateTime?
+  rejectedAt          DateTime?
+  revokedAt           DateTime?
+  reviewedById        String?
+  reviewNote          String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  user                User                   @relation("CredentialVerificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer            User?                  @relation("CredentialVerificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, kind, jurisdictionCode, credentialNumber])
+  @@index([userId, kind, status])
+  @@index([jurisdictionCode, status])
+  @@index([role, status])
+}
+
+model VerifiedCredentialClaim {
+  id                         String         @id @default(cuid())
+  userId                     String
+  kind                       CredentialKind
+  jurisdictionCode           String
+  normalizedCredentialNumber String
+  credentialVerificationId   String?
+  source                     String
+  claimedAt                  DateTime       @default(now())
+  expiresAt                  DateTime?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  user                       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, jurisdictionCode, normalizedCredentialNumber])
+  @@index([userId, kind])
+  @@index([credentialVerificationId])
+}
+
+model JurisdictionVerifier {
+  id              String                    @id @default(cuid())
+  jurisdictionCode String                   @unique
+  jurisdictionName String
+  countryCode     String                    @default("US")
+  massageBoardName String?
+  lookupUrl       String?
+  supportStatus   JurisdictionSupportStatus @default(MANUAL_REVIEW_REQUIRED)
+  compactEligible Boolean                   @default(false)
+  compactStatus   String?
+  notes           String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([countryCode, supportStatus])
+}
+
+model TherapistClientRelationship {
+  id            String                 @id @default(cuid())
+  therapistUserId String
+  clientUserId  String?
+  clientEmail   String?
+  status        TherapistClientStatus  @default(INVITED)
+  invitedAt     DateTime               @default(now())
+  acceptedAt    DateTime?
+  pausedAt      DateTime?
+  revokedAt     DateTime?
+  metadata      Json                   @default("{}")
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  therapist     User                   @relation("TherapistClientRelationships", fields: [therapistUserId], references: [id], onDelete: Cascade)
+  client        User?                  @relation("ClientClientRelationships", fields: [clientUserId], references: [id], onDelete: SetNull)
+  clinicalArtifactManifests ClinicalArtifactManifest[]
+
+  @@unique([therapistUserId, clientUserId])
+  @@index([therapistUserId, status])
+  @@index([clientUserId, status])
+  @@index([clientEmail])
+}
+
+model ClinicalArtifactManifest {
+  id             String                 @id @default(cuid())
+  kind           ClinicalArtifactKind
+  status         ClinicalArtifactStatus @default(LOCAL_ONLY)
+  schemaVersion  Int                    @default(1)
+  localDocumentId String
+  authorUserId   String?
+  subjectUserId  String?
+  therapistUserId String?
+  relationshipId String?
+  finalizedAt    DateTime?
+  releaseRequestedAt DateTime?
+  releasedAt     DateTime?
+  metadata       Json                   @default("{}")
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  author         User?                  @relation("ClinicalArtifactAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  subject        User?                  @relation("ClinicalArtifactSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  therapist      User?                  @relation("ClinicalArtifactTherapist", fields: [therapistUserId], references: [id], onDelete: SetNull)
+  relationship   TherapistClientRelationship? @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  auditLogs      ClinicalAccessAuditLog[]
+
+  @@unique([localDocumentId])
+  @@index([authorUserId, kind])
+  @@index([subjectUserId, kind])
+  @@index([therapistUserId, status])
+  @@index([relationshipId, status])
+}
+
+model ClinicalAccessAuditLog {
+  id                 String   @id @default(cuid())
+  actorUserId        String?
+  targetUserId       String?
+  clinicalArtifactId String?
+  action             String
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now())
+  actor              User?    @relation("ClinicalAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  target             User?    @relation("ClinicalAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  clinicalArtifact   ClinicalArtifactManifest? @relation(fields: [clinicalArtifactId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([clinicalArtifactId, createdAt])
+  @@index([action, createdAt])
 }
 
 model UserPreference {

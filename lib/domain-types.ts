@@ -1,4 +1,17 @@
-export type AccountRole = "USER" | "EDITOR" | "ADMIN"
+export type AccountRole = "USER" | "STUDENT" | "LICENSED_THERAPIST" | "CLIENT" | "EDITOR" | "ADMIN"
+
+export type VerificationStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "EXPIRED" | "REJECTED" | "REVOKED"
+
+export type CredentialKind = "MASSAGE_LICENSE" | "STUDENT_ENROLLMENT" | "INTERSTATE_MASSAGE_COMPACT" | "MANUAL_REVIEW"
+
+export type AccountCapabilities = {
+  canAdministerAccounts: boolean
+  canManageAnatomyContent: boolean
+  canManageClients: boolean
+  canRequestCredentials: boolean
+  canUseLocalClinicalTools: boolean
+  hostedClinicalSyncEnabled: boolean
+}
 
 export type AuthAttemptPurpose = "LOGIN" | "REGISTER" | "PASSWORD_RESET" | "TWO_FACTOR"
 

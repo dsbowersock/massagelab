@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   LocalDocumentError,
+  createEditableDocumentHtml,
   createFilenameSlug,
   createLocalDocumentExport,
   createLocalDocumentFilename,
@@ -47,6 +48,18 @@ describe("Local document helpers", () => {
       clientName: "Jane Doe",
       exportedAt: "2026-05-03T12:00:00.000Z",
     })
+  })
+
+  it("creates escaped editable document HTML for DOC and print exports", () => {
+    const html = createEditableDocumentHtml({
+      title: "SOAP <Note>",
+      body: "Client: Jane & symptoms",
+      generatedAt: "2026-05-03T12:00:00.000Z",
+    })
+
+    assert.match(html, /SOAP &lt;Note&gt;/)
+    assert.match(html, /Jane &amp; symptoms/)
+    assert.match(html, /Local-first export/)
   })
 
   it("merges imported documents into the known local schema defaults", () => {

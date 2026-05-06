@@ -4,10 +4,11 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
+import { googleProfileEmail, isVerifiedGoogleProfile } from "@/lib/auth-account-linking"
 import { getAuthSecret, getGoogleAuthConfig, getSiteUrl } from "@/lib/auth-env"
 import { assertRateLimit, clearAttempts, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
 import { ensureGoogleUserState, ensureUserRole, getUserAuthState } from "@/lib/auth-users"
-import type { AccountRole } from "@/lib/domain-types"
+import type { AccountCapabilities, AccountRole, VerificationStatus } from "@/lib/domain-types"
 import {
   decryptSecret,
   normalizeEmail,
@@ -143,6 +144,17 @@ if (googleAuthConfig) {
     GoogleProvider({
       clientId: googleAuthConfig.clientId,
       clientSecret: googleAuthConfig.clientSecret,
+      allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        const email = googleProfileEmail(profile)
+
+        return {
+          id: String(profile.sub),
+          name: typeof profile.name === "string" ? profile.name : email,
+          email,
+          image: typeof profile.picture === "string" ? profile.picture : null,
+        }
+      },
     }),
   )
 }
@@ -159,7 +171,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers,
   callbacks: {
-    async signIn() {
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") {
+        return isVerifiedGoogleProfile(profile)
+      }
+
       return true
     },
     async jwt({ token, user, account }) {
@@ -177,6 +193,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const state = await getUserAuthState(userId)
         token.id = userId
         token.role = state.role
+        token.roles = state.roles
+        token.roleAssignments = state.roleAssignments
+        token.capabilities = state.capabilities
         token.emailVerified = state.emailVerified
         token.twoFactorEnabled = state.twoFactorEnabled
       }
@@ -188,12 +207,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const sessionUser = session.user as {
           id: string
           role: AccountRole
+          roles: AccountRole[]
+          roleAssignments: Array<{ role: AccountRole; status: VerificationStatus }>
+          capabilities: AccountCapabilities
           emailVerified: boolean
           twoFactorEnabled: boolean
         }
 
         sessionUser.id = String(token.id ?? token.sub ?? "")
         sessionUser.role = (token.role ?? "USER") as AccountRole
+        sessionUser.roles = Array.isArray(token.roles) ? (token.roles as AccountRole[]) : [sessionUser.role]
+        sessionUser.roleAssignments = Array.isArray(token.roleAssignments)
+          ? (token.roleAssignments as Array<{ role: AccountRole; status: VerificationStatus }>)
+          : sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
+        sessionUser.capabilities = (token.capabilities ?? {
+          canAdministerAccounts: sessionUser.role === "ADMIN",
+          canManageAnatomyContent: sessionUser.role === "ADMIN" || sessionUser.role === "EDITOR",
+          canManageClients: false,
+          canRequestCredentials: true,
+          canUseLocalClinicalTools: true,
+          hostedClinicalSyncEnabled: false,
+        }) as AccountCapabilities
         sessionUser.emailVerified = Boolean(token.emailVerified)
         sessionUser.twoFactorEnabled = Boolean(token.twoFactorEnabled)
       }

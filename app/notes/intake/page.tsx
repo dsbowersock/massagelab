@@ -1,7 +1,7 @@
 "use client"
 
 import { ChangeEvent, useEffect, useRef, useState } from "react"
-import { Download, FolderOpen, Save, ShieldCheck } from "lucide-react"
+import { Download, FileText, FolderOpen, Printer, Save, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  createEditableDocumentHtml,
   createLocalDocumentExport,
   createLocalDocumentFilename,
   parseLocalDocumentJson,
@@ -35,9 +36,11 @@ const emptyIntakeForm = {
 type IntakeFormData = typeof emptyIntakeForm
 
 function downloadJson(filename: string, data: IntakeFormData) {
-  const blob = new Blob([JSON.stringify(createLocalDocumentExport(data), null, 2)], {
-    type: "application/json",
-  })
+  downloadFile(filename, JSON.stringify(createLocalDocumentExport(data), null, 2), "application/json")
+}
+
+function downloadFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
@@ -46,12 +49,58 @@ function downloadJson(filename: string, data: IntakeFormData) {
   URL.revokeObjectURL(url)
 }
 
-function filenameForIntake(data: IntakeFormData) {
+function filenameForIntake(data: IntakeFormData, extension = "json") {
   return createLocalDocumentFilename({
     prefix: "massagelab-intake",
     subject: data.clientName,
-    extension: "json",
+    extension,
   })
+}
+
+function formatLine(label: string, value: string) {
+  return value ? `${label}: ${value}` : `${label}:`
+}
+
+function generateIntakeText(data: IntakeFormData) {
+  return [
+    "MassageLab Intake Form",
+    "Local-first export. User is responsible for PHI storage and sharing.",
+    "",
+    formatLine("Client", data.clientName),
+    formatLine("Date of birth", data.dateOfBirth),
+    formatLine("Phone", data.phone),
+    formatLine("Email", data.email),
+    formatLine("Emergency contact", data.emergencyContact),
+    formatLine("Physician", data.physician),
+    "",
+    "Current Conditions",
+    data.currentConditions,
+    "",
+    "Medications",
+    data.medications,
+    "",
+    "Contraindications / Precautions",
+    data.contraindications,
+    "",
+    "Session Goals",
+    data.goals,
+    "",
+    "Additional Notes",
+    data.notes,
+  ].join("\n")
+}
+
+function openPrintDocument(html: string) {
+  const printWindow = window.open("", "_blank", "noopener,noreferrer")
+  if (!printWindow) {
+    return false
+  }
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.print()
+  return true
 }
 
 export default function IntakePage() {
@@ -86,6 +135,22 @@ export default function IntakePage() {
   const exportForm = () => {
     downloadJson(filenameForIntake(formData), formData)
     setMessage("Exported a user-controlled JSON file. MassageLab did not upload this form.")
+  }
+
+  const exportDoc = () => {
+    downloadFile(
+      filenameForIntake(formData, "doc"),
+      createEditableDocumentHtml({ title: "MassageLab Intake Form", body: generateIntakeText(formData) }),
+      "application/msword",
+    )
+    setMessage("Exported an editable document. MassageLab did not upload this form.")
+  }
+
+  const printPdf = () => {
+    const opened = openPrintDocument(
+      createEditableDocumentHtml({ title: "MassageLab Intake Form", body: generateIntakeText(formData) }),
+    )
+    setMessage(opened ? "Opened a print view. Choose Save as PDF in your browser to export a PDF." : "Could not open the print view.")
   }
 
   const importForm = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -192,6 +257,14 @@ export default function IntakePage() {
               <Button type="button" className="bg-[#ff7043] hover:bg-[#f4511e]" onClick={exportForm}>
                 <Download className="mr-2 h-4 w-4" />
                 Export JSON
+              </Button>
+              <Button type="button" variant="outline" onClick={exportDoc}>
+                <FileText className="mr-2 h-4 w-4" />
+                Export DOC
+              </Button>
+              <Button type="button" variant="outline" onClick={printPdf}>
+                <Printer className="mr-2 h-4 w-4" />
+                Save PDF
               </Button>
             </div>
             {message && <p className="text-sm text-[#ffb199]">{message}</p>}
