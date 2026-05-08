@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   CHIMER_STORAGE_KEY,
   DEFAULT_CHIMER_SETTINGS,
+  formatCurrentTimeParts,
   formatDurationParts,
   getIntervalMs,
   getTotalTimerMs,
@@ -16,6 +17,12 @@ import { MovingBackground } from "./moving-background"
 import { RunningTimer } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
+type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
+
+type CurrentTimeParts = {
+  time: string
+  meridiem: string
+}
 
 interface TimerState {
   status: TimerStatus
@@ -37,11 +44,19 @@ const idleTimerState: TimerState = {
   msUntilNextAlert: null,
 }
 
+function hasSavedPreference(value: unknown) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length > 0)
+}
+
+function areChimerSettingsEqual(left: ChimerSettings, right: ChimerSettings) {
+  return JSON.stringify(sanitizeChimerSettings(left)) === JSON.stringify(sanitizeChimerSettings(right))
+}
+
 export default function ChimerPage() {
   const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
   const [timerState, setTimerState] = useState<TimerState>(idleTimerState)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [currentTime, setCurrentTime] = useState("")
+  const [currentTime, setCurrentTime] = useState<CurrentTimeParts>({ time: "", meridiem: "" })
   const [showTimeModal, setShowTimeModal] = useState(false)
   const [selectedTimeUnit, setSelectedTimeUnit] = useState<"hours" | "minutes">("minutes")
   const [fontSize, setFontSize] = useState(20)
@@ -49,6 +64,9 @@ export default function ChimerPage() {
   const [isAlerting, setIsAlerting] = useState(false)
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [canSync, setCanSync] = useState(false)
+  const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>("checking")
+  const [accountSettings, setAccountSettings] = useState<ChimerSettings | null>(null)
+  const [isResolvingSync, setIsResolvingSync] = useState(false)
 
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)
@@ -90,7 +108,7 @@ export default function ChimerPage() {
       return nextSettings
     }
 
-    async function syncAccountSettings() {
+    async function syncAccountSettings(localSettings: ChimerSettings) {
       try {
         const response = await fetchWithTimeout("/api/account/preferences")
 
@@ -100,6 +118,7 @@ export default function ChimerPage() {
 
         if (!response.ok) {
           setCanSync(false)
+          setAccountSyncStatus("local")
           return
         }
 
@@ -109,23 +128,45 @@ export default function ChimerPage() {
           return
         }
 
-        setCanSync(true)
-
-        if (preferences.chimerSettings && typeof preferences.chimerSettings === "object") {
+        if (hasSavedPreference(preferences.chimerSettings)) {
           const nextSettings = sanitizeChimerSettings(preferences.chimerSettings) as ChimerSettings
-          setSettings(nextSettings)
-          window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+          if (areChimerSettingsEqual(localSettings, nextSettings)) {
+            setSettings(nextSettings)
+            window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
+            setCanSync(true)
+            setAccountSyncStatus("synced")
+            return
+          }
+
+          setAccountSettings(nextSettings)
+          setCanSync(false)
+          setAccountSyncStatus("conflict")
+          return
         }
+
+        const seedResponse = await fetchWithTimeout("/api/account/preferences", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chimerSettings: localSettings }),
+        })
+
+        if (!isMounted) {
+          return
+        }
+
+        setCanSync(seedResponse.ok)
+        setAccountSyncStatus(seedResponse.ok ? "synced" : "local")
       } catch {
         if (!isMounted) {
           return
         }
         setCanSync(false)
+        setAccountSyncStatus("local")
       }
     }
 
-    loadLocalSettings()
-    void syncAccountSettings()
+    const localSettings = loadLocalSettings()
+    void syncAccountSettings(localSettings)
 
     return () => {
       isMounted = false
@@ -136,7 +177,7 @@ export default function ChimerPage() {
     if (hasLoadedSettings) {
       window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(settings))
 
-      if (canSync) {
+      if (canSync && accountSyncStatus === "synced") {
         void fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -144,26 +185,11 @@ export default function ChimerPage() {
         }).catch(() => undefined)
       }
     }
-  }, [canSync, hasLoadedSettings, settings])
+  }, [accountSyncStatus, canSync, hasLoadedSettings, settings])
 
   useEffect(() => {
     const updateTime = () => {
-      const options: Intl.DateTimeFormatOptions = {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: settingsRef.current.showCurrentTimeAmPm,
-      }
-
-      if (settingsRef.current.showCurrentTimeSeconds) {
-        options.second = "2-digit"
-      }
-
-      let formattedTime = new Intl.DateTimeFormat(undefined, options).format(new Date())
-      if (!settingsRef.current.showCurrentTimeAmPm) {
-        formattedTime = formattedTime.replace(/\s?[AP]M$/i, "")
-      }
-
-      setCurrentTime(formattedTime)
+      setCurrentTime(formatCurrentTimeParts(new Date(), settingsRef.current))
     }
 
     updateTime()
@@ -406,7 +432,6 @@ export default function ChimerPage() {
 
     timerStateRef.current = nextState
     setTimerState(nextState)
-    updateSettings({ defaultMode: "timer" })
     startTicking()
   }
 
@@ -427,7 +452,45 @@ export default function ChimerPage() {
 
     timerStateRef.current = clockState
     setTimerState(clockState)
-    updateSettings({ defaultMode: "clock" })
+  }
+
+  const useDeviceSettingsForAccount = async () => {
+    setIsResolvingSync(true)
+    setError(null)
+
+    try {
+      const response = await fetchWithTimeout("/api/account/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chimerSettings: settingsRef.current }),
+      })
+
+      if (!response.ok) {
+        setError("Could not sync this device's Chimer settings. Try again after signing in.")
+        return
+      }
+
+      setAccountSettings(null)
+      setCanSync(true)
+      setAccountSyncStatus("synced")
+    } catch {
+      setError("Could not sync this device's Chimer settings. Try again after signing in.")
+    } finally {
+      setIsResolvingSync(false)
+    }
+  }
+
+  const useSavedAccountSettings = () => {
+    if (!accountSettings) {
+      return
+    }
+
+    setError(null)
+    setSettings(accountSettings)
+    window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(accountSettings))
+    setAccountSettings(null)
+    setCanSync(true)
+    setAccountSyncStatus("synced")
   }
 
   const endTimer = () => {
@@ -515,11 +578,15 @@ export default function ChimerPage() {
             settings={settings}
             totalDurationMs={totalDurationMs}
             error={error}
+            syncStatus={accountSyncStatus}
+            isResolvingSync={isResolvingSync}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}
             onStartClock={startClock}
             onTestAlert={testAlert}
+            onUseDeviceSettings={useDeviceSettingsForAccount}
+            onUseSavedSettings={useSavedAccountSettings}
           />
         ) : (
           <RunningTimer
@@ -531,7 +598,7 @@ export default function ChimerPage() {
             fontSize={fontSize}
             movingBackgroundEnabled={settings.movingBackgroundEnabled}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
-            showCurrentTimeAmPm={settings.showCurrentTimeAmPm}
+            timeFormat={settings.timeFormat}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
             onClose={endTimer}

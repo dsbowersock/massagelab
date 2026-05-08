@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   DEFAULT_CHIMER_SETTINGS,
+  formatCurrentTimeParts,
   formatDurationParts,
   getIntervalMs,
   getTotalTimerMs,
@@ -15,6 +16,13 @@ describe("Chimer timer helpers", () => {
     assert.equal(getTotalTimerMs(1, 30), 90 * 60 * 1000)
     assert.equal(getTotalTimerMs("0", "45"), 45 * 60 * 1000)
     assert.equal(getTotalTimerMs(0, 60), 60 * 60 * 1000)
+  })
+
+  it("defaults new timers to unset zero duration", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.hours, 0)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.minutes, 0)
+    assert.equal(sanitizeChimerSettings({}).hours, 0)
+    assert.equal(sanitizeChimerSettings({}).minutes, 0)
   })
 
   it("clamps invalid number input instead of leaking NaN into timer state", () => {
@@ -72,13 +80,30 @@ describe("Chimer timer helpers", () => {
 
   it("defaults current-time display preferences for old persisted settings", () => {
     assert.equal(sanitizeChimerSettings({}).showCurrentTimeSeconds, false)
-    assert.equal(sanitizeChimerSettings({}).showCurrentTimeAmPm, true)
+    assert.equal(sanitizeChimerSettings({}).timeFormat, "12h")
   })
 
-  it("defaults to timer mode and preserves valid clock mode settings", () => {
-    assert.equal(sanitizeChimerSettings({}).defaultMode, "timer")
-    assert.equal(sanitizeChimerSettings({ defaultMode: "clock" }).defaultMode, "clock")
-    assert.equal(sanitizeChimerSettings({ defaultMode: "bad" }).defaultMode, "timer")
+  it("migrates legacy AM/PM settings into explicit time format", () => {
+    assert.equal(sanitizeChimerSettings({ showCurrentTimeAmPm: false }).timeFormat, "24h")
+    assert.equal(sanitizeChimerSettings({ showCurrentTimeAmPm: true }).timeFormat, "12h")
+    assert.equal(sanitizeChimerSettings({ timeFormat: "24h", showCurrentTimeAmPm: true }).timeFormat, "24h")
+  })
+
+  it("falls back to 12-hour time for invalid explicit time format values", () => {
+    assert.equal(sanitizeChimerSettings({ timeFormat: "bad", showCurrentTimeAmPm: false }).timeFormat, "12h")
+  })
+
+  it("formats current time into separate time and meridiem parts", () => {
+    const date = new Date(2026, 4, 8, 18, 5, 9)
+
+    assert.deepEqual(formatCurrentTimeParts(date, { timeFormat: "12h" }, "en-US"), {
+      time: "6:05",
+      meridiem: "PM",
+    })
+    assert.deepEqual(formatCurrentTimeParts(date, { timeFormat: "24h", showCurrentTimeSeconds: true }, "en-US"), {
+      time: "18:05:09",
+      meridiem: "",
+    })
   })
 
   it("normalizes moving background colors", () => {
