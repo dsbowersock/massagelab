@@ -11,40 +11,71 @@ export interface ChimerSettings {
   customInterval: number
   areasToMassage: number
   alertType: "chime" | "flash" | "both" | "silent"
-  defaultMode: "timer" | "clock"
   movingBackgroundEnabled: boolean
   showCurrentTimeSeconds: boolean
-  showCurrentTimeAmPm: boolean
+  timeFormat: "12h" | "24h"
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
 }
+
+type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
 
 interface SetTimerProps {
   settings: ChimerSettings
   totalDurationMs: number
   error: string | null
+  syncStatus: AccountSyncStatus
+  isResolvingSync: boolean
   onTimeClick: (unit: "hours" | "minutes") => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
   onStartTimer: () => void
   onStartClock: () => void
   onTestAlert: () => void
+  onUseDeviceSettings: () => void
+  onUseSavedSettings: () => void
 }
 
 export function SetTimer({
   settings,
   totalDurationMs,
   error,
+  syncStatus,
+  isResolvingSync,
   onTimeClick,
   onSettingsChange,
   onStartTimer,
   onStartClock,
   onTestAlert,
+  onUseDeviceSettings,
+  onUseSavedSettings,
 }: SetTimerProps) {
+  const isTimerSet = totalDurationMs > 0
+  const syncMessage = {
+    checking: "Checking account sync. Changes stay on this device until sync is available.",
+    local: "Settings stay on this device. Sign in or create an account to sync Chimer settings across devices.",
+    synced: "You're signed in. Chimer settings sync across devices.",
+    conflict: "You're signed in. Choose whether this device or your saved favorites should control Chimer settings.",
+  }[syncStatus]
+
   return (
     <section className={styles.container} aria-labelledby="chimer-heading">
       <div className={styles.header}>
         <PageHeading>Chimer</PageHeading>
-        <p className={styles.subtitle}>Session timer for treatment pacing. Settings stay on this device.</p>
+        <p className={styles.subtitle}>Session timer for treatment pacing.</p>
+      </div>
+
+      <div className={styles.syncNotice}>
+        <p>{syncMessage}</p>
+        {syncStatus === "conflict" && (
+          <div className={styles.syncActions}>
+            <button type="button" className={styles.syncButton} onClick={onUseDeviceSettings} disabled={isResolvingSync}>
+              Keep this device settings
+            </button>
+            <button type="button" className={styles.syncButton} onClick={onUseSavedSettings} disabled={isResolvingSync}>
+              Use saved favorites
+            </button>
+          </div>
+        )}
       </div>
 
       <button
@@ -53,6 +84,9 @@ export function SetTimer({
         onClick={() => onTimeClick("minutes")}
         aria-label="Set session length"
       >
+        <span className={`${styles.timerStatusBadge} ${isTimerSet ? styles.timerSet : styles.timerUnset}`}>
+          {isTimerSet ? "Set" : "Unset"}
+        </span>
         <span className={styles.timeUnit} onClick={(event) => {
           event.stopPropagation()
           onTimeClick("hours")
@@ -68,21 +102,14 @@ export function SetTimer({
         </span>
       </button>
 
-      <div className={styles.grid}>
-        <label className={styles.formGroup} htmlFor="default-mode">
-          <span>Default mode</span>
-          <select
-            id="default-mode"
-            value={settings.defaultMode}
-            onChange={(event) => onSettingsChange({ defaultMode: event.target.value as ChimerSettings["defaultMode"] })}
-          >
-            <option value="timer">Timer</option>
-            <option value="clock">Clock only</option>
-          </select>
-        </label>
+      <button type="button" className={styles.clockModeButton} onClick={onStartClock}>
+        <Clock className="h-5 w-5" />
+        Clock Mode
+      </button>
 
+      <div className={styles.grid}>
         <label className={styles.formGroup} htmlFor="interval-type">
-          <span>Alert cadence</span>
+          <span>Alert Frequency</span>
           <select
             id="interval-type"
             value={settings.intervalType}
@@ -156,10 +183,6 @@ export function SetTimer({
       <div className={styles.actions}>
         <button type="button" className={styles.secondaryButton} onClick={onTestAlert}>
           Test Alert
-        </button>
-        <button type="button" className={styles.secondaryButton} onClick={onStartClock}>
-          <Clock className="h-5 w-5" />
-          Clock Mode
         </button>
         <button
           type="button"

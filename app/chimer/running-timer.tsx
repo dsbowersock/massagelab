@@ -8,16 +8,21 @@ import styles from "./running-timer.module.css"
 
 type PrimaryDisplay = "timer" | "currentTime"
 
+type CurrentTimeParts = {
+  time: string
+  meridiem: string
+}
+
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
-  currentTime: string
+  currentTime: CurrentTimeParts
   status: "running" | "paused" | "complete" | "clock"
   isFullscreen: boolean
   isAlerting: boolean
   fontSize: number
   movingBackgroundEnabled: boolean
   showCurrentTimeSeconds: boolean
-  showCurrentTimeAmPm: boolean
+  timeFormat: ChimerSettings["timeFormat"]
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
   onClose: () => void
@@ -37,7 +42,7 @@ export function RunningTimer({
   fontSize,
   movingBackgroundEnabled,
   showCurrentTimeSeconds,
-  showCurrentTimeAmPm,
+  timeFormat,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
   onClose,
@@ -55,6 +60,8 @@ export function RunningTimer({
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
   const fadeTimerRef = useRef<number | null>(null)
   const hideTimerRef = useRef<number | null>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
+  const settingsPanelRef = useRef<HTMLDivElement | null>(null)
   const isTimerPrimary = primaryDisplay === "timer"
   const primaryActionLabel = isPaused ? "Resume timer" : "Pause timer"
 
@@ -137,6 +144,48 @@ export function RunningTimer({
     }
   }, [isClockMode])
 
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (!target) {
+        return
+      }
+
+      if (settingsPanelRef.current?.contains(target) || settingsButtonRef.current?.contains(target)) {
+        return
+      }
+
+      setIsSettingsOpen(false)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isSettingsOpen])
+
+  useEffect(() => {
+    if (isSettingsOpen) {
+      clearControlTimers()
+      setControlState("visible")
+      return
+    }
+
+    scheduleControlHide()
+  }, [clearControlTimers, isSettingsOpen, scheduleControlHide])
+
   const renderTimerDisplay = () => (
     <>
       {timeDisplay.hours !== "00" && (
@@ -149,6 +198,17 @@ export function RunningTimer({
       <span className={styles.colon}>:</span>
       <span className={styles.timeUnit}>{timeDisplay.seconds}</span>
     </>
+  )
+
+  const renderCurrentTimeDisplay = (isPrimary: boolean) => (
+    <span className={isPrimary ? styles.currentTimeStack : styles.currentTimeInline}>
+      <span className={styles.currentTimeValue}>{currentTime.time}</span>
+      {currentTime.meridiem && (
+        <span className={isPrimary ? styles.currentTimeMeridiem : styles.currentTimeInlineMeridiem}>
+          {currentTime.meridiem}
+        </span>
+      )}
+    </span>
   )
 
   const chromeClassName = [
@@ -175,7 +235,7 @@ export function RunningTimer({
           aria-label="Show current time in center"
           data-testid="running-current-time"
         >
-          {currentTime}
+          {renderCurrentTimeDisplay(false)}
         </button>
       ) : !isClockMode ? (
         <button
@@ -190,7 +250,9 @@ export function RunningTimer({
         </button>
       ) : null}
 
-      <div className={styles.status}>{isClockMode ? "Clock" : isComplete ? "Session complete" : isPaused ? "Paused" : "Running"}</div>
+      {!isClockMode && (
+        <div className={styles.status}>{isComplete ? "Session complete" : isPaused ? "Paused" : "Running"}</div>
+      )}
 
       {isTimerPrimary && !isClockMode ? (
         <button
@@ -213,8 +275,9 @@ export function RunningTimer({
           disabled={isComplete}
           data-testid="running-current-time"
           aria-label={isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`}
+          style={{ fontSize: `${fontSize}vw` }}
         >
-          {currentTime}
+          {renderCurrentTimeDisplay(true)}
         </button>
       )}
 
@@ -238,8 +301,9 @@ export function RunningTimer({
         </button>
 
         <button
+          ref={settingsButtonRef}
           className={`${styles.control} ${styles.settingsButton}`}
-          onClick={() => setIsSettingsOpen((current) => !current)}
+          onClick={() => setIsSettingsOpen(true)}
           aria-label="Open timer settings"
           aria-expanded={isSettingsOpen}
           data-chimer-control="true"
@@ -248,7 +312,7 @@ export function RunningTimer({
         </button>
 
         {isSettingsOpen && (
-          <div className={styles.settingsPanel} role="dialog" aria-label="Timer settings" data-chimer-control="true">
+          <div ref={settingsPanelRef} className={styles.settingsPanel} role="dialog" aria-label="Timer settings" data-chimer-control="true">
             <div className={styles.settingsHeader}>Clock Settings</div>
 
             <label className={styles.switchRow}>
@@ -260,14 +324,27 @@ export function RunningTimer({
               />
             </label>
 
-            <label className={styles.switchRow}>
-              <span>Show AM/PM</span>
-              <input
-                type="checkbox"
-                checked={showCurrentTimeAmPm}
-                onChange={(event) => onSettingsChange({ showCurrentTimeAmPm: event.target.checked })}
-              />
-            </label>
+            <div className={styles.formatRow}>
+              <span>Time format</span>
+              <div className={styles.formatToggle} aria-label="Time format">
+                <button
+                  type="button"
+                  className={`${styles.formatOption} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                  aria-pressed={timeFormat === "12h"}
+                  onClick={() => onSettingsChange({ timeFormat: "12h" })}
+                >
+                  12h
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.formatOption} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                  aria-pressed={timeFormat === "24h"}
+                  onClick={() => onSettingsChange({ timeFormat: "24h" })}
+                >
+                  24h
+                </button>
+              </div>
+            </div>
 
             <label className={styles.switchRow}>
               <span>Moving background</span>

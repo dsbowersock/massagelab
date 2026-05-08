@@ -115,8 +115,50 @@
 }
 
 .primaryDisplay.currentTimeDisplay {
+  flex-direction: column;
+  gap: 0.03em;
   color: white;
   font-size: clamp(3.5rem, 15vw, 12rem);
+}
+
+.currentTimeStack,
+.currentTimeInline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.currentTimeStack {
+  align-items: flex-end;
+  flex-direction: column;
+  line-height: 0.9;
+}
+
+.currentTimeInline {
+  gap: 0.22em;
+}
+
+.currentTimeValue {
+  display: block;
+}
+
+.currentTimeMeridiem {
+  display: block;
+  font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.18em;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: right;
+}
+
+.currentTimeInlineMeridiem {
+  display: inline-block;
+  font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.3em;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .timeUnit {
@@ -210,7 +252,8 @@
 }
 
 .switchRow,
-.colorRow {
+.colorRow,
+.formatRow {
   display: flex;
   min-height: 2.25rem;
   align-items: center;
@@ -218,6 +261,32 @@
   gap: 1rem;
   color: rgba(255, 255, 255, 0.88);
   font-size: 0.95rem;
+}
+
+.formatToggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 7rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.formatOption {
+  min-height: 2rem;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.formatOption:hover,
+.formatOptionActive {
+  background: #ff7043;
+  color: white;
 }
 
 .switchRow input[type="checkbox"] {
