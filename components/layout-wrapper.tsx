@@ -33,18 +33,14 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   }, [settings.sidebarBehavior, settings.sidebarPosition, settings.sidebarNarrowPosition])
 
   return (
-    <div className={cn(
-      "relative isolate min-h-[100dvh] max-h-screen w-full overflow-auto bg-[#050505] transition-all duration-300",
-      // Add padding based on sidebar position
-      position === "left" && "pl-16",
-      position === "right" && "pr-16",
-      position === "top" && "pt-16",
-      position === "bottom" && "pb-16",
-    )}>
+    <div
+      className="ml-app-shell relative isolate h-full w-full overflow-hidden bg-[#050505] transition-[padding] duration-300"
+      data-nav-position={position}
+    >
       {!routeOwnsBackground && (
         <>
           <MovingBackground
-            className="pointer-events-none fixed inset-0 z-0 h-screen w-screen"
+            className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
             testId="app-moving-background"
           />
           <div
@@ -54,11 +50,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
         </>
       )}
       <div className={cn(
-        "relative z-10 w-full h-full overflow-auto",
+        "ml-app-scroll relative z-10 h-full min-h-0 w-full overflow-y-auto overscroll-contain",
         // Only apply max-width and margin constraints for vertical sidebars
         (position === "left" || position === "right") && "max-w-screen-2xl mx-auto"
       )}>
-        {children}
+        <div className="ml-app-content">{children}</div>
       </div>
     </div>
   )

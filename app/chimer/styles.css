@@ -1,5 +1,5 @@
 .chimer-page {
-  min-height: calc(100vh - 8rem);
+  min-height: 100%;
   background-color: #1a1a1a;
   color: #e0e0e0;
   padding: 1.25rem;
