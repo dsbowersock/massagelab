@@ -44,6 +44,7 @@
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
     --ml-safe-left: env(safe-area-inset-left, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
+    --ml-scroll-end-buffer: 1.5rem;
   }
 
   .container {
@@ -98,7 +99,7 @@
     --ml-nav-right-offset: var(--ml-safe-right);
     --ml-nav-bottom-offset: var(--ml-safe-bottom);
     --ml-nav-left-offset: var(--ml-safe-left);
-    --ml-page-bottom-safe: calc(var(--ml-nav-bottom-offset) + var(--ml-page-edge-gap));
+    --ml-page-bottom-safe: calc(var(--ml-nav-bottom-offset) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
     padding-top: var(--ml-nav-top-offset);
     padding-right: var(--ml-nav-right-offset);
     padding-bottom: var(--ml-nav-bottom-offset);
@@ -115,6 +116,7 @@
 
   .ml-app-shell[data-nav-position="bottom"] {
     --ml-nav-bottom-offset: calc(var(--ml-nav-collapsed-size) + var(--ml-safe-bottom));
+    --ml-scroll-end-buffer: calc(var(--ml-nav-collapsed-size) + 2rem);
   }
 
   .ml-app-shell[data-nav-position="left"] {
@@ -132,10 +134,14 @@
 
   .ml-app-scroll {
     -webkit-overflow-scrolling: touch;
-    padding-bottom: var(--ml-page-bottom-safe);
     scrollbar-gutter: stable;
     scroll-padding-top: calc(var(--ml-nav-top-offset) + var(--ml-page-edge-gap));
     scroll-padding-bottom: var(--ml-page-bottom-safe);
+  }
+
+  .ml-app-content {
+    min-height: 100%;
+    padding-bottom: var(--ml-page-bottom-safe);
   }
 }
 

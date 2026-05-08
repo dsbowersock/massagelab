@@ -54,7 +54,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
         // Only apply max-width and margin constraints for vertical sidebars
         (position === "left" || position === "right") && "max-w-screen-2xl mx-auto"
       )}>
-        {children}
+        <div className="ml-app-content">{children}</div>
       </div>
     </div>
   )
