@@ -20,6 +20,8 @@ export function Review({ formData }: ReviewProps) {
   const subjectiveEntries = formData.subjectiveEntries || []
   const objectiveEntries = formData.objectiveEntries || []
   const techniques = formData.assessment?.techniques || []
+  const painMapSelections = formData.bodyDiagram?.painMapSelections || []
+  const transcriptSegments = formData.transcriptSegments || []
 
   return (
     <div className="space-y-6">
@@ -131,6 +133,24 @@ export function Review({ formData }: ReviewProps) {
         <CardContent className="space-y-2">
           <p><strong>Regions:</strong> {formData.bodyDiagram?.regions}</p>
           <p><strong>Notes:</strong> {formData.bodyDiagram?.notes}</p>
+          {painMapSelections.length > 0 ? (
+            <pre className="whitespace-pre-wrap rounded-md bg-black/20 p-3 text-sm">{JSON.stringify(painMapSelections, null, 2)}</pre>
+          ) : (
+            <EmptyLine>No structured pain-map selections entered.</EmptyLine>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Transcript Review</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {transcriptSegments.length > 0 ? (
+            <pre className="whitespace-pre-wrap rounded-md bg-black/20 p-3 text-sm">{JSON.stringify(transcriptSegments, null, 2)}</pre>
+          ) : (
+            <EmptyLine>No transcript segments created.</EmptyLine>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { Activity, ClipboardList, FileText, HeartPulse, ShieldCheck } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Activity, ClipboardCheck, ClipboardList, FileText, Footprints, HeartPulse, LifeBuoy, ShieldCheck } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeading } from "@/components/ui/page-heading"
 
@@ -36,10 +35,10 @@ const noteTypes = [
 ]
 
 const plannedTools = [
-  "Postural assessment",
-  "Muscle testing",
-  "Gait assessment",
-  "Orthopedic tests",
+  { title: "Postural Assessment", icon: Activity },
+  { title: "Muscle Testing", icon: ClipboardCheck },
+  { title: "Gait Assessment", icon: Footprints },
+  { title: "Orthopedic Tests", icon: Activity },
 ]
 
 export default function NotesPage() {
@@ -82,35 +81,42 @@ export default function NotesPage() {
           })}
         </div>
 
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Future compliant sync</CardTitle>
-            <CardDescription>
-              Cross-device clinical sync is planned, but hosted clinical data stays disabled until MassageLab can pay for compliant infrastructure, signed BAAs, risk review, audit controls, and PHI-safe operations.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/support">Support the sync roadmap</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
         <Card className="border-neutral-800 bg-[#202020]/90 backdrop-blur">
           <CardHeader>
             <CardTitle>Planned Documentation Tools</CardTitle>
-            <CardDescription>These remain off the alpha navigation until their workflows are implemented.</CardDescription>
+            <CardDescription>These remain visible as roadmap tools until their workflows are implemented.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {plannedTools.map((tool) => (
-                <span key={tool} className="rounded-sm border border-neutral-700 px-3 py-1 text-sm text-muted-foreground">
-                  {tool}
-                </span>
-              ))}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {plannedTools.map((tool) => {
+                const Icon = tool.icon
+                return (
+                  <div key={tool.title} className="flex min-h-16 items-center gap-3 rounded-md border border-neutral-800 bg-background/70 p-3 text-sm text-muted-foreground">
+                    <Icon className="h-4 w-4 text-[#ff7043]" />
+                    <span>{tool.title}</span>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
+
+        <Link href="/support">
+          <Card className="border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <LifeBuoy className="h-5 w-5 text-[#ff7043]" />
+                <CardTitle>Support the MassageLab roadmap</CardTitle>
+              </div>
+              <CardDescription>
+                Learn how roadmap funding helps unlock HIPAA-ready note sync, compliance infrastructure, and future clinical documentation tools.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Open the support roadmap</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   )

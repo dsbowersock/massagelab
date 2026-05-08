@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Brain, ClipboardList, HeartHandshake, ShieldCheck, Timer } from "lucide-react"
+import { Brain, CalendarDays, ClipboardList, HeartHandshake, ShieldCheck, Timer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -19,6 +19,14 @@ const tools = [
     action: "Open Notes",
     icon: ClipboardList,
     status: "Local storage",
+  },
+  {
+    title: "Calendar",
+    description: "Small-practice scheduling with therapist availability and client-account booking.",
+    href: "/calendar",
+    action: "Open Calendar",
+    icon: CalendarDays,
+    status: "New",
   },
   {
     title: "Anatomime",
@@ -43,7 +51,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {tools.map((tool) => {
               const Icon = tool.icon
               return (

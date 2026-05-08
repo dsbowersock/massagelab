@@ -121,6 +121,25 @@ enum ClinicalArtifactStatus {
   ARCHIVED
 }
 
+enum PracticeRole {
+  OWNER
+  THERAPIST
+  STAFF
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum AppointmentSource {
+  CLIENT_REQUEST
+  THERAPIST_CREATED
+}
+
 model User {
   id                    String                   @id @default(cuid())
   name                  String?
@@ -158,6 +177,13 @@ model User {
   createdTerms          AnatomyTerm[]            @relation("AnatomyTermCreator")
   updatedTerms          AnatomyTerm[]            @relation("AnatomyTermUpdater")
   auditLogs             AnatomyAuditLog[]         @relation("AnatomyAuditActor")
+  createdPractices      Practice[]               @relation("PracticeCreator")
+  practiceMemberships   PracticeMembership[]
+  practiceClients       PracticeClient[]
+  availabilityRules     TherapistAvailabilityRule[] @relation("AvailabilityTherapist")
+  calendarBlocks        CalendarBlock[]          @relation("CalendarBlockTherapist")
+  appointmentsAsTherapist Appointment[]           @relation("AppointmentTherapist")
+  createdAppointments   Appointment[]            @relation("AppointmentCreator")
 }
 
 model Account {
@@ -611,4 +637,125 @@ model AuthAttempt {
   updatedAt    DateTime           @updatedAt
 
   @@unique([purpose, key])
+}
+
+model Practice {
+  id                String                     @id @default(cuid())
+  slug              String                     @unique
+  name              String
+  timezone          String                     @default("America/New_York")
+  createdById       String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  createdBy         User?                      @relation("PracticeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  memberships       PracticeMembership[]
+  clients           PracticeClient[]
+  serviceTypes      ServiceType[]
+  availabilityRules TherapistAvailabilityRule[]
+  calendarBlocks    CalendarBlock[]
+  appointments      Appointment[]
+}
+
+model PracticeMembership {
+  id         String       @id @default(cuid())
+  practiceId String
+  userId     String
+  role       PracticeRole @default(THERAPIST)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  practice   Practice     @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([practiceId, userId])
+  @@index([userId, role])
+}
+
+model PracticeClient {
+  id           String        @id @default(cuid())
+  practiceId   String
+  userId       String
+  displayName  String?
+  email        String?
+  phone        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  practice     Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([practiceId, userId])
+  @@index([userId])
+}
+
+model ServiceType {
+  id              String        @id @default(cuid())
+  practiceId      String
+  name            String
+  description     String?
+  durationMinutes Int
+  bufferMinutes   Int           @default(0)
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  practice        Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+
+  @@index([practiceId, active])
+}
+
+model TherapistAvailabilityRule {
+  id          String    @id @default(cuid())
+  practiceId  String
+  therapistId String
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+  timezone    String    @default("America/New_York")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  practice    Practice  @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  therapist   User      @relation("AvailabilityTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+
+  @@index([practiceId, therapistId, dayOfWeek])
+}
+
+model CalendarBlock {
+  id          String    @id @default(cuid())
+  practiceId  String
+  therapistId String
+  startsAt    DateTime
+  endsAt      DateTime
+  reason      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  practice    Practice  @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  therapist   User      @relation("CalendarBlockTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+
+  @@index([practiceId, therapistId, startsAt])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  practiceId       String
+  therapistId      String
+  practiceClientId String
+  serviceTypeId    String
+  createdById      String?
+  startsAt         DateTime
+  endsAt           DateTime
+  status           AppointmentStatus @default(REQUESTED)
+  source           AppointmentSource @default(CLIENT_REQUEST)
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  practice         Practice          @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  therapist        User              @relation("AppointmentTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+  practiceClient   PracticeClient    @relation(fields: [practiceClientId], references: [id], onDelete: Cascade)
+  serviceType      ServiceType       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  createdBy        User?             @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([practiceId, startsAt])
+  @@index([therapistId, startsAt])
+  @@index([practiceClientId, startsAt])
 }

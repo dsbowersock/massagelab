@@ -1,6 +1,6 @@
 "use client"
 
-import { Play } from "lucide-react"
+import { Clock, Play } from "lucide-react"
 import { PageHeading } from "@/components/ui/page-heading"
 import styles from "./set-timer.module.css"
 
@@ -11,6 +11,7 @@ export interface ChimerSettings {
   customInterval: number
   areasToMassage: number
   alertType: "chime" | "flash" | "both" | "silent"
+  defaultMode: "timer" | "clock"
   movingBackgroundEnabled: boolean
   showCurrentTimeSeconds: boolean
   showCurrentTimeAmPm: boolean
@@ -25,6 +26,7 @@ interface SetTimerProps {
   onTimeClick: (unit: "hours" | "minutes") => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
   onStartTimer: () => void
+  onStartClock: () => void
   onTestAlert: () => void
 }
 
@@ -35,6 +37,7 @@ export function SetTimer({
   onTimeClick,
   onSettingsChange,
   onStartTimer,
+  onStartClock,
   onTestAlert,
 }: SetTimerProps) {
   return (
@@ -66,6 +69,18 @@ export function SetTimer({
       </button>
 
       <div className={styles.grid}>
+        <label className={styles.formGroup} htmlFor="default-mode">
+          <span>Default mode</span>
+          <select
+            id="default-mode"
+            value={settings.defaultMode}
+            onChange={(event) => onSettingsChange({ defaultMode: event.target.value as ChimerSettings["defaultMode"] })}
+          >
+            <option value="timer">Timer</option>
+            <option value="clock">Clock only</option>
+          </select>
+        </label>
+
         <label className={styles.formGroup} htmlFor="interval-type">
           <span>Alert cadence</span>
           <select
@@ -141,6 +156,10 @@ export function SetTimer({
       <div className={styles.actions}>
         <button type="button" className={styles.secondaryButton} onClick={onTestAlert}>
           Test Alert
+        </button>
+        <button type="button" className={styles.secondaryButton} onClick={onStartClock}>
+          <Clock className="h-5 w-5" />
+          Clock Mode
         </button>
         <button
           type="button"

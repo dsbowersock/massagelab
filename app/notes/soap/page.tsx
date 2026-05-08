@@ -10,6 +10,8 @@ import { ObjectiveInfo } from "./components/objective-info"
 import { Plan } from "./components/plan"
 import { Review } from "./components/review"
 import { SubjectiveInfo } from "./components/subjective-info"
+import { TranscriptReview } from "./components/transcript-review"
+import type { PainMapSelection, TranscriptSegment } from "./types"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeading } from "@/components/ui/page-heading"
@@ -62,11 +64,14 @@ interface SoapNoteData {
   bodyDiagram: {
     regions: string
     notes: string
+    painMapSelections: PainMapSelection[]
+    googleImportNotes: string
   }
+  transcriptSegments: TranscriptSegment[]
 }
 
 const emptySoapNote: SoapNoteData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   noteType: "soap",
   clientName: "",
   dateOfBirth: "",
@@ -102,7 +107,10 @@ const emptySoapNote: SoapNoteData = {
   bodyDiagram: {
     regions: "",
     notes: "",
+    painMapSelections: [],
+    googleImportNotes: "",
   },
+  transcriptSegments: [],
 }
 
 const steps = [
@@ -113,7 +121,8 @@ const steps = [
   { id: 5, title: "Assessment", component: Assessment },
   { id: 6, title: "Plan", component: Plan },
   { id: 7, title: "Body Map", component: BodyDiagram },
-  { id: 8, title: "Review", component: Review },
+  { id: 8, title: "Transcript", component: TranscriptReview },
+  { id: 9, title: "Review", component: Review },
 ]
 
 function downloadFile(filename: string, content: string, type: string) {
@@ -193,7 +202,81 @@ function generateSoapText(data: SoapNoteData) {
     "Body Map",
     formatLine("Regions", data.bodyDiagram.regions),
     formatLine("Notes", data.bodyDiagram.notes),
+    JSON.stringify(data.bodyDiagram.painMapSelections, null, 2),
+    "",
+    "Transcript Review",
+    JSON.stringify(data.transcriptSegments, null, 2),
   ].join("\n")
+}
+
+const researchTextKeys = new Set([
+  "type",
+  "intensity",
+  "priority",
+  "pattern",
+  "timePattern",
+  "bodyRegion",
+  "regionId",
+  "side",
+  "view",
+  "source",
+  "timestampRange",
+  "targetSoapSection",
+])
+
+function anonymizeStructuredValue(value: unknown, key = ""): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => anonymizeStructuredValue(item))
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([entryKey, entryValue]) => [entryKey, anonymizeStructuredValue(entryValue, entryKey)]),
+    )
+  }
+
+  if (typeof value === "string") {
+    return researchTextKeys.has(key) ? value : ""
+  }
+
+  return value
+}
+
+function createResearchExport(data: SoapNoteData) {
+  return {
+    schemaVersion: 2,
+    noteType: "soap",
+    researchExport: true,
+    anonymizedAt: new Date().toISOString(),
+    sessionMonth: data.date ? data.date.slice(0, 7) : "",
+    subjectiveEntries: anonymizeStructuredValue(data.subjectiveEntries),
+    objectiveEntries: anonymizeStructuredValue(data.objectiveEntries),
+    painMapSelections: anonymizeStructuredValue(data.bodyDiagram.painMapSelections),
+    assessmentTechniques: anonymizeStructuredValue(data.assessment.techniques),
+    transcriptSegmentCount: data.transcriptSegments.length,
+  }
+}
+
+function normalizeSoapNoteData(data: SoapNoteData): SoapNoteData {
+  return {
+    ...emptySoapNote,
+    ...data,
+    schemaVersion: 2,
+    assessment: {
+      ...emptySoapNote.assessment,
+      ...(data.assessment ?? {}),
+    },
+    treatmentPlan: {
+      ...emptySoapNote.treatmentPlan,
+      ...(data.treatmentPlan ?? {}),
+    },
+    bodyDiagram: {
+      ...emptySoapNote.bodyDiagram,
+      ...(data.bodyDiagram ?? {}),
+      painMapSelections: Array.isArray(data.bodyDiagram?.painMapSelections) ? data.bodyDiagram.painMapSelections : [],
+    },
+    transcriptSegments: Array.isArray(data.transcriptSegments) ? data.transcriptSegments : [],
+  }
 }
 
 export default function SoapNotesPage() {
@@ -209,10 +292,10 @@ export default function SoapNotesPage() {
     const draft = window.localStorage.getItem(SOAP_STORAGE_KEY)
     if (draft) {
       try {
-        setFormData(parseLocalDocumentJson(draft, emptySoapNote, {
+        setFormData(normalizeSoapNoteData(parseLocalDocumentJson(draft, emptySoapNote, {
           discriminatorKey: "noteType",
           discriminatorValue: "soap",
-        }))
+        })))
       } catch {
         window.localStorage.removeItem(SOAP_STORAGE_KEY)
       }
@@ -278,15 +361,26 @@ export default function SoapNotesPage() {
     setMessage(opened ? "Opened a print view. Choose Save as PDF in your browser to export a PDF." : "Could not open the print view.")
   }
 
+  const exportResearchJson = () => {
+    const filename = createLocalDocumentFilename({
+      prefix: "massagelab-soap-research",
+      subject: "anonymous",
+      extension: "json",
+      fallbackSubject: "anonymous",
+    })
+    downloadFile(filename, JSON.stringify(createResearchExport(formData), null, 2), "application/json")
+    setMessage("Exported an anonymized local research JSON file. Review before sharing outside your device.")
+  }
+
   const importJson = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     try {
-      const imported = parseLocalDocumentJson(await file.text(), emptySoapNote, {
+      const imported = normalizeSoapNoteData(parseLocalDocumentJson(await file.text(), emptySoapNote, {
         discriminatorKey: "noteType",
         discriminatorValue: "soap",
-      })
+      }))
       setFormData(imported)
       setMessage("Imported SOAP note. Review it before saving or exporting.")
     } catch {
@@ -318,7 +412,7 @@ export default function SoapNotesPage() {
             <div className="space-y-3">
               <div className="hidden md:block">
                 <Tabs value={currentStep.toString()} onValueChange={(value) => setCurrentStep(Number(value))}>
-                  <TabsList className="grid h-auto w-full grid-cols-8">
+                  <TabsList className="grid h-auto w-full grid-cols-9">
                     {steps.map((step) => (
                       <TabsTrigger
                         key={step.id}
@@ -385,6 +479,10 @@ export default function SoapNotesPage() {
                     <Button variant="outline" type="button" onClick={printPdf}>
                       <Printer className="mr-2 h-4 w-4" />
                       Save PDF
+                    </Button>
+                    <Button variant="outline" type="button" onClick={exportResearchJson}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Research JSON
                     </Button>
                     <Button className="bg-[#ff7043] hover:bg-[#f4511e]" type="button" onClick={exportJson}>
                       <Download className="mr-2 h-4 w-4" />

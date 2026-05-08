@@ -143,3 +143,35 @@ export interface ObjectiveInfo {
   entries: ObjectiveEntry[]
 }
 
+export type PainMapSide = "left" | "right" | "bilateral" | "center"
+
+export type PainMapView = "front" | "back" | "side"
+
+export interface PainMapSelection {
+  id: string
+  regionId: string
+  side: PainMapSide
+  view: PainMapView
+  intensity: number
+  symptomTypes: string[]
+  descriptors: string[]
+  notes: string
+  anatomyTermIds: string[]
+}
+
+export type TranscriptTargetSoapSection =
+  | "generalNotes"
+  | "generalObservations"
+  | "assessment.findings"
+  | "assessment.clinicalNotes"
+  | "treatmentPlan.notes"
+
+export interface TranscriptSegment {
+  id: string
+  text: string
+  source: "paste" | "import"
+  timestampRange: string
+  selected: boolean
+  targetSoapSection: TranscriptTargetSoapSection
+}
+

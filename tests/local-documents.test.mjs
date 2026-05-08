@@ -21,6 +21,13 @@ const emptySoap = {
     findings: "",
     techniques: [],
   },
+  bodyDiagram: {
+    regions: "",
+    notes: "",
+    painMapSelections: [],
+    googleImportNotes: "",
+  },
+  transcriptSegments: [],
 }
 
 describe("Local document helpers", () => {
@@ -105,5 +112,44 @@ describe("Local document helpers", () => {
       }),
       LocalDocumentError,
     )
+  })
+
+  it("preserves SOAP v2 structured pain-map and transcript review fields", () => {
+    const imported = mergeLocalDocumentData(
+      emptySoap,
+      {
+        schemaVersion: 2,
+        noteType: "soap",
+        bodyDiagram: {
+          painMapSelections: [
+            {
+              id: "selection-1",
+              regionId: "upper-back",
+              side: "bilateral",
+              view: "back",
+              intensity: 6,
+              symptomTypes: ["pain"],
+              descriptors: ["aching"],
+              notes: "Client reported broad upper back soreness.",
+              anatomyTermIds: ["muscle-trapezius"],
+            },
+          ],
+        },
+        transcriptSegments: [
+          {
+            id: "segment-1",
+            text: "My neck feels better after heat.",
+            source: "paste",
+            timestampRange: "00:10-00:15",
+            selected: true,
+            targetSoapSection: "generalNotes",
+          },
+        ],
+      },
+      { discriminatorKey: "noteType", discriminatorValue: "soap" },
+    )
+
+    assert.equal(imported.bodyDiagram.painMapSelections[0].regionId, "upper-back")
+    assert.equal(imported.transcriptSegments[0].targetSoapSection, "generalNotes")
   })
 })

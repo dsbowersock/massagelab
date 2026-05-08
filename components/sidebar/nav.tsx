@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Brain, FileText, Home, Settings, Timer, UserRound } from "lucide-react"
+import { Brain, CalendarDays, FileText, Home, LifeBuoy, Settings, Timer, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
@@ -28,6 +28,11 @@ const mainRoutes = [
     icon: FileText,
   },
   {
+    href: "/calendar",
+    label: "Calendar",
+    icon: CalendarDays,
+  },
+  {
     href: "/anatomime",
     label: "Anatomime",
     icon: Brain,
@@ -39,6 +44,11 @@ const bottomRoutes = [
     href: "/account",
     label: "Account",
     icon: UserRound,
+  },
+  {
+    href: "/support",
+    label: "Support",
+    icon: LifeBuoy,
   },
   {
     href: "/settings",

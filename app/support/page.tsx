@@ -1,71 +1,136 @@
 import Link from "next/link"
-import { HeartHandshake, ShieldCheck } from "lucide-react"
+import { CalendarDays, Clock, FileText, HeartHandshake, Mic, ShieldCheck, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeading } from "@/components/ui/page-heading"
 
-const fundingNeeds = [
-  "HIPAA-capable hosting",
-  "Safe cross-device sync for clinical records",
-  "Client portal for shared notes and self-reporting",
-  "Pain, sensation, and incident journals",
-  "Range-of-motion and movement tools using phone sensors",
-  "Local-first SOAP notes, intake, export, and import tools",
-  "Student and massage license verification automation",
+const roadmapFeatures = [
+  {
+    title: "HIPAA-ready note sync",
+    description: "Managed SOAP notes, intake forms, pain maps, transcripts, and exports that can safely move between devices.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Client and therapist calendar",
+    description: "Online booking, availability, appointment management, and reminders for small practices.",
+    icon: CalendarDays,
+  },
+  {
+    title: "Structured clinical documentation",
+    description: "Better SOAP workflows, range-of-motion tracking, body maps, and reusable documentation templates.",
+    icon: FileText,
+  },
+  {
+    title: "Voice-to-text review tools",
+    description: "Transcription workflows where therapists review and approve text before it enters clinical notes.",
+    icon: Mic,
+  },
+  {
+    title: "Treatment-room tools",
+    description: "Chimer clock and timer improvements for calm, reliable treatment-room use.",
+    icon: Clock,
+  },
+  {
+    title: "Evidence-informed practice",
+    description: "Structured, anonymized data exports that can eventually support outcomes tracking and research.",
+    icon: UserRound,
+  },
+]
+
+const upfrontNeeds = [
+  "HIPAA-compliant hosting and storage",
+  "Business Associate Agreements with vendors",
+  "Audit logging, access controls, encryption, and backups",
+  "Security review, incident response planning, and legal/compliance review",
+  "Ongoing operating costs for managed clinical records",
 ]
 
 export default function SupportPage() {
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <PageHeading>Support MassageLab</PageHeading>
-
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HeartHandshake className="h-5 w-5 text-[#ff7043]" />
-              Fund the clinical sync roadmap
-            </CardTitle>
-            <CardDescription>
-              MassageLab can already keep clinical tools local-first. Hosted clinical sync needs compliant infrastructure and operational work before it can responsibly handle therapist or client records.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-3 md:grid-cols-2">
-              {fundingNeeds.map((need) => (
-                <div key={need} className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm">
-                  {need}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
-                <Link href="/login">Create an account</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/">Use local-first tools</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/support#donate-placeholder">Donate now</Link>
-              </Button>
-            </div>
-            <p id="donate-placeholder" className="text-xs text-muted-foreground">
-              Stripe donation checkout is coming soon.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
-          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <ShieldCheck className="mt-1 h-5 w-5 text-[#ff7043]" />
-            <div>
-              <CardTitle>Current boundary</CardTitle>
+      <div className="mx-auto max-w-6xl space-y-6">
+        <section className="space-y-5">
+          <PageHeading>Support the MassageLab Roadmap</PageHeading>
+          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Why some features are not available yet</CardTitle>
               <CardDescription>
-                Memberships and donations can support the roadmap, but they do not enable hosted clinical storage yet. Notes, journals, intake forms, and movement data remain local-first until the compliance gate is complete.
+                MassageLab can offer local-first tools today, but syncing PHI-bearing clinical records requires real upfront compliance and infrastructure costs before it can be offered responsibly.
               </CardDescription>
-            </div>
-          </CardHeader>
-        </Card>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-3">
+              <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+                <Link href="/register">Create an account</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/">Choose a tool</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="#donate">
+                  <HeartHandshake className="mr-2 h-4 w-4" />
+                  Donate
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {roadmapFeatures.map((feature) => {
+            const Icon = feature.icon
+            return (
+              <Card key={feature.title} className="border-neutral-800 bg-card/90 backdrop-blur">
+                <CardHeader>
+                  <Icon className="mb-2 h-5 w-5 text-[#ff7043]" />
+                  <CardTitle>{feature.title}</CardTitle>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            )
+          })}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+            <CardHeader>
+              <CardTitle>What funding unlocks</CardTitle>
+              <CardDescription>
+                The goal is not just to store notes online. The goal is to build a clinical product that protects clients, therapists, and the practice.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3">
+                {upfrontNeeds.map((need) => (
+                  <div key={need} className="rounded-md border border-[#ff7043]/30 bg-background/60 p-3 text-sm">
+                    {need}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card id="donate" className="scroll-mt-20 border-neutral-800 bg-card/90 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Donate</CardTitle>
+              <CardDescription>
+                A donation/payment provider has not been wired into this alpha yet. This section is the placeholder for the donation link once the preferred provider is selected.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Until then, the best ways to support the roadmap are to create an account, use the current tools, and share which paid features would matter most to your practice.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+                  <Link href="/register">Create an account</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/">Use MassageLab</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

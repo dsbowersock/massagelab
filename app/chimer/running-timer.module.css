@@ -148,6 +148,25 @@
   transition: background-color 150ms ease, transform 150ms ease;
 }
 
+.chrome {
+  opacity: 1;
+  transition: opacity 900ms ease;
+}
+
+.chromeFaded {
+  opacity: 0.34;
+}
+
+.chromeHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chrome:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .control:hover,
 .fontButton:hover {
   background-color: #ff7043;
@@ -286,5 +305,15 @@
 
   .secondaryDisplay {
     max-width: calc(100vw - 8rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome,
+  .control,
+  .fontButton,
+  .primaryDisplay,
+  .secondaryDisplay {
+    transition-duration: 0ms;
   }
 }

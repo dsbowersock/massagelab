@@ -75,6 +75,12 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({}).showCurrentTimeAmPm, true)
   })
 
+  it("defaults to timer mode and preserves valid clock mode settings", () => {
+    assert.equal(sanitizeChimerSettings({}).defaultMode, "timer")
+    assert.equal(sanitizeChimerSettings({ defaultMode: "clock" }).defaultMode, "clock")
+    assert.equal(sanitizeChimerSettings({ defaultMode: "bad" }).defaultMode, "timer")
+  })
+
   it("normalizes moving background colors", () => {
     assert.equal(normalizeHexColor("#ff7043", "#000000"), "#FF7043")
     assert.equal(normalizeHexColor("not-a-color", "#4169E1"), "#4169E1")

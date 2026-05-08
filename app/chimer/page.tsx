@@ -15,7 +15,7 @@ import { SetTimer, type ChimerSettings } from "./set-timer"
 import { MovingBackground } from "./moving-background"
 import { RunningTimer } from "./running-timer"
 
-type TimerStatus = "idle" | "running" | "paused" | "complete"
+type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
 
 interface TimerState {
   status: TimerStatus
@@ -406,7 +406,28 @@ export default function ChimerPage() {
 
     timerStateRef.current = nextState
     setTimerState(nextState)
+    updateSettings({ defaultMode: "timer" })
     startTicking()
+  }
+
+  const startClock = () => {
+    clearTimerInterval()
+    setError(null)
+    setIsAlerting(false)
+
+    const clockState: TimerState = {
+      status: "clock",
+      totalMs: 0,
+      remainingMs: 0,
+      endsAtMs: null,
+      intervalMs: null,
+      nextAlertAtMs: null,
+      msUntilNextAlert: null,
+    }
+
+    timerStateRef.current = clockState
+    setTimerState(clockState)
+    updateSettings({ defaultMode: "clock" })
   }
 
   const endTimer = () => {
@@ -497,13 +518,14 @@ export default function ChimerPage() {
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}
+            onStartClock={startClock}
             onTestAlert={testAlert}
           />
         ) : (
           <RunningTimer
             timeDisplay={timeDisplay}
             currentTime={currentTime}
-            status={timerState.status as "running" | "paused" | "complete"}
+            status={timerState.status as "running" | "paused" | "complete" | "clock"}
             isFullscreen={isFullscreen}
             isAlerting={isAlerting}
             fontSize={fontSize}

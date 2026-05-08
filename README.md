@@ -5,7 +5,9 @@ MassageLab is a private-alpha toolkit for massage therapists and students. The f
 ## Current Alpha
 
 - Chimer: treatment-room timer with local preference persistence, pause/resume, fullscreen mode, current-time display, font sizing, and interval alerts.
-- Local-first documentation: SOAP notes, intake forms, client journals, and ROM/movement sessions can be saved as browser-local drafts, imported from MassageLab JSON files, and exported as user-controlled files.
+- Chimer clock mode: standalone full-screen clock with the same treatment-room display language and auto-hiding controls.
+- Calendar: signed-in small-practice scheduling foundation with therapist availability, blocked time, client-account booking requests, and conflict prevention for active appointments.
+- Local-first documentation: SOAP notes, intake forms, client journals, and ROM/movement sessions can be saved as browser-local drafts, imported from MassageLab JSON files, and exported as user-controlled files. SOAP v2 adds structured pain-map selections, transcript review segments, and anonymized local research export.
 - Anatomime: classroom anatomy game backed by the local bones-and-muscles anatomy content, with Prisma-backed anatomy publishing work in progress.
 - Optional accounts: Auth.js and Prisma support preference sync, therapist profile defaults, templates, multi-role account state, credential verification requests, 2FA, and learning/progress data only.
 - Admin anatomy tools: account-gated anatomy content and correction workflows are present for editor/admin use.
@@ -19,13 +21,14 @@ SOAP notes, intake forms, journals, ROM measurements, and other PHI-bearing or h
 - Intake drafts stay in the current browser under `massagelab-intake-draft`.
 - Journal drafts stay in the current browser under `massagelab-client-journal-draft`.
 - ROM drafts stay in the current browser under `massagelab-rom-session-draft`.
-- SOAP exports use `schemaVersion: 1` and `noteType: "soap"`.
+- SOAP exports use `schemaVersion: 2` and `noteType: "soap"`; legacy `schemaVersion: 1` files remain importable.
 - Intake exports use `schemaVersion: 1` and `formType: "intake"`.
 - Journal exports use `schemaVersion: 1` and `documentType: "client-journal"`.
 - ROM exports use `schemaVersion: 1` and `documentType: "rom-session"`.
 - Local clinical tools support structured JSON, editable DOC, and browser print-to-PDF export paths.
 - Exported files are the user's responsibility to store, transmit, or back up appropriately.
 - Account sync must not include SOAP note, intake form, journal, ROM, client, or treatment content.
+- Calendar sync stores scheduling metadata only. SOAP notes, pain-map selections, transcript content, and research exports remain local-first.
 
 Future managed HIPAA-compliant storage should be treated as a separate paid product. It must include legal and compliance review, BAAs, access controls, audit logging, encryption, incident response, PHI-safe logging/email rules, and operational policies before implementation.
 
