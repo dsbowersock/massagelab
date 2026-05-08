@@ -72,4 +72,7 @@ Use this checklist before tagging or deploying a private-alpha build. Keep SOAP 
 - `/support` loads from both the sidebar and Notes support card.
 - Diagnostic routes such as `/debug-hydration` are absent from the production route manifest.
 - Desktop and mobile layouts have no overlapping text or controls at common viewport widths.
+- With the responsive nav set to top and bottom on a phone-sized viewport, the last interactive element on Home, Notes, Chimer, Anatomime, Support, and Settings scrolls fully above the nav.
+- The PWA manifest loads, includes standalone display metadata and 192/512 icons, and Chrome reports the app as installable when served over HTTPS.
+- `/notes/rom` requests motion/orientation access only after tapping Enable Sensor, handles denied or unsupported sensors with a message, and still supports manual measurement entry.
 - The README alpha scope still matches the shipped routes and privacy posture.

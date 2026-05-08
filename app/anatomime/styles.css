@@ -1,8 +1,8 @@
 .anatomime-page {
   position: relative;
   isolation: isolate;
-  min-height: 100dvh;
-  overflow: hidden;
+  min-height: 100%;
+  overflow: visible;
   background: #050505;
   padding: clamp(1rem, 3vw, 2rem);
   color: #f7f7f7;
@@ -24,7 +24,7 @@
   inset: 0;
   z-index: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   pointer-events: none;
 }
 

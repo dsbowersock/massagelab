@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
+import { type MeasurementAxis, useDeviceMotionSensors } from "@/hooks/use-device-motion-sensors"
 import {
   createEditableDocumentHtml,
   createLocalDocumentExport,
@@ -16,8 +17,6 @@ import {
 } from "@/lib/local-documents"
 
 const ROM_STORAGE_KEY = "massagelab-rom-session-draft"
-
-type MeasurementAxis = "alpha" | "beta" | "gamma"
 
 type RomEntry = {
   id: string
@@ -119,11 +118,10 @@ export default function RomPage() {
   const [manualStart, setManualStart] = useState("0")
   const [manualEnd, setManualEnd] = useState("0")
   const [notes, setNotes] = useState("")
-  const [tracking, setTracking] = useState(false)
-  const [orientation, setOrientation] = useState<Record<MeasurementAxis, number | null>>({ alpha: null, beta: null, gamma: null })
   const [baseline, setBaseline] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const { orientation, requestAccess } = useDeviceMotionSensors()
 
   const currentDegrees = orientation[axis]
   const deviceChange = useMemo(() => {
@@ -145,40 +143,9 @@ export default function RomPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!tracking) return
-
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      setOrientation({
-        alpha: event.alpha === null ? null : normalizeDegrees(event.alpha),
-        beta: event.beta === null ? null : normalizeDegrees(event.beta),
-        gamma: event.gamma === null ? null : normalizeDegrees(event.gamma),
-      })
-    }
-
-    window.addEventListener("deviceorientation", handleOrientation)
-    return () => window.removeEventListener("deviceorientation", handleOrientation)
-  }, [tracking])
-
   const enableSensors = async () => {
-    const orientationConstructor = typeof DeviceOrientationEvent !== "undefined"
-      ? DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<PermissionState> }
-      : null
-
-    try {
-      if (orientationConstructor?.requestPermission) {
-        const permission = await orientationConstructor.requestPermission()
-        if (permission !== "granted") {
-          setMessage("Motion permission was not granted.")
-          return
-        }
-      }
-
-      setTracking(true)
-      setMessage("Device orientation tracking is active on this device.")
-    } catch {
-      setMessage("Device orientation tracking is not available in this browser.")
-    }
+    const result = await requestAccess()
+    setMessage(result.message)
   }
 
   const saveBaseline = () => {
