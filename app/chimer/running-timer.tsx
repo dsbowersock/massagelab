@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
 import { Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
 import type { ChimerSettings } from "./set-timer"
 import { MovingBackground } from "./moving-background"
@@ -216,6 +216,9 @@ export function RunningTimer({
     controlState === "faded" ? styles.chromeFaded : "",
     controlState === "hidden" ? styles.chromeHidden : "",
   ].filter(Boolean).join(" ")
+  const primaryDisplayStyle = {
+    "--chimer-primary-font-size": `${fontSize}vw`,
+  } as CSSProperties
 
   return (
     <section className={`${styles.container} ${isAlerting ? styles.alerting : ""}`} aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}>
@@ -261,7 +264,7 @@ export function RunningTimer({
           onClick={onPause}
           disabled={isComplete}
           data-testid="running-timer-clock"
-          style={{ fontSize: `${fontSize}vw` }}
+          style={primaryDisplayStyle}
           aria-label={isComplete ? "Session complete" : `${primaryActionLabel} from center display`}
           aria-live="polite"
         >
@@ -275,7 +278,7 @@ export function RunningTimer({
           disabled={isComplete}
           data-testid="running-current-time"
           aria-label={isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`}
-          style={{ fontSize: `${fontSize}vw` }}
+          style={primaryDisplayStyle}
         >
           {renderCurrentTimeDisplay(true)}
         </button>

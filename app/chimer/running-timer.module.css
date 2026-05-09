@@ -1,4 +1,7 @@
 .container {
+  --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 5.5rem);
+  --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 6.5rem);
+
   position: fixed;
   inset: 0;
   bottom: -4rem;
@@ -56,17 +59,23 @@
 }
 
 .primaryDisplay {
-  position: relative;
+  position: fixed;
+  inset: var(--chimer-top-control-space) 0 var(--chimer-bottom-control-space);
   z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100vw;
   max-width: 100vw;
-  min-height: 40dvh;
-  padding: 0 1rem;
+  min-height: 0;
+  padding: 0 clamp(1rem, 4vw, 3rem);
   overflow: hidden;
   font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(
+    3rem,
+    var(--chimer-primary-font-size, 20vw),
+    min(30vw, calc((100dvh - var(--chimer-top-control-space) - var(--chimer-bottom-control-space)) * 0.82))
+  );
   line-height: 1;
   letter-spacing: 0;
   text-align: center;
@@ -118,7 +127,11 @@
   flex-direction: column;
   gap: 0.03em;
   color: white;
-  font-size: clamp(3.5rem, 15vw, 12rem);
+  font-size: clamp(
+    3rem,
+    var(--chimer-primary-font-size, 20vw),
+    min(28vw, calc((100dvh - var(--chimer-top-control-space) - var(--chimer-bottom-control-space)) * 0.68))
+  );
 }
 
 .currentTimeStack,
@@ -215,24 +228,24 @@
 }
 
 .closeButton {
-  top: 1rem;
-  right: 1rem;
+  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  right: calc(env(safe-area-inset-right, 0px) + 1rem);
 }
 
 .fullscreenButton {
-  top: 1rem;
-  left: 1rem;
+  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  left: calc(env(safe-area-inset-left, 0px) + 1rem);
 }
 
 .settingsButton {
-  top: 1rem;
-  left: 5.25rem;
+  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  left: calc(env(safe-area-inset-left, 0px) + 5.25rem);
 }
 
 .settingsPanel {
   position: fixed;
-  top: 5.25rem;
-  left: 1rem;
+  top: calc(env(safe-area-inset-top, 0px) + 5.25rem);
+  left: calc(env(safe-area-inset-left, 0px) + 1rem);
   z-index: 10002;
   display: grid;
   width: min(20rem, calc(100vw - 2rem));
@@ -342,7 +355,7 @@
 
 .bottomControls {
   position: fixed;
-  bottom: 1rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
   left: 50%;
   z-index: 10001;
   display: flex;
@@ -358,6 +371,11 @@
 }
 
 @media (max-width: 640px) {
+  .container {
+    --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 5rem);
+    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+  }
+
   .control,
   .fontButton {
     width: 3rem;
@@ -365,15 +383,32 @@
   }
 
   .settingsButton {
-    left: 4.75rem;
-  }
-
-  .primaryDisplay.currentTimeDisplay {
-    font-size: clamp(3rem, 16vw, 7rem);
+    left: calc(env(safe-area-inset-left, 0px) + 4.75rem);
   }
 
   .secondaryDisplay {
     max-width: calc(100vw - 8rem);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .container {
+    --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 4.75rem);
+    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 5.75rem);
+  }
+
+  .primaryDisplay {
+    padding-inline: clamp(1rem, 5vw, 3rem);
+  }
+
+  .status {
+    top: calc(env(safe-area-inset-top, 0px) + 4.25rem);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 360px) {
+  .status {
+    display: none;
   }
 }
 
