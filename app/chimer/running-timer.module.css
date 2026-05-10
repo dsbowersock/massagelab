@@ -1,17 +1,17 @@
 .container {
   --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 5.5rem);
-  --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 6.5rem);
+  --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 7.5rem);
 
   position: fixed;
   inset: 0;
-  bottom: -4rem;
   z-index: 10000;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100vw;
-  min-height: calc(100dvh + 4rem);
+  height: 100dvh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
   background-color: #050505;
@@ -19,6 +19,7 @@
   transition: background-color 80ms ease, color 80ms ease;
   overflow: hidden;
   isolation: isolate;
+  perspective: 1200px;
 }
 
 .alerting {
@@ -29,10 +30,10 @@
 .runningBackground {
   position: fixed;
   inset: 0;
-  bottom: -4rem;
   z-index: 0;
   width: 100vw;
-  min-height: calc(100dvh + 4rem);
+  height: 100dvh;
+  min-height: 100dvh;
   pointer-events: none;
 }
 
@@ -60,7 +61,10 @@
 
 .primaryDisplay {
   position: fixed;
-  inset: var(--chimer-top-control-space) 0 var(--chimer-bottom-control-space);
+  top: var(--chimer-top-control-space);
+  right: 0;
+  bottom: var(--chimer-bottom-control-space);
+  left: 0;
   z-index: 10001;
   display: flex;
   align-items: center;
@@ -68,19 +72,27 @@
   width: 100vw;
   max-width: 100vw;
   min-height: 0;
-  padding: 0 clamp(1rem, 4vw, 3rem);
+  padding: 0;
   overflow: hidden;
   font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: clamp(
-    3rem,
-    var(--chimer-primary-font-size, 20vw),
-    min(30vw, calc((100dvh - var(--chimer-top-control-space) - var(--chimer-bottom-control-space)) * 0.82))
-  );
+  font-size: var(--chimer-fit-font-size, var(--chimer-primary-font-size, 20vw));
   line-height: 1;
   letter-spacing: 0;
   text-align: center;
-  transition: color 150ms ease, font-size 150ms ease, transform 150ms ease;
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  transition:
+    bottom 180ms ease,
+    color 150ms ease,
+    font-size 180ms ease,
+    left 180ms ease,
+    opacity 180ms ease,
+    top 180ms ease,
+    transform 180ms ease,
+    width 180ms ease;
   white-space: nowrap;
+  backface-visibility: hidden;
+  will-change: transform, top, left, font-size;
 }
 
 .primaryDisplay:not(:disabled):hover {
@@ -94,8 +106,14 @@
 .secondaryDisplay {
   position: fixed;
   top: 1.2rem;
+  right: auto;
+  bottom: auto;
   left: 50%;
   z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
   max-width: calc(100vw - 9rem);
   overflow: hidden;
   transform: translateX(-50%);
@@ -106,8 +124,21 @@
   letter-spacing: 0;
   opacity: 0.84;
   text-overflow: ellipsis;
-  transition: color 150ms ease, opacity 150ms ease;
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  transition:
+    bottom 180ms ease,
+    color 150ms ease,
+    font-size 180ms ease,
+    left 180ms ease,
+    max-width 180ms ease,
+    opacity 180ms ease,
+    top 180ms ease,
+    transform 180ms ease,
+    width 180ms ease;
   white-space: nowrap;
+  backface-visibility: hidden;
+  will-change: transform, top, left, font-size;
 }
 
 .secondaryDisplay:hover {
@@ -124,31 +155,47 @@
 }
 
 .primaryDisplay.currentTimeDisplay {
-  flex-direction: column;
-  gap: 0.03em;
   color: white;
-  font-size: clamp(
-    3rem,
-    var(--chimer-primary-font-size, 20vw),
-    min(28vw, calc((100dvh - var(--chimer-top-control-space) - var(--chimer-bottom-control-space)) * 0.68))
-  );
+  font-size: var(--chimer-fit-font-size, var(--chimer-primary-font-size, 20vw));
+}
+
+.displayContent {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  width: max-content;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.swapToPrimary {
+  animation: chimerSwingDownForward 360ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.swapToSecondary {
+  animation: chimerSwingUpBack 360ms cubic-bezier(0.24, 0.72, 0.22, 1) both;
 }
 
 .currentTimeStack,
-.currentTimeInline {
+.currentTimeInline,
+.currentTimeRow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .currentTimeStack {
-  align-items: flex-end;
-  flex-direction: column;
-  line-height: 0.9;
+  line-height: 1;
+}
+
+.currentTimeRow {
+  line-height: 1;
 }
 
 .currentTimeInline {
-  gap: 0.22em;
+  gap: 0;
 }
 
 .currentTimeValue {
@@ -156,13 +203,18 @@
 }
 
 .currentTimeMeridiem {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.035em;
+  margin-right: 0.035em;
   font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.18em;
+  font-size: 0.22em;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
-  text-align: right;
+  text-align: center;
+  transform: translateY(0.04em);
 }
 
 .currentTimeInlineMeridiem {
@@ -175,14 +227,48 @@
 }
 
 .timeUnit {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 1.15em;
+}
+
+.currentTimeUnit {
+  min-width: 0;
+}
+
+.timerUnitLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.035em;
+  margin-right: 0.035em;
+  font-size: 0.22em;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.92;
+  transform: translateY(0.04em);
 }
 
 .colon {
   display: inline-block;
   width: 0.22em;
   opacity: 0.82;
+}
+
+.clockColon {
+  width: 0.34em;
+}
+
+.meridiemColon {
+  position: relative;
+  display: inline-block;
+  width: 0.22em;
+}
+
+.reservedTimePart,
+.reservedInlinePart {
+  visibility: hidden;
 }
 
 .control,
@@ -204,27 +290,59 @@
 }
 
 .chrome {
-  opacity: 1;
+  position: static;
+}
+
+.chrome > .control,
+.bottomButtonRow .control,
+.bottomButtonRow .fontButton {
+  transition: background-color 150ms ease, opacity 900ms ease, transform 150ms ease;
+}
+
+.settingsPanel,
+.status {
   transition: opacity 900ms ease;
-}
-
-.chromeFaded {
-  opacity: 0.34;
-}
-
-.chromeHidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.chrome:focus-within {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .control:hover,
 .fontButton:hover {
   background-color: #ff7043;
+}
+
+.control:disabled,
+.fontButton:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.control:disabled:hover,
+.fontButton:disabled:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chromeFaded > .control,
+.chromeFaded .bottomButtonRow .control,
+.chromeFaded .bottomButtonRow .fontButton,
+.chromeFaded .settingsPanel {
+  opacity: 0.34;
+}
+
+.chromeHidden > .control,
+.chromeHidden .bottomButtonRow .control,
+.chromeHidden .bottomButtonRow .fontButton,
+.chromeHidden .settingsPanel {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chromeFaded > .control:focus-visible,
+.chromeFaded .bottomButtonRow .control:focus-visible,
+.chromeFaded .bottomButtonRow .fontButton:focus-visible,
+.chromeHidden > .control:focus-visible,
+.chromeHidden .bottomButtonRow .control:focus-visible,
+.chromeHidden .bottomButtonRow .fontButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .closeButton {
@@ -247,9 +365,12 @@
   top: calc(env(safe-area-inset-top, 0px) + 5.25rem);
   left: calc(env(safe-area-inset-left, 0px) + 1rem);
   z-index: 10002;
-  display: grid;
-  width: min(20rem, calc(100vw - 2rem));
-  gap: 1rem;
+  display: flex;
+  width: min(27rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 6rem);
+  flex-direction: column;
+  gap: 0.85rem;
+  overflow: hidden;
   padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 0.75rem;
@@ -259,9 +380,147 @@
   box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.35);
 }
 
+.settingsHeaderBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .settingsHeader {
   font-size: 1rem;
   font-weight: 700;
+}
+
+.settingsSubheader {
+  margin-top: 0.2rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.settingsTabs {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.settingsTabList {
+  display: grid;
+  width: 100%;
+  height: auto;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.settingsTabTrigger {
+  min-height: 2.15rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0;
+}
+
+.settingsTabTrigger[data-state="active"] {
+  background: #ff7043;
+  color: white;
+  box-shadow: none;
+}
+
+.settingsTabContent {
+  display: grid;
+  min-height: 0;
+  max-height: min(31rem, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 12rem));
+  gap: 0.85rem;
+  overflow-y: auto;
+  padding: 0.1rem 0.2rem 0.15rem 0;
+}
+
+.settingsSection {
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 0.1rem;
+}
+
+.settingsSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.settingsPill {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(255, 112, 67, 0.18);
+  color: #ffab91;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.35rem 0.5rem;
+}
+
+.quickAdjustGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.quickAdjustGrid button {
+  min-height: 2.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.quickAdjustGrid button:hover {
+  background: #ff7043;
+}
+
+.exactTimeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.numberField {
+  display: grid;
+  gap: 0.35rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+}
+
+.numberField input {
+  min-height: 2.45rem;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0 0.75rem;
+}
+
+.settingsEmptyState {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  padding: 0.85rem;
 }
 
 .switchRow,
@@ -274,6 +533,12 @@
   gap: 1rem;
   color: rgba(255, 255, 255, 0.88);
   font-size: 0.95rem;
+}
+
+.switchRow span,
+.colorRow span,
+.formatRow span {
+  min-width: 0;
 }
 
 .formatToggle {
@@ -343,37 +608,82 @@
 }
 
 .status {
-  position: fixed;
-  top: 5.75rem;
-  left: 50%;
-  z-index: 10001;
-  transform: translateX(-50%);
   color: rgba(255, 255, 255, 0.72);
-  font-size: clamp(0.875rem, 2vw, 1.25rem);
+  font-size: clamp(0.72rem, 1.4vw, 0.9rem);
   letter-spacing: 0;
+  line-height: 1;
+  opacity: 1;
+  pointer-events: none;
+  text-align: center;
+}
+
+.chromeFaded .status,
+.chromeHidden .status {
+  opacity: 0.45;
 }
 
 .bottomControls {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
   left: 50%;
   z-index: 10001;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.35rem;
+  pointer-events: none;
   transform: translateX(-50%);
 }
 
-.bottomControls .control,
-.bottomControls .fontButton {
+.bottomButtonRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.bottomButtonRow .control,
+.bottomButtonRow .fontButton {
   position: relative;
   inset: auto;
+  pointer-events: auto;
+}
+
+@keyframes chimerSwingUpBack {
+  0% {
+    transform: translateY(0) rotateX(0deg) scale(1);
+  }
+
+  45% {
+    transform: translateX(-22%) translateY(-2.8vh) rotateX(34deg) scale(0.82);
+  }
+
+  100% {
+    transform: translateX(-50%) translateY(0) rotateX(0deg) scale(1);
+  }
+}
+
+@keyframes chimerSwingDownForward {
+  0% {
+    transform: translateX(-50%) translateY(-8vh) rotateX(42deg) scale(0.74);
+    opacity: 0.72;
+  }
+
+  62% {
+    transform: translateY(1.4vh) rotateX(-8deg) scale(1.04);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0) rotateX(0deg) scale(1);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 640px) {
   .container {
     --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 5rem);
-    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 7rem);
   }
 
   .control,
@@ -389,26 +699,64 @@
   .secondaryDisplay {
     max-width: calc(100vw - 8rem);
   }
+
+  .settingsPanel {
+    top: calc(env(safe-area-inset-top, 0px) + 5rem);
+    right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+    left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
+    width: auto;
+    max-height: none;
+    padding: 0.85rem;
+  }
+
+  .settingsTabContent {
+    max-height: none;
+  }
+
+  .switchRow,
+  .colorRow,
+  .formatRow {
+    font-size: 0.88rem;
+    gap: 0.75rem;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
   .container {
     --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 4.75rem);
-    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 5.75rem);
+    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 6rem);
   }
 
-  .primaryDisplay {
-    padding-inline: clamp(1rem, 5vw, 3rem);
+  .bottomControls {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
   }
 
-  .status {
-    top: calc(env(safe-area-inset-top, 0px) + 4.25rem);
+  .settingsPanel {
+    top: calc(env(safe-area-inset-top, 0px) + 4.75rem);
+    right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+    left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
+    width: auto;
+    max-height: none;
+    padding: 0.75rem;
   }
-}
 
-@media (orientation: landscape) and (max-height: 360px) {
-  .status {
+  .settingsHeaderBar {
+    gap: 0.75rem;
+  }
+
+  .settingsSubheader {
     display: none;
+  }
+
+  .settingsTabContent {
+    max-height: none;
+    gap: 0.65rem;
+  }
+
+  .quickAdjustGrid {
+    grid-template-columns: repeat(4, minmax(3rem, 1fr));
   }
 }
 
@@ -416,8 +764,17 @@
   .chrome,
   .control,
   .fontButton,
+  .settingsPanel,
+  .status,
+  .bottomButtonRow,
   .primaryDisplay,
-  .secondaryDisplay {
+  .secondaryDisplay,
+  .displayContent {
     transition-duration: 0ms;
+  }
+
+  .swapToPrimary,
+  .swapToSecondary {
+    animation: none;
   }
 }
