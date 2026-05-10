@@ -1,11 +1,14 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  clampActiveTimerMs,
   DEFAULT_CHIMER_SETTINGS,
   formatCurrentTimeParts,
   formatDurationParts,
+  getActiveTimerAlertSchedule,
   getIntervalMs,
   getTotalTimerMs,
+  MAX_CHIMER_DURATION_MS,
   normalizeHexColor,
   normalizeInteger,
   sanitizeChimerSettings,
@@ -39,11 +42,50 @@ describe("Chimer timer helpers", () => {
     })
   })
 
+  it("clamps active timer adjustments to the supported timer range", () => {
+    assert.equal(clampActiveTimerMs(-60_000), 0)
+    assert.equal(clampActiveTimerMs(Number.NaN), 0)
+    assert.equal(clampActiveTimerMs(10_500), 10_500)
+    assert.equal(clampActiveTimerMs(MAX_CHIMER_DURATION_MS + 60_000), MAX_CHIMER_DURATION_MS)
+  })
+
   it("uses custom or preset interval minutes for interval alerts", () => {
     assert.equal(
       getIntervalMs({ ...DEFAULT_CHIMER_SETTINGS, intervalType: "custom", customInterval: 12 }, 60 * 60 * 1000),
       12 * 60 * 1000,
     )
+  })
+
+  it("schedules active chime interval edits from now or from resume time", () => {
+    assert.deepEqual(getActiveTimerAlertSchedule({
+      status: "running",
+      now: 1_000,
+      remainingMs: 10 * 60 * 1000,
+      intervalMs: 5 * 60 * 1000,
+    }), {
+      nextAlertAtMs: 301_000,
+      msUntilNextAlert: null,
+    })
+
+    assert.deepEqual(getActiveTimerAlertSchedule({
+      status: "paused",
+      now: 1_000,
+      remainingMs: 10 * 60 * 1000,
+      intervalMs: 5 * 60 * 1000,
+    }), {
+      nextAlertAtMs: null,
+      msUntilNextAlert: 5 * 60 * 1000,
+    })
+
+    assert.deepEqual(getActiveTimerAlertSchedule({
+      status: "running",
+      now: 1_000,
+      remainingMs: 4 * 60 * 1000,
+      intervalMs: 5 * 60 * 1000,
+    }), {
+      nextAlertAtMs: null,
+      msUntilNextAlert: null,
+    })
   })
 
   it("divides total time by body areas for area-based alerts", () => {
@@ -83,6 +125,16 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({}).timeFormat, "12h")
   })
 
+  it("defaults timer screen awake on for old or invalid persisted settings", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.keepTimerScreenAwake, true)
+    assert.equal(sanitizeChimerSettings({}).keepTimerScreenAwake, true)
+    assert.equal(sanitizeChimerSettings({ keepTimerScreenAwake: "false" }).keepTimerScreenAwake, true)
+  })
+
+  it("preserves a saved timer screen awake preference", () => {
+    assert.equal(sanitizeChimerSettings({ keepTimerScreenAwake: false }).keepTimerScreenAwake, false)
+  })
+
   it("migrates legacy AM/PM settings into explicit time format", () => {
     assert.equal(sanitizeChimerSettings({ showCurrentTimeAmPm: false }).timeFormat, "24h")
     assert.equal(sanitizeChimerSettings({ showCurrentTimeAmPm: true }).timeFormat, "12h")
@@ -94,14 +146,23 @@ describe("Chimer timer helpers", () => {
   })
 
   it("formats current time into separate time and meridiem parts", () => {
-    const date = new Date(2026, 4, 8, 18, 5, 9)
+    const morningDate = new Date(2026, 4, 8, 9, 5, 9)
+    const eveningDate = new Date(2026, 4, 8, 18, 5, 9)
 
-    assert.deepEqual(formatCurrentTimeParts(date, { timeFormat: "12h" }, "en-US"), {
-      time: "6:05",
+    assert.deepEqual(formatCurrentTimeParts(morningDate, { timeFormat: "12h" }, "en-US"), {
+      time: "09:05",
+      meridiem: "AM",
+    })
+    assert.deepEqual(formatCurrentTimeParts(morningDate, { timeFormat: "24h" }, "en-US"), {
+      time: "09:05",
+      meridiem: "",
+    })
+    assert.deepEqual(formatCurrentTimeParts(eveningDate, { timeFormat: "12h" }, "en-US"), {
+      time: "06:05",
       meridiem: "PM",
     })
-    assert.deepEqual(formatCurrentTimeParts(date, { timeFormat: "24h", showCurrentTimeSeconds: true }, "en-US"), {
-      time: "18:05:09",
+    assert.deepEqual(formatCurrentTimeParts(morningDate, { timeFormat: "24h", showCurrentTimeSeconds: true }, "en-US"), {
+      time: "09:05:09",
       meridiem: "",
     })
   })

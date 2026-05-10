@@ -12,6 +12,7 @@ export interface ChimerSettings {
   areasToMassage: number
   alertType: "chime" | "flash" | "both" | "silent"
   movingBackgroundEnabled: boolean
+  keepTimerScreenAwake: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: "12h" | "24h"
   movingBackgroundMainColor: string

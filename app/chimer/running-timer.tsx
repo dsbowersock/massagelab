@@ -1,17 +1,26 @@
 "use client"
 
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react"
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ChimerSettings } from "./set-timer"
 import { MovingBackground } from "./moving-background"
 import styles from "./running-timer.module.css"
 
 type PrimaryDisplay = "timer" | "currentTime"
+type SettingsTab = "timer" | "display" | "background"
 
 type CurrentTimeParts = {
   time: string
   meridiem: string
 }
+
+const MIN_FONT_SIZE = 12
+const MAX_FONT_SIZE = 70
+const FONT_SIZE_STEP = 3
+const FONT_FIT_EDGE_INSET_PX = 2
+const SWAP_ANIMATION_MS = 360
+const SETTINGS_AUTO_CLOSE_MS = 60_000
 
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
@@ -21,16 +30,20 @@ interface RunningTimerProps {
   isAlerting: boolean
   fontSize: number
   movingBackgroundEnabled: boolean
+  keepTimerScreenAwake: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: ChimerSettings["timeFormat"]
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
+  activeIntervalMinutes: number | null
   onClose: () => void
   onPause: () => void
   onFullscreen: () => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
-  onIncreaseFontSize: () => void
-  onDecreaseFontSize: () => void
+  onFontSizeChange: (fontSize: number) => void
+  onAdjustActiveRemainingMinutes: (deltaMinutes: number) => void
+  onSetActiveRemainingDuration: (hours: number, minutes: number) => void
+  onSetActiveIntervalMinutes: (minutes: number) => void
 }
 
 export function RunningTimer({
@@ -41,29 +54,53 @@ export function RunningTimer({
   isAlerting,
   fontSize,
   movingBackgroundEnabled,
+  keepTimerScreenAwake,
   showCurrentTimeSeconds,
   timeFormat,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
+  activeIntervalMinutes,
   onClose,
   onPause,
   onFullscreen,
   onSettingsChange,
-  onIncreaseFontSize,
-  onDecreaseFontSize,
+  onFontSizeChange,
+  onAdjustActiveRemainingMinutes,
+  onSetActiveRemainingDuration,
+  onSetActiveIntervalMinutes,
 }: RunningTimerProps) {
   const isPaused = status === "paused"
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
+  const canEditActiveTimer = status === "running" || status === "paused"
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(isClockMode ? "display" : "timer")
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
+  const [fitFontSize, setFitFontSize] = useState<number | null>(null)
+  const [maxFittedFontSize, setMaxFittedFontSize] = useState<number | null>(null)
+  const [swapAnimationTarget, setSwapAnimationTarget] = useState<PrimaryDisplay | null>(null)
   const fadeTimerRef = useRef<number | null>(null)
   const hideTimerRef = useRef<number | null>(null)
+  const settingsAutoCloseTimerRef = useRef<number | null>(null)
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
   const settingsPanelRef = useRef<HTMLDivElement | null>(null)
+  const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
+  const primaryContentRef = useRef<HTMLSpanElement | null>(null)
   const isTimerPrimary = primaryDisplay === "timer"
+  const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const primaryActionLabel = isPaused ? "Resume timer" : "Pause timer"
+  const statusText = isComplete ? "Session complete" : isPaused ? "Paused" : "Running"
+  const timerDisplayFitUnits = timeDisplay.hours === "00" ? 3.02 : 4.35
+  const currentTimeSegmentCount = currentTime.time ? currentTime.time.split(":").length : 2
+  const currentTimeDisplayFitUnits = currentTimeSegmentCount > 2 ? 3.42 : 2.38
+  const primaryDisplayFitUnits = isTimerPrimary ? timerDisplayFitUnits : currentTimeDisplayFitUnits
+  const effectiveMaxFontSize = Math.min(MAX_FONT_SIZE, maxFittedFontSize ?? MAX_FONT_SIZE)
+  const effectiveFontSize = Math.min(fontSize, effectiveMaxFontSize)
+  const canIncreaseFontSize = effectiveFontSize < effectiveMaxFontSize - 0.05
+  const canDecreaseFontSize = effectiveFontSize > MIN_FONT_SIZE + 0.05
+  const activeRemainingHours = Number(timeDisplay.hours)
+  const activeRemainingMinutes = Number(timeDisplay.minutes)
 
   const clearControlTimers = useCallback(() => {
     if (fadeTimerRef.current) {
@@ -77,10 +114,24 @@ export function RunningTimer({
     }
   }, [])
 
-  const scheduleControlHide = useCallback(() => {
+  const clearSettingsAutoCloseTimer = useCallback(() => {
+    if (settingsAutoCloseTimerRef.current) {
+      window.clearTimeout(settingsAutoCloseTimerRef.current)
+      settingsAutoCloseTimerRef.current = null
+    }
+  }, [])
+
+  const scheduleSettingsAutoClose = useCallback(() => {
+    clearSettingsAutoCloseTimer()
+    settingsAutoCloseTimerRef.current = window.setTimeout(() => {
+      setIsSettingsOpen(false)
+    }, SETTINGS_AUTO_CLOSE_MS)
+  }, [clearSettingsAutoCloseTimer])
+
+  const scheduleControlHide = useCallback((options: { force?: boolean } = {}) => {
     clearControlTimers()
 
-    if (isSettingsOpen) {
+    if (isSettingsOpen && !options.force) {
       setControlState("visible")
       return
     }
@@ -93,6 +144,13 @@ export function RunningTimer({
     setControlState("visible")
     scheduleControlHide()
   }, [scheduleControlHide])
+
+  const scheduleHideAfterControlAction = useCallback(
+    (options: { force?: boolean } = {}) => {
+      window.setTimeout(() => scheduleControlHide(options), 0)
+    },
+    [scheduleControlHide],
+  )
 
   useEffect(() => {
     if (isComplete || isClockMode) {
@@ -111,11 +169,12 @@ export function RunningTimer({
 
       event.preventDefault()
       onPause()
+      scheduleHideAfterControlAction({ force: true })
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isClockMode, isComplete, onPause])
+  }, [isClockMode, isComplete, onPause, scheduleHideAfterControlAction])
 
   useEffect(() => {
     revealControls()
@@ -141,8 +200,18 @@ export function RunningTimer({
   useEffect(() => {
     if (isClockMode) {
       setPrimaryDisplay("currentTime")
+      setSwapAnimationTarget(null)
     }
   }, [isClockMode])
+
+  useEffect(() => {
+    if (!swapAnimationTarget) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => setSwapAnimationTarget(null), SWAP_ANIMATION_MS)
+    return () => window.clearTimeout(timeout)
+  }, [swapAnimationTarget])
 
   useEffect(() => {
     if (!isSettingsOpen) {
@@ -186,30 +255,250 @@ export function RunningTimer({
     scheduleControlHide()
   }, [clearControlTimers, isSettingsOpen, scheduleControlHide])
 
-  const renderTimerDisplay = () => (
-    <>
-      {timeDisplay.hours !== "00" && (
-        <>
-          <span className={styles.timeUnit}>{timeDisplay.hours}</span>
-          <span className={styles.colon}>:</span>
-        </>
-      )}
-      <span className={styles.timeUnit}>{timeDisplay.minutes}</span>
-      <span className={styles.colon}>:</span>
-      <span className={styles.timeUnit}>{timeDisplay.seconds}</span>
-    </>
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      clearSettingsAutoCloseTimer()
+      return
+    }
+
+    scheduleSettingsAutoClose()
+    return () => clearSettingsAutoCloseTimer()
+  }, [clearSettingsAutoCloseTimer, isSettingsOpen, scheduleSettingsAutoClose])
+
+  useLayoutEffect(() => {
+    const primaryElement = primaryDisplayRef.current
+    const contentElement = primaryContentRef.current
+
+    if (!primaryElement || !contentElement) {
+      return
+    }
+
+    let animationFrame = 0
+
+    const fitPrimaryDisplay = () => {
+      window.cancelAnimationFrame(animationFrame)
+      animationFrame = window.requestAnimationFrame(() => {
+        const preferredFontSize = Math.max(1, window.innerWidth * (fontSize / 100))
+        const availableRect = primaryElement.getBoundingClientRect()
+        const availableWidth = availableRect.width
+        const availableHeight = availableRect.height
+        const viewportWidth = window.innerWidth
+        if (!availableWidth || !availableHeight || !viewportWidth) {
+          return
+        }
+
+        const targetWidth = Math.max(1, availableWidth - FONT_FIT_EDGE_INSET_PX)
+        const targetHeight = Math.max(1, availableHeight - FONT_FIT_EDGE_INSET_PX)
+        primaryElement.style.setProperty("--chimer-fit-font-size", `${preferredFontSize}px`)
+        const contentRect = contentElement.getBoundingClientRect()
+        const contentWidth = Math.max(
+          contentElement.scrollWidth,
+          contentRect.width,
+        )
+        const contentHeight = Math.max(
+          contentElement.scrollHeight,
+          contentRect.height,
+        )
+
+        if (!contentWidth || !contentHeight) {
+          return
+        }
+
+        const measuredMaxFontSizePx = Math.max(1, preferredFontSize * (targetWidth / contentWidth))
+        const measuredMaxHeightFontSizePx = Math.max(1, preferredFontSize * (targetHeight / contentHeight))
+        const profiledMaxFontSizePx = primaryDisplayFitUnits
+          ? targetWidth / primaryDisplayFitUnits
+          : Number.POSITIVE_INFINITY
+        const maxFontSizePx = Math.min(measuredMaxFontSizePx, measuredMaxHeightFontSizePx, profiledMaxFontSizePx)
+        const nextFontSize = Math.min(preferredFontSize, maxFontSizePx)
+        const nextMaxFittedFontSize = Math.min(MAX_FONT_SIZE, (maxFontSizePx / viewportWidth) * 100)
+        primaryElement.style.setProperty("--chimer-fit-font-size", `${nextFontSize}px`)
+        setMaxFittedFontSize((current) => {
+          if (current !== null && Math.abs(current - nextMaxFittedFontSize) < 0.05) {
+            return current
+          }
+
+          return nextMaxFittedFontSize
+        })
+        setFitFontSize((current) => {
+          if (current !== null && Math.abs(current - nextFontSize) < 0.5) {
+            return current
+          }
+
+          return nextFontSize
+        })
+      })
+    }
+
+    fitPrimaryDisplay()
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(fitPrimaryDisplay)
+      : null
+
+    resizeObserver?.observe(primaryElement)
+    window.addEventListener("resize", fitPrimaryDisplay)
+    void document.fonts?.ready.then(fitPrimaryDisplay).catch(() => undefined)
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      resizeObserver?.disconnect()
+      window.removeEventListener("resize", fitPrimaryDisplay)
+    }
+  }, [
+    currentTime.meridiem,
+    currentTime.time,
+    fontSize,
+    isClockMode,
+    primaryDisplay,
+    primaryDisplayFitUnits,
+    showCurrentTimeSeconds,
+    timeDisplay.hours,
+    timeDisplay.minutes,
+    timeDisplay.seconds,
+  ])
+
+  const handlePrimarySwitch = (nextDisplay: PrimaryDisplay) => {
+    if (nextDisplay === primaryDisplay) {
+      return
+    }
+
+    setSwapAnimationTarget(nextDisplay)
+    setPrimaryDisplay(nextDisplay)
+    scheduleHideAfterControlAction({ force: true })
+  }
+
+  const handleFontSizeChange = (direction: "increase" | "decrease") => {
+    const clampedCurrent = Math.min(fontSize, effectiveMaxFontSize)
+    const nextFontSize = direction === "increase"
+      ? Math.min(effectiveMaxFontSize, clampedCurrent + FONT_SIZE_STEP)
+      : Math.max(MIN_FONT_SIZE, clampedCurrent - FONT_SIZE_STEP)
+
+    if (Math.abs(nextFontSize - fontSize) < 0.05) {
+      scheduleHideAfterControlAction({ force: true })
+      return
+    }
+
+    onFontSizeChange(Number(nextFontSize.toFixed(2)))
+    scheduleHideAfterControlAction({ force: true })
+  }
+
+  const handlePauseControl = () => {
+    onPause()
+    scheduleHideAfterControlAction({ force: true })
+  }
+
+  const handleFullscreenControl = () => {
+    onFullscreen()
+    scheduleHideAfterControlAction({ force: true })
+  }
+
+  const handleSettingsButtonClick = () => {
+    if (isSettingsOpen) {
+      setIsSettingsOpen(false)
+      scheduleHideAfterControlAction({ force: true })
+      return
+    }
+
+    clearControlTimers()
+    setControlState("visible")
+    setSettingsTab(isClockMode ? "display" : "timer")
+    setIsSettingsOpen(true)
+  }
+
+  const handleSettingsChange = (nextSettings: Partial<ChimerSettings>) => {
+    onSettingsChange(nextSettings)
+    scheduleSettingsAutoClose()
+    scheduleControlHide()
+  }
+
+  const handleSettingsPanelActivity = () => {
+    scheduleSettingsAutoClose()
+  }
+
+  const handleSettingsTabChange = (nextTab: string) => {
+    setSettingsTab(nextTab as SettingsTab)
+    scheduleSettingsAutoClose()
+  }
+
+  const handleActiveRemainingHoursChange = (value: string) => {
+    onSetActiveRemainingDuration(Number(value), activeRemainingMinutes)
+    scheduleSettingsAutoClose()
+  }
+
+  const handleActiveRemainingMinutesChange = (value: string) => {
+    onSetActiveRemainingDuration(activeRemainingHours, Number(value))
+    scheduleSettingsAutoClose()
+  }
+
+  const handleActiveIntervalChange = (value: string) => {
+    onSetActiveIntervalMinutes(Number(value))
+    scheduleSettingsAutoClose()
+  }
+
+  const handleActiveRemainingStep = (deltaMinutes: number) => {
+    onAdjustActiveRemainingMinutes(deltaMinutes)
+    scheduleSettingsAutoClose()
+  }
+
+  const renderTimerUnitLabel = (label: "h" | "m" | "s") => (
+    <span className={styles.timerUnitLabel} aria-hidden="true">{label}</span>
   )
 
-  const renderCurrentTimeDisplay = (isPrimary: boolean) => (
-    <span className={isPrimary ? styles.currentTimeStack : styles.currentTimeInline}>
-      <span className={styles.currentTimeValue}>{currentTime.time}</span>
-      {currentTime.meridiem && (
-        <span className={isPrimary ? styles.currentTimeMeridiem : styles.currentTimeInlineMeridiem}>
-          {currentTime.meridiem}
-        </span>
-      )}
-    </span>
+  const renderCurrentTimeMeridiem = () => (
+    currentTime.meridiem ? <span className={styles.currentTimeMeridiem}>{currentTime.meridiem}</span> : null
   )
+
+  const renderTimerDisplay = () => {
+    const hasHours = timeDisplay.hours !== "00"
+
+    return (
+      <>
+        {hasHours && (
+          <>
+            <span className={styles.timeUnit}>{timeDisplay.hours}</span>
+            {renderTimerUnitLabel("h")}
+            <span className={styles.colon}>:</span>
+          </>
+        )}
+        <span className={styles.timeUnit}>{timeDisplay.minutes}</span>
+        {renderTimerUnitLabel("m")}
+        <span className={styles.colon}>:</span>
+        <span className={styles.timeUnit}>{timeDisplay.seconds}</span>
+        {renderTimerUnitLabel("s")}
+      </>
+    )
+  }
+
+  const renderCurrentTimeDisplay = (isPrimary: boolean) => {
+    const [hour = "", minute = "", second = ""] = currentTime.time.split(":")
+
+    if (!minute) {
+      return (
+        <span className={isPrimary ? styles.currentTimeStack : styles.currentTimeInline}>
+          <span className={styles.currentTimeValue}>{currentTime.time}</span>
+          {renderCurrentTimeMeridiem()}
+        </span>
+      )
+    }
+
+    return (
+      <span className={isPrimary ? styles.currentTimeStack : styles.currentTimeInline}>
+        <span className={styles.currentTimeRow}>
+          <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{hour}</span>
+          <span className={`${styles.colon} ${styles.clockColon}`}>:</span>
+          <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{minute}</span>
+          {second && (
+            <>
+              <span className={`${styles.colon} ${styles.clockColon}`}>:</span>
+              <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{second}</span>
+            </>
+          )}
+          {renderCurrentTimeMeridiem()}
+        </span>
+      </span>
+    )
+  }
 
   const chromeClassName = [
     styles.chrome,
@@ -218,7 +507,14 @@ export function RunningTimer({
   ].filter(Boolean).join(" ")
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
+    ...(fitFontSize ? { "--chimer-fit-font-size": `${fitFontSize}px` } : {}),
   } as CSSProperties
+  const timerSwapClass = swapAnimationTarget
+    ? swapAnimationTarget === "timer" ? styles.swapToPrimary : styles.swapToSecondary
+    : ""
+  const currentTimeSwapClass = swapAnimationTarget
+    ? swapAnimationTarget === "currentTime" ? styles.swapToPrimary : styles.swapToSecondary
+    : ""
 
   return (
     <section className={`${styles.container} ${isAlerting ? styles.alerting : ""}`} aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}>
@@ -230,59 +526,38 @@ export function RunningTimer({
         />
       )}
 
-      {!isClockMode && isTimerPrimary ? (
-        <button
-          type="button"
-          className={`${styles.displayButton} ${styles.secondaryDisplay} ${styles.currentTimeDisplay}`}
-          onClick={() => setPrimaryDisplay("currentTime")}
-          aria-label="Show current time in center"
-          data-testid="running-current-time"
-        >
-          {renderCurrentTimeDisplay(false)}
-        </button>
-      ) : !isClockMode ? (
-        <button
-          type="button"
-          className={`${styles.displayButton} ${styles.secondaryDisplay} ${styles.timerDisplay}`}
-          onClick={() => setPrimaryDisplay("timer")}
-          aria-label="Show timer in center"
-          aria-live="polite"
-          data-testid="running-timer-clock"
-        >
-          {renderTimerDisplay()}
-        </button>
-      ) : null}
-
       {!isClockMode && (
-        <div className={styles.status}>{isComplete ? "Session complete" : isPaused ? "Paused" : "Running"}</div>
+        <button
+          type="button"
+          className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${styles.timerDisplay} ${timerSwapClass}`}
+          onClick={isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer")}
+          disabled={isTimerPrimary && isComplete}
+          ref={isTimerPrimary ? primaryDisplayRef : undefined}
+          style={isTimerPrimary ? primaryDisplayStyle : undefined}
+          aria-label={isTimerPrimary ? (isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show timer in center"}
+          aria-live={isTimerPrimary ? "polite" : undefined}
+          data-testid="running-timer-clock"
+        >
+          <span ref={isTimerPrimary ? primaryContentRef : undefined} className={styles.displayContent}>
+            {renderTimerDisplay()}
+          </span>
+        </button>
       )}
 
-      {isTimerPrimary && !isClockMode ? (
-        <button
-          type="button"
-          className={`${styles.displayButton} ${styles.primaryDisplay} ${styles.timerDisplay}`}
-          onClick={onPause}
-          disabled={isComplete}
-          data-testid="running-timer-clock"
-          style={primaryDisplayStyle}
-          aria-label={isComplete ? "Session complete" : `${primaryActionLabel} from center display`}
-          aria-live="polite"
-        >
-          {renderTimerDisplay()}
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={`${styles.displayButton} ${styles.primaryDisplay} ${styles.currentTimeDisplay}`}
-          onClick={isClockMode ? revealControls : onPause}
-          disabled={isComplete}
-          data-testid="running-current-time"
-          aria-label={isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`}
-          style={primaryDisplayStyle}
-        >
-          {renderCurrentTimeDisplay(true)}
-        </button>
-      )}
+      <button
+        type="button"
+        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
+        onClick={isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime")}
+        disabled={isCurrentTimePrimary && isComplete}
+        ref={isCurrentTimePrimary ? primaryDisplayRef : undefined}
+        data-testid="running-current-time"
+        aria-label={isCurrentTimePrimary ? (isClockMode ? "Reveal clock controls" : isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show current time in center"}
+        style={isCurrentTimePrimary ? primaryDisplayStyle : undefined}
+      >
+        <span ref={isCurrentTimePrimary ? primaryContentRef : undefined} className={styles.displayContent}>
+          {renderCurrentTimeDisplay(isCurrentTimePrimary)}
+        </span>
+      </button>
 
       <div className={chromeClassName}>
         <button
@@ -296,7 +571,7 @@ export function RunningTimer({
 
         <button
           className={`${styles.control} ${styles.fullscreenButton}`}
-          onClick={onFullscreen}
+          onClick={handleFullscreenControl}
           aria-label="Toggle fullscreen"
           data-chimer-control="true"
         >
@@ -306,8 +581,8 @@ export function RunningTimer({
         <button
           ref={settingsButtonRef}
           className={`${styles.control} ${styles.settingsButton}`}
-          onClick={() => setIsSettingsOpen(true)}
-          aria-label="Open timer settings"
+          onClick={handleSettingsButtonClick}
+          aria-label={isSettingsOpen ? "Close clock settings" : "Open clock settings"}
           aria-expanded={isSettingsOpen}
           data-chimer-control="true"
         >
@@ -315,83 +590,196 @@ export function RunningTimer({
         </button>
 
         {isSettingsOpen && (
-          <div ref={settingsPanelRef} className={styles.settingsPanel} role="dialog" aria-label="Timer settings" data-chimer-control="true">
-            <div className={styles.settingsHeader}>Clock Settings</div>
-
-            <label className={styles.switchRow}>
-              <span>Show seconds</span>
-              <input
-                type="checkbox"
-                checked={showCurrentTimeSeconds}
-                onChange={(event) => onSettingsChange({ showCurrentTimeSeconds: event.target.checked })}
-              />
-            </label>
-
-            <div className={styles.formatRow}>
-              <span>Time format</span>
-              <div className={styles.formatToggle} aria-label="Time format">
-                <button
-                  type="button"
-                  className={`${styles.formatOption} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
-                  aria-pressed={timeFormat === "12h"}
-                  onClick={() => onSettingsChange({ timeFormat: "12h" })}
-                >
-                  12h
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.formatOption} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
-                  aria-pressed={timeFormat === "24h"}
-                  onClick={() => onSettingsChange({ timeFormat: "24h" })}
-                >
-                  24h
-                </button>
+          <div
+            ref={settingsPanelRef}
+            className={styles.settingsPanel}
+            role="dialog"
+            aria-label="Chimer settings"
+            data-chimer-control="true"
+            data-testid="chimer-settings-panel"
+            onPointerDown={handleSettingsPanelActivity}
+            onKeyDown={handleSettingsPanelActivity}
+            onChange={handleSettingsPanelActivity}
+            onInput={handleSettingsPanelActivity}
+          >
+            <div className={styles.settingsHeaderBar}>
+              <div>
+                <div className={styles.settingsHeader}>Chimer Settings</div>
+                <div className={styles.settingsSubheader}>
+                  {isClockMode ? "Clock display and background" : "Active timer controls and preferences"}
+                </div>
               </div>
             </div>
 
-            <label className={styles.switchRow}>
-              <span>Moving background</span>
-              <input
-                type="checkbox"
-                checked={movingBackgroundEnabled}
-                onChange={(event) => onSettingsChange({ movingBackgroundEnabled: event.target.checked })}
-              />
-            </label>
+            <Tabs value={settingsTab} onValueChange={handleSettingsTabChange} className={styles.settingsTabs}>
+              <TabsList className={styles.settingsTabList}>
+                {!isClockMode && (
+                  <TabsTrigger value="timer" className={styles.settingsTabTrigger}>Timer</TabsTrigger>
+                )}
+                <TabsTrigger value="display" className={styles.settingsTabTrigger}>Display</TabsTrigger>
+                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Background</TabsTrigger>
+              </TabsList>
 
-            <label className={styles.colorRow}>
-              <span>Main color</span>
-              <input
-                type="color"
-                value={movingBackgroundMainColor}
-                onChange={(event) => onSettingsChange({ movingBackgroundMainColor: event.target.value })}
-                aria-label="Moving background main color"
-              />
-            </label>
+              {!isClockMode && (
+                <TabsContent value="timer" className={styles.settingsTabContent}>
+                  {canEditActiveTimer ? (
+                    <>
+                      <div className={styles.settingsSection}>
+                        <div className={styles.settingsSectionHeader}>
+                          <span>Remaining time</span>
+                          <span className={styles.settingsPill}>Active only</span>
+                        </div>
+                        <div className={styles.quickAdjustGrid} aria-label="Adjust remaining time">
+                          <button type="button" onClick={() => handleActiveRemainingStep(-5)}>-5m</button>
+                          <button type="button" onClick={() => handleActiveRemainingStep(-1)}>-1m</button>
+                          <button type="button" onClick={() => handleActiveRemainingStep(1)}>+1m</button>
+                          <button type="button" onClick={() => handleActiveRemainingStep(5)}>+5m</button>
+                        </div>
+                        <div className={styles.exactTimeGrid}>
+                          <label className={styles.numberField}>
+                            <span>Hours</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={activeRemainingHours}
+                              onChange={(event) => handleActiveRemainingHoursChange(event.target.value)}
+                              aria-label="Exact remaining hours"
+                            />
+                          </label>
+                          <label className={styles.numberField}>
+                            <span>Minutes</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={activeRemainingMinutes}
+                              onChange={(event) => handleActiveRemainingMinutesChange(event.target.value)}
+                              aria-label="Exact remaining minutes"
+                            />
+                          </label>
+                        </div>
+                      </div>
 
-            <label className={styles.colorRow}>
-              <span>Orb color</span>
-              <input
-                type="color"
-                value={movingBackgroundOrbColor}
-                onChange={(event) => onSettingsChange({ movingBackgroundOrbColor: event.target.value })}
-                aria-label="Moving background orb color"
-              />
-            </label>
+                      <div className={styles.settingsSection}>
+                        <div className={styles.settingsSectionHeader}>
+                          <span>Chime interval</span>
+                          <span className={styles.settingsPill}>Active only</span>
+                        </div>
+                        <label className={styles.numberField}>
+                          <span>Minutes between chimes</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={activeIntervalMinutes ?? ""}
+                            onChange={(event) => handleActiveIntervalChange(event.target.value)}
+                            aria-label="Active chime interval minutes"
+                          />
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.settingsEmptyState}>
+                      {isComplete ? "Session complete. Active timer changes are disabled." : "Start or pause a timer to adjust it here."}
+                    </div>
+                  )}
+                </TabsContent>
+              )}
+
+              <TabsContent value="display" className={styles.settingsTabContent}>
+                <label className={styles.switchRow}>
+                  <span>Show seconds</span>
+                  <input
+                    type="checkbox"
+                    checked={showCurrentTimeSeconds}
+                    onChange={(event) => handleSettingsChange({ showCurrentTimeSeconds: event.target.checked })}
+                  />
+                </label>
+
+                <div className={styles.formatRow}>
+                  <span>Time format</span>
+                  <div className={styles.formatToggle} aria-label="Time format">
+                    <button
+                      type="button"
+                      className={`${styles.formatOption} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                      aria-pressed={timeFormat === "12h"}
+                      onClick={() => handleSettingsChange({ timeFormat: "12h" })}
+                    >
+                      12h
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.formatOption} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                      aria-pressed={timeFormat === "24h"}
+                      onClick={() => handleSettingsChange({ timeFormat: "24h" })}
+                    >
+                      24h
+                    </button>
+                  </div>
+                </div>
+
+                {!isClockMode && (
+                  <label className={styles.switchRow}>
+                    <span>Keep timer screen awake</span>
+                    <input
+                      type="checkbox"
+                      checked={keepTimerScreenAwake}
+                      onChange={(event) => handleSettingsChange({ keepTimerScreenAwake: event.target.checked })}
+                    />
+                  </label>
+                )}
+              </TabsContent>
+
+              <TabsContent value="background" className={styles.settingsTabContent}>
+                <label className={styles.switchRow}>
+                  <span>Moving background</span>
+                  <input
+                    type="checkbox"
+                    checked={movingBackgroundEnabled}
+                    onChange={(event) => handleSettingsChange({ movingBackgroundEnabled: event.target.checked })}
+                  />
+                </label>
+
+                <label className={styles.colorRow}>
+                  <span>Main color</span>
+                  <input
+                    type="color"
+                    value={movingBackgroundMainColor}
+                    onChange={(event) => handleSettingsChange({ movingBackgroundMainColor: event.target.value })}
+                    aria-label="Moving background main color"
+                  />
+                </label>
+
+                <label className={styles.colorRow}>
+                  <span>Orb color</span>
+                  <input
+                    type="color"
+                    value={movingBackgroundOrbColor}
+                    onChange={(event) => handleSettingsChange({ movingBackgroundOrbColor: event.target.value })}
+                    aria-label="Moving background orb color"
+                  />
+                </label>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
         <div className={styles.bottomControls}>
-          <button className={styles.fontButton} onClick={onDecreaseFontSize} aria-label="Decrease timer size" data-chimer-control="true">
-            <Minus className="h-5 w-5" />
-          </button>
-          {!isComplete && !isClockMode && (
-            <button className={`${styles.control} ${styles.pauseButton}`} onClick={onPause} aria-label={isPaused ? "Resume timer" : "Pause timer"} data-chimer-control="true">
-              {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+          <div className={styles.bottomButtonRow}>
+            <button className={styles.fontButton} onClick={() => handleFontSizeChange("decrease")} disabled={!canDecreaseFontSize} aria-label="Decrease timer size" data-chimer-control="true">
+              <Minus className="h-5 w-5" />
             </button>
-          )}
-          <button className={styles.fontButton} onClick={onIncreaseFontSize} aria-label="Increase timer size" data-chimer-control="true">
-            <Plus className="h-5 w-5" />
-          </button>
+            {!isComplete && !isClockMode && (
+              <button className={`${styles.control} ${styles.pauseButton}`} onClick={handlePauseControl} aria-label={isPaused ? "Resume timer" : "Pause timer"} data-chimer-control="true">
+                {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+              </button>
+            )}
+            <button className={styles.fontButton} onClick={() => handleFontSizeChange("increase")} disabled={!canIncreaseFontSize} aria-label="Increase timer size" data-chimer-control="true">
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
+          {!isClockMode && <div className={styles.status}>{statusText}</div>}
         </div>
       </div>
     </section>

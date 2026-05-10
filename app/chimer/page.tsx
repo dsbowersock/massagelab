@@ -1,14 +1,17 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
+  clampActiveTimerMs,
   CHIMER_STORAGE_KEY,
   DEFAULT_CHIMER_SETTINGS,
   formatCurrentTimeParts,
   formatDurationParts,
+  getActiveTimerAlertSchedule,
   getIntervalMs,
   getTotalTimerMs,
+  normalizeInteger,
   sanitizeChimerSettings,
 } from "@/lib/chimer-timer"
 import { fetchWithTimeout } from "@/lib/client-fetch"
@@ -22,6 +25,18 @@ type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
 type CurrentTimeParts = {
   time: string
   meridiem: string
+}
+
+type ChimerWakeLockSentinel = EventTarget & {
+  released?: boolean
+  onrelease: ((this: ChimerWakeLockSentinel, event: Event) => unknown) | null
+  release: () => Promise<void>
+}
+
+type WakeLockCapableNavigator = Navigator & {
+  wakeLock?: {
+    request: (type: "screen") => Promise<ChimerWakeLockSentinel>
+  }
 }
 
 interface TimerState {
@@ -73,11 +88,16 @@ export default function ChimerPage() {
   const timerStateRef = useRef(timerState)
   const settingsRef = useRef(settings)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const wakeLockRef = useRef<ChimerWakeLockSentinel | null>(null)
+  const wakeLockRequestRef = useRef<Promise<void> | null>(null)
+  const shouldKeepWakeLockRef = useRef(false)
 
   const totalDurationMs = useMemo(
     () => getTotalTimerMs(settings.hours, settings.minutes),
     [settings.hours, settings.minutes],
   )
+  const shouldKeepScreenAwake =
+    timerState.status === "clock" || (timerState.status !== "idle" && settings.keepTimerScreenAwake)
 
   useEffect(() => {
     timerStateRef.current = timerState
@@ -213,6 +233,78 @@ export default function ChimerPage() {
     return () => document.body.classList.remove("chimer-alerting")
   }, [isAlerting])
 
+  const releaseWakeLock = useCallback(() => {
+    const sentinel = wakeLockRef.current
+    wakeLockRef.current = null
+
+    if (sentinel && !sentinel.released) {
+      void sentinel.release().catch(() => undefined)
+    }
+  }, [])
+
+  const requestWakeLock = useCallback(() => {
+    if (wakeLockRef.current || wakeLockRequestRef.current || document.visibilityState !== "visible") {
+      return
+    }
+
+    const wakeLock = (navigator as WakeLockCapableNavigator).wakeLock
+    if (!wakeLock?.request) {
+      return
+    }
+
+    const request = wakeLock.request("screen")
+      .then((sentinel) => {
+        if (!shouldKeepWakeLockRef.current || document.visibilityState !== "visible") {
+          void sentinel.release().catch(() => undefined)
+          return
+        }
+
+        sentinel.onrelease = () => {
+          if (wakeLockRef.current === sentinel) {
+            wakeLockRef.current = null
+          }
+        }
+        wakeLockRef.current = sentinel
+      })
+      .catch(() => undefined)
+
+    wakeLockRequestRef.current = request
+    void request.finally(() => {
+      if (wakeLockRequestRef.current === request) {
+        wakeLockRequestRef.current = null
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    shouldKeepWakeLockRef.current = shouldKeepScreenAwake
+
+    if (shouldKeepScreenAwake) {
+      requestWakeLock()
+    } else {
+      releaseWakeLock()
+    }
+  }, [releaseWakeLock, requestWakeLock, shouldKeepScreenAwake])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && shouldKeepWakeLockRef.current) {
+        requestWakeLock()
+        return
+      }
+
+      if (document.visibilityState !== "visible") {
+        releaseWakeLock()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      releaseWakeLock()
+    }
+  }, [releaseWakeLock, requestWakeLock])
+
   const clearTimerInterval = useCallback(() => {
     if (timerInterval.current) {
       clearInterval(timerInterval.current)
@@ -319,6 +411,22 @@ export default function ChimerPage() {
     }
   }, [playChime, showFlashAlert])
 
+  const completeActiveTimer = useCallback((state: TimerState) => {
+    clearTimerInterval()
+    const completedState: TimerState = {
+      ...state,
+      status: "complete",
+      remainingMs: 0,
+      endsAtMs: null,
+      nextAlertAtMs: null,
+      msUntilNextAlert: null,
+    }
+
+    timerStateRef.current = completedState
+    setTimerState(completedState)
+    triggerAlert()
+  }, [clearTimerInterval, triggerAlert])
+
   const tick = useCallback(() => {
     const state = timerStateRef.current
     if (state.status !== "running" || !state.endsAtMs) {
@@ -341,18 +449,7 @@ export default function ChimerPage() {
     }
 
     if (remainingMs <= 0) {
-      clearTimerInterval()
-      const completedState: TimerState = {
-        ...state,
-        status: "complete",
-        remainingMs: 0,
-        endsAtMs: null,
-        nextAlertAtMs: null,
-        msUntilNextAlert: null,
-      }
-      timerStateRef.current = completedState
-      setTimerState(completedState)
-      triggerAlert()
+      completeActiveTimer(state)
       return
     }
 
@@ -367,7 +464,7 @@ export default function ChimerPage() {
     if (shouldAlert) {
       triggerAlert()
     }
-  }, [clearTimerInterval, triggerAlert])
+  }, [completeActiveTimer, triggerAlert])
 
   const startTicking = useCallback(() => {
     clearTimerInterval()
@@ -543,6 +640,97 @@ export default function ChimerPage() {
     }
   }, [clearTimerInterval, startTicking])
 
+  const getCurrentActiveRemainingMs = (state: TimerState, now: number) => (
+    state.status === "running" && state.endsAtMs ? Math.max(0, state.endsAtMs - now) : state.remainingMs
+  )
+
+  const applyActiveRemainingMs = useCallback((nextRemainingMs: number, now = Date.now()) => {
+    const state = timerStateRef.current
+    if (state.status !== "running" && state.status !== "paused") {
+      return
+    }
+
+    const remainingMs = clampActiveTimerMs(nextRemainingMs)
+    if (remainingMs <= 0) {
+      completeActiveTimer(state)
+      return
+    }
+
+    const endsAtMs = state.status === "running" ? now + remainingMs : null
+    const fallbackSchedule = getActiveTimerAlertSchedule({
+      status: state.status,
+      now,
+      remainingMs,
+      intervalMs: state.intervalMs,
+    })
+    const nextAlertAtMs = state.status === "running" && state.nextAlertAtMs && state.nextAlertAtMs > now && state.nextAlertAtMs < endsAtMs!
+      ? state.nextAlertAtMs
+      : fallbackSchedule.nextAlertAtMs
+    const msUntilNextAlert = state.status === "paused" && state.msUntilNextAlert && state.msUntilNextAlert < remainingMs
+      ? state.msUntilNextAlert
+      : fallbackSchedule.msUntilNextAlert
+    const nextState: TimerState = {
+      ...state,
+      totalMs: Math.max(state.totalMs, remainingMs),
+      remainingMs,
+      endsAtMs,
+      nextAlertAtMs,
+      msUntilNextAlert,
+    }
+
+    timerStateRef.current = nextState
+    setTimerState(nextState)
+  }, [completeActiveTimer])
+
+  const adjustActiveRemainingMinutes = useCallback((deltaMinutes: number) => {
+    const state = timerStateRef.current
+    if (state.status !== "running" && state.status !== "paused") {
+      return
+    }
+
+    const now = Date.now()
+    const currentRemainingMs = getCurrentActiveRemainingMs(state, now)
+    applyActiveRemainingMs(currentRemainingMs + deltaMinutes * 60 * 1000, now)
+  }, [applyActiveRemainingMs])
+
+  const setActiveRemainingDuration = useCallback((hours: number, minutes: number) => {
+    applyActiveRemainingMs(getTotalTimerMs(hours, minutes))
+  }, [applyActiveRemainingMs])
+
+  const setActiveIntervalMinutes = useCallback((minutes: number) => {
+    const state = timerStateRef.current
+    if (state.status !== "running" && state.status !== "paused") {
+      return
+    }
+
+    const now = Date.now()
+    const remainingMs = clampActiveTimerMs(getCurrentActiveRemainingMs(state, now))
+    const intervalMinutes = normalizeInteger(
+      minutes,
+      state.intervalMs ? Math.max(1, Math.round(state.intervalMs / 60_000)) : settingsRef.current.customInterval,
+      1,
+      240,
+    )
+    const intervalMs = intervalMinutes * 60 * 1000
+    const schedule = getActiveTimerAlertSchedule({
+      status: state.status,
+      now,
+      remainingMs,
+      intervalMs,
+    })
+    const nextState: TimerState = {
+      ...state,
+      remainingMs,
+      endsAtMs: state.status === "running" ? now + remainingMs : null,
+      intervalMs,
+      nextAlertAtMs: schedule.nextAlertAtMs,
+      msUntilNextAlert: schedule.msUntilNextAlert,
+    }
+
+    timerStateRef.current = nextState
+    setTimerState(nextState)
+  }, [])
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => setError("Fullscreen is not available in this browser."))
@@ -597,16 +785,20 @@ export default function ChimerPage() {
             isAlerting={isAlerting}
             fontSize={fontSize}
             movingBackgroundEnabled={settings.movingBackgroundEnabled}
+            keepTimerScreenAwake={settings.keepTimerScreenAwake}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
             timeFormat={settings.timeFormat}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
+            activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
             onClose={endTimer}
             onPause={togglePause}
             onFullscreen={toggleFullscreen}
             onSettingsChange={updateSettings}
-            onIncreaseFontSize={() => setFontSize((current) => Math.min(current + 3, 34))}
-            onDecreaseFontSize={() => setFontSize((current) => Math.max(current - 3, 12))}
+            onFontSizeChange={setFontSize}
+            onAdjustActiveRemainingMinutes={adjustActiveRemainingMinutes}
+            onSetActiveRemainingDuration={setActiveRemainingDuration}
+            onSetActiveIntervalMinutes={setActiveIntervalMinutes}
           />
         )}
 
@@ -616,6 +808,9 @@ export default function ChimerPage() {
               <DialogTitle className="text-center text-xl">
                 Set {selectedTimeUnit === "hours" ? "Hours" : "Minutes"}
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Choose a {selectedTimeUnit === "hours" ? "hour" : "minute"} value for the Chimer timer.
+              </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {Array.from({ length: selectedTimeUnit === "hours" ? 24 : 60 }).map((_, index) => (
