@@ -162,9 +162,10 @@ Do not run migrations from `next build`.
 
 ## Near-Term Direction
 
+See [docs/roadmap.md](docs/roadmap.md) for the branch-ready roadmap after the Sentry deployment.
+
 1. Keep Chimer as the production-quality alpha surface and continue manual browser checks across desktop and mobile.
 2. Keep SOAP, intake, journals, and ROM tools local-first while validating import/export with anonymous sample files.
-3. Expand the shared anatomy dataset for Anatomime, flashcards, SOAP assistance, and study tools.
-4. Wire tools to read published anatomy content from Prisma with the local content module as fallback.
-5. Add direct cloud-provider export only after the local file model is stable.
-6. Design managed HIPAA storage as a separate subscription product.
+3. Clean up navigation into durable product sections before adding more top-level routes.
+4. Treat music as a hidden spike until playback, sample hosting, licensing, and browser audio constraints are proven.
+5. Design managed HIPAA storage as a separate subscription product.
