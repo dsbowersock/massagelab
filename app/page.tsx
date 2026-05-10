@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Brain, CalendarDays, ClipboardList, HeartHandshake, ShieldCheck, Timer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,7 +46,19 @@ export default function Home() {
         <section className="rounded-md border border-neutral-800 bg-[#202020]/90 p-6 shadow-lg backdrop-blur">
           <div className="mb-8 max-w-3xl">
             <p className="mb-3 text-sm font-medium uppercase tracking-normal text-[#ff7043]">Private alpha</p>
-            <h1 className="mb-4 text-4xl font-bold tracking-normal">MassageLab</h1>
+            <h1 className="sr-only">MassageLab</h1>
+            <div aria-hidden="true" className="mb-4 flex w-full rounded-md border border-white/10 bg-neutral-950/20 px-4 py-3 shadow-inner shadow-black/40 sm:w-fit">
+              <Image
+                src="/brand/massagelab-wordmark-uppercase-tight.png"
+                alt=""
+                width={360}
+                height={108}
+                className="h-auto w-full max-w-[22rem] object-contain"
+                data-testid="home-brand-wordmark"
+                unoptimized
+                priority
+              />
+            </div>
             <p className="text-lg text-muted-foreground">
               Practical tools for massage therapists, students, and clients. Clinical tools are local-first until compliant hosted sync is funded and reviewed.
             </p>
