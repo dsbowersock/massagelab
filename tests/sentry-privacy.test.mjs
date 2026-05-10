@@ -40,6 +40,42 @@ test("sanitizeSentryEvent removes request body, headers, query strings, and defa
   assert.equal(event.extra.message, "Email [Filtered] token=[Filtered]")
 })
 
+test("sanitizeSentryEvent scrubs diagnostic messages and exception values", () => {
+  const event = sanitizeSentryEvent({
+    message: "SOAP note: person@example.com reports neck pain token=secret",
+    exception: {
+      values: [
+        {
+          type: "Error",
+          value: "Client intake says shoulder pain and email person@example.com token=secret",
+          stacktrace: {
+            frames: [
+              {
+                filename: "app/notes/soap/page.tsx",
+                vars: {
+                  soapNote: "client reports pain",
+                  safeCount: 1,
+                },
+              },
+            ],
+          },
+        },
+      ],
+    },
+    logentry: {
+      message: "Journal entry included person@example.com and token=secret",
+      formatted: "Journal entry included person@example.com and token=secret",
+    },
+  })
+
+  assert.equal(event.message, "[Filtered]")
+  assert.equal(event.exception.values[0].type, "Error")
+  assert.equal(event.exception.values[0].value, "[Filtered]")
+  assert.equal(event.exception.values[0].stacktrace.frames[0].vars, "[Filtered]")
+  assert.equal(event.logentry.message, "[Filtered]")
+  assert.equal(event.logentry.formatted, "[Filtered]")
+})
+
 test("sanitizeSentryBreadcrumb drops console breadcrumbs and scrubs fetch data", () => {
   assert.equal(sanitizeSentryBreadcrumb({ category: "console", message: "license=ABC" }), null)
 
