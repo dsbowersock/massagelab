@@ -148,6 +148,9 @@ For Vercel and Neon deployment, set the same auth, SMTP, TOTP, admin, and databa
 - `AUTH_URL` should be `https://massagelab.app`. `NEXTAUTH_URL` is also accepted.
 - `AUTH_SECRET`, `AUTH_GOOGLE_ID`, and `AUTH_GOOGLE_SECRET` must be set before deploying Google login. `NEXTAUTH_SECRET` is also accepted.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` must be set before email verification and password reset emails can be delivered in production.
+- Sentry is configured for sanitized error monitoring and performance traces only. Set `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_ENVIRONMENT`, `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` to enable event capture and source-map uploads.
+- Keep `MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false` outside short manual verification windows. When temporarily enabled, `GET /api/debug/sentry` throws a server-side test error for Sentry verification.
+- Do not enable Sentry Session Replay, User Feedback, or Logs until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
 
 Run production migrations as a deploy step before serving new code:
 
