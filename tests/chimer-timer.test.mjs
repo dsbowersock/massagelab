@@ -168,7 +168,7 @@ describe("Chimer timer helpers", () => {
   })
 
   it("normalizes moving background colors", () => {
-    assert.equal(normalizeHexColor("#ff7043", "#000000"), "#FF7043")
+    assert.equal(normalizeHexColor("#ff7a1a", "#000000"), "#FF7A1A")
     assert.equal(normalizeHexColor("not-a-color", "#4169E1"), "#4169E1")
     assert.equal(sanitizeChimerSettings({
       movingBackgroundMainColor: "#123abc",

@@ -59,7 +59,7 @@ export default function RegisterPage() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
               </div>
-              <Button type="submit" className="w-full bg-[#ff7043] hover:bg-[#f4511e]" disabled={isSubmitting}>
+              <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting}>
                 Create account
               </Button>
             </form>
@@ -69,7 +69,7 @@ export default function RegisterPage() {
                 Development verification link: <Link className="underline" href={devLink}>{devLink}</Link>
               </p>
             )}
-            <div className="flex flex-wrap gap-4 text-sm text-[#ffb199]">
+            <div className="flex flex-wrap gap-4 text-sm text-brand-orange">
               <Link href="/login" className="underline-offset-4 hover:underline">
                 Back to login
               </Link>

@@ -213,9 +213,9 @@ export default function JournalPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <PageHeading>Client Journal</PageHeading>
 
-        <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <ShieldCheck className="mt-1 h-5 w-5 text-[#ff7043]" />
+            <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
               <CardTitle>Local-first sensitive health data</CardTitle>
               <CardDescription>
@@ -295,7 +295,7 @@ export default function JournalPage() {
             </div>
 
             <div className="flex flex-wrap gap-3 border-t pt-5">
-              <Button type="button" onClick={addEntry} className="bg-[#ff7043] hover:bg-[#f4511e]">
+              <Button type="button" onClick={addEntry} className="bg-primary hover:bg-brand-orange-glow">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Entry
               </Button>
@@ -316,12 +316,12 @@ export default function JournalPage() {
                 <Printer className="mr-2 h-4 w-4" />
                 Save PDF
               </Button>
-              <Button type="button" className="bg-[#ff7043] hover:bg-[#f4511e]" onClick={exportJson}>
+              <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={exportJson}>
                 <Download className="mr-2 h-4 w-4" />
                 Export JSON
               </Button>
             </div>
-            {message && <p className="text-sm text-[#ffb199]">{message}</p>}
+            {message && <p className="text-sm text-brand-orange">{message}</p>}
           </CardContent>
         </Card>
 

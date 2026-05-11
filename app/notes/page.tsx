@@ -47,9 +47,9 @@ export default function NotesPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <PageHeading>Local-First Documentation</PageHeading>
 
-        <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <ShieldCheck className="mt-1 h-5 w-5 text-[#ff7043]" />
+            <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
               <CardTitle>PHI stays under user control</CardTitle>
               <CardDescription>
@@ -67,7 +67,7 @@ export default function NotesPage() {
                 <Card className="h-full border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <Icon className="h-5 w-5 text-[#ff7043]" />
+                      <Icon className="h-5 w-5 text-brand-orange" />
                       <CardTitle>{note.title}</CardTitle>
                     </div>
                     <CardDescription>{note.description}</CardDescription>
@@ -81,7 +81,7 @@ export default function NotesPage() {
           })}
         </div>
 
-        <Card className="border-neutral-800 bg-[#202020]/90 backdrop-blur">
+        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle>Planned Documentation Tools</CardTitle>
             <CardDescription>These remain visible as roadmap tools until their workflows are implemented.</CardDescription>
@@ -92,7 +92,7 @@ export default function NotesPage() {
                 const Icon = tool.icon
                 return (
                   <div key={tool.title} className="flex min-h-16 items-center gap-3 rounded-md border border-neutral-800 bg-background/70 p-3 text-sm text-muted-foreground">
-                    <Icon className="h-4 w-4 text-[#ff7043]" />
+                    <Icon className="h-4 w-4 text-brand-orange" />
                     <span>{tool.title}</span>
                   </div>
                 )
@@ -105,7 +105,7 @@ export default function NotesPage() {
           <Card className="border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <LifeBuoy className="h-5 w-5 text-[#ff7043]" />
+                <LifeBuoy className="h-5 w-5 text-brand-orange" />
                 <CardTitle>Support the MassageLab roadmap</CardTitle>
               </div>
               <CardDescription>

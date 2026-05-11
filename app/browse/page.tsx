@@ -8,7 +8,7 @@ export default function BrowsePage() {
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <PageHeading>Music Browser</PageHeading>
-        <Card className="border-neutral-800 bg-[#202020]/90 backdrop-blur">
+        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle>Music tools are not part of the private alpha</CardTitle>
             <CardDescription>
@@ -16,7 +16,7 @@ export default function BrowsePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/chimer">Open Chimer</Link>
             </Button>
           </CardContent>

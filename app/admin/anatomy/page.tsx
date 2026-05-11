@@ -116,7 +116,7 @@ export default async function AnatomyAdminPage() {
               <Textarea id="summary" name="summary" rows={3} />
             </div>
             <div className="md:col-span-2">
-              <Button type="submit" className="bg-[#ff7043] hover:bg-[#f4511e]">
+              <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
                 Create term
               </Button>
             </div>

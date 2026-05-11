@@ -753,7 +753,7 @@ export default function ChimerPage() {
   const isTimerActive = timerState.status !== "idle"
 
   return (
-    <div className="relative min-h-full bg-[#050505] p-4 sm:p-6 lg:p-8">
+    <div className="relative min-h-full bg-background p-4 sm:p-6 lg:p-8">
       {settings.movingBackgroundEnabled && !isTimerActive && (
         <MovingBackground
           mainColor={settings.movingBackgroundMainColor}
@@ -803,7 +803,7 @@ export default function ChimerPage() {
         )}
 
         <Dialog open={showTimeModal} onOpenChange={setShowTimeModal}>
-          <DialogContent className="max-h-[80dvh] overflow-auto bg-[#202020] border-[#444] p-6">
+          <DialogContent className="max-h-[80dvh] overflow-auto border-border bg-card p-6">
             <DialogHeader>
               <DialogTitle className="text-center text-xl">
                 Set {selectedTimeUnit === "hours" ? "Hours" : "Minutes"}
@@ -817,7 +817,7 @@ export default function ChimerPage() {
                 <button
                   key={index}
                   onClick={() => handleTimeSelection(index)}
-                  className="rounded-md bg-[#141414] p-3 text-white transition-colors hover:bg-[#ff7043] focus:outline-none focus:ring-2 focus:ring-[#ff7043]"
+                  className="rounded-md bg-muted p-3 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-brand-orange"
                 >
                   {index.toString().padStart(2, "0")}
                 </button>

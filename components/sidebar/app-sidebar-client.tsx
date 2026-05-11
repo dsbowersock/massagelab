@@ -24,6 +24,7 @@ import {
   Timer,
   UserPlus,
   UserRound,
+  Wrench,
 } from "lucide-react"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -100,6 +101,30 @@ const routeIcons = {
   Timer,
   UserRound,
 } satisfies Record<string, LucideIcon>
+
+const primaryGroupIcons: Record<string, LucideIcon> = {
+  tools: Wrench,
+  documentation: FileText,
+  games: Brain,
+}
+
+const sidebarSectionTriggerClass = cn(
+  "cursor-pointer gap-2",
+  "group-data-[collapsible=icon]:!mt-0 group-data-[collapsible=icon]:!h-8 group-data-[collapsible=icon]:!w-8",
+  "group-data-[collapsible=icon]:!px-0 group-data-[collapsible=icon]:!opacity-100 group-data-[collapsible=icon]:justify-center",
+)
+
+function SidebarSectionTrigger({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <SidebarGroupLabel asChild className={sidebarSectionTriggerClass}>
+      <CollapsibleTrigger aria-label={label} title={label}>
+        <Icon aria-hidden="true" />
+        <span className="truncate group-data-[collapsible=icon]:hidden">{label}</span>
+        <ChevronRight className="ml-auto transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/collapsible:rotate-90" />
+      </CollapsibleTrigger>
+    </SidebarGroupLabel>
+  )
+}
 
 type NavigationRoute = {
   id: string
@@ -218,13 +243,8 @@ function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: 
         return (
           <Collapsible key={group.id} className="group/collapsible">
             <SidebarGroup className="py-1">
-              <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="cursor-pointer">
-                  <span className="truncate">{group.label}</span>
-                  <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
+              <SidebarSectionTrigger icon={primaryGroupIcons[group.id] ?? FileText} label={group.label} />
+              <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {group.routes.map((route) => (
@@ -257,15 +277,10 @@ function CalendarSidebarSection({
   }, [calendarContext.therapists])
 
   return (
-    <Collapsible className="group/collapsible group-data-[collapsible=icon]:hidden">
+    <Collapsible className="group/collapsible">
       <SidebarGroup className="py-1">
-        <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className="cursor-pointer">
-            <span className="truncate">Calendar</span>
-            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
-        <CollapsibleContent>
+        <SidebarSectionTrigger icon={CalendarDays} label="Calendar" />
+        <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
           <SidebarGroupContent className="flex flex-col gap-3">
             {calendarContext.therapists.length > 1 && (
               <Select value={selectedTherapistId} onValueChange={setSelectedTherapistId}>
@@ -461,9 +476,9 @@ export function AppSidebarClient({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild size="lg" className="data-[state=open]:bg-sidebar-accent">
+            <SidebarMenuButton asChild size="lg" className="justify-center data-[state=open]:bg-sidebar-accent">
               <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
-                <span className="flex aspect-square size-8 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/80 text-sidebar-accent-foreground">
+                <span className="hidden aspect-square size-8 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/80 text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
                   <Image
                     src="/brand/massagelab-mark-square-tight.png"
                     alt=""
@@ -480,7 +495,7 @@ export function AppSidebarClient({
                   alt="MassageLab"
                   width={180}
                   height={54}
-                  className={cn("h-8 w-auto max-w-36 object-contain")}
+                  className={cn("h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden")}
                   data-testid="sidebar-brand-wordmark"
                   unoptimized
                   priority

@@ -39,7 +39,7 @@ export default async function CalendarPage({
             <CardDescription>Calendar data is cloud-backed practice metadata. Clinical notes remain local-first.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/login">Go to login</Link>
             </Button>
           </CardContent>
@@ -89,7 +89,7 @@ export default async function CalendarPage({
                 <Label htmlFor="name">Practice name</Label>
                 <Input id="name" name="name" placeholder="MassageLab Studio" required />
               </div>
-              <Button type="submit" className="bg-[#ff7043] hover:bg-[#f4511e]">
+              <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
                 <Plus className="mr-2 h-4 w-4" />
                 Create
               </Button>
@@ -131,9 +131,9 @@ export default async function CalendarPage({
 
   return (
     <CalendarShell>
-      <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+      <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
         <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <ShieldCheck className="mt-1 h-5 w-5 text-[#ff7043]" />
+          <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
           <div>
             <CardTitle>Scheduling metadata only</CardTitle>
             <CardDescription>
@@ -148,7 +148,7 @@ export default async function CalendarPage({
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-[#ff7043]" />
+                <CalendarDays className="h-5 w-5 text-brand-orange" />
                 {practice.name}
               </CardTitle>
               <CardDescription>Practice booking link: /book/{practice.slug}</CardDescription>
@@ -157,7 +157,7 @@ export default async function CalendarPage({
               <Button asChild variant="outline">
                 <Link href="/calendar/availability">Availability</Link>
               </Button>
-              <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+              <Button asChild className="bg-primary hover:bg-brand-orange-glow">
                 <Link href={`/book/${practice.slug}`}>Booking page</Link>
               </Button>
             </div>
@@ -212,7 +212,7 @@ export default async function CalendarPage({
             <CardContent className="space-y-2">
               {therapists.map((therapist) => (
                 <div key={therapist.id} className="flex items-center gap-2 rounded-md bg-background/70 p-3">
-                  <Clock className="h-4 w-4 text-[#ff7043]" />
+                  <Clock className="h-4 w-4 text-brand-orange" />
                   <span>{therapist.user.name ?? therapist.user.email}</span>
                 </div>
               ))}

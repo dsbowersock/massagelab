@@ -30,6 +30,11 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--secondary))',
   				foreground: 'hsl(var(--secondary-foreground))'
   			},
+        brand: {
+          orange: 'hsl(var(--brand-orange))',
+          'orange-glow': 'hsl(var(--brand-orange-glow))',
+          'orange-soft': 'hsl(var(--brand-orange-soft))'
+        },
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'

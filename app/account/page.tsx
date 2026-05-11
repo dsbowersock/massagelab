@@ -29,7 +29,7 @@ export default async function AccountPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/login">Go to login</Link>
             </Button>
           </CardContent>
@@ -63,7 +63,7 @@ export default async function AccountPage() {
       <Card className="border-neutral-800 bg-card/90 backdrop-blur">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserRound className="h-5 w-5 text-[#ff7043]" />
+            <UserRound className="h-5 w-5 text-brand-orange" />
             Account
           </CardTitle>
           <CardDescription>
@@ -98,7 +98,7 @@ export default async function AccountPage() {
       <Card className="border-neutral-800 bg-card/90 backdrop-blur">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BadgeCheck className="h-5 w-5 text-[#ff7043]" />
+            <BadgeCheck className="h-5 w-5 text-brand-orange" />
             Role verification
           </CardTitle>
           <CardDescription>
@@ -124,7 +124,7 @@ export default async function AccountPage() {
                     <div key={verification.id} className="rounded-md border border-neutral-800 bg-background/70 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium">{formatCredentialKind(verification.kind)}</p>
-                        <span className="rounded-sm border border-[#ff7043]/40 px-2 py-1 text-xs text-[#ffb199]">
+                        <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
                           {formatStatus(verification.status as VerificationStatus)}
                         </span>
                       </div>
@@ -210,9 +210,9 @@ export default async function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+      <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
         <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <ShieldAlert className="mt-1 h-5 w-5 text-[#ff7043]" />
+          <ShieldAlert className="mt-1 h-5 w-5 text-brand-orange" />
           <div>
             <CardTitle>Clinical sync is not hosted yet</CardTitle>
             <CardDescription>
@@ -264,7 +264,7 @@ export default async function AccountPage() {
                 <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
               </div>
             </div>
-            <Button type="submit" className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
               Save profile
             </Button>
           </form>
@@ -275,7 +275,7 @@ export default async function AccountPage() {
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-[#ff7043]" />
+              <Shield className="h-5 w-5 text-brand-orange" />
               Content tools
             </CardTitle>
             <CardDescription>Admin and editor roles can manage the anatomy content database.</CardDescription>

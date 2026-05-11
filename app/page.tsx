@@ -43,17 +43,17 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-md border border-neutral-800 bg-[#202020]/90 p-6 shadow-lg backdrop-blur">
-          <div className="mb-8 max-w-3xl">
-            <p className="mb-3 text-sm font-medium uppercase tracking-normal text-[#ff7043]">Private alpha</p>
+        <section className="rounded-md border border-border bg-card/90 p-6 shadow-lg backdrop-blur">
+          <div className="mx-auto mb-8 max-w-3xl">
             <h1 className="sr-only">MassageLab</h1>
-            <div aria-hidden="true" className="mb-4 flex w-full rounded-md border border-white/10 bg-neutral-950/20 px-4 py-3 shadow-inner shadow-black/40 sm:w-fit">
+            <div aria-hidden="true" className="relative mb-6 flex w-full justify-center py-8">
+              <div className="absolute inset-x-6 top-1/2 h-24 -translate-y-1/2 rounded-full bg-brand-orange-glow/20 blur-3xl sm:inset-x-14" />
               <Image
                 src="/brand/massagelab-wordmark-uppercase-tight.png"
                 alt=""
                 width={360}
                 height={108}
-                className="h-auto w-full max-w-[22rem] object-contain"
+                className="relative h-auto w-full max-w-[28rem] object-contain drop-shadow-[0_0_32px_hsl(var(--brand-orange-glow)/0.2)]"
                 data-testid="home-brand-wordmark"
                 unoptimized
                 priority
@@ -71,8 +71,8 @@ export default function Home() {
                 <Card key={tool.href} className="border-neutral-800 bg-card/90 backdrop-blur">
                   <CardHeader>
                     <div className="mb-3 flex items-center justify-between gap-3">
-                      <Icon className="h-5 w-5 text-[#ff7043]" />
-                      <span className="rounded-sm border border-[#ff7043]/40 px-2 py-1 text-xs text-[#ffb199]">
+                      <Icon className="h-5 w-5 text-brand-orange" />
+                      <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange-soft">
                         {tool.status}
                       </span>
                     </div>
@@ -80,7 +80,7 @@ export default function Home() {
                     <CardDescription>{tool.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button asChild className="w-full bg-[#ff7043] hover:bg-[#f4511e]">
+                    <Button asChild className="w-full bg-primary hover:bg-brand-orange-glow">
                       <Link href={tool.href}>{tool.action}</Link>
                     </Button>
                   </CardContent>
@@ -91,10 +91,10 @@ export default function Home() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">
-          <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+          <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
             <CardHeader>
               <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-[#ff7043]" />
+                <ShieldCheck className="h-5 w-5 text-brand-orange" />
                 <CardTitle>Local-first clinical boundary</CardTitle>
               </div>
               <CardDescription>
@@ -106,7 +106,7 @@ export default function Home() {
           <Card className="border-neutral-800 bg-card/90 backdrop-blur">
             <CardHeader>
               <div className="mb-3 flex items-center gap-2">
-                <HeartHandshake className="h-5 w-5 text-[#ff7043]" />
+                <HeartHandshake className="h-5 w-5 text-brand-orange" />
                 <CardTitle>Support compliant sync</CardTitle>
               </div>
               <CardDescription>

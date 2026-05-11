@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full overflow-hidden">
+    <html lang="en" className="dark h-full overflow-hidden">
       <body className={`${inter.className} h-full bg-background overflow-hidden`}>
         <SettingsProvider>
           <TherapistSettingsProvider>

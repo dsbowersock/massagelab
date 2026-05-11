@@ -59,7 +59,7 @@ export default function RoadmapPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
-              <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+              <Button asChild className="bg-primary hover:bg-brand-orange-glow">
                 <Link href="/register">Create an account</Link>
               </Button>
               <Button asChild variant="outline">
@@ -81,7 +81,7 @@ export default function RoadmapPage() {
             return (
               <Card key={feature.title} className="border-neutral-800 bg-card/90 backdrop-blur">
                 <CardHeader>
-                  <Icon className="mb-2 h-5 w-5 text-[#ff7043]" />
+                  <Icon className="mb-2 h-5 w-5 text-brand-orange" />
                   <CardTitle>{feature.title}</CardTitle>
                   <CardDescription>{feature.description}</CardDescription>
                 </CardHeader>
@@ -91,7 +91,7 @@ export default function RoadmapPage() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+          <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
             <CardHeader>
               <CardTitle>What funding unlocks</CardTitle>
               <CardDescription>
@@ -101,7 +101,7 @@ export default function RoadmapPage() {
             <CardContent>
               <div className="grid gap-3">
                 {upfrontNeeds.map((need) => (
-                  <div key={need} className="rounded-md border border-[#ff7043]/30 bg-background/60 p-3 text-sm">
+                  <div key={need} className="rounded-md border border-brand-orange/30 bg-background/60 p-3 text-sm">
                     {need}
                   </div>
                 ))}
@@ -121,7 +121,7 @@ export default function RoadmapPage() {
                 Until then, the best ways to support the roadmap are to create an account, use the current tools, and share which paid features would matter most to your practice.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+                <Button asChild className="bg-primary hover:bg-brand-orange-glow">
                   <Link href="/register">Create an account</Link>
                 </Button>
                 <Button asChild variant="outline">

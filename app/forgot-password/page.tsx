@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
               </div>
-              <Button type="submit" className="w-full bg-[#ff7043] hover:bg-[#f4511e]" disabled={isSubmitting}>
+              <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting}>
                 Send reset link
               </Button>
             </form>

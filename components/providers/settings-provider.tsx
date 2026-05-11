@@ -1,14 +1,17 @@
 "use client"
 
 import { fetchWithTimeout } from "@/lib/client-fetch"
+import { defaultAppSettings, normalizeAppSettings } from "@/lib/app-settings"
 import { createContext, useContext, useEffect, useState } from "react"
 
 type SidebarPosition = "left" | "right"
 type SidebarTriggerPosition = "top" | "bottom"
+type ThemeMode = "dark" | "light"
 
 interface Settings {
   sidebarPosition: SidebarPosition
   sidebarTriggerPosition: SidebarTriggerPosition
+  themeMode: ThemeMode
 }
 
 interface SettingsContextType {
@@ -16,29 +19,29 @@ interface SettingsContextType {
   updateSettings: (newSettings: Partial<Settings>) => void
 }
 
-const defaultSettings: Settings = {
-  sidebarPosition: "left",
-  sidebarTriggerPosition: "top",
+const defaultSettings = defaultAppSettings as Settings
+
+function normalizeSettings(value: unknown): Settings {
+  return normalizeAppSettings(value) as Settings
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
 
-function normalizeSettings(value: unknown): Settings {
-  if (!value || typeof value !== "object") {
-    return defaultSettings
-  }
+function applyThemeClass(themeMode: ThemeMode) {
+  const root = document.documentElement
 
-  const source = value as Partial<Settings>
-
-  return {
-    sidebarPosition: source.sidebarPosition === "right" ? "right" : "left",
-    sidebarTriggerPosition: source.sidebarTriggerPosition === "bottom" ? "bottom" : "top",
-  }
+  root.classList.toggle("dark", themeMode === "dark")
+  root.classList.toggle("light", themeMode === "light")
+  root.style.colorScheme = themeMode
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [canSync, setCanSync] = useState(false)
+
+  useEffect(() => {
+    applyThemeClass(settings.themeMode)
+  }, [settings.themeMode])
 
   useEffect(() => {
     let isMounted = true

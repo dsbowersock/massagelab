@@ -176,9 +176,9 @@ export default function IntakePage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <PageHeading>Intake Form</PageHeading>
 
-        <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <ShieldCheck className="mt-1 h-5 w-5 text-[#ff7043]" />
+            <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
               <CardTitle>Local-first PHI handling</CardTitle>
               <CardDescription>
@@ -254,7 +254,7 @@ export default function IntakePage() {
                 <Save className="mr-2 h-4 w-4" />
                 Save Local Draft
               </Button>
-              <Button type="button" className="bg-[#ff7043] hover:bg-[#f4511e]" onClick={exportForm}>
+              <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={exportForm}>
                 <Download className="mr-2 h-4 w-4" />
                 Export JSON
               </Button>
@@ -267,7 +267,7 @@ export default function IntakePage() {
                 Save PDF
               </Button>
             </div>
-            {message && <p className="text-sm text-[#ffb199]">{message}</p>}
+            {message && <p className="text-sm text-brand-orange">{message}</p>}
           </CardContent>
         </Card>
       </div>

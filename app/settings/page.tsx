@@ -1,6 +1,6 @@
 "use client"
 
-import { Layout, UserRound } from "lucide-react"
+import { Layout, Moon, Sun, UserRound } from "lucide-react"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
 import { Button } from "@/components/ui/button"
@@ -22,11 +22,11 @@ export default function SettingsPage() {
 
         <Tabs defaultValue="layout" className="w-full">
           <TabsList className="grid h-auto grid-cols-2 gap-3 bg-transparent">
-            <TabsTrigger value="layout" className="flex items-center gap-2 data-[state=active]:bg-[#ff7043]">
+            <TabsTrigger value="layout" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Layout className="h-4 w-4" />
               Layout
             </TabsTrigger>
-            <TabsTrigger value="therapist" className="flex items-center gap-2 data-[state=active]:bg-[#ff7043]">
+            <TabsTrigger value="therapist" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <UserRound className="h-4 w-4" />
               Therapist Info
             </TabsTrigger>
@@ -70,6 +70,29 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-2">
                       <RadioGroupItem value="bottom" id="trigger-bottom" />
                       <Label htmlFor="trigger-bottom">Bottom</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-base">Color Theme</Label>
+                  <RadioGroup
+                    value={settings.themeMode}
+                    onValueChange={(value) => updateSettings({ themeMode: value as "dark" | "light" })}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="dark" id="theme-dark" />
+                      <Label htmlFor="theme-dark" className="flex items-center gap-2">
+                        <Moon className="h-4 w-4" />
+                        Dark
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="light" id="theme-light" />
+                      <Label htmlFor="theme-light" className="flex items-center gap-2">
+                        <Sun className="h-4 w-4" />
+                        Light
+                      </Label>
                     </div>
                   </RadioGroup>
                 </div>
