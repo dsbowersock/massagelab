@@ -70,7 +70,7 @@ export default async function AnatomyCorrectionsPage() {
               <Label htmlFor="message">Issue</Label>
               <Textarea id="message" name="message" rows={4} required />
             </div>
-            <Button type="submit" className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
               Submit flag
             </Button>
           </form>
@@ -90,7 +90,7 @@ export default async function AnatomyCorrectionsPage() {
               <div key={flag.id} className="rounded-md border border-neutral-800 bg-background/70 p-4">
                 <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-medium">{flag.term?.preferredName ?? "General content issue"}</p>
-                  <span className="text-sm text-[#ffb199]">{flag.status}</span>
+                  <span className="text-sm text-brand-orange">{flag.status}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">{flag.issueType}: {flag.message}</p>
                 {flag.resolutionNote && <p className="mt-2 text-sm text-muted-foreground">Resolution: {flag.resolutionNote}</p>}

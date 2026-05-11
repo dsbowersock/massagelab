@@ -9,28 +9,35 @@
 }
 
 @layer base {
-  :root {
+  :root,
+  .dark {
+    color-scheme: dark;
+
+    /* Brand colors */
+    --brand-orange: 25.2 100% 55.1%;
+    --brand-orange-glow: 27.6 100% 58.2%;
+    --brand-orange-soft: 21.8 100% 87.1%;
+
     /* Core theme colors */
     --background: 0 0% 10%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 15%;
+    --card: 0 0% 13%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    
-    /* Brand colors */
-    --primary: 14 100% 63%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 16 100% 54%;
-    --secondary-foreground: 0 0% 98%;
-    
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: var(--brand-orange-glow);
+
+    --primary: var(--brand-orange);
+    --primary-foreground: 0 0% 7%;
+    --secondary: var(--brand-orange-glow);
+    --secondary-foreground: 0 0% 7%;
+
     /* UI colors */
-    --muted: 0 0% 14.9%;
+    --muted: 0 0% 15%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --accent: 0 0% 17%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
@@ -41,18 +48,57 @@
     /* Sidebar colors */
     --sidebar-background: 0 0% 7%;
     --sidebar-foreground: 0 0% 96%;
-    --sidebar-primary: 14 100% 63%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 14.9%;
+    --sidebar-primary: var(--brand-orange);
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 14.9%;
-    --sidebar-ring: 14 100% 63%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: var(--brand-orange-glow);
 
     /* App shell spacing */
     --ml-safe-top: env(safe-area-inset-top, 0px);
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
+  }
+
+  .light {
+    color-scheme: light;
+
+    --brand-orange: 25.2 100% 55.1%;
+    --brand-orange-glow: 27.6 100% 58.2%;
+    --brand-orange-soft: 21.8 100% 87.1%;
+
+    --background: 30 18% 97%;
+    --foreground: 0 0% 9%;
+    --card: 30 20% 99%;
+    --card-foreground: 0 0% 9%;
+    --popover: 30 20% 99%;
+    --popover-foreground: 0 0% 9%;
+    --border: 24 14% 84%;
+    --input: 24 14% 84%;
+    --ring: var(--brand-orange);
+
+    --primary: var(--brand-orange);
+    --primary-foreground: 0 0% 7%;
+    --secondary: var(--brand-orange-glow);
+    --secondary-foreground: 0 0% 7%;
+
+    --muted: 24 22% 92%;
+    --muted-foreground: 18 8% 38%;
+    --accent: 24 34% 91%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 98%;
+
+    --sidebar-background: 30 20% 98%;
+    --sidebar-foreground: 0 0% 12%;
+    --sidebar-primary: var(--brand-orange);
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 24 26% 91%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 24 14% 84%;
+    --sidebar-ring: var(--brand-orange);
   }
 
   .container {
@@ -168,18 +214,18 @@
   }
 
   .content-card {
-    @apply bg-[#2d2d2d]/90 p-6 rounded-lg shadow-lg backdrop-blur;
+    @apply bg-card/90 p-6 rounded-lg shadow-lg backdrop-blur;
   }
 }
 
 
 @layer utilities {
   .game-button {
-    @apply w-full py-3 px-6 text-lg font-bold text-white bg-[#ff7043] rounded-lg shadow-md transition-all duration-300;
+    @apply w-full py-3 px-6 text-lg font-bold text-primary-foreground bg-primary rounded-lg shadow-md transition-all duration-300;
   }
 
   .game-button:hover {
-    @apply bg-[#f4511e] transform -translate-y-0.5 shadow-lg;
+    @apply bg-brand-orange-glow transform -translate-y-0.5 shadow-lg;
   }
 
   .game-button:disabled {
@@ -196,12 +242,12 @@
 
   .form-select,
   .form-input {
-    @apply w-full p-3 bg-white/10 border-2 border-[#4a4a4a] rounded-lg text-white text-base transition-colors;
+    @apply w-full p-3 bg-background/70 border-2 border-border rounded-lg text-foreground text-base transition-colors;
   }
 
   .form-select:focus,
   .form-input:focus {
-    @apply border-[#ff7043] outline-none;
+    @apply border-primary outline-none;
   }
 }
 

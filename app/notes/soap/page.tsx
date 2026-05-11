@@ -395,9 +395,9 @@ export default function SoapNotesPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <PageHeading>S.O.A.P. Notes</PageHeading>
 
-        <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-            <ShieldCheck className="mt-1 h-5 w-5 text-[#ff7043]" />
+            <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
               <CardTitle>Local-first PHI handling</CardTitle>
               <CardDescription>
@@ -417,7 +417,7 @@ export default function SoapNotesPage() {
                       <TabsTrigger
                         key={step.id}
                         value={step.id.toString()}
-                        className="h-auto whitespace-normal py-2 text-xs data-[state=active]:bg-[#ff7043] data-[state=active]:text-white"
+                        className="h-auto whitespace-normal py-2 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                       >
                         {step.title}
                       </TabsTrigger>
@@ -442,7 +442,7 @@ export default function SoapNotesPage() {
               </div>
 
               <div className="rounded-md bg-black/20 px-4 py-5">
-                <Progress value={progress} className="h-2 bg-neutral-800 [&>div]:bg-[#ff7043]" />
+                <Progress value={progress} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
               </div>
             </div>
 
@@ -484,13 +484,13 @@ export default function SoapNotesPage() {
                       <Download className="mr-2 h-4 w-4" />
                       Research JSON
                     </Button>
-                    <Button className="bg-[#ff7043] hover:bg-[#f4511e]" type="button" onClick={exportJson}>
+                    <Button className="bg-primary hover:bg-brand-orange-glow" type="button" onClick={exportJson}>
                       <Download className="mr-2 h-4 w-4" />
                       Export JSON
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={handleNext} className="bg-[#ff7043] hover:bg-[#f4511e]">
+                  <Button onClick={handleNext} className="bg-primary hover:bg-brand-orange-glow">
                     Next
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -498,7 +498,7 @@ export default function SoapNotesPage() {
               </div>
             </div>
 
-            {message && <p className="text-sm text-[#ffb199]">{message}</p>}
+            {message && <p className="text-sm text-brand-orange">{message}</p>}
           </div>
         </Card>
       </div>

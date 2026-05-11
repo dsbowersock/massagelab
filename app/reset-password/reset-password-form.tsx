@@ -43,13 +43,13 @@ export function ResetPasswordForm() {
             <Label htmlFor="password">New password</Label>
             <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
           </div>
-          <Button type="submit" className="w-full bg-[#ff7043] hover:bg-[#f4511e]" disabled={isSubmitting || !token}>
+          <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting || !token}>
             Update password
           </Button>
         </form>
         {!token && <p className="text-sm text-muted-foreground">This reset link is missing a token.</p>}
         {status && <p className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm text-muted-foreground">{status}</p>}
-        <Link href="/login" className="text-sm text-[#ffb199] underline-offset-4 hover:underline">
+        <Link href="/login" className="text-sm text-brand-orange underline-offset-4 hover:underline">
           Back to login
         </Link>
       </CardContent>

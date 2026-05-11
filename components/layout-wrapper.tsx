@@ -1,10 +1,7 @@
 "use client"
 
-import Image from "next/image"
-import Link from "next/link"
 import { MovingBackground } from "@/components/moving-background"
 import { useSettings } from "@/components/providers/settings-provider"
-import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
@@ -22,18 +19,6 @@ function SidebarTriggerBar() {
       )}
     >
       <SidebarTrigger className={cn(alignsRight ? "-mr-1" : "-ml-1")} />
-      <Separator orientation="vertical" className="h-4" />
-      <Link href="/" aria-label="MassageLab home" className="flex min-w-0 items-center">
-        <Image
-          src="/brand/massagelab-wordmark-uppercase-tight.png"
-          alt="MassageLab"
-          width={180}
-          height={54}
-          className="h-7 w-auto max-w-36 object-contain"
-          unoptimized
-          priority
-        />
-      </Link>
     </header>
   )
 }
@@ -45,7 +30,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const triggerBar = <SidebarTriggerBar />
 
   return (
-    <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-[#050505]">
+    <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background">
       {!routeOwnsBackground && (
         <>
           <MovingBackground
@@ -54,7 +39,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           />
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0 z-[1] bg-gradient-to-br from-slate-950/75 via-neutral-950/80 to-stone-950/75"
+            className="pointer-events-none fixed inset-0 z-[1] bg-background/80"
           />
         </>
       )}

@@ -126,7 +126,7 @@ export function TranscriptReview({ formData, setFormData }: TranscriptReviewProp
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="rounded-md border border-[#ff7043]/40 bg-[#ff7043]/10 p-4 text-sm text-[#ffd5c8]">
+        <div className="rounded-md border border-brand-orange/40 bg-primary/10 p-4 text-sm text-brand-orange">
           Transcript content is local to this browser note. MassageLab does not automatically add transcript text to clinical documentation.
         </div>
 
@@ -140,7 +140,7 @@ export function TranscriptReview({ formData, setFormData }: TranscriptReviewProp
             className="min-h-[160px]"
           />
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={addDraftSegments} className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button type="button" onClick={addDraftSegments} className="bg-primary hover:bg-brand-orange-glow">
               <Plus className="mr-2 h-4 w-4" />
               Create Segments
             </Button>
@@ -199,13 +199,13 @@ export function TranscriptReview({ formData, setFormData }: TranscriptReviewProp
             </div>
           )) : (
             <div className="rounded-md border border-dashed border-neutral-700 p-6 text-sm text-muted-foreground">
-              <FileText className="mb-3 h-5 w-5 text-[#ff7043]" />
+              <FileText className="mb-3 h-5 w-5 text-brand-orange" />
               No transcript segments yet.
             </div>
           )}
         </div>
 
-        <Button type="button" onClick={insertSelected} disabled={!segments.some((segment) => segment.selected)} className="bg-[#ff7043] hover:bg-[#f4511e]">
+        <Button type="button" onClick={insertSelected} disabled={!segments.some((segment) => segment.selected)} className="bg-primary hover:bg-brand-orange-glow">
           Insert Selected Into SOAP
         </Button>
       </CardContent>

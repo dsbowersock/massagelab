@@ -44,7 +44,7 @@ export default async function CalendarAvailabilityPage() {
             <CardDescription>Availability belongs to a practice calendar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/login">Go to login</Link>
             </Button>
           </CardContent>
@@ -89,7 +89,7 @@ export default async function CalendarAvailabilityPage() {
             <CardDescription>Create or join a practice calendar before setting availability.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/calendar">Open calendar</Link>
             </Button>
           </CardContent>
@@ -131,7 +131,7 @@ export default async function CalendarAvailabilityPage() {
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-[#ff7043]" />
+              <Clock className="h-5 w-5 text-brand-orange" />
               Working hours
             </CardTitle>
             <CardDescription>Add repeating weekly availability for {membership.practice.name}.</CardDescription>
@@ -177,7 +177,7 @@ export default async function CalendarAvailabilityPage() {
                   <Input id="endTime" name="endTime" type="time" defaultValue="17:00" required />
                 </div>
               </div>
-              <Button type="submit" className="bg-[#ff7043] hover:bg-[#f4511e]">Add working hours</Button>
+              <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Add working hours</Button>
             </form>
           </CardContent>
         </Card>
@@ -185,7 +185,7 @@ export default async function CalendarAvailabilityPage() {
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CalendarOff className="h-5 w-5 text-[#ff7043]" />
+              <CalendarOff className="h-5 w-5 text-brand-orange" />
               Block time
             </CardTitle>
             <CardDescription>Blocks remove time from client booking and therapist scheduling.</CardDescription>
@@ -222,7 +222,7 @@ export default async function CalendarAvailabilityPage() {
                 <Label htmlFor="reason">Reason</Label>
                 <Input id="reason" name="reason" placeholder="Lunch, admin, unavailable" />
               </div>
-              <Button type="submit" className="bg-[#ff7043] hover:bg-[#f4511e]">Add block</Button>
+              <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Add block</Button>
             </form>
           </CardContent>
         </Card>

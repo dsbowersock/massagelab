@@ -38,7 +38,7 @@ export default async function SupportPage() {
           <Card className="border-neutral-800 bg-card/90 backdrop-blur">
             <CardHeader>
               <div className="mb-2 flex items-center gap-2">
-                <Mail className="h-5 w-5 text-[#ff7043]" />
+                <Mail className="h-5 w-5 text-brand-orange" />
                 <CardTitle>Get help with MassageLab</CardTitle>
               </div>
               <CardDescription>
@@ -55,7 +55,7 @@ export default async function SupportPage() {
             <Card className="h-full border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
               <CardHeader>
                 <div className="mb-2 flex items-center gap-2">
-                  <Map className="h-5 w-5 text-[#ff7043]" />
+                  <Map className="h-5 w-5 text-brand-orange" />
                   <CardTitle>Roadmap</CardTitle>
                 </div>
                 <CardDescription>See planned product work, compliance milestones, and funding-dependent features.</CardDescription>
@@ -63,10 +63,10 @@ export default async function SupportPage() {
             </Card>
           </Link>
 
-          <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+          <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
             <CardHeader>
               <div className="mb-2 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-[#ff7043]" />
+                <ShieldCheck className="h-5 w-5 text-brand-orange" />
                 <CardTitle>Privacy note</CardTitle>
               </div>
               <CardDescription>

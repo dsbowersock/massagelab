@@ -78,7 +78,7 @@ export function SupportContactForm({ initialName, initialContact }: SupportConta
             />
           </div>
 
-          <Button type="submit" className="w-fit bg-[#ff7043] hover:bg-[#f4511e]">
+          <Button type="submit" className="w-fit bg-primary hover:bg-brand-orange-glow">
             <Send className="mr-2 h-4 w-4" />
             Open Email
           </Button>

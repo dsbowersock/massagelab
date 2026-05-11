@@ -53,7 +53,7 @@ export default async function VerifyEmailPage({
             <CardDescription>{description}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href={verified ? "/login?verified=1" : "/login"}>Go to login</Link>
             </Button>
           </CardContent>

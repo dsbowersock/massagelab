@@ -21,7 +21,7 @@ interface MovingBackgroundProps {
 
 export function MovingBackground({
   className = "pointer-events-none fixed inset-0 z-0 h-screen w-screen",
-  mainColor = "#FF7F50",
+  mainColor = "#FF8C2A",
   orbColor = "#4169E1",
   testId = "chimer-moving-background",
 }: MovingBackgroundProps) {

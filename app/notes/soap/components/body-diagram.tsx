@@ -132,15 +132,15 @@ export function BodyDiagram({ formData, setFormData }: BodyDiagramProps) {
                     onClick={() => setSelectedRegionId(region.id)}
                     className={`min-h-12 rounded-md border px-3 py-2 text-left text-sm transition-colors ${
                       selectedRegionId === region.id
-                        ? "border-[#ff7043] bg-[#ff7043]/20 text-white"
-                        : "border-neutral-800 bg-black/20 text-muted-foreground hover:border-[#ff7043]/60"
+                        ? "border-brand-orange bg-primary/20 text-foreground"
+                        : "border-neutral-800 bg-black/20 text-muted-foreground hover:border-brand-orange/60"
                     }`}
                   >
                     {region.label}
                   </button>
                 ))}
               </div>
-              <Button type="button" onClick={addSelection} className="mt-4 w-full bg-[#ff7043] hover:bg-[#f4511e]">
+              <Button type="button" onClick={addSelection} className="mt-4 w-full bg-primary hover:bg-brand-orange-glow">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Selection
               </Button>
@@ -212,7 +212,7 @@ export function BodyDiagram({ formData, setFormData }: BodyDiagramProps) {
                         max="10"
                         value={selection.intensity}
                         onChange={(event) => updateSelection(selection.id, { intensity: Number(event.target.value) })}
-                        className="w-full accent-[#ff7043]"
+                        className="w-full accent-brand-orange"
                       />
                     </div>
                   </div>

@@ -108,7 +108,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               />
             </div>
           )}
-          <Button type="submit" className="w-full bg-[#ff7043] hover:bg-[#f4511e]" disabled={isSubmitting}>
+          <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting}>
             <Mail className="mr-2 h-4 w-4" />
             Sign in with email
           </Button>
@@ -132,10 +132,10 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         )}
 
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <Link href="/register" className="text-[#ffb199] underline-offset-4 hover:underline">
+          <Link href="/register" className="text-brand-orange underline-offset-4 hover:underline">
             Create an account
           </Link>
-          <Link href="/forgot-password" className="text-[#ffb199] underline-offset-4 hover:underline">
+          <Link href="/forgot-password" className="text-brand-orange underline-offset-4 hover:underline">
             Forgot password?
           </Link>
         </div>

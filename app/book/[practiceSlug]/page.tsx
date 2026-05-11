@@ -85,13 +85,13 @@ export default async function BookingPage({
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <LockKeyhole className="h-5 w-5 text-[#ff7043]" />
+              <LockKeyhole className="h-5 w-5 text-brand-orange" />
               Sign in to request an appointment
             </CardTitle>
             <CardDescription>Client accounts are required before a booking request can be confirmed.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="bg-[#ff7043] hover:bg-[#f4511e]">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/login">Go to login</Link>
             </Button>
           </CardContent>
@@ -129,9 +129,9 @@ export default async function BookingPage({
 
   return (
     <BookingShell practiceName={practice.name}>
-      <Card className="border-[#ff7043]/40 bg-[#ff7043]/10 backdrop-blur">
+      <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
         <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <CalendarDays className="mt-1 h-5 w-5 text-[#ff7043]" />
+          <CalendarDays className="mt-1 h-5 w-5 text-brand-orange" />
           <div>
             <CardTitle>Request an appointment</CardTitle>
             <CardDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</CardDescription>
