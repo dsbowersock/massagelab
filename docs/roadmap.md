@@ -17,12 +17,27 @@ Sentry error and trace monitoring is complete and deployed. Keep Session Replay,
 
 Goal: make the app menu leaner and easier to scan without building full role-specific product modes yet.
 
-- Use the existing sidebar and shadcn-style primitives already in the repo.
-- Group primary navigation into Tools, Documentation, Education, Games, and News.
-- Keep Account, Support, and Settings in the footer area.
+- Use the shadcn `SidebarProvider`/`Sidebar` composition as the app shell.
+- Group primary navigation into Home, Tools, Documentation, and Games.
+- Keep Education and News as model-only placeholders until they have visible routes.
+- Keep User Support and Roadmap as secondary sidebar links.
+- Keep Account, Security, Settings, and sign-in/sign-out actions in the account menu.
+- Keep sidebar placement to left/right only.
 - Add route/audience metadata for future Therapist, Practice, and Client views.
 - Do not build a Therapist/Practice/Client switcher in this branch.
-- Verify collapsed, expanded, portrait, landscape, keyboard, and active-route states.
+- Verify expanded, collapsed, mobile sheet, left/right, keyboard, active-route, mini-calendar, and Chimer hide states.
+
+## Calendar Creation Flows
+
+The current sidebar only exposes calendar navigation affordances. Future calendar work needs separate creation flows by user type:
+
+- Appointment flow: therapists and practice staff create or confirm service appointments with client, therapist, service, location/timezone, start/end, status, and reminder policy.
+- Client request flow: clients request available appointment slots without seeing staff-only practice calendar details.
+- Personal event flow: therapists block non-clinical time that affects availability without creating clinical appointment records.
+- Class flow: practice users create group classes with capacity, enrollment status, instructor, room/resource, and client-facing visibility.
+- Reminder flow: practice users create operational reminders tied to appointments, clients, classes, or personal tasks without storing clinical note content in reminder payloads.
+
+These flows remain roadmap-only until the calendar product defines role permissions, audit expectations, and notification behavior.
 
 ## Chimer Animation Polish
 

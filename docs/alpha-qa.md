@@ -68,11 +68,21 @@ Use this checklist before tagging or deploying a private-alpha build. Keep SOAP 
 
 ## Navigation And Release Hygiene
 
-- Primary navigation exposes only alpha surfaces: Home, Chimer, Notes, Calendar, Anatomime, Account, Support, and Settings.
-- `/support` loads from both the sidebar and Notes support card.
+- Primary navigation exposes only alpha surfaces: Home, Chimer, Notes, Calendar, and Anatomime.
+- Expanded primary navigation groups alpha surfaces as Home, Tools, Documentation, and Games.
+- Education and News remain hidden placeholders until they have visible alpha routes.
+- Secondary sidebar navigation shows User Support and Roadmap, matching the compact shadcn secondary-nav pattern.
+- Account, Security, Settings, and sign-in/sign-out actions stay in the account menu.
+- The sidebar supports expanded, icon-collapsed, mobile sheet, left, and right states with visible keyboard focus.
+- Sidebar group labels collapse and expand Tools, Documentation, Games, and Calendar sections.
+- The sidebar trigger bar supports top and bottom placement without moving the sidebar itself, and the trigger aligns to the selected left/right sidebar side.
+- The sidebar mini calendar stays inside the expanded sidebar and does not appear in icon-collapsed mode.
+- `/support` loads a contact/help page, and its form creates a valid `mailto:` URL for `contactmassagelab@gmail.com`.
+- `/roadmap` loads the roadmap/support-roadmap content from the sidebar, Home roadmap link, Notes roadmap card, and Account clinical-sync card.
+- Chimer running and alerting states hide the sidebar and top trigger bar.
 - Diagnostic routes such as `/debug-hydration` are absent from the production route manifest.
 - Desktop and mobile layouts have no overlapping text or controls at common viewport widths.
-- With the responsive nav set to top and bottom on a phone-sized viewport, the last interactive element on Home, Notes, Chimer, Anatomime, Support, and Settings scrolls fully above the nav.
+- On phone-sized viewports, the mobile sidebar sheet opens and closes without covering the active page once dismissed.
 - The PWA manifest loads, includes standalone display metadata and 192/512 icons, and Chrome reports the app as installable when served over HTTPS.
 - `/notes/rom` requests motion/orientation access only after tapping Enable Sensor, handles denied or unsupported sensors with a message, and still supports manual measurement entry.
 - The README alpha scope still matches the shipped routes and privacy posture.

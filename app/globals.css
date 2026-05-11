@@ -15,6 +15,8 @@
     --foreground: 0 0% 98%;
     --card: 0 0% 15%;
     --card-foreground: 0 0% 98%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
@@ -36,13 +38,19 @@
     /* Border radius */
     --radius: 0.5rem;
 
+    /* Sidebar colors */
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 14 100% 63%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 14.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 14.9%;
+    --sidebar-ring: 14 100% 63%;
+
     /* App shell spacing */
-    --ml-nav-collapsed-size: 4rem;
-    --ml-nav-expanded-size: 15rem;
     --ml-safe-top: env(safe-area-inset-top, 0px);
-    --ml-safe-right: env(safe-area-inset-right, 0px);
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --ml-safe-left: env(safe-area-inset-left, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
   }
@@ -82,7 +90,15 @@
   }
 
   body.chimer-running aside,
-  body.chimer-alerting aside {
+  body.chimer-alerting aside,
+  body.chimer-running [data-sidebar-container],
+  body.chimer-alerting [data-sidebar-container],
+  body.chimer-running [data-sidebar="sidebar"],
+  body.chimer-alerting [data-sidebar="sidebar"],
+  body.chimer-running [data-sidebar="rail"],
+  body.chimer-alerting [data-sidebar="rail"],
+  body.chimer-running .ml-app-topbar,
+  body.chimer-alerting .ml-app-topbar {
     display: none;
   }
 
@@ -95,47 +111,18 @@
 
 @layer components {
   .ml-app-shell {
-    --ml-nav-top-offset: var(--ml-safe-top);
-    --ml-nav-right-offset: var(--ml-safe-right);
-    --ml-nav-bottom-offset: var(--ml-safe-bottom);
-    --ml-nav-left-offset: var(--ml-safe-left);
-    --ml-page-bottom-safe: calc(var(--ml-nav-bottom-offset) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
-    padding-top: var(--ml-nav-top-offset);
-    padding-right: var(--ml-nav-right-offset);
-    padding-bottom: var(--ml-nav-bottom-offset);
-    padding-left: var(--ml-nav-left-offset);
-  }
-
-  .ml-app-shell[data-nav-position="top"] {
-    --ml-nav-top-offset: calc(var(--ml-nav-collapsed-size) + var(--ml-safe-top));
-  }
-
-  .ml-app-shell[data-nav-position="right"] {
-    --ml-nav-right-offset: calc(var(--ml-nav-collapsed-size) + var(--ml-safe-right));
-  }
-
-  .ml-app-shell[data-nav-position="bottom"] {
-    --ml-nav-bottom-offset: calc(var(--ml-nav-collapsed-size) + var(--ml-safe-bottom));
-    --ml-scroll-end-buffer: calc(var(--ml-nav-collapsed-size) + 2rem);
-  }
-
-  .ml-app-shell[data-nav-position="left"] {
-    --ml-nav-left-offset: calc(var(--ml-nav-collapsed-size) + var(--ml-safe-left));
+    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
   }
 
   body.chimer-running .ml-app-shell,
   body.chimer-alerting .ml-app-shell {
-    --ml-nav-top-offset: 0px;
-    --ml-nav-right-offset: 0px;
-    --ml-nav-bottom-offset: 0px;
-    --ml-nav-left-offset: 0px;
-    padding: 0;
+    --ml-page-bottom-safe: 0px;
   }
 
   .ml-app-scroll {
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable;
-    scroll-padding-top: calc(var(--ml-nav-top-offset) + var(--ml-page-edge-gap));
+    scroll-padding-top: calc(var(--ml-safe-top) + var(--ml-page-edge-gap));
     scroll-padding-bottom: var(--ml-page-bottom-safe);
   }
 

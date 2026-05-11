@@ -36,59 +36,40 @@ export default function SettingsPage() {
             <Card className="bg-card/90 backdrop-blur">
               <CardHeader>
                 <CardTitle>Layout</CardTitle>
-                <CardDescription>Control how the alpha navigation is positioned.</CardDescription>
+                <CardDescription>Choose where the sidebar lives and where its trigger bar sits.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-base">Sidebar Behavior</Label>
-                  <RadioGroup
-                    value={settings.sidebarBehavior}
-                    onValueChange={(value) => updateSettings({ sidebarBehavior: value as "responsive" | "fixed" })}
-                    className="mt-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="responsive" id="responsive" />
-                      <Label htmlFor="responsive">Responsive to screen orientation</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="fixed" id="fixed" />
-                      <Label htmlFor="fixed">Fixed position</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div>
-                  <Label className="text-base">Wide Screen Position</Label>
+              <CardContent className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-base">Sidebar Side</Label>
                   <RadioGroup
                     value={settings.sidebarPosition}
                     onValueChange={(value) => updateSettings({ sidebarPosition: value as "left" | "right" })}
-                    className="mt-2"
+                    className="flex flex-col gap-2"
                   >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="left" id="left" />
-                      <Label htmlFor="left">Left</Label>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="left" id="sidebar-left" />
+                      <Label htmlFor="sidebar-left">Left</Label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="right" id="right" />
-                      <Label htmlFor="right">Right</Label>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="right" id="sidebar-right" />
+                      <Label htmlFor="sidebar-right">Right</Label>
                     </div>
                   </RadioGroup>
                 </div>
-
-                <div>
-                  <Label className="text-base">Narrow Screen Position</Label>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-base">Trigger Bar Position</Label>
                   <RadioGroup
-                    value={settings.sidebarNarrowPosition}
-                    onValueChange={(value) => updateSettings({ sidebarNarrowPosition: value as "top" | "bottom" })}
-                    className="mt-2"
+                    value={settings.sidebarTriggerPosition}
+                    onValueChange={(value) => updateSettings({ sidebarTriggerPosition: value as "top" | "bottom" })}
+                    className="flex flex-col gap-2"
                   >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="top" id="top" />
-                      <Label htmlFor="top">Top</Label>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="top" id="trigger-top" />
+                      <Label htmlFor="trigger-top">Top</Label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="bottom" id="bottom" />
-                      <Label htmlFor="bottom">Bottom</Label>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="bottom" id="trigger-bottom" />
+                      <Label htmlFor="trigger-bottom">Bottom</Label>
                     </div>
                   </RadioGroup>
                 </div>

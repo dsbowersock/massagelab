@@ -101,7 +101,7 @@ export default function NotesPage() {
           </CardContent>
         </Card>
 
-        <Link href="/support">
+        <Link href="/roadmap">
           <Card className="border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -113,7 +113,7 @@ export default function NotesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Open the support roadmap</p>
+              <p className="text-sm text-muted-foreground">Open the roadmap</p>
             </CardContent>
           </Card>
         </Link>

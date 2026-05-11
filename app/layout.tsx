@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
-import { Sidebar } from "@/components/sidebar/sidebar"
+import { AppSidebar } from "@/components/sidebar/sidebar"
 import { SettingsProvider } from "@/components/providers/settings-provider"
 import { TherapistSettingsProvider } from "@/components/providers/therapist-settings-provider"
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -48,14 +49,14 @@ export default function RootLayout({
       <body className={`${inter.className} h-full bg-background overflow-hidden`}>
         <SettingsProvider>
           <TherapistSettingsProvider>
-            <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden">
-              <div className="flex min-h-0 flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="relative min-w-0 flex-1 overflow-hidden">
+            <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
+              <AppSidebar />
+              <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
+                <main className="relative h-full min-w-0 overflow-hidden">
                   <LayoutWrapper>{children}</LayoutWrapper>
                 </main>
-              </div>
-            </div>
+              </SidebarInset>
+            </SidebarProvider>
           </TherapistSettingsProvider>
         </SettingsProvider>
       </body>
