@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { hasAppointmentConflict, localDateTimeToUtc, parseTimeToMinute } from "@/lib/calendar"
+import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
 
 const STAFF_ROLES = ["OWNER", "THERAPIST", "STAFF"]
 const THERAPIST_ROLES = ["OWNER", "THERAPIST"]
@@ -74,6 +75,7 @@ async function assertPracticeTherapist(practiceId: string, therapistId: string) 
 
 export async function createPracticeAction(formData: FormData) {
   const userId = await currentUserId()
+  await assertCalendarDatabaseReady()
   const name = fieldString(formData, "name")
 
   if (!name) {
@@ -116,6 +118,7 @@ export async function createPracticeAction(formData: FormData) {
 
 export async function createAvailabilityRuleAction(formData: FormData) {
   const userId = await currentUserId()
+  await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const therapistId = fieldString(formData, "therapistId")
   const dayOfWeek = Number(fieldString(formData, "dayOfWeek"))
@@ -145,6 +148,7 @@ export async function createAvailabilityRuleAction(formData: FormData) {
 
 export async function createCalendarBlockAction(formData: FormData) {
   const userId = await currentUserId()
+  await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const therapistId = fieldString(formData, "therapistId")
   const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { timezone: true } })
@@ -175,6 +179,7 @@ export async function createCalendarBlockAction(formData: FormData) {
 
 export async function requestAppointmentAction(formData: FormData) {
   const userId = await currentUserId()
+  await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const therapistId = fieldString(formData, "therapistId")
   const serviceTypeId = fieldString(formData, "serviceTypeId")

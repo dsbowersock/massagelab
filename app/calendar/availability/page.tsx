@@ -3,6 +3,7 @@ import { CalendarOff, Clock } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { createAvailabilityRuleAction, createCalendarBlockAction } from "@/app/calendar/actions"
 import { formatMinuteLabel } from "@/lib/calendar"
+import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,10 +21,6 @@ const weekdays = [
   ["5", "Friday"],
   ["6", "Saturday"],
 ] as const
-
-function calendarClientReady() {
-  return Boolean((prisma as unknown as { practiceMembership?: unknown }).practiceMembership)
-}
 
 function formatDateTime(value: Date, timeZone = "America/New_York") {
   return new Intl.DateTimeFormat(undefined, {
@@ -56,10 +53,10 @@ export default async function CalendarAvailabilityPage() {
     )
   }
 
-  if (!calendarClientReady()) {
+  if (!(await isCalendarDatabaseReady())) {
     return (
       <AvailabilityShell>
-        <CalendarSetupNotice />
+        <CalendarUnavailableNotice />
       </AvailabilityShell>
     )
   }
@@ -78,7 +75,7 @@ export default async function CalendarAvailabilityPage() {
   } catch {
     return (
       <AvailabilityShell>
-        <CalendarSetupNotice />
+        <CalendarUnavailableNotice />
       </AvailabilityShell>
     )
   }
@@ -284,14 +281,12 @@ function AvailabilityShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function CalendarSetupNotice() {
+function CalendarUnavailableNotice() {
   return (
     <Card className="border-neutral-800 bg-card/90 backdrop-blur">
       <CardHeader>
-        <CardTitle>Calendar setup needed</CardTitle>
-        <CardDescription>
-          Generate the Prisma client, apply the calendar migration, and restart the dev server before managing availability.
-        </CardDescription>
+        <CardTitle>Calendar is temporarily unavailable</CardTitle>
+        <CardDescription>Availability tools are not available right now. Please try again later.</CardDescription>
       </CardHeader>
     </Card>
   )

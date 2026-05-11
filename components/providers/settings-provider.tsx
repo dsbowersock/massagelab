@@ -4,13 +4,11 @@ import { fetchWithTimeout } from "@/lib/client-fetch"
 import { createContext, useContext, useEffect, useState } from "react"
 
 type SidebarPosition = "left" | "right"
-type SidebarNarrowPosition = "top" | "bottom"
-type SidebarBehavior = "responsive" | "fixed"
+type SidebarTriggerPosition = "top" | "bottom"
 
 interface Settings {
   sidebarPosition: SidebarPosition
-  sidebarNarrowPosition: SidebarNarrowPosition
-  sidebarBehavior: SidebarBehavior
+  sidebarTriggerPosition: SidebarTriggerPosition
 }
 
 interface SettingsContextType {
@@ -20,11 +18,23 @@ interface SettingsContextType {
 
 const defaultSettings: Settings = {
   sidebarPosition: "left",
-  sidebarNarrowPosition: "bottom",
-  sidebarBehavior: "responsive"
+  sidebarTriggerPosition: "top",
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
+
+function normalizeSettings(value: unknown): Settings {
+  if (!value || typeof value !== "object") {
+    return defaultSettings
+  }
+
+  const source = value as Partial<Settings>
+
+  return {
+    sidebarPosition: source.sidebarPosition === "right" ? "right" : "left",
+    sidebarTriggerPosition: source.sidebarTriggerPosition === "bottom" ? "bottom" : "top",
+  }
+}
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
@@ -39,7 +49,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
       if (savedSettings) {
         try {
-          nextSettings = { ...defaultSettings, ...JSON.parse(savedSettings) }
+          nextSettings = normalizeSettings(JSON.parse(savedSettings))
         } catch {
           localStorage.removeItem("massage-lab-settings")
         }
@@ -71,7 +81,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setCanSync(true)
 
         if (preferences.appSettings && typeof preferences.appSettings === "object") {
-          const nextSettings = { ...defaultSettings, ...(preferences.appSettings as Partial<Settings>) }
+          const nextSettings = normalizeSettings(preferences.appSettings)
           localStorage.setItem("massage-lab-settings", JSON.stringify(nextSettings))
           setSettings(nextSettings)
         }
@@ -93,7 +103,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {
-      const updated = { ...prev, ...newSettings }
+      const updated = normalizeSettings({ ...prev, ...newSettings })
       localStorage.setItem("massage-lab-settings", JSON.stringify(updated))
 
       if (canSync) {

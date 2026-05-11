@@ -11,14 +11,14 @@ import {
 describe("Account preference helpers", () => {
   it("builds a versioned sync payload from safe local settings", () => {
     const payload = buildUserPreferencePayload({
-      appSettings: { sidebarPosition: "right" },
+      appSettings: { sidebarPosition: "right", sidebarTriggerPosition: "bottom" },
       chimerSettings: { movingBackgroundEnabled: false },
       anatomimeSettings: { roundLimit: 8 },
       notePreferences: { defaultNoteType: "soap" },
     })
 
     assert.equal(payload.version, USER_PREFERENCES_VERSION)
-    assert.deepEqual(payload.app_settings, { sidebarPosition: "right" })
+    assert.deepEqual(payload.app_settings, { sidebarPosition: "right", sidebarTriggerPosition: "bottom" })
     assert.deepEqual(payload.chimer_settings, { movingBackgroundEnabled: false })
     assert.deepEqual(payload.anatomime_settings, { roundLimit: 8 })
     assert.deepEqual(payload.note_preferences, { defaultNoteType: "soap" })
@@ -51,12 +51,12 @@ describe("Account preference helpers", () => {
 
   it("uses cloud preferences after login when they exist", () => {
     const result = choosePreferenceSource({
-      cloudPreferences: { app_settings: { sidebarPosition: "left" } },
+      cloudPreferences: { app_settings: { sidebarPosition: "left", sidebarTriggerPosition: "top" } },
       localPreferences: { app_settings: { sidebarPosition: "right" } },
     })
 
     assert.equal(result.source, "cloud")
-    assert.deepEqual(result.preferences, { app_settings: { sidebarPosition: "left" } })
+    assert.deepEqual(result.preferences, { app_settings: { sidebarPosition: "left", sidebarTriggerPosition: "top" } })
   })
 
   it("uses local preferences as the initial source when cloud is empty", () => {

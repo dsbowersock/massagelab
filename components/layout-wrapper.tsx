@@ -1,42 +1,51 @@
 "use client"
 
-import { useSettings } from "@/components/providers/settings-provider"
+import Image from "next/image"
+import Link from "next/link"
 import { MovingBackground } from "@/components/moving-background"
+import { useSettings } from "@/components/providers/settings-provider"
+import { Separator } from "@/components/ui/separator"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
+
+function SidebarTriggerBar() {
+  const { settings } = useSettings()
+  const alignsRight = settings.sidebarPosition === "right"
+
+  return (
+    <header
+      className={cn(
+        "ml-app-topbar relative z-20 flex h-12 shrink-0 items-center gap-2 border-border/60 bg-background/80 px-3 backdrop-blur",
+        settings.sidebarTriggerPosition === "bottom" ? "border-t" : "border-b",
+        alignsRight && "flex-row-reverse",
+      )}
+    >
+      <SidebarTrigger className={cn(alignsRight ? "-mr-1" : "-ml-1")} />
+      <Separator orientation="vertical" className="h-4" />
+      <Link href="/" aria-label="MassageLab home" className="flex min-w-0 items-center">
+        <Image
+          src="/brand/massagelab-wordmark-uppercase-tight.png"
+          alt="MassageLab"
+          width={180}
+          height={54}
+          className="h-7 w-auto max-w-36 object-contain"
+          unoptimized
+          priority
+        />
+      </Link>
+    </header>
+  )
+}
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const { settings } = useSettings()
   const pathname = usePathname() ?? ""
-  const [position, setPosition] = useState<"left" | "right" | "top" | "bottom">(settings.sidebarPosition)
   const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
-  
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-  
-    const updatePosition = () => {
-      const isPortrait = window.matchMedia("(orientation: portrait)").matches
-      const newPosition = settings.sidebarBehavior === "fixed" 
-        ? settings.sidebarPosition 
-        : isPortrait 
-          ? settings.sidebarNarrowPosition 
-          : settings.sidebarPosition
-      setPosition(newPosition)
-    }
-
-    updatePosition()
-    const mediaQuery = window.matchMedia("(orientation: portrait)")
-    mediaQuery.addEventListener("change", updatePosition)
-
-    return () => mediaQuery.removeEventListener("change", updatePosition)
-  }, [settings.sidebarBehavior, settings.sidebarPosition, settings.sidebarNarrowPosition])
+  const triggerBar = <SidebarTriggerBar />
 
   return (
-    <div
-      className="ml-app-shell relative isolate h-full w-full overflow-hidden bg-[#050505] transition-[padding] duration-300"
-      data-nav-position={position}
-    >
+    <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-[#050505]">
       {!routeOwnsBackground && (
         <>
           <MovingBackground
@@ -49,13 +58,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
           />
         </>
       )}
-      <div className={cn(
-        "ml-app-scroll relative z-10 h-full min-h-0 w-full overflow-y-auto overscroll-contain",
-        // Only apply max-width and margin constraints for vertical sidebars
-        (position === "left" || position === "right") && "max-w-screen-2xl mx-auto"
-      )}>
-        <div className="ml-app-content">{children}</div>
+      {settings.sidebarTriggerPosition === "top" && triggerBar}
+      <div className="ml-app-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain">
+        <div className="ml-app-content mx-auto w-full max-w-screen-2xl">{children}</div>
       </div>
+      {settings.sidebarTriggerPosition === "bottom" && triggerBar}
     </div>
   )
 }

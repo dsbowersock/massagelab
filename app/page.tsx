@@ -115,7 +115,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <Button asChild variant="outline">
-                <Link href="/support">Open roadmap</Link>
+                <Link href="/roadmap">Open roadmap</Link>
               </Button>
             </CardContent>
           </Card>

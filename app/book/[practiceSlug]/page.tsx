@@ -4,16 +4,13 @@ import { CalendarDays, LockKeyhole } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { requestAppointmentAction } from "@/app/calendar/actions"
 import { buildAvailabilitySlots, isoDate } from "@/lib/calendar"
+import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeading } from "@/components/ui/page-heading"
 
 const ACTIVE_STATUSES = ["REQUESTED", "CONFIRMED"] as const
-
-function calendarClientReady() {
-  return Boolean((prisma as unknown as { practice?: unknown }).practice)
-}
 
 function formatSlot(value: Date, timeZone = "America/New_York") {
   return new Intl.DateTimeFormat(undefined, {
@@ -45,15 +42,10 @@ export default async function BookingPage({
   const { practiceSlug } = await params
   const session = await getCurrentSession()
 
-  if (!calendarClientReady()) {
+  if (!(await isCalendarDatabaseReady())) {
     return (
       <BookingShell practiceName="Booking">
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Calendar setup needed</CardTitle>
-            <CardDescription>Booking pages are available after the generated Prisma client and calendar migration are applied.</CardDescription>
-          </CardHeader>
-        </Card>
+        <CalendarUnavailableNotice />
       </BookingShell>
     )
   }
@@ -78,12 +70,7 @@ export default async function BookingPage({
   } catch {
     return (
       <BookingShell practiceName="Booking">
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Calendar setup needed</CardTitle>
-            <CardDescription>Booking pages are available after the calendar database migration is applied.</CardDescription>
-          </CardHeader>
-        </Card>
+        <CalendarUnavailableNotice />
       </BookingShell>
     )
   }
@@ -227,5 +214,16 @@ function BookingShell({ practiceName, children }: { practiceName: string; childr
         {children}
       </div>
     </div>
+  )
+}
+
+function CalendarUnavailableNotice() {
+  return (
+    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <CardHeader>
+        <CardTitle>Online booking is temporarily unavailable</CardTitle>
+        <CardDescription>Appointment requests are not available right now. Please try again later.</CardDescription>
+      </CardHeader>
+    </Card>
   )
 }

@@ -222,7 +222,7 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline">
-            <Link href="/support">Support the clinical sync roadmap</Link>
+            <Link href="/roadmap">Support the clinical sync roadmap</Link>
           </Button>
         </CardContent>
       </Card>

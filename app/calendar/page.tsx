@@ -2,6 +2,7 @@ import Link from "next/link"
 import { CalendarDays, Clock, Plus, ShieldCheck } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { createPracticeAction } from "@/app/calendar/actions"
+import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,10 +11,6 @@ import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 
 const ACTIVE_STATUSES = ["REQUESTED", "CONFIRMED"] as const
-
-function calendarClientReady() {
-  return Boolean((prisma as unknown as { practiceMembership?: unknown; practice?: unknown }).practiceMembership)
-}
 
 function formatDateTime(value: Date, timeZone = "America/New_York") {
   return new Intl.DateTimeFormat(undefined, {
@@ -51,10 +48,10 @@ export default async function CalendarPage({
     )
   }
 
-  if (!calendarClientReady()) {
+  if (!(await isCalendarDatabaseReady())) {
     return (
       <CalendarShell>
-        <CalendarSetupNotice />
+        <CalendarUnavailableNotice />
       </CalendarShell>
     )
   }
@@ -73,7 +70,7 @@ export default async function CalendarPage({
   } catch {
     return (
       <CalendarShell>
-        <CalendarSetupNotice />
+        <CalendarUnavailableNotice />
       </CalendarShell>
     )
   }
@@ -252,18 +249,15 @@ function CalendarShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function CalendarSetupNotice() {
+function CalendarUnavailableNotice() {
   return (
     <Card className="border-neutral-800 bg-card/90 backdrop-blur">
       <CardHeader>
-        <CardTitle>Calendar setup needed</CardTitle>
-        <CardDescription>
-          The calendar module is installed, but the running app needs the generated Prisma client and database migration before practice scheduling can read data.
-        </CardDescription>
+        <CardTitle>Calendar is temporarily unavailable</CardTitle>
+        <CardDescription>Practice scheduling is not available right now.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm text-muted-foreground">
-        <p>Run `npm run prisma:generate`, apply the new migration, then restart the dev server.</p>
-        <p>The rest of MassageLab remains available while scheduling setup is completed.</p>
+      <CardContent className="text-sm text-muted-foreground">
+        <p>Please try again later or contact support if this keeps happening.</p>
       </CardContent>
     </Card>
   )
