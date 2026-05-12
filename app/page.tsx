@@ -44,10 +44,10 @@ export default function Home() {
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <section className="rounded-md border border-border bg-card/90 p-6 shadow-lg backdrop-blur">
-          <div className="mx-auto mb-8 max-w-3xl">
+          <div className="mx-auto mb-5 max-w-3xl">
             <h1 className="sr-only">MassageLab</h1>
-            <div aria-hidden="true" className="relative mb-6 flex w-full justify-center py-8">
-              <div className="absolute inset-x-6 top-1/2 h-24 -translate-y-1/2 rounded-full bg-brand-orange-glow/20 blur-3xl sm:inset-x-14" />
+            <div aria-hidden="true" className="relative mb-3 flex w-full justify-center py-3 sm:py-4">
+              <div className="absolute inset-x-8 top-1/2 h-16 -translate-y-1/2 rounded-full bg-brand-orange-glow/20 blur-3xl sm:inset-x-16" />
               <Image
                 src="/brand/massagelab-wordmark-uppercase-tight.png"
                 alt=""
@@ -55,6 +55,7 @@ export default function Home() {
                 height={108}
                 className="relative h-auto w-full max-w-[28rem] object-contain drop-shadow-[0_0_32px_hsl(var(--brand-orange-glow)/0.2)]"
                 data-testid="home-brand-wordmark"
+                style={{ viewTransitionName: "massagelab-wordmark" }}
                 unoptimized
                 priority
               />

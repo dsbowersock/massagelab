@@ -517,7 +517,10 @@ export function RunningTimer({
     : ""
 
   return (
-    <section className={`${styles.container} ${isAlerting ? styles.alerting : ""}`} aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}>
+    <section
+      className={`${styles.container} ${isClockMode ? styles.clockMode : ""} ${isAlerting ? styles.alerting : ""}`}
+      aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
+    >
       {movingBackgroundEnabled && (
         <MovingBackground
           className={styles.runningBackground}

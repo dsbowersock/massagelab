@@ -143,8 +143,10 @@
   body.chimer-alerting [data-sidebar="sidebar"],
   body.chimer-running [data-sidebar="rail"],
   body.chimer-alerting [data-sidebar="rail"],
-  body.chimer-running .ml-app-topbar,
-  body.chimer-alerting .ml-app-topbar {
+  body.chimer-running .ml-portrait-sidebar-bar,
+  body.chimer-alerting .ml-portrait-sidebar-bar,
+  body.chimer-running .ml-route-wordmark,
+  body.chimer-alerting .ml-route-wordmark {
     display: none;
   }
 
@@ -175,6 +177,10 @@
   .ml-app-content {
     min-height: 100%;
     padding-bottom: var(--ml-page-bottom-safe);
+  }
+
+  .ml-route-wordmark {
+    animation: ml-route-wordmark-settle 260ms ease-out both;
   }
 }
 
@@ -265,8 +271,24 @@
   }
 }
 
+@keyframes ml-route-wordmark-settle {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.75rem) scale(1.06);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .massagelab-background-fallback {
+    animation: none;
+  }
+
+  .ml-route-wordmark {
     animation: none;
   }
 }

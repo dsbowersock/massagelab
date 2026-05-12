@@ -1,19 +1,39 @@
 import * as React from "react"
+import { getSidebarRenderMode } from "@/lib/sidebar-layout"
 
-const MOBILE_BREAKPOINT = 768
+export type SidebarRenderMode = "drawer" | "compact-rail" | "desktop"
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+function readSidebarRenderMode(): SidebarRenderMode {
+  if (typeof window === "undefined") {
+    return "desktop"
+  }
+
+  return getSidebarRenderMode({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }) as SidebarRenderMode
+}
+
+export function useSidebarRenderMode() {
+  const [renderMode, setRenderMode] = React.useState<SidebarRenderMode>("desktop")
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      setRenderMode(readSidebarRenderMode())
     }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
+
+    onChange()
+    window.addEventListener("resize", onChange)
+    window.addEventListener("orientationchange", onChange)
+    return () => {
+      window.removeEventListener("resize", onChange)
+      window.removeEventListener("orientationchange", onChange)
+    }
   }, [])
 
-  return !!isMobile
+  return renderMode
+}
+
+export function useIsMobile() {
+  return useSidebarRenderMode() === "drawer"
 }

@@ -89,7 +89,7 @@ async function getSidebarCalendarContext(userId?: string): Promise<SidebarCalend
   }
 }
 
-export async function AppSidebar() {
+export async function getAppSidebarData() {
   const session = await getCurrentSession()
   const sessionUser = session?.user as
     | {
@@ -107,6 +107,12 @@ export async function AppSidebar() {
     }
     : null
   const calendarContext = await getSidebarCalendarContext(sessionUser?.id)
+
+  return { user, calendarContext }
+}
+
+export async function AppSidebar() {
+  const { user, calendarContext } = await getAppSidebarData()
 
   return <AppSidebarClient user={user} calendarContext={calendarContext} />
 }

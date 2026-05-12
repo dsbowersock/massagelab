@@ -5,7 +5,8 @@ import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
-import { useIsMobile } from "@/hooks/use-mobile"
+import { type SidebarRenderMode, useSidebarRenderMode } from "@/hooks/use-mobile"
+import { shouldExpandSidebarFromRail } from "@/lib/sidebar-layout"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,7 @@ import {
 const SIDEBAR_COOKIE_NAME = "sidebar:state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
+const SIDEBAR_WIDTH_COMPACT_LANDSCAPE = "22rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
@@ -33,6 +35,7 @@ type SidebarContext = {
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
+  renderMode: SidebarRenderMode
   toggleSidebar: () => void
 }
 
@@ -57,7 +60,7 @@ const SidebarProvider = React.forwardRef<
 >(
   (
     {
-      defaultOpen = true,
+      defaultOpen = false,
       open: openProp,
       onOpenChange: setOpenProp,
       className,
@@ -67,7 +70,8 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    const renderMode = useSidebarRenderMode()
+    const isMobile = renderMode === "drawer"
     const [openMobile, setOpenMobile] = React.useState(false)
 
     // This is the internal state of the sidebar.
@@ -88,6 +92,19 @@ const SidebarProvider = React.forwardRef<
       },
       [setOpenProp, open]
     )
+
+    React.useEffect(() => {
+      if (renderMode === "drawer") {
+        return
+      }
+
+      if (setOpenProp) {
+        setOpenProp(false)
+        return
+      }
+
+      _setOpen(false)
+    }, [renderMode, setOpenProp])
 
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
@@ -122,11 +139,12 @@ const SidebarProvider = React.forwardRef<
         open,
         setOpen,
         isMobile,
+        renderMode,
         openMobile,
         setOpenMobile,
         toggleSidebar,
       }),
-      [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+      [state, open, setOpen, isMobile, renderMode, openMobile, setOpenMobile, toggleSidebar]
     )
 
     return (
@@ -135,7 +153,7 @@ const SidebarProvider = React.forwardRef<
           <div
             style={
               {
-                "--sidebar-width": SIDEBAR_WIDTH,
+                "--sidebar-width": renderMode === "compact-rail" ? SIDEBAR_WIDTH_COMPACT_LANDSCAPE : SIDEBAR_WIDTH,
                 "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
                 ...style,
               } as React.CSSProperties
@@ -175,7 +193,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state, openMobile, setOpenMobile, renderMode } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -219,11 +237,12 @@ const Sidebar = React.forwardRef<
     return (
       <div
         ref={ref}
-        className="group peer hidden text-sidebar-foreground data-[side=right]:order-2 md:block"
+        className="group peer block text-sidebar-foreground data-[side=right]:order-2"
         data-sidebar-container="true"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
+        data-render-mode={renderMode}
         data-side={side}
       >
         {/* This is what handles the sidebar gap on desktop */}
@@ -239,7 +258,7 @@ const Sidebar = React.forwardRef<
         />
         <div
           className={cn(
-            "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
+            "duration-200 fixed inset-y-0 z-10 flex h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear",
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -554,12 +573,13 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
+      onClick,
       ...props
     },
     ref
   ) => {
     const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar()
+    const { isMobile, renderMode, setOpen, state } = useSidebar()
 
     const button = (
       <Comp
@@ -567,6 +587,13 @@ const SidebarMenuButton = React.forwardRef<
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
+        onClick={(event) => {
+          onClick?.(event)
+
+          if (!event.defaultPrevented && shouldExpandSidebarFromRail({ renderMode, state })) {
+            setOpen(true)
+          }
+        }}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
         {...props}
       />
