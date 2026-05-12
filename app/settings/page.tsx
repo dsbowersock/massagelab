@@ -3,6 +3,7 @@
 import { Layout, Moon, Sun, UserRound } from "lucide-react"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
+import { getSidebarButtonPosition, resolveSidebarButtonSettings } from "@/lib/app-settings"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 export default function SettingsPage() {
   const { settings, updateSettings } = useSettings()
   const { settings: therapistSettings, updateSettings: updateTherapistSettings } = useTherapistSettings()
+  const sidebarButtonPosition = getSidebarButtonPosition(settings)
 
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
@@ -36,40 +38,31 @@ export default function SettingsPage() {
             <Card className="bg-card/90 backdrop-blur">
               <CardHeader>
                 <CardTitle>Layout</CardTitle>
-                <CardDescription>Choose where the sidebar lives and where its trigger bar sits.</CardDescription>
+                <CardDescription>Choose where the sidebar button sits and how the app should look.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                  <Label className="text-base">Sidebar Side</Label>
+                  <Label className="text-base">Sidebar Button Position</Label>
                   <RadioGroup
-                    value={settings.sidebarPosition}
-                    onValueChange={(value) => updateSettings({ sidebarPosition: value as "left" | "right" })}
-                    className="flex flex-col gap-2"
+                    value={sidebarButtonPosition}
+                    onValueChange={(value) => updateSettings(resolveSidebarButtonSettings(value))}
+                    className="grid gap-2 sm:grid-cols-2"
                   >
                     <div className="flex items-center gap-2">
-                      <RadioGroupItem value="left" id="sidebar-left" />
-                      <Label htmlFor="sidebar-left">Left</Label>
+                      <RadioGroupItem value="top-left" id="sidebar-top-left" />
+                      <Label htmlFor="sidebar-top-left">Upper Left</Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <RadioGroupItem value="right" id="sidebar-right" />
-                      <Label htmlFor="sidebar-right">Right</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label className="text-base">Trigger Bar Position</Label>
-                  <RadioGroup
-                    value={settings.sidebarTriggerPosition}
-                    onValueChange={(value) => updateSettings({ sidebarTriggerPosition: value as "top" | "bottom" })}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="top" id="trigger-top" />
-                      <Label htmlFor="trigger-top">Top</Label>
+                      <RadioGroupItem value="top-right" id="sidebar-top-right" />
+                      <Label htmlFor="sidebar-top-right">Upper Right</Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <RadioGroupItem value="bottom" id="trigger-bottom" />
-                      <Label htmlFor="trigger-bottom">Bottom</Label>
+                      <RadioGroupItem value="bottom-left" id="sidebar-bottom-left" />
+                      <Label htmlFor="sidebar-bottom-left">Bottom Left</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="bottom-right" id="sidebar-bottom-right" />
+                      <Label htmlFor="sidebar-bottom-right">Bottom Right</Label>
                     </div>
                   </RadioGroup>
                 </div>

@@ -27,6 +27,10 @@
   color: #050505;
 }
 
+.clockMode {
+  --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
 .runningBackground {
   position: fixed;
   inset: 0;
@@ -686,6 +690,10 @@
     --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 7rem);
   }
 
+  .clockMode {
+    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+
   .control,
   .fontButton {
     width: 3rem;
@@ -726,6 +734,10 @@
   .container {
     --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 4.75rem);
     --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+  }
+
+  .clockMode {
+    --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
   }
 
   .bottomControls {
