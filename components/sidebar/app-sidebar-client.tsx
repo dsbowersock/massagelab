@@ -298,7 +298,7 @@ function CalendarSidebarSection({
                 <SelectTrigger className="h-8 border-sidebar-border bg-sidebar-accent/40 text-xs">
                   <SelectValue placeholder="Practitioner" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent data-sidebar-floating="true">
                   {calendarContext.therapists.map((therapist) => (
                     <SelectItem key={therapist.id} value={therapist.id}>
                       {therapist.label}
@@ -406,6 +406,7 @@ function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; p
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
+            data-sidebar-floating="true"
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
             side={menuSide}
             align="end"

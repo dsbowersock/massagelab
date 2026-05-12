@@ -6,7 +6,11 @@ import {
   normalizeAppSettings,
   resolveSidebarButtonSettings,
 } from "../lib/app-settings.js"
-import { getSidebarRenderMode, shouldExpandSidebarFromRail } from "../lib/sidebar-layout.js"
+import {
+  getSidebarRenderMode,
+  shouldCollapseSidebarFromOutsidePointer,
+  shouldExpandSidebarFromRail,
+} from "../lib/sidebar-layout.js"
 
 describe("App settings helpers", () => {
   it("defaults the app to dark mode with the portrait sidebar button at bottom left", () => {
@@ -79,5 +83,44 @@ describe("App settings helpers", () => {
     assert.equal(shouldExpandSidebarFromRail({ renderMode: "compact-rail", state: "collapsed" }), true)
     assert.equal(shouldExpandSidebarFromRail({ renderMode: "desktop", state: "expanded" }), false)
     assert.equal(shouldExpandSidebarFromRail({ renderMode: "drawer", state: "collapsed" }), false)
+  })
+
+  it("collapses an expanded non-phone sidebar only from outside sidebar clicks", () => {
+    assert.equal(shouldCollapseSidebarFromOutsidePointer({
+      renderMode: "desktop",
+      state: "expanded",
+      targetInsideSidebar: false,
+      targetInsideSidebarPortal: false,
+    }), true)
+    assert.equal(shouldCollapseSidebarFromOutsidePointer({
+      renderMode: "compact-rail",
+      state: "expanded",
+      targetInsideSidebar: false,
+      targetInsideSidebarPortal: false,
+    }), true)
+    assert.equal(shouldCollapseSidebarFromOutsidePointer({
+      renderMode: "desktop",
+      state: "collapsed",
+      targetInsideSidebar: false,
+      targetInsideSidebarPortal: false,
+    }), false)
+    assert.equal(shouldCollapseSidebarFromOutsidePointer({
+      renderMode: "drawer",
+      state: "expanded",
+      targetInsideSidebar: false,
+      targetInsideSidebarPortal: false,
+    }), false)
+    assert.equal(shouldCollapseSidebarFromOutsidePointer({
+      renderMode: "desktop",
+      state: "expanded",
+      targetInsideSidebar: true,
+      targetInsideSidebarPortal: false,
+    }), false)
+    assert.equal(shouldCollapseSidebarFromOutsidePointer({
+      renderMode: "desktop",
+      state: "expanded",
+      targetInsideSidebar: false,
+      targetInsideSidebarPortal: true,
+    }), false)
   })
 })

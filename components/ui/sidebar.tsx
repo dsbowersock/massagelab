@@ -6,7 +6,10 @@ import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
 import { type SidebarRenderMode, useSidebarRenderMode } from "@/hooks/use-mobile"
-import { shouldExpandSidebarFromRail } from "@/lib/sidebar-layout"
+import {
+  shouldCollapseSidebarFromOutsidePointer,
+  shouldExpandSidebarFromRail,
+} from "@/lib/sidebar-layout"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -132,6 +135,33 @@ const SidebarProvider = React.forwardRef<
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
+
+    React.useEffect(() => {
+      if (!shouldCollapseSidebarFromOutsidePointer({
+        renderMode,
+        state,
+        targetInsideSidebar: false,
+        targetInsideSidebarPortal: false,
+      })) {
+        return
+      }
+
+      const handlePointerDown = (event: PointerEvent) => {
+        if (!(event.target instanceof Element)) {
+          return
+        }
+
+        const targetInsideSidebar = Boolean(event.target.closest("[data-sidebar-container='true']"))
+        const targetInsideSidebarPortal = Boolean(event.target.closest("[data-sidebar-floating='true']"))
+
+        if (shouldCollapseSidebarFromOutsidePointer({ renderMode, state, targetInsideSidebar, targetInsideSidebarPortal })) {
+          setOpen(false)
+        }
+      }
+
+      document.addEventListener("pointerdown", handlePointerDown, true)
+      return () => document.removeEventListener("pointerdown", handlePointerDown, true)
+    }, [renderMode, setOpen, state])
 
     const contextValue = React.useMemo<SidebarContext>(
       () => ({

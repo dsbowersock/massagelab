@@ -46,7 +46,7 @@ Even when those flags are set, the current API returns `501` because hosted clin
 
 Requirements:
 
-- Node.js `>=20.9.0`
+- Node.js `24.x` LTS
 - npm
 - Neon Postgres only if account, Prisma, or anatomy publishing flows are being exercised
 
