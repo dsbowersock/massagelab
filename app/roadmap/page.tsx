@@ -14,7 +14,7 @@ const recentlyShipped = [
   {
     title: "Chimer responsive controls",
     description:
-      "Treatment-room clock and timer controls now handle active sessions, mobile layouts, full-viewport clock centering, switch animation, font sizing, fullscreen, alerts, and safe preference sync more reliably.",
+      "Treatment-room clock and timer controls now handle active sessions, mobile layouts, full-viewport clock centering, position-stable switch animation, display colors, digit glow, hidden-seconds display, font sizing, fullscreen, alerts, and safe preference sync more reliably.",
     icon: Clock,
   },
   {
@@ -39,9 +39,9 @@ const currentFocus = [
     icon: FileText,
   },
   {
-    title: "Chimer animation polish",
+    title: "Chimer display regression QA",
     description:
-      "Keep the corrected timer/current-time swap animation, control fades, settings transitions, completion alerts, moving backgrounds, and reduced-motion behavior calm and readable.",
+      "The timer/current-time animation correction has shipped; remaining alpha work is to verify Chimer layout, reduced motion, controls, settings, completion alerts, and large-font behavior across viewports.",
     icon: Clock,
   },
   {
@@ -103,7 +103,7 @@ export default function RoadmapPage() {
             <CardHeader>
               <CardTitle>Current alpha direction</CardTitle>
               <CardDescription>
-                The next phase is alpha stabilization: verify what already shipped, polish Chimer, and design calendar creation flows before adding larger product bets.
+                The next phase is alpha stabilization: verify what already shipped, regression-check Chimer polish, and design calendar creation flows before adding larger product bets.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
@@ -126,7 +126,7 @@ export default function RoadmapPage() {
         <section className="space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Recently shipped</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Alpha improvements landed from May 8-11, 2026.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Alpha improvements landed from May 8-13, 2026.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {recentlyShipped.map((feature) => {

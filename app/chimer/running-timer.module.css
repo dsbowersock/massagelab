@@ -2,7 +2,7 @@
   --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 5.5rem);
   --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 7.5rem);
   --chimer-timer-color: #ffffff;
-  --chimer-clock-color: #ff7a1a;
+  --chimer-clock-color: #ffffff;
   --chimer-digit-glow:
     0 0 0.035em color-mix(in srgb, currentColor 72%, transparent),
     0 0 0.16em color-mix(in srgb, currentColor 38%, transparent),

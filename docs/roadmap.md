@@ -1,11 +1,11 @@
 # MassageLab Roadmap
 
-This file captures the branch-ready roadmap after the May 8-11, 2026 alpha refresh work.
+This file captures the branch-ready roadmap after the May 8-13, 2026 alpha refresh work.
 
 ## Recently Completed
 
 - Sentry error monitoring and performance traces are wired with privacy scrubbing for diagnostic messages. Keep Session Replay, User Feedback, and Logs disabled until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
-- Chimer gained responsive active-timer controls, full-viewport Clock Mode centering, corrected timer/current-time switch animation, safer mobile layout behavior, and preference sync conflict handling.
+- Chimer gained responsive active-timer controls, full-viewport Clock Mode centering, position-stable timer/current-time switch animation, display color/glow controls, hidden-seconds display behavior, safer mobile layout behavior, and preference sync conflict handling.
 - Navigation IA shipped with shadcn sidebar composition, grouped alpha routes, secondary support/roadmap links, account menu routes, mini-calendar placement, and Chimer sidebar hiding states.
 - Sidebar styling polish shipped with collapsed section icons, rail expansion behavior, wordmark reveal, sidebar open controls, and click-away collapse.
 - Branding and PWA assets shipped with updated favicon, app icons, brand mark, wordmark, and sidebar logo placement.
@@ -14,10 +14,9 @@ This file captures the branch-ready roadmap after the May 8-11, 2026 alpha refre
 ## Branch Order
 
 1. `codex/alpha-release-readiness`
-2. `codex/chimer-animation-polish`
-3. `codex/calendar-creation-flows-plan`
-4. `codex/generative-music-spike`
-5. `codex/refactor-*` only when a targeted cleanup directly supports a feature branch
+2. `codex/calendar-creation-flows-plan`
+3. `codex/generative-music-spike`
+4. `codex/refactor-*` only when a targeted cleanup directly supports a feature branch
 
 ## Phased Product Roadmap
 
@@ -112,14 +111,14 @@ These flows remain roadmap-only until the calendar product defines role permissi
 
 ## Chimer Animation Polish
 
-Goal: keep the corrected clock/timer switch and surrounding Chimer polish aligned with treatment-room calm and readability.
+Status: shipped. Keep this section as regression guidance for future Chimer display work.
 
-- Keep the existing CSS/keyframe swap animation in Chimer grounded in each display state's horizontal base transform.
+- Keep the shipped CSS/keyframe swap animation in Chimer grounded in each display state's horizontal base transform.
 - Keep `prefers-reduced-motion` support.
 - Preserve state changes that already exist: timer/current-time swap, full-viewport Clock Mode centering, controls fade, settings panel open/close, completion/alert state, and moving background transitions.
-- Add `motion` only if CSS becomes awkward for state-driven layout animation.
+- Add `motion` only if future state-driven layout animation becomes too awkward for CSS.
 - Do not add GSAP, Theatre.js, Anime.js, Animate.css, or Animista output unless a later interaction needs timeline-level control.
-- Verify desktop and mobile screenshots, reduced-motion behavior, and no text overlap at large font sizes.
+- Verify desktop and mobile screenshots, reduced-motion behavior, and no text overlap at large font sizes whenever Chimer display behavior changes.
 
 ## Generative Music Spike
 
@@ -159,7 +158,7 @@ Refactor only when it preserves current behavior and makes the next branch safer
 Good refactor branches:
 
 - `codex/refactor-nav-model` before navigation work if route definitions are duplicated.
-- `codex/refactor-chimer-display` if animation work needs smaller Chimer display boundaries.
+- `codex/refactor-chimer-display` if future Chimer display work needs smaller component boundaries.
 - `codex/refactor-music-types` if the spike reveals unclear generator/player interfaces.
 
 Avoid broad branches like `codex/refactor-app` or `codex/cleanup`. They are hard to review and likely to mix unrelated behavior changes.

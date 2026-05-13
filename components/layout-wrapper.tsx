@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef, type ReactNode, type RefObject } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { LogIn } from "lucide-react"
@@ -107,7 +108,7 @@ function PortraitSidebarBar({ user }: { user: SidebarUser }) {
   )
 }
 
-function RouteWordmark({ visible }: { visible: boolean }) {
+function RouteWordmark({ visible, wordmarkRef }: { visible: boolean; wordmarkRef: RefObject<HTMLAnchorElement | null> }) {
   if (!visible) {
     return null
   }
@@ -116,7 +117,8 @@ function RouteWordmark({ visible }: { visible: boolean }) {
     <Link
       href="/"
       aria-label="MassageLab home"
-      className="ml-route-wordmark fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)+0.7rem)] z-20 -translate-x-1/2 rounded-sm px-2 py-1 transition duration-300 hover:opacity-90"
+      ref={wordmarkRef}
+      className="ml-route-wordmark fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)+0.7rem)] z-20 rounded-sm px-2 py-1"
     >
       <Image
         src="/brand/massagelab-wordmark-uppercase-tight.png"
@@ -133,15 +135,98 @@ function RouteWordmark({ visible }: { visible: boolean }) {
   )
 }
 
-export function LayoutWrapper({ children, user }: { children: React.ReactNode; user: SidebarUser }) {
+export function LayoutWrapper({ children, user }: { children: ReactNode; user: SidebarUser }) {
   const pathname = usePathname() ?? ""
   const { settings } = useSettings()
   const { renderMode } = useSidebar()
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const wordmarkRef = useRef<HTMLAnchorElement | null>(null)
   const isHomePage = pathname === "/"
   const showRouteWordmark = !isHomePage
   const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
   const hasPortraitBar = renderMode === "drawer"
   const portraitBarAtBottom = settings.sidebarTriggerPosition === "bottom"
+
+  useEffect(() => {
+    if (!showRouteWordmark) {
+      return
+    }
+
+    const scrollElement = scrollRef.current
+    const contentElement = contentRef.current
+    const wordmarkElement = wordmarkRef.current
+
+    if (!scrollElement || !contentElement || !wordmarkElement) {
+      return
+    }
+
+    let animationFrame = 0
+
+    const getFirstPageElement = () => {
+      for (const child of Array.from(contentElement.children)) {
+        if (child instanceof HTMLElement) {
+          return child
+        }
+      }
+
+      return contentElement
+    }
+
+    const updateWordmarkVisibility = () => {
+      animationFrame = 0
+
+      const scrollRect = scrollElement.getBoundingClientRect()
+      const firstPageElement = getFirstPageElement()
+      const firstPageElementTop = firstPageElement.getBoundingClientRect().top - scrollRect.top + scrollElement.scrollTop
+      const fadeDistance = Math.max(24, firstPageElementTop * 0.85)
+      const progress = Math.min(Math.max(scrollElement.scrollTop / fadeDistance, 0), 1)
+      const opacity = Math.max(0, 1 - progress)
+
+      wordmarkElement.style.setProperty("--ml-route-wordmark-scroll-opacity", opacity.toFixed(3))
+      wordmarkElement.style.setProperty("--ml-route-wordmark-scroll-y", `${(-0.35 * progress).toFixed(3)}rem`)
+
+      if (progress >= 1) {
+        wordmarkElement.style.pointerEvents = "none"
+        wordmarkElement.setAttribute("aria-hidden", "true")
+        wordmarkElement.setAttribute("tabindex", "-1")
+        return
+      }
+
+      wordmarkElement.style.pointerEvents = ""
+      wordmarkElement.removeAttribute("aria-hidden")
+      wordmarkElement.removeAttribute("tabindex")
+    }
+
+    const scheduleWordmarkUpdate = () => {
+      if (animationFrame) {
+        return
+      }
+
+      animationFrame = window.requestAnimationFrame(updateWordmarkVisibility)
+    }
+
+    scheduleWordmarkUpdate()
+    scrollElement.addEventListener("scroll", scheduleWordmarkUpdate, { passive: true })
+    window.addEventListener("resize", scheduleWordmarkUpdate)
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(scheduleWordmarkUpdate)
+      : null
+    const firstPageElement = getFirstPageElement()
+
+    resizeObserver?.observe(contentElement)
+    if (firstPageElement !== contentElement) {
+      resizeObserver?.observe(firstPageElement)
+    }
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      scrollElement.removeEventListener("scroll", scheduleWordmarkUpdate)
+      window.removeEventListener("resize", scheduleWordmarkUpdate)
+      resizeObserver?.disconnect()
+    }
+  }, [pathname, showRouteWordmark])
 
   return (
     <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background">
@@ -158,9 +243,10 @@ export function LayoutWrapper({ children, user }: { children: React.ReactNode; u
         </>
       )}
       <PortraitSidebarBar user={user} />
-      <RouteWordmark visible={showRouteWordmark} />
-      <div className="ml-app-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain">
+      <RouteWordmark visible={showRouteWordmark} wordmarkRef={wordmarkRef} />
+      <div ref={scrollRef} className="ml-app-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain">
         <div
+          ref={contentRef}
           className={cn(
             "ml-app-content mx-auto w-full max-w-screen-2xl",
             hasPortraitBar && portraitBarAtBottom && "pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]",
