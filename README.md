@@ -162,10 +162,12 @@ Do not run migrations from `next build`.
 
 ## Near-Term Direction
 
-See [docs/roadmap.md](docs/roadmap.md) for the branch-ready roadmap after the Sentry deployment.
+See [docs/roadmap.md](docs/roadmap.md) for the branch-ready roadmap after the May 8-11, 2026 alpha refresh work.
 
-1. Keep Chimer as the production-quality alpha surface and continue manual browser checks across desktop and mobile.
-2. Keep SOAP, intake, journals, and ROM tools local-first while validating import/export with anonymous sample files.
-3. Clean up navigation into durable product sections before adding more top-level routes.
-4. Treat music as a hidden spike until playback, sample hosting, licensing, and browser audio constraints are proven.
-5. Design managed HIPAA storage as a separate subscription product.
+1. Prioritize alpha release readiness: run the automated gate, walk `docs/alpha-qa.md`, and verify desktop/mobile navigation, Chimer, local-first documentation, calendar, PWA, and release hygiene checks.
+2. Keep Chimer as the production-quality alpha surface while polishing treatment-room animation states, reduced-motion behavior, and large-font mobile layouts.
+3. Keep SOAP, intake, journals, and ROM tools local-first while validating import/export with anonymous sample files.
+4. Plan calendar creation flows by user type before adding appointment, request, class, reminder, or personal-event creation UI.
+5. Treat music as a hidden spike until playback, sample hosting, licensing, and browser audio constraints are proven.
+6. Design managed HIPAA storage as a separate subscription product.
+7. Use the phased roadmap to track future access, anatomy, education, games, news, legal, SaaS, and discoverability work without pulling it into the alpha release gate.
