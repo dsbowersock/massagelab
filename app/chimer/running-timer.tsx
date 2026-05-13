@@ -21,9 +21,12 @@ const FONT_SIZE_STEP = 3
 const FONT_FIT_EDGE_INSET_PX = 2
 const SWAP_ANIMATION_MS = 360
 const SETTINGS_AUTO_CLOSE_MS = 60_000
+const DEFAULT_TIMER_FONT_COLOR = "#FFFFFF"
+const DEFAULT_CLOCK_FONT_COLOR = "#FF7A1A"
 
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
+  activeTimeDisplay: { hours: string; minutes: string; seconds: string }
   currentTime: CurrentTimeParts
   status: "running" | "paused" | "complete" | "clock"
   isFullscreen: boolean
@@ -31,8 +34,11 @@ interface RunningTimerProps {
   fontSize: number
   movingBackgroundEnabled: boolean
   keepTimerScreenAwake: boolean
+  showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: ChimerSettings["timeFormat"]
+  timerFontColor: string
+  clockFontColor: string
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
   activeIntervalMinutes: number | null
@@ -48,6 +54,7 @@ interface RunningTimerProps {
 
 export function RunningTimer({
   timeDisplay,
+  activeTimeDisplay,
   currentTime,
   status,
   isFullscreen,
@@ -55,8 +62,11 @@ export function RunningTimer({
   fontSize,
   movingBackgroundEnabled,
   keepTimerScreenAwake,
+  showTimerSeconds,
   showCurrentTimeSeconds,
   timeFormat,
+  timerFontColor,
+  clockFontColor,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
   activeIntervalMinutes,
@@ -89,18 +99,30 @@ export function RunningTimer({
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
+  const resolvedShowTimerSeconds = showTimerSeconds !== false
+  const resolvedTimerFontColor = timerFontColor || DEFAULT_TIMER_FONT_COLOR
+  const resolvedClockFontColor = clockFontColor || DEFAULT_CLOCK_FONT_COLOR
   const primaryActionLabel = isPaused ? "Resume timer" : "Pause timer"
   const statusText = isComplete ? "Session complete" : isPaused ? "Paused" : "Running"
-  const timerDisplayFitUnits = timeDisplay.hours === "00" ? 3.02 : 4.35
+  const hasTimerSeconds = Boolean(timeDisplay.seconds)
+  const timerDisplayFitUnits = hasTimerSeconds
+    ? timeDisplay.hours === "00" ? 3.02 : 4.35
+    : timeDisplay.hours === "00" ? 1.45 : 3.1
   const currentTimeSegmentCount = currentTime.time ? currentTime.time.split(":").length : 2
   const currentTimeDisplayFitUnits = currentTimeSegmentCount > 2 ? 3.42 : 2.38
   const primaryDisplayFitUnits = isTimerPrimary ? timerDisplayFitUnits : currentTimeDisplayFitUnits
+  const currentTimeDisplayShapeKey = currentTime.time.includes(":")
+    ? `${currentTimeSegmentCount}:${currentTime.meridiem ? "meridiem" : "plain"}`
+    : `${currentTime.time}:${currentTime.meridiem}`
+  const primaryDisplayContentKey = isTimerPrimary
+    ? `${timeDisplay.hours}:${timeDisplay.minutes}:${timeDisplay.seconds}`
+    : currentTimeDisplayShapeKey
   const effectiveMaxFontSize = Math.min(MAX_FONT_SIZE, maxFittedFontSize ?? MAX_FONT_SIZE)
   const effectiveFontSize = Math.min(fontSize, effectiveMaxFontSize)
   const canIncreaseFontSize = effectiveFontSize < effectiveMaxFontSize - 0.05
   const canDecreaseFontSize = effectiveFontSize > MIN_FONT_SIZE + 0.05
-  const activeRemainingHours = Number(timeDisplay.hours)
-  const activeRemainingMinutes = Number(timeDisplay.minutes)
+  const activeRemainingHours = Number(activeTimeDisplay.hours)
+  const activeRemainingMinutes = Number(activeTimeDisplay.minutes)
 
   const clearControlTimers = useCallback(() => {
     if (fadeTimerRef.current) {
@@ -291,14 +313,12 @@ export function RunningTimer({
         const targetHeight = Math.max(1, availableHeight - FONT_FIT_EDGE_INSET_PX)
         primaryElement.style.setProperty("--chimer-fit-font-size", `${preferredFontSize}px`)
         const contentRect = contentElement.getBoundingClientRect()
-        const contentWidth = Math.max(
-          contentElement.scrollWidth,
-          contentRect.width,
-        )
-        const contentHeight = Math.max(
-          contentElement.scrollHeight,
-          contentRect.height,
-        )
+        const contentWidth = isCurrentTimePrimary
+          ? contentRect.width
+          : Math.max(contentElement.scrollWidth, contentRect.width)
+        const contentHeight = isCurrentTimePrimary
+          ? contentRect.height
+          : Math.max(contentElement.scrollHeight, contentRect.height)
 
         if (!contentWidth || !contentHeight) {
           return
@@ -346,16 +366,13 @@ export function RunningTimer({
       window.removeEventListener("resize", fitPrimaryDisplay)
     }
   }, [
-    currentTime.meridiem,
-    currentTime.time,
     fontSize,
     isClockMode,
+    isCurrentTimePrimary,
     primaryDisplay,
+    primaryDisplayContentKey,
     primaryDisplayFitUnits,
     showCurrentTimeSeconds,
-    timeDisplay.hours,
-    timeDisplay.minutes,
-    timeDisplay.seconds,
   ])
 
   const handlePrimarySwitch = (nextDisplay: PrimaryDisplay) => {
@@ -445,12 +462,13 @@ export function RunningTimer({
     <span className={styles.timerUnitLabel} aria-hidden="true">{label}</span>
   )
 
-  const renderCurrentTimeMeridiem = () => (
-    currentTime.meridiem ? <span className={styles.currentTimeMeridiem}>{currentTime.meridiem}</span> : null
+  const renderCurrentTimeMeridiem = (meridiem = currentTime.meridiem) => (
+    meridiem ? <span className={styles.currentTimeMeridiem}>{meridiem}</span> : null
   )
 
   const renderTimerDisplay = () => {
     const hasHours = timeDisplay.hours !== "00"
+    const hasSeconds = Boolean(timeDisplay.seconds)
 
     return (
       <>
@@ -463,9 +481,13 @@ export function RunningTimer({
         )}
         <span className={styles.timeUnit}>{timeDisplay.minutes}</span>
         {renderTimerUnitLabel("m")}
-        <span className={styles.colon}>:</span>
-        <span className={styles.timeUnit}>{timeDisplay.seconds}</span>
-        {renderTimerUnitLabel("s")}
+        {hasSeconds && (
+          <>
+            <span className={styles.colon}>:</span>
+            <span className={styles.timeUnit}>{timeDisplay.seconds}</span>
+            {renderTimerUnitLabel("s")}
+          </>
+        )}
       </>
     )
   }
@@ -473,29 +495,41 @@ export function RunningTimer({
   const renderCurrentTimeDisplay = (isPrimary: boolean) => {
     const [hour = "", minute = "", second = ""] = currentTime.time.split(":")
 
+    const renderDigitSlots = (value: string) => (
+      value.padStart(2, "0").split("").map((digit, index) => (
+        <span key={`${value}-${index}`} className={styles.currentTimeDigit}>{digit}</span>
+      ))
+    )
+
     if (!minute) {
       return (
         <span className={isPrimary ? styles.currentTimeStack : styles.currentTimeInline}>
-          <span className={styles.currentTimeValue}>{currentTime.time}</span>
-          {renderCurrentTimeMeridiem()}
+          <span className={styles.currentTimeRow}>
+            <span className={styles.currentTimeValue}>{currentTime.time}</span>
+            {renderCurrentTimeMeridiem()}
+          </span>
         </span>
       )
     }
 
+    const renderTimeRow = (rowHour: string, rowMinute: string, rowSecond: string, meridiem: string) => (
+      <span className={styles.currentTimeRow}>
+        <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{renderDigitSlots(rowHour)}</span>
+        <span className={`${styles.colon} ${styles.clockColon}`}>:</span>
+        <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{renderDigitSlots(rowMinute)}</span>
+        {rowSecond && (
+          <>
+            <span className={`${styles.colon} ${styles.clockColon}`}>:</span>
+            <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{renderDigitSlots(rowSecond)}</span>
+          </>
+        )}
+        {renderCurrentTimeMeridiem(meridiem)}
+      </span>
+    )
+
     return (
       <span className={isPrimary ? styles.currentTimeStack : styles.currentTimeInline}>
-        <span className={styles.currentTimeRow}>
-          <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{hour}</span>
-          <span className={`${styles.colon} ${styles.clockColon}`}>:</span>
-          <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{minute}</span>
-          {second && (
-            <>
-              <span className={`${styles.colon} ${styles.clockColon}`}>:</span>
-              <span className={`${styles.timeUnit} ${styles.currentTimeUnit}`}>{second}</span>
-            </>
-          )}
-          {renderCurrentTimeMeridiem()}
-        </span>
+        {renderTimeRow(hour, minute, second, currentTime.meridiem)}
       </span>
     )
   }
@@ -505,6 +539,10 @@ export function RunningTimer({
     controlState === "faded" ? styles.chromeFaded : "",
     controlState === "hidden" ? styles.chromeHidden : "",
   ].filter(Boolean).join(" ")
+  const containerStyle = {
+    "--chimer-timer-color": resolvedTimerFontColor,
+    "--chimer-clock-color": resolvedClockFontColor,
+  } as CSSProperties
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
     ...(fitFontSize ? { "--chimer-fit-font-size": `${fitFontSize}px` } : {}),
@@ -520,6 +558,7 @@ export function RunningTimer({
     <section
       className={`${styles.container} ${isClockMode ? styles.clockMode : ""} ${isAlerting ? styles.alerting : ""}`}
       aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
+      style={containerStyle}
     >
       {movingBackgroundEnabled && (
         <MovingBackground
@@ -532,7 +571,7 @@ export function RunningTimer({
       {!isClockMode && (
         <button
           type="button"
-          className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${styles.timerDisplay} ${timerSwapClass}`}
+          className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
           onClick={isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer")}
           disabled={isTimerPrimary && isComplete}
           ref={isTimerPrimary ? primaryDisplayRef : undefined}
@@ -549,7 +588,7 @@ export function RunningTimer({
 
       <button
         type="button"
-        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
+        className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
         onClick={isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime")}
         disabled={isCurrentTimePrimary && isComplete}
         ref={isCurrentTimePrimary ? primaryDisplayRef : undefined}
@@ -620,11 +659,20 @@ export function RunningTimer({
                   <TabsTrigger value="timer" className={styles.settingsTabTrigger}>Timer</TabsTrigger>
                 )}
                 <TabsTrigger value="display" className={styles.settingsTabTrigger}>Display</TabsTrigger>
-                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Background</TabsTrigger>
+                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Colors</TabsTrigger>
               </TabsList>
 
               {!isClockMode && (
                 <TabsContent value="timer" className={styles.settingsTabContent}>
+                  <label className={styles.switchRow}>
+                    <span>Show timer seconds</span>
+                    <input
+                      type="checkbox"
+                      checked={resolvedShowTimerSeconds}
+                      onChange={(event) => handleSettingsChange({ showTimerSeconds: event.target.checked })}
+                    />
+                  </label>
+
                   {canEditActiveTimer ? (
                     <>
                       <div className={styles.settingsSection}>
@@ -692,7 +740,7 @@ export function RunningTimer({
 
               <TabsContent value="display" className={styles.settingsTabContent}>
                 <label className={styles.switchRow}>
-                  <span>Show seconds</span>
+                  <span>Show clock seconds</span>
                   <input
                     type="checkbox"
                     checked={showCurrentTimeSeconds}
@@ -732,9 +780,32 @@ export function RunningTimer({
                     />
                   </label>
                 )}
+
               </TabsContent>
 
               <TabsContent value="background" className={styles.settingsTabContent}>
+                {!isClockMode && (
+                  <label className={styles.colorRow}>
+                    <span>Timer color</span>
+                    <input
+                      type="color"
+                      value={resolvedTimerFontColor}
+                      onChange={(event) => handleSettingsChange({ timerFontColor: event.target.value })}
+                      aria-label="Timer font color"
+                    />
+                  </label>
+                )}
+
+                <label className={styles.colorRow}>
+                  <span>Clock color</span>
+                  <input
+                    type="color"
+                    value={resolvedClockFontColor}
+                    onChange={(event) => handleSettingsChange({ clockFontColor: event.target.value })}
+                    aria-label="Clock font color"
+                  />
+                </label>
+
                 <label className={styles.switchRow}>
                   <span>Moving background</span>
                   <input
@@ -770,7 +841,7 @@ export function RunningTimer({
 
         <div className={styles.bottomControls}>
           <div className={styles.bottomButtonRow}>
-            <button className={styles.fontButton} onClick={() => handleFontSizeChange("decrease")} disabled={!canDecreaseFontSize} aria-label="Decrease timer size" data-chimer-control="true">
+            <button className={`${styles.fontButton} ${styles.decreaseFontButton}`} onClick={() => handleFontSizeChange("decrease")} disabled={!canDecreaseFontSize} aria-label="Decrease timer size" data-chimer-control="true">
               <Minus className="h-5 w-5" />
             </button>
             {!isComplete && !isClockMode && (
@@ -778,7 +849,7 @@ export function RunningTimer({
                 {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </button>
             )}
-            <button className={styles.fontButton} onClick={() => handleFontSizeChange("increase")} disabled={!canIncreaseFontSize} aria-label="Increase timer size" data-chimer-control="true">
+            <button className={`${styles.fontButton} ${styles.increaseFontButton}`} onClick={() => handleFontSizeChange("increase")} disabled={!canIncreaseFontSize} aria-label="Increase timer size" data-chimer-control="true">
               <Plus className="h-5 w-5" />
             </button>
           </div>

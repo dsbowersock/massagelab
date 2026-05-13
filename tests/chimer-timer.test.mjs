@@ -42,6 +42,29 @@ describe("Chimer timer helpers", () => {
     })
   })
 
+  it("formats hidden timer seconds as rounded-up whole minutes", () => {
+    assert.deepEqual(formatDurationParts(0, { showTimerSeconds: false }), {
+      hours: "00",
+      minutes: "00",
+      seconds: "",
+    })
+    assert.deepEqual(formatDurationParts(30_000, { showTimerSeconds: false }), {
+      hours: "00",
+      minutes: "01",
+      seconds: "",
+    })
+    assert.deepEqual(formatDurationParts(90_000, { showTimerSeconds: false }), {
+      hours: "00",
+      minutes: "02",
+      seconds: "",
+    })
+    assert.deepEqual(formatDurationParts(65 * 60_000 + 1, { showTimerSeconds: false }), {
+      hours: "01",
+      minutes: "06",
+      seconds: "",
+    })
+  })
+
   it("clamps active timer adjustments to the supported timer range", () => {
     assert.equal(clampActiveTimerMs(-60_000), 0)
     assert.equal(clampActiveTimerMs(Number.NaN), 0)
@@ -121,8 +144,43 @@ describe("Chimer timer helpers", () => {
   })
 
   it("defaults current-time display preferences for old persisted settings", () => {
+    assert.equal(sanitizeChimerSettings({}).showTimerSeconds, true)
     assert.equal(sanitizeChimerSettings({}).showCurrentTimeSeconds, false)
     assert.equal(sanitizeChimerSettings({}).timeFormat, "12h")
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockFontColor, "#FF7A1A")
+    assert.equal(sanitizeChimerSettings({}).clockFontColor, "#FF7A1A")
+  })
+
+  it("preserves saved timer seconds and font color preferences", () => {
+    const settings = sanitizeChimerSettings({
+      showTimerSeconds: false,
+      timerFontColor: "#ff7a1a",
+      clockFontColor: "#4169e1",
+    })
+
+    assert.equal(settings.showTimerSeconds, false)
+    assert.equal(settings.timerFontColor, "#FF7A1A")
+    assert.equal(settings.clockFontColor, "#4169E1")
+  })
+
+  it("preserves an explicit saved white clock color", () => {
+    const settings = sanitizeChimerSettings({
+      clockFontColor: "#ffffff",
+    })
+
+    assert.equal(settings.clockFontColor, "#FFFFFF")
+  })
+
+  it("falls back for invalid timer seconds and font color preferences", () => {
+    const settings = sanitizeChimerSettings({
+      showTimerSeconds: "false",
+      timerFontColor: "orange",
+      clockFontColor: "#12345",
+    })
+
+    assert.equal(settings.showTimerSeconds, DEFAULT_CHIMER_SETTINGS.showTimerSeconds)
+    assert.equal(settings.timerFontColor, DEFAULT_CHIMER_SETTINGS.timerFontColor)
+    assert.equal(settings.clockFontColor, DEFAULT_CHIMER_SETTINGS.clockFontColor)
   })
 
   it("defaults timer screen awake on for old or invalid persisted settings", () => {

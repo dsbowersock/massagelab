@@ -749,7 +749,8 @@ export default function ChimerPage() {
     }
   }, [clearTimerInterval])
 
-  const timeDisplay = formatDurationParts(timerState.remainingMs)
+  const activeTimeDisplay = formatDurationParts(timerState.remainingMs)
+  const timeDisplay = formatDurationParts(timerState.remainingMs, { showTimerSeconds: settings.showTimerSeconds })
   const isTimerActive = timerState.status !== "idle"
 
   return (
@@ -779,6 +780,7 @@ export default function ChimerPage() {
         ) : (
           <RunningTimer
             timeDisplay={timeDisplay}
+            activeTimeDisplay={activeTimeDisplay}
             currentTime={currentTime}
             status={timerState.status as "running" | "paused" | "complete" | "clock"}
             isFullscreen={isFullscreen}
@@ -786,8 +788,11 @@ export default function ChimerPage() {
             fontSize={fontSize}
             movingBackgroundEnabled={settings.movingBackgroundEnabled}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
+            showTimerSeconds={settings.showTimerSeconds}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
             timeFormat={settings.timeFormat}
+            timerFontColor={settings.timerFontColor}
+            clockFontColor={settings.clockFontColor}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}

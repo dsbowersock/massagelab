@@ -1,6 +1,12 @@
 .container {
   --chimer-top-control-space: calc(env(safe-area-inset-top, 0px) + 5.5rem);
   --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 7.5rem);
+  --chimer-timer-color: #ffffff;
+  --chimer-clock-color: #ff7a1a;
+  --chimer-digit-glow:
+    0 0 0.035em color-mix(in srgb, currentColor 72%, transparent),
+    0 0 0.16em color-mix(in srgb, currentColor 38%, transparent),
+    0 0 0.38em color-mix(in srgb, currentColor 22%, transparent);
 
   position: fixed;
   inset: 0;
@@ -29,6 +35,21 @@
 
 .clockMode {
   --chimer-bottom-control-space: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
+.clockMode .primaryDisplay {
+  top: 0;
+  bottom: 0;
+}
+
+.primaryDisplay.timerModeClockPrimary {
+  top: 0;
+  bottom: 0;
+}
+
+.primaryDisplay.timerModeCompactTimer {
+  top: 0;
+  bottom: 0;
 }
 
 .runningBackground {
@@ -64,6 +85,8 @@
 }
 
 .primaryDisplay {
+  --chimer-display-base-transform: translateX(0);
+
   position: fixed;
   top: var(--chimer-top-control-space);
   right: 0;
@@ -83,12 +106,12 @@
   line-height: 1;
   letter-spacing: 0;
   text-align: center;
+  transform: var(--chimer-display-base-transform);
   transform-origin: center center;
   transform-style: preserve-3d;
   transition:
     bottom 180ms ease,
     color 150ms ease,
-    font-size 180ms ease,
     left 180ms ease,
     opacity 180ms ease,
     top 180ms ease,
@@ -100,27 +123,29 @@
 }
 
 .primaryDisplay:not(:disabled):hover {
-  color: white;
+  filter: brightness(1.08);
 }
 
 .primaryDisplay:not(:disabled):active {
-  transform: scale(0.99);
+  transform: var(--chimer-display-base-transform) scale(0.99);
 }
 
 .secondaryDisplay {
+  --chimer-display-base-transform: translateX(-50%);
+
   position: fixed;
   top: 1.2rem;
   right: auto;
   bottom: auto;
   left: 50%;
-  z-index: 10001;
+  z-index: 10002;
   display: flex;
   align-items: center;
   justify-content: center;
   width: auto;
   max-width: calc(100vw - 9rem);
   overflow: hidden;
-  transform: translateX(-50%);
+  transform: var(--chimer-display-base-transform);
   color: hsl(var(--brand-orange));
   font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: clamp(1.4rem, 6vw, 4rem);
@@ -146,12 +171,14 @@
 }
 
 .secondaryDisplay:hover {
-  color: hsl(var(--brand-orange-glow));
   opacity: 1;
+  filter: brightness(1.12);
 }
 
 .timerDisplay {
+  color: var(--chimer-timer-color);
   font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-shadow: var(--chimer-digit-glow);
 }
 
 .secondaryDisplay.timerDisplay {
@@ -159,8 +186,13 @@
 }
 
 .primaryDisplay.currentTimeDisplay {
-  color: white;
+  color: var(--chimer-clock-color);
   font-size: var(--chimer-fit-font-size, var(--chimer-primary-font-size, 20vw));
+}
+
+.currentTimeDisplay {
+  color: var(--chimer-clock-color);
+  text-shadow: var(--chimer-digit-glow);
 }
 
 .displayContent {
@@ -183,9 +215,16 @@
 }
 
 .currentTimeStack,
-.currentTimeInline,
+.currentTimeInline {
+  display: inline-grid;
+  align-items: center;
+  justify-content: center;
+  justify-items: center;
+}
+
 .currentTimeRow {
   display: inline-flex;
+  grid-area: 1 / 1;
   align-items: center;
   justify-content: center;
 }
@@ -238,7 +277,25 @@
 }
 
 .currentTimeUnit {
+  display: inline-grid;
+  width: 1.08em;
+  grid-template-columns: repeat(2, 0.54em);
+  align-items: center;
+  gap: 0;
+  justify-content: center;
+  justify-items: center;
   min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.currentTimeDigit {
+  display: inline-flex;
+  width: 0.54em;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 0.54em;
+  overflow: visible;
 }
 
 .timerUnitLabel {
@@ -272,13 +329,14 @@
 
 .reservedTimePart,
 .reservedInlinePart {
+  pointer-events: none;
   visibility: hidden;
 }
 
 .control,
 .fontButton {
   position: fixed;
-  z-index: 10001;
+  z-index: 10003;
   display: flex;
   width: 3.5rem;
   height: 3.5rem;
@@ -368,7 +426,7 @@
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 5.25rem);
   left: calc(env(safe-area-inset-left, 0px) + 1rem);
-  z-index: 10002;
+  z-index: 10004;
   display: flex;
   width: min(27rem, calc(100vw - 2rem));
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 6rem);
@@ -630,7 +688,7 @@
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
   left: 50%;
-  z-index: 10001;
+  z-index: 10003;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -655,31 +713,31 @@
 
 @keyframes chimerSwingUpBack {
   0% {
-    transform: translateY(0) rotateX(0deg) scale(1);
+    transform: var(--chimer-display-base-transform) translateY(0) rotateX(0deg) scale(1);
   }
 
   45% {
-    transform: translateX(-22%) translateY(-2.8vh) rotateX(34deg) scale(0.82);
+    transform: var(--chimer-display-base-transform) translateY(-2.8vh) rotateX(34deg) scale(0.82);
   }
 
   100% {
-    transform: translateX(-50%) translateY(0) rotateX(0deg) scale(1);
+    transform: var(--chimer-display-base-transform) translateY(0) rotateX(0deg) scale(1);
   }
 }
 
 @keyframes chimerSwingDownForward {
   0% {
-    transform: translateX(-50%) translateY(-8vh) rotateX(42deg) scale(0.74);
+    transform: var(--chimer-display-base-transform) translateY(-8vh) rotateX(42deg) scale(0.74);
     opacity: 0.72;
   }
 
   62% {
-    transform: translateY(1.4vh) rotateX(-8deg) scale(1.04);
+    transform: var(--chimer-display-base-transform) translateY(1.4vh) rotateX(-8deg) scale(1.04);
     opacity: 1;
   }
 
   100% {
-    transform: translateY(0) rotateX(0deg) scale(1);
+    transform: var(--chimer-display-base-transform) translateY(0) rotateX(0deg) scale(1);
     opacity: 1;
   }
 }
