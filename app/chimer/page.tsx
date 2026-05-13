@@ -791,8 +791,9 @@ export default function ChimerPage() {
             showTimerSeconds={settings.showTimerSeconds}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
             timeFormat={settings.timeFormat}
-            timerFontColor={settings.timerFontColor}
-            clockFontColor={settings.clockFontColor}
+            primaryFontColor={settings.primaryFontColor}
+            secondaryFontColor={settings.secondaryFontColor}
+            clockModeFontColor={settings.clockModeFontColor}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}

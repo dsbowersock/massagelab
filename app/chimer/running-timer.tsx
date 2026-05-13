@@ -21,8 +21,9 @@ const FONT_SIZE_STEP = 3
 const FONT_FIT_EDGE_INSET_PX = 2
 const SWAP_ANIMATION_MS = 360
 const SETTINGS_AUTO_CLOSE_MS = 60_000
-const DEFAULT_TIMER_FONT_COLOR = "#FFFFFF"
-const DEFAULT_CLOCK_FONT_COLOR = "#FF7A1A"
+const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
+const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
+const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
 
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
@@ -37,8 +38,9 @@ interface RunningTimerProps {
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: ChimerSettings["timeFormat"]
-  timerFontColor: string
-  clockFontColor: string
+  primaryFontColor: string
+  secondaryFontColor: string
+  clockModeFontColor: string
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
   activeIntervalMinutes: number | null
@@ -65,8 +67,9 @@ export function RunningTimer({
   showTimerSeconds,
   showCurrentTimeSeconds,
   timeFormat,
-  timerFontColor,
-  clockFontColor,
+  primaryFontColor,
+  secondaryFontColor,
+  clockModeFontColor,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
   activeIntervalMinutes,
@@ -100,8 +103,13 @@ export function RunningTimer({
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
-  const resolvedTimerFontColor = timerFontColor || DEFAULT_TIMER_FONT_COLOR
-  const resolvedClockFontColor = clockFontColor || DEFAULT_CLOCK_FONT_COLOR
+  const resolvedPrimaryFontColor = primaryFontColor || DEFAULT_PRIMARY_FONT_COLOR
+  const resolvedSecondaryFontColor = secondaryFontColor || DEFAULT_SECONDARY_FONT_COLOR
+  const resolvedClockModeFontColor = clockModeFontColor || DEFAULT_CLOCK_MODE_FONT_COLOR
+  const resolvedTimerDisplayColor = isTimerPrimary ? resolvedPrimaryFontColor : resolvedSecondaryFontColor
+  const resolvedCurrentTimeDisplayColor = isClockMode
+    ? resolvedClockModeFontColor
+    : isCurrentTimePrimary ? resolvedPrimaryFontColor : resolvedSecondaryFontColor
   const primaryActionLabel = isPaused ? "Resume timer" : "Pause timer"
   const statusText = isComplete ? "Session complete" : isPaused ? "Paused" : "Running"
   const hasTimerSeconds = Boolean(timeDisplay.seconds)
@@ -540,8 +548,8 @@ export function RunningTimer({
     controlState === "hidden" ? styles.chromeHidden : "",
   ].filter(Boolean).join(" ")
   const containerStyle = {
-    "--chimer-timer-color": resolvedTimerFontColor,
-    "--chimer-clock-color": resolvedClockFontColor,
+    "--chimer-timer-color": resolvedTimerDisplayColor,
+    "--chimer-clock-color": resolvedCurrentTimeDisplayColor,
   } as CSSProperties
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
@@ -786,23 +794,27 @@ export function RunningTimer({
               <TabsContent value="background" className={styles.settingsTabContent}>
                 {!isClockMode && (
                   <label className={styles.colorRow}>
-                    <span>Timer color</span>
+                    <span>Primary color</span>
                     <input
                       type="color"
-                      value={resolvedTimerFontColor}
-                      onChange={(event) => handleSettingsChange({ timerFontColor: event.target.value })}
-                      aria-label="Timer font color"
+                      value={resolvedPrimaryFontColor}
+                      onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
+                      aria-label="Primary display color"
                     />
                   </label>
                 )}
 
                 <label className={styles.colorRow}>
-                  <span>Clock color</span>
+                  <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
                   <input
                     type="color"
-                    value={resolvedClockFontColor}
-                    onChange={(event) => handleSettingsChange({ clockFontColor: event.target.value })}
-                    aria-label="Clock font color"
+                    value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
+                    onChange={(event) => handleSettingsChange(
+                      isClockMode
+                        ? { clockModeFontColor: event.target.value }
+                        : { secondaryFontColor: event.target.value },
+                    )}
+                    aria-label={isClockMode ? "Clock color" : "Secondary display color"}
                   />
                 </label>
 

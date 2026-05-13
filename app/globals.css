@@ -180,6 +180,20 @@
   }
 
   .ml-route-wordmark {
+    --ml-route-wordmark-scroll-opacity: 1;
+    --ml-route-wordmark-scroll-y: 0rem;
+
+    opacity: var(--ml-route-wordmark-scroll-opacity);
+    transform: translate(-50%, var(--ml-route-wordmark-scroll-y));
+    transition: filter 160ms ease;
+    will-change: opacity, transform;
+  }
+
+  .ml-route-wordmark:hover {
+    filter: brightness(1.08);
+  }
+
+  .ml-route-wordmark img {
     animation: ml-route-wordmark-settle 260ms ease-out both;
   }
 }
@@ -274,12 +288,12 @@
 @keyframes ml-route-wordmark-settle {
   from {
     opacity: 0;
-    transform: translate(-50%, 0.75rem) scale(1.06);
+    transform: translateY(0.75rem) scale(1.06);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, 0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -289,6 +303,10 @@
   }
 
   .ml-route-wordmark {
+    transition: none;
+  }
+
+  .ml-route-wordmark img {
     animation: none;
   }
 }

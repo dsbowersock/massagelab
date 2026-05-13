@@ -42,7 +42,7 @@ describe("Chimer timer helpers", () => {
     })
   })
 
-  it("formats hidden timer seconds as rounded-up whole minutes", () => {
+  it("formats hidden timer seconds as current whole-minute position", () => {
     assert.deepEqual(formatDurationParts(0, { showTimerSeconds: false }), {
       hours: "00",
       minutes: "00",
@@ -50,17 +50,17 @@ describe("Chimer timer helpers", () => {
     })
     assert.deepEqual(formatDurationParts(30_000, { showTimerSeconds: false }), {
       hours: "00",
-      minutes: "01",
+      minutes: "00",
       seconds: "",
     })
     assert.deepEqual(formatDurationParts(90_000, { showTimerSeconds: false }), {
       hours: "00",
-      minutes: "02",
+      minutes: "01",
       seconds: "",
     })
     assert.deepEqual(formatDurationParts(65 * 60_000 + 1, { showTimerSeconds: false }), {
       hours: "01",
-      minutes: "06",
+      minutes: "05",
       seconds: "",
     })
   })
@@ -147,40 +147,51 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({}).showTimerSeconds, true)
     assert.equal(sanitizeChimerSettings({}).showCurrentTimeSeconds, false)
     assert.equal(sanitizeChimerSettings({}).timeFormat, "12h")
-    assert.equal(DEFAULT_CHIMER_SETTINGS.clockFontColor, "#FF7A1A")
-    assert.equal(sanitizeChimerSettings({}).clockFontColor, "#FF7A1A")
+    assert.equal(DEFAULT_CHIMER_SETTINGS.primaryFontColor, "#FFFFFF")
+    assert.equal(DEFAULT_CHIMER_SETTINGS.secondaryFontColor, "#FF7A1A")
+    assert.equal(DEFAULT_CHIMER_SETTINGS.clockModeFontColor, "#FFFFFF")
+    assert.equal(sanitizeChimerSettings({}).primaryFontColor, "#FFFFFF")
+    assert.equal(sanitizeChimerSettings({}).secondaryFontColor, "#FF7A1A")
+    assert.equal(sanitizeChimerSettings({}).clockModeFontColor, "#FFFFFF")
   })
 
-  it("preserves saved timer seconds and font color preferences", () => {
+  it("preserves saved timer seconds and display position color preferences", () => {
     const settings = sanitizeChimerSettings({
       showTimerSeconds: false,
-      timerFontColor: "#ff7a1a",
-      clockFontColor: "#4169e1",
+      primaryFontColor: "#ff7a1a",
+      secondaryFontColor: "#4169e1",
+      clockModeFontColor: "#ffffff",
     })
 
     assert.equal(settings.showTimerSeconds, false)
-    assert.equal(settings.timerFontColor, "#FF7A1A")
-    assert.equal(settings.clockFontColor, "#4169E1")
+    assert.equal(settings.primaryFontColor, "#FF7A1A")
+    assert.equal(settings.secondaryFontColor, "#4169E1")
+    assert.equal(settings.clockModeFontColor, "#FFFFFF")
   })
 
-  it("preserves an explicit saved white clock color", () => {
+  it("does not migrate legacy display-type color fields into position colors", () => {
     const settings = sanitizeChimerSettings({
+      timerFontColor: "#000000",
       clockFontColor: "#ffffff",
     })
 
-    assert.equal(settings.clockFontColor, "#FFFFFF")
+    assert.equal(settings.primaryFontColor, "#FFFFFF")
+    assert.equal(settings.secondaryFontColor, "#FF7A1A")
+    assert.equal(settings.clockModeFontColor, "#FFFFFF")
   })
 
-  it("falls back for invalid timer seconds and font color preferences", () => {
+  it("falls back for invalid timer seconds and display color preferences", () => {
     const settings = sanitizeChimerSettings({
       showTimerSeconds: "false",
-      timerFontColor: "orange",
-      clockFontColor: "#12345",
+      primaryFontColor: "orange",
+      secondaryFontColor: "#12345",
+      clockModeFontColor: "white",
     })
 
     assert.equal(settings.showTimerSeconds, DEFAULT_CHIMER_SETTINGS.showTimerSeconds)
-    assert.equal(settings.timerFontColor, DEFAULT_CHIMER_SETTINGS.timerFontColor)
-    assert.equal(settings.clockFontColor, DEFAULT_CHIMER_SETTINGS.clockFontColor)
+    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+    assert.equal(settings.secondaryFontColor, DEFAULT_CHIMER_SETTINGS.secondaryFontColor)
+    assert.equal(settings.clockModeFontColor, DEFAULT_CHIMER_SETTINGS.clockModeFontColor)
   })
 
   it("defaults timer screen awake on for old or invalid persisted settings", () => {

@@ -16,8 +16,9 @@ export interface ChimerSettings {
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: "12h" | "24h"
-  timerFontColor: string
-  clockFontColor: string
+  primaryFontColor: string
+  secondaryFontColor: string
+  clockModeFontColor: string
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
 }
