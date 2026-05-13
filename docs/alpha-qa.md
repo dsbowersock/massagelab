@@ -4,6 +4,7 @@ Use this checklist before tagging or deploying a private-alpha build. Keep SOAP 
 
 ## Automated Gate
 
+- Run the gate with Node.js `24.x`.
 - `npm run prisma:validate`
 - `npm run lint`
 - `npm run typecheck`
@@ -74,7 +75,10 @@ Use this checklist before tagging or deploying a private-alpha build. Keep SOAP 
 - Secondary sidebar navigation shows User Support and Roadmap, matching the compact shadcn secondary-nav pattern.
 - Account, Security, Settings, and sign-in/sign-out actions stay in the account menu.
 - The sidebar supports expanded, icon-collapsed, mobile sheet, left, and right states with visible keyboard focus.
+- Clicking outside an expanded desktop sidebar collapses it without changing the active route or losing page state.
+- Collapsed rail controls can reopen the sidebar, and the MassageLab wordmark appears when the sidebar is expanded.
 - Sidebar group labels collapse and expand Tools, Documentation, Games, and Calendar sections.
+- Collapsed sidebar section headers show recognizable icons for grouped navigation.
 - The sidebar trigger bar supports top and bottom placement without moving the sidebar itself, and the trigger aligns to the selected left/right sidebar side.
 - The sidebar mini calendar stays inside the expanded sidebar and does not appear in icon-collapsed mode.
 - `/support` loads a contact/help page, and its form creates a valid `mailto:` URL for `contactmassagelab@gmail.com`.
