@@ -5,7 +5,7 @@ This file captures the branch-ready roadmap after the May 8-11, 2026 alpha refre
 ## Recently Completed
 
 - Sentry error monitoring and performance traces are wired with privacy scrubbing for diagnostic messages. Keep Session Replay, User Feedback, and Logs disabled until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
-- Chimer gained responsive active-timer controls, clock/timer display improvements, safer mobile layout behavior, and preference sync conflict handling.
+- Chimer gained responsive active-timer controls, full-viewport Clock Mode centering, corrected timer/current-time switch animation, safer mobile layout behavior, and preference sync conflict handling.
 - Navigation IA shipped with shadcn sidebar composition, grouped alpha routes, secondary support/roadmap links, account menu routes, mini-calendar placement, and Chimer sidebar hiding states.
 - Sidebar styling polish shipped with collapsed section icons, rail expansion behavior, wordmark reveal, sidebar open controls, and click-away collapse.
 - Branding and PWA assets shipped with updated favicon, app icons, brand mark, wordmark, and sidebar logo placement.
@@ -112,11 +112,11 @@ These flows remain roadmap-only until the calendar product defines role permissi
 
 ## Chimer Animation Polish
 
-Goal: improve the clock/timer switch and surrounding Chimer polish while preserving treatment-room calm and readability.
+Goal: keep the corrected clock/timer switch and surrounding Chimer polish aligned with treatment-room calm and readability.
 
-- Start with the existing CSS/keyframe swap animation in Chimer.
+- Keep the existing CSS/keyframe swap animation in Chimer grounded in each display state's horizontal base transform.
 - Keep `prefers-reduced-motion` support.
-- Polish state changes that already exist: timer/current-time swap, controls fade, settings panel open/close, completion/alert state, and moving background transitions.
+- Preserve state changes that already exist: timer/current-time swap, full-viewport Clock Mode centering, controls fade, settings panel open/close, completion/alert state, and moving background transitions.
 - Add `motion` only if CSS becomes awkward for state-driven layout animation.
 - Do not add GSAP, Theatre.js, Anime.js, Animate.css, or Animista output unless a later interaction needs timeline-level control.
 - Verify desktop and mobile screenshots, reduced-motion behavior, and no text overlap at large font sizes.

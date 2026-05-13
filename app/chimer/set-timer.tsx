@@ -13,8 +13,11 @@ export interface ChimerSettings {
   alertType: "chime" | "flash" | "both" | "silent"
   movingBackgroundEnabled: boolean
   keepTimerScreenAwake: boolean
+  showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
   timeFormat: "12h" | "24h"
+  timerFontColor: string
+  clockFontColor: string
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
 }

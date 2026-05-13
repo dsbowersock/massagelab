@@ -14,7 +14,7 @@ const recentlyShipped = [
   {
     title: "Chimer responsive controls",
     description:
-      "Treatment-room clock and timer controls now handle active sessions, mobile layouts, font sizing, fullscreen, alerts, and safe preference sync more reliably.",
+      "Treatment-room clock and timer controls now handle active sessions, mobile layouts, full-viewport clock centering, switch animation, font sizing, fullscreen, alerts, and safe preference sync more reliably.",
     icon: Clock,
   },
   {
@@ -41,7 +41,7 @@ const currentFocus = [
   {
     title: "Chimer animation polish",
     description:
-      "Refine timer/current-time swaps, control fades, settings transitions, completion alerts, moving backgrounds, and reduced-motion behavior.",
+      "Keep the corrected timer/current-time swap animation, control fades, settings transitions, completion alerts, moving backgrounds, and reduced-motion behavior calm and readable.",
     icon: Clock,
   },
   {
