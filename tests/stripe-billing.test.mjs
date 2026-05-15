@@ -4,8 +4,10 @@ import { describe, it } from "node:test"
 import {
   normalizeStripeSubscription,
   stripeTimestampToDate,
+  upsertMembershipSubscriptionFromStripe,
   verifyStripeWebhookSignature,
 } from "../lib/stripe-billing.js"
+import * as stripeBilling from "../lib/stripe-billing.js"
 
 describe("Stripe billing helpers", () => {
   it("verifies Stripe webhook signatures with the raw request body", () => {
@@ -21,6 +23,9 @@ describe("Stripe billing helpers", () => {
   })
 
   it("normalizes Stripe subscriptions into MassageLab subscription records", () => {
+    const env = {
+      STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist",
+    }
     const normalized = normalizeStripeSubscription({
       id: "sub_123",
       customer: "cus_123",
@@ -41,7 +46,7 @@ describe("Stripe billing helpers", () => {
           },
         ],
       },
-    })
+    }, { env })
 
     assert.deepEqual(normalized, {
       stripeSubscriptionId: "sub_123",
@@ -58,5 +63,129 @@ describe("Stripe billing helpers", () => {
       metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
     })
     assert.equal(stripeTimestampToDate(null), null)
+  })
+
+  it("rejects unmapped and Student Stripe prices instead of granting a paid membership", () => {
+    const baseSubscription = {
+      id: "sub_123",
+      customer: "cus_123",
+      status: "active",
+      current_period_start: 1778791200,
+      current_period_end: 1781383200,
+      metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+    }
+    const env = {
+      STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist",
+      STRIPE_STUDENT_MONTHLY_PRICE_ID: "price_student",
+    }
+
+    assert.equal(
+      normalizeStripeSubscription({
+        ...baseSubscription,
+        items: { data: [{ price: { id: "price_unknown", product: "prod_unknown" } }] },
+      }, { env }),
+      null,
+    )
+    assert.equal(
+      normalizeStripeSubscription({
+        ...baseSubscription,
+        metadata: { userId: "user_123", membershipLevel: "STUDENT" },
+        items: { data: [{ price: { id: "price_student", product: "prod_student" } }] },
+      }, { env }),
+      null,
+    )
+  })
+
+  it("does not write a membership subscription for unmapped Stripe prices", async () => {
+    const writes = []
+    const prismaClient = {
+      stripeCustomer: {
+        upsert: async (args) => {
+          writes.push(["customer", args])
+          return args.create
+        },
+      },
+      membershipSubscription: {
+        upsert: async (args) => {
+          writes.push(["subscription", args])
+          return args.create
+        },
+      },
+    }
+
+    const result = await upsertMembershipSubscriptionFromStripe(prismaClient, {
+      id: "sub_123",
+      customer: "cus_123",
+      status: "active",
+      metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+      items: { data: [{ price: { id: "price_unknown", product: "prod_unknown" } }] },
+    }, { env: { STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist" } })
+
+    assert.equal(result, null)
+    assert.deepEqual(writes, [])
+  })
+
+  it("creates Stripe Customer Portal sessions with the stored customer and return URL", async () => {
+    assert.equal(typeof stripeBilling.createStripeCustomerPortalSession, "function")
+    let capturedPayload = null
+    const session = await stripeBilling.createStripeCustomerPortalSession({
+      customerId: "cus_123",
+      returnUrl: "https://massagelab.app/account",
+      stripeClient: {
+        billingPortal: {
+          sessions: {
+            create: async (payload) => {
+              capturedPayload = payload
+              return { id: "bps_123", url: "https://billing.stripe.com/p/session/test" }
+            },
+          },
+        },
+      },
+    })
+
+    assert.deepEqual(capturedPayload, {
+      customer: "cus_123",
+      return_url: "https://massagelab.app/account",
+    })
+    assert.equal(session.url, "https://billing.stripe.com/p/session/test")
+  })
+
+  it("reconciles a Checkout Session subscription immediately after checkout completion", async () => {
+    const writes = []
+    const prismaClient = {
+      stripeCustomer: {
+        upsert: async (args) => {
+          writes.push(["customer", args])
+          return args.create
+        },
+      },
+      membershipSubscription: {
+        upsert: async (args) => {
+          writes.push(["subscription", args])
+          return args.create
+        },
+      },
+    }
+
+    const result = await stripeBilling.recordCheckoutSessionCompleted(prismaClient, {
+      client_reference_id: "user_123",
+      customer: "cus_123",
+      subscription: "sub_123",
+    }, {
+      env: { STRIPE_THERAPIST_MONTHLY_PRICE_ID: "price_therapist" },
+      retrieveSubscription: async (subscriptionId) => ({
+        id: subscriptionId,
+        customer: "cus_123",
+        status: "active",
+        current_period_start: 1778791200,
+        current_period_end: 1781383200,
+        metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+        items: { data: [{ price: { id: "price_therapist", product: "prod_therapist" } }] },
+      }),
+    })
+
+    assert.equal(result.customer.stripeCustomerId, "cus_123")
+    assert.equal(result.subscription.membershipLevel, "THERAPIST")
+    assert.equal(writes.some(([kind]) => kind === "subscription"), true)
   })
 })

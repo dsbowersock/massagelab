@@ -28,7 +28,9 @@ export async function POST(request: Request) {
   if (
     event?.type === "customer.subscription.created" ||
     event?.type === "customer.subscription.updated" ||
-    event?.type === "customer.subscription.deleted"
+    event?.type === "customer.subscription.deleted" ||
+    event?.type === "customer.subscription.paused" ||
+    event?.type === "customer.subscription.resumed"
   ) {
     await upsertMembershipSubscriptionFromStripe(prisma, object)
   }

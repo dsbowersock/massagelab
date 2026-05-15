@@ -53,6 +53,14 @@ STRIPE_PRACTICE_YEARLY_PRICE_ID=
 ```
 
 Free and Student are internal access states. Do not create a Stripe Free product.
+Student is not a Stripe-backed subscription tier. If a Student product or price exists in Stripe, archive or disable it and do not place its Price ID in application configuration.
+
+Before enabling subscription checkout, confirm:
+
+- Supporter, Therapist, and Practice each have the intended monthly and yearly recurring Price IDs.
+- The Stripe Customer Portal is enabled and configured for subscription management.
+- `/api/billing/webhook` is registered with the Stripe webhook signing secret.
+- Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
 
 ## Sentry
 
