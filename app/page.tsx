@@ -1,6 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Brain, CalendarDays, ClipboardList, HeartHandshake, ShieldCheck, Timer } from "lucide-react"
+import { Brain, CalendarDays, ClipboardList, HeartHandshake, ShieldCheck, Timer, UserRound } from "lucide-react"
+import { getCurrentSession } from "@/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -39,7 +40,9 @@ const tools = [
   },
 ]
 
-export default function Home() {
+export default async function Home() {
+  const session = await getCurrentSession()
+
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -88,6 +91,41 @@ export default function Home() {
                 </Card>
               )
             })}
+          </div>
+        </section>
+
+        <section className="rounded-md border border-neutral-800 bg-card/90 p-5 backdrop-blur">
+          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="flex items-start gap-3">
+              <UserRound className="mt-1 h-5 w-5 shrink-0 text-brand-orange" />
+              <div>
+                <h2 className="text-xl font-semibold">A free account keeps your tools portable</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                  Sign in to sync safe preferences, progress, templates, and profile defaults. Optional memberships help fund low-cost tools, education features, practice workflows, and the compliance work needed for future hosted sync.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 md:justify-end">
+              {session?.user?.id ? (
+                <>
+                  <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                    <Link href="/account">Open account</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/account#membership">View memberships</Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                    <Link href="/register">Create free account</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/login">Sign in</Link>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </section>
 

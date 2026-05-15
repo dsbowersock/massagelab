@@ -16,12 +16,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 
-export default async function AccountPage() {
+type AccountPageProps = {
+  searchParams?: Promise<{
+    billing?: string
+    checkout?: string
+    portal?: string
+  }>
+}
+
+export default async function AccountPage({ searchParams }: AccountPageProps) {
+  const params = await searchParams
   const session = await getCurrentSession()
 
   if (!session?.user?.id) {
     return (
       <AccountShell>
+        <AccountNotice billing={params?.billing} checkout={params?.checkout} portal={params?.portal} />
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle>Sign in to sync your account</CardTitle>
@@ -60,9 +70,12 @@ export default async function AccountPage() {
     roleRows.length > 0 ? roleRows.map((roleRow) => roleRow.role).sort() : [session.user.role as AccountRole]
   const canManageAnatomy = canManageAnatomyContent(roleLabels)
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
+  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
 
   return (
     <AccountShell>
+      <AccountNotice billing={params?.billing} checkout={params?.checkout} portal={params?.portal} />
+
       <Card className="border-neutral-800 bg-card/90 backdrop-blur">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -100,7 +113,7 @@ export default async function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card id="membership" className="border-neutral-800 bg-card/90 backdrop-blur">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-brand-orange" />
@@ -169,6 +182,14 @@ export default async function AccountPage() {
                 </div>
               ))}
             </div>
+          ) : null}
+
+          {canOpenBillingPortal ? (
+            <form action="/api/billing/portal" method="post">
+              <Button type="submit" variant="outline">
+                Manage subscription
+              </Button>
+            </form>
           ) : null}
         </CardContent>
       </Card>
@@ -385,6 +406,97 @@ function AccountShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   )
+}
+
+function AccountNotice({
+  billing,
+  checkout,
+  portal,
+}: {
+  billing?: string
+  checkout?: string
+  portal?: string
+}) {
+  const notice = accountNotice({ billing, checkout, portal })
+
+  if (!notice) {
+    return null
+  }
+
+  return (
+    <div className={`rounded-md border p-3 text-sm ${notice.className}`}>
+      <p className="font-medium">{notice.title}</p>
+      <p className="mt-1 text-muted-foreground">{notice.description}</p>
+    </div>
+  )
+}
+
+function accountNotice({
+  billing,
+  checkout,
+  portal,
+}: {
+  billing?: string
+  checkout?: string
+  portal?: string
+}) {
+  if (checkout === "success") {
+    return {
+      title: "Checkout complete",
+      description: "Stripe is syncing your membership. If the status has not updated yet, refresh after the webhook finishes.",
+      className: "border-brand-orange/40 bg-primary/10",
+    }
+  }
+
+  if (checkout === "cancelled") {
+    return {
+      title: "Checkout cancelled",
+      description: "No membership changes were made. Free access remains available.",
+      className: "border-neutral-800 bg-card/90",
+    }
+  }
+
+  if (portal === "returned") {
+    return {
+      title: "Billing portal closed",
+      description: "Any subscription changes made in Stripe will appear here after the webhook syncs.",
+      className: "border-brand-orange/40 bg-primary/10",
+    }
+  }
+
+  if (portal === "customer-not-found") {
+    return {
+      title: "Billing portal unavailable",
+      description: "There is no Stripe customer connected to this account yet.",
+      className: "border-neutral-800 bg-card/90",
+    }
+  }
+
+  if (portal === "error") {
+    return {
+      title: "Billing portal unavailable",
+      description: "Stripe could not start the billing portal. Check the Stripe Customer Portal and secret key configuration.",
+      className: "border-destructive/40 bg-destructive/10",
+    }
+  }
+
+  if (billing) {
+    return {
+      title: "Checkout unavailable",
+      description: billingMessage(billing),
+      className: "border-destructive/40 bg-destructive/10",
+    }
+  }
+
+  return null
+}
+
+function billingMessage(code: string) {
+  if (code === "unsupported-plan") return "That membership level is not supported for Stripe Checkout."
+  if (code === "price-not-configured") return "Stripe prices are not configured for that membership option yet."
+  if (code === "account-not-found") return "The signed-in account could not be found."
+  if (code === "checkout-error") return "Stripe Checkout could not be started. Check the Stripe secret key and price configuration."
+  return "Stripe Checkout could not be started."
 }
 
 function StatusTile({ label, value }: { label: string; value: string }) {

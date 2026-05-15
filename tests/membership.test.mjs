@@ -11,6 +11,7 @@ import {
   isActiveSubscriptionStatus,
   resolveStripePriceId,
 } from "../lib/membership.js"
+import * as membership from "../lib/membership.js"
 
 describe("Membership and entitlement helpers", () => {
   it("keeps free users on basic Chimer without custom color access", () => {
@@ -93,6 +94,31 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(resolveStripePriceId({ membershipLevel: "SUPPORTER", interval: "month", env }), "price_supporter_monthly")
     assert.equal(resolveStripePriceId({ membershipLevel: "THERAPIST", interval: "year", env }), "price_therapist_yearly")
     assert.equal(resolveStripePriceId({ membershipLevel: "STUDENT", interval: "month", env }), null)
+  })
+
+  it("maps configured Stripe prices only to paid membership levels", () => {
+    const env = {
+      STRIPE_SUPPORTER_MONTHLY_PRICE_ID: "price_supporter_monthly",
+      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+      STRIPE_PRACTICE_MONTHLY_PRICE_ID: "price_practice_monthly",
+      STRIPE_STUDENT_MONTHLY_PRICE_ID: "price_student_monthly",
+    }
+
+    assert.equal(typeof membership.resolveStripePriceMembershipLevel, "function")
+    assert.equal(
+      membership.resolveStripePriceMembershipLevel({ priceId: "price_supporter_monthly", env }),
+      "SUPPORTER",
+    )
+    assert.equal(
+      membership.resolveStripePriceMembershipLevel({ priceId: "price_therapist_yearly", env }),
+      "THERAPIST",
+    )
+    assert.equal(
+      membership.resolveStripePriceMembershipLevel({ priceId: "price_practice_monthly", env }),
+      "PRACTICE",
+    )
+    assert.equal(membership.resolveStripePriceMembershipLevel({ priceId: "price_student_monthly", env }), null)
+    assert.equal(membership.resolveStripePriceMembershipLevel({ priceId: "price_unknown", env }), null)
   })
 
   it("builds a Checkout Session request for recurring Stripe Billing", () => {
