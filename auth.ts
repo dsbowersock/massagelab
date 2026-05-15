@@ -226,6 +226,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           canManageClients: false,
           canRequestCredentials: true,
           canUseLocalClinicalTools: true,
+          canUseChimerCustomColors: false,
           hostedClinicalSyncEnabled: false,
         }) as AccountCapabilities
         sessionUser.emailVerified = Boolean(token.emailVerified)

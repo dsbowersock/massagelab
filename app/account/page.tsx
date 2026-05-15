@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { BadgeCheck, Shield, ShieldAlert, UserRound } from "lucide-react"
+import { BadgeCheck, CreditCard, GraduationCap, Palette, Shield, ShieldAlert, UserRound } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { requestCredentialVerificationAction, saveProfileAction } from "@/app/account/actions"
 import { PreferenceSync } from "@/app/account/preference-sync"
@@ -7,6 +7,7 @@ import { SignOutButton } from "@/app/account/sign-out-button"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
 import { getClinicalSyncReadiness } from "@/lib/phi-sync"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
+import { FEATURE_KEYS, getUserMembershipSummary } from "@/lib/membership"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
@@ -38,7 +39,7 @@ export default async function AccountPage() {
     )
   }
 
-  const [profile, roles, credentialVerifications, preferences, progressCount, achievementCount, templateCount] = await Promise.all([
+  const [profile, roles, credentialVerifications, preferences, progressCount, achievementCount, templateCount, membershipSummary] = await Promise.all([
     prisma.userProfile.findUnique({ where: { userId: session.user.id } }),
     prisma.userRole.findMany({ where: { userId: session.user.id }, select: { role: true, status: true } }),
     prisma.credentialVerification.findMany({
@@ -50,6 +51,7 @@ export default async function AccountPage() {
     prisma.learningProgress.count({ where: { userId: session.user.id } }),
     prisma.achievement.count({ where: { userId: session.user.id } }),
     prisma.noteTemplate.count({ where: { userId: session.user.id } }),
+    getUserMembershipSummary(prisma, session.user.id),
   ])
 
   const clinicalSyncReadiness = getClinicalSyncReadiness()
@@ -57,6 +59,7 @@ export default async function AccountPage() {
   const roleLabels: AccountRole[] =
     roleRows.length > 0 ? roleRows.map((roleRow) => roleRow.role).sort() : [session.user.role as AccountRole]
   const canManageAnatomy = canManageAnatomyContent(roleLabels)
+  const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
 
   return (
     <AccountShell>
@@ -79,6 +82,8 @@ export default async function AccountPage() {
             <StatusTile label="Progress items" value={String(progressCount)} />
             <StatusTile label="Achievements" value={String(achievementCount)} />
             <StatusTile label="Templates" value={String(templateCount)} />
+            <StatusTile label="Membership" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
+            <StatusTile label="Chimer colors" value={canUseChimerCustomColors ? "Unlocked" : "Free defaults"} />
           </div>
 
           <PreferenceSync hasCloudPreferences={Boolean(preferences)} />
@@ -92,6 +97,79 @@ export default async function AccountPage() {
             </Button>
             <SignOutButton />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-brand-orange" />
+            Membership
+          </CardTitle>
+          <CardDescription>
+            Free access remains available by default. Paid memberships currently unlock Chimer custom colors and membership status.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
+            <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
+            <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
+          </div>
+
+          <div className="rounded-md border border-brand-orange/30 bg-primary/10 p-3">
+            <div className="flex items-start gap-3">
+              <Palette className="mt-0.5 h-4 w-4 text-brand-orange" />
+              <p className="text-sm text-muted-foreground">
+                Basic Chimer remains free. Paid memberships unlock saved custom display and background colors.
+              </p>
+            </div>
+          </div>
+
+          {membershipSummary.configuredOptions.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {membershipSummary.configuredOptions.map((option: { membershipLevel: string; interval: string }) => (
+                <form key={`${option.membershipLevel}-${option.interval}`} action="/api/billing/checkout" method="post">
+                  <input type="hidden" name="membershipLevel" value={option.membershipLevel} />
+                  <input type="hidden" name="interval" value={option.interval} />
+                  <Button type="submit" variant="outline" className="w-full justify-between">
+                    <span>{formatMembershipLevel(option.membershipLevel)}</span>
+                    <span>{formatInterval(option.interval)}</span>
+                  </Button>
+                </form>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Stripe checkout prices are not configured in this environment yet.
+            </p>
+          )}
+
+          {membershipSummary.subscriptions.length > 0 ? (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">Subscription status</h3>
+              {membershipSummary.subscriptions.slice(0, 3).map((subscription: {
+                id: string
+                membershipLevel: string
+                status: string
+                currentPeriodEnd: Date | null
+                couponId: string | null
+              }) => (
+                <div key={subscription.id} className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{formatMembershipLevel(subscription.membershipLevel)}</span>
+                    <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
+                      {subscription.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {subscription.currentPeriodEnd ? `Renews through ${subscription.currentPeriodEnd.toLocaleDateString()}` : "Current period unavailable"}
+                    {subscription.couponId ? ` · Coupon ${subscription.couponId}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -197,6 +275,13 @@ export default async function AccountPage() {
                 name="evidence_description"
                 placeholder="Example: enrollment letter dated 2026-05-01, or Ohio eLicense lookup available"
               />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="student_start_date" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-brand-orange" />
+                Student first day of class
+              </Label>
+              <Input id="student_start_date" name="student_start_date" type="date" />
             </div>
             <p className="text-xs text-muted-foreground md:col-span-2">
               Ohio massage license requests run an automatic eLicense check. Other jurisdictions and student enrollment remain pending for review.
@@ -317,6 +402,18 @@ function formatRole(role: AccountRole) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
+}
+
+function formatMembershipLevel(level: string) {
+  return level
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+function formatInterval(interval: string) {
+  return interval === "year" ? "Yearly" : "Monthly"
 }
 
 function formatStatus(status: VerificationStatus) {

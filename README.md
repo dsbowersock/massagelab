@@ -1,173 +1,60 @@
 # MassageLab
 
-MassageLab is a private-alpha toolkit for massage therapists and students. The first production-quality surface is Chimer, a treatment-room interval timer. Documentation tools are local-first in this alpha: the app does not upload SOAP notes or intake forms.
+MassageLab is a local-first toolkit for massage therapists, massage students, educators, and small practices.
+
+The project starts with practical tools that can help in a treatment room or classroom today, then grows toward paid memberships that fund more ambitious infrastructure: compliant storage, practice operations, education, and research workflows.
+
+## Mission
+
+MassageLab exists to make useful clinical and educational tools accessible without pushing therapists into unsafe data practices. The alpha keeps health-sensitive documentation under the user's control while the project proves its workflows, funding model, and compliance path.
+
+The guiding line is simple: make your skills work for you.
 
 ## Current Alpha
 
-- Chimer: treatment-room timer with local preference persistence, pause/resume, fullscreen mode, current-time display, font sizing, and interval alerts.
-- Chimer clock mode: standalone full-screen clock with the same treatment-room display language and auto-hiding controls.
-- Calendar: signed-in small-practice scheduling foundation with therapist availability, blocked time, client-account booking requests, and conflict prevention for active appointments.
-- Local-first documentation: SOAP notes, intake forms, client journals, and ROM/movement sessions can be saved as browser-local drafts, imported from MassageLab JSON files, and exported as user-controlled files. SOAP v2 adds structured pain-map selections, transcript review segments, and anonymized local research export.
-- Anatomime: classroom anatomy game backed by the local bones-and-muscles anatomy content, with Prisma-backed anatomy publishing work in progress.
-- Optional accounts: Auth.js and Prisma support preference sync, therapist profile defaults, templates, multi-role account state, credential verification requests, 2FA, and learning/progress data only.
-- Admin anatomy tools: account-gated anatomy content and correction workflows are present for editor/admin use.
-- Music tools and managed HIPAA storage are intentionally out of alpha scope until their workflows are reviewed, hardened, and legally/compliance reviewed.
+- **Chimer**: treatment-room interval timer and standalone clock mode.
+- **Local-first notes**: SOAP notes, intake forms, journals, and ROM sessions saved in the browser unless the user exports them.
+- **Calendar foundation**: small-practice scheduling with therapist availability, booking requests, and conflict prevention.
+- **Anatomime**: classroom anatomy game backed by reusable anatomy content.
+- **Accounts**: optional preference sync, role verification, templates, profile defaults, and security settings.
 
-## PHI Posture
+Clinical notes, intake forms, journals, movement data, and other PHI-bearing workflows are not hosted in this alpha.
 
-SOAP notes, intake forms, journals, ROM measurements, and other PHI-bearing or health-sensitive workflows are designed to keep data under the user's control.
+## Memberships And Support
 
-- SOAP drafts stay in the current browser under `massagelab-soap-draft`.
-- Intake drafts stay in the current browser under `massagelab-intake-draft`.
-- Journal drafts stay in the current browser under `massagelab-client-journal-draft`.
-- ROM drafts stay in the current browser under `massagelab-rom-session-draft`.
-- SOAP exports use `schemaVersion: 2` and `noteType: "soap"`; legacy `schemaVersion: 1` files remain importable.
-- Intake exports use `schemaVersion: 1` and `formType: "intake"`.
-- Journal exports use `schemaVersion: 1` and `documentType: "client-journal"`.
-- ROM exports use `schemaVersion: 1` and `documentType: "rom-session"`.
-- Local clinical tools support structured JSON, editable DOC, and browser print-to-PDF export paths.
-- Exported files are the user's responsibility to store, transmit, or back up appropriately.
-- Account sync must not include SOAP note, intake form, journal, ROM, client, or treatment content.
-- Calendar sync stores scheduling metadata only. SOAP notes, pain-map selections, transcript content, and research exports remain local-first.
+Free access is the default. Student access is handled inside MassageLab and is not a Stripe subscription.
 
-Future managed HIPAA-compliant storage should be treated as a separate paid product. It must include legal and compliance review, BAAs, access controls, audit logging, encryption, incident response, PHI-safe logging/email rules, and operational policies before implementation.
+Paid memberships are being added to fund continued development. The first paid feature gate is **Chimer custom colors**. Basic Chimer remains free.
 
-Hosted clinical sync is hard-disabled unless all of these environment flags are set:
+Donations and future memberships help fund:
 
-```text
-MASSAGELAB_ENABLE_HOSTED_PHI_SYNC=true
-MASSAGELAB_HIPAA_BAA_CONFIRMED=true
-MASSAGELAB_HIPAA_RISK_REVIEW_CONFIRMED=true
-```
+- HIPAA-capable infrastructure and vendor BAAs
+- audit logging, access controls, encryption, and backups
+- legal, security, and compliance review
+- education and practice-management features
+- sustainable operating costs
 
-Even when those flags are set, the current API returns `501` because hosted clinical storage is not implemented yet.
+## Project Status
 
-## Getting Started
+MassageLab is in private alpha. The current priority is release readiness: verify the existing surfaces, keep local-first boundaries intact, resolve dependency alerts, and make the public documentation clearer.
 
-Requirements:
+The roadmap is available in [docs/roadmap.md](docs/roadmap.md), and the working task list is in [TODO.md](TODO.md).
 
-- Node.js `24.x` LTS
-- npm
-- Neon Postgres only if account, Prisma, or anatomy publishing flows are being exercised
+## Documentation
 
-Install dependencies and start the app:
+Project documentation lives in [docs/wiki](docs/wiki/index.md):
 
-```bash
-npm install
-npm run dev
-```
+- [Local development](docs/wiki/local-development.md)
+- [Privacy and PHI posture](docs/wiki/privacy-and-phi.md)
+- [Billing and memberships](docs/wiki/billing-memberships.md)
+- [Deployment and environment](docs/wiki/deployment.md)
+- [Release checklist](docs/wiki/release-checklist.md)
+- [Dependency security notes](docs/wiki/dependency-security.md)
 
-Open http://localhost:3000.
+## Local Development
 
-Anonymous use should work for Chimer, Anatomime, SOAP notes, intake forms, client journals, and ROM tools.
+See [docs/wiki/local-development.md](docs/wiki/local-development.md) for setup and verification commands.
 
-## Accounts, Auth.js, And Prisma
+## License
 
-Accounts are optional for alpha use. They enable preference sync, therapist profile defaults, note/form templates, learning progress, multi-role account state, credential verification requests, and account security features.
-
-1. Create a Neon project and copy its connection strings.
-2. Copy `.env.example` to `.env.local`.
-3. Set `DATABASE_URL` to Neon's pooled connection string.
-4. Set `DIRECT_URL` to Neon's direct connection string, or use `DATABASE_URL_UNPOOLED` if Vercel's Neon integration injected that name.
-5. Fill in `AUTH_SECRET`, `AUTH_URL`, `TOTP_ENCRYPTION_KEY`, and `ADMIN_EMAILS`. The app also accepts `NEXTAUTH_SECRET` and `NEXTAUTH_URL`.
-6. Add `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` only if Google login should be enabled. The app also accepts `AUTH_GOOGLE_CLIENT_ID` / `AUTH_GOOGLE_CLIENT_SECRET` and `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
-7. Add SMTP settings only if email verification and password reset emails should be sent.
-
-For Resend SMTP, verify `massagelab.app` in Resend, create an API key, and use:
-
-```text
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=465
-SMTP_USER=resend
-SMTP_PASSWORD=<Resend API key>
-SMTP_FROM=MassageLab <no-reply@massagelab.app>
-```
-
-For local Google OAuth testing, configure the OAuth client in Google Cloud Console with this authorized redirect URI:
-
-```text
-http://localhost:3000/api/auth/callback/google
-```
-
-For production Google OAuth, add this authorized redirect URI to the same OAuth client:
-
-```text
-https://massagelab.app/api/auth/callback/google
-```
-
-Generate Prisma Client and run local migrations:
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate
-```
-
-Seed anatomy content from the local fallback content:
-
-```bash
-npm run anatomy:seed
-```
-
-Email/password accounts require verification and support password reset through the configured SMTP server. Emails listed in `ADMIN_EMAILS` are granted the `ADMIN` role when they sign in or register. Authenticator-app 2FA is available from `/account/security` after sign-in; backup codes are shown once and stored only as hashes.
-
-Student and licensed therapist roles can be requested from `/account`. Requests are stored as pending credential verification records. Ohio has a public lookup source configured as the first verifier reference; other jurisdictions fall back to pending/manual review until a reliable adapter exists.
-
-If the account already exists and `ADMIN_EMAILS` was added later, grant the role manually:
-
-```bash
-npm run admin:grant
-```
-
-You can also pass one or more emails without changing `ADMIN_EMAILS`:
-
-```bash
-npm run admin:grant -- you@example.com
-```
-
-## Verification
-
-Run the automated gate before tagging or deploying an alpha build:
-
-```bash
-npm run prisma:validate
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-```
-
-Then run the manual browser checklist in `docs/alpha-qa.md`. It covers Chimer, local-first documentation, anonymous access, privacy/network expectations, mobile and desktop layout, and release hygiene.
-
-## Deployment
-
-For Vercel and Neon deployment, set the same auth, SMTP, TOTP, admin, and database environment variables in Vercel.
-
-- `DATABASE_URL` should be the pooled Neon URL for runtime Prisma Client connections.
-- `DIRECT_URL` should be the direct Neon URL for migrations.
-- `DATABASE_URL_UNPOOLED` can be used as the direct-url fallback when the Vercel Neon integration provides it.
-- `AUTH_URL` should be `https://massagelab.app`. `NEXTAUTH_URL` is also accepted.
-- `AUTH_SECRET`, `AUTH_GOOGLE_ID`, and `AUTH_GOOGLE_SECRET` must be set before deploying Google login. `NEXTAUTH_SECRET` is also accepted.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` must be set before email verification and password reset emails can be delivered in production.
-- Sentry is configured for sanitized error monitoring and performance traces only. Set `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_ENVIRONMENT`, `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` to enable event capture and source-map uploads.
-- Keep `MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false` outside short manual verification windows. When temporarily enabled, `GET /api/debug/sentry` throws a server-side test error for Sentry verification.
-- Do not enable Sentry Session Replay, User Feedback, or Logs until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
-
-Run production migrations as a deploy step before serving new code:
-
-```bash
-npm run prisma:migrate:deploy
-```
-
-Do not run migrations from `next build`.
-
-## Near-Term Direction
-
-See [docs/roadmap.md](docs/roadmap.md) for the branch-ready roadmap after the May 8-11, 2026 alpha refresh work.
-
-1. Prioritize alpha release readiness: run the automated gate, walk `docs/alpha-qa.md`, and verify desktop/mobile navigation, Chimer, local-first documentation, calendar, PWA, and release hygiene checks.
-2. Keep Chimer as the production-quality alpha surface while polishing treatment-room animation states, reduced-motion behavior, and large-font mobile layouts.
-3. Keep SOAP, intake, journals, and ROM tools local-first while validating import/export with anonymous sample files.
-4. Plan calendar creation flows by user type before adding appointment, request, class, reminder, or personal-event creation UI.
-5. Treat music as a hidden spike until playback, sample hosting, licensing, and browser audio constraints are proven.
-6. Design managed HIPAA storage as a separate subscription product.
-7. Use the phased roadmap to track future access, anatomy, education, games, news, legal, SaaS, and discoverability work without pulling it into the alpha release gate.
+MassageLab is under active private-alpha development. License and contribution terms should be finalized before wider public contribution.

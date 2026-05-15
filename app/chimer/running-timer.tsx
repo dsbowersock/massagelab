@@ -1,7 +1,7 @@
 "use client"
 
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
+import { Lock, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ChimerSettings } from "./set-timer"
 import { MovingBackground } from "./moving-background"
@@ -24,6 +24,13 @@ const SETTINGS_AUTO_CLOSE_MS = 60_000
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
+const CUSTOM_COLOR_SETTING_KEYS = new Set([
+  "primaryFontColor",
+  "secondaryFontColor",
+  "clockModeFontColor",
+  "movingBackgroundMainColor",
+  "movingBackgroundOrbColor",
+])
 
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
@@ -43,6 +50,7 @@ interface RunningTimerProps {
   clockModeFontColor: string
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
+  canUseCustomColors: boolean
   activeIntervalMinutes: number | null
   onClose: () => void
   onPause: () => void
@@ -72,6 +80,7 @@ export function RunningTimer({
   clockModeFontColor,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
+  canUseCustomColors,
   activeIntervalMinutes,
   onClose,
   onPause,
@@ -432,6 +441,10 @@ export function RunningTimer({
   }
 
   const handleSettingsChange = (nextSettings: Partial<ChimerSettings>) => {
+    if (!canUseCustomColors && Object.keys(nextSettings).some((key) => CUSTOM_COLOR_SETTING_KEYS.has(key))) {
+      return
+    }
+
     onSettingsChange(nextSettings)
     scheduleSettingsAutoClose()
     scheduleControlHide()
@@ -792,12 +805,19 @@ export function RunningTimer({
               </TabsContent>
 
               <TabsContent value="background" className={styles.settingsTabContent}>
+                {!canUseCustomColors && (
+                  <div className={styles.settingsEmptyState}>
+                    <Lock className="inline h-4 w-4" aria-hidden="true" /> Membership unlocks custom Chimer colors.
+                  </div>
+                )}
+
                 {!isClockMode && (
                   <label className={styles.colorRow}>
                     <span>Primary color</span>
                     <input
                       type="color"
                       value={resolvedPrimaryFontColor}
+                      disabled={!canUseCustomColors}
                       onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
                       aria-label="Primary display color"
                     />
@@ -809,6 +829,7 @@ export function RunningTimer({
                   <input
                     type="color"
                     value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
+                    disabled={!canUseCustomColors}
                     onChange={(event) => handleSettingsChange(
                       isClockMode
                         ? { clockModeFontColor: event.target.value }
@@ -832,6 +853,7 @@ export function RunningTimer({
                   <input
                     type="color"
                     value={movingBackgroundMainColor}
+                    disabled={!canUseCustomColors}
                     onChange={(event) => handleSettingsChange({ movingBackgroundMainColor: event.target.value })}
                     aria-label="Moving background main color"
                   />
@@ -842,6 +864,7 @@ export function RunningTimer({
                   <input
                     type="color"
                     value={movingBackgroundOrbColor}
+                    disabled={!canUseCustomColors}
                     onChange={(event) => handleSettingsChange({ movingBackgroundOrbColor: event.target.value })}
                     aria-label="Moving background orb color"
                   />

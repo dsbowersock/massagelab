@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  FEATURE_KEYS,
+} from "../lib/membership.js"
+import {
   canAdministerAccounts,
   canManageClients,
   canManageAnatomyContent,
@@ -65,8 +68,18 @@ describe("Account permission helpers", () => {
         canManageClients: true,
         canRequestCredentials: true,
         canUseLocalClinicalTools: true,
+        canUseChimerCustomColors: false,
         hostedClinicalSyncEnabled: false,
       },
+    )
+  })
+
+  it("adds feature-based capabilities without checking plan names in UI code", () => {
+    assert.equal(
+      buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
+        features: [FEATURE_KEYS.chimerCustomColors],
+      }).canUseChimerCustomColors,
+      true,
     )
   })
 })

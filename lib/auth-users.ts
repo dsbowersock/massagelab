@@ -1,5 +1,6 @@
 import { isAdminEmail } from "@/lib/auth-env"
 import { buildAccountCapabilities } from "@/lib/account-permissions"
+import { buildEntitlements } from "@/lib/membership"
 import { isHostedClinicalSyncEnabled } from "@/lib/phi-sync"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
@@ -68,6 +69,20 @@ export async function getUserAuthState(userId: string) {
       roles: {
         select: { role: true, status: true },
       },
+      membershipSubscriptions: {
+        select: {
+          status: true,
+          membershipLevel: true,
+          currentPeriodEnd: true,
+        },
+      },
+      studentAccess: {
+        select: {
+          studentStatus: true,
+          studentAccessExpiresAt: true,
+          eligibleForTherapistDiscount: true,
+        },
+      },
       twoFactorSecret: {
         select: { enabledAt: true },
       },
@@ -91,6 +106,10 @@ export async function getUserAuthState(userId: string) {
     roles,
     roleAssignments,
     capabilities: buildAccountCapabilities(roleAssignments, {
+      features: buildEntitlements({
+        subscriptions: user?.membershipSubscriptions ?? [],
+        studentAccess: user?.studentAccess ?? null,
+      }).features,
       hostedClinicalSyncEnabled: isHostedClinicalSyncEnabled(),
     }),
     emailVerified: Boolean(user?.emailVerified),

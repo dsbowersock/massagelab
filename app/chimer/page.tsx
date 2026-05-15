@@ -13,8 +13,10 @@ import {
   getTotalTimerMs,
   normalizeInteger,
   sanitizeChimerSettings,
+  sanitizeChimerSettingsForEntitlements,
 } from "@/lib/chimer-timer"
 import { fetchWithTimeout } from "@/lib/client-fetch"
+import { FEATURE_KEYS } from "@/lib/membership"
 import { SetTimer, type ChimerSettings } from "./set-timer"
 import { MovingBackground } from "./moving-background"
 import { RunningTimer } from "./running-timer"
@@ -82,11 +84,13 @@ export default function ChimerPage() {
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>("checking")
   const [accountSettings, setAccountSettings] = useState<ChimerSettings | null>(null)
   const [isResolvingSync, setIsResolvingSync] = useState(false)
+  const [featureKeys, setFeatureKeys] = useState<string[]>([])
 
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)
   const timerStateRef = useRef(timerState)
   const settingsRef = useRef(settings)
+  const featureKeysRef = useRef(featureKeys)
   const audioContextRef = useRef<AudioContext | null>(null)
   const wakeLockRef = useRef<ChimerWakeLockSentinel | null>(null)
   const wakeLockRequestRef = useRef<Promise<void> | null>(null)
@@ -106,6 +110,10 @@ export default function ChimerPage() {
   useEffect(() => {
     settingsRef.current = settings
   }, [settings])
+
+  useEffect(() => {
+    featureKeysRef.current = featureKeys
+  }, [featureKeys])
 
   useEffect(() => {
     let isMounted = true
@@ -137,19 +145,26 @@ export default function ChimerPage() {
         }
 
         if (!response.ok) {
+          const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
+          setSettings(localFreeSettings)
+          window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
           setCanSync(false)
           setAccountSyncStatus("local")
           return
         }
 
         const preferences = await response.json()
+        const nextFeatureKeys = Array.isArray(preferences.features)
+          ? preferences.features.filter((feature: unknown) => typeof feature === "string")
+          : []
+        setFeatureKeys(nextFeatureKeys)
 
         if (!isMounted) {
           return
         }
 
         if (hasSavedPreference(preferences.chimerSettings)) {
-          const nextSettings = sanitizeChimerSettings(preferences.chimerSettings) as ChimerSettings
+          const nextSettings = sanitizeChimerSettingsForEntitlements(preferences.chimerSettings, nextFeatureKeys) as ChimerSettings
           if (areChimerSettingsEqual(localSettings, nextSettings)) {
             setSettings(nextSettings)
             window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
@@ -164,10 +179,11 @@ export default function ChimerPage() {
           return
         }
 
+        const seedSettings = sanitizeChimerSettingsForEntitlements(localSettings, nextFeatureKeys) as ChimerSettings
         const seedResponse = await fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chimerSettings: localSettings }),
+          body: JSON.stringify({ chimerSettings: seedSettings }),
         })
 
         if (!isMounted) {
@@ -180,6 +196,9 @@ export default function ChimerPage() {
         if (!isMounted) {
           return
         }
+        const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
+        setSettings(localFreeSettings)
+        window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
         setCanSync(false)
         setAccountSyncStatus("local")
       }
@@ -474,7 +493,10 @@ export default function ChimerPage() {
 
   const updateSettings = (nextSettings: Partial<ChimerSettings>) => {
     setError(null)
-    setSettings((current) => sanitizeChimerSettings({ ...current, ...nextSettings }) as ChimerSettings)
+    setSettings((current) => sanitizeChimerSettingsForEntitlements(
+      { ...current, ...nextSettings },
+      featureKeysRef.current,
+    ) as ChimerSettings)
   }
 
   const openTimeModal = (unit: "hours" | "minutes") => {
@@ -752,6 +774,7 @@ export default function ChimerPage() {
   const activeTimeDisplay = formatDurationParts(timerState.remainingMs)
   const timeDisplay = formatDurationParts(timerState.remainingMs, { showTimerSeconds: settings.showTimerSeconds })
   const isTimerActive = timerState.status !== "idle"
+  const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
 
   return (
     <div className="relative min-h-full bg-background p-4 sm:p-6 lg:p-8">
@@ -796,6 +819,7 @@ export default function ChimerPage() {
             clockModeFontColor={settings.clockModeFontColor}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
+            canUseCustomColors={canUseCustomColors}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
             onClose={endTimer}
             onPause={togglePause}

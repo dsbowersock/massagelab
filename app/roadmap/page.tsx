@@ -94,6 +94,8 @@ const upfrontNeeds = [
 ]
 
 export default function RoadmapPage() {
+  const donationUrl = process.env.NEXT_PUBLIC_STRIPE_DONATION_URL?.trim()
+
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-8">
@@ -209,19 +211,25 @@ export default function RoadmapPage() {
             <CardHeader>
               <CardTitle>Donate</CardTitle>
               <CardDescription>
-                A donation/payment provider has not been wired into this alpha yet. This section is the placeholder for the donation link once the preferred provider is selected.
+                Donations help fund the compliance, infrastructure, and review work needed for future managed clinical sync.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Until then, the best ways to support the roadmap are to create an account, use the current tools, and share which paid features would matter most to your practice.
+                Memberships and donations are separate from the local-first alpha tools. Notes, intake forms, journals, and ROM data remain under user control.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button asChild className="bg-primary hover:bg-brand-orange-glow">
-                  <Link href="/register">Create an account</Link>
-                </Button>
+                {donationUrl ? (
+                  <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                    <Link href={donationUrl}>Donate with Stripe</Link>
+                  </Button>
+                ) : (
+                  <Button disabled className="bg-primary">
+                    Donation link not configured
+                  </Button>
+                )}
                 <Button asChild variant="outline">
-                  <Link href="/">Use MassageLab</Link>
+                  <Link href="/account">View memberships</Link>
                 </Button>
               </div>
             </CardContent>

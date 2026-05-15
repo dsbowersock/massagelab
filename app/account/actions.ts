@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import type { Prisma, VerificationSourceType, VerificationStatus } from "@prisma/client"
+import type { Prisma, StudentAccessStatus, VerificationSourceType, VerificationStatus } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { roleStatusForCredentialStatus, shouldUpdateCredentialRole } from "@/lib/credential-verification-roles"
 import { claimVerifiedCredential } from "@/lib/credential-claims"
 import { getJurisdictionVerificationPlan } from "@/lib/license-verification"
+import { buildStudentAccessState } from "@/lib/membership"
 import {
   OHIO_LICENSE_VERIFIER_NAME,
   ohioExpirationDateToDate,
@@ -18,6 +19,16 @@ import type { AccountRole, CredentialKind } from "@/lib/domain-types"
 function formString(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === "string" ? value.trim() : ""
+}
+
+function formDate(formData: FormData, key: string) {
+  const value = formString(formData, key)
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 export async function saveProfileAction(formData: FormData) {
@@ -113,6 +124,7 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   const credentialNumber = formString(formData, "credential_number") || null
   const issuingAuthority = formString(formData, "issuing_authority") || null
   const evidenceDescription = formString(formData, "evidence_description") || null
+  const studentStartDate = formDate(formData, "student_start_date")
   const legalFirstName = formString(formData, "legal_first_name")
   const legalMiddleName = formString(formData, "legal_middle_name")
   const legalLastName = formString(formData, "legal_last_name")
@@ -280,6 +292,29 @@ export async function requestCredentialVerificationAction(formData: FormData) {
         expiresAt: roleStatus === "VERIFIED" ? expiresAt : null,
       },
     })
+  }
+
+  if (kind === "STUDENT_ENROLLMENT" && studentStartDate) {
+    const studentAccess = buildStudentAccessState({ studentStartDate })
+
+    if (studentAccess) {
+      await prisma.studentAccess.upsert({
+        where: { userId: session.user.id },
+        create: {
+          userId: session.user.id,
+          studentStartDate: studentAccess.studentStartDate,
+          studentAccessExpiresAt: studentAccess.studentAccessExpiresAt,
+          studentStatus: studentAccess.studentStatus as StudentAccessStatus,
+          eligibleForTherapistDiscount: studentAccess.eligibleForTherapistDiscount,
+        },
+        update: {
+          studentStartDate: studentAccess.studentStartDate,
+          studentAccessExpiresAt: studentAccess.studentAccessExpiresAt,
+          studentStatus: studentAccess.studentStatus as StudentAccessStatus,
+          eligibleForTherapistDiscount: studentAccess.eligibleForTherapistDiscount,
+        },
+      })
+    }
   }
 
   revalidatePath("/account")
