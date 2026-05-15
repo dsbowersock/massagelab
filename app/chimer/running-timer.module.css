@@ -38,6 +38,8 @@
 }
 
 .clockMode .primaryDisplay {
+  --chimer-display-base-transform: translateY(-4dvh);
+
   top: 0;
   bottom: 0;
 }

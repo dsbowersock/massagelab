@@ -5,6 +5,8 @@ import {
   USER_PREFERENCES_VERSION,
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
+import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
+import { getUserEntitlementState } from "@/lib/membership"
 import { prisma } from "@/lib/prisma"
 
 function jsonObject(value: Record<string, unknown>) {
@@ -21,6 +23,7 @@ export async function GET() {
   const preferences = await prisma.userPreference.findUnique({
     where: { userId: session.user.id },
   })
+  const entitlements = await getUserEntitlementState(prisma, session.user.id)
 
   return NextResponse.json({
     version: preferences?.version ?? USER_PREFERENCES_VERSION,
@@ -28,6 +31,8 @@ export async function GET() {
     chimerSettings: preferences?.chimerSettings ?? {},
     anatomimeSettings: preferences?.anatomimeSettings ?? {},
     notePreferences: preferences?.notePreferences ?? {},
+    membershipLevel: entitlements.level,
+    features: entitlements.features,
     updatedAt: preferences?.updatedAt ?? null,
   })
 }
@@ -41,9 +46,13 @@ export async function PUT(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const payload = buildUserPreferencePayload(body)
+  const entitlements = await getUserEntitlementState(prisma, session.user.id)
   const existing = await prisma.userPreference.findUnique({
     where: { userId: session.user.id },
   })
+  const chimerSettings = "chimerSettings" in body
+    ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, entitlements.features))
+    : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {}
 
   const preferences = await prisma.userPreference.upsert({
     where: { userId: session.user.id },
@@ -51,14 +60,14 @@ export async function PUT(request: Request) {
       userId: session.user.id,
       version: USER_PREFERENCES_VERSION,
       appSettings: jsonObject(payload.app_settings),
-      chimerSettings: jsonObject(payload.chimer_settings),
+      chimerSettings,
       anatomimeSettings: jsonObject(payload.anatomime_settings),
       notePreferences: jsonObject(payload.note_preferences),
     },
     update: {
       version: USER_PREFERENCES_VERSION,
       appSettings: "appSettings" in body ? jsonObject(payload.app_settings) : (existing?.appSettings as Prisma.InputJsonValue | undefined) ?? {},
-      chimerSettings: "chimerSettings" in body ? jsonObject(payload.chimer_settings) : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {},
+      chimerSettings,
       anatomimeSettings: "anatomimeSettings" in body ? jsonObject(payload.anatomime_settings) : (existing?.anatomimeSettings as Prisma.InputJsonValue | undefined) ?? {},
       notePreferences: "notePreferences" in body ? jsonObject(payload.note_preferences) : (existing?.notePreferences as Prisma.InputJsonValue | undefined) ?? {},
     },
@@ -70,6 +79,8 @@ export async function PUT(request: Request) {
     chimerSettings: preferences.chimerSettings,
     anatomimeSettings: preferences.anatomimeSettings,
     notePreferences: preferences.notePreferences,
+    membershipLevel: entitlements.level,
+    features: entitlements.features,
     updatedAt: preferences.updatedAt,
   })
 }

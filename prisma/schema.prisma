@@ -140,6 +140,18 @@ enum AppointmentSource {
   THERAPIST_CREATED
 }
 
+enum MembershipLevel {
+  SUPPORTER
+  THERAPIST
+  PRACTICE
+}
+
+enum StudentAccessStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
 model User {
   id                    String                   @id @default(cuid())
   name                  String?
@@ -184,6 +196,9 @@ model User {
   calendarBlocks        CalendarBlock[]          @relation("CalendarBlockTherapist")
   appointmentsAsTherapist Appointment[]           @relation("AppointmentTherapist")
   createdAppointments   Appointment[]            @relation("AppointmentCreator")
+  stripeCustomer        StripeCustomer?
+  membershipSubscriptions MembershipSubscription[]
+  studentAccess         StudentAccess?
 }
 
 model Account {
@@ -758,4 +773,52 @@ model Appointment {
   @@index([practiceId, startsAt])
   @@index([therapistId, startsAt])
   @@index([practiceClientId, startsAt])
+}
+
+model StripeCustomer {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  stripeCustomerId String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+}
+
+model MembershipSubscription {
+  id                       String          @id @default(cuid())
+  userId                   String
+  stripeSubscriptionId     String          @unique
+  stripeCustomerId         String
+  status                   String
+  membershipLevel          MembershipLevel
+  stripePriceId            String?
+  stripeProductId          String?
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelAtPeriodEnd        Boolean         @default(false)
+  canceledAt               DateTime?
+  couponId                 String?
+  metadata                 Json            @default("{}")
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+  user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([membershipLevel, status])
+  @@index([stripeCustomerId])
+}
+
+model StudentAccess {
+  userId                         String              @id
+  studentStartDate               DateTime
+  studentAccessExpiresAt         DateTime
+  studentStatus                  StudentAccessStatus @default(ACTIVE)
+  eligibleForTherapistDiscount   Boolean             @default(true)
+  createdAt                      DateTime            @default(now())
+  updatedAt                      DateTime            @updatedAt
+  user                           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([studentStatus, studentAccessExpiresAt])
 }
