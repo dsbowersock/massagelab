@@ -65,6 +65,33 @@ describe("Stripe billing helpers", () => {
     assert.equal(stripeTimestampToDate(null), null)
   })
 
+  it("uses subscription item billing periods when Stripe omits top-level periods", () => {
+    const env = {
+      STRIPE_THERAPIST_YEARLY_PRICE_ID: "price_therapist_yearly",
+    }
+    const normalized = normalizeStripeSubscription({
+      id: "sub_123",
+      customer: "cus_123",
+      status: "active",
+      metadata: { userId: "user_123", membershipLevel: "THERAPIST" },
+      items: {
+        data: [
+          {
+            current_period_start: 1778947065,
+            current_period_end: 1810483065,
+            price: {
+              id: "price_therapist_yearly",
+              product: "prod_therapist",
+            },
+          },
+        ],
+      },
+    }, { env })
+
+    assert.equal(normalized.currentPeriodStart.getTime(), 1778947065 * 1000)
+    assert.equal(normalized.currentPeriodEnd.getTime(), 1810483065 * 1000)
+  })
+
   it("rejects unmapped and Student Stripe prices instead of granting a paid membership", () => {
     const baseSubscription = {
       id: "sub_123",
@@ -148,6 +175,33 @@ describe("Stripe billing helpers", () => {
       return_url: "https://massagelab.app/account",
     })
     assert.equal(session.url, "https://billing.stripe.com/p/session/test")
+  })
+
+  it("does not combine a configured checkout coupon with promotion code entry", async () => {
+    let capturedPayload = null
+
+    await stripeBilling.createStripeCheckoutSession({
+      customerId: "cus_123",
+      priceId: "price_supporter",
+      userId: "user_123",
+      membershipLevel: "SUPPORTER",
+      successUrl: "https://massagelab.app/account?checkout=success",
+      cancelUrl: "https://massagelab.app/account?checkout=cancelled",
+      couponId: "E6lYinBx",
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: async (payload) => {
+              capturedPayload = payload
+              return { id: "cs_123", url: "https://checkout.stripe.com/c/test" }
+            },
+          },
+        },
+      },
+    })
+
+    assert.deepEqual(capturedPayload.discounts, [{ coupon: "E6lYinBx" }])
+    assert.equal(Object.hasOwn(capturedPayload, "allow_promotion_codes"), false)
   })
 
   it("reconciles a Checkout Session subscription immediately after checkout completion", async () => {
