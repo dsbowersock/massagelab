@@ -74,7 +74,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
 
   return (
     <AccountShell>
-      <AccountNotice billing={params?.billing} checkout={params?.checkout} portal={params?.portal} />
+      <AccountNotice
+        billing={params?.billing}
+        checkout={params?.checkout}
+        portal={params?.portal}
+        activeMembershipLevel={membershipSummary.entitlements.paidLevel ?? undefined}
+      />
 
       <Card className="border-neutral-800 bg-card/90 backdrop-blur">
         <CardHeader>
@@ -412,12 +417,14 @@ function AccountNotice({
   billing,
   checkout,
   portal,
+  activeMembershipLevel,
 }: {
   billing?: string
   checkout?: string
   portal?: string
+  activeMembershipLevel?: string
 }) {
-  const notice = accountNotice({ billing, checkout, portal })
+  const notice = accountNotice({ billing, checkout, portal, activeMembershipLevel })
 
   if (!notice) {
     return null
@@ -435,12 +442,22 @@ function accountNotice({
   billing,
   checkout,
   portal,
+  activeMembershipLevel,
 }: {
   billing?: string
   checkout?: string
   portal?: string
+  activeMembershipLevel?: string
 }) {
   if (checkout === "success") {
+    if (activeMembershipLevel) {
+      return {
+        title: `${formatMembershipLevel(activeMembershipLevel)} membership active`,
+        description: "Stripe confirmed your membership. Your account benefits are available now.",
+        className: "border-brand-orange/40 bg-primary/10",
+      }
+    }
+
     return {
       title: "Checkout complete",
       description: "Stripe is syncing your membership. If the status has not updated yet, refresh after the webhook finishes.",

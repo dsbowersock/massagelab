@@ -10,6 +10,7 @@ import {
   getCheckoutDiscountCouponId,
   isActiveSubscriptionStatus,
   resolveStripePriceId,
+  sortMembershipSubscriptionsForDisplay,
 } from "../lib/membership.js"
 import * as membership from "../lib/membership.js"
 
@@ -145,7 +146,30 @@ describe("Membership and entitlement helpers", () => {
       "subscription_data[metadata][userId]": "user_123",
       "subscription_data[metadata][membershipLevel]": "THERAPIST",
       "discounts[0][coupon]": COUPON_IDS.earlyAccess,
-      allow_promotion_codes: "false",
     })
+  })
+
+  it("sorts membership subscriptions with active access before recently canceled records", () => {
+    const subscriptions = [
+      {
+        status: "canceled",
+        membershipLevel: "THERAPIST",
+        updatedAt: new Date("2026-05-16T16:21:04.027Z"),
+        currentPeriodEnd: new Date("2027-05-16T15:52:42.000Z"),
+      },
+      {
+        status: "active",
+        membershipLevel: "THERAPIST",
+        updatedAt: new Date("2026-05-16T16:15:45.913Z"),
+        currentPeriodEnd: new Date("2027-05-16T15:57:45.000Z"),
+      },
+    ]
+
+    const sorted = sortMembershipSubscriptionsForDisplay(subscriptions)
+
+    assert.equal(sorted[0].status, "active")
+    assert.equal(sorted[1].status, "canceled")
+    assert.notEqual(sorted, subscriptions)
+    assert.equal(subscriptions[0].status, "canceled")
   })
 })
