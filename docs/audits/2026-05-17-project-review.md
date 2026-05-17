@@ -317,11 +317,11 @@ Add a small e2e suite before major feature growth:
 
 ## Recommended Next Sequence
 
-1. Fix anonymous provider sync 401s and add regression tests.
-2. Fix Sentry privacy scrubbing and add scrubber unit tests.
-3. Refactor `/account` data loading and sidebar/calendar readiness checks.
-4. Optimize brand asset caching and home LCP discovery.
-5. Reduce mobile animation cost.
-6. Add Playwright mobile/PWA/local-first smoke coverage.
+Completed remediation items were moved to "Implemented after this audit." The remaining sequence is:
 
-This order addresses the highest user-visible and operational risks first while preserving the current alpha behavior, public APIs, Prisma schema compatibility, Stripe webhook behavior, PWA manifest/icons, and local-first clinical export schemas.
+1. Finish the signed-in `/account` data split so heavy panels load by active surface instead of rendering all account tabs together.
+2. Add full Playwright mobile/PWA/local-first smoke coverage in CI, including console checks and no-clinical-upload assertions.
+3. Decide whether the installed PWA should support broader offline clinical workflows, then implement only the approved offline strategy.
+4. Prepare the public SEO launch checklist when alpha `noindex` is ready to change.
+
+This order keeps the remaining work focused while preserving the current alpha behavior, public APIs, Prisma schema compatibility, Stripe webhook behavior, PWA manifest/icons, and local-first clinical export schemas.
