@@ -14,20 +14,28 @@ describe("Navigation IA model", () => {
   it("keeps visible alpha product routes grouped without exposing placeholders", () => {
     const groups = getVisibleNavigationGroups()
 
-    assert.deepEqual(groups.map((group) => group.id), ["home", "tools", "documentation", "games"])
+    assert.deepEqual(groups.map((group) => group.id), ["home", "tools", "documentation", "games", "about"])
     assert.deepEqual(groups.flatMap((group) => group.routes.map((route) => route.href)), [
       "/",
       "/chimer",
       "/calendar",
       "/notes",
       "/anatomime",
+      "/pricing",
+      "/about",
+      "/about/derrick",
     ])
   })
 
   it("separates primary, secondary, and account menu navigation", () => {
-    assert.deepEqual(primaryNavigationGroups.map((group) => group.id), ["home", "tools", "documentation", "games"])
+    assert.deepEqual(primaryNavigationGroups.map((group) => group.id), ["home", "tools", "documentation", "games", "about"])
     assert.deepEqual(secondaryNavigationRoutes.map((route) => route.href), ["/support", "/roadmap"])
-    assert.deepEqual(accountMenuRoutes.map((route) => route.href), ["/account", "/account/security", "/settings"])
+    assert.deepEqual(accountMenuRoutes.map((route) => route.href), [
+      "/account",
+      "/account?tab=security",
+      "/account",
+    ])
+    assert.deepEqual(accountMenuRoutes.map((route) => route.label), ["Account", "Security", "Settings"])
 
     const primaryHrefs = primaryNavigationGroups.flatMap((group) => group.routes.map((route) => route.href))
     assert.equal(primaryHrefs.includes("/support"), false)
