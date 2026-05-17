@@ -76,6 +76,71 @@ test("sanitizeSentryEvent scrubs diagnostic messages and exception values", () =
   assert.equal(event.logentry.formatted, "[Filtered]")
 })
 
+test("sanitizeSentryEvent preserves safe runtime diagnostics without clinical content", () => {
+  const event = sanitizeSentryEvent({
+    message: "ReferenceError: missingWidgetState is not defined",
+    exception: {
+      values: [
+        {
+          type: "ReferenceError",
+          value: "missingWidgetState is not defined",
+          stacktrace: {
+            frames: [
+              {
+                filename: "app/account/page.tsx",
+                function: "AccountPage",
+                abs_path: "C:/Users/derri/code/my_projects/massagelab/app/account/page.tsx",
+              },
+            ],
+          },
+        },
+      ],
+    },
+    logentry: {
+      message: "TypeError: Cannot read properties of undefined (reading 'profile')",
+      formatted: "TypeError: Cannot read properties of undefined (reading 'profile')",
+    },
+  })
+
+  assert.equal(event.message, "ReferenceError: missingWidgetState is not defined")
+  assert.equal(event.exception.values[0].type, "ReferenceError")
+  assert.equal(event.exception.values[0].value, "missingWidgetState is not defined")
+  assert.equal(event.exception.values[0].stacktrace.frames[0].filename, "app/account/page.tsx")
+  assert.equal(event.exception.values[0].stacktrace.frames[0].function, "AccountPage")
+  assert.equal(event.logentry.message, "TypeError: Cannot read properties of undefined (reading 'profile')")
+  assert.equal(event.logentry.formatted, "TypeError: Cannot read properties of undefined (reading 'profile')")
+})
+
+test("sanitizeSentryEvent strips transaction request metadata and router state", () => {
+  const event = sanitizeSentryEvent({
+    transaction: "/account?billing=checkout-error&_rsc=abc123",
+    contexts: {
+      trace: {
+        data: {
+          "http.target": "/account?billing=checkout-error&_rsc=abc123",
+          "http.request.header.next_router_state_tree": "['',{'children':['account']}]",
+          "http.request.header.cookie": "authjs.session-token=secret",
+          "http.response.status_code": 200,
+        },
+      },
+    },
+    extra: {
+      "next_router_state_tree": "['',{'children':['notes','soap']}]",
+      "http.request.header.rsc": "1",
+      "http.target": "/notes/soap?client=Jane",
+    },
+  })
+
+  assert.equal(event.transaction, "/account")
+  assert.equal(event.contexts.trace.data["http.target"], "/account")
+  assert.equal(event.contexts.trace.data["http.request.header.next_router_state_tree"], "[Filtered]")
+  assert.equal(event.contexts.trace.data["http.request.header.cookie"], "[Filtered]")
+  assert.equal(event.contexts.trace.data["http.response.status_code"], 200)
+  assert.equal(event.extra.next_router_state_tree, "[Filtered]")
+  assert.equal(event.extra["http.request.header.rsc"], "[Filtered]")
+  assert.equal(event.extra["http.target"], "/notes/soap")
+})
+
 test("sanitizeSentryBreadcrumb drops console breadcrumbs and scrubs fetch data", () => {
   assert.equal(sanitizeSentryBreadcrumb({ category: "console", message: "license=ABC" }), null)
 

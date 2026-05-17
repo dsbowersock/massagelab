@@ -59,7 +59,7 @@ export default async function Home() {
                 className="relative h-auto w-full max-w-[28rem] object-contain drop-shadow-[0_0_32px_hsl(var(--brand-orange-glow)/0.2)]"
                 data-testid="home-brand-wordmark"
                 style={{ viewTransitionName: "massagelab-wordmark" }}
-                unoptimized
+                sizes="(max-width: 640px) 82vw, 448px"
                 priority
               />
             </div>

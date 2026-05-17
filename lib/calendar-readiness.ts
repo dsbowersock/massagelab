@@ -1,3 +1,4 @@
+import { createAsyncTtlCache } from "@/lib/async-ttl-cache"
 import { prisma } from "@/lib/prisma"
 
 const CALENDAR_MODEL_DELEGATES = [
@@ -19,6 +20,7 @@ type CalendarReadinessRow = {
 }
 
 export const CALENDAR_UNAVAILABLE_MESSAGE = "Calendar is temporarily unavailable. Please try again later."
+const CALENDAR_READINESS_CACHE_TTL_MS = 60_000
 
 function calendarClientReady() {
   try {
@@ -30,7 +32,7 @@ function calendarClientReady() {
   }
 }
 
-export async function isCalendarDatabaseReady() {
+async function loadCalendarDatabaseReadiness() {
   if (!calendarClientReady()) {
     return false
   }
@@ -56,6 +58,19 @@ export async function isCalendarDatabaseReady() {
   } catch {
     return false
   }
+}
+
+const calendarReadinessCache = createAsyncTtlCache<boolean>({
+  ttlMs: CALENDAR_READINESS_CACHE_TTL_MS,
+  load: loadCalendarDatabaseReadiness,
+})
+
+export async function isCalendarDatabaseReady() {
+  return calendarReadinessCache.get()
+}
+
+export function clearCalendarDatabaseReadinessCache() {
+  calendarReadinessCache.clear()
 }
 
 export async function assertCalendarDatabaseReady() {

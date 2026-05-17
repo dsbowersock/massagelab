@@ -56,6 +56,31 @@ describe("Auth security helpers", () => {
     assert.equal(verifyTotpCode(decrypted, "000000"), false)
   })
 
+  it("requires an explicit TOTP encryption key in production", () => {
+    const previousNodeEnv = process.env.NODE_ENV
+    const previousTotpKey = process.env.TOTP_ENCRYPTION_KEY
+
+    try {
+      process.env.NODE_ENV = "production"
+      delete process.env.TOTP_ENCRYPTION_KEY
+
+      assert.throws(() => encryptSecret("secret"), /TOTP_ENCRYPTION_KEY/)
+      assert.throws(() => decryptSecret("iv.tag.payload"), /TOTP_ENCRYPTION_KEY/)
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV
+      } else {
+        process.env.NODE_ENV = previousNodeEnv
+      }
+
+      if (previousTotpKey === undefined) {
+        delete process.env.TOTP_ENCRYPTION_KEY
+      } else {
+        process.env.TOTP_ENCRYPTION_KEY = previousTotpKey
+      }
+    }
+  })
+
   it("generates and verifies single-use backup code material", async () => {
     const [backupCode] = generateBackupCodes(1)
     const codeHash = await hashBackupCode(backupCode)
