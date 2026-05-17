@@ -29,11 +29,6 @@ function isSensitiveRequest(requestUrl) {
 
   return (
     pathname.startsWith("/api/")
-    || pathname.startsWith("/api/clinical/sync")
-    || pathname.startsWith("/api/billing/")
-    || pathname.startsWith("/api/auth/")
-    || pathname.startsWith("/api/account/")
-    || pathname.startsWith("/api/clients/")
     || pathname.startsWith("/account")
     || pathname.startsWith("/login")
     || pathname.startsWith("/register")

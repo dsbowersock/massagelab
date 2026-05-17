@@ -16,8 +16,11 @@ test("service worker avoids caching sensitive application requests", async () =>
   assert.match(source, /request\.method !== "GET"/)
   assert.match(source, /pathname\.startsWith\("\/api\/"\)/)
   assert.match(source, /pathname\.startsWith\("\/account"\)/)
-  assert.match(source, /pathname\.startsWith\("\/api\/clinical\/sync"\)/)
-  assert.match(source, /pathname\.startsWith\("\/api\/billing\/"\)/)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/clinical\/sync"\)/)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/billing\/"\)/)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/auth\/"\)/)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/account\/"\)/)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/clients\/"\)/)
 })
 
 test("service worker does not cache versionless brand or icon assets", async () => {

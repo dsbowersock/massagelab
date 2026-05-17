@@ -285,16 +285,16 @@ Track these as dependency-watch items, not release blockers. Recheck after Next/
 
 ## Prioritized Remediation Backlog
 
-| Priority | Branch | Work | Acceptance |
-| --- | --- | --- | --- |
-| P1 | `codex/fix-anonymous-sync-401` | Gate settings/profile provider cloud sync on known signed-in state | No account API 401s or console errors for anonymous public routes |
-| P1 | `codex/fix-sentry-scrubbing-observability` | Rework Sentry scrubber to preserve useful stacks while stripping request/clinical metadata | Test events are diagnosable; request targets/query/router state are scrubbed |
-| P1 | `codex/optimize-account-data-shell` | Split account data by surface, dedupe user/security lookups, remove calendar readiness from global hot path | `/account` slow-query Sentry issues stop increasing; fewer blocking DB calls |
-| P2 | `codex/optimize-brand-assets-cache` | Optimize brand images and cache headers; remove unnecessary `unoptimized`/`priority` usage | Home cold mobile LCP remains below 2.5s |
-| P2 | `codex/reduce-mobile-background-cost` | Add reduced-motion, hidden-tab pause, and mobile static/reduced background mode | Mobile idle profile shows lower paint/GPU/main-thread activity |
-| P2 | `codex/add-browser-qa-harness` | Add Playwright smoke tests for public mobile routes, console errors, PWA manifest, and local-first no-network checks | CI fails on public route console errors and accidental clinical uploads |
-| P2 | `codex/pwa-offline-strategy` | Decide install-only vs offline-capable; implement explicit service worker only if needed | Documented PWA behavior; no unsafe caching of auth/clinical/billing requests |
-| P3 | `codex/public-seo-launch-checklist` | Prepare robots/metadata/trust pages for public launch | SEO score no longer blocked by intentional alpha `noindex` when ready |
+| Status | Priority | Branch | Work | Acceptance |
+| --- | --- | --- | --- | --- |
+| Completed | P1 | `codex/fix-anonymous-sync-401` | Gate settings/profile provider cloud sync on known signed-in state | No account API 401s or console errors for anonymous public routes |
+| Completed | P1 | `codex/fix-sentry-scrubbing-observability` | Rework Sentry scrubber to preserve useful stacks while stripping request/clinical metadata | Test events are diagnosable; request targets/query/router state are scrubbed |
+| Open | P1 | `codex/optimize-account-data-shell` | Split account data by surface, dedupe user/security lookups, remove calendar readiness from global hot path | `/account` slow-query Sentry issues stop increasing; fewer blocking DB calls |
+| Completed | P2 | `codex/optimize-brand-assets-cache` | Optimize brand images and cache headers; remove unnecessary `unoptimized`/`priority` usage | Home cold mobile LCP remains below 2.5s |
+| Completed | P2 | `codex/reduce-mobile-background-cost` | Add reduced-motion, hidden-tab pause, and mobile static/reduced background mode | Mobile idle profile shows lower paint/GPU/main-thread activity |
+| Open | P2 | `codex/add-browser-qa-harness` | Add Playwright smoke tests for public mobile routes, console errors, PWA manifest, and local-first no-network checks | CI fails on public route console errors and accidental clinical uploads |
+| Open | P2 | `codex/pwa-offline-strategy` | Decide install-only vs offline-capable; implement explicit service worker only if needed | Documented PWA behavior; no unsafe caching of auth/clinical/billing requests |
+| Open | P3 | `codex/public-seo-launch-checklist` | Prepare robots/metadata/trust pages for public launch | SEO score no longer blocked by intentional alpha `noindex` when ready |
 
 ## Suggested Browser Regression Coverage
 
