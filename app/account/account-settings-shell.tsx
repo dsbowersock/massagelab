@@ -98,6 +98,11 @@ export function AccountSettingsShell({
     .flatMap((group) => group.items)
     .find((item) => item.id === activeSection)
 
+  React.useEffect(() => {
+    setActiveSection(defaultValue)
+    setMobileIndexVisible(showMobileIndexFirst)
+  }, [defaultValue, showMobileIndexFirst])
+
   function chooseSection(id: string) {
     setActiveSection(id)
     setMobileIndexVisible(false)
