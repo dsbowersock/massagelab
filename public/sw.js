@@ -75,10 +75,14 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cachedResponse) => (
         cachedResponse
         || fetch(request).then((networkResponse) => {
+          if (!networkResponse.ok) {
+            return networkResponse
+          }
+
           const responseCopy = networkResponse.clone()
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseCopy)
-          })
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseCopy)),
+          )
           return networkResponse
         })
       )),

@@ -245,7 +245,7 @@ Acceptance:
 
 The app has install metadata: `app/manifest.ts` defines name, short name, start URL, scope, standalone display, theme/background colors, and maskable icons. `app/layout.tsx` includes manifest and Apple web app metadata.
 
-Current PWA state is install-capable but not offline-capable. I did not find a service worker, Workbox setup, offline fallback, or explicit app-cache strategy. That is acceptable for alpha if documented as "installable web app" rather than "offline app." It becomes a product gap if users expect clinical tools to work reliably during poor connectivity.
+Baseline at audit time: install-capable but not offline-capable. I did not find a service worker, Workbox setup, offline fallback, or explicit app-cache strategy. Post-remediation: MassageLab is install-capable with a conservative service worker, offline navigation fallback, and cache-first hashed Next static assets; broader offline product support for clinical workflows remains pending.
 
 PWA acceptance before a broader launch:
 

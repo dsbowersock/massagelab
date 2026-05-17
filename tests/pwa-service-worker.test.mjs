@@ -28,3 +28,12 @@ test("service worker does not cache versionless brand or icon assets", async () 
   assert.doesNotMatch(source, /pathname\.startsWith\("\/brand\/"\)/)
   assert.doesNotMatch(source, /pathname\.startsWith\("\/icons\/"\)/)
 })
+
+test("service worker caches static shell assets only through successful lifecycle-bound writes", async () => {
+  const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8")
+
+  assert.match(source, /if \(!networkResponse\.ok\)/)
+  assert.match(source, /const responseCopy = networkResponse\.clone\(\)/)
+  assert.match(source, /event\.waitUntil\(/)
+  assert.match(source, /cache\.put\(request, responseCopy\)/)
+})
