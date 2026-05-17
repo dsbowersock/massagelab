@@ -1,55 +1,152 @@
 import Link from "next/link"
-import { BadgeCheck, CreditCard, GraduationCap, Palette, Shield, ShieldAlert, UserRound } from "lucide-react"
+import {
+  BadgeCheck,
+  CreditCard,
+  FileCheck2,
+  GraduationCap,
+  Shield,
+  ShieldAlert,
+  UserRound,
+} from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { requestCredentialVerificationAction, saveProfileAction } from "@/app/account/actions"
+import { AccountAppSettingsPanel, LocalTherapistDefaultsPanel } from "@/app/account/app-settings-panel"
+import { AccountSettingsShell } from "@/app/account/account-settings-shell"
 import { PreferenceSync } from "@/app/account/preference-sync"
+import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
+import { accountPageGroups, accountPageTabs, selectAccountTab } from "@/lib/account-page"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
 import { getClinicalSyncReadiness } from "@/lib/phi-sync"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS, getUserMembershipSummary } from "@/lib/membership"
+import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
+import { cn } from "@/lib/utils"
+import {
+  SettingsActionLink,
+  SettingsStatusTile,
+  SettingsSurface,
+  settingsInsetClassName,
+  settingsSurfaceClassName,
+} from "@/components/account/settings-surfaces"
+import { MembershipPricingCards } from "@/components/membership/pricing-cards"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
+import { TabsContent } from "@/components/ui/tabs"
 
 type AccountPageProps = {
   searchParams?: Promise<{
     billing?: string
     checkout?: string
     portal?: string
+    tab?: string
   }>
 }
+
+type AccountPageTab = {
+  id: string
+  label: string
+  description: string
+}
+
+const typedAccountPageTabs = accountPageTabs as AccountPageTab[]
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = await searchParams
   const session = await getCurrentSession()
+  const defaultTab = selectAccountTab(params?.tab, {
+    billing: params?.billing,
+    checkout: params?.checkout,
+    portal: params?.portal,
+  })
+  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.portal
 
   if (!session?.user?.id) {
     return (
       <AccountShell>
         <AccountNotice billing={params?.billing} checkout={params?.checkout} portal={params?.portal} />
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Sign in to sync your account</CardTitle>
-            <CardDescription>
-              Anonymous use still works. Accounts sync preferences, progress, templates, and profile defaults only.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
-              <Link href="/login">Go to login</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <AccountSettingsShell
+          defaultValue={defaultTab}
+          groups={accountPageGroups}
+          itemStatuses={signedOutAccountItemStatuses}
+          showMobileIndexFirst={showMobileIndexFirst}
+          user={{
+            name: "Guest",
+            email: "Local settings available",
+            image: null,
+          }}
+        >
+          <TabsContent value="overview" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="overview" />
+            <SignedOutAccountPrompt title="Sign in to sync your account" />
+          </TabsContent>
+
+          <TabsContent value="profile" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="profile" />
+            <SignedOutAccountPrompt title="Sign in to manage profile defaults" />
+          </TabsContent>
+
+          <TabsContent value="security" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="security" />
+            <SignedOutAccountPrompt title="Sign in to manage security" />
+          </TabsContent>
+
+          <TabsContent value="credentials" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="credentials" />
+            <SignedOutAccountPrompt title="Sign in to verify credentials" />
+          </TabsContent>
+
+          <TabsContent value="app-settings" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="app-settings" />
+            <AccountAppSettingsPanel />
+          </TabsContent>
+
+          <TabsContent value="therapist-defaults" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="therapist-defaults" />
+            <LocalTherapistDefaultsPanel />
+          </TabsContent>
+
+          <TabsContent value="sync" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="sync" />
+            <SignedOutAccountPrompt title="Sign in to sync account data" />
+          </TabsContent>
+
+          <TabsContent value="membership" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="membership" />
+            <SignedOutAccountPrompt
+              title="Sign in to manage membership and billing"
+              description="Pricing can be viewed publicly, but checkout, subscription status, and billing portal access require an account."
+              secondaryHref="/pricing"
+              secondaryLabel="View pricing"
+            />
+          </TabsContent>
+
+          <TabsContent value="tools" className="flex flex-col gap-5">
+            <TabPanelIntro tabId="tools" />
+            <SignedOutAccountPrompt title="Sign in to use account tools" />
+          </TabsContent>
+        </AccountSettingsShell>
       </AccountShell>
     )
   }
 
-  const [profile, roles, credentialVerifications, preferences, progressCount, achievementCount, templateCount, membershipSummary] = await Promise.all([
+  const [
+    profile,
+    roles,
+    credentialVerifications,
+    preferences,
+    progressCount,
+    achievementCount,
+    templateCount,
+    membershipSummary,
+    pricingCatalog,
+    accountSecurityState,
+  ] = await Promise.all([
     prisma.userProfile.findUnique({ where: { userId: session.user.id } }),
     prisma.userRole.findMany({ where: { userId: session.user.id }, select: { role: true, status: true } }),
     prisma.credentialVerification.findMany({
@@ -62,6 +159,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     prisma.achievement.count({ where: { userId: session.user.id } }),
     prisma.noteTemplate.count({ where: { userId: session.user.id } }),
     getUserMembershipSummary(prisma, session.user.id),
+    getMembershipPricingCatalog(),
+    getAccountSecurityState(session.user.id),
   ])
 
   const clinicalSyncReadiness = getClinicalSyncReadiness()
@@ -71,6 +170,25 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const canManageAnatomy = canManageAnatomyContent(roleLabels)
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
   const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
+  const accountDisplayName =
+    profile?.displayName || profile?.therapistName || session.user.name || session.user.email || "MassageLab account"
+  const accountItemStatuses = {
+    overview: formatMembershipLevel(membershipSummary.entitlements.level),
+    profile: profile ? "Saved defaults" : "Add defaults",
+    security: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
+    credentials: roleLabels.map(formatRole).join(", "),
+    sync: clinicalSyncReadiness.enabled ? "Clinical sync enabled" : preferences?.updatedAt ? "Preferences synced" : "Local-first only",
+    accessibility: "Coming later",
+    notifications: "Coming later",
+    "app-settings": "Theme and sidebar",
+    "therapist-defaults": "Local defaults",
+    "practice-profile": "Coming later",
+    people: "Coming later",
+    "calendar-availability": "Open calendar",
+    tools: canManageAnatomy ? "Admin tools available" : "Feedback",
+    membership: formatMembershipLevel(membershipSummary.entitlements.level),
+    "orders-invoices": "Coming later",
+  }
 
   return (
     <AccountShell>
@@ -81,335 +199,571 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         activeMembershipLevel={membershipSummary.entitlements.paidLevel ?? undefined}
       />
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={settingsSurfaceClassName}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserRound className="h-5 w-5 text-brand-orange" />
-            Account
+            <UserRound className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+            Account home
           </CardTitle>
           <CardDescription>
             Signed in as {session.user.email}. Cloud sync is limited to non-PHI account data in this alpha.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-3">
-            <StatusTile label="Roles" value={roleLabels.join(", ")} />
-            <StatusTile label="Preferences" value={preferences?.updatedAt ? "Synced" : "Not synced yet"} />
-            <StatusTile label="Security" value={session.user.twoFactorEnabled ? "2FA enabled" : "2FA available"} />
-            <StatusTile label="Clinical sync" value={clinicalSyncReadiness.enabled ? "Enabled" : "Local-first only"} />
-            <StatusTile label="Progress items" value={String(progressCount)} />
-            <StatusTile label="Achievements" value={String(achievementCount)} />
-            <StatusTile label="Templates" value={String(templateCount)} />
-            <StatusTile label="Membership" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
-            <StatusTile label="Chimer colors" value={canUseChimerCustomColors ? "Unlocked" : "Free defaults"} />
-          </div>
-
-          <PreferenceSync hasCloudPreferences={Boolean(preferences)} />
-
-          <div className="flex flex-wrap gap-3">
-            <Button asChild variant="outline">
-              <Link href="/account/security">Security settings</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/anatomy/corrections">Flag anatomy content</Link>
-            </Button>
-            <SignOutButton />
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatusTile
+              label="Security"
+              value={session.user.twoFactorEnabled ? "2FA enabled" : "2FA available"}
+              href="/account?tab=security"
+            />
+            <StatusTile
+              label="Membership"
+              value={formatMembershipLevel(membershipSummary.entitlements.level)}
+              href="/account?tab=membership"
+            />
+            <StatusTile
+              label="Roles"
+              value={roleLabels.map(formatRole).join(", ")}
+              href="/account?tab=credentials"
+            />
+            <StatusTile
+              label="Clinical sync"
+              value={clinicalSyncReadiness.enabled ? "Enabled" : "Local-first only"}
+              href="/account?tab=sync"
+            />
           </div>
         </CardContent>
       </Card>
 
-      <Card id="membership" className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-brand-orange" />
-            Membership
-          </CardTitle>
-          <CardDescription>
-            Free access remains available by default. Paid memberships currently unlock Chimer custom colors and membership status.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-3">
-            <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
-            <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
-            <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
-          </div>
+      <AccountSettingsShell
+        defaultValue={defaultTab}
+        groups={accountPageGroups}
+        itemStatuses={accountItemStatuses}
+        showMobileIndexFirst={showMobileIndexFirst}
+        user={{
+          name: accountDisplayName,
+          email: session.user.email ?? "Signed in",
+          image: session.user.image,
+        }}
+      >
+        <TabsContent value="overview" className="space-y-5">
+          <TabPanelIntro tabId="overview" />
 
-          <div className="rounded-md border border-brand-orange/30 bg-primary/10 p-3">
-            <div className="flex items-start gap-3">
-              <Palette className="mt-0.5 h-4 w-4 text-brand-orange" />
-              <p className="text-sm text-muted-foreground">
-                Basic Chimer remains free. Paid memberships unlock saved custom display and background colors.
-              </p>
-            </div>
-          </div>
+          <Card id="account-summary" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserRound className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+                Account summary
+              </CardTitle>
+              <CardDescription>Current account status across sync, learning, security, and membership.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-3">
+                <StatusTile label="Preferences" value={preferences?.updatedAt ? "Synced" : "Not synced yet"} />
+                <StatusTile label="Progress items" value={String(progressCount)} />
+                <StatusTile label="Achievements" value={String(achievementCount)} />
+                <StatusTile label="Templates" value={String(templateCount)} />
+                <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
+                <StatusTile label="Chimer colors" value={canUseChimerCustomColors ? "Unlocked" : "Free defaults"} />
+              </div>
+            </CardContent>
+          </Card>
 
-          {membershipSummary.configuredOptions.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {membershipSummary.configuredOptions.map((option: { membershipLevel: string; interval: string }) => (
-                <form key={`${option.membershipLevel}-${option.interval}`} action="/api/billing/checkout" method="post">
-                  <input type="hidden" name="membershipLevel" value={option.membershipLevel} />
-                  <input type="hidden" name="interval" value={option.interval} />
-                  <Button type="submit" variant="outline" className="w-full justify-between">
-                    <span>{formatMembershipLevel(option.membershipLevel)}</span>
-                    <span>{formatInterval(option.interval)}</span>
-                  </Button>
-                </form>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Stripe checkout prices are not configured in this environment yet.
-            </p>
-          )}
-
-          {membershipSummary.subscriptions.length > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Subscription status</h3>
-              {membershipSummary.subscriptions.slice(0, 3).map((subscription: {
-                id: string
-                membershipLevel: string
-                status: string
-                currentPeriodEnd: Date | null
-                couponId: string | null
-              }) => (
-                <div key={subscription.id} className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{formatMembershipLevel(subscription.membershipLevel)}</span>
-                    <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
-                      {subscription.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {subscription.currentPeriodEnd ? `Renews through ${subscription.currentPeriodEnd.toLocaleDateString()}` : "Current period unavailable"}
-                    {subscription.couponId ? ` · Coupon ${subscription.couponId}` : ""}
-                  </p>
+          <Card id="quick-actions" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle>Quick actions</CardTitle>
+              <CardDescription>Shortcuts to the account areas that usually need attention first.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              <AccountActionLink
+                href="/account?tab=security"
+                icon={<Shield className="h-4 w-4" aria-hidden="true" />}
+                title="Review security"
+                description={session.user.twoFactorEnabled ? "2FA is enabled. Review sign-in methods or backup codes." : "Add 2FA and confirm sign-in methods."}
+              />
+              <AccountActionLink
+                href="/account?tab=membership"
+                icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
+                title="Manage membership and billing"
+                description="Review subscription level, pricing options, subscription status, and billing portal access."
+              />
+              <AccountActionLink
+                href="/account?tab=sync"
+                icon={<FileCheck2 className="h-4 w-4" aria-hidden="true" />}
+                title="Sync preferences"
+                description={preferences?.updatedAt ? "Preference sync has cloud data available." : "Save local settings to your account."}
+              />
+              <AccountActionLink
+                href="/account?tab=credentials"
+                icon={<BadgeCheck className="h-4 w-4" aria-hidden="true" />}
+                title="Verify credentials"
+                description="Submit license or student enrollment details for role access."
+              />
+              <div className={cn(settingsInsetClassName, "p-4")}>
+                <p className="text-sm font-medium">Session</p>
+                <p className="mt-1 text-sm text-muted-foreground">End this browser session and return to the public home page.</p>
+                <div className="mt-4">
+                  <SignOutButton />
                 </div>
-              ))}
-            </div>
-          ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {canOpenBillingPortal ? (
-            <form action="/api/billing/portal" method="post">
-              <Button type="submit" variant="outline">
-                Manage subscription
-              </Button>
-            </form>
-          ) : null}
-        </CardContent>
-      </Card>
+        <TabsContent value="security" className="space-y-5">
+          <TabPanelIntro tabId="security" />
+          <div id="security-settings">
+            <SecurityPanel
+              twoFactorEnabled={session.user.twoFactorEnabled}
+              hasPasswordCredential={accountSecurityState.hasPasswordCredential}
+              googleLinked={accountSecurityState.googleLinked}
+            />
+          </div>
+        </TabsContent>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BadgeCheck className="h-5 w-5 text-brand-orange" />
-            Role verification
-          </CardTitle>
-          <CardDescription>
-            Ohio massage licenses can verify automatically. Student enrollment and other jurisdictions stay pending until MassageLab can review the credential.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            {roleRows.map((roleRow) => (
-              <StatusTile key={roleRow.role} label={formatRole(roleRow.role)} value={formatStatus(roleRow.status)} />
-            ))}
+        <TabsContent value="profile" className="space-y-5">
+          <TabPanelIntro tabId="profile" />
+          <Card id="profile-defaults" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle>Profile defaults</CardTitle>
+              <CardDescription>
+                These fields can pre-fill your own profile and documentation defaults. Do not enter client-identifying information here.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={saveProfileAction} className="space-y-5">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="display_name">Display name</Label>
+                    <Input id="display_name" name="display_name" defaultValue={profile?.displayName ?? ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="therapist_name">Therapist name</Label>
+                    <Input id="therapist_name" name="therapist_name" defaultValue={profile?.therapistName ?? ""} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="therapist_location">Practice location</Label>
+                  <Input id="therapist_location" name="therapist_location" defaultValue={profile?.therapistLocation ?? ""} />
+                </div>
+                <div className="grid gap-5 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="license_number">License number</Label>
+                    <Input id="license_number" name="license_number" defaultValue={profile?.licenseNumber ?? ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="license_organization">Licensing organization</Label>
+                    <Input id="license_organization" name="license_organization" defaultValue={profile?.licenseOrganization ?? ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="npi_number">NPI number</Label>
+                    <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
+                  </div>
+                </div>
+                <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
+                  Save profile
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="credentials" className="space-y-5">
+          <TabPanelIntro tabId="credentials" />
+          <Card id="role-verification" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BadgeCheck className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+                Role verification
+              </CardTitle>
+              <CardDescription>
+                Ohio massage licenses can verify automatically. Student enrollment and other jurisdictions stay pending until MassageLab can review the credential.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 md:grid-cols-2">
+                {roleRows.map((roleRow) => (
+                  <StatusTile key={roleRow.role} label={formatRole(roleRow.role)} value={formatStatus(roleRow.status)} />
+                ))}
+              </div>
+
+              {credentialVerifications.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Recent verification requests</h3>
+                  <div className="space-y-2">
+                    {credentialVerifications.map((verification) => {
+                      const reasonLabel = verificationReasonLabel(verification.verificationPayload)
+                      const proofSummary = verificationProofSummary(verification.verificationPayload)
+
+                      return (
+                        <div key={verification.id} className={cn(settingsInsetClassName, "p-3")}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{formatCredentialKind(verification.kind)}</p>
+                            <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
+                              {formatStatus(verification.status as VerificationStatus)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {[verification.jurisdictionCode, verification.issuingAuthority, verification.credentialNumber]
+                              .filter(Boolean)
+                              .join(" · ") || "Pending review"}
+                          </p>
+                          {reasonLabel ? <p className="mt-2 text-xs text-muted-foreground">Result: {reasonLabel}</p> : null}
+                          {proofSummary ? <p className="mt-1 text-xs text-muted-foreground">{proofSummary}</p> : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              <form action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="credential_kind">Credential type</Label>
+                  <select
+                    id="credential_kind"
+                    name="credential_kind"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue="MASSAGE_LICENSE"
+                  >
+                    <option value="MASSAGE_LICENSE">Massage license</option>
+                    <option value="STUDENT_ENROLLMENT">Student enrollment</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="jurisdiction_code">State or jurisdiction</Label>
+                  <select
+                    id="jurisdiction_code"
+                    name="jurisdiction_code"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue="OH"
+                  >
+                    {US_MASSAGE_JURISDICTIONS.map(([code, name]) => (
+                      <option key={code} value={code}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="credential_number">License or enrollment identifier</Label>
+                  <Input id="credential_number" name="credential_number" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="issuing_authority">Issuing school, board, or agency</Label>
+                  <Input id="issuing_authority" name="issuing_authority" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="legal_first_name">Legal first name</Label>
+                  <Input id="legal_first_name" name="legal_first_name" autoComplete="given-name" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="legal_middle_name">Legal middle name or initial</Label>
+                  <Input id="legal_middle_name" name="legal_middle_name" autoComplete="additional-name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="legal_last_name">Legal last name</Label>
+                  <Input id="legal_last_name" name="legal_last_name" autoComplete="family-name" required />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="evidence_description">Evidence notes</Label>
+                  <Input
+                    id="evidence_description"
+                    name="evidence_description"
+                    placeholder="Example: enrollment letter dated 2026-05-01, or Ohio eLicense lookup available"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="student_start_date" className="flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-brand-orange" aria-hidden="true" />
+                    Student first day of class
+                  </Label>
+                  <Input id="student_start_date" name="student_start_date" type="date" />
+                </div>
+                <p className="text-xs text-muted-foreground md:col-span-2">
+                  Ohio massage license requests run an automatic eLicense check. Other jurisdictions and student enrollment remain pending for review.
+                </p>
+                <div className="md:col-span-2">
+                  <Button type="submit" variant="outline">
+                    Request verification
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="app-settings" className="flex flex-col gap-5">
+          <TabPanelIntro tabId="app-settings" />
+          <AccountAppSettingsPanel />
+        </TabsContent>
+
+        <TabsContent value="therapist-defaults" className="flex flex-col gap-5">
+          <TabPanelIntro tabId="therapist-defaults" />
+          <LocalTherapistDefaultsPanel />
+        </TabsContent>
+
+        <TabsContent value="membership" className="space-y-5">
+          <TabPanelIntro tabId="membership" />
+          <Card id="membership" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+                Membership
+              </CardTitle>
+              <CardDescription>
+                Free access remains available by default. Paid memberships currently unlock Chimer custom colors and membership status.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
+                <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
+                <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
+              </div>
+
+              <div className="rounded-md border border-primary/50 bg-primary/10 p-3 shadow-sm shadow-primary/10">
+                <p className="text-sm text-muted-foreground">
+                  Basic Chimer remains free. Paid memberships unlock saved custom display and background colors. Yearly billing is highlighted when Stripe pricing shows an annual savings.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div id="membership-pricing">
+            <MembershipPricingCards
+              catalog={pricingCatalog}
+              activeMembershipLevel={membershipSummary.entitlements.paidLevel}
+              mode="checkout"
+            />
           </div>
 
-          {credentialVerifications.length > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">Recent verification requests</h3>
-              <div className="space-y-2">
-                {credentialVerifications.map((verification) => {
-                  const reasonLabel = verificationReasonLabel(verification.verificationPayload)
-                  const proofSummary = verificationProofSummary(verification.verificationPayload)
-
-                  return (
-                    <div key={verification.id} className="rounded-md border border-neutral-800 bg-background/70 p-3">
+          <Card id="subscription-status" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle>Subscription status</CardTitle>
+              <CardDescription>Stripe billing status, recent subscriptions, and the customer portal.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {membershipSummary.subscriptions.length > 0 ? (
+                <div className="space-y-2">
+                  {membershipSummary.subscriptions.slice(0, 3).map((subscription: {
+                    id: string
+                    membershipLevel: string
+                    status: string
+                    currentPeriodEnd: Date | null
+                    couponId: string | null
+                  }) => (
+                    <div key={subscription.id} className={cn(settingsInsetClassName, "p-3 text-sm")}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-medium">{formatCredentialKind(verification.kind)}</p>
+                        <span className="font-medium">{formatMembershipLevel(subscription.membershipLevel)}</span>
                         <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
-                          {formatStatus(verification.status as VerificationStatus)}
+                          {subscription.status}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {[verification.jurisdictionCode, verification.issuingAuthority, verification.credentialNumber]
-                          .filter(Boolean)
-                          .join(" · ") || "Pending review"}
+                        {subscription.currentPeriodEnd ? `Renews through ${subscription.currentPeriodEnd.toLocaleDateString()}` : "Current period unavailable"}
+                        {subscription.couponId ? ` · Coupon ${subscription.couponId}` : ""}
                       </p>
-                      {reasonLabel ? <p className="mt-2 text-xs text-muted-foreground">Result: {reasonLabel}</p> : null}
-                      {proofSummary ? <p className="mt-1 text-xs text-muted-foreground">{proofSummary}</p> : null}
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
+              ) : null}
+
+              <div id="billing-portal" className="flex flex-col gap-3">
+                {canOpenBillingPortal ? (
+                <form action="/api/billing/portal" method="post">
+                  <Button type="submit" variant="outline">
+                    Manage subscription
+                  </Button>
+                </form>
+                ) : null}
+                {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    You do not have a Stripe-managed subscription yet.
+                  </p>
+                ) : null}
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sync" className="space-y-5">
+          <TabPanelIntro tabId="sync" />
+          <div id="preference-sync">
+            <PreferenceSync hasCloudPreferences={Boolean(preferences)} />
+          </div>
+
+          <Card id="clinical-sync" className={cn(settingsSurfaceClassName, "border-primary/50 bg-primary/10")}>
+            <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+              <ShieldAlert className="mt-1 h-5 w-5 text-brand-orange" aria-hidden="true" />
+              <div>
+                <CardTitle>Clinical sync is not hosted yet</CardTitle>
+                <CardDescription>
+                  Notes, intake forms, journals, and range-of-motion data stay on the user&apos;s device. MassageLab is structured for future compliant sync, but it will stay off until BAAs, risk review, audit controls, and sustainable funding are in place.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline">
+                <Link href="/roadmap">Support the clinical sync roadmap</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tools" className="space-y-5">
+          <TabPanelIntro tabId="tools" />
+          <Card id="anatomy-feedback" className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle>Content feedback</CardTitle>
+              <CardDescription>Flag anatomy content that needs correction or review.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline">
+                <Link href="/anatomy/corrections">Flag anatomy content</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {canManageAnatomy ? (
+            <Card id="content-tools" className={settingsSurfaceClassName}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+                  Content tools
+                </CardTitle>
+                <CardDescription>Admin and editor roles can manage the anatomy content database.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link href="/admin/anatomy">Open anatomy admin</Link>
+                </Button>
+              </CardContent>
+            </Card>
           ) : null}
 
-          <form action={requestCredentialVerificationAction} className="grid gap-4 border-t pt-5 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="credential_kind">Credential type</Label>
-              <select
-                id="credential_kind"
-                name="credential_kind"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                defaultValue="MASSAGE_LICENSE"
-              >
-                <option value="MASSAGE_LICENSE">Massage license</option>
-                <option value="STUDENT_ENROLLMENT">Student enrollment</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="jurisdiction_code">State or jurisdiction</Label>
-              <select
-                id="jurisdiction_code"
-                name="jurisdiction_code"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                defaultValue="OH"
-              >
-                {US_MASSAGE_JURISDICTIONS.map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="credential_number">License or enrollment identifier</Label>
-              <Input id="credential_number" name="credential_number" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="issuing_authority">Issuing school, board, or agency</Label>
-              <Input id="issuing_authority" name="issuing_authority" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="legal_first_name">Legal first name</Label>
-              <Input id="legal_first_name" name="legal_first_name" autoComplete="given-name" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="legal_middle_name">Legal middle name or initial</Label>
-              <Input id="legal_middle_name" name="legal_middle_name" autoComplete="additional-name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="legal_last_name">Legal last name</Label>
-              <Input id="legal_last_name" name="legal_last_name" autoComplete="family-name" required />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="evidence_description">Evidence notes</Label>
-              <Input
-                id="evidence_description"
-                name="evidence_description"
-                placeholder="Example: enrollment letter dated 2026-05-01, or Ohio eLicense lookup available"
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="student_start_date" className="flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-brand-orange" />
-                Student first day of class
-              </Label>
-              <Input id="student_start_date" name="student_start_date" type="date" />
-            </div>
-            <p className="text-xs text-muted-foreground md:col-span-2">
-              Ohio massage license requests run an automatic eLicense check. Other jurisdictions and student enrollment remain pending for review.
-            </p>
-            <div className="md:col-span-2">
-              <Button type="submit" variant="outline">
-                Request verification
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <ShieldAlert className="mt-1 h-5 w-5 text-brand-orange" />
-          <div>
-            <CardTitle>Clinical sync is not hosted yet</CardTitle>
-            <CardDescription>
-              Notes, intake forms, journals, and range-of-motion data stay on the user&apos;s device. MassageLab is structured for future compliant sync, but it will stay off until BAAs, risk review, audit controls, and sustainable funding are in place.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/roadmap">Support the clinical sync roadmap</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Profile defaults</CardTitle>
-          <CardDescription>
-            These fields can pre-fill your own profile and documentation defaults. Do not enter client-identifying information here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={saveProfileAction} className="space-y-5">
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="display_name">Display name</Label>
-                <Input id="display_name" name="display_name" defaultValue={profile?.displayName ?? ""} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="therapist_name">Therapist name</Label>
-                <Input id="therapist_name" name="therapist_name" defaultValue={profile?.therapistName ?? ""} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="therapist_location">Practice location</Label>
-              <Input id="therapist_location" name="therapist_location" defaultValue={profile?.therapistLocation ?? ""} />
-            </div>
-            <div className="grid gap-5 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="license_number">License number</Label>
-                <Input id="license_number" name="license_number" defaultValue={profile?.licenseNumber ?? ""} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="license_organization">Licensing organization</Label>
-                <Input id="license_organization" name="license_organization" defaultValue={profile?.licenseOrganization ?? ""} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="npi_number">NPI number</Label>
-                <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
-              </div>
-            </div>
-            <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
-              Save profile
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {canManageAnatomy ? (
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-brand-orange" />
-              Content tools
-            </CardTitle>
-            <CardDescription>Admin and editor roles can manage the anatomy content database.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/admin/anatomy">Open anatomy admin</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+          <Card className={settingsSurfaceClassName}>
+            <CardHeader>
+              <CardTitle>Session</CardTitle>
+              <CardDescription>Sign out of this browser session.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SignOutButton />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </AccountSettingsShell>
     </AccountShell>
   )
+}
+
+async function getAccountSecurityState(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      passwordCredential: {
+        select: { id: true },
+      },
+      accounts: {
+        where: { provider: "google" },
+        select: { id: true },
+      },
+    },
+  })
+
+  return {
+    hasPasswordCredential: Boolean(user?.passwordCredential),
+    googleLinked: Boolean(user?.accounts.length),
+  }
+}
+
+const signedOutAccountItemStatuses = {
+  overview: "Sign in",
+  profile: "Sign in",
+  security: "Sign in",
+  credentials: "Sign in",
+  "app-settings": "Available",
+  "therapist-defaults": "Local only",
+  sync: "Sign in",
+  accessibility: "Coming later",
+  notifications: "Coming later",
+  membership: "Sign in",
+  "orders-invoices": "Coming later",
+  "practice-profile": "Coming later",
+  people: "Coming later",
+  "calendar-availability": "Open calendar",
+  tools: "Sign in",
 }
 
 function AccountShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
         <PageHeading>Account</PageHeading>
         {children}
       </div>
     </div>
+  )
+}
+
+function SignedOutAccountPrompt({
+  title,
+  description = "Accounts sync preferences, progress, templates, profile defaults, security controls, and billing access. Local-only app settings remain available without signing in.",
+  secondaryHref,
+  secondaryLabel,
+}: {
+  title: string
+  description?: string
+  secondaryHref?: string
+  secondaryLabel?: string
+}) {
+  return (
+    <SettingsSurface title={title} description={description}>
+      <div className="flex flex-wrap gap-3">
+        <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+          <Link href="/login">Sign in</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/register">Create account</Link>
+        </Button>
+        {secondaryHref && secondaryLabel ? (
+          <Button asChild variant="ghost">
+            <Link href={secondaryHref}>{secondaryLabel}</Link>
+          </Button>
+        ) : null}
+      </div>
+    </SettingsSurface>
+  )
+}
+
+function TabPanelIntro({ tabId }: { tabId: string }) {
+  const tab = typedAccountPageTabs.find((candidate) => candidate.id === tabId)
+
+  if (!tab) {
+    return null
+  }
+
+  return (
+    <div className={cn(settingsInsetClassName, "p-4")}>
+      <h2 className="text-base font-semibold">{tab.label}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{tab.description}</p>
+    </div>
+  )
+}
+
+function AccountActionLink({
+  href,
+  icon,
+  title,
+  description,
+}: {
+  href: string
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <SettingsActionLink href={href} icon={icon} title={title} description={description} />
   )
 }
 
@@ -516,13 +870,23 @@ function billingMessage(code: string) {
   return "Stripe Checkout could not be started."
 }
 
-function StatusTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-neutral-800 bg-background/70 p-3">
-      <p className="text-xs uppercase tracking-normal text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words text-sm font-medium">{value}</p>
-    </div>
-  )
+function StatusTile({ label, value, href }: { label: string; value: string; href?: string }) {
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={cn(
+          settingsInsetClassName,
+          "block p-3 transition hover:border-primary/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        )}
+      >
+        <p className="text-xs uppercase tracking-normal text-muted-foreground">{label}</p>
+        <p className="mt-1 break-words text-sm font-medium">{value}</p>
+      </Link>
+    )
+  }
+
+  return <SettingsStatusTile label={label} value={value} />
 }
 
 function formatRole(role: AccountRole) {
@@ -539,10 +903,6 @@ function formatMembershipLevel(level: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
-}
-
-function formatInterval(interval: string) {
-  return interval === "year" ? "Yearly" : "Monthly"
 }
 
 function formatStatus(status: VerificationStatus) {

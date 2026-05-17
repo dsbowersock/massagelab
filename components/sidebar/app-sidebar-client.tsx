@@ -6,6 +6,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
+  BadgeDollarSign,
   Brain,
   CalendarDays,
   ChevronsUpDown,
@@ -13,6 +14,7 @@ import {
   Clock,
   FileText,
   Home,
+  Info,
   LifeBuoy,
   LogIn,
   LogOut,
@@ -89,11 +91,13 @@ export type SidebarUser = {
 } | null
 
 const routeIcons = {
+  BadgeDollarSign,
   Brain,
   CalendarDays,
   Clock,
   FileText,
   Home,
+  Info,
   LifeBuoy,
   Map,
   Plus,
@@ -107,6 +111,7 @@ const primaryGroupIcons: Record<string, LucideIcon> = {
   tools: Wrench,
   documentation: FileText,
   games: Brain,
+  about: Info,
 }
 
 const sidebarSectionTriggerClass = cn(
@@ -465,7 +470,7 @@ function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; p
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" onClick={(event) => navigateFromSidebar(event, "/settings")}>
+                  <Link href="/account" onClick={(event) => navigateFromSidebar(event, "/account")}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </Link>
