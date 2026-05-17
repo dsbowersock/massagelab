@@ -510,8 +510,7 @@ function SidebarLogoTrigger({ tooltipSide }: { tooltipSide: "left" | "right" }) 
             height={32}
             className="hidden object-contain group-data-[collapsible=icon]:block"
             data-testid="sidebar-brand-mark-trigger"
-            unoptimized
-            priority
+            sizes="32px"
           />
           <Image
             src="/brand/massagelab-wordmark-uppercase-tight.png"
@@ -520,8 +519,7 @@ function SidebarLogoTrigger({ tooltipSide }: { tooltipSide: "left" | "right" }) 
             height={54}
             className="h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden"
             data-testid="sidebar-brand-wordmark-trigger"
-            unoptimized
-            priority
+            sizes="180px"
           />
           <span className="sr-only">Toggle sidebar</span>
         </SidebarMenuButton>
@@ -574,8 +572,7 @@ export function AppSidebarClient({
                       height={28}
                       className="object-contain"
                       data-testid="sidebar-brand-mark"
-                      unoptimized
-                      priority
+                      sizes="28px"
                     />
                   </span>
                   <Image
@@ -585,8 +582,7 @@ export function AppSidebarClient({
                     height={54}
                     className={cn("h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden")}
                     data-testid="sidebar-brand-wordmark"
-                    unoptimized
-                    priority
+                    sizes="180px"
                   />
                 </Link>
               </SidebarMenuButton>

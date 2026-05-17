@@ -35,7 +35,13 @@ function applyThemeClass(themeMode: ThemeMode) {
   root.style.colorScheme = themeMode
 }
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
+export function SettingsProvider({
+  children,
+  syncEnabled = false,
+}: {
+  children: React.ReactNode
+  syncEnabled?: boolean
+}) {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [canSync, setCanSync] = useState(false)
 
@@ -97,12 +103,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
 
     loadLocalSettings()
-    void syncCloudSettings()
+    if (syncEnabled) {
+      void syncCloudSettings()
+    } else {
+      setCanSync(false)
+    }
 
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [syncEnabled])
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {

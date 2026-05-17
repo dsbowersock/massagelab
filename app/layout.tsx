@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import { getAppSidebarData } from "@/components/sidebar/sidebar"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import { SettingsProvider } from "@/components/providers/settings-provider"
+import { ServiceWorkerProvider } from "@/components/providers/service-worker-provider"
 import { TherapistSettingsProvider } from "@/components/providers/therapist-settings-provider"
 import { LayoutWrapper } from "@/components/layout-wrapper"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -45,13 +46,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, calendarContext } = await getAppSidebarData()
+  const { user, calendarContext, canSyncAccountSettings } = await getAppSidebarData()
 
   return (
     <html lang="en" className="dark h-full overflow-hidden">
       <body className={`${inter.className} h-full bg-background overflow-hidden`}>
-        <SettingsProvider>
-          <TherapistSettingsProvider>
+        <ServiceWorkerProvider />
+        <SettingsProvider syncEnabled={canSyncAccountSettings}>
+          <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
             <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
               <AppSidebarClient user={user} calendarContext={calendarContext} />
               <SidebarInset className="min-h-0 overflow-hidden bg-transparent">

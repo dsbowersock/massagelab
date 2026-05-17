@@ -26,7 +26,13 @@ const defaultSettings: TherapistSettings = {
 
 const TherapistSettingsContext = createContext<TherapistSettingsContextType | undefined>(undefined)
 
-export function TherapistSettingsProvider({ children }: { children: React.ReactNode }) {
+export function TherapistSettingsProvider({
+  children,
+  syncEnabled = false,
+}: {
+  children: React.ReactNode
+  syncEnabled?: boolean
+}) {
   const [settings, setSettings] = useState<TherapistSettings>(defaultSettings)
   const [canSync, setCanSync] = useState(false)
 
@@ -90,12 +96,16 @@ export function TherapistSettingsProvider({ children }: { children: React.ReactN
     }
 
     loadLocalSettings()
-    void syncCloudSettings()
+    if (syncEnabled) {
+      void syncCloudSettings()
+    } else {
+      setCanSync(false)
+    }
 
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [syncEnabled])
 
   const updateSettings = (newSettings: Partial<TherapistSettings>) => {
     setSettings(prev => {

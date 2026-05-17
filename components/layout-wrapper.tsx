@@ -78,8 +78,7 @@ function PortraitSidebarBar({ user }: { user: SidebarUser }) {
         width={32}
         height={32}
         className="object-contain"
-        unoptimized
-        priority
+        sizes="32px"
       />
     </button>
   )
@@ -128,8 +127,7 @@ function RouteWordmark({ visible, wordmarkRef }: { visible: boolean; wordmarkRef
         className="h-8 w-auto object-contain drop-shadow-[0_0_20px_hsl(var(--brand-orange-glow)/0.18)]"
         data-testid="route-brand-wordmark"
         style={{ viewTransitionName: "massagelab-wordmark" }}
-        unoptimized
-        priority
+        sizes="180px"
       />
     </Link>
   )

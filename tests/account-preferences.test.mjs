@@ -4,6 +4,7 @@ import {
   USER_PREFERENCES_VERSION,
   buildTherapistProfilePayload,
   buildUserPreferencePayload,
+  canSyncAccountPreferences,
   choosePreferenceSource,
   removeForbiddenPreferenceFields,
 } from "../lib/account-preferences.js"
@@ -84,5 +85,13 @@ describe("Account preference helpers", () => {
       license_organization: "State Board",
       npi_number: "1234567890",
     })
+  })
+
+  it("allows cloud account sync only for a signed-in user id", () => {
+    assert.equal(canSyncAccountPreferences(null), false)
+    assert.equal(canSyncAccountPreferences({}), false)
+    assert.equal(canSyncAccountPreferences({ id: "" }), false)
+    assert.equal(canSyncAccountPreferences({ id: "   " }), false)
+    assert.equal(canSyncAccountPreferences({ id: "user_123" }), true)
   })
 })

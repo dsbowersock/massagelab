@@ -1,6 +1,7 @@
 "use client"
 
 import { type CSSProperties, useEffect, useRef } from "react"
+import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
 
 interface GradientOrb {
   x: number
@@ -38,8 +39,11 @@ export function MovingBackground({
       return undefined
     }
 
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const compactViewportQuery = window.matchMedia("(max-width: 767px)")
     const gradients: GradientOrb[] = []
     let animationFrame = 0
+    let initialized = false
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth
@@ -52,18 +56,24 @@ export function MovingBackground({
       })
     }
 
-    resizeCanvas()
+    const initializeGradients = () => {
+      if (initialized) {
+        return
+      }
 
-    for (let index = 0; index < 8; index += 1) {
-      gradients.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        radius: canvas.width * (0.3 + Math.random() * 0.2),
-        color: index % 2 === 0 ? mainColor : orbColor,
-        alpha: 0.4 + Math.random() * 0.2,
-      })
+      initialized = true
+
+      for (let index = 0; index < 8; index += 1) {
+        gradients.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          radius: canvas.width * (0.3 + Math.random() * 0.2),
+          color: index % 2 === 0 ? mainColor : orbColor,
+          alpha: 0.4 + Math.random() * 0.2,
+        })
+      }
     }
 
     const animate = () => {
@@ -103,12 +113,53 @@ export function MovingBackground({
       animationFrame = window.requestAnimationFrame(animate)
     }
 
+    const stopAnimation = () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame)
+        animationFrame = 0
+      }
+
+      canvas.hidden = true
+      context.clearRect(0, 0, canvas.width, canvas.height)
+    }
+
+    const startAnimation = () => {
+      if (animationFrame) {
+        return
+      }
+
+      canvas.hidden = false
+      resizeCanvas()
+      initializeGradients()
+      animate()
+    }
+
+    const updateAnimationState = () => {
+      const shouldAnimate = shouldAnimateAmbientBackground({
+        prefersReducedMotion: reducedMotionQuery.matches,
+        compactViewport: compactViewportQuery.matches,
+        documentHidden: document.hidden,
+      })
+
+      if (shouldAnimate) {
+        startAnimation()
+      } else {
+        stopAnimation()
+      }
+    }
+
     window.addEventListener("resize", resizeCanvas)
-    animate()
+    reducedMotionQuery.addEventListener("change", updateAnimationState)
+    compactViewportQuery.addEventListener("change", updateAnimationState)
+    document.addEventListener("visibilitychange", updateAnimationState)
+    updateAnimationState()
 
     return () => {
-      window.cancelAnimationFrame(animationFrame)
+      stopAnimation()
       window.removeEventListener("resize", resizeCanvas)
+      reducedMotionQuery.removeEventListener("change", updateAnimationState)
+      compactViewportQuery.removeEventListener("change", updateAnimationState)
+      document.removeEventListener("visibilitychange", updateAnimationState)
     }
   }, [mainColor, orbColor])
 

@@ -1,6 +1,8 @@
 import { getCurrentSession } from "@/auth"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import type { SidebarCalendarContext, SidebarUser } from "@/components/sidebar/app-sidebar-client"
+import { canSyncAccountPreferences } from "@/lib/account-preferences"
+import { createAsyncKeyedTtlCache } from "@/lib/async-ttl-cache"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 
@@ -10,8 +12,10 @@ const emptyCalendarContext: SidebarCalendarContext = {
   canManageAvailability: false,
 }
 
-async function getSidebarCalendarContext(userId?: string): Promise<SidebarCalendarContext> {
-  if (!userId || !(await isCalendarDatabaseReady())) {
+const SIDEBAR_CALENDAR_CONTEXT_CACHE_TTL_MS = 60_000
+
+async function loadSidebarCalendarContext(userId: string): Promise<SidebarCalendarContext> {
+  if (!(await isCalendarDatabaseReady())) {
     return emptyCalendarContext
   }
 
@@ -89,6 +93,23 @@ async function getSidebarCalendarContext(userId?: string): Promise<SidebarCalend
   }
 }
 
+const sidebarCalendarContextCache = createAsyncKeyedTtlCache<SidebarCalendarContext, string>({
+  ttlMs: SIDEBAR_CALENDAR_CONTEXT_CACHE_TTL_MS,
+  load: loadSidebarCalendarContext,
+})
+
+async function getSidebarCalendarContext(userId?: string): Promise<SidebarCalendarContext> {
+  if (!userId) {
+    return emptyCalendarContext
+  }
+
+  return sidebarCalendarContextCache.get(userId)
+}
+
+export function clearSidebarCalendarContextCache(userId?: string) {
+  sidebarCalendarContextCache.clear(userId)
+}
+
 export async function getAppSidebarData() {
   const session = await getCurrentSession()
   const sessionUser = session?.user as
@@ -106,9 +127,10 @@ export async function getAppSidebarData() {
       image: sessionUser.image ?? "",
     }
     : null
+  const canSyncAccountSettings = canSyncAccountPreferences(sessionUser)
   const calendarContext = await getSidebarCalendarContext(sessionUser?.id)
 
-  return { user, calendarContext }
+  return { user, calendarContext, canSyncAccountSettings }
 }
 
 export async function AppSidebar() {
