@@ -91,6 +91,7 @@ describe("Account preference helpers", () => {
     assert.equal(canSyncAccountPreferences(null), false)
     assert.equal(canSyncAccountPreferences({}), false)
     assert.equal(canSyncAccountPreferences({ id: "" }), false)
+    assert.equal(canSyncAccountPreferences({ id: "   " }), false)
     assert.equal(canSyncAccountPreferences({ id: "user_123" }), true)
   })
 })

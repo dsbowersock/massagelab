@@ -2,14 +2,6 @@ const CACHE_NAME = "massagelab-shell-v2026-05-17"
 const OFFLINE_URL = "/offline.html"
 const SHELL_ASSETS = [
   OFFLINE_URL,
-  "/manifest.webmanifest",
-  "/favicon.ico",
-  "/brand/massagelab-mark-square-tight.png",
-  "/brand/massagelab-wordmark-uppercase-tight.png",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/maskable-icon-192.png",
-  "/icons/maskable-icon-512.png",
 ]
 
 self.addEventListener("install", (event) => {
@@ -55,10 +47,6 @@ function isStaticShellAsset(requestUrl) {
 
   return (
     pathname.startsWith("/_next/static/")
-    || pathname.startsWith("/brand/")
-    || pathname.startsWith("/icons/")
-    || pathname === "/favicon.ico"
-    || pathname === "/manifest.webmanifest"
     || pathname === OFFLINE_URL
   )
 }

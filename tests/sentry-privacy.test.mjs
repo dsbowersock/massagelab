@@ -78,17 +78,17 @@ test("sanitizeSentryEvent scrubs diagnostic messages and exception values", () =
 
 test("sanitizeSentryEvent preserves safe runtime diagnostics without clinical content", () => {
   const event = sanitizeSentryEvent({
-    message: "ReferenceError: missingWidgetState is not defined",
+    message: "ReferenceError: missingWidgetState is not defined Authorization: Bearer msg-secret",
     exception: {
       values: [
         {
           type: "ReferenceError",
-          value: "missingWidgetState is not defined",
+          value: "missingWidgetState is not defined token: exception-secret",
           stacktrace: {
             frames: [
               {
                 filename: "app/account/page.tsx",
-                function: "AccountPage",
+                function: "AccountPage Authorization: Bearer frame-secret",
                 abs_path: "C:/Users/derri/code/my_projects/massagelab/app/account/page.tsx",
               },
             ],
@@ -97,18 +97,18 @@ test("sanitizeSentryEvent preserves safe runtime diagnostics without clinical co
       ],
     },
     logentry: {
-      message: "TypeError: Cannot read properties of undefined (reading 'profile')",
-      formatted: "TypeError: Cannot read properties of undefined (reading 'profile')",
+      message: "TypeError: Cannot read properties of undefined (reading 'profile') Authorization: Bearer log-secret",
+      formatted: "TypeError: Cannot read properties of undefined (reading 'profile') token: formatted-secret",
     },
   })
 
-  assert.equal(event.message, "ReferenceError: missingWidgetState is not defined")
+  assert.equal(event.message, "ReferenceError: missingWidgetState is not defined Authorization: [Filtered]")
   assert.equal(event.exception.values[0].type, "ReferenceError")
-  assert.equal(event.exception.values[0].value, "missingWidgetState is not defined")
+  assert.equal(event.exception.values[0].value, "missingWidgetState is not defined token: [Filtered]")
   assert.equal(event.exception.values[0].stacktrace.frames[0].filename, "app/account/page.tsx")
-  assert.equal(event.exception.values[0].stacktrace.frames[0].function, "AccountPage")
-  assert.equal(event.logentry.message, "TypeError: Cannot read properties of undefined (reading 'profile')")
-  assert.equal(event.logentry.formatted, "TypeError: Cannot read properties of undefined (reading 'profile')")
+  assert.equal(event.exception.values[0].stacktrace.frames[0].function, "AccountPage Authorization: [Filtered]")
+  assert.equal(event.logentry.message, "TypeError: Cannot read properties of undefined (reading 'profile') Authorization: [Filtered]")
+  assert.equal(event.logentry.formatted, "TypeError: Cannot read properties of undefined (reading 'profile') token: [Filtered]")
 })
 
 test("sanitizeSentryEvent strips transaction request metadata and router state", () => {

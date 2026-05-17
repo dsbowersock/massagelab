@@ -19,3 +19,12 @@ test("service worker avoids caching sensitive application requests", async () =>
   assert.match(source, /pathname\.startsWith\("\/api\/clinical\/sync"\)/)
   assert.match(source, /pathname\.startsWith\("\/api\/billing\/"\)/)
 })
+
+test("service worker does not cache versionless brand or icon assets", async () => {
+  const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8")
+
+  assert.doesNotMatch(source, /"\/brand\//)
+  assert.doesNotMatch(source, /"\/icons\//)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/brand\/"\)/)
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/icons\/"\)/)
+})

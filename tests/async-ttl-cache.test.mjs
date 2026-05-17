@@ -65,6 +65,37 @@ test("createAsyncTtlCache can be cleared explicitly", async () => {
   assert.equal(await cache.get(), 2)
 })
 
+test("createAsyncTtlCache ignores a pending load after clear", async () => {
+  /** @type {Array<() => void>} */
+  const releases = []
+  let loads = 0
+  const cache = createAsyncTtlCache({
+    ttlMs: 10_000,
+    load: async () => {
+      loads += 1
+      const value = `value-${loads}`
+      await new Promise((resolve) => {
+        releases.push(() => resolve(undefined))
+      })
+      return value
+    },
+  })
+
+  const first = cache.get()
+  assert.equal(loads, 1)
+
+  cache.clear()
+  releases.shift()?.()
+  assert.equal(await first, "value-1")
+
+  const second = cache.get()
+  assert.equal(loads, 2)
+  releases.shift()?.()
+  assert.equal(await second, "value-2")
+  assert.equal(await cache.get(), "value-2")
+  assert.equal(loads, 2)
+})
+
 test("createAsyncKeyedTtlCache caches and deduplicates per key", async () => {
   let now = 1_000
   let loads = 0
@@ -105,4 +136,35 @@ test("createAsyncKeyedTtlCache can clear one key without dropping others", async
 
   assert.equal(await cache.get("user-a"), "user-a-3")
   assert.equal(await cache.get("user-b"), "user-b-2")
+})
+
+test("createAsyncKeyedTtlCache ignores a pending load after key clear", async () => {
+  /** @type {Array<() => void>} */
+  const releases = []
+  let loads = 0
+  const cache = createAsyncKeyedTtlCache({
+    ttlMs: 10_000,
+    load: async (key) => {
+      loads += 1
+      const value = `${key}-${loads}`
+      await new Promise((resolve) => {
+        releases.push(() => resolve(undefined))
+      })
+      return value
+    },
+  })
+
+  const first = cache.get("user-a")
+  assert.equal(loads, 1)
+
+  cache.clear("user-a")
+  releases.shift()?.()
+  assert.equal(await first, "user-a-1")
+
+  const second = cache.get("user-a")
+  assert.equal(loads, 2)
+  releases.shift()?.()
+  assert.equal(await second, "user-a-2")
+  assert.equal(await cache.get("user-a"), "user-a-2")
+  assert.equal(loads, 2)
 })

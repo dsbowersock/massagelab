@@ -21,7 +21,7 @@ Implemented after this audit:
 - Calendar schema readiness and sidebar calendar context reads now use short TTL caches to reduce repeated `/account` DB pressure.
 - Production TOTP secret encryption now fails closed if `TOTP_ENCRYPTION_KEY` is missing.
 - Global ambient background animation now stops for reduced-motion users, compact/mobile viewports, and hidden tabs.
-- Brand/icon assets now receive immutable cache headers, and repeated sidebar/route logo images are no longer marked as unoptimized high-priority images.
+- Brand/icon assets now use revalidating cache headers for stable filenames, and repeated sidebar/route logo images are no longer marked as unoptimized high-priority images.
 - A conservative service worker adds an offline navigation fallback and static shell asset caching while excluding API, auth, account, billing, and clinical sync requests.
 - Post-remediation validation: `npm run prisma:validate`, `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` passed; the test suite now has 159 passing tests.
 
