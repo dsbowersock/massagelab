@@ -147,6 +147,10 @@ export default function ChimerPage() {
 
         const session = sessionResponse.ok ? await sessionResponse.json().catch(() => null) : null
 
+        if (!isMounted) {
+          return
+        }
+
         if (!canSyncAccountPreferencesFromSession(session)) {
           const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
           setSettings(localFreeSettings)
