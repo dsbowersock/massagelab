@@ -12,15 +12,15 @@ Active planning and progress tracking now lives in [docs/project-log.md](docs/pr
 - [x] Move internal README material into repo-backed wiki docs.
 - [x] Complete dependency alert remediation and document remaining audit output.
 - [x] Run full automated verification gate.
-- [ ] Manually verify Chimer clock-only mode on desktop and phone landscape.
-- [ ] Manually verify Stripe checkout and webhook flow in Stripe test mode.
+- [x] Manually verify Chimer clock-only mode on desktop and phone landscape.
+- [x] Manually verify Stripe checkout and webhook flow in Stripe test mode.
 
 ## Alpha Release Readiness
 
-- [ ] Walk `docs/alpha-qa.md` with anonymous test data.
-- [ ] Confirm local-first documentation workflows do not upload clinical content.
-- [ ] Confirm navigation, PWA metadata, support, roadmap, account, security, and settings routes.
-- [ ] Confirm billing status display and Chimer color feature gate.
+- [x] Walk `docs/alpha-qa.md` with anonymous test data.
+- [x] Confirm local-first documentation workflows do not upload clinical content.
+- [x] Confirm navigation, PWA metadata, support, roadmap, account, security, and settings routes.
+- [x] Confirm billing status display and Chimer color feature gate.
 
 ## Next Branch Candidates
 

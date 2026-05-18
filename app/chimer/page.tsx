@@ -15,6 +15,7 @@ import {
   sanitizeChimerSettings,
   sanitizeChimerSettingsForEntitlements,
 } from "@/lib/chimer-timer"
+import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { SetTimer, type ChimerSettings } from "./set-timer"
@@ -138,6 +139,28 @@ export default function ChimerPage() {
 
     async function syncAccountSettings(localSettings: ChimerSettings) {
       try {
+        const sessionResponse = await fetchWithTimeout("/api/auth/session")
+
+        if (!isMounted) {
+          return
+        }
+
+        const session = sessionResponse.ok ? await sessionResponse.json().catch(() => null) : null
+
+        if (!isMounted) {
+          return
+        }
+
+        if (!canSyncAccountPreferencesFromSession(session)) {
+          const localFreeSettings = sanitizeChimerSettingsForEntitlements(localSettings, []) as ChimerSettings
+          setSettings(localFreeSettings)
+          window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(localFreeSettings))
+          setFeatureKeys([])
+          setCanSync(false)
+          setAccountSyncStatus("local")
+          return
+        }
+
         const response = await fetchWithTimeout("/api/account/preferences")
 
         if (!isMounted) {
