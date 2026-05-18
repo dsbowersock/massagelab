@@ -17,6 +17,7 @@ import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
 import { accountPageGroups, accountPageTabs, selectAccountTab } from "@/lib/account-page"
+import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS } from "@/lib/membership"
@@ -133,7 +134,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     )
   }
 
-  const roleRows = accountRoleRows(session.user)
+  const roleRows = normalizeSessionRoleAssignments(session.user as AccountSessionUser) as Array<{ role: AccountRole; status: VerificationStatus }>
   const roleLabels = roleRows.map((roleRow) => roleRow.role).sort()
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
   const canUseChimerCustomColors = Boolean(session.user.capabilities?.canUseChimerCustomColors)
@@ -235,18 +236,6 @@ type AccountSessionUser = {
 }
 
 type MembershipPricingCatalog = React.ComponentProps<typeof MembershipPricingCards>["catalog"]
-
-function accountRoleRows(sessionUser: AccountSessionUser): Array<{ role: AccountRole; status: VerificationStatus }> {
-  if (Array.isArray(sessionUser.roleAssignments) && sessionUser.roleAssignments.length > 0) {
-    return sessionUser.roleAssignments
-  }
-
-  if (Array.isArray(sessionUser.roles) && sessionUser.roles.length > 0) {
-    return sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
-  }
-
-  return [{ role: sessionUser.role ?? "USER", status: "VERIFIED" as VerificationStatus }]
-}
 
 function AccountTabLoading({ tabId }: { tabId: string }) {
   return (

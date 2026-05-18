@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
-import { getSidebarCalendarContext } from "@/components/sidebar/sidebar"
+import { getSidebarCalendarContext } from "@/lib/sidebar-calendar-context"
 
 export async function GET() {
   const session = await getCurrentSession()

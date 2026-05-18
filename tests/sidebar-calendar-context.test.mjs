@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { shouldLoadSidebarCalendarContext } from "../lib/sidebar-calendar-context.js"
+import { emptySidebarCalendarContext, shouldLoadSidebarCalendarContext } from "../lib/sidebar-calendar-context.js"
 
 describe("sidebar calendar context route gating", () => {
   it("does not load calendar context on unrelated application routes", () => {
@@ -13,5 +13,11 @@ describe("sidebar calendar context route gating", () => {
     assert.equal(shouldLoadSidebarCalendarContext("/calendar"), true)
     assert.equal(shouldLoadSidebarCalendarContext("/calendar/availability"), true)
     assert.equal(shouldLoadSidebarCalendarContext("/book/example"), true)
+  })
+
+  it("freezes the empty therapists collection", () => {
+    assert.throws(() => {
+      emptySidebarCalendarContext.therapists.push({ id: "therapist_1", label: "Therapist" })
+    }, TypeError)
   })
 })
