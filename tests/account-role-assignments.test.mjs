@@ -4,13 +4,19 @@ import { normalizeSessionRoleAssignments } from "../lib/account-role-assignments
 
 describe("normalizeSessionRoleAssignments", () => {
   it("prefers explicit role assignments over roles and legacy role", () => {
+    const roleAssignments = [{ role: "ADMIN", status: "PENDING" }]
+
     assert.deepEqual(
       normalizeSessionRoleAssignments({
-        roleAssignments: [{ role: "ADMIN", status: "PENDING" }],
+        roleAssignments,
         roles: ["THERAPIST"],
         role: "USER",
       }),
       [{ role: "ADMIN", status: "PENDING" }],
+    )
+    assert.notEqual(
+      normalizeSessionRoleAssignments({ roleAssignments }),
+      roleAssignments,
     )
   })
 

@@ -235,8 +235,6 @@ type AccountSessionUser = {
   twoFactorEnabled?: boolean
 }
 
-type MembershipPricingCatalog = React.ComponentProps<typeof MembershipPricingCards>["catalog"]
-
 function AccountTabLoading({ tabId }: { tabId: string }) {
   return (
     <TabsContent value={tabId} className="space-y-5">
@@ -303,14 +301,7 @@ async function ActiveAccountTab({
 }
 
 async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
-  const data = await getAccountSurfaceData("overview", userId, sessionUser) as unknown as {
-    counts: {
-      progressCount: number
-      achievementCount: number
-      templateCount: number
-    }
-    canUseChimerCustomColors: boolean
-  }
+  const data = await getAccountSurfaceData("overview", userId, sessionUser)
 
   return (
     <TabsContent value="overview" className="space-y-5">
@@ -380,10 +371,7 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
 }
 
 async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
-  const data = await getAccountSurfaceData("security", userId, sessionUser) as unknown as {
-    hasPasswordCredential: boolean
-    googleLinked: boolean
-  }
+  const data = await getAccountSurfaceData("security", userId, sessionUser)
 
   return (
     <TabsContent value="security" className="space-y-5">
@@ -400,16 +388,7 @@ async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUse
 }
 
 async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
-  const data = await getAccountSurfaceData("profile", userId, sessionUser) as unknown as {
-    profile: {
-      displayName?: string | null
-      therapistName?: string | null
-      therapistLocation?: string | null
-      licenseNumber?: string | null
-      licenseOrganization?: string | null
-      npiNumber?: string | null
-    } | null
-  }
+  const data = await getAccountSurfaceData("profile", userId, sessionUser)
   const profile = data.profile
 
   return (
@@ -463,18 +442,7 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
 }
 
 async function CredentialsTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
-  const data = await getAccountSurfaceData("credentials", userId, sessionUser) as unknown as {
-    roleAssignments: Array<{ role: AccountRole; status: VerificationStatus }>
-    credentialVerifications: Array<{
-      id: string
-      kind: string
-      status: VerificationStatus | string
-      jurisdictionCode: string | null
-      issuingAuthority: string | null
-      credentialNumber: string | null
-      verificationPayload: unknown
-    }>
-  }
+  const data = await getAccountSurfaceData("credentials", userId, sessionUser)
   const roleRows = data.roleAssignments
   const credentialVerifications = data.credentialVerifications
 
@@ -607,24 +575,7 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
 }
 
 async function MembershipTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
-  const data = await getAccountSurfaceData("membership", userId, sessionUser) as unknown as {
-    membershipSummary: {
-      stripeCustomer: unknown
-      subscriptions: Array<{
-        id: string
-        membershipLevel: string
-        status: string
-        currentPeriodEnd: Date | null
-        couponId: string | null
-      }>
-      entitlements: {
-        level: string
-        paidLevel?: string | null
-        features: string[]
-      }
-    }
-    pricingCatalog: MembershipPricingCatalog
-  }
+  const data = await getAccountSurfaceData("membership", userId, sessionUser)
   const membershipSummary = data.membershipSummary
   const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
   const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
@@ -711,10 +662,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
 }
 
 async function SyncTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
-  const data = await getAccountSurfaceData("sync", userId, sessionUser) as unknown as {
-    preferences: { updatedAt: Date | null } | null
-    clinicalSyncReadiness: { enabled: boolean }
-  }
+  const data = await getAccountSurfaceData("sync", userId, sessionUser)
 
   return (
     <TabsContent value="sync" className="space-y-5">
