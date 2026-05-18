@@ -96,6 +96,10 @@ describe("Account page tab model", () => {
     assert.equal(formatAccountDate(new Date("2026-05-18T14:30:00.000Z")), "2026-05-18")
   })
 
+  it("formats account dates from the local calendar day instead of UTC", () => {
+    assert.equal(formatAccountDate(new Date(2026, 4, 18, 23, 30)), "2026-05-18")
+  })
+
   it("filters account navigation by label, group, and description", () => {
     assert.deepEqual(
       filterAccountPageGroups("billing").flatMap((group) => group.items.map((item) => item.id)),
