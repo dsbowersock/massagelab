@@ -7,6 +7,7 @@ test("service worker provides an offline navigation fallback", async () => {
 
   assert.match(source, /CACHE_NAME/)
   assert.match(source, /\/offline\.html/)
+  assert.match(source, /PUBLIC_OFFLINE_ROUTES/)
   assert.match(source, /request\.mode === "navigate"/)
 })
 
@@ -14,8 +15,17 @@ test("service worker avoids caching sensitive application requests", async () =>
   const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8")
 
   assert.match(source, /request\.method !== "GET"/)
-  assert.match(source, /pathname\.startsWith\("\/api\/"\)/)
-  assert.match(source, /pathname\.startsWith\("\/account"\)/)
+  assert.match(source, /SENSITIVE_PREFIXES/)
+  assert.match(source, /"\/api\/"/)
+  assert.match(source, /"\/account"/)
+  assert.match(source, /"\/api\/billing\/"/)
+  assert.match(source, /"\/api\/auth\/"/)
+  assert.match(source, /"\/api\/clinical\/sync"/)
+  assert.match(source, /"\/calendar"/)
+  assert.match(source, /"\/book"/)
+  assert.match(source, /"\/admin"/)
+  assert.match(source, /"\/settings"/)
+  assert.match(source, /"\/pricing"/)
   assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/clinical\/sync"\)/)
   assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/billing\/"\)/)
   assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/auth\/"\)/)
@@ -30,6 +40,29 @@ test("service worker does not cache versionless brand or icon assets", async () 
   assert.doesNotMatch(source, /"\/icons\//)
   assert.doesNotMatch(source, /pathname\.startsWith\("\/brand\/"\)/)
   assert.doesNotMatch(source, /pathname\.startsWith\("\/icons\/"\)/)
+})
+
+test("service worker only warms anonymous public tool routes for offline navigation", async () => {
+  const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8")
+  const publicRoutesBlock = source.match(/const PUBLIC_OFFLINE_ROUTES = \[([\s\S]*?)\]/)?.[1] ?? ""
+
+  for (const route of ["/", "/notes", "/notes/soap", "/notes/intake", "/notes/journal", "/notes/rom", "/chimer", "/anatomime"]) {
+    assert.match(publicRoutesBlock, new RegExp(`"${route.replaceAll("/", "\\/")}"`))
+  }
+
+  for (const excludedRoute of ["/calendar", "/account", "/login", "/api/", "/book", "/pricing"]) {
+    assert.doesNotMatch(publicRoutesBlock, new RegExp(`"${excludedRoute.replaceAll("/", "\\/")}"`))
+  }
+
+  assert.match(source, /credentials: "omit"/)
+})
+
+test("service worker does not blindly cache live navigation responses", async () => {
+  const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8")
+
+  assert.match(source, /warmPublicOfflineRoutes/)
+  assert.doesNotMatch(source, /cache\.put\(request,\s*networkResponse\.clone\(\)\)/)
+  assert.match(source, /publicOfflineCacheKey/)
 })
 
 test("service worker caches static shell assets only through successful lifecycle-bound writes", async () => {

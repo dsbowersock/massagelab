@@ -20,13 +20,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Completed | P1 | Manually verify Stripe checkout and webhook flow | [TODO](../TODO.md), [Billing wiki](wiki/billing-memberships.md) | Stripe test checkout, signed local webhook delivery, account membership status, and Chimer custom-color entitlement were confirmed with test-mode values. |
 | Completed | P1 | Optimize signed-in account data shell | [May 17 audit](audits/2026-05-17-project-review.md) | Signed-in `/account` now streams only the active tab's data, account tab data uses short-lived per-surface caches with mutation invalidation, and sidebar calendar readiness moved off unrelated page views into route-gated calendar hydration. |
 | Completed | P2 | Add browser QA harness | [May 17 audit](audits/2026-05-17-project-review.md) | Playwright browser QA now runs public desktop/mobile smoke routes, console/page-error checks, anonymous account sync guards, PWA manifest/icon checks, and local-first clinical document network guards. |
+| Completed | P2 | Decide PWA offline strategy | [May 17 audit](audits/2026-05-17-project-review.md), [Privacy wiki](wiki/privacy-and-phi.md), [PWA wiki](wiki/pwa-offline-strategy.md) | MassageLab is offline-capable for anonymous public local tools only; service worker caching avoids auth, billing, calendar, booking, clinical sync, client, and `/api/*` surfaces. |
 | Active | P2 | Maintain this project log | This consolidation plan | Future meaningful changes, completed plans, branch outcomes, and priority changes are appended to the change history. |
 
 ## Next
 
 | Status | Priority | Work | Source | Acceptance |
 | --- | --- | --- | --- | --- |
-| Open | P2 | Decide PWA offline strategy | [May 17 audit](audits/2026-05-17-project-review.md), [Privacy wiki](wiki/privacy-and-phi.md) | Install-only vs offline-capable behavior is documented; any service worker strategy avoids unsafe caching of auth, billing, clinical sync, and PHI-bearing requests. |
 | Open | P3 | Prepare public SEO launch checklist | [May 17 audit](audits/2026-05-17-project-review.md), [Roadmap](roadmap.md) | Intentional private-alpha `noindex` remains until launch readiness; metadata, trust pages, and public copy are ready before indexing changes. |
 | Open | P2 | Calendar creation flows plan | [Roadmap](roadmap.md), [TODO](../TODO.md) | Appointment, client request, personal event, class, and reminder flows are planned with role permissions, audit expectations, and notification behavior. |
 | Open | P2 | Generative music spike | [Roadmap](roadmap.md), [TODO](../TODO.md) | Hidden proof of concept confirms package viability, sample hosting, licensing, bundle size, autoplay behavior, and audio cleanup before product UI planning. |
@@ -58,6 +58,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-17 | Payload CMS needs a dedicated integration plan. | Default evaluation path is a separate Payload database or schema until ownership, migrations, backups, and auth boundaries are clear. The existing Next.js App Router site remains the public head. |
 | 2026-05-17 | Anatomy data remains code-first until reviewed. | Prisma persistence should wait until the seed model, sources, import/update workflow, and clinical/public education citation requirements are clear. |
 | 2026-05-17 | Private-alpha `noindex` is intentional. | Public indexing becomes a launch task only after SEO, trust pages, metadata, and public messaging are ready. |
+| 2026-05-18 | PWA offline support is scoped to anonymous public tools. | Offline-capable routes are home, Chimer, Anatomime, and local-first documentation pages. Account, auth, billing, calendar, booking, admin, hosted clinical sync, client, and `/api/*` surfaces stay online-only and fall back to `/offline.html` when offline. |
 
 ## Change History
 
@@ -68,6 +69,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Confirmed `/debug-hydration` is absent, `/api/debug/sentry` stays disabled with `MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false`, and the PWA manifest serves standalone metadata with 192/512 icons.
 - Completed `codex/optimize-account-data-shell`: `/account` keeps its shell/navigation immediate while loading only the active tab's server data, account panel data is cached briefly and invalidated after relevant mutations, and sidebar calendar context now hydrates only on calendar/booking routes instead of running readiness checks from the global layout.
 - Completed `codex/add-browser-qa-harness`: added Playwright browser QA, desktop/mobile public route smoke coverage, anonymous account sync request guards, PWA manifest/icon checks, local-first clinical document upload guards, and GitHub Actions CI wiring.
+- Completed `codex/pwa-offline-strategy`: documented the alpha PWA boundary, refreshed install icons, and constrained service worker offline route caching to anonymous public tools while excluding account, auth, billing, calendar, booking, clinical sync, client, and `/api/*` surfaces.
 
 ### 2026-05-17
 
@@ -95,6 +97,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - [Wiki index](wiki/index.md): repo-backed operational documentation entrypoint.
 - [Release checklist](wiki/release-checklist.md): alpha release gate and manual focus areas.
 - [Privacy and PHI posture](wiki/privacy-and-phi.md): local-first and hosted clinical sync boundaries.
+- [PWA offline strategy](wiki/pwa-offline-strategy.md): install/offline behavior, public-tool route allowlist, and online-only exclusions.
 - [Billing and memberships](wiki/billing-memberships.md): feature-based access and Stripe membership setup.
 - [Deployment and environment](wiki/deployment.md): environment variables, Sentry limits, Stripe setup, and migration rules.
 - [Dependency security notes](wiki/dependency-security.md): accepted residual dependency risk and audit commands.

@@ -88,5 +88,8 @@ Use this checklist before tagging or deploying a private-alpha build. Keep SOAP 
 - Desktop and mobile layouts have no overlapping text or controls at common viewport widths.
 - On phone-sized viewports, the mobile sidebar sheet opens and closes without covering the active page once dismissed.
 - The PWA manifest loads, includes standalone display metadata and 192/512 icons, and Chrome reports the app as installable when served over HTTPS.
+- The service worker registers in production over HTTPS or local loopback hosts and uses the documented public-tool offline allowlist.
+- After an online visit, `/chimer`, `/anatomime`, `/notes`, `/notes/soap`, `/notes/intake`, `/notes/journal`, and `/notes/rom` can reload offline from anonymous cached route documents and static shell assets.
+- `/calendar`, `/account`, auth, billing, booking, admin, settings, pricing, hosted clinical sync, client, and `/api/*` surfaces are not cached as offline app routes; offline navigation falls back to `/offline.html`.
 - `/notes/rom` requests motion/orientation access only after tapping Enable Sensor, handles denied or unsupported sensors with a message, and still supports manual measurement entry.
 - The README alpha scope still matches the shipped routes and privacy posture.
