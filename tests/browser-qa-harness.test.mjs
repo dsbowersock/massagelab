@@ -6,6 +6,15 @@ async function readProjectFile(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
 }
 
+function assertWorkflowStepBefore(workflow, firstStep, secondStep) {
+  const firstIndex = workflow.indexOf(firstStep)
+  const secondIndex = workflow.indexOf(secondStep)
+
+  assert.notEqual(firstIndex, -1, `Expected workflow to include ${firstStep}`)
+  assert.notEqual(secondIndex, -1, `Expected workflow to include ${secondStep}`)
+  assert.ok(firstIndex < secondIndex, `Expected ${firstStep} before ${secondStep}`)
+}
+
 test("browser QA harness is wired for public smoke, PWA, and local-first checks", async () => {
   const [packageJson, config, publicRoutesSpec, pwaSpec, localFirstSpec, ciWorkflow] = await Promise.all([
     readProjectFile("package.json"),
@@ -26,6 +35,12 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(config, /127\.0\.0\.1:3010/)
   assert.match(config, /Desktop Chrome/)
   assert.match(config, /Pixel 7/)
+  assert.match(config, /function parseBrowserQaPort/)
+  assert.match(config, /Number\.isInteger/)
+  assert.match(config, /process\.env\.PLAYWRIGHT_PORT/)
+  assert.match(config, /function parseBooleanEnv/)
+  assert.match(config, /const skipWebServer = parseBooleanEnv\(process\.env\.PLAYWRIGHT_SKIP_WEB_SERVER\)/)
+  assert.match(config, /webServer: skipWebServer/)
 
   for (const route of ["/", "/notes", "/notes/soap", "/chimer", "/calendar", "/anatomime"]) {
     assert.match(publicRoutesSpec, new RegExp(JSON.stringify(route)))
@@ -51,4 +66,5 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(ciWorkflow, /AUTH_SECRET/)
   assert.match(ciWorkflow, /NEXTAUTH_SECRET/)
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium/)
+  assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
 })
