@@ -48,5 +48,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(localFirstSpec, /POST|PUT|PATCH|DELETE/)
 
   assert.match(ciWorkflow, /npm run test:browser/)
+  assert.match(ciWorkflow, /AUTH_SECRET/)
+  assert.match(ciWorkflow, /NEXTAUTH_SECRET/)
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium/)
 })

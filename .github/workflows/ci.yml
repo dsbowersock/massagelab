@@ -10,6 +10,11 @@ jobs:
   qa:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      AUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
+      NEXTAUTH_SECRET: ci-browser-qa-auth-secret-not-for-production-use-only
+      AUTH_URL: http://127.0.0.1:3010
+      NEXTAUTH_URL: http://127.0.0.1:3010
 
     steps:
       - name: Check out repository
