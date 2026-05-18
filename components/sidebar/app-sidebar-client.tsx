@@ -69,6 +69,7 @@ import {
   primaryNavigationGroups,
   secondaryNavigationRoutes,
 } from "@/lib/navigation"
+import { emptySidebarCalendarContext, shouldLoadSidebarCalendarContext } from "@/lib/sidebar-calendar-context"
 import { shouldExpandSidebarFromRail } from "@/lib/sidebar-layout"
 import { cn } from "@/lib/utils"
 
@@ -543,6 +544,8 @@ export function AppSidebarClient({
   const isDrawer = renderMode === "drawer"
   const isCompactLandscape = renderMode === "compact-rail"
   const previousPathnameRef = React.useRef(pathname)
+  const [hydratedCalendarContext, setHydratedCalendarContext] = React.useState<SidebarCalendarContext>(calendarContext)
+  const shouldHydrateCalendarContext = Boolean(user && shouldLoadSidebarCalendarContext(pathname))
 
   React.useEffect(() => {
     if (previousPathnameRef.current === pathname) {
@@ -555,6 +558,32 @@ export function AppSidebarClient({
       setOpen(false)
     }
   }, [pathname, renderMode, setOpen])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    if (!shouldHydrateCalendarContext) {
+      setHydratedCalendarContext(emptySidebarCalendarContext as SidebarCalendarContext)
+      return
+    }
+
+    fetch("/api/calendar/sidebar-context")
+      .then((response) => response.ok ? response.json() : emptySidebarCalendarContext)
+      .then((nextCalendarContext) => {
+        if (!cancelled) {
+          setHydratedCalendarContext(nextCalendarContext as SidebarCalendarContext)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHydratedCalendarContext(emptySidebarCalendarContext as SidebarCalendarContext)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [shouldHydrateCalendarContext, pathname])
 
   return (
     <Sidebar side={settings.sidebarPosition} collapsible="icon">
@@ -609,7 +638,7 @@ export function AppSidebarClient({
               settings.sidebarPosition === "right" && "group-data-[state=expanded]:order-2",
             )}>
               <NavPrimary pathname={pathname} tooltipSide={tooltipSide} />
-              <CalendarSidebarSection calendarContext={calendarContext} pathname={pathname} />
+              <CalendarSidebarSection calendarContext={hydratedCalendarContext} pathname={pathname} />
             </div>
             <div
               className={cn(
@@ -634,7 +663,7 @@ export function AppSidebarClient({
         <>
           <SidebarContent className="gap-0">
             <NavPrimary pathname={pathname} tooltipSide={tooltipSide} />
-            <CalendarSidebarSection calendarContext={calendarContext} pathname={pathname} />
+            <CalendarSidebarSection calendarContext={hydratedCalendarContext} pathname={pathname} />
           </SidebarContent>
           <SidebarFooter className={cn(isDrawer && "gap-2 border-t border-sidebar-border")}>
             <NavSecondary pathname={pathname} />

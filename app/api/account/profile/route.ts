@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { buildTherapistProfilePayload } from "@/lib/account-preferences"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
@@ -54,6 +55,7 @@ export async function PUT(request: Request) {
       npiNumber: therapistProfile.npi_number,
     },
   })
+  clearAccountSurfaceDataCache(session.user.id, "profile")
 
   return NextResponse.json({
     displayName: profile.displayName ?? "",

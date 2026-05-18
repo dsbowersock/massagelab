@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { canUnlinkOAuthAccount } from "@/lib/auth-account-linking"
 import { prisma } from "@/lib/prisma"
 
@@ -47,6 +48,7 @@ export async function POST() {
       provider: "google",
     },
   })
+  clearAccountSurfaceDataCache(user.id, "security")
 
   return NextResponse.json({ message: "Google sign-in unlinked.", googleLinked: false })
 }

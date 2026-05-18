@@ -5,12 +5,9 @@ import { canSyncAccountPreferences } from "@/lib/account-preferences"
 import { createAsyncKeyedTtlCache } from "@/lib/async-ttl-cache"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { emptySidebarCalendarContext } from "@/lib/sidebar-calendar-context"
 
-const emptyCalendarContext: SidebarCalendarContext = {
-  practice: null,
-  therapists: [],
-  canManageAvailability: false,
-}
+const emptyCalendarContext = emptySidebarCalendarContext as SidebarCalendarContext
 
 const SIDEBAR_CALENDAR_CONTEXT_CACHE_TTL_MS = 60_000
 
@@ -98,7 +95,7 @@ const sidebarCalendarContextCache = createAsyncKeyedTtlCache<SidebarCalendarCont
   load: loadSidebarCalendarContext,
 })
 
-async function getSidebarCalendarContext(userId?: string): Promise<SidebarCalendarContext> {
+export async function getSidebarCalendarContext(userId?: string): Promise<SidebarCalendarContext> {
   if (!userId) {
     return emptyCalendarContext
   }
@@ -128,7 +125,7 @@ export async function getAppSidebarData() {
     }
     : null
   const canSyncAccountSettings = canSyncAccountPreferences(sessionUser)
-  const calendarContext = await getSidebarCalendarContext(sessionUser?.id)
+  const calendarContext = emptyCalendarContext
 
   return { user, calendarContext, canSyncAccountSettings }
 }

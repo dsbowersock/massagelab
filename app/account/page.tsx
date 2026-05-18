@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Suspense } from "react"
 import {
   BadgeCheck,
   CreditCard,
@@ -16,13 +17,10 @@ import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
 import { accountPageGroups, accountPageTabs, selectAccountTab } from "@/lib/account-page"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
-import { getClinicalSyncReadiness } from "@/lib/phi-sync"
+import { getAccountSurfaceData } from "@/lib/account-surface-data"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
-import { FEATURE_KEYS, getUserMembershipSummary } from "@/lib/membership"
-import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
+import { FEATURE_KEYS } from "@/lib/membership"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
-import { prisma } from "@/lib/prisma"
 import { cn } from "@/lib/utils"
 import {
   SettingsActionLink,
@@ -135,49 +133,17 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     )
   }
 
-  const [
-    profile,
-    roles,
-    credentialVerifications,
-    preferences,
-    progressCount,
-    achievementCount,
-    templateCount,
-    membershipSummary,
-    pricingCatalog,
-    accountSecurityState,
-  ] = await Promise.all([
-    prisma.userProfile.findUnique({ where: { userId: session.user.id } }),
-    prisma.userRole.findMany({ where: { userId: session.user.id }, select: { role: true, status: true } }),
-    prisma.credentialVerification.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    prisma.userPreference.findUnique({ where: { userId: session.user.id }, select: { updatedAt: true } }),
-    prisma.learningProgress.count({ where: { userId: session.user.id } }),
-    prisma.achievement.count({ where: { userId: session.user.id } }),
-    prisma.noteTemplate.count({ where: { userId: session.user.id } }),
-    getUserMembershipSummary(prisma, session.user.id),
-    getMembershipPricingCatalog(),
-    getAccountSecurityState(session.user.id),
-  ])
-
-  const clinicalSyncReadiness = getClinicalSyncReadiness()
-  const roleRows = roles as Array<{ role: AccountRole; status: VerificationStatus }>
-  const roleLabels: AccountRole[] =
-    roleRows.length > 0 ? roleRows.map((roleRow) => roleRow.role).sort() : [session.user.role as AccountRole]
-  const canManageAnatomy = canManageAnatomyContent(roleLabels)
-  const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
-  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
-  const accountDisplayName =
-    profile?.displayName || profile?.therapistName || session.user.name || session.user.email || "MassageLab account"
+  const roleRows = accountRoleRows(session.user)
+  const roleLabels = roleRows.map((roleRow) => roleRow.role).sort()
+  const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
+  const canUseChimerCustomColors = Boolean(session.user.capabilities?.canUseChimerCustomColors)
+  const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
   const accountItemStatuses = {
-    overview: formatMembershipLevel(membershipSummary.entitlements.level),
-    profile: profile ? "Saved defaults" : "Add defaults",
+    overview: "Summary",
+    profile: "Defaults",
     security: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
     credentials: roleLabels.map(formatRole).join(", "),
-    sync: clinicalSyncReadiness.enabled ? "Clinical sync enabled" : preferences?.updatedAt ? "Preferences synced" : "Local-first only",
+    sync: "Local-first",
     accessibility: "Coming later",
     notifications: "Coming later",
     "app-settings": "Theme and sidebar",
@@ -186,7 +152,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     people: "Coming later",
     "calendar-availability": "Open calendar",
     tools: canManageAnatomy ? "Admin tools available" : "Feedback",
-    membership: formatMembershipLevel(membershipSummary.entitlements.level),
+    membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
     "orders-invoices": "Coming later",
   }
 
@@ -196,7 +162,6 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         billing={params?.billing}
         checkout={params?.checkout}
         portal={params?.portal}
-        activeMembershipLevel={membershipSummary.entitlements.paidLevel ?? undefined}
       />
 
       <Card className={settingsSurfaceClassName}>
@@ -218,7 +183,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             />
             <StatusTile
               label="Membership"
-              value={formatMembershipLevel(membershipSummary.entitlements.level)}
+              value={canUseChimerCustomColors ? "Custom colors unlocked" : "Review plans"}
               href="/account?tab=membership"
             />
             <StatusTile
@@ -228,7 +193,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             />
             <StatusTile
               label="Clinical sync"
-              value={clinicalSyncReadiness.enabled ? "Enabled" : "Local-first only"}
+              value="Local-first only"
               href="/account?tab=sync"
             />
           </div>
@@ -246,435 +211,595 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           image: session.user.image,
         }}
       >
-        <TabsContent value="overview" className="space-y-5">
-          <TabPanelIntro tabId="overview" />
-
-          <Card id="account-summary" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserRound className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-                Account summary
-              </CardTitle>
-              <CardDescription>Current account status across sync, learning, security, and membership.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-3">
-                <StatusTile label="Preferences" value={preferences?.updatedAt ? "Synced" : "Not synced yet"} />
-                <StatusTile label="Progress items" value={String(progressCount)} />
-                <StatusTile label="Achievements" value={String(achievementCount)} />
-                <StatusTile label="Templates" value={String(templateCount)} />
-                <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
-                <StatusTile label="Chimer colors" value={canUseChimerCustomColors ? "Unlocked" : "Free defaults"} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="quick-actions" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle>Quick actions</CardTitle>
-              <CardDescription>Shortcuts to the account areas that usually need attention first.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              <AccountActionLink
-                href="/account?tab=security"
-                icon={<Shield className="h-4 w-4" aria-hidden="true" />}
-                title="Review security"
-                description={session.user.twoFactorEnabled ? "2FA is enabled. Review sign-in methods or backup codes." : "Add 2FA and confirm sign-in methods."}
-              />
-              <AccountActionLink
-                href="/account?tab=membership"
-                icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
-                title="Manage membership and billing"
-                description="Review subscription level, pricing options, subscription status, and billing portal access."
-              />
-              <AccountActionLink
-                href="/account?tab=sync"
-                icon={<FileCheck2 className="h-4 w-4" aria-hidden="true" />}
-                title="Sync preferences"
-                description={preferences?.updatedAt ? "Preference sync has cloud data available." : "Save local settings to your account."}
-              />
-              <AccountActionLink
-                href="/account?tab=credentials"
-                icon={<BadgeCheck className="h-4 w-4" aria-hidden="true" />}
-                title="Verify credentials"
-                description="Submit license or student enrollment details for role access."
-              />
-              <div className={cn(settingsInsetClassName, "p-4")}>
-                <p className="text-sm font-medium">Session</p>
-                <p className="mt-1 text-sm text-muted-foreground">End this browser session and return to the public home page.</p>
-                <div className="mt-4">
-                  <SignOutButton />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-5">
-          <TabPanelIntro tabId="security" />
-          <div id="security-settings">
-            <SecurityPanel
-              twoFactorEnabled={session.user.twoFactorEnabled}
-              hasPasswordCredential={accountSecurityState.hasPasswordCredential}
-              googleLinked={accountSecurityState.googleLinked}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="profile" className="space-y-5">
-          <TabPanelIntro tabId="profile" />
-          <Card id="profile-defaults" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle>Profile defaults</CardTitle>
-              <CardDescription>
-                These fields can pre-fill your own profile and documentation defaults. Do not enter client-identifying information here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form action={saveProfileAction} className="space-y-5">
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="display_name">Display name</Label>
-                    <Input id="display_name" name="display_name" defaultValue={profile?.displayName ?? ""} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="therapist_name">Therapist name</Label>
-                    <Input id="therapist_name" name="therapist_name" defaultValue={profile?.therapistName ?? ""} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="therapist_location">Practice location</Label>
-                  <Input id="therapist_location" name="therapist_location" defaultValue={profile?.therapistLocation ?? ""} />
-                </div>
-                <div className="grid gap-5 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="license_number">License number</Label>
-                    <Input id="license_number" name="license_number" defaultValue={profile?.licenseNumber ?? ""} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="license_organization">Licensing organization</Label>
-                    <Input id="license_organization" name="license_organization" defaultValue={profile?.licenseOrganization ?? ""} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="npi_number">NPI number</Label>
-                    <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
-                  </div>
-                </div>
-                <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
-                  Save profile
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="credentials" className="space-y-5">
-          <TabPanelIntro tabId="credentials" />
-          <Card id="role-verification" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BadgeCheck className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-                Role verification
-              </CardTitle>
-              <CardDescription>
-                Ohio massage licenses can verify automatically. Student enrollment and other jurisdictions stay pending until MassageLab can review the credential.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-3 md:grid-cols-2">
-                {roleRows.map((roleRow) => (
-                  <StatusTile key={roleRow.role} label={formatRole(roleRow.role)} value={formatStatus(roleRow.status)} />
-                ))}
-              </div>
-
-              {credentialVerifications.length > 0 ? (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">Recent verification requests</h3>
-                  <div className="space-y-2">
-                    {credentialVerifications.map((verification) => {
-                      const reasonLabel = verificationReasonLabel(verification.verificationPayload)
-                      const proofSummary = verificationProofSummary(verification.verificationPayload)
-
-                      return (
-                        <div key={verification.id} className={cn(settingsInsetClassName, "p-3")}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-sm font-medium">{formatCredentialKind(verification.kind)}</p>
-                            <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
-                              {formatStatus(verification.status as VerificationStatus)}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {[verification.jurisdictionCode, verification.issuingAuthority, verification.credentialNumber]
-                              .filter(Boolean)
-                              .join(" · ") || "Pending review"}
-                          </p>
-                          {reasonLabel ? <p className="mt-2 text-xs text-muted-foreground">Result: {reasonLabel}</p> : null}
-                          {proofSummary ? <p className="mt-1 text-xs text-muted-foreground">{proofSummary}</p> : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              <form action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="credential_kind">Credential type</Label>
-                  <select
-                    id="credential_kind"
-                    name="credential_kind"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    defaultValue="MASSAGE_LICENSE"
-                  >
-                    <option value="MASSAGE_LICENSE">Massage license</option>
-                    <option value="STUDENT_ENROLLMENT">Student enrollment</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="jurisdiction_code">State or jurisdiction</Label>
-                  <select
-                    id="jurisdiction_code"
-                    name="jurisdiction_code"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    defaultValue="OH"
-                  >
-                    {US_MASSAGE_JURISDICTIONS.map(([code, name]) => (
-                      <option key={code} value={code}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="credential_number">License or enrollment identifier</Label>
-                  <Input id="credential_number" name="credential_number" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="issuing_authority">Issuing school, board, or agency</Label>
-                  <Input id="issuing_authority" name="issuing_authority" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="legal_first_name">Legal first name</Label>
-                  <Input id="legal_first_name" name="legal_first_name" autoComplete="given-name" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="legal_middle_name">Legal middle name or initial</Label>
-                  <Input id="legal_middle_name" name="legal_middle_name" autoComplete="additional-name" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="legal_last_name">Legal last name</Label>
-                  <Input id="legal_last_name" name="legal_last_name" autoComplete="family-name" required />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="evidence_description">Evidence notes</Label>
-                  <Input
-                    id="evidence_description"
-                    name="evidence_description"
-                    placeholder="Example: enrollment letter dated 2026-05-01, or Ohio eLicense lookup available"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="student_start_date" className="flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-brand-orange" aria-hidden="true" />
-                    Student first day of class
-                  </Label>
-                  <Input id="student_start_date" name="student_start_date" type="date" />
-                </div>
-                <p className="text-xs text-muted-foreground md:col-span-2">
-                  Ohio massage license requests run an automatic eLicense check. Other jurisdictions and student enrollment remain pending for review.
-                </p>
-                <div className="md:col-span-2">
-                  <Button type="submit" variant="outline">
-                    Request verification
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="app-settings" className="flex flex-col gap-5">
-          <TabPanelIntro tabId="app-settings" />
-          <AccountAppSettingsPanel />
-        </TabsContent>
-
-        <TabsContent value="therapist-defaults" className="flex flex-col gap-5">
-          <TabPanelIntro tabId="therapist-defaults" />
-          <LocalTherapistDefaultsPanel />
-        </TabsContent>
-
-        <TabsContent value="membership" className="space-y-5">
-          <TabPanelIntro tabId="membership" />
-          <Card id="membership" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-                Membership
-              </CardTitle>
-              <CardDescription>
-                Free access remains available by default. Paid memberships currently unlock Chimer custom colors and membership status.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-3">
-                <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
-                <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
-                <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
-              </div>
-
-              <div className="rounded-md border border-primary/50 bg-primary/10 p-3 shadow-sm shadow-primary/10">
-                <p className="text-sm text-muted-foreground">
-                  Basic Chimer remains free. Paid memberships unlock saved custom display and background colors. Yearly billing is highlighted when Stripe pricing shows an annual savings.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div id="membership-pricing">
-            <MembershipPricingCards
-              catalog={pricingCatalog}
-              activeMembershipLevel={membershipSummary.entitlements.paidLevel}
-              mode="checkout"
-            />
-          </div>
-
-          <Card id="subscription-status" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle>Subscription status</CardTitle>
-              <CardDescription>Stripe billing status, recent subscriptions, and the customer portal.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {membershipSummary.subscriptions.length > 0 ? (
-                <div className="space-y-2">
-                  {membershipSummary.subscriptions.slice(0, 3).map((subscription: {
-                    id: string
-                    membershipLevel: string
-                    status: string
-                    currentPeriodEnd: Date | null
-                    couponId: string | null
-                  }) => (
-                    <div key={subscription.id} className={cn(settingsInsetClassName, "p-3 text-sm")}>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium">{formatMembershipLevel(subscription.membershipLevel)}</span>
-                        <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
-                          {subscription.status}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {subscription.currentPeriodEnd ? `Renews through ${subscription.currentPeriodEnd.toLocaleDateString()}` : "Current period unavailable"}
-                        {subscription.couponId ? ` · Coupon ${subscription.couponId}` : ""}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              <div id="billing-portal" className="flex flex-col gap-3">
-                {canOpenBillingPortal ? (
-                <form action="/api/billing/portal" method="post">
-                  <Button type="submit" variant="outline">
-                    Manage subscription
-                  </Button>
-                </form>
-                ) : null}
-                {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    You do not have a Stripe-managed subscription yet.
-                  </p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="sync" className="space-y-5">
-          <TabPanelIntro tabId="sync" />
-          <div id="preference-sync">
-            <PreferenceSync hasCloudPreferences={Boolean(preferences)} />
-          </div>
-
-          <Card id="clinical-sync" className={cn(settingsSurfaceClassName, "border-primary/50 bg-primary/10")}>
-            <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-              <ShieldAlert className="mt-1 h-5 w-5 text-brand-orange" aria-hidden="true" />
-              <div>
-                <CardTitle>Clinical sync is not hosted yet</CardTitle>
-                <CardDescription>
-                  Notes, intake forms, journals, and range-of-motion data stay on the user&apos;s device. MassageLab is structured for future compliant sync, but it will stay off until BAAs, risk review, audit controls, and sustainable funding are in place.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="outline">
-                <Link href="/roadmap">Support the clinical sync roadmap</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="tools" className="space-y-5">
-          <TabPanelIntro tabId="tools" />
-          <Card id="anatomy-feedback" className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle>Content feedback</CardTitle>
-              <CardDescription>Flag anatomy content that needs correction or review.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="outline">
-                <Link href="/anatomy/corrections">Flag anatomy content</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {canManageAnatomy ? (
-            <Card id="content-tools" className={settingsSurfaceClassName}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-                  Content tools
-                </CardTitle>
-                <CardDescription>Admin and editor roles can manage the anatomy content database.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild variant="outline">
-                  <Link href="/admin/anatomy">Open anatomy admin</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Card className={settingsSurfaceClassName}>
-            <CardHeader>
-              <CardTitle>Session</CardTitle>
-              <CardDescription>Sign out of this browser session.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SignOutButton />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <Suspense fallback={<AccountTabLoading tabId={defaultTab} />}>
+          <ActiveAccountTab tabId={defaultTab} userId={session.user.id} sessionUser={session.user as AccountSessionUser} />
+        </Suspense>
       </AccountSettingsShell>
     </AccountShell>
   )
 }
 
-async function getAccountSecurityState(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      passwordCredential: {
-        select: { id: true },
-      },
-      accounts: {
-        where: { provider: "google" },
-        select: { id: true },
-      },
-    },
-  })
-
-  return {
-    hasPasswordCredential: Boolean(user?.passwordCredential),
-    googleLinked: Boolean(user?.accounts.length),
+type AccountSessionUser = {
+  id: string
+  name?: string | null
+  email?: string | null
+  image?: string | null
+  role: AccountRole
+  roles?: AccountRole[]
+  roleAssignments?: Array<{ role: AccountRole; status: VerificationStatus }>
+  capabilities?: {
+    canManageAnatomyContent?: boolean
+    canUseChimerCustomColors?: boolean
   }
+  twoFactorEnabled?: boolean
+}
+
+type MembershipPricingCatalog = React.ComponentProps<typeof MembershipPricingCards>["catalog"]
+
+function accountRoleRows(sessionUser: AccountSessionUser): Array<{ role: AccountRole; status: VerificationStatus }> {
+  if (Array.isArray(sessionUser.roleAssignments) && sessionUser.roleAssignments.length > 0) {
+    return sessionUser.roleAssignments
+  }
+
+  if (Array.isArray(sessionUser.roles) && sessionUser.roles.length > 0) {
+    return sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
+  }
+
+  return [{ role: sessionUser.role ?? "USER", status: "VERIFIED" as VerificationStatus }]
+}
+
+function AccountTabLoading({ tabId }: { tabId: string }) {
+  return (
+    <TabsContent value={tabId} className="space-y-5">
+      <TabPanelIntro tabId={tabId} />
+      <SettingsSurface title="Loading account section" description="Preparing this account section.">
+        <div className="h-2" />
+      </SettingsSurface>
+    </TabsContent>
+  )
+}
+
+async function ActiveAccountTab({
+  tabId,
+  userId,
+  sessionUser,
+}: {
+  tabId: string
+  userId: string
+  sessionUser: AccountSessionUser
+}) {
+  if (tabId === "profile") {
+    return <ProfileTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "security") {
+    return <SecurityTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "credentials") {
+    return <CredentialsTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "app-settings") {
+    return (
+      <TabsContent value="app-settings" className="flex flex-col gap-5">
+        <TabPanelIntro tabId="app-settings" />
+        <AccountAppSettingsPanel />
+      </TabsContent>
+    )
+  }
+
+  if (tabId === "therapist-defaults") {
+    return (
+      <TabsContent value="therapist-defaults" className="flex flex-col gap-5">
+        <TabPanelIntro tabId="therapist-defaults" />
+        <LocalTherapistDefaultsPanel />
+      </TabsContent>
+    )
+  }
+
+  if (tabId === "sync") {
+    return <SyncTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "membership") {
+    return <MembershipTab userId={userId} sessionUser={sessionUser} />
+  }
+
+  if (tabId === "tools") {
+    return <ToolsTab sessionUser={sessionUser} />
+  }
+
+  return <OverviewTab userId={userId} sessionUser={sessionUser} />
+}
+
+async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("overview", userId, sessionUser) as unknown as {
+    counts: {
+      progressCount: number
+      achievementCount: number
+      templateCount: number
+    }
+    canUseChimerCustomColors: boolean
+  }
+
+  return (
+    <TabsContent value="overview" className="space-y-5">
+      <TabPanelIntro tabId="overview" />
+
+      <Card id="account-summary" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserRound className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+            Account summary
+          </CardTitle>
+          <CardDescription>Current account status across learning, templates, security, and feature access.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-3">
+            <StatusTile label="Progress items" value={String(data.counts.progressCount)} />
+            <StatusTile label="Achievements" value={String(data.counts.achievementCount)} />
+            <StatusTile label="Templates" value={String(data.counts.templateCount)} />
+            <StatusTile label="Security" value={sessionUser.twoFactorEnabled ? "2FA enabled" : "2FA available"} />
+            <StatusTile label="Clinical sync" value="Local-first only" />
+            <StatusTile label="Chimer colors" value={data.canUseChimerCustomColors ? "Unlocked" : "Free defaults"} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="quick-actions" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Quick actions</CardTitle>
+          <CardDescription>Shortcuts to the account areas that usually need attention first.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          <AccountActionLink
+            href="/account?tab=security"
+            icon={<Shield className="h-4 w-4" aria-hidden="true" />}
+            title="Review security"
+            description={sessionUser.twoFactorEnabled ? "2FA is enabled. Review sign-in methods or backup codes." : "Add 2FA and confirm sign-in methods."}
+          />
+          <AccountActionLink
+            href="/account?tab=membership"
+            icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
+            title="Manage membership and billing"
+            description="Review pricing options, subscription status, and billing portal access."
+          />
+          <AccountActionLink
+            href="/account?tab=sync"
+            icon={<FileCheck2 className="h-4 w-4" aria-hidden="true" />}
+            title="Sync preferences"
+            description="Save safe local settings to your account while clinical data stays local-first."
+          />
+          <AccountActionLink
+            href="/account?tab=credentials"
+            icon={<BadgeCheck className="h-4 w-4" aria-hidden="true" />}
+            title="Verify credentials"
+            description="Submit license or student enrollment details for role access."
+          />
+          <div className={cn(settingsInsetClassName, "p-4")}>
+            <p className="text-sm font-medium">Session</p>
+            <p className="mt-1 text-sm text-muted-foreground">End this browser session and return to the public home page.</p>
+            <div className="mt-4">
+              <SignOutButton />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
+async function SecurityTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("security", userId, sessionUser) as unknown as {
+    hasPasswordCredential: boolean
+    googleLinked: boolean
+  }
+
+  return (
+    <TabsContent value="security" className="space-y-5">
+      <TabPanelIntro tabId="security" />
+      <div id="security-settings">
+        <SecurityPanel
+          twoFactorEnabled={Boolean(sessionUser.twoFactorEnabled)}
+          hasPasswordCredential={data.hasPasswordCredential}
+          googleLinked={data.googleLinked}
+        />
+      </div>
+    </TabsContent>
+  )
+}
+
+async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("profile", userId, sessionUser) as unknown as {
+    profile: {
+      displayName?: string | null
+      therapistName?: string | null
+      therapistLocation?: string | null
+      licenseNumber?: string | null
+      licenseOrganization?: string | null
+      npiNumber?: string | null
+    } | null
+  }
+  const profile = data.profile
+
+  return (
+    <TabsContent value="profile" className="space-y-5">
+      <TabPanelIntro tabId="profile" />
+      <Card id="profile-defaults" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Profile defaults</CardTitle>
+          <CardDescription>
+            These fields can pre-fill your own profile and documentation defaults. Do not enter client-identifying information here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={saveProfileAction} className="space-y-5">
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="display_name">Display name</Label>
+                <Input id="display_name" name="display_name" defaultValue={profile?.displayName ?? ""} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="therapist_name">Therapist name</Label>
+                <Input id="therapist_name" name="therapist_name" defaultValue={profile?.therapistName ?? ""} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="therapist_location">Practice location</Label>
+              <Input id="therapist_location" name="therapist_location" defaultValue={profile?.therapistLocation ?? ""} />
+            </div>
+            <div className="grid gap-5 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="license_number">License number</Label>
+                <Input id="license_number" name="license_number" defaultValue={profile?.licenseNumber ?? ""} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="license_organization">Licensing organization</Label>
+                <Input id="license_organization" name="license_organization" defaultValue={profile?.licenseOrganization ?? ""} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="npi_number">NPI number</Label>
+                <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
+              </div>
+            </div>
+            <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
+              Save profile
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
+async function CredentialsTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("credentials", userId, sessionUser) as unknown as {
+    roleAssignments: Array<{ role: AccountRole; status: VerificationStatus }>
+    credentialVerifications: Array<{
+      id: string
+      kind: string
+      status: VerificationStatus | string
+      jurisdictionCode: string | null
+      issuingAuthority: string | null
+      credentialNumber: string | null
+      verificationPayload: unknown
+    }>
+  }
+  const roleRows = data.roleAssignments
+  const credentialVerifications = data.credentialVerifications
+
+  return (
+    <TabsContent value="credentials" className="space-y-5">
+      <TabPanelIntro tabId="credentials" />
+      <Card id="role-verification" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BadgeCheck className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+            Role verification
+          </CardTitle>
+          <CardDescription>
+            Ohio massage licenses can verify automatically. Student enrollment and other jurisdictions stay pending until MassageLab can review the credential.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            {roleRows.map((roleRow) => (
+              <StatusTile key={roleRow.role} label={formatRole(roleRow.role)} value={formatStatus(roleRow.status)} />
+            ))}
+          </div>
+
+          {credentialVerifications.length > 0 ? (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">Recent verification requests</h3>
+              <div className="space-y-2">
+                {credentialVerifications.map((verification) => {
+                  const reasonLabel = verificationReasonLabel(verification.verificationPayload)
+                  const proofSummary = verificationProofSummary(verification.verificationPayload)
+
+                  return (
+                    <div key={verification.id} className={cn(settingsInsetClassName, "p-3")}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium">{formatCredentialKind(verification.kind)}</p>
+                        <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
+                          {formatStatus(verification.status as VerificationStatus)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {[verification.jurisdictionCode, verification.issuingAuthority, verification.credentialNumber]
+                          .filter(Boolean)
+                          .join(" · ") || "Pending review"}
+                      </p>
+                      {reasonLabel ? <p className="mt-2 text-xs text-muted-foreground">Result: {reasonLabel}</p> : null}
+                      {proofSummary ? <p className="mt-1 text-xs text-muted-foreground">{proofSummary}</p> : null}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <form action={requestCredentialVerificationAction} className="grid gap-4 border-t border-border/80 pt-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="credential_kind">Credential type</Label>
+              <select
+                id="credential_kind"
+                name="credential_kind"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                defaultValue="MASSAGE_LICENSE"
+              >
+                <option value="MASSAGE_LICENSE">Massage license</option>
+                <option value="STUDENT_ENROLLMENT">Student enrollment</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jurisdiction_code">State or jurisdiction</Label>
+              <select
+                id="jurisdiction_code"
+                name="jurisdiction_code"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                defaultValue="OH"
+              >
+                {US_MASSAGE_JURISDICTIONS.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="credential_number">License or enrollment identifier</Label>
+              <Input id="credential_number" name="credential_number" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="issuing_authority">Issuing school, board, or agency</Label>
+              <Input id="issuing_authority" name="issuing_authority" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="legal_first_name">Legal first name</Label>
+              <Input id="legal_first_name" name="legal_first_name" autoComplete="given-name" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="legal_middle_name">Legal middle name or initial</Label>
+              <Input id="legal_middle_name" name="legal_middle_name" autoComplete="additional-name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="legal_last_name">Legal last name</Label>
+              <Input id="legal_last_name" name="legal_last_name" autoComplete="family-name" required />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="evidence_description">Evidence notes</Label>
+              <Input
+                id="evidence_description"
+                name="evidence_description"
+                placeholder="Example: enrollment letter dated 2026-05-01, or Ohio eLicense lookup available"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="student_start_date" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-brand-orange" aria-hidden="true" />
+                Student first day of class
+              </Label>
+              <Input id="student_start_date" name="student_start_date" type="date" />
+            </div>
+            <p className="text-xs text-muted-foreground md:col-span-2">
+              Ohio massage license requests run an automatic eLicense check. Other jurisdictions and student enrollment remain pending for review.
+            </p>
+            <div className="md:col-span-2">
+              <Button type="submit" variant="outline">
+                Request verification
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
+async function MembershipTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("membership", userId, sessionUser) as unknown as {
+    membershipSummary: {
+      stripeCustomer: unknown
+      subscriptions: Array<{
+        id: string
+        membershipLevel: string
+        status: string
+        currentPeriodEnd: Date | null
+        couponId: string | null
+      }>
+      entitlements: {
+        level: string
+        paidLevel?: string | null
+        features: string[]
+      }
+    }
+    pricingCatalog: MembershipPricingCatalog
+  }
+  const membershipSummary = data.membershipSummary
+  const canUseChimerCustomColors = membershipSummary.entitlements.features.includes(FEATURE_KEYS.chimerCustomColors)
+  const canOpenBillingPortal = Boolean(membershipSummary.stripeCustomer && membershipSummary.subscriptions.length > 0)
+
+  return (
+    <TabsContent value="membership" className="space-y-5">
+      <TabPanelIntro tabId="membership" />
+      <Card id="membership" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+            Membership
+          </CardTitle>
+          <CardDescription>
+            Free access remains available by default. Paid memberships currently unlock Chimer custom colors and membership status.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
+            <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
+            <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
+          </div>
+
+          <div className="rounded-md border border-primary/50 bg-primary/10 p-3 shadow-sm shadow-primary/10">
+            <p className="text-sm text-muted-foreground">
+              Basic Chimer remains free. Paid memberships unlock saved custom display and background colors. Yearly billing is highlighted when Stripe pricing shows an annual savings.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div id="membership-pricing">
+        <MembershipPricingCards
+          catalog={data.pricingCatalog}
+          activeMembershipLevel={membershipSummary.entitlements.paidLevel}
+          mode="checkout"
+        />
+      </div>
+
+      <Card id="subscription-status" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Subscription status</CardTitle>
+          <CardDescription>Stripe billing status, recent subscriptions, and the customer portal.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {membershipSummary.subscriptions.length > 0 ? (
+            <div className="space-y-2">
+              {membershipSummary.subscriptions.slice(0, 3).map((subscription) => (
+                <div key={subscription.id} className={cn(settingsInsetClassName, "p-3 text-sm")}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{formatMembershipLevel(subscription.membershipLevel)}</span>
+                    <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange">
+                      {subscription.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {subscription.currentPeriodEnd ? `Renews through ${subscription.currentPeriodEnd.toLocaleDateString()}` : "Current period unavailable"}
+                    {subscription.couponId ? ` · Coupon ${subscription.couponId}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div id="billing-portal" className="flex flex-col gap-3">
+            {canOpenBillingPortal ? (
+              <form action="/api/billing/portal" method="post">
+                <Button type="submit" variant="outline">
+                  Manage subscription
+                </Button>
+              </form>
+            ) : null}
+            {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You do not have a Stripe-managed subscription yet.
+              </p>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
+async function SyncTab({ userId, sessionUser }: { userId: string; sessionUser: AccountSessionUser }) {
+  const data = await getAccountSurfaceData("sync", userId, sessionUser) as unknown as {
+    preferences: { updatedAt: Date | null } | null
+    clinicalSyncReadiness: { enabled: boolean }
+  }
+
+  return (
+    <TabsContent value="sync" className="space-y-5">
+      <TabPanelIntro tabId="sync" />
+      <div id="preference-sync">
+        <PreferenceSync hasCloudPreferences={Boolean(data.preferences)} />
+      </div>
+
+      <Card id="clinical-sync" className={cn(settingsSurfaceClassName, "border-primary/50 bg-primary/10")}>
+        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+          <ShieldAlert className="mt-1 h-5 w-5 text-brand-orange" aria-hidden="true" />
+          <div>
+            <CardTitle>{data.clinicalSyncReadiness.enabled ? "Clinical sync is gated" : "Clinical sync is not hosted yet"}</CardTitle>
+            <CardDescription>
+              Notes, intake forms, journals, and range-of-motion data stay on the user&apos;s device. MassageLab is structured for future compliant sync, but it will stay off until BAAs, risk review, audit controls, and sustainable funding are in place.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/roadmap">Support the clinical sync roadmap</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
+}
+
+function ToolsTab({ sessionUser }: { sessionUser: AccountSessionUser }) {
+  const canManageAnatomy = Boolean(sessionUser.capabilities?.canManageAnatomyContent)
+
+  return (
+    <TabsContent value="tools" className="space-y-5">
+      <TabPanelIntro tabId="tools" />
+      <Card id="anatomy-feedback" className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Content feedback</CardTitle>
+          <CardDescription>Flag anatomy content that needs correction or review.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/anatomy/corrections">Flag anatomy content</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {canManageAnatomy ? (
+        <Card id="content-tools" className={settingsSurfaceClassName}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+              Content tools
+            </CardTitle>
+            <CardDescription>Admin and editor roles can manage the anatomy content database.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/admin/anatomy">Open anatomy admin</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card className={settingsSurfaceClassName}>
+        <CardHeader>
+          <CardTitle>Session</CardTitle>
+          <CardDescription>Sign out of this browser session.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignOutButton />
+        </CardContent>
+      </Card>
+    </TabsContent>
+  )
 }
 
 const signedOutAccountItemStatuses = {

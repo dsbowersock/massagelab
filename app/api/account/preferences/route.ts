@@ -5,6 +5,7 @@ import {
   USER_PREFERENCES_VERSION,
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
 import { getUserEntitlementState } from "@/lib/membership"
 import { prisma } from "@/lib/prisma"
@@ -72,6 +73,7 @@ export async function PUT(request: Request) {
       notePreferences: "notePreferences" in body ? jsonObject(payload.note_preferences) : (existing?.notePreferences as Prisma.InputJsonValue | undefined) ?? {},
     },
   })
+  clearAccountSurfaceDataCache(session.user.id, "sync")
 
   return NextResponse.json({
     version: preferences.version,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { generateBackupCodes, hashBackupCode } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
 
@@ -30,6 +31,7 @@ export async function POST() {
       }))),
     }),
   ])
+  clearAccountSurfaceDataCache(session.user.id, "security")
 
   return NextResponse.json({ backupCodes })
 }

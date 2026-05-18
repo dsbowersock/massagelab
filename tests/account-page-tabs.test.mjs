@@ -6,6 +6,7 @@ import {
   accountPageSectionIds,
   accountPageTabs,
   filterAccountPageGroups,
+  getAccountTabHref,
   selectAccountTab,
 } from "../lib/account-page.js"
 
@@ -82,6 +83,12 @@ describe("Account page tab model", () => {
     assert.equal(selectAccountTab(undefined, { checkout: "success" }), "membership")
     assert.equal(selectAccountTab(undefined, { portal: "returned" }), "membership")
     assert.equal(selectAccountTab(undefined, { billing: "checkout-error" }), "membership")
+  })
+
+  it("builds stable account tab hrefs for route-backed navigation", () => {
+    assert.equal(getAccountTabHref("profile"), "/account?tab=profile")
+    assert.equal(getAccountTabHref("security"), "/account?tab=security")
+    assert.equal(getAccountTabHref("membership"), "/account?tab=membership")
   })
 
   it("filters account navigation by label, group, and description", () => {

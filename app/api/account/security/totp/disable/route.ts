@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { prisma } from "@/lib/prisma"
 
 export async function POST() {
@@ -17,6 +18,7 @@ export async function POST() {
       where: { userId: session.user.id },
     }),
   ])
+  clearAccountSurfaceDataCache(session.user.id, "security")
 
   return NextResponse.json({ message: "2FA disabled." })
 }

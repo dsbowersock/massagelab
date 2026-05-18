@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import {
   decryptSecret,
   generateBackupCodes,
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       }))),
     }),
   ])
+  clearAccountSurfaceDataCache(session.user.id, "security")
 
   return NextResponse.json({
     message: "Authenticator-app 2FA enabled.",
