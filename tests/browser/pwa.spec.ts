@@ -75,12 +75,14 @@ test("service worker keeps selected public tools reloadable offline and excludes
 
   await context.setOffline(true)
 
-  await page.reload({ waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("heading", { name: /Chimer/i })).toBeVisible()
-  await expect(page.getByText(/MassageLab is offline/i)).toHaveCount(0)
+  try {
+    await page.reload({ waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("heading", { name: /Chimer/i })).toBeVisible()
+    await expect(page.getByText(/MassageLab is offline/i)).toHaveCount(0)
 
-  await page.goto("/calendar", { waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("heading", { name: /MassageLab is offline/i })).toBeVisible()
-
-  await context.setOffline(false)
+    await page.goto("/calendar", { waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("heading", { name: /MassageLab is offline/i })).toBeVisible()
+  } finally {
+    await context.setOffline(false)
+  }
 })
