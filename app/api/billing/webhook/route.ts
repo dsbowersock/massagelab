@@ -5,6 +5,7 @@ import {
   upsertMembershipSubscriptionFromStripe,
   verifyStripeWebhookSignature,
 } from "@/lib/stripe-billing"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { prisma } from "@/lib/prisma"
 
 export const runtime = "nodejs"
@@ -22,7 +23,8 @@ export async function POST(request: Request) {
   const object = event?.data?.object
 
   if (event?.type === "checkout.session.completed") {
-    await recordCheckoutSessionCompleted(prisma, object)
+    const result = await recordCheckoutSessionCompleted(prisma, object)
+    clearAccountSurfaceDataCache(result?.customer?.userId ?? result?.subscription?.userId, "membership")
   }
 
   if (
@@ -32,7 +34,8 @@ export async function POST(request: Request) {
     event?.type === "customer.subscription.paused" ||
     event?.type === "customer.subscription.resumed"
   ) {
-    await upsertMembershipSubscriptionFromStripe(prisma, object)
+    const subscription = await upsertMembershipSubscriptionFromStripe(prisma, object)
+    clearAccountSurfaceDataCache(subscription?.userId, "membership")
   }
 
   return NextResponse.json({ received: true })

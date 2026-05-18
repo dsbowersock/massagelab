@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { Prisma, StudentAccessStatus, VerificationSourceType, VerificationStatus } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { roleStatusForCredentialStatus, shouldUpdateCredentialRole } from "@/lib/credential-verification-roles"
 import { claimVerifiedCredential } from "@/lib/credential-claims"
 import { getJurisdictionVerificationPlan } from "@/lib/license-verification"
@@ -59,6 +60,7 @@ export async function saveProfileAction(formData: FormData) {
     },
   })
 
+  clearAccountSurfaceDataCache(session.user.id)
   revalidatePath("/account")
 }
 
@@ -317,5 +319,6 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     }
   }
 
+  clearAccountSurfaceDataCache(session.user.id)
   revalidatePath("/account")
 }

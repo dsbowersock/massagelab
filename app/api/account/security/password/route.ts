@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { hashPassword, verifyPassword } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
 
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       data: { emailVerified: new Date() },
     })
   }
+  clearAccountSurfaceDataCache(user.id, "security")
 
   return NextResponse.json({
     message: user.passwordCredential ? "Password updated." : "Email/password sign-in enabled.",

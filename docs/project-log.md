@@ -18,7 +18,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Completed | P1 | Finish alpha release verification | [TODO](../TODO.md), [Alpha QA](alpha-qa.md), [Roadmap](roadmap.md) | `docs/alpha-qa.md` was walked with anonymous data; Chimer, Notes, Calendar, Anatomime, Support, Roadmap, Account, Security, Settings, PWA metadata, and billing gates were verified. |
 | Completed | P1 | Manually verify Chimer clock-only mode | [TODO](../TODO.md) | Clock-only mode was checked on desktop and phone landscape without layout overlap, unsafe motion, or unreadable controls. |
 | Completed | P1 | Manually verify Stripe checkout and webhook flow | [TODO](../TODO.md), [Billing wiki](wiki/billing-memberships.md) | Stripe test checkout, signed local webhook delivery, account membership status, and Chimer custom-color entitlement were confirmed with test-mode values. |
-| Open | P1 | Optimize signed-in account data shell | [May 17 audit](audits/2026-05-17-project-review.md) | Signed-in `/account` loads fewer blocking DB calls; calendar readiness no longer runs on unrelated page views; `/account` slow-query Sentry issues stop increasing. |
+| Completed | P1 | Optimize signed-in account data shell | [May 17 audit](audits/2026-05-17-project-review.md) | Signed-in `/account` now streams only the active tab's data, account tab data uses short-lived per-surface caches with mutation invalidation, and sidebar calendar readiness moved off unrelated page views into route-gated calendar hydration. |
 | Active | P2 | Maintain this project log | This consolidation plan | Future meaningful changes, completed plans, branch outcomes, and priority changes are appended to the change history. |
 
 ## Next
@@ -66,6 +66,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Completed alpha release readiness verification on `codex/alpha-release-readiness`: automated gate, browser route pass, Chimer timer and clock-only checks, PWA manifest, diagnostic route gates, local-first documentation network checks, account membership display, Stripe test checkout creation, signed local webhook processing, and Chimer custom-color entitlement.
 - Fixed an anonymous Chimer preference-sync regression found during browser QA. Chimer now checks the client session before calling `/api/account/preferences`, preventing unsigned users from generating account preference 401 console errors.
 - Confirmed `/debug-hydration` is absent, `/api/debug/sentry` stays disabled with `MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false`, and the PWA manifest serves standalone metadata with 192/512 icons.
+- Completed `codex/optimize-account-data-shell`: `/account` keeps its shell/navigation immediate while loading only the active tab's server data, account panel data is cached briefly and invalidated after relevant mutations, and sidebar calendar context now hydrates only on calendar/booking routes instead of running readiness checks from the global layout.
 
 ### 2026-05-17
 

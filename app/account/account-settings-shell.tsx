@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Accessibility,
   ArrowLeft,
@@ -21,7 +22,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react"
-import { filterAccountPageGroups } from "@/lib/account-page"
+import { filterAccountPageGroups, getAccountTabHref } from "@/lib/account-page"
 import { cn } from "@/lib/utils"
 import { settingsSurfaceClassName } from "@/components/account/settings-surfaces"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -89,6 +90,7 @@ export function AccountSettingsShell({
   showMobileIndexFirst,
   user,
 }: AccountSettingsShellProps) {
+  const router = useRouter()
   const [activeSection, setActiveSection] = React.useState(defaultValue)
   const [query, setQuery] = React.useState("")
   const [mobileIndexVisible, setMobileIndexVisible] = React.useState(showMobileIndexFirst)
@@ -103,14 +105,36 @@ export function AccountSettingsShell({
     setMobileIndexVisible(showMobileIndexFirst)
   }, [defaultValue, showMobileIndexFirst])
 
+  const prefetchSection = React.useCallback((id: string) => {
+    router.prefetch(getAccountTabHref(id))
+  }, [router])
+
+  React.useEffect(() => {
+    const likelySections = ["profile", "security"].filter((section) => section !== defaultValue)
+
+    if (likelySections.length === 0) {
+      return
+    }
+
+    const prefetchLikelySections = () => {
+      likelySections.forEach(prefetchSection)
+    }
+
+    const requestIdleCallback = window.requestIdleCallback?.bind(window)
+    const cancelIdleCallback = window.cancelIdleCallback?.bind(window)
+
+    if (requestIdleCallback && cancelIdleCallback) {
+      const idleCallback = requestIdleCallback(prefetchLikelySections, { timeout: 2_000 })
+      return () => cancelIdleCallback(idleCallback)
+    }
+
+    const timeout = globalThis.setTimeout(prefetchLikelySections, 1_000)
+    return () => globalThis.clearTimeout(timeout)
+  }, [defaultValue, prefetchSection])
+
   function chooseSection(id: string) {
     setActiveSection(id)
     setMobileIndexVisible(false)
-
-    const url = new URL(window.location.href)
-    url.search = ""
-    url.searchParams.set("tab", id)
-    window.history.replaceState(null, "", url.toString())
 
     window.requestAnimationFrame(() => {
       shellRef.current?.scrollIntoView({ block: "start" })
@@ -137,6 +161,7 @@ export function AccountSettingsShell({
             groups={filteredGroups}
             itemStatuses={itemStatuses}
             onChooseSection={chooseSection}
+            onPrefetchSection={prefetchSection}
             query={query}
             setQuery={setQuery}
             user={user}
@@ -162,6 +187,7 @@ export function AccountSettingsShell({
             groups={filteredGroups}
             itemStatuses={itemStatuses}
             onChooseSection={chooseSection}
+            onPrefetchSection={prefetchSection}
             query={query}
             setQuery={setQuery}
             user={user}
@@ -177,6 +203,7 @@ function AccountRail({
   groups,
   itemStatuses,
   onChooseSection,
+  onPrefetchSection,
   query,
   setQuery,
   user,
@@ -185,6 +212,7 @@ function AccountRail({
   groups: AccountNavigationGroup[]
   itemStatuses: Record<string, string>
   onChooseSection: (id: string) => void
+  onPrefetchSection: (id: string) => void
   query: string
   setQuery: (query: string) => void
   user: AccountSettingsShellProps["user"]
@@ -212,6 +240,7 @@ function AccountRail({
               groups={groups}
               itemStatuses={itemStatuses}
               onChooseSection={onChooseSection}
+              onPrefetchSection={onPrefetchSection}
               variant="rail"
             />
           </ScrollArea>
@@ -226,6 +255,7 @@ function MobileAccountIndex({
   groups,
   itemStatuses,
   onChooseSection,
+  onPrefetchSection,
   query,
   setQuery,
   user,
@@ -234,6 +264,7 @@ function MobileAccountIndex({
   groups: AccountNavigationGroup[]
   itemStatuses: Record<string, string>
   onChooseSection: (id: string) => void
+  onPrefetchSection: (id: string) => void
   query: string
   setQuery: (query: string) => void
   user: AccountSettingsShellProps["user"]
@@ -263,6 +294,7 @@ function MobileAccountIndex({
         groups={groups}
         itemStatuses={itemStatuses}
         onChooseSection={onChooseSection}
+        onPrefetchSection={onPrefetchSection}
         variant="mobile"
       />
     </div>
@@ -295,12 +327,14 @@ function AccountNavGroups({
   groups,
   itemStatuses,
   onChooseSection,
+  onPrefetchSection,
   variant,
 }: {
   activeSection: string
   groups: AccountNavigationGroup[]
   itemStatuses: Record<string, string>
   onChooseSection: (id: string) => void
+  onPrefetchSection: (id: string) => void
   variant: "rail" | "mobile"
 }) {
   if (groups.length === 0) {
@@ -329,6 +363,7 @@ function AccountNavGroups({
                   item={item}
                   statusText={itemStatuses[item.id] ?? item.statusLabel}
                   onChooseSection={onChooseSection}
+                  onPrefetchSection={onPrefetchSection}
                   variant={variant}
                 />
                 {variant === "mobile" && index < group.items.length - 1 ? <Separator /> : null}
@@ -346,12 +381,14 @@ function AccountNavItem({
   item,
   statusText,
   onChooseSection,
+  onPrefetchSection,
   variant,
 }: {
   active: boolean
   item: AccountNavigationItem
   statusText: string
   onChooseSection: (id: string) => void
+  onPrefetchSection: (id: string) => void
   variant: "rail" | "mobile"
 }) {
   const Icon = accountShellIcons[item.icon as keyof typeof accountShellIcons] ?? UserRound
@@ -406,9 +443,15 @@ function AccountNavItem({
   }
 
   return (
-    <button type="button" className={className} onClick={() => onChooseSection(item.id)}>
+    <Link
+      href={getAccountTabHref(item.id)}
+      className={className}
+      onClick={() => onChooseSection(item.id)}
+      onFocus={() => onPrefetchSection(item.id)}
+      onMouseEnter={() => onPrefetchSection(item.id)}
+    >
       {content}
-    </button>
+    </Link>
   )
 }
 

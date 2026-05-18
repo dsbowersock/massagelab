@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import QRCode from "qrcode"
 import { getCurrentSession } from "@/auth"
+import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { encryptSecret, generateTotpSecret } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
 
@@ -24,6 +25,7 @@ export async function POST() {
       enabledAt: null,
     },
   })
+  clearAccountSurfaceDataCache(session.user.id, "security")
 
   return NextResponse.json({
     qrCode: await QRCode.toDataURL(setup.otpauthUrl),
