@@ -11,6 +11,12 @@ MassageLab's alpha is local-first for clinical documentation and health-sensitiv
 
 Exports are user-controlled files. Users are responsible for storing, transmitting, and backing them up appropriately.
 
+## PWA Cache Boundary
+
+The PWA service worker may cache anonymous public shell/tool route documents for home, Chimer, Anatomime, and local-first documentation tools. It must not cache account, auth, billing, calendar, booking, admin, hosted clinical sync, client, or other `/api/*` responses.
+
+SOAP, intake, journal, and ROM content remains in browser local storage only when the user saves local drafts. The service worker must not create a second PHI cache, queue clinical uploads, or store request bodies.
+
 ## Sync Boundary
 
 Account sync must not include SOAP note, intake form, journal, ROM, client, or treatment content.
