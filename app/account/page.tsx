@@ -16,7 +16,7 @@ import { AccountSettingsShell } from "@/app/account/account-settings-shell"
 import { PreferenceSync } from "@/app/account/preference-sync"
 import { SecurityPanel } from "@/app/account/security/security-panel"
 import { SignOutButton } from "@/app/account/sign-out-button"
-import { accountPageGroups, accountPageTabs, selectAccountTab } from "@/lib/account-page"
+import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
@@ -633,7 +633,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {subscription.currentPeriodEnd ? `Renews through ${subscription.currentPeriodEnd.toLocaleDateString()}` : "Current period unavailable"}
+                    {subscription.currentPeriodEnd ? `Renews through ${formatAccountDate(subscription.currentPeriodEnd)}` : "Current period unavailable"}
                     {subscription.couponId ? ` · Coupon ${subscription.couponId}` : ""}
                   </p>
                 </div>
@@ -833,14 +833,12 @@ function AccountNotice({
   billing,
   checkout,
   portal,
-  activeMembershipLevel,
 }: {
   billing?: string
   checkout?: string
   portal?: string
-  activeMembershipLevel?: string
 }) {
-  const notice = accountNotice({ billing, checkout, portal, activeMembershipLevel })
+  const notice = accountNotice({ billing, checkout, portal })
 
   if (!notice) {
     return null
@@ -858,22 +856,12 @@ function accountNotice({
   billing,
   checkout,
   portal,
-  activeMembershipLevel,
 }: {
   billing?: string
   checkout?: string
   portal?: string
-  activeMembershipLevel?: string
 }) {
   if (checkout === "success") {
-    if (activeMembershipLevel) {
-      return {
-        title: `${formatMembershipLevel(activeMembershipLevel)} membership active`,
-        description: "Stripe confirmed your membership. Your account benefits are available now.",
-        className: "border-brand-orange/40 bg-primary/10",
-      }
-    }
-
     return {
       title: "Checkout complete",
       description: "Stripe is syncing your membership. If the status has not updated yet, refresh after the webhook finishes.",

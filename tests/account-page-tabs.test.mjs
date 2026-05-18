@@ -6,6 +6,7 @@ import {
   accountPageSectionIds,
   accountPageTabs,
   filterAccountPageGroups,
+  formatAccountDate,
   getAccountTabHref,
   selectAccountTab,
 } from "../lib/account-page.js"
@@ -89,6 +90,10 @@ describe("Account page tab model", () => {
     assert.equal(getAccountTabHref("profile"), "/account?tab=profile")
     assert.equal(getAccountTabHref("security"), "/account?tab=security")
     assert.equal(getAccountTabHref("membership"), "/account?tab=membership")
+  })
+
+  it("formats account dates with a stable ISO calendar date", () => {
+    assert.equal(formatAccountDate(new Date("2026-05-18T14:30:00.000Z")), "2026-05-18")
   })
 
   it("filters account navigation by label, group, and description", () => {

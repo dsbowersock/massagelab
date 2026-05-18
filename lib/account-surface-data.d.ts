@@ -147,9 +147,9 @@ export type AccountSurfaceDataLoaderOptions = Record<string, unknown>
 
 export type AccountSurfaceDataLoader = {
   getAccountSurfaceData: GetAccountSurfaceData
-  clearAccountSurfaceDataCache(userId?: string, surface?: unknown): void
+  clearAccountSurfaceDataCache(userId?: string, surface?: string): void
 }
 
 export declare function createAccountSurfaceDataLoader(options?: AccountSurfaceDataLoaderOptions): AccountSurfaceDataLoader
 export declare const getAccountSurfaceData: GetAccountSurfaceData
-export declare function clearAccountSurfaceDataCache(userId?: string, surface?: unknown): void
+export declare function clearAccountSurfaceDataCache(userId?: string, surface?: string): void
