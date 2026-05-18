@@ -2,6 +2,8 @@
 
 This file captures the branch-ready roadmap after the May 8-13, 2026 alpha refresh work.
 
+Active planning and progress tracking now lives in [project-log.md](project-log.md). Keep this roadmap as product-direction source evidence and mirror meaningful status changes in the project log.
+
 ## Recently Completed
 
 - Sentry error monitoring and performance traces are wired with privacy scrubbing for diagnostic messages. Keep Session Replay, User Feedback, and Logs disabled until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
