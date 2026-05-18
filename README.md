@@ -38,12 +38,13 @@ Donations and future memberships help fund:
 
 MassageLab is in private alpha. The current priority is release readiness: verify the existing surfaces, keep local-first boundaries intact, resolve dependency alerts, and make the public documentation clearer.
 
-The roadmap is available in [docs/roadmap.md](docs/roadmap.md), and the working task list is in [TODO.md](TODO.md).
+The active planning and progress tracker is [docs/project-log.md](docs/project-log.md). The roadmap remains available in [docs/roadmap.md](docs/roadmap.md), and the preserved working task list is in [TODO.md](TODO.md).
 
 ## Documentation
 
 Project documentation lives in [docs/wiki](docs/wiki/index.md):
 
+- [Project log](docs/project-log.md)
 - [Local development](docs/wiki/local-development.md)
 - [Privacy and PHI posture](docs/wiki/privacy-and-phi.md)
 - [Billing and memberships](docs/wiki/billing-memberships.md)

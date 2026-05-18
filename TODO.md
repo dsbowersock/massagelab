@@ -1,5 +1,7 @@
 # MassageLab TODO
 
+Active planning and progress tracking now lives in [docs/project-log.md](docs/project-log.md). Keep this file as source evidence and a detailed checkbox list, but mirror meaningful status changes in the project log.
+
 ## Current Branch
 
 - [x] Add feature-based entitlement helpers with `chimer_custom_colors`.
