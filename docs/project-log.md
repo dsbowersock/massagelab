@@ -7,7 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: release readiness, local-first privacy boundaries, billing membership verification, and organizing the next branch sequence.
+- Current focus: local-first privacy boundaries, account performance, browser QA automation, and organizing the next branch sequence after alpha readiness verification.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates.
 - Public `/roadmap` route: product-facing app copy only. This file is the internal operating tracker.
 
@@ -15,9 +15,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Status | Priority | Work | Source | Acceptance |
 | --- | --- | --- | --- | --- |
-| Open | P1 | Finish alpha release verification | [TODO](../TODO.md), [Alpha QA](alpha-qa.md), [Roadmap](roadmap.md) | `docs/alpha-qa.md` is walked with anonymous data; Chimer, Notes, Calendar, Anatomime, Support, Roadmap, Account, Security, Settings, PWA metadata, and billing gates are manually verified. |
-| Open | P1 | Manually verify Chimer clock-only mode | [TODO](../TODO.md) | Clock-only mode is checked on desktop and phone landscape without layout overlap, unsafe motion, or unreadable controls. |
-| Open | P1 | Manually verify Stripe checkout and webhook flow | [TODO](../TODO.md), [Billing wiki](wiki/billing-memberships.md) | Stripe test checkout, webhook delivery, account membership status, and Chimer custom-color entitlement are confirmed with test-mode values. |
+| Completed | P1 | Finish alpha release verification | [TODO](../TODO.md), [Alpha QA](alpha-qa.md), [Roadmap](roadmap.md) | `docs/alpha-qa.md` was walked with anonymous data; Chimer, Notes, Calendar, Anatomime, Support, Roadmap, Account, Security, Settings, PWA metadata, and billing gates were verified. |
+| Completed | P1 | Manually verify Chimer clock-only mode | [TODO](../TODO.md) | Clock-only mode was checked on desktop and phone landscape without layout overlap, unsafe motion, or unreadable controls. |
+| Completed | P1 | Manually verify Stripe checkout and webhook flow | [TODO](../TODO.md), [Billing wiki](wiki/billing-memberships.md) | Stripe test checkout, signed local webhook delivery, account membership status, and Chimer custom-color entitlement were confirmed with test-mode values. |
 | Open | P1 | Optimize signed-in account data shell | [May 17 audit](audits/2026-05-17-project-review.md) | Signed-in `/account` loads fewer blocking DB calls; calendar readiness no longer runs on unrelated page views; `/account` slow-query Sentry issues stop increasing. |
 | Active | P2 | Maintain this project log | This consolidation plan | Future meaningful changes, completed plans, branch outcomes, and priority changes are appended to the change history. |
 
@@ -60,6 +60,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-17 | Private-alpha `noindex` is intentional. | Public indexing becomes a launch task only after SEO, trust pages, metadata, and public messaging are ready. |
 
 ## Change History
+
+### 2026-05-18
+
+- Completed alpha release readiness verification on `codex/alpha-release-readiness`: automated gate, browser route pass, Chimer timer and clock-only checks, PWA manifest, diagnostic route gates, local-first documentation network checks, account membership display, Stripe test checkout creation, signed local webhook processing, and Chimer custom-color entitlement.
+- Fixed an anonymous Chimer preference-sync regression found during browser QA. Chimer now checks the client session before calling `/api/account/preferences`, preventing unsigned users from generating account preference 401 console errors.
+- Confirmed `/debug-hydration` is absent, `/api/debug/sentry` stays disabled with `MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false`, and the PWA manifest serves standalone metadata with 192/512 icons.
 
 ### 2026-05-17
 

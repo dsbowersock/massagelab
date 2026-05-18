@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   USER_PREFERENCES_VERSION,
   buildTherapistProfilePayload,
+  canSyncAccountPreferencesFromSession,
   buildUserPreferencePayload,
   canSyncAccountPreferences,
   choosePreferenceSource,
@@ -93,5 +94,13 @@ describe("Account preference helpers", () => {
     assert.equal(canSyncAccountPreferences({ id: "" }), false)
     assert.equal(canSyncAccountPreferences({ id: "   " }), false)
     assert.equal(canSyncAccountPreferences({ id: "user_123" }), true)
+  })
+
+  it("allows cloud account sync only when client session data includes a user id", () => {
+    assert.equal(canSyncAccountPreferencesFromSession(null), false)
+    assert.equal(canSyncAccountPreferencesFromSession({}), false)
+    assert.equal(canSyncAccountPreferencesFromSession({ user: null }), false)
+    assert.equal(canSyncAccountPreferencesFromSession({ user: { email: "anonymous@example.com" } }), false)
+    assert.equal(canSyncAccountPreferencesFromSession({ user: { id: "user_123", email: "alpha@example.com" } }), true)
   })
 })
