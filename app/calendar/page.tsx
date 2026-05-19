@@ -1,27 +1,19 @@
 import Link from "next/link"
-import { CalendarDays, Clock, Plus, ShieldCheck } from "lucide-react"
+import { Clock, ClipboardList, Plus, Settings2, ShieldCheck } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { createPracticeAction } from "@/app/calendar/actions"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
+import { normalizeCalendarPreferences } from "@/lib/calendar-preferences"
+import { buildCalendarWorkspaceEvent } from "@/lib/calendar-workspace"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
+import { CalendarWorkspace } from "./calendar-workspace"
 
-const ACTIVE_STATUSES = ["REQUESTED", "CONFIRMED"] as const
-
-function formatDateTime(value: Date, timeZone = "America/New_York") {
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(value)
-}
+const ACTIVE_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
 
 export default async function CalendarPage({
   searchParams,
@@ -102,23 +94,43 @@ export default async function CalendarPage({
 
   const membership = memberships.find((row) => row.practiceId === selectedPracticeId) ?? memberships[0]
   const practice = membership.practice
-  const [appointments, services, therapists] = await Promise.all([
-    prisma.appointment.findMany({
+  const [events, services, therapists, preferenceRow, requestCount] = await Promise.all([
+    prisma.calendarEvent.findMany({
       where: {
         practiceId: practice.id,
-        startsAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+        startsAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        endsAt: { lte: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) },
       },
       include: {
-        practiceClient: true,
-        serviceType: true,
-        therapist: { select: { name: true, email: true } },
+        owner: { select: { name: true, email: true } },
+        appointment: {
+          include: {
+            practiceClient: true,
+            serviceType: true,
+            serviceVariant: true,
+            therapist: { select: { name: true, email: true } },
+          },
+        },
+        personalBlock: {
+          include: { therapist: { select: { name: true, email: true } } },
+        },
+        class: {
+          include: { instructor: { select: { name: true, email: true } } },
+        },
+        reminder: true,
       },
       orderBy: { startsAt: "asc" },
-      take: 30,
+      take: 500,
     }),
     prisma.serviceType.findMany({
       where: { practiceId: practice.id, active: true },
-      orderBy: { durationMinutes: "asc" },
+      include: {
+        variants: {
+          where: { active: true },
+          orderBy: [{ sortOrder: "asc" }, { durationMinutes: "asc" }],
+        },
+      },
+      orderBy: { name: "asc" },
     }),
     prisma.practiceMembership.findMany({
       where: {
@@ -126,8 +138,22 @@ export default async function CalendarPage({
         role: { in: ["OWNER", "THERAPIST"] },
       },
       include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.userPreference.findUnique({
+      where: { userId: session.user.id },
+      select: { calendarPreferences: true },
+    }),
+    prisma.appointment.count({
+      where: { practiceId: practice.id, status: "REQUESTED" },
     }),
   ])
+  const preferences = normalizeCalendarPreferences(preferenceRow?.calendarPreferences ?? {})
+  const providers = therapists.map((therapist) => ({
+    id: therapist.userId,
+    label: therapist.user.name ?? therapist.user.email ?? "Provider",
+  }))
+  const workspaceEvents = events.map((event) => buildCalendarWorkspaceEvent(event, preferences))
 
   return (
     <CalendarShell>
@@ -137,77 +163,75 @@ export default async function CalendarPage({
           <div>
             <CardTitle>Scheduling metadata only</CardTitle>
             <CardDescription>
-              This module stores appointment logistics for practice coordination. SOAP notes, transcripts, and pain maps remain local-first.
+              Calendar events coordinate appointments, personal blocks, classes, and reminders. SOAP notes, transcripts, and pain maps remain local-first.
             </CardDescription>
           </div>
         </CardHeader>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-brand-orange" />
-                {practice.name}
-              </CardTitle>
-              <CardDescription>Practice booking link: /book/{practice.slug}</CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline">
-                <Link href="/calendar/availability">Availability</Link>
-              </Button>
-              <Button asChild className="bg-primary hover:bg-brand-orange-glow">
-                <Link href={`/book/${practice.slug}`}>Booking page</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {appointments.length > 0 ? (
-              appointments.map((appointment) => (
-                <div key={appointment.id} className="rounded-md border border-neutral-800 bg-background/70 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{formatDateTime(appointment.startsAt, practice.timezone)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {appointment.serviceType.name} with {appointment.therapist.name ?? appointment.therapist.email}
-                      </p>
-                    </div>
-                    <span className="rounded-sm border border-neutral-700 px-2 py-1 text-xs text-muted-foreground">
-                      {appointment.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Client: {appointment.practiceClient.displayName ?? appointment.practiceClient.email ?? "Client account"}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No appointments yet. Add availability, then use the booking page to request an appointment.</p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+            <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+              <div>
+                <CardTitle>{practice.name}</CardTitle>
+                <CardDescription>Practice booking link: /book/{practice.slug}</CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline">
+                  <Link href="/calendar/requests">Requests{requestCount ? ` (${requestCount})` : ""}</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/calendar/availability">Availability</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/calendar/services">Services</Link>
+                </Button>
+                <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                  <Link href="/calendar/new">New item</Link>
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+          <CalendarWorkspace
+            events={workspaceEvents}
+            providers={providers}
+            preferences={preferences}
+            currentUserId={session.user.id}
+          />
+        </div>
 
         <div className="space-y-4">
           <Card className="border-neutral-800 bg-card/90 backdrop-blur">
             <CardHeader>
-              <CardTitle>Services</CardTitle>
-              <CardDescription>Client booking uses these active service durations.</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-brand-orange" />
+                Services
+              </CardTitle>
+              <CardDescription>Client booking and classes use service variants for duration, buffers, pricing, and resources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {services.map((service) => (
                 <div key={service.id} className="flex items-center justify-between gap-3 rounded-md bg-background/70 p-3">
-                  <span>{service.name}</span>
-                  <span className="text-sm text-muted-foreground">{service.durationMinutes} min</span>
+                  <div>
+                    <span>{service.name}</span>
+                    <p className="text-xs text-muted-foreground">{service.variants.length} active variant{service.variants.length === 1 ? "" : "s"}</p>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {service.variants[0]?.durationMinutes ?? service.durationMinutes} min
+                  </span>
                 </div>
               ))}
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/calendar/services">Manage services</Link>
+              </Button>
             </CardContent>
           </Card>
 
           <Card className="border-neutral-800 bg-card/90 backdrop-blur">
             <CardHeader>
               <CardTitle>Therapists</CardTitle>
-              <CardDescription>Owners and therapists can receive bookings.</CardDescription>
+              <CardDescription>Owners and therapists can receive bookings and blocking events.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {therapists.map((therapist) => (
@@ -221,14 +245,17 @@ export default async function CalendarPage({
 
           <Card className="border-neutral-800 bg-card/90 backdrop-blur">
             <CardHeader>
-              <CardTitle>Conflict prevention</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-brand-orange" />
+                Event index
+              </CardTitle>
               <CardDescription>
-                Active appointments are checked in app logic and protected by a Postgres overlap constraint.
+                Active blocking events share one conflict model for appointments, personal blocks, and classes.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Active statuses: {ACTIVE_STATUSES.join(", ")}. Cancelled, completed, and no-show appointments no longer block future booking.
+                Blocking statuses: {ACTIVE_STATUSES.join(", ")}. Cancelled, completed, and no-show events no longer block future booking.
               </p>
             </CardContent>
           </Card>

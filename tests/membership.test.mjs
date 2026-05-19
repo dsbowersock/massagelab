@@ -15,15 +15,17 @@ import {
 import * as membership from "../lib/membership.js"
 
 describe("Membership and entitlement helpers", () => {
-  it("keeps free users on basic Chimer without custom color access", () => {
+  it("keeps free users on basic Chimer while allowing a basic calendar taste", () => {
     const entitlements = buildEntitlements({ subscriptions: [], studentAccess: null })
 
     assert.equal(entitlements.level, "FREE")
-    assert.deepEqual(entitlements.features, [])
+    assert.deepEqual(entitlements.features, [FEATURE_KEYS.calendarBasicScheduling])
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
+    assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarBasicScheduling), true)
+    assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling), false)
   })
 
-  it("grants Chimer custom colors to active paid subscriptions only", () => {
+  it("grants calendar scheduling depth to Therapist and Team/Practice memberships", () => {
     const active = buildEntitlements({
       subscriptions: [
         {
@@ -42,9 +44,17 @@ describe("Membership and entitlement helpers", () => {
       subscriptions: [{ status: "canceled", membershipLevel: "SUPPORTER" }],
       now: new Date("2026-05-15T00:00:00.000Z"),
     })
+    const teamPractice = buildEntitlements({
+      subscriptions: [{ status: "active", membershipLevel: "PRACTICE" }],
+      now: new Date("2026-05-15T00:00:00.000Z"),
+    })
 
     assert.equal(active.level, "THERAPIST")
     assert.equal(active.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
+    assert.equal(active.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
+    assert.equal(active.hasFeature(FEATURE_KEYS.calendarTeamScheduling), false)
+    assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
+    assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarTeamScheduling), true)
     assert.equal(pastDue.level, "FREE")
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
     assert.equal(canceled.level, "FREE")

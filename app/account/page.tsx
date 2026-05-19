@@ -948,6 +948,10 @@ function formatRole(role: AccountRole) {
 }
 
 function formatMembershipLevel(level: string) {
+  if (level === "PRACTICE") {
+    return "Team/Practice"
+  }
+
   return level
     .toLowerCase()
     .split("_")

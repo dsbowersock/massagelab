@@ -14,6 +14,8 @@ Active planning and progress tracking now lives in [docs/project-log.md](docs/pr
 - [x] Run full automated verification gate.
 - [x] Manually verify Chimer clock-only mode on desktop and phone landscape.
 - [x] Manually verify Stripe checkout and webhook flow in Stripe test mode.
+- [x] Apply calendar migrations and add service variants/resources for provider-managed appointment and class scheduling.
+- [x] Add operator calendar workspace with draggable scheduling, advanced availability, display preferences, multi-service appointment composition, and clinical-rich service template references.
 
 ## Alpha Release Readiness
 
@@ -24,7 +26,11 @@ Active planning and progress tracking now lives in [docs/project-log.md](docs/pr
 
 ## Next Branch Candidates
 
-- [ ] Calendar creation flows plan.
+- [x] Calendar creation flows plan.
+- [ ] Online booking settings, waitlist, and fake-it filter plan inspired by Square's calendar and booking settings, excluding payments and external sync implementation.
+- [ ] External Google/Apple/Outlook calendar sync integration plan.
+- [ ] Stripe Connect marketplace payments plan for provider booking payments, deposits, cancellation fees, taxes, packages, refunds, payouts, and platform fees.
+- [ ] Sitewide visual system and account-page polish pass: update the rest of the site with the account page's visual polish and move shared page/surface/inset styling into one source of truth so route elements stay cohesive unless an intentional exception is documented.
 - [ ] Generative music spike.
 - [ ] Terms, privacy/legal, About Me, and public trust pages.
 - [ ] Anatomy content expansion and review workflow.

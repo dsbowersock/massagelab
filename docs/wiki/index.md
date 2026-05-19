@@ -8,6 +8,7 @@ This directory is the repo-backed project wiki. Keep operational, implementation
 - [Local development](local-development.md)
 - [Privacy and PHI posture](privacy-and-phi.md)
 - [PWA offline strategy](pwa-offline-strategy.md)
+- [Calendar creation flows](calendar-creation-flows.md)
 - [Billing and memberships](billing-memberships.md)
 - [Deployment and environment](deployment.md)
 - [Release checklist](release-checklist.md)

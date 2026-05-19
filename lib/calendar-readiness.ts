@@ -6,9 +6,23 @@ const CALENDAR_MODEL_DELEGATES = [
   "practiceMembership",
   "practiceClient",
   "serviceType",
+  "serviceVariant",
+  "calendarResource",
+  "serviceVariantResource",
+  "calendarResourceBooking",
   "therapistAvailabilityRule",
+  "calendarAvailabilitySchedule",
+  "calendarAvailabilityScheduleInterval",
+  "calendarAvailabilityOverride",
+  "calendarAvailabilityOverrideInterval",
+  "calendarEvent",
   "calendarBlock",
   "appointment",
+  "appointmentServiceItem",
+  "calendarClass",
+  "calendarReminder",
+  "calendarAuditLog",
+  "calendarNotificationIntent",
 ] as const
 
 type CalendarModelDelegate = (typeof CALENDAR_MODEL_DELEGATES)[number]
@@ -48,14 +62,64 @@ async function loadCalendarDatabaseReadiness() {
         'PracticeMembership',
         'PracticeClient',
         'ServiceType',
+        'ServiceVariant',
+        'CalendarResource',
+        'ServiceVariantResource',
+        'CalendarResourceBooking',
         'TherapistAvailabilityRule',
+        'CalendarAvailabilitySchedule',
+        'CalendarAvailabilityScheduleInterval',
+        'CalendarAvailabilityOverride',
+        'CalendarAvailabilityOverrideInterval',
+        'CalendarEvent',
         'CalendarBlock',
-        'Appointment'
+        'Appointment',
+        'AppointmentServiceItem',
+        'CalendarClass',
+        'CalendarReminder',
+        'CalendarAuditLog',
+        'CalendarNotificationIntent'
       ]) AS required(table_name)
     `
 
-    return rows[0]?.ready === true
-  } catch {
+    const ready = rows[0]?.ready === true
+
+    if (!ready && process.env.NODE_ENV !== "production") {
+      const missing = await prisma.$queryRaw<Array<{ tableName: string }>>`
+        SELECT table_name AS "tableName"
+        FROM unnest(ARRAY[
+          'Practice',
+          'PracticeMembership',
+          'PracticeClient',
+          'ServiceType',
+          'ServiceVariant',
+          'CalendarResource',
+          'ServiceVariantResource',
+          'CalendarResourceBooking',
+          'TherapistAvailabilityRule',
+          'CalendarAvailabilitySchedule',
+          'CalendarAvailabilityScheduleInterval',
+          'CalendarAvailabilityOverride',
+          'CalendarAvailabilityOverrideInterval',
+          'CalendarEvent',
+          'CalendarBlock',
+          'Appointment',
+          'AppointmentServiceItem',
+          'CalendarClass',
+          'CalendarReminder',
+          'CalendarAuditLog',
+          'CalendarNotificationIntent'
+        ]) AS required(table_name)
+        WHERE to_regclass(format('%I.%I', 'public', table_name)) IS NULL
+      `
+      console.warn("Calendar readiness check failed; missing tables:", missing.map((row) => row.tableName).join(", "))
+    }
+
+    return ready
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Calendar readiness check failed:", error)
+    }
     return false
   }
 }
