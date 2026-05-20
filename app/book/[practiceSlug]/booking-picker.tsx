@@ -3,17 +3,16 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CalendarDays, Check, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { groupSequenceOptionsByLocalDate, practiceLocalDateKey, providerPreferenceModel, sequenceOptionKey } from "@/lib/public-booking-picker"
+import { buildSequenceWeekGrid, providerPreferenceModel, sequenceOptionKey } from "@/lib/public-booking-picker"
 import { MAX_PUBLIC_ADD_ONS } from "@/lib/public-booking-constants"
 import { cn } from "@/lib/utils"
 
@@ -86,6 +85,7 @@ type BookingOptionModel = {
 }
 
 type BookingStep = "services" | "details" | "time"
+type SequenceWeekGrid = ReturnType<typeof buildSequenceWeekGrid<SequenceOption>>
 
 function moneyLabel(cents: number | null, currency: string) {
   if (cents == null) return null
@@ -114,6 +114,14 @@ function shortTimeLabel(value: string, timeZone: string) {
   }).format(new Date(value))
 }
 
+function minutesLabel(minutes: number) {
+  const hours = Math.floor(minutes / 60) % 24
+  const remainingMinutes = minutes % 60
+  const period = hours >= 12 ? "PM" : "AM"
+  const displayHours = hours % 12 || 12
+  return `${displayHours}:${remainingMinutes.toString().padStart(2, "0")} ${period}`
+}
+
 function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
   const earthMiles = 3958.8
   const toRadians = (value: number) => (value * Math.PI) / 180
@@ -140,7 +148,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const [sequenceError, setSequenceError] = useState("")
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
-  const [selectedDateKey, setSelectedDateKey] = useState("")
+  const [selectedWeekStartKey, setSelectedWeekStartKey] = useState("")
   const [selectedSequenceKey, setSelectedSequenceKey] = useState("")
   const [guestName, setGuestName] = useState("")
   const [guestEmail, setGuestEmail] = useState("")
@@ -150,16 +158,14 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const orderedSelectedAddOnVariantIds = useMemo(() => (
     addOnVariantOrder.filter((variantId) => selectedAddOnVariantIds.includes(variantId))
   ), [addOnVariantOrder, selectedAddOnVariantIds])
-  const sequenceDateGroups = useMemo(() => groupSequenceOptionsByLocalDate(sequenceOptions, model.timeZone), [model.timeZone, sequenceOptions])
-  const availableDateKeys = useMemo(() => new Set(sequenceDateGroups.map((group) => group.dateKey)), [sequenceDateGroups])
-  const selectedDateGroup = sequenceDateGroups.find((group) => group.dateKey === selectedDateKey) ?? sequenceDateGroups[0] ?? null
+  const sequenceWeekGrid = useMemo(() => buildSequenceWeekGrid(sequenceOptions, model.timeZone, selectedWeekStartKey), [model.timeZone, selectedWeekStartKey, sequenceOptions])
   const selectedSequenceOption = sequenceOptions.find((option) => sequenceOptionKey(option) === selectedSequenceKey) ?? null
 
   const bookingReturnPath = pathname || `/book/${model.practiceSlug}`
   const loginHref = `/login?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
   const registerHref = `/register?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
   const browserTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : model.timeZone
-  const showLocalTime = model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone
+  const showLocalTime = Boolean(model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone)
   const guestContactComplete = model.viewer.isSignedIn || (
     guestName.trim().length > 0 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()) &&
@@ -238,17 +244,17 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   }, [model.practiceSlug, orderedSelectedAddOnVariantIds, preferredProviderId, reloadToken, requestedPressureLevel, selectedPrimaryVariantId])
 
   useEffect(() => {
-    if (sequenceDateGroups.length === 0) {
-      setSelectedDateKey("")
+    if (sequenceWeekGrid.weeks.length === 0) {
+      setSelectedWeekStartKey("")
       setSelectedSequenceKey("")
       return
     }
 
-    if (!selectedDateKey || !sequenceDateGroups.some((group) => group.dateKey === selectedDateKey)) {
-      setSelectedDateKey(sequenceDateGroups[0].dateKey)
+    if (!selectedWeekStartKey || !sequenceWeekGrid.weeks.some((week) => week.weekStartKey === selectedWeekStartKey)) {
+      setSelectedWeekStartKey(sequenceWeekGrid.weeks[0].weekStartKey)
       setSelectedSequenceKey("")
     }
-  }, [selectedDateKey, sequenceDateGroups])
+  }, [selectedWeekStartKey, sequenceWeekGrid.weeks])
 
   function toggleAddOn(variantId: string) {
     setSelectedAddOnVariantIds((current) => {
@@ -497,71 +503,21 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   Try again
                 </Button>
               </div>
-            ) : sequenceDateGroups.length > 0 && selectedDateGroup ? (
+            ) : sequenceWeekGrid.weeks.length > 0 ? (
               <>
-                <div className="grid gap-4 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
-                  <div className="rounded-lg border border-border/80 bg-background/50 p-2">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDateGroup.date}
-                      onSelect={(date) => {
-                        if (!date) return
-                        const dateKey = practiceLocalDateKey(date, model.timeZone)
-                        if (availableDateKeys.has(dateKey)) {
-                          setSelectedDateKey(dateKey)
-                          setSelectedSequenceKey("")
-                        }
-                      }}
-                      disabled={(date) => !availableDateKeys.has(practiceLocalDateKey(date, model.timeZone))}
-                      timeZone={model.timeZone}
-                      className="mx-auto"
-                    />
-                  </div>
-
-                  <div className="grid content-start gap-3">
-                    {selectedDateGroup.options.map((option) => {
-                      const optionKey = sequenceOptionKey(option)
-                      const selected = optionKey === selectedSequenceKey
-
-                      return (
-                        <button
-                          key={optionKey}
-                          type="button"
-                          onClick={() => setSelectedSequenceKey(optionKey)}
-                          className={cn(
-                            "w-full rounded-lg border p-4 text-left transition hover:border-primary/70 hover:bg-primary/5",
-                            selected ? "border-primary/70 bg-primary/10" : "border-border/80 bg-background/60",
-                          )}
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="flex items-center gap-2 font-medium">
-                                <Clock className="size-4 text-brand-orange" />
-                                {shortTimeLabel(option.startsAt, model.timeZone)}
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">{timeLabel(option.startsAt, model.timeZone)}</p>
-                              {showLocalTime ? (
-                                <p className="mt-1 text-xs text-muted-foreground">Your local time: {timeLabel(option.startsAt, browserTimeZone)}</p>
-                              ) : null}
-                            </div>
-                            {selected ? <Check data-icon="inline-start" className="text-brand-orange" /> : null}
-                          </div>
-                          <div className="mt-3 grid gap-2">
-                            {option.items.map((item) => (
-                              <div key={`${item.sortOrder}-${item.serviceVariantId}`} className="rounded-md border border-border/60 bg-card/70 px-3 py-2 text-sm">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span>{item.serviceName} · {item.serviceVariantName}</span>
-                                  <span className="text-muted-foreground">{shortTimeLabel(item.startsAt, model.timeZone)}-{shortTimeLabel(item.endsAt, model.timeZone)}</span>
-                                </div>
-                                <p className="mt-1 text-xs text-muted-foreground">{item.providerLabel}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <WeeklyAvailabilityPicker
+                  grid={sequenceWeekGrid}
+                  selectedOption={selectedSequenceOption}
+                  selectedSequenceKey={selectedSequenceKey}
+                  timeZone={model.timeZone}
+                  browserTimeZone={browserTimeZone}
+                  showLocalTime={showLocalTime}
+                  onSelectSequence={setSelectedSequenceKey}
+                  onSelectWeek={(weekStartKey) => {
+                    setSelectedWeekStartKey(weekStartKey)
+                    setSelectedSequenceKey("")
+                  }}
+                />
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Button type="button" variant="outline" onClick={() => setActiveStep("details")}>Back</Button>
@@ -645,6 +601,198 @@ function GuestHiddenContactInputs({
       <input type="hidden" name="guestEmail" value={guestEmail} />
       <input type="hidden" name="guestPhone" value={guestPhone} />
     </>
+  )
+}
+
+function WeeklyAvailabilityPicker({
+  grid,
+  selectedOption,
+  selectedSequenceKey,
+  timeZone,
+  browserTimeZone,
+  showLocalTime,
+  onSelectSequence,
+  onSelectWeek,
+}: {
+  grid: SequenceWeekGrid
+  selectedOption: SequenceOption | null
+  selectedSequenceKey: string
+  timeZone: string
+  browserTimeZone: string
+  showLocalTime: boolean
+  onSelectSequence: (sequenceKey: string) => void
+  onSelectWeek: (weekStartKey: string) => void
+}) {
+  const selectedWeekIndex = Math.max(0, grid.weeks.findIndex((week) => week.weekStartKey === grid.selectedWeekStartKey))
+  const previousWeek = grid.weeks[selectedWeekIndex - 1]
+  const nextWeek = grid.weeks[selectedWeekIndex + 1]
+  const startMinute = grid.startHour * 60
+  const hourHeight = 72
+  const gridHeight = Math.max(360, (grid.endHour - grid.startHour) * hourHeight)
+  const columnTemplate = "4.75rem repeat(7, minmax(7.5rem, 1fr))"
+
+  function percentForMinute(minutes: number) {
+    return `${((minutes - startMinute) / grid.totalMinutes) * 100}%`
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="overflow-hidden rounded-lg border border-border/80 bg-background/50">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 p-3">
+          <div>
+            <p className="text-sm font-medium">Weekly availability</p>
+            <p className="text-xs text-muted-foreground">Choose one of the available start times below.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Previous available week"
+              disabled={!previousWeek}
+              onClick={() => previousWeek && onSelectWeek(previousWeek.weekStartKey)}
+            >
+              <ChevronLeft data-icon="inline-start" />
+            </Button>
+            <Badge variant="outline">{grid.weeks[selectedWeekIndex]?.label ?? "Available week"}</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Next available week"
+              disabled={!nextWeek}
+              onClick={() => nextWeek && onSelectWeek(nextWeek.weekStartKey)}
+            >
+              <ChevronRight data-icon="inline-start" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="min-w-[58rem]">
+            <div className="grid border-b border-border/80" style={{ gridTemplateColumns: columnTemplate }}>
+              <div className="border-r border-border/80 bg-muted/20" />
+              {grid.days.map((day) => (
+                <div key={day.dateKey} className="border-r border-border/80 px-3 py-3 text-center last:border-r-0">
+                  <p className="text-sm font-medium">{day.weekday}</p>
+                  <p className="text-xs text-muted-foreground">{day.dayLabel}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid" style={{ gridTemplateColumns: columnTemplate }}>
+              <div className="relative border-r border-border/80 bg-muted/10" style={{ height: gridHeight }}>
+                {grid.hourTicks.map((tick) => (
+                  <div
+                    key={tick}
+                    className="absolute right-2 text-right text-xs text-muted-foreground"
+                    style={{ top: percentForMinute(tick), transform: "translateY(-50%)" }}
+                  >
+                    {minutesLabel(tick)}
+                  </div>
+                ))}
+              </div>
+
+              {grid.days.map((day) => (
+                <div key={day.dateKey} className="relative border-r border-border/80 last:border-r-0" style={{ height: gridHeight }}>
+                  <div className="pointer-events-none absolute inset-0">
+                    {grid.hourTicks.slice(0, -1).map((tick) => (
+                      <div
+                        key={tick}
+                        className="absolute left-0 right-0 border-t border-dashed border-border/70"
+                        style={{ top: percentForMinute(tick) }}
+                      />
+                    ))}
+                  </div>
+
+                  {day.bands.length === 0 ? (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-muted/20"
+                      style={{
+                        backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 6px, rgb(128 128 128 / 12%) 6px, rgb(128 128 128 / 12%) 12px)",
+                      }}
+                    />
+                  ) : null}
+
+                  {day.bands.map((band) => (
+                    <div
+                      key={band.id}
+                      className="absolute left-1 right-1 overflow-hidden rounded-md border border-primary/60 bg-primary/10 p-2 shadow-sm"
+                      style={{
+                        top: percentForMinute(band.startMinutes),
+                        height: `max(5.25rem, ${((band.endMinutes - band.startMinutes) / grid.totalMinutes) * 100}%)`,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">Available</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {minutesLabel(band.startMinutes)}-{minutesLabel(band.endMinutes)}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">{band.slots.length}</Badge>
+                      </div>
+                      <div className="mt-2 flex max-h-[calc(100%-2rem)] flex-wrap gap-1 overflow-y-auto pr-1">
+                        {band.slots.map((slot) => {
+                          const optionKey = sequenceOptionKey(slot.option)
+                          const selected = optionKey === selectedSequenceKey
+
+                          return (
+                            <button
+                              key={optionKey}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() => onSelectSequence(optionKey)}
+                              className={cn(
+                                "rounded border px-2 py-1 text-xs font-medium transition hover:border-primary/80 hover:bg-primary/15",
+                                selected ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-background/80",
+                              )}
+                            >
+                              {shortTimeLabel(slot.option.startsAt, timeZone)}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {selectedOption ? (
+        <div className="rounded-lg border border-border/80 bg-background/50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-2 font-medium">
+                <Clock data-icon="inline-start" className="text-brand-orange" />
+                Selected start: {timeLabel(selectedOption.startsAt, timeZone)}
+              </p>
+              {showLocalTime ? (
+                <p className="mt-1 text-xs text-muted-foreground">Your local time: {timeLabel(selectedOption.startsAt, browserTimeZone)}</p>
+              ) : null}
+            </div>
+            <Badge variant="outline">{shortTimeLabel(selectedOption.startsAt, timeZone)}-{shortTimeLabel(selectedOption.endsAt, timeZone)}</Badge>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {selectedOption.items.map((item) => (
+              <div key={`${item.sortOrder}-${item.serviceVariantId}`} className="rounded-md border border-border/60 bg-card/70 px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>{item.serviceName} · {item.serviceVariantName}</span>
+                  <span className="text-muted-foreground">{shortTimeLabel(item.startsAt, timeZone)}-{shortTimeLabel(item.endsAt, timeZone)}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{item.providerLabel}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Select an available start time to continue.</p>
+      )}
+    </div>
   )
 }
 

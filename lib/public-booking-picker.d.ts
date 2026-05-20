@@ -18,6 +18,12 @@ export function providerPreferenceModel(providers: ProviderPreference[]): {
 
 export function practiceLocalDateKey(value: string | Date, timeZone: string): string
 
+export function sequenceWeekStartKey(value: string | Date, timeZone: string): string
+
+export function formatWeekRangeLabel(dateKey: string): string
+
+export function practiceLocalTimeMinutes(value: string | Date, timeZone: string): number
+
 export function sequenceOptionKey(option: SequenceOptionLike): string
 
 export function groupSequenceOptionsByLocalDate<T extends SequenceOptionLike>(options: T[], timeZone: string): Array<{
@@ -25,3 +31,39 @@ export function groupSequenceOptionsByLocalDate<T extends SequenceOptionLike>(op
   date: Date
   options: T[]
 }>
+
+export type SequenceWeekSlot<T extends SequenceOptionLike> = {
+  option: T
+  dateKey: string
+  weekStartKey: string
+  startMinutes: number
+  endMinutes: number
+}
+
+export type SequenceAvailabilityBand<T extends SequenceOptionLike> = {
+  id: string
+  startMinutes: number
+  endMinutes: number
+  slots: SequenceWeekSlot<T>[]
+}
+
+export function buildSequenceWeekGrid<T extends SequenceOptionLike>(options: T[], timeZone: string, requestedWeekStartKey?: string): {
+  weeks: Array<{
+    weekStartKey: string
+    label: string
+    optionCount: number
+  }>
+  selectedWeekStartKey: string
+  days: Array<{
+    dateKey: string
+    weekday: string
+    weekdayShort: string
+    dayLabel: string
+    slots: SequenceWeekSlot<T>[]
+    bands: SequenceAvailabilityBand<T>[]
+  }>
+  startHour: number
+  endHour: number
+  totalMinutes: number
+  hourTicks: number[]
+}

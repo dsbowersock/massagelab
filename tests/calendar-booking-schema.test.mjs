@@ -81,16 +81,20 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(registerPage, /callbackUrl/)
   })
 
-  it("renders public booking as a wizard with calendar-backed time selection", () => {
+  it("renders public booking as a wizard with weekly availability time selection", () => {
     assert.match(bookingPicker, /BookingStep/)
     assert.match(bookingPicker, /Services/)
     assert.match(bookingPicker, /Details/)
     assert.match(bookingPicker, /Time/)
-    assert.match(bookingPicker, /<Calendar/)
+    assert.match(bookingPicker, /WeeklyAvailabilityPicker/)
+    assert.match(bookingPicker, /Weekly availability/)
     assert.match(bookingPicker, /selectedSequenceKey/)
-    assert.match(bookingPicker, /groupSequenceOptionsByLocalDate/)
+    assert.match(bookingPicker, /selectedWeekStartKey/)
+    assert.match(bookingPicker, /buildSequenceWeekGrid/)
     assert.match(bookingPicker, /providerPreferenceModel/)
+    assert.match(bookingPickerHelpers, /buildAvailabilityBands/)
     assert.match(bookingPickerHelpers, /shouldShowProviderPreference/)
+    assert.doesNotMatch(bookingPicker, /<Calendar[\s>]/)
     assert.doesNotMatch(bookingPicker, /sequenceOptions\.map\(\(option\)/)
   })
 

@@ -2,8 +2,10 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import {
+  buildSequenceWeekGrid,
   groupSequenceOptionsByLocalDate,
   providerPreferenceModel,
+  sequenceWeekStartKey,
 } from "../lib/public-booking-picker.js"
 
 describe("public booking picker helpers", () => {
@@ -49,5 +51,25 @@ describe("public booking picker helpers", () => {
     assert.deepEqual(groups.map((group) => group.options.length), [2, 1])
     assert.equal(groups[0].options[0].startsAt, "2026-05-25T14:00:00.000Z")
     assert.equal(groups[0].options[1].startsAt, "2026-05-26T01:30:00.000Z")
+  })
+
+  it("builds a weekly availability grid with clickable start slots grouped into bands", () => {
+    const grid = buildSequenceWeekGrid([
+      { startsAt: "2026-05-25T13:00:00.000Z", endsAt: "2026-05-25T14:00:00.000Z" },
+      { startsAt: "2026-05-25T13:15:00.000Z", endsAt: "2026-05-25T14:15:00.000Z" },
+      { startsAt: "2026-05-27T18:00:00.000Z", endsAt: "2026-05-27T19:00:00.000Z" },
+    ], "America/New_York", "2026-05-24")
+    const monday = grid.days[1]
+    const wednesday = grid.days[3]
+
+    assert.equal(sequenceWeekStartKey("2026-05-25", "America/New_York"), "2026-05-24")
+    assert.equal(grid.selectedWeekStartKey, "2026-05-24")
+    assert.equal(grid.weeks[0].label, "May 24-30, 2026")
+    assert.equal(monday.bands.length, 1)
+    assert.equal(monday.bands[0].startMinutes, 9 * 60)
+    assert.equal(monday.bands[0].endMinutes, 10 * 60 + 15)
+    assert.equal(monday.bands[0].slots.length, 2)
+    assert.equal(wednesday.bands[0].startMinutes, 14 * 60)
+    assert.ok(grid.hourTicks.includes(8 * 60))
   })
 })

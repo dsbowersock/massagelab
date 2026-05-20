@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/auth"
 import {
   cachedPublicBookingSequenceOptions,
   normalizePublicBookingSequenceDescriptor,
+  PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
 } from "@/lib/public-booking-sequences"
 import { normalizeBookingPolicy } from "@/lib/booking-policy"
 import { prisma } from "@/lib/prisma"
@@ -54,7 +55,7 @@ export async function POST(
       practiceId: practice.id,
       ...descriptor,
       viewerUserId,
-      maxOptions: 80,
+      maxOptions: PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
     })
 
     return NextResponse.json({ options: context.options })

@@ -20,7 +20,7 @@ import {
   resolveAvailabilityForDate,
 } from "@/lib/calendar-availability"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
-import { MAX_PUBLIC_ADD_ONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
+import { MAX_PUBLIC_ADD_ONS, PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
 import {
   buildCalendarCreationPlan,
   buildCalendarNotificationIntents,
@@ -1355,7 +1355,7 @@ async function createBookingSequenceMutation({
     requestedPressureLevel,
     preferredProviderId,
     viewerUserId: userId,
-    maxOptions: 80,
+    maxOptions: PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
   })
   if (!userId && !context.allowGuestBooking) {
     throw new Error("Sign in before requesting an appointment with this practice.")
