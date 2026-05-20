@@ -40,6 +40,7 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
       chimerSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.chimerSettings),
       anatomimeSettings: readJsonPreference(LOCAL_PREFERENCE_KEYS.anatomimeSettings),
       notePreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.notePreferences),
+      calendarPreferences: readJsonPreference(LOCAL_PREFERENCE_KEYS.calendarPreferences),
     })
 
     const [preferencesResponse, profileResponse] = await Promise.all([
@@ -51,6 +52,7 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
           chimerSettings: payload.chimer_settings,
           anatomimeSettings: payload.anatomime_settings,
           notePreferences: payload.note_preferences,
+          calendarPreferences: payload.calendar_preferences,
         }),
       }),
       fetch("/api/account/profile", {
@@ -85,7 +87,7 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
         <div>
           <h3 className="font-semibold">Preference sync</h3>
           <p className="text-sm text-muted-foreground">
-            Account sync includes app settings, Chimer settings, Anatomime settings, and note personalization defaults.
+            Account sync includes app settings, Chimer settings, Anatomime settings, calendar display settings, and note personalization defaults.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={syncLocalPreferences} disabled={isSyncing}>

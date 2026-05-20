@@ -101,15 +101,16 @@ Status: shipped. Future navigation work should build on the existing route/audie
 
 ## Calendar Creation Flows
 
-The current sidebar only exposes calendar navigation affordances. Future calendar work needs separate creation flows by user type:
+Status: initial build shipped on `codex/calendar-creation-flows-plan`. Calendar work now uses a shared `CalendarEvent` index with specialized appointment, personal block, class, and reminder records, plus service variants and resources as catalog entities:
 
-- Appointment flow: therapists and practice staff create or confirm service appointments with client, therapist, service, location/timezone, start/end, status, and reminder policy.
-- Client request flow: clients request available appointment slots without seeing staff-only practice calendar details.
+- Appointment flow: therapists and practice staff create or confirm service appointments with client, therapist, selected service variant, location/timezone, start/end, status, resource requirements, and service snapshots.
+- Client request flow: clients request available appointment slots from path-first `/book/[practiceSlug]` pages without seeing staff-only practice calendar details.
 - Personal event flow: therapists block non-clinical time that affects availability without creating clinical appointment records.
-- Class flow: practice users create group classes with capacity, enrollment status, instructor, room/resource, and client-facing visibility.
+- Class flow: practice users create group classes from class-eligible service variants with capacity, enrollment status, instructor, room/resource, and client-facing visibility.
 - Reminder flow: practice users create operational reminders tied to appointments, clients, classes, or personal tasks without storing clinical note content in reminder payloads.
+- Service catalog: providers manage service templates, variants, duration, buffers, pricing display, resources, operational policy text, and client/class visibility.
 
-These flows remain roadmap-only until the calendar product defines role permissions, audit expectations, and notification behavior.
+The first build uses conservative role permissions, calendar audit rows, internal notification intent records, and resource conflict checks. External notification delivery, Google/Apple/Outlook calendar sync, and Stripe Connect marketplace payments remain deferred.
 
 ## Chimer Animation Polish
 

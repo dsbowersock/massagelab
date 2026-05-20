@@ -72,7 +72,7 @@ describe("Navigation IA model", () => {
   })
 
   it("defines sidebar calendar actions without adding unsupported event-type routes", () => {
-    assert.deepEqual(calendarSidebarActions.map((route) => route.href), ["/calendar", "/calendar", "/calendar/availability"])
-    assert.deepEqual(calendarSidebarActions.map((route) => route.id), ["calendar-open", "calendar-add", "calendar-availability"])
+    assert.deepEqual(calendarSidebarActions.map((route) => route.href), ["/calendar", "/calendar/new", "/calendar/availability", "/calendar/services"])
+    assert.deepEqual(calendarSidebarActions.map((route) => route.id), ["calendar-open", "calendar-add", "calendar-availability", "calendar-services"])
   })
 })

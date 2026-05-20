@@ -140,6 +140,52 @@ enum AppointmentSource {
   THERAPIST_CREATED
 }
 
+enum CalendarEventKind {
+  APPOINTMENT
+  PERSONAL
+  CLASS
+  REMINDER
+}
+
+enum CalendarEventStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+  ACTIVE
+}
+
+enum CalendarEventVisibility {
+  PRIVATE
+  PRACTICE
+  CLIENT_VISIBLE
+}
+
+enum CalendarClassEnrollmentStatus {
+  OPEN
+  CLOSED
+  WAITLIST
+  CANCELLED
+}
+
+enum CalendarNotificationChannel {
+  INTERNAL
+}
+
+enum CalendarNotificationStatus {
+  PENDING
+  CANCELLED
+  DELIVERED
+}
+
+enum CalendarAvailabilityOverrideKind {
+  OPEN
+  CLOSED
+  BLACKOUT
+  HOLIDAY
+}
+
 enum MembershipLevel {
   SUPPORTER
   THERAPIST
@@ -193,9 +239,17 @@ model User {
   practiceMemberships   PracticeMembership[]
   practiceClients       PracticeClient[]
   availabilityRules     TherapistAvailabilityRule[] @relation("AvailabilityTherapist")
+  availabilitySchedules CalendarAvailabilitySchedule[] @relation("AvailabilityScheduleTherapist")
+  availabilityOverrides CalendarAvailabilityOverride[] @relation("AvailabilityOverrideTherapist")
+  ownedCalendarEvents   CalendarEvent[]          @relation("CalendarEventOwner")
+  createdCalendarEvents CalendarEvent[]          @relation("CalendarEventCreator")
   calendarBlocks        CalendarBlock[]          @relation("CalendarBlockTherapist")
   appointmentsAsTherapist Appointment[]           @relation("AppointmentTherapist")
   createdAppointments   Appointment[]            @relation("AppointmentCreator")
+  instructedCalendarClasses CalendarClass[]       @relation("CalendarClassInstructor")
+  calendarAuditLogs     CalendarAuditLog[]       @relation("CalendarAuditActor")
+  createdNotificationIntents CalendarNotificationIntent[] @relation("CalendarNotificationActor")
+  receivedNotificationIntents CalendarNotificationIntent[] @relation("CalendarNotificationRecipient")
   stripeCustomer        StripeCustomer?
   membershipSubscriptions MembershipSubscription[]
   studentAccess         StudentAccess?
@@ -468,6 +522,7 @@ model UserPreference {
   chimerSettings    Json     @default("{}")
   anatomimeSettings Json     @default("{}")
   notePreferences   Json     @default("{}")
+  calendarPreferences Json   @default("{}")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -666,9 +721,14 @@ model Practice {
   memberships       PracticeMembership[]
   clients           PracticeClient[]
   serviceTypes      ServiceType[]
+  calendarResources CalendarResource[]
   availabilityRules TherapistAvailabilityRule[]
+  availabilitySchedules CalendarAvailabilitySchedule[]
+  availabilityOverrides CalendarAvailabilityOverride[]
+  calendarEvents    CalendarEvent[]
   calendarBlocks    CalendarBlock[]
   appointments      Appointment[]
+  calendarAuditLogs CalendarAuditLog[]
 }
 
 model PracticeMembership {
@@ -707,15 +767,88 @@ model ServiceType {
   practiceId      String
   name            String
   description     String?
+  category        String?
+  color           String?
   durationMinutes Int
   bufferMinutes   Int           @default(0)
+  clientVisible   Boolean       @default(true)
+  classEligible   Boolean       @default(false)
+  supplies        String?
+  prepNotes       String?
+  intakeRequirements String?
+  contraindicationNotice String?
+  modality        String?
+  bodyRegions     String[]       @default([])
+  eligibleProviderIds String[]    @default([])
+  documentationTemplateRefs Json  @default("[]")
+  intakeTemplateRefs Json         @default("[]")
+  contraindicationPrompts Json    @default("[]")
+  cancellationPolicy String?
+  noShowPolicy   String?
+  depositPolicy  String?
+  taxPolicy      String?
+  packagePolicy  String?
   active          Boolean       @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   practice        Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
   appointments    Appointment[]
+  appointmentServiceItems AppointmentServiceItem[]
+  variants        ServiceVariant[]
+  classes         CalendarClass[]
 
   @@index([practiceId, active])
+}
+
+model ServiceVariant {
+  id                  String        @id @default(cuid())
+  serviceTypeId       String
+  name                String
+  durationMinutes     Int
+  processingMinutes   Int           @default(0)
+  bufferBeforeMinutes Int           @default(0)
+  bufferAfterMinutes  Int           @default(0)
+  priceCents          Int?
+  currency            String        @default("USD")
+  active              Boolean       @default(true)
+  clientVisible       Boolean       @default(true)
+  sortOrder           Int           @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  serviceType         ServiceType   @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  resourceRequirements ServiceVariantResource[]
+  appointments        Appointment[]
+  appointmentServiceItems AppointmentServiceItem[]
+  classes             CalendarClass[]
+
+  @@index([serviceTypeId, active])
+}
+
+model CalendarResource {
+  id                  String        @id @default(cuid())
+  practiceId          String
+  name                String
+  description         String?
+  active              Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  practice            Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  variantRequirements ServiceVariantResource[]
+  bookings            CalendarResourceBooking[]
+
+  @@index([practiceId, active])
+}
+
+model ServiceVariantResource {
+  id               String           @id @default(cuid())
+  serviceVariantId String
+  resourceId       String
+  createdAt        DateTime         @default(now())
+  serviceVariant   ServiceVariant   @relation(fields: [serviceVariantId], references: [id], onDelete: Cascade)
+  resource         CalendarResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceVariantId, resourceId])
+  @@index([resourceId])
 }
 
 model TherapistAvailabilityRule {
@@ -735,8 +868,72 @@ model TherapistAvailabilityRule {
   @@index([practiceId, therapistId, dayOfWeek])
 }
 
+model CalendarAvailabilitySchedule {
+  id            String       @id @default(cuid())
+  practiceId    String
+  therapistId   String
+  name          String
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+  timezone      String       @default("America/New_York")
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  practice      Practice     @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  therapist     User         @relation("AvailabilityScheduleTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+  intervals     CalendarAvailabilityScheduleInterval[]
+
+  @@index([practiceId, therapistId, active])
+  @@index([therapistId, effectiveFrom])
+}
+
+model CalendarAvailabilityScheduleInterval {
+  id          String                       @id @default(cuid())
+  scheduleId  String
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+  active      Boolean                      @default(true)
+  createdAt   DateTime                     @default(now())
+  schedule    CalendarAvailabilitySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId, dayOfWeek])
+}
+
+model CalendarAvailabilityOverride {
+  id          String                           @id @default(cuid())
+  practiceId  String
+  therapistId String
+  date        DateTime
+  kind        CalendarAvailabilityOverrideKind @default(OPEN)
+  reason      String?
+  timezone    String                           @default("America/New_York")
+  createdById String?
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
+  practice    Practice                         @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  therapist   User                             @relation("AvailabilityOverrideTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
+  intervals   CalendarAvailabilityOverrideInterval[]
+
+  @@index([practiceId, therapistId, date])
+  @@index([therapistId, date])
+}
+
+model CalendarAvailabilityOverrideInterval {
+  id          String                       @id @default(cuid())
+  overrideId  String
+  startMinute Int
+  endMinute   Int
+  active      Boolean                      @default(true)
+  createdAt   DateTime                     @default(now())
+  override    CalendarAvailabilityOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+
+  @@index([overrideId])
+}
+
 model CalendarBlock {
   id          String    @id @default(cuid())
+  eventId     String    @unique
   practiceId  String
   therapistId String
   startsAt    DateTime
@@ -744,6 +941,7 @@ model CalendarBlock {
   reason      String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   practice    Practice  @relation(fields: [practiceId], references: [id], onDelete: Cascade)
   therapist   User      @relation("CalendarBlockTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
 
@@ -752,27 +950,195 @@ model CalendarBlock {
 
 model Appointment {
   id               String            @id @default(cuid())
+  eventId          String            @unique
   practiceId       String
   therapistId      String
   practiceClientId String
   serviceTypeId    String
+  serviceVariantId String?
   createdById      String?
   startsAt         DateTime
   endsAt           DateTime
   status           AppointmentStatus @default(REQUESTED)
   source           AppointmentSource @default(CLIENT_REQUEST)
+  serviceName      String?
+  serviceVariantName String?
+  serviceCategory  String?
+  serviceColor     String?
+  serviceDurationMinutes Int?
+  serviceProcessingMinutes Int?
+  serviceBufferBeforeMinutes Int?
+  serviceBufferAfterMinutes Int?
+  servicePriceCents Int?
+  serviceCurrency  String?
   notes            String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  event            CalendarEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   practice         Practice          @relation(fields: [practiceId], references: [id], onDelete: Cascade)
   therapist        User              @relation("AppointmentTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
   practiceClient   PracticeClient    @relation(fields: [practiceClientId], references: [id], onDelete: Cascade)
   serviceType      ServiceType       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  serviceVariant   ServiceVariant?   @relation(fields: [serviceVariantId], references: [id], onDelete: SetNull)
   createdBy        User?             @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  serviceItems     AppointmentServiceItem[]
 
   @@index([practiceId, startsAt])
   @@index([therapistId, startsAt])
   @@index([practiceClientId, startsAt])
+  @@index([serviceVariantId])
+}
+
+model AppointmentServiceItem {
+  id               String            @id @default(cuid())
+  appointmentId    String
+  serviceTypeId    String?
+  serviceVariantId String?
+  sortOrder        Int               @default(0)
+  serviceName      String?
+  serviceVariantName String?
+  serviceCategory  String?
+  serviceColor     String?
+  serviceDurationMinutes Int?
+  serviceProcessingMinutes Int?
+  serviceBufferBeforeMinutes Int?
+  serviceBufferAfterMinutes Int?
+  servicePriceCents Int?
+  serviceCurrency  String?
+  createdAt        DateTime          @default(now())
+  appointment      Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  serviceType      ServiceType?      @relation(fields: [serviceTypeId], references: [id], onDelete: SetNull)
+  serviceVariant   ServiceVariant?   @relation(fields: [serviceVariantId], references: [id], onDelete: SetNull)
+
+  @@index([appointmentId, sortOrder])
+  @@index([serviceVariantId])
+}
+
+model CalendarEvent {
+  id                 String                  @id @default(cuid())
+  practiceId         String
+  ownerUserId        String?
+  createdById        String?
+  kind               CalendarEventKind
+  title              String
+  startsAt           DateTime
+  endsAt             DateTime
+  timezone           String                  @default("America/New_York")
+  visibility         CalendarEventVisibility @default(PRACTICE)
+  status             CalendarEventStatus     @default(ACTIVE)
+  blocksAvailability Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  practice           Practice                @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  owner              User?                   @relation("CalendarEventOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy          User?                   @relation("CalendarEventCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  appointment        Appointment?
+  personalBlock      CalendarBlock?
+  class              CalendarClass?
+  reminder           CalendarReminder?
+  resourceBookings   CalendarResourceBooking[]
+  auditLogs          CalendarAuditLog[]
+  notificationIntents CalendarNotificationIntent[]
+
+  @@index([practiceId, startsAt])
+  @@index([ownerUserId, startsAt])
+  @@index([kind, status])
+}
+
+model CalendarClass {
+  id               String                        @id @default(cuid())
+  eventId          String                        @unique
+  instructorId     String
+  serviceTypeId    String?
+  serviceVariantId String?
+  capacity         Int
+  enrollmentStatus CalendarClassEnrollmentStatus @default(OPEN)
+  roomResource     String?
+  clientVisible    Boolean                       @default(false)
+  serviceName      String?
+  serviceVariantName String?
+  serviceCategory  String?
+  serviceColor     String?
+  serviceDurationMinutes Int?
+  serviceProcessingMinutes Int?
+  serviceBufferBeforeMinutes Int?
+  serviceBufferAfterMinutes Int?
+  servicePriceCents Int?
+  serviceCurrency  String?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  event            CalendarEvent                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  instructor       User                          @relation("CalendarClassInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  serviceType      ServiceType?                  @relation(fields: [serviceTypeId], references: [id], onDelete: SetNull)
+  serviceVariant   ServiceVariant?               @relation(fields: [serviceVariantId], references: [id], onDelete: SetNull)
+
+  @@index([instructorId])
+  @@index([enrollmentStatus])
+  @@index([serviceVariantId])
+}
+
+model CalendarResourceBooking {
+  id         String           @id @default(cuid())
+  eventId    String
+  resourceId String
+  startsAt   DateTime
+  endsAt     DateTime
+  createdAt  DateTime         @default(now())
+  event      CalendarEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  resource   CalendarResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, resourceId])
+  @@index([resourceId, startsAt])
+}
+
+model CalendarReminder {
+  id          String        @id @default(cuid())
+  eventId     String        @unique
+  relatedKind String?
+  relatedId   String?
+  payload     Json          @default("{}")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([relatedKind, relatedId])
+}
+
+model CalendarAuditLog {
+  id          String        @id @default(cuid())
+  practiceId  String
+  eventId     String?
+  actorUserId String?
+  action      String
+  metadata    Json          @default("{}")
+  createdAt   DateTime      @default(now())
+  practice    Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  event       CalendarEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  actor       User?         @relation("CalendarAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([practiceId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model CalendarNotificationIntent {
+  id              String                     @id @default(cuid())
+  eventId          String
+  actorUserId      String?
+  recipientUserId  String
+  action           String
+  channel          CalendarNotificationChannel @default(INTERNAL)
+  deliveryStatus   CalendarNotificationStatus  @default(PENDING)
+  payload          Json                       @default("{}")
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  event            CalendarEvent              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actor            User?                      @relation("CalendarNotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  recipient        User                       @relation("CalendarNotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@index([recipientUserId, deliveryStatus])
+  @@index([actorUserId, createdAt])
 }
 
 model StripeCustomer {

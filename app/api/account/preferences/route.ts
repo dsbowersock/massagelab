@@ -32,6 +32,7 @@ export async function GET() {
     chimerSettings: preferences?.chimerSettings ?? {},
     anatomimeSettings: preferences?.anatomimeSettings ?? {},
     notePreferences: preferences?.notePreferences ?? {},
+    calendarPreferences: preferences?.calendarPreferences ?? {},
     membershipLevel: entitlements.level,
     features: entitlements.features,
     updatedAt: preferences?.updatedAt ?? null,
@@ -64,6 +65,7 @@ export async function PUT(request: Request) {
       chimerSettings,
       anatomimeSettings: jsonObject(payload.anatomime_settings),
       notePreferences: jsonObject(payload.note_preferences),
+      calendarPreferences: jsonObject(payload.calendar_preferences),
     },
     update: {
       version: USER_PREFERENCES_VERSION,
@@ -71,6 +73,7 @@ export async function PUT(request: Request) {
       chimerSettings,
       anatomimeSettings: "anatomimeSettings" in body ? jsonObject(payload.anatomime_settings) : (existing?.anatomimeSettings as Prisma.InputJsonValue | undefined) ?? {},
       notePreferences: "notePreferences" in body ? jsonObject(payload.note_preferences) : (existing?.notePreferences as Prisma.InputJsonValue | undefined) ?? {},
+      calendarPreferences: "calendarPreferences" in body ? jsonObject(payload.calendar_preferences) : (existing?.calendarPreferences as Prisma.InputJsonValue | undefined) ?? {},
     },
   })
   clearAccountSurfaceDataCache(session.user.id, "sync")
@@ -81,6 +84,7 @@ export async function PUT(request: Request) {
     chimerSettings: preferences.chimerSettings,
     anatomimeSettings: preferences.anatomimeSettings,
     notePreferences: preferences.notePreferences,
+    calendarPreferences: preferences.calendarPreferences,
     membershipLevel: entitlements.level,
     features: entitlements.features,
     updatedAt: preferences.updatedAt,

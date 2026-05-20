@@ -17,6 +17,7 @@ describe("Account preference helpers", () => {
       chimerSettings: { movingBackgroundEnabled: false },
       anatomimeSettings: { roundLimit: 8 },
       notePreferences: { defaultNoteType: "soap" },
+      calendarPreferences: { defaultRange: "week", providerViewMode: "combined" },
     })
 
     assert.equal(payload.version, USER_PREFERENCES_VERSION)
@@ -24,6 +25,7 @@ describe("Account preference helpers", () => {
     assert.deepEqual(payload.chimer_settings, { movingBackgroundEnabled: false })
     assert.deepEqual(payload.anatomime_settings, { roundLimit: 8 })
     assert.deepEqual(payload.note_preferences, { defaultNoteType: "soap" })
+    assert.deepEqual(payload.calendar_preferences, { defaultRange: "week", providerViewMode: "combined" })
   })
 
   it("removes known PHI fields before account sync", () => {

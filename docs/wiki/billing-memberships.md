@@ -55,6 +55,9 @@ The early access discount is controlled by `MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENA
 Current:
 
 - `chimer_custom_colors`
+- `calendar_basic_scheduling`
+- `calendar_full_scheduling`
+- `calendar_team_scheduling`
 
 Reserved for later:
 
@@ -62,10 +65,13 @@ Reserved for later:
 - `anatomy_saved_progress`
 - `education_premium_content`
 - `practice_management`
+- `external_calendar_sync`
 - `cloud_storage`
 - `phi_storage_tools`
 
 Cloud storage and PHI-related tools must remain behind the separate compliance gates documented in [privacy-and-phi.md](privacy-and-phi.md).
+
+Frontend copy may call the `PRACTICE` membership tier `Team/Practice` for clarity. Keep code checks feature-based instead of branching on the displayed plan label.
 
 ## Stripe Setup Checklist
 

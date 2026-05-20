@@ -4,6 +4,8 @@ import { useEffect, useRef, type ReactNode, type RefObject } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { LogIn } from "lucide-react"
+import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-top-bar"
+import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
 import { MovingBackground } from "@/components/moving-background"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -141,9 +143,11 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
   const contentRef = useRef<HTMLDivElement | null>(null)
   const wordmarkRef = useRef<HTMLAnchorElement | null>(null)
   const isHomePage = pathname === "/"
-  const showRouteWordmark = !isHomePage
+  const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
+  const isCalendarWorkspaceRoute = pathname === "/calendar"
+  const showRouteWordmark = !isHomePage && !isCalendarOperatorRoute
   const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
-  const hasPortraitBar = renderMode === "drawer"
+  const hasPortraitBar = renderMode === "drawer" && !isCalendarOperatorRoute
   const portraitBarAtBottom = settings.sidebarTriggerPosition === "bottom"
 
   useEffect(() => {
@@ -226,7 +230,7 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
     }
   }, [pathname, showRouteWordmark])
 
-  return (
+  const shell = (
     <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background">
       {!routeOwnsBackground && (
         <>
@@ -240,13 +244,21 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
           />
         </>
       )}
-      <PortraitSidebarBar user={user} />
+      {isCalendarOperatorRoute ? <CalendarOperatorTopBar user={user} /> : <PortraitSidebarBar user={user} />}
       <RouteWordmark visible={showRouteWordmark} wordmarkRef={wordmarkRef} />
-      <div ref={scrollRef} className="ml-app-scroll relative z-10 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain">
+      <div
+        ref={scrollRef}
+        className={cn(
+          "ml-app-scroll relative z-10 min-h-0 w-full flex-1 overscroll-contain",
+          isCalendarWorkspaceRoute ? "overflow-hidden" : "overflow-y-auto",
+        )}
+      >
         <div
           ref={contentRef}
           className={cn(
-            "ml-app-content mx-auto w-full max-w-screen-2xl",
+            "ml-app-content mx-auto w-full",
+            isCalendarOperatorRoute ? "max-w-none" : "max-w-screen-2xl",
+            isCalendarWorkspaceRoute && "h-full min-h-0 pb-0",
             hasPortraitBar && portraitBarAtBottom && "pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]",
             hasPortraitBar && !portraitBarAtBottom
               ? "pt-[calc(env(safe-area-inset-top,0px)+4.5rem)]"
@@ -258,5 +270,9 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
       </div>
     </div>
   )
+
+  return isCalendarOperatorRoute ? (
+    <CalendarOperatorToolbarProvider>{shell}</CalendarOperatorToolbarProvider>
+  ) : shell
 }
 
