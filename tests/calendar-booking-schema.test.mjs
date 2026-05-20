@@ -97,6 +97,8 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(bookingPicker, /providerPreferenceModel/)
     assert.match(bookingPicker, /day\.slots\.map/)
     assert.match(bookingPicker, /-mx-6 overflow-hidden/)
+    assert.match(bookingPicker, /-ml-4/)
+    assert.match(bookingPicker, /sm:w-\[calc\(100vw-var\(--sidebar-width-icon\)\)\]/)
     assert.match(bookingPickerHelpers, /shouldShowProviderPreference/)
     assert.doesNotMatch(bookingPicker, /<Calendar[\s>]/)
     assert.doesNotMatch(bookingPicker, /day\.bands\.map/)

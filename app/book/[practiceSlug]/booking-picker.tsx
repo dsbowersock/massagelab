@@ -476,7 +476,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       ) : null}
 
       {activeStep === "time" ? (
-        <Card className="w-full border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+        <Card className="relative left-1/2 -ml-4 w-screen max-w-none -translate-x-1/2 border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur sm:w-[calc(100vw-var(--sidebar-width-icon))]">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
