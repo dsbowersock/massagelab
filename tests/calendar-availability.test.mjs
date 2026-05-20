@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE,
+  availabilityRangeOverrideState,
   availabilityContainsRange,
   calendarDateParts,
   resolveAvailabilityForDate,
@@ -58,6 +60,32 @@ describe("advanced calendar availability", () => {
     assert.equal(availabilityContainsRange({ availability, startMinute: 9 * 60, endMinute: 10 * 60 }), true)
     assert.equal(availabilityContainsRange({ availability, startMinute: 8 * 60 + 45, endMinute: 10 * 60 }), false)
     assert.equal(availabilityContainsRange({ availability, startMinute: 16 * 60 + 30, endMinute: 17 * 60 + 15 }), false)
+  })
+
+  it("requires an explicit override before manual scheduling outside provider availability", () => {
+    const availability = { intervals: [{ startMinute: 9 * 60, endMinute: 17 * 60 }] }
+
+    assert.deepEqual(availabilityRangeOverrideState({
+      availability,
+      startMinute: 18 * 60,
+      endMinute: 19 * 60,
+      allowOutsideAvailability: false,
+    }), {
+      allowed: false,
+      outsideAvailability: true,
+      message: OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE,
+    })
+
+    assert.deepEqual(availabilityRangeOverrideState({
+      availability,
+      startMinute: 18 * 60,
+      endMinute: 19 * 60,
+      allowOutsideAvailability: true,
+    }), {
+      allowed: true,
+      outsideAvailability: true,
+      message: OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE,
+    })
   })
 
   it("extracts practice-local date, weekday, and minute parts from UTC instants", () => {

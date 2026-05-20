@@ -8,11 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CalendarOperatorShell } from "../../calendar-operator-shell"
 
-export default async function NewReminderPage() {
+export default async function NewReminderPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ startsAt?: string }>
+}) {
   const session = await getCurrentSession()
+  const defaultStartsAt = (await searchParams)?.startsAt ?? ""
 
   if (!session?.user?.id) {
     return <ReminderShell><Notice title="Sign in to create reminders" description="Calendar reminders belong to a practice calendar." /></ReminderShell>
@@ -73,7 +78,7 @@ export default async function NewReminderPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startsAt">When</Label>
-                <Input id="startsAt" name="startsAt" type="datetime-local" required />
+                <Input id="startsAt" name="startsAt" type="datetime-local" defaultValue={defaultStartsAt} required />
               </div>
               <div className="space-y-2">
                 <Label>Related to</Label>
@@ -103,15 +108,12 @@ export default async function NewReminderPage() {
 
 function ReminderShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>Reminder</PageHeading>
-          <Button asChild variant="outline"><Link href="/calendar/new">Creation menu</Link></Button>
-        </div>
-        {children}
+    <CalendarOperatorShell width="standard">
+      <div className="flex justify-end">
+        <Button asChild variant="outline"><Link href="/calendar/new">Creation menu</Link></Button>
       </div>
-    </div>
+      {children}
+    </CalendarOperatorShell>
   )
 }
 

@@ -7,7 +7,7 @@ import {
 } from "../lib/calendar-workspace.js"
 
 describe("operator calendar workspace helpers", () => {
-  it("limits drag and resize to editable scheduling events with conservative role rules", () => {
+  it("limits drag changes to editable scheduling events with conservative role rules", () => {
     const appointment = { id: "event_1", kind: "APPOINTMENT", status: "CONFIRMED", ownerUserId: "therapist_1", blocksAvailability: true }
     const reminder = { id: "event_2", kind: "REMINDER", status: "ACTIVE", ownerUserId: "therapist_1", blocksAvailability: false }
     const cancelled = { id: "event_3", kind: "APPOINTMENT", status: "CANCELLED", ownerUserId: "therapist_1", blocksAvailability: true }
@@ -48,5 +48,6 @@ describe("operator calendar workspace helpers", () => {
     assert.equal(event.extendedProps.providerLabel, "Provider One")
     assert.equal(event.extendedProps.clientLabel, "Client One")
     assert.equal(event.editable, true)
+    assert.equal(event.durationEditable, false)
   })
 })

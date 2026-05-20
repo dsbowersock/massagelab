@@ -196,6 +196,100 @@
   .ml-route-wordmark img {
     animation: ml-route-wordmark-settle 260ms ease-out both;
   }
+
+  .ml-calendar-surface .fc,
+  .ml-calendar-surface .fc-view-harness,
+  .ml-calendar-surface .fc-view-harness-active,
+  .ml-calendar-surface .fc-view,
+  .ml-calendar-surface .fc-scrollgrid {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .ml-calendar-surface .fc {
+    --fc-border-color: hsl(var(--border) / 0.82);
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: hsl(var(--muted) / 0.42);
+    --fc-today-bg-color: hsl(var(--primary) / 0.14);
+    --fc-now-indicator-color: hsl(var(--primary));
+    --fc-small-font-size: 0.78rem;
+
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+  }
+
+  .ml-calendar-surface .fc a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .ml-calendar-surface .fc .fc-scrollgrid {
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: hsl(var(--background) / 0.58);
+    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.04);
+  }
+
+  .ml-calendar-surface .fc .fc-col-header-cell {
+    background: hsl(var(--card) / 0.95);
+    border-color: hsl(var(--border) / 0.9);
+  }
+
+  .ml-calendar-surface .fc .fc-col-header-cell-cushion {
+    display: block;
+    width: 100%;
+    padding: 0.35rem 0.25rem;
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-axis,
+  .ml-calendar-surface .fc .fc-timegrid-slot-label,
+  .ml-calendar-surface .fc .fc-timegrid-divider,
+  .ml-calendar-surface .fc .fc-daygrid-day,
+  .ml-calendar-surface .fc .fc-timegrid-col {
+    border-color: hsl(var(--border) / 0.74);
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-axis,
+  .ml-calendar-surface .fc .fc-timegrid-slot-label {
+    background: hsl(var(--card) / 0.75);
+    color: hsl(var(--muted-foreground));
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-slot {
+    height: var(--ml-calendar-slot-height, 2.25rem);
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-slot-lane {
+    background: hsl(var(--background) / 0.35);
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-col.fc-day-today,
+  .ml-calendar-surface .fc .fc-day-today {
+    background: hsl(var(--primary) / 0.1);
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-now-indicator-line {
+    border-color: hsl(var(--primary));
+    border-width: 2px 0 0;
+  }
+
+  .ml-calendar-surface .fc .fc-timegrid-now-indicator-arrow {
+    border-color: hsl(var(--primary));
+    border-bottom-color: transparent;
+    border-top-color: transparent;
+  }
+
+  .ml-calendar-surface .fc .fc-event {
+    border: 1px solid hsl(var(--background) / 0.45);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 18px hsl(0 0% 0% / 0.2);
+  }
+
+  .ml-calendar-surface .fc .fc-daygrid-day-number {
+    padding: 0.5rem;
+    color: hsl(var(--foreground));
+    font-weight: 600;
+  }
 }
 
 /* Remove this class

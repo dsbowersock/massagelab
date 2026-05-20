@@ -1,6 +1,6 @@
 import Link from "next/link"
 import * as React from "react"
-import { CalendarOff, Clock } from "lucide-react"
+import { CalendarDays, CalendarOff, Clock, Layers3 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import {
   createAvailabilityOverrideAction,
@@ -11,13 +11,15 @@ import {
 import { formatMinuteLabel } from "@/lib/calendar"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
+import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CalendarOperatorShell } from "../calendar-operator-shell"
 
 const weekdays = [
   ["0", "Sunday"],
@@ -153,20 +155,47 @@ export default async function CalendarAvailabilityPage() {
   ])
 
   const defaultTherapistId = therapists[0]?.userId ?? session.user.id
+  const activeRuleCount = rules.filter((rule) => rule.active).length
+  const upcomingBlockCount = blocks.length
+  const activeScheduleCount = schedules.filter((schedule) => schedule.active).length
 
   return (
     <AvailabilityShell>
-      <Tabs defaultValue="schedules" className="space-y-4">
+      <Card className="border-border/80 bg-card/95 shadow-xl shadow-black/20 backdrop-blur">
+        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Availability</Badge>
+              <Badge variant="outline">{membership.practice.timezone}</Badge>
+            </div>
+            <CardTitle className="text-2xl">Provider schedules</CardTitle>
+            <CardDescription>Baseline working hours, one-time changes, and blocked time for {membership.practice.name}.</CardDescription>
+          </div>
+          <Button asChild variant="outline">
+            <Link href="/calendar">Back to calendar</Link>
+          </Button>
+        </CardHeader>
+      </Card>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <SummaryMetric icon={Clock} label="Active rules" value={activeRuleCount} />
+        <SummaryMetric icon={CalendarOff} label="Upcoming blocks" value={upcomingBlockCount} />
+        <SummaryMetric icon={Layers3} label="Active schedules" value={activeScheduleCount} />
+      </div>
+
+      <WeeklyAvailabilityPlanner rules={rules} timeZone={membership.practice.timezone} />
+
+      <Tabs defaultValue="weekly" className="space-y-4">
         <TabsList className="flex h-auto flex-wrap justify-start">
-          <TabsTrigger value="weekly">Weekly</TabsTrigger>
-          <TabsTrigger value="schedules">Schedules</TabsTrigger>
+          <TabsTrigger value="weekly">Working hours</TabsTrigger>
           <TabsTrigger value="overrides">Overrides</TabsTrigger>
-          <TabsTrigger value="blocks">Blocks</TabsTrigger>
+          <TabsTrigger value="blocks">Blocked time</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="weekly">
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-brand-orange" />
@@ -182,10 +211,8 @@ export default async function CalendarAvailabilityPage() {
               </form>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="schedules">
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
             <CardHeader>
               <CardTitle>Named schedules</CardTitle>
               <CardDescription>Use date-ranged schedules for seasonal hours, alternate routines, or provider-specific availability plans.</CardDescription>
@@ -212,10 +239,11 @@ export default async function CalendarAvailabilityPage() {
               </form>
             </CardContent>
           </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="overrides">
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
             <CardHeader>
               <CardTitle>One-time changes and blackout days</CardTitle>
               <CardDescription>Closed, blackout, and holiday overrides take precedence over one-time open intervals and recurring schedules.</CardDescription>
@@ -264,10 +292,11 @@ export default async function CalendarAvailabilityPage() {
         </TabsContent>
 
         <TabsContent value="blocks">
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CalendarOff className="h-5 w-5 text-brand-orange" />
+                <CalendarOff data-icon="inline-start" className="text-brand-orange" />
                 Personal block
               </CardTitle>
               <CardDescription>Blocks remove time from client booking and therapist scheduling.</CardDescription>
@@ -298,6 +327,17 @@ export default async function CalendarAvailabilityPage() {
               </form>
             </CardContent>
           </Card>
+
+          <AvailabilityList title="Upcoming blocks" empty="No upcoming blocked time.">
+            {blocks.map((block) => (
+              <AvailabilityRow
+                key={block.id}
+                title={`${formatDateTime(block.startsAt, membership.practice.timezone)} - ${formatDateTime(block.endsAt, membership.practice.timezone)}`}
+                detail={`${block.therapist.name ?? block.therapist.email}${block.reason ? ` · ${block.reason}` : ""}`}
+              />
+            ))}
+          </AvailabilityList>
+          </div>
         </TabsContent>
 
         <TabsContent value="history">
@@ -321,56 +361,104 @@ export default async function CalendarAvailabilityPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Current rules</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {rules.length > 0 ? rules.map((rule) => (
-              <div key={rule.id} className="rounded-md border border-neutral-800 bg-background/70 p-3">
-                <p className="font-medium">{weekdays[rule.dayOfWeek]?.[1] ?? "Day"}: {formatMinuteLabel(rule.startMinute)} - {formatMinuteLabel(rule.endMinute)}</p>
-                <p className="text-sm text-muted-foreground">{rule.therapist.name ?? rule.therapist.email}</p>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">No working hours yet.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Upcoming blocks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {blocks.length > 0 ? blocks.map((block) => (
-              <div key={block.id} className="rounded-md border border-neutral-800 bg-background/70 p-3">
-                <p className="font-medium">{formatDateTime(block.startsAt, membership.practice.timezone)} - {formatDateTime(block.endsAt, membership.practice.timezone)}</p>
-                <p className="text-sm text-muted-foreground">{block.therapist.name ?? block.therapist.email}{block.reason ? ` · ${block.reason}` : ""}</p>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">No upcoming blocked time.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </AvailabilityShell>
   )
 }
 
 function AvailabilityShell({ children }: { children: React.ReactNode }) {
+  return <CalendarOperatorShell width="wide">{children}</CalendarOperatorShell>
+}
+
+function SummaryMetric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: number | string
+}) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>Calendar Availability</PageHeading>
-          <Button asChild variant="outline">
-            <Link href="/calendar">Back to calendar</Link>
-          </Button>
+    <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/10 backdrop-blur">
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="flex size-10 items-center justify-center rounded-md border border-border/70 bg-background/70">
+          <Icon className="size-4 text-brand-orange" />
         </div>
-        {children}
-      </div>
-    </div>
+        <div>
+          <p className="text-2xl font-semibold leading-none">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function WeeklyAvailabilityPlanner({
+  rules,
+  timeZone,
+}: {
+  rules: Array<{
+    id: string
+    dayOfWeek: number
+    startMinute: number
+    endMinute: number
+    active: boolean
+    therapist: { name: string | null; email: string | null }
+  }>
+  timeZone: string
+}) {
+  const activeRules = rules.filter((rule) => rule.active)
+  const dayRows = weekdays.map(([value, label]) => ({
+    value,
+    label,
+    rules: activeRules.filter((rule) => String(rule.dayOfWeek) === value),
+  }))
+
+  return (
+    <Card className="border-border/80 bg-card/95 shadow-xl shadow-black/15 backdrop-blur">
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarDays data-icon="inline-start" className="text-brand-orange" />
+              Weekly planner
+            </CardTitle>
+            <CardDescription>Current baseline working hours grouped by weekday. Overrides and blackout days still take priority.</CardDescription>
+          </div>
+          <Badge variant="outline">{timeZone}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2 lg:grid-cols-7">
+          {dayRows.map((day) => (
+            <div key={day.value} className="min-h-36 rounded-lg border border-border/70 bg-background/50 p-3">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">{day.label.slice(0, 3)}</p>
+                <Badge variant={day.rules.length > 0 ? "secondary" : "outline"}>{day.rules.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {day.rules.length > 0 ? day.rules.map((rule) => (
+                  <div key={rule.id} className="rounded-md border border-border/70 bg-card/70 p-2">
+                    <p className="text-sm font-medium">
+                      {formatMinuteLabel(rule.startMinute)} - {formatMinuteLabel(rule.endMinute)}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {rule.therapist.name ?? rule.therapist.email ?? "Provider"}
+                    </p>
+                  </div>
+                )) : (
+                  <p className="rounded-md border border-dashed border-border/70 p-2 text-xs text-muted-foreground">Closed or unset</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <Separator className="my-4" />
+        <p className="text-xs text-muted-foreground">
+          Resolution order: blackout or closed day, one-time override, active named schedule, then weekly fallback.
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -437,7 +525,7 @@ function ProviderAndDayFields({
 
 function AvailabilityList({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) {
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+    <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
@@ -450,7 +538,7 @@ function AvailabilityList({ title, empty, children }: { title: string; empty: st
 
 function AvailabilityRow({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="rounded-md border border-neutral-800 bg-background/70 p-3">
+    <div className="rounded-md border border-border/70 bg-background/60 p-3">
       <p className="font-medium">{title}</p>
       <p className="text-sm text-muted-foreground">{detail}</p>
     </div>

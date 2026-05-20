@@ -9,11 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CalendarOperatorShell } from "../../calendar-operator-shell"
 
-export default async function NewClassPage() {
+export default async function NewClassPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ startsAt?: string }>
+}) {
   const session = await getCurrentSession()
+  const defaultStartsAt = (await searchParams)?.startsAt ?? ""
 
   if (!session?.user?.id) {
     return <ClassShell><Notice title="Sign in to create classes" description="Class creation belongs to practice scheduling." /></ClassShell>
@@ -102,7 +107,7 @@ export default async function NewClassPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startsAt">Starts</Label>
-                <Input id="startsAt" name="startsAt" type="datetime-local" required />
+                <Input id="startsAt" name="startsAt" type="datetime-local" defaultValue={defaultStartsAt} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="capacity">Capacity</Label>
@@ -128,15 +133,12 @@ export default async function NewClassPage() {
 
 function ClassShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>Class</PageHeading>
-          <Button asChild variant="outline"><Link href="/calendar/new">Creation menu</Link></Button>
-        </div>
-        {children}
+    <CalendarOperatorShell width="standard">
+      <div className="flex justify-end">
+        <Button asChild variant="outline"><Link href="/calendar/new">Creation menu</Link></Button>
       </div>
-    </div>
+      {children}
+    </CalendarOperatorShell>
   )
 }
 

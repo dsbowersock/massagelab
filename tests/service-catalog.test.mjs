@@ -98,6 +98,7 @@ describe("service catalog scheduling helpers", () => {
     assert.equal(composition.totalPriceCents, 14500)
     assert.deepEqual(composition.resourceIds, ["room_1", "warmer_1"])
     assert.equal(composition.primary.serviceName, "Therapeutic Massage")
+    assert.equal(Object.hasOwn(composition.primary, "sortOrder"), false)
     assert.deepEqual(composition.items.map((item) => ({
       serviceTypeId: item.serviceTypeId,
       serviceVariantId: item.serviceVariantId,

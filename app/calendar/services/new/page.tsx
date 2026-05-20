@@ -4,7 +4,7 @@ import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
+import { CalendarOperatorShell } from "../../calendar-operator-shell"
 import { ServiceForm } from "../service-form"
 
 export default async function NewServicePage() {
@@ -45,15 +45,12 @@ export default async function NewServicePage() {
 
 function ServiceShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>New Service</PageHeading>
-          <Button asChild variant="outline"><Link href="/calendar/services">Services</Link></Button>
-        </div>
-        {children}
+    <CalendarOperatorShell width="standard">
+      <div className="flex justify-end">
+        <Button asChild variant="outline"><Link href="/calendar/services">Services</Link></Button>
       </div>
-    </div>
+      {children}
+    </CalendarOperatorShell>
   )
 }
 

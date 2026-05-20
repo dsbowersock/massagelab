@@ -2,28 +2,19 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CalendarDays, LockKeyhole } from "lucide-react"
 import { getCurrentSession } from "@/auth"
-import { requestAppointmentAction } from "@/app/calendar/actions"
 import { buildAvailabilitySlots, isoDate } from "@/lib/calendar"
 import { resolveAvailabilityForDate } from "@/lib/calendar-availability"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
+import { buildBookingOptionModel } from "@/lib/booking-options"
 import { prisma } from "@/lib/prisma"
 import { serviceVariantBookableMinutes } from "@/lib/service-catalog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
+import { BookingPicker } from "./booking-picker"
 
 const ACTIVE_EVENT_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
-
-function formatSlot(value: Date, timeZone = "America/New_York") {
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(value)
-}
 
 function nextDates(count: number) {
   const start = new Date()
@@ -160,130 +151,102 @@ export default async function BookingPage({
       variants: service.variants.filter((variant) => variant.active && variant.clientVisible),
     }))
     .filter((service) => service.variants.length > 0)
+  const providers = practice.memberships.map((therapist) => ({
+    userId: therapist.userId,
+    label: therapist.user.name ?? therapist.user.email ?? "Provider",
+  }))
+  const slotsByVariantAndProvider: Record<string, Array<{ startsAt: Date }>> = {}
+
+  for (const service of bookableServices) {
+    for (const variant of service.variants) {
+      const variantResourceIds = variant.resourceRequirements
+        .filter((requirement) => requirement.resource.active)
+        .map((requirement) => requirement.resourceId)
+      const variantResourceBlocks = resourceBookings.filter((booking) => variantResourceIds.includes(booking.resourceId))
+      const eligibleTherapists = practice.memberships.filter((therapist) => (
+        service.eligibleProviderIds.length === 0 || service.eligibleProviderIds.includes(therapist.userId)
+      ))
+
+      for (const therapist of eligibleTherapists) {
+        const therapistRules = rules.filter((rule) => rule.therapistId === therapist.userId)
+        const therapistSchedules = schedules
+          .filter((schedule) => schedule.therapistId === therapist.userId)
+          .map((schedule) => ({
+            active: schedule.active,
+            effectiveFrom: schedule.effectiveFrom,
+            effectiveTo: schedule.effectiveTo,
+            intervals: schedule.intervals,
+          }))
+        const therapistOverrides = overrides
+          .filter((override) => override.therapistId === therapist.userId)
+          .map((override) => ({
+            date: override.date,
+            kind: override.kind,
+            intervals: override.intervals,
+          }))
+        const therapistBlocks = blockingEvents.filter((event) => event.ownerUserId === therapist.userId)
+        const slots = dates.flatMap((date) => {
+          const resolvedAvailability = resolveAvailabilityForDate({
+            date,
+            weeklyRules: therapistRules,
+            schedules: therapistSchedules,
+            overrides: therapistOverrides,
+          })
+          const dayOfWeek = new Date(`${date}T00:00:00.000Z`).getUTCDay()
+          return buildAvailabilitySlots({
+            date,
+            serviceDurationMinutes: serviceVariantBookableMinutes(variant),
+            now,
+            rules: resolvedAvailability.intervals.map((interval) => ({
+              dayOfWeek,
+              startMinute: interval.startMinute,
+              endMinute: interval.endMinute,
+              active: true,
+            })),
+            blocks: [...therapistBlocks, ...variantResourceBlocks],
+            appointments: [],
+            timeZone: practice.timezone,
+          })
+        }).slice(0, 8)
+
+        slotsByVariantAndProvider[`${variant.id}:${therapist.userId}`] = slots
+      }
+    }
+  }
+
+  const bookingModel = buildBookingOptionModel({
+    practiceId: practice.id,
+    timeZone: practice.timezone,
+    services: bookableServices,
+    providers,
+    slotsByVariantAndProvider,
+  })
 
   return (
     <BookingShell practiceName={practice.name}>
-      <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <CalendarDays className="mt-1 h-5 w-5 text-brand-orange" />
-          <div>
-            <CardTitle>Request an appointment</CardTitle>
-            <CardDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</CardDescription>
-          </div>
-        </CardHeader>
-      </Card>
+      <Alert className="border-border/80 bg-card/80 backdrop-blur">
+        <CalendarDays />
+        <div>
+          <AlertTitle>Request an appointment</AlertTitle>
+          <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
+        </div>
+      </Alert>
 
-      <div className="grid gap-4">
-        {bookableServices.length === 0 || practice.memberships.length === 0 ? (
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle>No online booking times available</CardTitle>
-              <CardDescription>The practice needs at least one active service, therapist, and availability rule.</CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          bookableServices.map((service) => (
-            <Card key={service.id} className="border-neutral-800 bg-card/90 backdrop-blur">
-              <CardHeader>
-                <CardTitle>{service.name}</CardTitle>
-                <CardDescription>{service.description ?? "Choose a provider and time."}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {service.variants.map((variant) => {
-                  const variantResourceIds = variant.resourceRequirements
-                    .filter((requirement) => requirement.resource.active)
-                    .map((requirement) => requirement.resourceId)
-                  const variantResourceBlocks = resourceBookings.filter((booking) => variantResourceIds.includes(booking.resourceId))
-
-                  return (
-                    <div key={variant.id} className="space-y-3 rounded-md border border-neutral-800 bg-background/70 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <div className="font-medium">{variant.name}</div>
-                          <p className="text-sm text-muted-foreground">
-                            {variant.durationMinutes} min{variant.bufferAfterMinutes ? ` plus ${variant.bufferAfterMinutes} min buffer` : ""}
-                          </p>
-                        </div>
-                        {variant.priceCents != null ? (
-                          <span className="text-sm text-muted-foreground">{new Intl.NumberFormat(undefined, { style: "currency", currency: variant.currency }).format(variant.priceCents / 100)}</span>
-                        ) : null}
-                      </div>
-
-                      {practice.memberships
-                        .filter((therapist) => service.eligibleProviderIds.length === 0 || service.eligibleProviderIds.includes(therapist.userId))
-                        .map((therapist) => {
-                        const therapistRules = rules.filter((rule) => rule.therapistId === therapist.userId)
-                        const therapistSchedules = schedules
-                          .filter((schedule) => schedule.therapistId === therapist.userId)
-                          .map((schedule) => ({
-                            active: schedule.active,
-                            effectiveFrom: schedule.effectiveFrom,
-                            effectiveTo: schedule.effectiveTo,
-                            intervals: schedule.intervals,
-                          }))
-                        const therapistOverrides = overrides
-                          .filter((override) => override.therapistId === therapist.userId)
-                          .map((override) => ({
-                            date: override.date,
-                            kind: override.kind,
-                            intervals: override.intervals,
-                          }))
-                        const therapistBlocks = blockingEvents.filter((event) => event.ownerUserId === therapist.userId)
-                        const slots = dates.flatMap((date) => {
-                          const resolvedAvailability = resolveAvailabilityForDate({
-                            date,
-                            weeklyRules: therapistRules,
-                            schedules: therapistSchedules,
-                            overrides: therapistOverrides,
-                          })
-                          const dayOfWeek = new Date(`${date}T00:00:00.000Z`).getUTCDay()
-                          return buildAvailabilitySlots({
-                            date,
-                            serviceDurationMinutes: serviceVariantBookableMinutes(variant),
-                            now,
-                            rules: resolvedAvailability.intervals.map((interval) => ({
-                              dayOfWeek,
-                              startMinute: interval.startMinute,
-                              endMinute: interval.endMinute,
-                              active: true,
-                            })),
-                            blocks: [...therapistBlocks, ...variantResourceBlocks],
-                            appointments: [],
-                            timeZone: practice.timezone,
-                          })
-                        }).slice(0, 8)
-
-                        return (
-                          <div key={`${variant.id}-${therapist.id}`} className="rounded-md bg-card/70 p-3">
-                            <div className="mb-3 font-medium">{therapist.user.name ?? therapist.user.email}</div>
-                            {slots.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {slots.map((slot) => (
-                                  <form key={slot.startsAt.toISOString()} action={requestAppointmentAction}>
-                                    <input type="hidden" name="practiceId" value={practice.id} />
-                                    <input type="hidden" name="therapistId" value={therapist.userId} />
-                                    <input type="hidden" name="serviceVariantId" value={variant.id} />
-                                    <input type="hidden" name="startsAt" value={slot.startsAt.toISOString()} />
-                                    <Button type="submit" variant="outline" size="sm">
-                                      {formatSlot(slot.startsAt, practice.timezone)}
-                                    </Button>
-                                  </form>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No available times in the next 7 days.</p>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-          ))
-        )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">Client booking</Badge>
+        <Badge variant="outline">{practice.timezone}</Badge>
       </div>
+
+      {bookableServices.length === 0 || practice.memberships.length === 0 ? (
+        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <CardHeader>
+            <CardTitle>No online booking times available</CardTitle>
+            <CardDescription>The practice needs at least one active service, provider, and availability rule.</CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <BookingPicker model={bookingModel} />
+      )}
     </BookingShell>
   )
 }
@@ -291,9 +254,12 @@ export default async function BookingPage({
 function BookingShell({ practiceName, children }: { practiceName: string; children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>{practiceName}</PageHeading>
+          <div>
+            <p className="text-sm font-medium text-brand-orange">Online booking</p>
+            <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
+          </div>
           <Button asChild variant="outline">
             <Link href="/calendar">Calendar</Link>
           </Button>

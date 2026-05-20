@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useActionState, useMemo, useState } from "react"
 import { AlertTriangle, Plus, X } from "lucide-react"
-import { createAppointmentAction } from "@/app/calendar/actions"
+import { createAppointmentFormAction, type AppointmentActionState } from "@/app/calendar/actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,9 @@ type ServiceOption = {
   eligibleProviderIds: string[]
 }
 
+const NEW_CLIENT_VALUE = "__new_client__"
+const INITIAL_ACTION_STATE: AppointmentActionState = { status: "idle", message: "" }
+
 function formatMoney(cents: number | null, currency: string) {
   if (cents == null) return "No price"
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(cents / 100)
@@ -61,10 +64,11 @@ export function AppointmentComposer({
   defaultStartsAt?: string
 }) {
   const [therapistId, setTherapistId] = useState(therapists[0]?.id ?? "")
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "")
+  const [clientId, setClientId] = useState(clients[0]?.id ?? NEW_CLIENT_VALUE)
   const [startsAt, setStartsAt] = useState(defaultStartsAt)
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(services[0]?.id ? [services[0].id] : [])
-  const selectedClient = clients.find((client) => client.id === clientId)
+  const creatingClient = clientId === NEW_CLIENT_VALUE
+  const selectedClient = creatingClient ? null : clients.find((client) => client.id === clientId)
   const selectedServices = services.filter((service) => selectedServiceIds.includes(service.id))
   const outsideCommonHours = useMemo(() => {
     const hour = localHour(startsAt)
@@ -76,6 +80,9 @@ export function AppointmentComposer({
   const pricedServices = selectedServices.filter((service) => service.priceCents != null)
   const totalPriceCents = pricedServices.length > 0 ? pricedServices.reduce((sum, service) => sum + Number(service.priceCents), 0) : null
   const currency = selectedServices[0]?.currency ?? "USD"
+  const overrideKey = `${therapistId}|${startsAt}|${selectedServiceIds.join(",")}`
+  const [actionState, formAction, isPending] = useActionState(createAppointmentFormAction, INITIAL_ACTION_STATE)
+  const outsideAvailabilityReady = actionState.status === "outside-availability" && actionState.overrideKey === overrideKey
 
   function toggleService(serviceId: string) {
     setSelectedServiceIds((current) => {
@@ -87,8 +94,10 @@ export function AppointmentComposer({
   }
 
   return (
-    <form action={createAppointmentAction} className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
+    <form action={formAction} className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
       <input type="hidden" name="practiceId" value={practiceId} />
+      <input type="hidden" name="overrideKey" value={overrideKey} />
+      <input type="hidden" name="allowOutsideAvailability" value={outsideAvailabilityReady ? "true" : "false"} />
       <div className="space-y-4">
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
@@ -113,6 +122,7 @@ export function AppointmentComposer({
                 <Select name="practiceClientId" value={clientId} onValueChange={setClientId}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NEW_CLIENT_VALUE}>Create new client</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>{client.label}</SelectItem>
                     ))}
@@ -120,6 +130,22 @@ export function AppointmentComposer({
                 </Select>
               </div>
             </div>
+            {creatingClient ? (
+              <div className="grid gap-4 rounded-md border border-border/70 bg-background/60 p-3 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="newClientName">New client name</Label>
+                  <Input id="newClientName" name="newClientName" placeholder="Client name" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newClientEmail">Email</Label>
+                  <Input id="newClientEmail" name="newClientEmail" type="email" placeholder="client@example.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newClientPhone">Phone</Label>
+                  <Input id="newClientPhone" name="newClientPhone" type="tel" placeholder="Optional" />
+                </div>
+              </div>
+            ) : null}
             <div className="space-y-3">
               <Label>Services</Label>
               <div className="grid gap-2">
@@ -169,21 +195,33 @@ export function AppointmentComposer({
                 <span>This time is outside common working hours. Provider availability and conflicts are checked when you save.</span>
               </div>
             ) : null}
+            {actionState.status === "outside-availability" ? (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                <span>{actionState.message} Submit again to create this manual appointment anyway.</span>
+              </div>
+            ) : null}
+            {actionState.status === "error" ? (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4" />
+                <span>{actionState.message}</span>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="notes">Operational notes</Label>
               <Textarea id="notes" name="notes" placeholder="Room setup, arrival instructions, or other non-clinical scheduling notes." />
             </div>
           </CardContent>
         </Card>
-        <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
+        <Button type="submit" className="bg-primary hover:bg-brand-orange-glow" disabled={isPending}>
           <Plus className="mr-2 h-4 w-4" />
-          Create appointment
+          {outsideAvailabilityReady ? "Create outside availability" : "Create appointment"}
         </Button>
       </div>
 
       <Card className="h-fit border-neutral-800 bg-card/90 backdrop-blur">
         <CardHeader>
-          <CardTitle>{selectedClient ? selectedClient.label : "No customer selected"}</CardTitle>
+          <CardTitle>{selectedClient ? selectedClient.label : "New client"}</CardTitle>
           <CardDescription>Customer details are scheduling context only.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

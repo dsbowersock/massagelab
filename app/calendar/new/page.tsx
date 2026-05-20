@@ -5,7 +5,7 @@ import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
+import { CalendarOperatorShell } from "../calendar-operator-shell"
 
 const flowCards = [
   {
@@ -46,8 +46,17 @@ const flowCards = [
   },
 ]
 
-export default async function NewCalendarItemPage() {
+export default async function NewCalendarItemPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ startsAt?: string }>
+}) {
   const session = await getCurrentSession()
+  const startsAt = (await searchParams)?.startsAt ?? ""
+
+  function withStartsAt(href: string) {
+    return startsAt ? `${href}?startsAt=${encodeURIComponent(startsAt)}` : href
+  }
 
   if (!session?.user?.id) {
     return (
@@ -103,7 +112,7 @@ export default async function NewCalendarItemPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild variant="outline">
-                  <Link href={flow.href}>Open</Link>
+                  <Link href={withStartsAt(flow.href)}>Open</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -116,17 +125,14 @@ export default async function NewCalendarItemPage() {
 
 function CalendarCreateShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>New Calendar Item</PageHeading>
-          <Button asChild variant="outline">
-            <Link href="/calendar">Back to calendar</Link>
-          </Button>
-        </div>
-        {children}
+    <CalendarOperatorShell width="standard">
+      <div className="flex justify-end">
+        <Button asChild variant="outline">
+          <Link href="/calendar">Back to calendar</Link>
+        </Button>
       </div>
-    </div>
+      {children}
+    </CalendarOperatorShell>
   )
 }
 

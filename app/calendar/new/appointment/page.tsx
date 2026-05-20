@@ -4,7 +4,7 @@ import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
+import { CalendarOperatorShell } from "../../calendar-operator-shell"
 import { AppointmentComposer } from "./appointment-composer"
 
 export default async function NewAppointmentPage({
@@ -81,8 +81,8 @@ export default async function NewAppointmentPage({
 
   return (
     <AppointmentShell>
-      {clients.length === 0 || serviceOptions.length === 0 || therapists.length === 0 ? (
-        <Notice title="Appointment setup needed" description="Appointment creation needs at least one practice client, active service, and therapist. Client booking requests create practice clients automatically." />
+      {serviceOptions.length === 0 || therapists.length === 0 ? (
+        <Notice title="Appointment setup needed" description="Appointment creation needs at least one active service and therapist. Clients can be created while scheduling an appointment." />
       ) : (
         <AppointmentComposer
           practiceId={membership.practiceId}
@@ -106,15 +106,12 @@ export default async function NewAppointmentPage({
 
 function AppointmentShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageHeading>Appointment</PageHeading>
-          <Button asChild variant="outline"><Link href="/calendar/new">Creation menu</Link></Button>
-        </div>
-        {children}
+    <CalendarOperatorShell width="standard">
+      <div className="flex justify-end">
+        <Button asChild variant="outline"><Link href="/calendar/new">Creation menu</Link></Button>
       </div>
-    </div>
+      {children}
+    </CalendarOperatorShell>
   )
 }
 

@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
+import { normalizeEmail } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
 import { dateAtMinute, dateValue, localDateTimeToUtc, parseTimeToMinute } from "@/lib/calendar"
 import {
-  availabilityContainsRange,
+  availabilityRangeOverrideState,
   calendarDateParts,
+  OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE,
   resolveAvailabilityForDate,
 } from "@/lib/calendar-availability"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
@@ -38,6 +40,20 @@ const PRACTICE_SCHEDULING_ROLES = ["OWNER", "STAFF"] as const
 const THERAPIST_ROLES = ["OWNER", "THERAPIST"] as const
 const ACTIVE_EVENT_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
 const CALENDAR_NOTE_SENSITIVE_PATTERN = /(soap|pain|diagnosis|assessment|treatment|transcript|intake response|journal|symptom|medical history|client condition)/i
+const NEW_APPOINTMENT_CLIENT_VALUE = "__new_client__"
+
+class OutsideProviderAvailabilityError extends Error {
+  constructor(message = OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE) {
+    super(message)
+    this.name = "OutsideProviderAvailabilityError"
+  }
+}
+
+export type AppointmentActionState = {
+  status: "idle" | "outside-availability" | "error"
+  message: string
+  overrideKey?: string
+}
 
 function slugify(value: string) {
   return value
@@ -257,12 +273,14 @@ async function assertProviderAvailability({
   startsAt,
   endsAt,
   timezone,
+  allowOutsideAvailability = false,
 }: {
   practiceId: string
   therapistId: string
   startsAt: Date
   endsAt: Date
   timezone: string
+  allowOutsideAvailability?: boolean
 }) {
   const startParts = calendarDateParts(startsAt, timezone)
   const endParts = calendarDateParts(endsAt, timezone)
@@ -313,8 +331,15 @@ async function assertProviderAvailability({
     })),
   })
 
-  if (!availabilityContainsRange({ availability, startMinute: startParts.minute, endMinute: endParts.minute })) {
-    throw new Error("That time is outside the provider's availability.")
+  const availabilityState = availabilityRangeOverrideState({
+    availability,
+    startMinute: startParts.minute,
+    endMinute: endParts.minute,
+    allowOutsideAvailability,
+  })
+
+  if (!availabilityState.allowed) {
+    throw new OutsideProviderAvailabilityError(availabilityState.message)
   }
 }
 
@@ -429,6 +454,85 @@ function serviceCompositionForCreate(variants: ServiceVariantForScheduling[]) {
 function serviceCompositionEndTime(startsAt: Date, variants: ServiceVariantForScheduling[]) {
   const totalMinutes = variants.reduce((sum, variant) => sum + serviceVariantBookableMinutes(variant), 0)
   return new Date(startsAt.getTime() + totalMinutes * 60_000)
+}
+
+async function ensureAppointmentPracticeClient(
+  tx: Prisma.TransactionClient,
+  {
+    practiceId,
+    practiceClientId,
+    displayName,
+    email,
+    phone,
+  }: {
+    practiceId: string
+    practiceClientId: string
+    displayName: string
+    email: string
+    phone: string
+  },
+) {
+  if (practiceClientId && practiceClientId !== NEW_APPOINTMENT_CLIENT_VALUE) {
+    const existingClient = await tx.practiceClient.findFirst({
+      where: { id: practiceClientId, practiceId },
+      select: { id: true, userId: true },
+    })
+
+    if (!existingClient) {
+      throw new Error("Choose an available practice client.")
+    }
+
+    return existingClient
+  }
+
+  const normalizedEmail = normalizeEmail(email)
+  const cleanName = displayName.trim()
+  const cleanPhone = phone.trim()
+
+  if (!cleanName && !normalizedEmail && !cleanPhone) {
+    throw new Error("Enter a client name, email, or phone number.")
+  }
+
+  const user = normalizedEmail
+    ? await tx.user.upsert({
+      where: { email: normalizedEmail },
+      create: {
+        name: cleanName || null,
+        email: normalizedEmail,
+      },
+      update: {
+        name: cleanName || undefined,
+      },
+      select: { id: true },
+    })
+    : await tx.user.create({
+      data: {
+        name: cleanName || null,
+      },
+      select: { id: true },
+    })
+
+  return tx.practiceClient.upsert({
+    where: {
+      practiceId_userId: {
+        practiceId,
+        userId: user.id,
+      },
+    },
+    create: {
+      practiceId,
+      userId: user.id,
+      displayName: cleanName || null,
+      email: normalizedEmail || null,
+      phone: cleanPhone || null,
+    },
+    update: {
+      displayName: cleanName || undefined,
+      email: normalizedEmail || undefined,
+      phone: cleanPhone || undefined,
+    },
+    select: { id: true, userId: true },
+  })
 }
 
 function parseResourceNames(formData: FormData) {
@@ -754,6 +858,7 @@ export async function rescheduleCalendarEventAction(input: FormData | Record<str
   const eventId = formOrObjectValue(input, "eventId")
   const startsAtValue = formOrObjectValue(input, "startsAt")
   const endsAtValue = formOrObjectValue(input, "endsAt")
+  const allowOutsideAvailability = ["true", "1", "on"].includes(formOrObjectValue(input, "allowOutsideAvailability"))
 
   if (!eventId || !startsAtValue || !endsAtValue) {
     throw new Error("Choose a calendar event and valid start/end time.")
@@ -799,6 +904,7 @@ export async function rescheduleCalendarEventAction(input: FormData | Record<str
       startsAt,
       endsAt,
       timezone: event.practice.timezone,
+      allowOutsideAvailability,
     })
   }
 
@@ -1209,14 +1315,18 @@ export async function updateServiceAction(formData: FormData) {
   redirect(`/calendar/services/${serviceId}`)
 }
 
-export async function createAppointmentAction(formData: FormData) {
+async function createAppointmentMutation(formData: FormData) {
   const userId = await currentUserId()
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const therapistId = fieldString(formData, "therapistId")
   const practiceClientId = fieldString(formData, "practiceClientId")
+  const newClientName = fieldString(formData, "newClientName")
+  const newClientEmail = fieldString(formData, "newClientEmail")
+  const newClientPhone = fieldString(formData, "newClientPhone")
   const serviceTypeId = fieldString(formData, "serviceTypeId")
   const serviceVariantIds = selectedServiceVariantIds(formData)
+  const allowOutsideAvailability = fieldBoolean(formData, "allowOutsideAvailability")
   const practice = await getPracticeOrThrow(practiceId)
   const startsAt = localDateTimeToUtc(fieldString(formData, "startsAt"), practice.timezone)
   const notes = operationalCalendarNote(formData)
@@ -1224,26 +1334,25 @@ export async function createAppointmentAction(formData: FormData) {
   await assertPracticeTherapist(practiceId, therapistId)
   await assertCalendarFlowAccess({ flow: "APPOINTMENT", practiceId, userId, targetUserId: therapistId })
 
-  if (!practiceClientId || (serviceVariantIds.length === 0 && !serviceTypeId) || !startsAt) {
+  if ((serviceVariantIds.length === 0 && !serviceTypeId) || !startsAt) {
     throw new Error("Choose a client, service, therapist, and valid appointment time.")
   }
 
-  const serviceVariantsPromise = serviceVariantIds.length > 0
-    ? getServiceVariantsForScheduling({ practiceId, serviceVariantIds, providerUserId: therapistId })
-    : getServiceVariantForScheduling({ practiceId, serviceTypeId, providerUserId: therapistId }).then((variant) => [variant])
-  const [serviceVariants, practiceClient] = await Promise.all([
-    serviceVariantsPromise,
-    prisma.practiceClient.findFirst({ where: { id: practiceClientId, practiceId } }),
-  ])
-
-  if (!practiceClient) {
-    throw new Error("Choose an available service and practice client.")
-  }
+  const serviceVariants = serviceVariantIds.length > 0
+    ? await getServiceVariantsForScheduling({ practiceId, serviceVariantIds, providerUserId: therapistId })
+    : [await getServiceVariantForScheduling({ practiceId, serviceTypeId, providerUserId: therapistId })]
 
   const composition = serviceCompositionForCreate(serviceVariants)
   const endsAt = serviceCompositionEndTime(startsAt, serviceVariants)
   const resourceIds = composition.resourceIds
-  await assertProviderAvailability({ practiceId, therapistId, startsAt, endsAt, timezone: practice.timezone })
+  await assertProviderAvailability({
+    practiceId,
+    therapistId,
+    startsAt,
+    endsAt,
+    timezone: practice.timezone,
+    allowOutsideAvailability,
+  })
   await assertNoCalendarEventConflict({ practiceId, ownerUserId: therapistId, startsAt, endsAt })
   await assertNoResourceConflict({ resourceIds, startsAt, endsAt })
   const snapshot = composition.primary
@@ -1261,6 +1370,14 @@ export async function createAppointmentAction(formData: FormData) {
   })
 
   await prisma.$transaction(async (tx) => {
+    const practiceClient = await ensureAppointmentPracticeClient(tx, {
+      practiceId,
+      practiceClientId,
+      displayName: newClientName,
+      email: newClientEmail,
+      phone: newClientPhone,
+    })
+
     const event = await tx.calendarEvent.create({
       data: plan.event as Prisma.CalendarEventUncheckedCreateInput,
     })
@@ -1323,7 +1440,38 @@ export async function createAppointmentAction(formData: FormData) {
   })
 
   revalidateCalendarRoutes(practice.slug)
-  redirect("/calendar")
+  return "/calendar"
+}
+
+export async function createAppointmentAction(formData: FormData) {
+  const redirectTo = await createAppointmentMutation(formData)
+  redirect(redirectTo)
+}
+
+export async function createAppointmentFormAction(
+  _previousState: AppointmentActionState,
+  formData: FormData,
+): Promise<AppointmentActionState> {
+  let redirectTo = "/calendar"
+
+  try {
+    redirectTo = await createAppointmentMutation(formData)
+  } catch (error) {
+    if (error instanceof OutsideProviderAvailabilityError) {
+      return {
+        status: "outside-availability",
+        message: error.message,
+        overrideKey: fieldString(formData, "overrideKey"),
+      }
+    }
+
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Appointment creation failed.",
+    }
+  }
+
+  redirect(redirectTo)
 }
 
 export async function createPersonalEventAction(formData: FormData) {
