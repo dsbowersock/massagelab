@@ -272,9 +272,10 @@ export default async function BookingPage({
   }
 
   const addOnVariants = addOnServices.flatMap((service) => service.variants.map((variant) => ({ service, variant })))
+  const publiclyBookableProviders = providers.filter((provider) => provider.publiclyBookable)
   const providerPreferences = [
-    ...(policy.anyProviderEnabled ? [{ id: "", label: "Any available provider" }] : []),
-    ...providers.filter((provider) => provider.publiclyBookable).map((provider) => ({ id: provider.userId, label: provider.label })),
+    ...(policy.anyProviderEnabled && publiclyBookableProviders.length > 0 ? [{ id: "", label: "Any available provider" }] : []),
+    ...publiclyBookableProviders.map((provider) => ({ id: provider.userId, label: provider.label })),
   ]
   const sequenceGroups = primaryServices.flatMap((service) => service.variants.flatMap((primaryVariant) => (
     addOnCombinations(addOnVariants).flatMap((addOns) => {
@@ -388,11 +389,11 @@ export default async function BookingPage({
         <Badge variant="outline">{practice.timezone}</Badge>
       </div>
 
-      {primaryServices.length === 0 || providers.length === 0 ? (
+      {primaryServices.length === 0 || providerPreferences.length === 0 ? (
         <Card className="border-neutral-800 bg-card/90 backdrop-blur">
           <CardHeader>
             <CardTitle>No online booking times available</CardTitle>
-            <CardDescription>The practice needs at least one active primary service, provider, and availability rule.</CardDescription>
+            <CardDescription>The practice needs at least one active primary service, publicly bookable provider, and availability rule.</CardDescription>
           </CardHeader>
         </Card>
       ) : (

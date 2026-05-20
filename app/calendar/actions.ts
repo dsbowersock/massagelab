@@ -9,8 +9,11 @@ import { prisma } from "@/lib/prisma"
 import { buildAvailabilitySlots, dateAtMinute, dateValue, isoDate, localDateTimeToUtc, parseTimeToMinute } from "@/lib/calendar"
 import {
   buildSequentialBookingOptions,
+  capacityAllowsBooking,
+  hasRestGapConflict,
   normalizeBookingPolicy,
   normalizePressureLevel,
+  providerAppointmentLimitAllows,
 } from "@/lib/booking-policy"
 import {
   availabilityRangeOverrideState,
@@ -46,6 +49,7 @@ const THERAPIST_ROLES = ["OWNER", "THERAPIST"] as const
 const ACTIVE_EVENT_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
 const CALENDAR_NOTE_SENSITIVE_PATTERN = /(soap|pain|diagnosis|assessment|treatment|transcript|intake response|journal|symptom|medical history|client condition)/i
 const NEW_APPOINTMENT_CLIENT_VALUE = "__new_client__"
+const MAX_PUBLIC_ADD_ONS = 3
 
 type CalendarDb = typeof prisma | Prisma.TransactionClient
 
@@ -383,6 +387,21 @@ async function lockAppointmentSchedulingRows(
   `
   await tx.$queryRaw`
     SELECT id
+    FROM "ProviderBookingPolicy"
+    WHERE "practiceId" = ${practiceId}
+      AND "providerUserId" = ${therapistId}
+    FOR UPDATE
+  `
+  await tx.$queryRaw`
+    SELECT id
+    FROM "ProviderBookingCapacityRule"
+    WHERE "practiceId" = ${practiceId}
+      AND "providerUserId" = ${therapistId}
+      AND "active" = true
+    FOR UPDATE
+  `
+  await tx.$queryRaw`
+    SELECT id
     FROM "TherapistAvailabilityRule"
     WHERE "practiceId" = ${practiceId}
       AND "therapistId" = ${therapistId}
@@ -559,7 +578,7 @@ function selectedAddOnVariantIds(formData: FormData) {
     .map((value) => value.trim())
     .filter(Boolean)
 
-  return [...new Set([...values, ...commaList])].slice(0, 4)
+  return [...new Set([...values, ...commaList])].slice(0, MAX_PUBLIC_ADD_ONS)
 }
 
 function serviceBookingRole(formData: FormData) {
@@ -567,11 +586,12 @@ function serviceBookingRole(formData: FormData) {
 }
 
 function serviceCountsTowardCapacity(formData: FormData, bookingRole: "PRIMARY" | "ADD_ON") {
+  void bookingRole
   if (formData.has("countsTowardMassageCapacity")) {
     return fieldBoolean(formData, "countsTowardMassageCapacity")
   }
 
-  return bookingRole === "PRIMARY"
+  return false
 }
 
 function serviceCompositionForCreate(variants: ServiceVariantForScheduling[]) {
@@ -871,9 +891,9 @@ function revalidateCalendarRoutes(practiceSlug?: string) {
   }
 }
 
-function nextBookingDates(count: number, now = new Date()) {
-  const start = new Date(now)
-  start.setUTCHours(0, 0, 0, 0)
+function nextBookingDates(count: number, timeZone = "UTC", now = new Date()) {
+  const localStartDate = calendarDateParts(now, timeZone).date
+  const start = new Date(`${localStartDate}T00:00:00.000Z`)
 
   return Array.from({ length: Math.max(1, count) }, (_, index) => {
     const date = new Date(start)
@@ -1188,7 +1208,7 @@ async function publicBookingSequenceOptions({
     }),
   ])
 
-  const dates = nextBookingDates(policy.maxAdvanceDays, now)
+  const dates = nextBookingDates(policy.maxAdvanceDays, practice.timezone, now)
   const cutoff = new Date(now.getTime() + policy.minNoticeMinutes * 60_000)
   const slotsByVariantAndProvider: Record<string, Array<{ startsAt: Date }>> = {}
 
@@ -1319,6 +1339,94 @@ async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practic
   })
 }
 
+async function assertProviderBookingPolicyLimits({
+  tx,
+  practiceId,
+  provider,
+  policy,
+  startsAt,
+  endsAt,
+  requestedPressureLevel,
+  massageCapacityMinutes,
+  timeZone,
+}: {
+  tx: Prisma.TransactionClient
+  practiceId: string
+  provider: {
+    userId: string
+    minRestMinutes?: number | null
+    dailyAppointmentLimit?: number | null
+    weeklyAppointmentLimit?: number | null
+  }
+  policy: { dailyAppointmentLimit?: number | null }
+  startsAt: Date
+  endsAt: Date
+  requestedPressureLevel: number
+  massageCapacityMinutes: number
+  timeZone: string
+}) {
+  const existingAppointments = await tx.appointment.findMany({
+    where: {
+      practiceId,
+      therapistId: provider.userId,
+      status: { in: ["REQUESTED", "CONFIRMED"] },
+    },
+    select: {
+      therapistId: true,
+      startsAt: true,
+      endsAt: true,
+      status: true,
+      requestedPressureLevel: true,
+      massageCapacityMinutes: true,
+    },
+  })
+  const existingBookings = existingAppointments.map((appointment) => ({
+    providerUserId: appointment.therapistId,
+    startsAt: appointment.startsAt,
+    endsAt: appointment.endsAt,
+    status: appointment.status,
+    requestedPressureLevel: appointment.requestedPressureLevel,
+    massageCapacityMinutes: appointment.massageCapacityMinutes,
+  }))
+  const capacityRules = await tx.providerBookingCapacityRule.findMany({
+    where: { practiceId, providerUserId: provider.userId, active: true },
+  })
+
+  if (hasRestGapConflict({
+    startsAt,
+    endsAt,
+    minRestMinutes: provider.minRestMinutes ?? 0,
+    existingBookings,
+  })) {
+    throw new Error("Provider rest gap is no longer available.")
+  }
+
+  const limitState = providerAppointmentLimitAllows({
+    providerUserId: provider.userId,
+    startsAt,
+    dailyAppointmentLimit: provider.dailyAppointmentLimit ?? policy.dailyAppointmentLimit ?? null,
+    weeklyAppointmentLimit: provider.weeklyAppointmentLimit ?? null,
+    existingBookings,
+    timeZone,
+  })
+  if (!limitState.allowed) {
+    throw new Error("Provider booking limit is no longer available.")
+  }
+
+  const capacityState = capacityAllowsBooking({
+    providerUserId: provider.userId,
+    startsAt,
+    requestedPressureLevel,
+    massageCapacityMinutes,
+    capacityRules,
+    existingBookings,
+    timeZone,
+  })
+  if (!capacityState.allowed) {
+    throw new Error("Provider massage capacity is no longer available.")
+  }
+}
+
 async function createBookingSequenceMutation({
   userId,
   practiceId,
@@ -1359,6 +1467,7 @@ async function createBookingSequenceMutation({
   const status = forceStatus ?? option.status as "REQUESTED" | "CONFIRMED"
   const groupStatus = status === "CONFIRMED" ? "CONFIRMED" : "REQUESTED"
   const variantById = new Map(context.variants.map((variant) => [variant.id, variant]))
+  const providerById = new Map(context.providers.map((provider) => [provider.userId, provider]))
   const staffRecipients = await prisma.practiceMembership.findMany({
     where: {
       practiceId,
@@ -1379,10 +1488,27 @@ async function createBookingSequenceMutation({
       },
     })
 
+    if (waitlistEntryId) {
+      const waitlistUpdate = await tx.bookingWaitlistEntry.updateMany({
+        where: { id: waitlistEntryId, practiceId, status: "OPEN" },
+        data: {
+          status: "BOOKED",
+          convertedBookingGroupId: bookingGroup.id,
+        },
+      })
+      if (waitlistUpdate.count !== 1) {
+        throw new Error("Choose an open waitlist entry.")
+      }
+    }
+
     for (const item of option.items) {
       const variant = variantById.get(item.serviceVariantId)
+      const provider = providerById.get(item.providerUserId)
       if (!variant) {
         throw new Error("Choose available booking services.")
+      }
+      if (!provider) {
+        throw new Error("Choose an available booking provider.")
       }
 
       const itemStartsAt = dateValue(item.startsAt)
@@ -1395,6 +1521,17 @@ async function createBookingSequenceMutation({
         resourceIds,
         startsAt: itemStartsAt,
         endsAt: itemEndsAt,
+      })
+      await assertProviderBookingPolicyLimits({
+        tx,
+        practiceId,
+        provider,
+        policy: context.policy,
+        startsAt: itemStartsAt,
+        endsAt: itemEndsAt,
+        requestedPressureLevel,
+        massageCapacityMinutes: item.massageCapacityMinutes,
+        timeZone: context.practice.timezone,
       })
       await assertProviderAvailability({ db: tx, practiceId, therapistId: item.providerUserId, startsAt: itemStartsAt, endsAt: itemEndsAt, timezone: context.practice.timezone })
       await assertNoCalendarEventConflict({ db: tx, practiceId, ownerUserId: item.providerUserId, startsAt: itemStartsAt, endsAt: itemEndsAt })
@@ -1477,16 +1614,6 @@ async function createBookingSequenceMutation({
           bookingGroupId: bookingGroup.id,
           requestedPressureLevel,
           resourceIds,
-        },
-      })
-    }
-
-    if (waitlistEntryId) {
-      await tx.bookingWaitlistEntry.update({
-        where: { id: waitlistEntryId },
-        data: {
-          status: "BOOKED",
-          convertedBookingGroupId: bookingGroup.id,
         },
       })
     }
@@ -1574,7 +1701,7 @@ export async function convertWaitlistEntryAction(formData: FormData) {
   const userId = await currentUserId()
   await assertCalendarDatabaseReady()
   const waitlistEntryId = fieldString(formData, "waitlistEntryId")
-  const startsAt = dateValue(fieldString(formData, "startsAt"))
+  const startsAtValue = fieldString(formData, "startsAt")
   const preferredProviderId = fieldString(formData, "preferredProviderId")
 
   const entry = await prisma.bookingWaitlistEntry.findUnique({
@@ -1583,6 +1710,10 @@ export async function convertWaitlistEntryAction(formData: FormData) {
   })
   if (!entry || entry.status !== "OPEN" || !entry.primaryServiceVariantId) {
     throw new Error("Choose an open waitlist entry.")
+  }
+  const startsAt = localDateTimeToUtc(startsAtValue, entry.practice.timezone)
+  if (!startsAt) {
+    throw new Error("Choose a valid confirmed start time.")
   }
 
   const membership = await assertPracticeAccess(entry.practiceId, userId, STAFF_ROLES)

@@ -82,6 +82,8 @@ type BookingOptionModel = {
   }
 }
 
+const MAX_PUBLIC_ADD_ONS = 3
+
 function moneyLabel(cents: number | null, currency: string) {
   if (cents == null) return null
   return new Intl.NumberFormat(undefined, {
@@ -150,11 +152,11 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const showLocalTime = model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone
 
   function toggleAddOn(variantId: string) {
-    setSelectedAddOnVariantIds((current) => (
-      current.includes(variantId)
-        ? current.filter((id) => id !== variantId)
-        : [...current, variantId]
-    ))
+    setSelectedAddOnVariantIds((current) => {
+      if (current.includes(variantId)) return current.filter((id) => id !== variantId)
+      if (current.length >= MAX_PUBLIC_ADD_ONS) return current
+      return [...current, variantId]
+    })
   }
 
   function checkDistance() {
@@ -248,19 +250,23 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
               <Separator />
               <div className="space-y-2">
                 <p className="text-sm font-medium">Add-ons</p>
+                <p className="text-xs text-muted-foreground">Choose up to {MAX_PUBLIC_ADD_ONS} add-ons.</p>
                 <div className="grid gap-2">
                   {model.addOnServices.flatMap((service) => service.variants.map((variant) => {
                     const price = moneyLabel(variant.priceCents, variant.currency)
                     const selected = selectedAddOnVariantIds.includes(variant.id)
+                    const disabled = !selected && selectedAddOnVariantIds.length >= MAX_PUBLIC_ADD_ONS
 
                     return (
                       <button
                         key={variant.id}
                         type="button"
                         onClick={() => toggleAddOn(variant.id)}
+                        disabled={disabled}
                         className={cn(
                           "flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition hover:border-primary/70",
                           selected ? "border-primary/70 bg-primary/10" : "border-border/70 bg-background/60",
+                          disabled && "cursor-not-allowed opacity-50 hover:border-border/70",
                         )}
                       >
                         <span>

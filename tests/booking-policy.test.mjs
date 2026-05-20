@@ -175,6 +175,74 @@ describe("booking pressure and capacity", () => {
 })
 
 describe("sequential public booking options", () => {
+  it("requires a preferred provider when any-provider booking is disabled", () => {
+    const baseInput = {
+      practiceId: "practice_1",
+      timeZone: "America/New_York",
+      pressureLevel: 3,
+      policy: { anyProviderEnabled: false },
+      providers: [
+        { userId: "provider_1", label: "Provider One", publiclyBookable: true, minRestMinutes: 0 },
+      ],
+      selections: [
+        {
+          serviceVariantId: "variant_primary",
+          serviceName: "Therapeutic Massage",
+          serviceVariantName: "60 minute",
+          bookingRole: "PRIMARY",
+          bookableMinutes: 60,
+          massageCapacityMinutes: 60,
+          eligibleProviderIds: [],
+        },
+      ],
+      slotsByVariantAndProvider: {
+        "variant_primary:provider_1": [{ startsAt: "2026-05-18T13:00:00.000Z" }],
+      },
+      capacityRules: [],
+      existingBookings: [],
+    }
+
+    assert.equal(buildSequentialBookingOptions(baseInput).length, 0)
+    assert.equal(buildSequentialBookingOptions({
+      ...baseInput,
+      preferredProviderId: "provider_1",
+    }).length, 1)
+  })
+
+  it("sorts options chronologically before applying the max option limit", () => {
+    const options = buildSequentialBookingOptions({
+      practiceId: "practice_1",
+      timeZone: "America/New_York",
+      pressureLevel: 3,
+      policy: { anyProviderEnabled: true },
+      providers: [
+        { userId: "provider_late", label: "Provider Late", publiclyBookable: true, minRestMinutes: 0 },
+        { userId: "provider_early", label: "Provider Early", publiclyBookable: true, minRestMinutes: 0 },
+      ],
+      selections: [
+        {
+          serviceVariantId: "variant_primary",
+          serviceName: "Therapeutic Massage",
+          serviceVariantName: "60 minute",
+          bookingRole: "PRIMARY",
+          bookableMinutes: 60,
+          massageCapacityMinutes: 60,
+          eligibleProviderIds: [],
+        },
+      ],
+      slotsByVariantAndProvider: {
+        "variant_primary:provider_late": [{ startsAt: "2026-05-18T16:00:00.000Z" }],
+        "variant_primary:provider_early": [{ startsAt: "2026-05-18T13:00:00.000Z" }],
+      },
+      capacityRules: [],
+      existingBookings: [],
+      maxOptions: 1,
+    })
+
+    assert.equal(options.length, 1)
+    assert.equal(options[0].startsAt, "2026-05-18T13:00:00.000Z")
+  })
+
   it("builds cross-provider primary plus add-on sequences from deterministic slots", () => {
     const options = buildSequentialBookingOptions({
       practiceId: "practice_1",

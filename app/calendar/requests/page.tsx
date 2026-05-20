@@ -148,6 +148,7 @@ export default async function CalendarRequestsPage() {
               entry.primaryServiceVariantId ? variantLabelById.get(entry.primaryServiceVariantId) : null,
               ...entry.addOnServiceVariantIds.map((id) => variantLabelById.get(id)),
             ].filter(Boolean)
+            const startHelpId = `waitlist-start-help-${entry.id}`
 
             return (
               <div key={entry.id} className="rounded-md border border-neutral-800 bg-background/70 p-4">
@@ -165,7 +166,10 @@ export default async function CalendarRequestsPage() {
                     <input type="hidden" name="waitlistEntryId" value={entry.id} />
                     <div className="space-y-2">
                       <Label htmlFor={`waitlist-start-${entry.id}`}>Confirmed start</Label>
-                      <Input id={`waitlist-start-${entry.id}`} name="startsAt" type="datetime-local" required />
+                      <Input id={`waitlist-start-${entry.id}`} name="startsAt" type="datetime-local" aria-describedby={startHelpId} required />
+                      <p id={startHelpId} className="text-xs text-muted-foreground">
+                        Enter the start time in {membership.practice.timezone}.
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={`waitlist-provider-${entry.id}`}>Primary provider</Label>

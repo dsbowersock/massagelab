@@ -105,15 +105,19 @@ ALTER TABLE "Appointment"
   ADD COLUMN "requestedPressureLevel" INTEGER,
   ADD COLUMN "massageCapacityMinutes" INTEGER NOT NULL DEFAULT 0;
 
-UPDATE "Appointment"
-SET "massageCapacityMinutes" = coalesce("serviceDurationMinutes", 0);
-
 ALTER TABLE "AppointmentServiceItem"
   ADD COLUMN "requestedPressureLevel" INTEGER,
   ADD COLUMN "massageCapacityMinutes" INTEGER NOT NULL DEFAULT 0;
 
 UPDATE "AppointmentServiceItem"
 SET "massageCapacityMinutes" = coalesce("serviceDurationMinutes", 0);
+
+UPDATE "Appointment" a
+SET "massageCapacityMinutes" = COALESCE((
+  SELECT SUM(COALESCE(asi."serviceDurationMinutes", 0))::INTEGER
+  FROM "AppointmentServiceItem" asi
+  WHERE asi."appointmentId" = a.id
+), COALESCE(a."serviceDurationMinutes", 0));
 
 CREATE UNIQUE INDEX "BookingPolicy_practiceId_key" ON "BookingPolicy"("practiceId");
 CREATE UNIQUE INDEX "ProviderBookingPolicy_practiceId_providerUserId_key" ON "ProviderBookingPolicy"("practiceId", "providerUserId");
