@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CalendarDays, Clock, ListChecks, LogIn, Plus, Settings2 } from "lucide-react"
+import { CalendarCog, CalendarDays, Clock, ListChecks, LogIn, Plus, Settings2 } from "lucide-react"
 import { useCalendarOperatorToolbarSlot } from "@/components/calendar/calendar-operator-toolbar-context"
 import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -18,6 +18,7 @@ const ROUTE_ACTIONS = [
   { href: "/calendar/new", label: "New", icon: Plus },
   { href: "/calendar/availability", label: "Availability", icon: Clock },
   { href: "/calendar/services", label: "Services", icon: Settings2 },
+  { href: "/calendar/booking", label: "Booking", icon: CalendarCog },
   { href: "/calendar/requests", label: "Requests", icon: ListChecks },
 ] as const
 
@@ -37,6 +38,7 @@ function initials(name: string, email: string) {
 function routeTitle(pathname: string) {
   if (pathname.startsWith("/calendar/availability")) return "Availability"
   if (pathname.startsWith("/calendar/services")) return "Services"
+  if (pathname.startsWith("/calendar/booking")) return "Booking"
   if (pathname.startsWith("/calendar/requests")) return "Requests"
   if (pathname.startsWith("/calendar/new")) return "Create"
   return "Calendar"
