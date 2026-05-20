@@ -209,7 +209,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
 
 function BookingRequestNotice() {
   return (
-    <Alert className="w-full border-border/80 bg-card/80 backdrop-blur">
+    <Alert className="w-full border-border/80 bg-card/80 p-3 backdrop-blur [&>svg]:left-3 [&>svg]:top-3 [&>svg~*]:pl-6">
       <CalendarDays />
       <div>
         <AlertTitle>Request an appointment</AlertTitle>
@@ -221,16 +221,16 @@ function BookingRequestNotice() {
 
 function BookingShell({ practiceName, heroAside, children }: { practiceName: string; heroAside?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-3 lg:pb-8 lg:pt-4">
       <div className="space-y-5">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-end justify-between gap-4 lg:gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 lg:gap-6">
             <div className="min-w-0 flex-1 basis-80">
               <p className="text-sm font-medium text-brand-orange">Online booking with</p>
               <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
             </div>
             {heroAside ? (
-              <div className="w-full min-[960px]:w-auto min-[960px]:max-w-xl min-[960px]:flex-1 min-[960px]:basis-[28rem]">
+              <div className="w-full min-[960px]:w-auto min-[960px]:max-w-lg min-[960px]:flex-1 min-[960px]:basis-96">
                 {heroAside}
               </div>
             ) : null}
