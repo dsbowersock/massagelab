@@ -186,6 +186,39 @@ enum CalendarAvailabilityOverrideKind {
   HOLIDAY
 }
 
+enum BookingApprovalMode {
+  MANUAL
+  AUTO_CONFIRM
+}
+
+enum BookingStaffVisibility {
+  PUBLIC_LABELS
+  HIDE_STAFF
+}
+
+enum BookingCapacityPeriod {
+  DAILY
+  WEEKLY
+}
+
+enum ServiceBookingRole {
+  PRIMARY
+  ADD_ON
+}
+
+enum BookingGroupStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum BookingWaitlistStatus {
+  OPEN
+  BOOKED
+  CANCELLED
+}
+
 enum MembershipLevel {
   SUPPORTER
   THERAPIST
@@ -241,11 +274,15 @@ model User {
   availabilityRules     TherapistAvailabilityRule[] @relation("AvailabilityTherapist")
   availabilitySchedules CalendarAvailabilitySchedule[] @relation("AvailabilityScheduleTherapist")
   availabilityOverrides CalendarAvailabilityOverride[] @relation("AvailabilityOverrideTherapist")
+  providerBookingPolicies ProviderBookingPolicy[] @relation("ProviderBookingPolicyProvider")
+  providerBookingCapacityRules ProviderBookingCapacityRule[] @relation("ProviderBookingCapacityRuleProvider")
   ownedCalendarEvents   CalendarEvent[]          @relation("CalendarEventOwner")
   createdCalendarEvents CalendarEvent[]          @relation("CalendarEventCreator")
   calendarBlocks        CalendarBlock[]          @relation("CalendarBlockTherapist")
   appointmentsAsTherapist Appointment[]           @relation("AppointmentTherapist")
   createdAppointments   Appointment[]            @relation("AppointmentCreator")
+  createdBookingGroups  BookingGroup[]           @relation("BookingGroupCreator")
+  createdBookingWaitlistEntries BookingWaitlistEntry[] @relation("BookingWaitlistCreator")
   instructedCalendarClasses CalendarClass[]       @relation("CalendarClassInstructor")
   calendarAuditLogs     CalendarAuditLog[]       @relation("CalendarAuditActor")
   createdNotificationIntents CalendarNotificationIntent[] @relation("CalendarNotificationActor")
@@ -714,12 +751,18 @@ model Practice {
   slug              String                     @unique
   name              String
   timezone          String                     @default("America/New_York")
+  publicLocationLabel String?
+  publicLatitude    Float?
+  publicLongitude   Float?
   createdById       String?
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
   createdBy         User?                      @relation("PracticeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   memberships       PracticeMembership[]
   clients           PracticeClient[]
+  bookingPolicy     BookingPolicy?
+  providerBookingPolicies ProviderBookingPolicy[]
+  providerBookingCapacityRules ProviderBookingCapacityRule[]
   serviceTypes      ServiceType[]
   calendarResources CalendarResource[]
   availabilityRules TherapistAvailabilityRule[]
@@ -728,6 +771,8 @@ model Practice {
   calendarEvents    CalendarEvent[]
   calendarBlocks    CalendarBlock[]
   appointments      Appointment[]
+  bookingGroups     BookingGroup[]
+  bookingWaitlistEntries BookingWaitlistEntry[]
   calendarAuditLogs CalendarAuditLog[]
 }
 
@@ -757,6 +802,8 @@ model PracticeClient {
   practice     Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  bookingGroups BookingGroup[]
+  bookingWaitlistEntries BookingWaitlistEntry[]
 
   @@unique([practiceId, userId])
   @@index([userId])
@@ -772,6 +819,8 @@ model ServiceType {
   durationMinutes Int
   bufferMinutes   Int           @default(0)
   clientVisible   Boolean       @default(true)
+  bookingRole     ServiceBookingRole @default(PRIMARY)
+  countsTowardMassageCapacity Boolean @default(true)
   classEligible   Boolean       @default(false)
   supplies        String?
   prepNotes       String?
@@ -956,11 +1005,15 @@ model Appointment {
   practiceClientId String
   serviceTypeId    String
   serviceVariantId String?
+  bookingGroupId   String?
+  bookingGroupOrder Int?
   createdById      String?
   startsAt         DateTime
   endsAt           DateTime
   status           AppointmentStatus @default(REQUESTED)
   source           AppointmentSource @default(CLIENT_REQUEST)
+  requestedPressureLevel Int?
+  massageCapacityMinutes Int @default(0)
   serviceName      String?
   serviceVariantName String?
   serviceCategory  String?
@@ -980,6 +1033,7 @@ model Appointment {
   practiceClient   PracticeClient    @relation(fields: [practiceClientId], references: [id], onDelete: Cascade)
   serviceType      ServiceType       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
   serviceVariant   ServiceVariant?   @relation(fields: [serviceVariantId], references: [id], onDelete: SetNull)
+  bookingGroup     BookingGroup?      @relation(fields: [bookingGroupId], references: [id], onDelete: SetNull)
   createdBy        User?             @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   serviceItems     AppointmentServiceItem[]
 
@@ -987,6 +1041,7 @@ model Appointment {
   @@index([therapistId, startsAt])
   @@index([practiceClientId, startsAt])
   @@index([serviceVariantId])
+  @@index([bookingGroupId, bookingGroupOrder])
 }
 
 model AppointmentServiceItem {
@@ -995,6 +1050,8 @@ model AppointmentServiceItem {
   serviceTypeId    String?
   serviceVariantId String?
   sortOrder        Int               @default(0)
+  requestedPressureLevel Int?
+  massageCapacityMinutes Int @default(0)
   serviceName      String?
   serviceVariantName String?
   serviceCategory  String?
@@ -1012,6 +1069,104 @@ model AppointmentServiceItem {
 
   @@index([appointmentId, sortOrder])
   @@index([serviceVariantId])
+}
+
+model BookingPolicy {
+  id                    String                @id @default(cuid())
+  practiceId            String                @unique
+  enabled               Boolean               @default(true)
+  approvalMode          BookingApprovalMode   @default(MANUAL)
+  minNoticeMinutes      Int                   @default(0)
+  maxAdvanceDays        Int                   @default(7)
+  dailyAppointmentLimit Int?
+  anyProviderEnabled    Boolean               @default(true)
+  teamSequencingEnabled Boolean               @default(true)
+  staffVisibility       BookingStaffVisibility @default(PUBLIC_LABELS)
+  dualTimezoneDisplay   Boolean               @default(true)
+  proximityNoticeEnabled Boolean              @default(false)
+  proximityRadiusMiles  Int                   @default(50)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  practice              Practice              @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+}
+
+model ProviderBookingPolicy {
+  id                    String   @id @default(cuid())
+  practiceId            String
+  providerUserId        String
+  publiclyBookable      Boolean  @default(true)
+  displayLabel          String?
+  minRestMinutes        Int      @default(0)
+  dailyAppointmentLimit Int?
+  weeklyAppointmentLimit Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  practice              Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  provider              User     @relation("ProviderBookingPolicyProvider", fields: [providerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([practiceId, providerUserId])
+  @@index([providerUserId])
+}
+
+model ProviderBookingCapacityRule {
+  id             String                @id @default(cuid())
+  practiceId     String
+  providerUserId String
+  period         BookingCapacityPeriod
+  dayOfWeek      Int?
+  pressureLevel  Int                   @default(0)
+  maxMinutes     Int
+  active         Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  practice       Practice              @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  provider       User                  @relation("ProviderBookingCapacityRuleProvider", fields: [providerUserId], references: [id], onDelete: Cascade)
+
+  @@index([practiceId, providerUserId, active])
+  @@index([providerUserId, period, dayOfWeek])
+}
+
+model BookingGroup {
+  id                     String             @id @default(cuid())
+  practiceId             String
+  practiceClientId       String
+  createdById            String?
+  requestedPressureLevel Int
+  status                 BookingGroupStatus @default(REQUESTED)
+  source                 AppointmentSource  @default(CLIENT_REQUEST)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  practice               Practice           @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  practiceClient         PracticeClient     @relation(fields: [practiceClientId], references: [id], onDelete: Cascade)
+  createdBy              User?              @relation("BookingGroupCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  appointments           Appointment[]
+  convertedWaitlistEntry BookingWaitlistEntry?
+
+  @@index([practiceId, status, createdAt])
+  @@index([practiceClientId, createdAt])
+}
+
+model BookingWaitlistEntry {
+  id                     String                @id @default(cuid())
+  practiceId             String
+  practiceClientId       String
+  createdById            String?
+  status                 BookingWaitlistStatus @default(OPEN)
+  requestedPressureLevel Int
+  primaryServiceVariantId String?
+  addOnServiceVariantIds String[]              @default([])
+  preferredProviderId    String?
+  preferredStartsAt      DateTime?
+  convertedBookingGroupId String?              @unique
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  practice               Practice              @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  practiceClient         PracticeClient        @relation(fields: [practiceClientId], references: [id], onDelete: Cascade)
+  createdBy              User?                 @relation("BookingWaitlistCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  convertedBookingGroup  BookingGroup?         @relation(fields: [convertedBookingGroupId], references: [id], onDelete: SetNull)
+
+  @@index([practiceId, status, createdAt])
+  @@index([practiceClientId, createdAt])
 }
 
 model CalendarEvent {

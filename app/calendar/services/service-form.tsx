@@ -135,6 +135,22 @@ export function ServiceForm({
             <Checkbox name="clientVisible" defaultChecked={service?.clientVisible ?? true} />
             <span>Bookable by clients</span>
           </label>
+          <div className="space-y-2">
+            <Label htmlFor="bookingRole">Booking role</Label>
+            <select
+              id="bookingRole"
+              name="bookingRole"
+              defaultValue={service?.bookingRole ?? "PRIMARY"}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="PRIMARY">Primary service</option>
+              <option value="ADD_ON">Add-on</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox name="countsTowardMassageCapacity" defaultChecked={service?.countsTowardMassageCapacity ?? true} />
+            <span>Counts toward massage-hour capacity</span>
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox name="classEligible" defaultChecked={service?.classEligible ?? false} />
             <span>Can be used for classes</span>

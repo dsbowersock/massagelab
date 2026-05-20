@@ -38,7 +38,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Open | P2 | Education and flashcards design | [Roadmap](roadmap.md), [TODO](../TODO.md) | Shared anatomy data requirements are defined before adding visible Education routes or flashcard workflows. |
 | Open | P2 | Payload CMS integration plan | [TODO](../TODO.md) | Blog-first Payload plan resolves database/schema ownership, auth boundaries, packages, env vars, deployment behavior, uploads, previews, and role/paid-content leakage risks. |
 | Open | P2 | External calendar sync integration plan | [Calendar wiki](wiki/calendar-creation-flows.md), [Privacy wiki](wiki/privacy-and-phi.md) | Google, Apple, and Outlook sync rules define OAuth scopes, import/export direction, conflict behavior, PHI boundaries, and membership treatment before implementation. |
-| Open | P2 | Online booking settings, waitlist, and fake-it filter plan | Square-inspired calendar settings review | Booking policies cover waitlist, reservation approval mode, customer timezone behavior, custom booking fields, min/max scheduling windows, daily appointment limits, any-available-provider behavior, multi-service/team-member booking rules, staff visibility, and fake-it filter behavior before implementation. |
+| Completed | P2 | Online booking settings, waitlist, and provider capacity controls | Square-inspired calendar settings review | Booking policies now cover manual vs auto-confirm approval, provider visibility/rest gaps, min/max scheduling windows, daily appointment limits, pressure-level massage-hour capacity, sequential service/add-on booking, team sequencing, waitlist conversion, staff visibility, and opt-in distance notices without client location storage. |
 | Open | P2 | Stripe Connect marketplace payments plan | [Billing wiki](wiki/billing-memberships.md), [Calendar wiki](wiki/calendar-creation-flows.md) | Provider onboarding, payout accounts, booking deposits, cancellation fees, taxes, packages, refunds, and platform fee rules are scoped before booking payment collection. |
 
 ## Later
@@ -71,6 +71,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-18 | Operator calendar uses FullCalendar OSS. | The open-source React/daygrid/timegrid/interaction plugins cover day, week, 5-day, month, click-to-create, drag/drop, and resize. Premium resource-lane scheduling is deferred. |
 
 ## Change History
+
+### 2026-05-20
+
+- Completed `codex/calendar-booking-settings-plan`: added booking policy storage, provider booking policy/capacity rules, service primary/add-on roles, public booking pressure selection, deterministic sequential service/add-on slot solving, team sequencing, waitlist entries and conversion, public location distance notices, and `/calendar/booking`.
+- Replaced the planned fake-it/scarcity idea with provider capacity protection: total daily/weekly massage minutes, pressure-level budgets from 1-5, provider rest gaps, and server-side revalidation before booking writes.
 
 ### 2026-05-18
 
