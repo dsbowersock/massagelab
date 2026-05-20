@@ -10,6 +10,8 @@ const publicBookingPage = readFileSync(new URL("../app/book/public-booking-page.
 const bookingPicker = readFileSync(new URL("../app/book/[practiceSlug]/booking-picker.tsx", import.meta.url), "utf8")
 const sequenceOptionsRoute = readFileSync(new URL("../app/api/book/[practiceSlug]/sequence-options/route.ts", import.meta.url), "utf8")
 const publicBookingSequences = readFileSync(new URL("../lib/public-booking-sequences.js", import.meta.url), "utf8")
+const loginForm = readFileSync(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
+const registerPage = readFileSync(new URL("../app/register/page.tsx", import.meta.url), "utf8")
 
 describe("calendar booking settings schema and route surface", () => {
   it("defines policy, capacity, waitlist, pressure, and service role storage", () => {
@@ -66,6 +68,16 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(bookingPicker, /name="guestEmail"/)
     assert.match(bookingPicker, /name="guestPhone"/)
     assert.match(bookingPicker, /AccountBenefitsCard/)
+    assert.match(bookingPicker, /DialogTrigger asChild/)
+    assert.match(bookingPicker, /Sign in or create account/)
+    assert.match(bookingPicker, /\/login\?callbackUrl=/)
+    assert.match(bookingPicker, /\/register\?callbackUrl=/)
+    assert.match(bookingPicker, /Continue as guest/)
+    assert.match(publicBookingPage, /AccountRequiredCard bookingPath/)
+    assert.match(publicBookingPage, /\/register\?callbackUrl=/)
+    assert.match(loginForm, /safeCallbackUrl/)
+    assert.match(loginForm, /router\.push\(callbackUrl\)/)
+    assert.match(registerPage, /callbackUrl/)
   })
 
   it("keeps public sequence loading anonymous-capable with account-aware cache keys", () => {

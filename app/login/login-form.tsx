@@ -22,9 +22,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Email or password is incorrect.",
 }
 
+function safeCallbackUrl(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account"
+  return value
+}
+
 export function LoginForm({ googleEnabled }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"))
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [twoFactorCode, setTwoFactorCode] = useState("")
@@ -47,7 +53,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
     setIsSubmitting(false)
 
     if (!result?.error) {
-      router.push("/account")
+      router.push(callbackUrl)
       router.refresh()
       return
     }
@@ -115,7 +121,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         </form>
 
         {googleEnabled ? (
-          <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: "/account" })}>
+          <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: callbackUrl })}>
             <ShieldCheck className="mr-2 h-4 w-4" />
             Continue with Google
           </Button>
@@ -132,7 +138,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         )}
 
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <Link href="/register" className="text-brand-orange underline-offset-4 hover:underline">
+          <Link href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="text-brand-orange underline-offset-4 hover:underline">
             Create an account
           </Link>
           <Link href="/forgot-password" className="text-brand-orange underline-offset-4 hover:underline">

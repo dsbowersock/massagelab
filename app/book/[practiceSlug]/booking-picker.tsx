@@ -1,11 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CalendarDays, Check, Clock, MapPin, Plus, SlidersHorizontal, UserRound } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { CalendarDays, Check, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -119,6 +122,7 @@ function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude
 }
 
 export function BookingPicker({ model }: { model: BookingOptionModel }) {
+  const pathname = usePathname()
   const firstPrimaryVariant = model.primaryServices[0]?.variants[0]
   const [selectedPrimaryVariantId, setSelectedPrimaryVariantId] = useState(firstPrimaryVariant?.id ?? "")
   const [selectedAddOnVariantIds, setSelectedAddOnVariantIds] = useState<string[]>([])
@@ -138,6 +142,9 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
     addOnVariantOrder.filter((variantId) => selectedAddOnVariantIds.includes(variantId))
   ), [addOnVariantOrder, selectedAddOnVariantIds])
 
+  const bookingReturnPath = pathname || `/book/${model.practiceSlug}`
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
+  const registerHref = `/register?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
   const browserTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : model.timeZone
   const showLocalTime = model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone
   const guestContactComplete = model.viewer.isSignedIn || (
@@ -398,6 +405,8 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
             guestName={guestName}
             guestEmail={guestEmail}
             guestPhone={guestPhone}
+            loginHref={loginHref}
+            registerHref={registerHref}
             onGuestNameChange={setGuestName}
             onGuestEmailChange={setGuestEmail}
             onGuestPhoneChange={setGuestPhone}
@@ -540,6 +549,8 @@ function AccountBenefitsCard({
   guestName,
   guestEmail,
   guestPhone,
+  loginHref,
+  registerHref,
   onGuestNameChange,
   onGuestEmailChange,
   onGuestPhoneChange,
@@ -547,6 +558,8 @@ function AccountBenefitsCard({
   guestName: string
   guestEmail: string
   guestPhone: string
+  loginHref: string
+  registerHref: string
   onGuestNameChange: (value: string) => void
   onGuestEmailChange: (value: string) => void
   onGuestPhoneChange: (value: string) => void
@@ -554,10 +567,51 @@ function AccountBenefitsCard({
   return (
     <Card className="border-border/80 bg-card/90 backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-base">Your contact information</CardTitle>
-        <CardDescription>
-          You can book as a guest. A free account can save these details and make request status easier to track later.
-        </CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="text-base">Your contact information</CardTitle>
+            <CardDescription className="mt-2">
+              You can book as a guest. A free account can save these details and make request status easier to track later.
+            </CardDescription>
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" size="sm">
+                <UserPlus data-icon="inline-start" />
+                Sign in or create account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save time with a free MassageLab account</DialogTitle>
+                <DialogDescription>
+                  Guest booking stays available here. Signing in or creating an account can save your contact details and make request status easier to find later.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3 text-sm text-muted-foreground">
+                <p>Use an account if you want saved profile details, easier status tracking, and a smoother next booking.</p>
+                <p>Continue as guest if you only want to request this appointment right now.</p>
+              </div>
+              <DialogFooter className="gap-2 sm:justify-start">
+                <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                  <Link href={registerHref}>
+                    <UserPlus data-icon="inline-start" />
+                    Create free account
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={loginHref}>
+                    <LogIn data-icon="inline-start" />
+                    Sign in
+                  </Link>
+                </Button>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost">Continue as guest</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="space-y-2">

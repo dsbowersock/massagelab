@@ -9,7 +9,7 @@ import { normalizePublicBookingSlug, normalizePublicBookingStateSlug } from "@/l
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookingPicker } from "./[practiceSlug]/booking-picker"
 
 type PublicBookingLookup =
@@ -73,6 +73,10 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   }
 
   const policy = normalizeBookingPolicy(practice.bookingPolicy)
+  const currentBookingPath = lookup.kind === "branded"
+    ? `/book/${normalizePublicBookingStateSlug(lookup.stateSlug)}/${normalizePublicBookingSlug(lookup.bookingSlug)}`
+    : `/book/${practice.slug}`
+
   if (!policy.enabled) {
     return (
       <BookingShell practiceName={practice.name}>
@@ -84,7 +88,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   if (!viewerUserId && policy.requireClientAccount) {
     return (
       <BookingShell practiceName={practice.name}>
-        <AccountRequiredCard />
+        <AccountRequiredCard bookingPath={currentBookingPath} />
       </BookingShell>
     )
   }
@@ -190,7 +194,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
 
       {primaryServices.length === 0 || providerPreferences.length === 0 ? (
         publiclyBookableProviders.length > 0 && !viewerUserId ? (
-          <AccountRequiredCard />
+          <AccountRequiredCard bookingPath={currentBookingPath} />
         ) : (
           <Card className="border-neutral-800 bg-card/90 backdrop-blur">
             <CardHeader>
@@ -236,7 +240,10 @@ function CalendarUnavailableNotice() {
   )
 }
 
-function AccountRequiredCard() {
+function AccountRequiredCard({ bookingPath }: { bookingPath: string }) {
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(bookingPath)}`
+  const registerHref = `/register?callbackUrl=${encodeURIComponent(bookingPath)}`
+
   return (
     <Card className="border-neutral-800 bg-card/90 backdrop-blur">
       <CardHeader>
@@ -248,11 +255,14 @@ function AccountRequiredCard() {
           This practice requires a free client account before booking. Accounts keep your contact details ready and make it easier to follow request status.
         </CardDescription>
       </CardHeader>
-      <CardHeader className="pt-0">
+      <CardFooter className="flex-wrap gap-2">
         <Button asChild className="w-fit bg-primary hover:bg-brand-orange-glow">
-          <Link href="/login">Go to login</Link>
+          <Link href={registerHref}>Create free account</Link>
         </Button>
-      </CardHeader>
+        <Button asChild variant="outline" className="w-fit">
+          <Link href={loginHref}>Sign in</Link>
+        </Button>
+      </CardFooter>
     </Card>
   )
 }
