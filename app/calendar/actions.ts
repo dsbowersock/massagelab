@@ -1608,7 +1608,6 @@ export async function createPersonalEventAction(formData: FormData) {
     throw new Error("Use a valid personal event start and end time.")
   }
 
-  await assertNoCalendarEventConflict({ practiceId, ownerUserId: therapistId, startsAt, endsAt })
   const title = reason || "Blocked time"
   const plan = buildCalendarCreationPlan({
     flow: "PERSONAL",
@@ -1623,6 +1622,9 @@ export async function createPersonalEventAction(formData: FormData) {
   })
 
   await prisma.$transaction(async (tx) => {
+    await lockAppointmentSchedulingRows(tx, { practiceId, therapistId, resourceIds: [], startsAt, endsAt })
+    await assertNoCalendarEventConflict({ db: tx, practiceId, ownerUserId: therapistId, startsAt, endsAt })
+
     const event = await tx.calendarEvent.create({ data: plan.event as Prisma.CalendarEventUncheckedCreateInput })
 
     await tx.calendarBlock.create({

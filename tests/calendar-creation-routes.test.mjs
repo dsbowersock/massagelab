@@ -180,6 +180,10 @@ describe("calendar creation route wiring", () => {
     const actions = await readFile("app/calendar/actions.ts", "utf8")
     const blockingActions = [
       {
+        name: "createPersonalEventAction",
+        checks: ["assertNoCalendarEventConflict"],
+      },
+      {
         name: "rescheduleCalendarEventAction",
         checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
