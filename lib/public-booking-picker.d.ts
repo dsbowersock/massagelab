@@ -40,13 +40,6 @@ export type SequenceWeekSlot<T extends SequenceOptionLike> = {
   endMinutes: number
 }
 
-export type SequenceAvailabilityBand<T extends SequenceOptionLike> = {
-  id: string
-  startMinutes: number
-  endMinutes: number
-  slots: SequenceWeekSlot<T>[]
-}
-
 export function buildSequenceWeekGrid<T extends SequenceOptionLike>(options: T[], timeZone: string, requestedWeekStartKey?: string): {
   weeks: Array<{
     weekStartKey: string
@@ -60,7 +53,6 @@ export function buildSequenceWeekGrid<T extends SequenceOptionLike>(options: T[]
     weekdayShort: string
     dayLabel: string
     slots: SequenceWeekSlot<T>[]
-    bands: SequenceAvailabilityBand<T>[]
   }>
   startHour: number
   endHour: number

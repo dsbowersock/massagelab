@@ -92,9 +92,12 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(bookingPicker, /selectedWeekStartKey/)
     assert.match(bookingPicker, /buildSequenceWeekGrid/)
     assert.match(bookingPicker, /providerPreferenceModel/)
-    assert.match(bookingPickerHelpers, /buildAvailabilityBands/)
+    assert.match(bookingPicker, /day\.slots\.map/)
+    assert.match(bookingPicker, /-mx-6 overflow-hidden/)
     assert.match(bookingPickerHelpers, /shouldShowProviderPreference/)
     assert.doesNotMatch(bookingPicker, /<Calendar[\s>]/)
+    assert.doesNotMatch(bookingPicker, /day\.bands\.map/)
+    assert.doesNotMatch(bookingPickerHelpers, /buildAvailabilityBands/)
     assert.doesNotMatch(bookingPicker, /sequenceOptions\.map\(\(option\)/)
   })
 

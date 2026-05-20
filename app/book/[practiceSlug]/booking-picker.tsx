@@ -627,9 +627,9 @@ function WeeklyAvailabilityPicker({
   const previousWeek = grid.weeks[selectedWeekIndex - 1]
   const nextWeek = grid.weeks[selectedWeekIndex + 1]
   const startMinute = grid.startHour * 60
-  const hourHeight = 72
+  const hourHeight = 116
   const gridHeight = Math.max(360, (grid.endHour - grid.startHour) * hourHeight)
-  const columnTemplate = "4.75rem repeat(7, minmax(7.5rem, 1fr))"
+  const columnTemplate = "4.5rem repeat(7, minmax(0, 1fr))"
 
   function percentForMinute(minutes: number) {
     return `${((minutes - startMinute) / grid.totalMinutes) * 100}%`
@@ -637,7 +637,7 @@ function WeeklyAvailabilityPicker({
 
   return (
     <div className="grid gap-4">
-      <div className="overflow-hidden rounded-lg border border-border/80 bg-background/50">
+      <div className="-mx-6 overflow-hidden border-y border-border/80 bg-background/50">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 p-3">
           <div>
             <p className="text-sm font-medium">Weekly availability</p>
@@ -669,12 +669,15 @@ function WeeklyAvailabilityPicker({
         </div>
 
         <div className="overflow-x-auto">
-          <div className="min-w-[58rem]">
+          <div className="w-full min-w-[38rem]">
             <div className="grid border-b border-border/80" style={{ gridTemplateColumns: columnTemplate }}>
               <div className="border-r border-border/80 bg-muted/20" />
               {grid.days.map((day) => (
                 <div key={day.dateKey} className="border-r border-border/80 px-3 py-3 text-center last:border-r-0">
-                  <p className="text-sm font-medium">{day.weekday}</p>
+                  <p className="text-sm font-medium">
+                    <span className="hidden lg:inline">{day.weekday}</span>
+                    <span className="lg:hidden">{day.weekdayShort}</span>
+                  </p>
                   <p className="text-xs text-muted-foreground">{day.dayLabel}</p>
                 </div>
               ))}
@@ -705,7 +708,7 @@ function WeeklyAvailabilityPicker({
                     ))}
                   </div>
 
-                  {day.bands.length === 0 ? (
+                  {day.slots.length === 0 ? (
                     <div
                       aria-hidden="true"
                       className="pointer-events-none absolute inset-0 bg-muted/20"
@@ -715,47 +718,26 @@ function WeeklyAvailabilityPicker({
                     />
                   ) : null}
 
-                  {day.bands.map((band) => (
-                    <div
-                      key={band.id}
-                      className="absolute left-1 right-1 overflow-hidden rounded-md border border-primary/60 bg-primary/10 p-2 shadow-sm"
-                      style={{
-                        top: percentForMinute(band.startMinutes),
-                        height: `max(5.25rem, ${((band.endMinutes - band.startMinutes) / grid.totalMinutes) * 100}%)`,
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-medium">Available</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {minutesLabel(band.startMinutes)}-{minutesLabel(band.endMinutes)}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">{band.slots.length}</Badge>
-                      </div>
-                      <div className="mt-2 flex max-h-[calc(100%-2rem)] flex-wrap gap-1 overflow-y-auto pr-1">
-                        {band.slots.map((slot) => {
-                          const optionKey = sequenceOptionKey(slot.option)
-                          const selected = optionKey === selectedSequenceKey
+                  {day.slots.map((slot) => {
+                    const optionKey = sequenceOptionKey(slot.option)
+                    const selected = optionKey === selectedSequenceKey
 
-                          return (
-                            <button
-                              key={optionKey}
-                              type="button"
-                              aria-pressed={selected}
-                              onClick={() => onSelectSequence(optionKey)}
-                              className={cn(
-                                "rounded border px-2 py-1 text-xs font-medium transition hover:border-primary/80 hover:bg-primary/15",
-                                selected ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-background/80",
-                              )}
-                            >
-                              {shortTimeLabel(slot.option.startsAt, timeZone)}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                    return (
+                      <button
+                        key={optionKey}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => onSelectSequence(optionKey)}
+                        className={cn(
+                          "absolute left-1 right-1 flex h-7 items-center justify-center rounded border px-1 text-xs font-medium shadow-sm transition hover:border-primary/80 hover:bg-primary/15",
+                          selected ? "border-primary bg-primary text-primary-foreground" : "border-border/70 bg-background/90",
+                        )}
+                        style={{ top: percentForMinute(slot.startMinutes) }}
+                      >
+                        {shortTimeLabel(slot.option.startsAt, timeZone)}
+                      </button>
+                    )
+                  })}
                 </div>
               ))}
             </div>
