@@ -1003,33 +1003,40 @@ export async function rescheduleCalendarEventAction(input: FormData | Record<str
     throw new Error("This event does not have a provider schedule owner.")
   }
 
-  if (event.kind === "APPOINTMENT" || event.kind === "CLASS") {
-    await assertProviderAvailability({
-      practiceId: event.practiceId,
-      therapistId: event.ownerUserId,
-      startsAt,
-      endsAt,
-      timezone: event.practice.timezone,
-      allowOutsideAvailability,
-    })
-  }
-
+  const ownerUserId = event.ownerUserId
   const resourceIds = event.resourceBookings.map((booking) => booking.resourceId)
-  await assertNoCalendarEventConflict({
-    practiceId: event.practiceId,
-    ownerUserId: event.ownerUserId,
-    startsAt,
-    endsAt,
-    excludeEventId: event.id,
-  })
-  await assertNoResourceConflict({
-    resourceIds,
-    startsAt,
-    endsAt,
-    excludeEventId: event.id,
-  })
 
   await prisma.$transaction(async (tx) => {
+    await lockAppointmentSchedulingRows(tx, { practiceId: event.practiceId, therapistId: ownerUserId, resourceIds, startsAt, endsAt })
+
+    if (event.kind === "APPOINTMENT" || event.kind === "CLASS") {
+      await assertProviderAvailability({
+        db: tx,
+        practiceId: event.practiceId,
+        therapistId: ownerUserId,
+        startsAt,
+        endsAt,
+        timezone: event.practice.timezone,
+        allowOutsideAvailability,
+      })
+    }
+
+    await assertNoCalendarEventConflict({
+      db: tx,
+      practiceId: event.practiceId,
+      ownerUserId,
+      startsAt,
+      endsAt,
+      excludeEventId: event.id,
+    })
+    await assertNoResourceConflict({
+      db: tx,
+      resourceIds,
+      startsAt,
+      endsAt,
+      excludeEventId: event.id,
+    })
+
     await tx.calendarEvent.update({
       where: { id: event.id },
       data: { startsAt, endsAt },
@@ -1671,9 +1678,6 @@ export async function createClassAction(formData: FormData) {
   const snapshot = serviceSnapshotForCreate(serviceVariant)
   const resourceIds = serviceResourceIds(serviceVariant)
   const title = fieldString(formData, "title") || `${snapshot.serviceName} class`
-  await assertProviderAvailability({ practiceId, therapistId: instructorId, startsAt, endsAt, timezone: practice.timezone })
-  await assertNoCalendarEventConflict({ practiceId, ownerUserId: instructorId, startsAt, endsAt })
-  await assertNoResourceConflict({ resourceIds, startsAt, endsAt })
   const plan = buildCalendarCreationPlan({
     flow: "CLASS",
     practiceId,
@@ -1687,6 +1691,11 @@ export async function createClassAction(formData: FormData) {
   })
 
   await prisma.$transaction(async (tx) => {
+    await lockAppointmentSchedulingRows(tx, { practiceId, therapistId: instructorId, resourceIds, startsAt, endsAt })
+    await assertProviderAvailability({ db: tx, practiceId, therapistId: instructorId, startsAt, endsAt, timezone: practice.timezone })
+    await assertNoCalendarEventConflict({ db: tx, practiceId, ownerUserId: instructorId, startsAt, endsAt })
+    await assertNoResourceConflict({ db: tx, resourceIds, startsAt, endsAt })
+
     const event = await tx.calendarEvent.create({ data: plan.event as Prisma.CalendarEventUncheckedCreateInput })
 
     await tx.calendarClass.create({
@@ -1813,9 +1822,6 @@ export async function requestAppointmentAction(formData: FormData) {
   const endsAt = calculateServiceEndTime({ startsAt, variant: serviceVariant })
   const resourceIds = serviceResourceIds(serviceVariant)
   const snapshot = serviceSnapshotForCreate(serviceVariant)
-  await assertProviderAvailability({ practiceId, therapistId, startsAt, endsAt, timezone: practice.timezone })
-  await assertNoCalendarEventConflict({ practiceId, ownerUserId: therapistId, startsAt, endsAt })
-  await assertNoResourceConflict({ resourceIds, startsAt, endsAt })
 
   const staffRecipients = await prisma.practiceMembership.findMany({
     where: {
@@ -1826,6 +1832,11 @@ export async function requestAppointmentAction(formData: FormData) {
   })
 
   await prisma.$transaction(async (tx) => {
+    await lockAppointmentSchedulingRows(tx, { practiceId, therapistId, resourceIds, startsAt, endsAt })
+    await assertProviderAvailability({ db: tx, practiceId, therapistId, startsAt, endsAt, timezone: practice.timezone })
+    await assertNoCalendarEventConflict({ db: tx, practiceId, ownerUserId: therapistId, startsAt, endsAt })
+    await assertNoResourceConflict({ db: tx, resourceIds, startsAt, endsAt })
+
     const practiceClient = await tx.practiceClient.upsert({
       where: {
         practiceId_userId: {
@@ -1943,26 +1954,36 @@ export async function updateAppointmentRequestStatusAction(formData: FormData) {
     throw new Error("You can only review requests for your own schedule.")
   }
 
-  if (nextStatus === "CONFIRMED") {
-    await assertNoCalendarEventConflict({
-      practiceId: appointment.practiceId,
-      ownerUserId: appointment.therapistId,
-      startsAt: appointment.startsAt,
-      endsAt: appointment.endsAt,
-      excludeEventId: appointment.eventId,
-    })
-    await assertNoResourceConflict({
-      resourceIds: appointment.event.resourceBookings.map((booking) => booking.resourceId),
-      startsAt: appointment.startsAt,
-      endsAt: appointment.endsAt,
-      excludeEventId: appointment.eventId,
-    })
-  }
-
   const auditAction = nextStatus === "CONFIRMED" ? "calendar.appointment.confirm" : "calendar.appointment.decline"
   const notificationAction = nextStatus === "CONFIRMED" ? "APPOINTMENT_CONFIRMED" : "APPOINTMENT_DECLINED"
+  const resourceIds = appointment.event.resourceBookings.map((booking) => booking.resourceId)
 
   await prisma.$transaction(async (tx) => {
+    if (nextStatus === "CONFIRMED") {
+      await lockAppointmentSchedulingRows(tx, {
+        practiceId: appointment.practiceId,
+        therapistId: appointment.therapistId,
+        resourceIds,
+        startsAt: appointment.startsAt,
+        endsAt: appointment.endsAt,
+      })
+      await assertNoCalendarEventConflict({
+        db: tx,
+        practiceId: appointment.practiceId,
+        ownerUserId: appointment.therapistId,
+        startsAt: appointment.startsAt,
+        endsAt: appointment.endsAt,
+        excludeEventId: appointment.eventId,
+      })
+      await assertNoResourceConflict({
+        db: tx,
+        resourceIds,
+        startsAt: appointment.startsAt,
+        endsAt: appointment.endsAt,
+        excludeEventId: appointment.eventId,
+      })
+    }
+
     await tx.calendarEvent.update({
       where: { id: appointment.eventId },
       data: { status: nextStatus },

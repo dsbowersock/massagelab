@@ -17,6 +17,13 @@ const requiredCalendarRoutes = [
   "app/calendar/new/appointment/appointment-composer.tsx",
 ]
 
+function exportedActionBody(source, name) {
+  const start = source.indexOf(`export async function ${name}`)
+  assert.notEqual(start, -1, `${name} should be exported`)
+  const next = source.indexOf("\nexport async function ", start + 1)
+  return source.slice(start, next === -1 ? source.length : next)
+}
+
 describe("calendar creation route wiring", () => {
   it("ships dedicated pages for every planned calendar creation flow", async () => {
     const pages = await Promise.all(requiredCalendarRoutes.map((file) => readFile(file, "utf8")))
@@ -167,6 +174,44 @@ describe("calendar creation route wiring", () => {
     assert.match(actions, /assertNoResourceConflict\(\{\s*db:\s*tx/)
     assert.match(actions, /practiceClientId:\s*practiceClient\.id/)
     assert.match(actions, /SELECT[\s\S]+FOR UPDATE/)
+  })
+
+  it("locks scheduling rows inside every blocking calendar mutation transaction", async () => {
+    const actions = await readFile("app/calendar/actions.ts", "utf8")
+    const blockingActions = [
+      {
+        name: "rescheduleCalendarEventAction",
+        checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
+      },
+      {
+        name: "createClassAction",
+        checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
+      },
+      {
+        name: "requestAppointmentAction",
+        checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
+      },
+      {
+        name: "updateAppointmentRequestStatusAction",
+        checks: ["assertNoCalendarEventConflict", "assertNoResourceConflict"],
+      },
+    ]
+
+    for (const { name, checks } of blockingActions) {
+      const body = exportedActionBody(actions, name)
+      const transactionStart = body.indexOf("await prisma.$transaction(async (tx) => {")
+      assert.notEqual(transactionStart, -1, `${name} should use a transaction`)
+      const transactionBody = body.slice(transactionStart)
+      const lockIndex = transactionBody.indexOf("await lockAppointmentSchedulingRows(tx")
+      assert.notEqual(lockIndex, -1, `${name} should lock scheduling rows inside the transaction`)
+
+      for (const check of checks) {
+        const checkIndex = transactionBody.indexOf(`${check}({`)
+        assert.notEqual(checkIndex, -1, `${name} should re-run ${check} inside the transaction`)
+        assert.ok(lockIndex < checkIndex, `${name} should lock before ${check}`)
+        assert.match(transactionBody.slice(checkIndex, checkIndex + 120), /db:\s*tx/, `${name} should run ${check} with tx`)
+      }
+    }
   })
 
   it("uses unique availability time input ids without changing submitted field names", async () => {
