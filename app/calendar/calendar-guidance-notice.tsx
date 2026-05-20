@@ -93,9 +93,7 @@ export function CalendarGuidanceNotice({
     writeLocalNotice(noticeKey, nextState)
     startTransition(async () => {
       await saveCalendarPreferencesAction({
-        ...preferences,
         noticeDismissals: {
-          ...preferences.noticeDismissals,
           [noticeKey]: nextState,
         },
       })

@@ -134,7 +134,7 @@ export default async function BookingPage({
     prisma.calendarResourceBooking.findMany({
       where: {
         resource: { practiceId: practice.id },
-        startsAt: { gte: now },
+        endsAt: { gte: now },
         event: {
           blocksAvailability: true,
           status: { in: [...ACTIVE_EVENT_STATUSES] },

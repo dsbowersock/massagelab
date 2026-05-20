@@ -195,7 +195,7 @@ export function AppointmentComposer({
                 <span>This time is outside common working hours. Provider availability and conflicts are checked when you save.</span>
               </div>
             ) : null}
-            {actionState.status === "outside-availability" ? (
+            {outsideAvailabilityReady ? (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
                 <span>{actionState.message} Submit again to create this manual appointment anyway.</span>

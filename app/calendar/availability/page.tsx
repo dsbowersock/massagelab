@@ -41,6 +41,17 @@ function formatDateTime(value: Date, timeZone = "America/New_York") {
   }).format(value)
 }
 
+function formatPracticeDate(value: Date, timeZone = "America/New_York") {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value)
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${byType.year}-${byType.month}-${byType.day}`
+}
+
 export default async function CalendarAvailabilityPage() {
   const session = await getCurrentSession()
 
@@ -206,7 +217,7 @@ export default async function CalendarAvailabilityPage() {
             <CardContent>
               <form action={createAvailabilityRuleAction} className="grid gap-4">
                 <input type="hidden" name="practiceId" value={membership.practiceId} />
-                <ProviderAndDayFields therapists={therapists} defaultTherapistId={defaultTherapistId} />
+                <ProviderAndDayFields idPrefix="weekly-rule" therapists={therapists} defaultTherapistId={defaultTherapistId} />
                 <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Add weekly hours</Button>
               </form>
             </CardContent>
@@ -234,7 +245,7 @@ export default async function CalendarAvailabilityPage() {
                     <Input id="effectiveTo" name="effectiveTo" type="date" />
                   </div>
                 </div>
-                <ProviderAndDayFields therapists={therapists} defaultTherapistId={defaultTherapistId} />
+                <ProviderAndDayFields idPrefix="named-schedule" therapists={therapists} defaultTherapistId={defaultTherapistId} />
                 <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Add schedule interval</Button>
               </form>
             </CardContent>
@@ -354,7 +365,7 @@ export default async function CalendarAvailabilityPage() {
             </AvailabilityList>
             <AvailabilityList title="Overrides" empty="No one-time overrides yet.">
               {overrides.map((override) => (
-                <AvailabilityRow key={override.id} title={`${override.kind}: ${override.date.toISOString().slice(0, 10)}`} detail={`${override.therapist.name ?? override.therapist.email ?? "Provider"}${override.reason ? ` · ${override.reason}` : ""}${override.intervals.length > 0 ? ` · ${override.intervals.map((interval) => `${formatMinuteLabel(interval.startMinute)}-${formatMinuteLabel(interval.endMinute)}`).join(", ")}` : ""}`} />
+                <AvailabilityRow key={override.id} title={`${override.kind}: ${formatPracticeDate(override.date, membership.practice.timezone)}`} detail={`${override.therapist.name ?? override.therapist.email ?? "Provider"}${override.reason ? ` · ${override.reason}` : ""}${override.intervals.length > 0 ? ` · ${override.intervals.map((interval) => `${formatMinuteLabel(interval.startMinute)}-${formatMinuteLabel(interval.endMinute)}`).join(", ")}` : ""}`} />
               ))}
             </AvailabilityList>
           </div>
@@ -486,9 +497,11 @@ function ProviderSelect({
 }
 
 function ProviderAndDayFields({
+  idPrefix,
   therapists,
   defaultTherapistId,
 }: {
+  idPrefix: string
   therapists: Array<{ userId: string; user: { name: string | null; email: string | null } }>
   defaultTherapistId: string
 }) {
@@ -512,12 +525,12 @@ function ProviderAndDayFields({
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="startTime">Start</Label>
-        <Input id="startTime" name="startTime" type="time" defaultValue="09:00" required />
+        <Label htmlFor={`${idPrefix}-startTime`}>Start</Label>
+        <Input id={`${idPrefix}-startTime`} name="startTime" type="time" defaultValue="09:00" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="endTime">End</Label>
-        <Input id="endTime" name="endTime" type="time" defaultValue="17:00" required />
+        <Label htmlFor={`${idPrefix}-endTime`}>End</Label>
+        <Input id={`${idPrefix}-endTime`} name="endTime" type="time" defaultValue="17:00" required />
       </div>
     </div>
   )

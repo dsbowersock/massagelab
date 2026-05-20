@@ -101,7 +101,7 @@ Status: shipped. Future navigation work should build on the existing route/audie
 
 ## Calendar Creation Flows
 
-Status: initial build shipped on `codex/calendar-creation-flows-plan`. Calendar work now uses a shared `CalendarEvent` index with specialized appointment, personal block, class, reminder, service variant, and resource records:
+Status: initial build shipped on `codex/calendar-creation-flows-plan`. Calendar work now uses a shared `CalendarEvent` index with specialized appointment, personal block, class, and reminder records, plus service variants and resources as catalog entities:
 
 - Appointment flow: therapists and practice staff create or confirm service appointments with client, therapist, selected service variant, location/timezone, start/end, status, resource requirements, and service snapshots.
 - Client request flow: clients request available appointment slots from path-first `/book/[practiceSlug]` pages without seeing staff-only practice calendar details.

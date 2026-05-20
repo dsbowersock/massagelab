@@ -139,6 +139,18 @@ describe("service catalog scheduling helpers", () => {
       endsAt: "2026-05-18T15:30:00.000Z",
       existingBookings,
     }), true)
+
+    assert.equal(hasResourceConflict({
+      resourceIds: ["room_3"],
+      startsAt: "2026-05-18T14:30:00.000Z",
+      endsAt: "2026-05-18T15:30:00.000Z",
+      existingBookings: [{
+        resourceId: "room_3",
+        startsAt: "2026-05-18T14:00:00.000Z",
+        endsAt: "2026-05-18T15:00:00.000Z",
+        event: { status: "CONFIRMED" },
+      }],
+    }), true)
   })
 
   it("keeps operational policy payloads out of PHI-shaped fields", () => {

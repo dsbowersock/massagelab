@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   DEFAULT_CALENDAR_PREFERENCES,
   CALENDAR_NOTICE_AUTO_HIDE_VIEWS,
+  mergeCalendarPreferencePatch,
   normalizeCalendarPreferences,
   shouldShowCalendarNotice,
 } from "../lib/calendar-preferences.js"
@@ -91,5 +92,29 @@ describe("calendar display preferences", () => {
       }, "operator-privacy"),
       false,
     )
+  })
+
+  it("merges calendar preference patches without resetting unrelated display settings", () => {
+    const existing = normalizeCalendarPreferences({
+      defaultRange: "month",
+      providerViewMode: "combined",
+      showCancelledEvents: true,
+      calendarSlotDensity: "spacious",
+      noticeDismissals: {
+        "operator-privacy": { dismissed: false, views: 2 },
+      },
+    })
+
+    assert.deepEqual(mergeCalendarPreferencePatch(existing, {
+      noticeDismissals: {
+        "booking-privacy": { dismissed: true, views: 1 },
+      },
+    }), {
+      ...existing,
+      noticeDismissals: {
+        "operator-privacy": { dismissed: false, views: 2 },
+        "booking-privacy": { dismissed: true, views: 1 },
+      },
+    })
   })
 })

@@ -140,8 +140,66 @@ describe("calendar creation route wiring", () => {
     assert.match(composer, /useActionState\(createAppointmentFormAction/)
     assert.match(composer, /name="allowOutsideAvailability"/)
     assert.match(composer, /outside-availability/)
+    assert.match(composer, /outsideAvailabilityReady \?/)
     assert.match(actions, /class OutsideProviderAvailabilityError/)
     assert.match(actions, /export async function createAppointmentFormAction/)
     assert.match(actions, /allowOutsideAvailability/)
+  })
+
+  it("keeps ongoing resource bookings in public booking availability checks", async () => {
+    const bookingPage = await readFile("app/book/[practiceSlug]/page.tsx", "utf8")
+    const resourceQuery = bookingPage.slice(
+      bookingPage.indexOf("prisma.calendarResourceBooking.findMany"),
+      bookingPage.indexOf("select: { resourceId: true, startsAt: true, endsAt: true }"),
+    )
+
+    assert.match(resourceQuery, /endsAt:\s*\{\s*gte:\s*now\s*\}/)
+    assert.doesNotMatch(resourceQuery, /startsAt:\s*\{\s*gte:\s*now\s*\}/)
+    assert.match(resourceQuery, /resource:\s*\{\s*practiceId:\s*practice\.id\s*\}/)
+  })
+
+  it("rechecks appointment conflicts inside the write transaction and links the canonical client", async () => {
+    const actions = await readFile("app/calendar/actions.ts", "utf8")
+
+    assert.match(actions, /lockAppointmentSchedulingRows\(tx/)
+    assert.match(actions, /assertProviderAvailability\(\{\s*db:\s*tx/)
+    assert.match(actions, /assertNoCalendarEventConflict\(\{\s*db:\s*tx/)
+    assert.match(actions, /assertNoResourceConflict\(\{\s*db:\s*tx/)
+    assert.match(actions, /practiceClientId:\s*practiceClient\.id/)
+    assert.match(actions, /SELECT[\s\S]+FOR UPDATE/)
+  })
+
+  it("uses unique availability time input ids without changing submitted field names", async () => {
+    const availabilityPage = await readFile("app/calendar/availability/page.tsx", "utf8")
+
+    assert.match(availabilityPage, /idPrefix="weekly-rule"/)
+    assert.match(availabilityPage, /idPrefix="named-schedule"/)
+    assert.match(availabilityPage, /htmlFor=\{`\$\{idPrefix\}-startTime`\}/)
+    assert.match(availabilityPage, /id=\{`\$\{idPrefix\}-startTime`\}\s+name="startTime"/)
+    assert.match(availabilityPage, /formatPracticeDate\(override\.date,\s*membership\.practice\.timezone\)/)
+    assert.equal(availabilityPage.includes("override.date.toISOString().slice(0, 10)"), false)
+  })
+
+  it("persists notice dismissal patches without spreading stale calendar preferences", async () => {
+    const [notice, actions] = await Promise.all([
+      readFile("app/calendar/calendar-guidance-notice.tsx", "utf8"),
+      readFile("app/calendar/actions.ts", "utf8"),
+    ])
+
+    assert.match(notice, /saveCalendarPreferencesAction\(\{\s*noticeDismissals:/)
+    assert.equal(notice.includes("...preferences,\n        noticeDismissals"), false)
+    assert.match(actions, /mergeCalendarPreferencePatch/)
+  })
+
+  it("keeps service variants and resources documented as catalog entities, not event detail records", async () => {
+    const [roadmap, flows] = await Promise.all([
+      readFile("docs/roadmap.md", "utf8"),
+      readFile("lib/calendar-flows.js", "utf8"),
+    ])
+
+    assert.match(roadmap, /shared `CalendarEvent` index with specialized appointment, personal block, class, and reminder records/)
+    assert.match(roadmap, /service variants and resources as catalog entities/)
+    assert.equal(roadmap.includes("class, reminder, service variant, and resource records"), false)
+    assert.match(flows, /const PRACTICE_MANAGEMENT_ROLES = STAFF_ROLES/)
   })
 })

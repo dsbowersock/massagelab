@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import type { Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { normalizeEmail } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
@@ -21,7 +21,7 @@ import {
   hasCalendarEventConflict,
   sanitizeCalendarAuditMetadata,
 } from "@/lib/calendar-flows"
-import { normalizeCalendarPreferences } from "@/lib/calendar-preferences"
+import { mergeCalendarPreferencePatch } from "@/lib/calendar-preferences"
 import { canRescheduleCalendarEvent } from "@/lib/calendar-workspace"
 import { FEATURE_KEYS, getUserEntitlementState } from "@/lib/membership"
 import {
@@ -41,6 +41,8 @@ const THERAPIST_ROLES = ["OWNER", "THERAPIST"] as const
 const ACTIVE_EVENT_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
 const CALENDAR_NOTE_SENSITIVE_PATTERN = /(soap|pain|diagnosis|assessment|treatment|transcript|intake response|journal|symptom|medical history|client condition)/i
 const NEW_APPOINTMENT_CLIENT_VALUE = "__new_client__"
+
+type CalendarDb = typeof prisma | Prisma.TransactionClient
 
 class OutsideProviderAvailabilityError extends Error {
   constructor(message = OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE) {
@@ -200,19 +202,21 @@ async function assertCalendarFlowAccess({
 }
 
 async function assertNoCalendarEventConflict({
+  db = prisma,
   practiceId,
   ownerUserId,
   startsAt,
   endsAt,
   excludeEventId,
 }: {
+  db?: CalendarDb
   practiceId: string
   ownerUserId: string
   startsAt: Date
   endsAt: Date
   excludeEventId?: string
 }) {
-  const events = await prisma.calendarEvent.findMany({
+  const events = await db.calendarEvent.findMany({
     where: {
       practiceId,
       ownerUserId,
@@ -237,11 +241,13 @@ async function assertNoCalendarEventConflict({
 }
 
 async function assertNoResourceConflict({
+  db = prisma,
   resourceIds,
   startsAt,
   endsAt,
   excludeEventId,
 }: {
+  db?: CalendarDb
   resourceIds: string[]
   startsAt: Date
   endsAt: Date
@@ -250,7 +256,7 @@ async function assertNoResourceConflict({
   const uniqueResourceIds = [...new Set(resourceIds.filter(Boolean))]
   if (uniqueResourceIds.length === 0) return
 
-  const existingBookings = await prisma.calendarResourceBooking.findMany({
+  const existingBookings = await db.calendarResourceBooking.findMany({
     where: {
       resourceId: { in: uniqueResourceIds },
       startsAt: { lt: endsAt },
@@ -268,6 +274,7 @@ async function assertNoResourceConflict({
 }
 
 async function assertProviderAvailability({
+  db = prisma,
   practiceId,
   therapistId,
   startsAt,
@@ -275,6 +282,7 @@ async function assertProviderAvailability({
   timezone,
   allowOutsideAvailability = false,
 }: {
+  db?: CalendarDb
   practiceId: string
   therapistId: string
   startsAt: Date
@@ -292,16 +300,16 @@ async function assertProviderAvailability({
   const dayStart = dateAtMinute(startParts.date, 0, timezone)
   const nextDayStart = dateAtMinute(startParts.date, 24 * 60, timezone)
   const [weeklyRules, schedules, overrides] = await Promise.all([
-    prisma.therapistAvailabilityRule.findMany({
+    db.therapistAvailabilityRule.findMany({
       where: { practiceId, therapistId, active: true },
       select: { dayOfWeek: true, startMinute: true, endMinute: true, active: true },
     }),
-    prisma.calendarAvailabilitySchedule.findMany({
+    db.calendarAvailabilitySchedule.findMany({
       where: { practiceId, therapistId, active: true },
       include: { intervals: true },
       orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }],
     }),
-    prisma.calendarAvailabilityOverride.findMany({
+    db.calendarAvailabilityOverride.findMany({
       where: {
         practiceId,
         therapistId,
@@ -341,6 +349,100 @@ async function assertProviderAvailability({
   if (!availabilityState.allowed) {
     throw new OutsideProviderAvailabilityError(availabilityState.message)
   }
+}
+
+async function lockAppointmentSchedulingRows(
+  tx: Prisma.TransactionClient,
+  {
+    practiceId,
+    therapistId,
+    resourceIds,
+    startsAt,
+    endsAt,
+  }: {
+    practiceId: string
+    therapistId: string
+    resourceIds: string[]
+    startsAt: Date
+    endsAt: Date
+  },
+) {
+  const uniqueResourceIds = [...new Set(resourceIds.filter(Boolean))]
+
+  await tx.$queryRaw`
+    SELECT id
+    FROM "PracticeMembership"
+    WHERE "practiceId" = ${practiceId}
+      AND "userId" = ${therapistId}
+    FOR UPDATE
+  `
+  await tx.$queryRaw`
+    SELECT id
+    FROM "TherapistAvailabilityRule"
+    WHERE "practiceId" = ${practiceId}
+      AND "therapistId" = ${therapistId}
+    FOR UPDATE
+  `
+  await tx.$queryRaw`
+    SELECT id
+    FROM "CalendarAvailabilitySchedule"
+    WHERE "practiceId" = ${practiceId}
+      AND "therapistId" = ${therapistId}
+    FOR UPDATE
+  `
+  await tx.$queryRaw`
+    SELECT si.id
+    FROM "CalendarAvailabilityScheduleInterval" si
+    INNER JOIN "CalendarAvailabilitySchedule" s
+      ON s.id = si."scheduleId"
+    WHERE s."practiceId" = ${practiceId}
+      AND s."therapistId" = ${therapistId}
+    FOR UPDATE OF si
+  `
+  await tx.$queryRaw`
+    SELECT id
+    FROM "CalendarAvailabilityOverride"
+    WHERE "practiceId" = ${practiceId}
+      AND "therapistId" = ${therapistId}
+    FOR UPDATE
+  `
+  await tx.$queryRaw`
+    SELECT oi.id
+    FROM "CalendarAvailabilityOverrideInterval" oi
+    INNER JOIN "CalendarAvailabilityOverride" o
+      ON o.id = oi."overrideId"
+    WHERE o."practiceId" = ${practiceId}
+      AND o."therapistId" = ${therapistId}
+    FOR UPDATE OF oi
+  `
+  await tx.$queryRaw`
+    SELECT id
+    FROM "CalendarEvent"
+    WHERE "practiceId" = ${practiceId}
+      AND "ownerUserId" = ${therapistId}
+      AND "blocksAvailability" = true
+      AND "status" IN ('REQUESTED', 'CONFIRMED', 'ACTIVE')
+      AND "startsAt" < ${endsAt}
+      AND "endsAt" > ${startsAt}
+    FOR UPDATE
+  `
+
+  if (uniqueResourceIds.length === 0) return
+
+  await tx.$queryRaw(Prisma.sql`
+    SELECT id
+    FROM "CalendarResource"
+    WHERE id IN (${Prisma.join(uniqueResourceIds)})
+    FOR UPDATE
+  `)
+  await tx.$queryRaw(Prisma.sql`
+    SELECT id
+    FROM "CalendarResourceBooking"
+    WHERE "resourceId" IN (${Prisma.join(uniqueResourceIds)})
+      AND "startsAt" < ${endsAt}
+      AND "endsAt" > ${startsAt}
+    FOR UPDATE
+  `)
 }
 
 type ServiceVariantForScheduling = Prisma.ServiceVariantGetPayload<{
@@ -741,7 +843,11 @@ function revalidateCalendarRoutes(practiceSlug?: string) {
 
 export async function saveCalendarPreferencesAction(input: Record<string, unknown>) {
   const userId = await currentUserId()
-  const preferences = normalizeCalendarPreferences(input)
+  const current = await prisma.userPreference.findUnique({
+    where: { userId },
+    select: { calendarPreferences: true },
+  })
+  const preferences = mergeCalendarPreferencePatch(current?.calendarPreferences ?? {}, input)
 
   const saved = await prisma.userPreference.upsert({
     where: { userId },
@@ -1345,16 +1451,6 @@ async function createAppointmentMutation(formData: FormData) {
   const composition = serviceCompositionForCreate(serviceVariants)
   const endsAt = serviceCompositionEndTime(startsAt, serviceVariants)
   const resourceIds = composition.resourceIds
-  await assertProviderAvailability({
-    practiceId,
-    therapistId,
-    startsAt,
-    endsAt,
-    timezone: practice.timezone,
-    allowOutsideAvailability,
-  })
-  await assertNoCalendarEventConflict({ practiceId, ownerUserId: therapistId, startsAt, endsAt })
-  await assertNoResourceConflict({ resourceIds, startsAt, endsAt })
   const snapshot = composition.primary
   const title = composition.items.length > 1 ? `${snapshot.serviceName} + ${composition.items.length - 1} more` : snapshot.serviceName
   const plan = buildCalendarCreationPlan({
@@ -1370,6 +1466,19 @@ async function createAppointmentMutation(formData: FormData) {
   })
 
   await prisma.$transaction(async (tx) => {
+    await lockAppointmentSchedulingRows(tx, { practiceId, therapistId, resourceIds, startsAt, endsAt })
+    await assertProviderAvailability({
+      db: tx,
+      practiceId,
+      therapistId,
+      startsAt,
+      endsAt,
+      timezone: practice.timezone,
+      allowOutsideAvailability,
+    })
+    await assertNoCalendarEventConflict({ db: tx, practiceId, ownerUserId: therapistId, startsAt, endsAt })
+    await assertNoResourceConflict({ db: tx, resourceIds, startsAt, endsAt })
+
     const practiceClient = await ensureAppointmentPracticeClient(tx, {
       practiceId,
       practiceClientId,
@@ -1387,8 +1496,8 @@ async function createAppointmentMutation(formData: FormData) {
         eventId: event.id,
         practiceId,
         therapistId,
-        practiceClientId,
         ...snapshot,
+        practiceClientId: practiceClient.id,
         serviceTypeId: String(snapshot.serviceTypeId ?? serviceVariants[0].serviceTypeId),
         serviceVariantId: String(snapshot.serviceVariantId ?? serviceVariants[0].id),
         createdById: userId,
@@ -1435,7 +1544,7 @@ async function createAppointmentMutation(formData: FormData) {
       actorUserId: userId,
       action: plan.auditAction,
       recipientUserIds: [practiceClient.userId, therapistId],
-      payload: { title, serviceCount: composition.items.length, therapistId, practiceClientId, resourceIds },
+      payload: { title, serviceCount: composition.items.length, therapistId, practiceClientId: practiceClient.id, resourceIds },
     })
   })
 
