@@ -7,12 +7,14 @@ import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LogIn, MapPin, P
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
-import { buildSequenceWeekGrid, providerPreferenceModel, publicBookingDayViewCount, sequenceOptionKey, visibleSequenceDays } from "@/lib/public-booking-picker"
+import { buildSequenceWeekGrid, practiceLocalDateKey, providerPreferenceModel, publicBookingDayViewCount, sequenceOptionKey, sequenceWeekStartKey, visibleSequenceDays } from "@/lib/public-booking-picker"
 import { MAX_PUBLIC_ADD_ONS } from "@/lib/public-booking-constants"
 import { cn } from "@/lib/utils"
 
@@ -126,6 +128,19 @@ function visibleDayRangeLabel(days: SequenceDay[], fallback: string) {
   if (days.length === 0) return fallback
   if (days.length === 1) return `${days[0].weekdayShort}, ${days[0].dayLabel}`
   return `${days[0].dayLabel}-${days[days.length - 1].dayLabel}`
+}
+
+function dateFromDateKey(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map((part) => Number.parseInt(part, 10))
+  if (!year || !month || !day) return new Date()
+  return new Date(year, month - 1, day)
+}
+
+function dateKeyFromCalendarDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
@@ -629,6 +644,8 @@ function WeeklyAvailabilityPicker({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [containerWidth, setContainerWidth] = useState(0)
   const [dayStartIndex, setDayStartIndex] = useState(0)
+  const [focusedDateKey, setFocusedDateKey] = useState("")
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
   const selectedWeekIndex = Math.max(0, grid.weeks.findIndex((week) => week.weekStartKey === grid.selectedWeekStartKey))
   const previousWeek = grid.weeks[selectedWeekIndex - 1]
   const nextWeek = grid.weeks[selectedWeekIndex + 1]
@@ -642,6 +659,7 @@ function WeeklyAvailabilityPicker({
   const rangeLabel = dayViewCount === 7
     ? (grid.weeks[selectedWeekIndex]?.label ?? "Available week")
     : visibleDayRangeLabel(visibleDays, grid.weeks[selectedWeekIndex]?.label ?? "Available week")
+  const selectedCalendarDate = dateFromDateKey(visibleDays[0]?.dateKey ?? grid.selectedWeekStartKey)
 
   useEffect(() => {
     const node = containerRef.current
@@ -661,8 +679,14 @@ function WeeklyAvailabilityPicker({
   }, [])
 
   useEffect(() => {
-    setDayStartIndex(0)
-  }, [grid.selectedWeekStartKey])
+    if (!focusedDateKey) {
+      setDayStartIndex(0)
+      return
+    }
+
+    const focusedIndex = grid.days.findIndex((day) => day.dateKey === focusedDateKey)
+    setDayStartIndex(focusedIndex >= 0 ? focusedIndex : 0)
+  }, [focusedDateKey, grid.days, grid.selectedWeekStartKey])
 
   useEffect(() => {
     setDayStartIndex(visibleDayView.startIndex)
@@ -670,6 +694,31 @@ function WeeklyAvailabilityPicker({
 
   function percentForMinute(minutes: number) {
     return `${((minutes - startMinute) / grid.totalMinutes) * 100}%`
+  }
+
+  function goToDateKey(dateKey: string) {
+    const weekStartKey = sequenceWeekStartKey(dateKey, timeZone)
+    setFocusedDateKey(dateKey)
+    setDatePickerOpen(false)
+
+    if (weekStartKey === grid.selectedWeekStartKey) {
+      const focusedIndex = grid.days.findIndex((day) => day.dateKey === dateKey)
+      if (focusedIndex >= 0) {
+        setDayStartIndex(focusedIndex)
+      }
+      return
+    }
+
+    onSelectWeek(weekStartKey)
+  }
+
+  function goToDate(date: Date | undefined) {
+    if (!date) return
+    goToDateKey(dateKeyFromCalendarDate(date))
+  }
+
+  function goToToday() {
+    goToDateKey(practiceLocalDateKey(new Date(), timeZone))
   }
 
   function goToPreviousRange() {
@@ -702,7 +751,7 @@ function WeeklyAvailabilityPicker({
             <p className="text-sm font-medium">Weekly availability</p>
             <p className="text-xs text-muted-foreground">Choose one of the available start times below.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -713,7 +762,18 @@ function WeeklyAvailabilityPicker({
             >
               <ChevronLeft data-icon="inline-start" />
             </Button>
-            <Badge variant="outline">{rangeLabel}</Badge>
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" size="sm" aria-label="Choose availability date" className="max-w-full gap-2">
+                  <CalendarDays data-icon="inline-start" className="size-4" />
+                  {rangeLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="center" className="w-auto p-0">
+                <Calendar mode="single" selected={selectedCalendarDate} onSelect={goToDate} />
+              </PopoverContent>
+            </Popover>
+            <Button type="button" variant="outline" size="sm" onClick={goToToday}>Today</Button>
             <Button
               type="button"
               variant="outline"

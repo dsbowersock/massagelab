@@ -97,4 +97,15 @@ describe("public booking picker helpers", () => {
     assert.equal(lastPage.startIndex, 4)
     assert.equal(lastPage.canPageForward, false)
   })
+
+  it("can display a requested week even when available slots start later", () => {
+    const grid = buildSequenceWeekGrid([
+      { startsAt: "2026-05-25T13:00:00.000Z", endsAt: "2026-05-25T14:00:00.000Z" },
+    ], "America/New_York", "2026-05-17")
+
+    assert.equal(grid.selectedWeekStartKey, "2026-05-17")
+    assert.deepEqual(grid.weeks.map((week) => week.weekStartKey), ["2026-05-17", "2026-05-24"])
+    assert.equal(grid.days[3].dateKey, "2026-05-20")
+    assert.equal(grid.days.reduce((count, day) => count + day.slots.length, 0), 0)
+  })
 })
