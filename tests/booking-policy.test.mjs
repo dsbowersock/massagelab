@@ -22,6 +22,7 @@ describe("booking policy defaults", () => {
       approvalMode: "AUTO_CONFIRM",
     })
     assert.equal(normalizeBookingPolicy(null).requireClientAccount, false)
+    assert.equal(normalizeBookingPolicy(null).proximityRadiusMiles, 45)
     assert.equal(normalizeBookingPolicy({ requireClientAccount: true }).requireClientAccount, true)
     assert.equal(bookingStatusForApprovalMode("MANUAL"), "REQUESTED")
     assert.equal(bookingStatusForApprovalMode("AUTO_CONFIRM"), "CONFIRMED")

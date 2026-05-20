@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
@@ -12,7 +12,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { buildSequenceWeekGrid, providerPreferenceModel, sequenceOptionKey } from "@/lib/public-booking-picker"
+import { buildSequenceWeekGrid, providerPreferenceModel, publicBookingDayViewCount, sequenceOptionKey, visibleSequenceDays } from "@/lib/public-booking-picker"
 import { MAX_PUBLIC_ADD_ONS } from "@/lib/public-booking-constants"
 import { cn } from "@/lib/utils"
 
@@ -66,7 +66,6 @@ type BookingOptionModel = {
   policy: {
     approvalMode: "MANUAL" | "AUTO_CONFIRM"
     anyProviderEnabled: boolean
-    dualTimezoneDisplay: boolean
     requireClientAccount: boolean
   }
   viewer: {
@@ -86,6 +85,7 @@ type BookingOptionModel = {
 
 type BookingStep = "services" | "details" | "time"
 type SequenceWeekGrid = ReturnType<typeof buildSequenceWeekGrid<SequenceOption>>
+type SequenceDay = SequenceWeekGrid["days"][number]
 
 function moneyLabel(cents: number | null, currency: string) {
   if (cents == null) return null
@@ -120,6 +120,12 @@ function minutesLabel(minutes: number) {
   const period = hours >= 12 ? "PM" : "AM"
   const displayHours = hours % 12 || 12
   return `${displayHours}:${remainingMinutes.toString().padStart(2, "0")} ${period}`
+}
+
+function visibleDayRangeLabel(days: SequenceDay[], fallback: string) {
+  if (days.length === 0) return fallback
+  if (days.length === 1) return `${days[0].weekdayShort}, ${days[0].dayLabel}`
+  return `${days[0].dayLabel}-${days[days.length - 1].dayLabel}`
 }
 
 function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
@@ -164,8 +170,6 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const bookingReturnPath = pathname || `/book/${model.practiceSlug}`
   const loginHref = `/login?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
   const registerHref = `/register?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
-  const browserTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : model.timeZone
-  const showLocalTime = Boolean(model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone)
   const guestContactComplete = model.viewer.isSignedIn || (
     guestName.trim().length > 0 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()) &&
@@ -283,7 +287,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
         if (miles > model.proximity.radiusMiles) {
           setDistanceNotice(`This booking page looks about ${Math.round(miles)} miles from you. You can still book if you are traveling or this is intentional; a therapist directory can help with closer options later.`)
         } else {
-          setDistanceNotice(`This practice looks within about ${model.proximity.radiusMiles} miles of you.`)
+          setDistanceNotice("")
         }
       },
       () => setDistanceNotice("Distance check was not allowed. You can still book if this is the right practice."),
@@ -304,15 +308,18 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
 
   return (
     <div className="grid w-full gap-4">
-      <BookingStepBadges activeStep={activeStep} bookingLabel="Client booking" timeZone={model.timeZone} />
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <BookingStepBadges activeStep={activeStep} />
+      </div>
 
       {activeStep === "services" ? (
-        <Card className="w-full border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Services and add-ons</CardTitle>
-            <CardDescription>Build one continuous booking request. Add-ons are scheduled after the primary service.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <Card className="w-full border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Services and add-ons</CardTitle>
+              <CardDescription>Build one continuous booking request. Add-ons are scheduled after the primary service.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <p className="text-sm font-medium">Primary service</p>
               {model.primaryServices.flatMap((service) => service.variants.map((variant) => {
@@ -386,12 +393,13 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                 Continue
               </Button>
             </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
 
       {activeStep === "details" ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:px-6 lg:px-8 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
             <CardHeader>
               <CardTitle>Preferences</CardTitle>
@@ -476,7 +484,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       ) : null}
 
       {activeStep === "time" ? (
-        <Card className="relative left-1/2 -ml-4 w-screen max-w-none -translate-x-1/2 border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur sm:w-[calc(100vw-var(--sidebar-width-icon))]">
+        <Card className="w-full rounded-none border-x-0 border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -488,16 +496,15 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   {model.policy.approvalMode === "AUTO_CONFIRM" ? "These times confirm immediately." : "These times are sent as appointment requests."}
                 </CardDescription>
               </div>
-              <Badge variant="outline">{model.timeZone}</Badge>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-4">
+          <CardContent className="grid gap-4 p-0 pb-6">
             {sequenceLoading && !sequenceLoaded ? (
-              <div className="rounded-lg border border-border/80 bg-background/50 p-6">
+              <div className="mx-4 rounded-lg border border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">Loading available times...</p>
               </div>
             ) : sequenceError ? (
-              <div className="rounded-lg border border-dashed border-border/80 bg-background/50 p-6">
+              <div className="mx-4 rounded-lg border border-dashed border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">{sequenceError}</p>
                 <Button type="button" variant="outline" className="mt-4" onClick={() => setReloadToken((value) => value + 1)}>
                   Try again
@@ -510,8 +517,6 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   selectedOption={selectedSequenceOption}
                   selectedSequenceKey={selectedSequenceKey}
                   timeZone={model.timeZone}
-                  browserTimeZone={browserTimeZone}
-                  showLocalTime={showLocalTime}
                   onSelectSequence={setSelectedSequenceKey}
                   onSelectWeek={(weekStartKey) => {
                     setSelectedWeekStartKey(weekStartKey)
@@ -519,7 +524,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   }}
                 />
 
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6">
                   <Button type="button" variant="outline" onClick={() => setActiveStep("details")}>Back</Button>
                   <form action={requestBookingSequenceAction}>
                     <input type="hidden" name="practiceId" value={model.practiceId} />
@@ -538,7 +543,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                 </div>
               </>
             ) : sequenceLoaded ? (
-              <div className="rounded-lg border border-dashed border-border/80 bg-background/50 p-6">
+              <div className="mx-4 rounded-lg border border-dashed border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">No available time fits these services, pressure preference, provider rules, and current capacity.</p>
                 <form action={joinBookingWaitlistAction} className="mt-4">
                   <input type="hidden" name="practiceId" value={model.practiceId} />
@@ -556,7 +561,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                 </form>
               </div>
             ) : (
-              <div className="rounded-lg border border-border/80 bg-background/50 p-6">
+              <div className="mx-4 rounded-lg border border-border/80 bg-background/50 p-6 sm:mx-6">
                 <p className="text-sm text-muted-foreground">Loading available times...</p>
               </div>
             )}
@@ -565,19 +570,21 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       ) : null}
 
       {model.proximity.enabled ? (
-        <Card className="border-border/80 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MapPin className="size-4 text-brand-orange" />
-              Practice location
-            </CardTitle>
-            <CardDescription>{model.proximity.label ?? model.practiceName}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button type="button" variant="outline" size="sm" onClick={checkDistance}>Check distance</Button>
-            {distanceNotice ? <p className="text-sm text-muted-foreground">{distanceNotice}</p> : null}
-          </CardContent>
-        </Card>
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <Card className="border-border/80 bg-card/90 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MapPin className="size-4 text-brand-orange" />
+                Practice location
+              </CardTitle>
+              <CardDescription>{model.proximity.label ?? model.practiceName}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button type="button" variant="outline" size="sm" onClick={checkDistance}>Check distance</Button>
+              {distanceNotice ? <p className="text-sm text-muted-foreground">{distanceNotice}</p> : null}
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
     </div>
   )
@@ -609,8 +616,6 @@ function WeeklyAvailabilityPicker({
   selectedOption,
   selectedSequenceKey,
   timeZone,
-  browserTimeZone,
-  showLocalTime,
   onSelectSequence,
   onSelectWeek,
 }: {
@@ -618,27 +623,81 @@ function WeeklyAvailabilityPicker({
   selectedOption: SequenceOption | null
   selectedSequenceKey: string
   timeZone: string
-  browserTimeZone: string
-  showLocalTime: boolean
   onSelectSequence: (sequenceKey: string) => void
   onSelectWeek: (weekStartKey: string) => void
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+  const [dayStartIndex, setDayStartIndex] = useState(0)
   const selectedWeekIndex = Math.max(0, grid.weeks.findIndex((week) => week.weekStartKey === grid.selectedWeekStartKey))
   const previousWeek = grid.weeks[selectedWeekIndex - 1]
   const nextWeek = grid.weeks[selectedWeekIndex + 1]
   const startMinute = grid.startHour * 60
   const hourHeight = 116
   const gridHeight = Math.max(360, (grid.endHour - grid.startHour) * hourHeight)
-  const columnTemplate = "4.5rem repeat(7, minmax(0, 1fr))"
+  const dayViewCount = publicBookingDayViewCount(containerWidth)
+  const visibleDayView = visibleSequenceDays(grid.days, dayViewCount, dayStartIndex)
+  const visibleDays = visibleDayView.days
+  const columnTemplate = `4.5rem repeat(${Math.max(1, visibleDays.length)}, minmax(0, 1fr))`
+  const rangeLabel = dayViewCount === 7
+    ? (grid.weeks[selectedWeekIndex]?.label ?? "Available week")
+    : visibleDayRangeLabel(visibleDays, grid.weeks[selectedWeekIndex]?.label ?? "Available week")
+
+  useEffect(() => {
+    const node = containerRef.current
+    if (!node) return
+
+    const updateWidth = () => setContainerWidth(node.getBoundingClientRect().width)
+    updateWidth()
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth)
+      return () => window.removeEventListener("resize", updateWidth)
+    }
+
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    setDayStartIndex(0)
+  }, [grid.selectedWeekStartKey])
+
+  useEffect(() => {
+    setDayStartIndex(visibleDayView.startIndex)
+  }, [visibleDayView.startIndex])
 
   function percentForMinute(minutes: number) {
     return `${((minutes - startMinute) / grid.totalMinutes) * 100}%`
   }
 
+  function goToPreviousRange() {
+    if (visibleDayView.canPageBackward) {
+      setDayStartIndex(Math.max(0, visibleDayView.startIndex - visibleDayView.viewCount))
+      return
+    }
+
+    if (previousWeek) {
+      onSelectWeek(previousWeek.weekStartKey)
+    }
+  }
+
+  function goToNextRange() {
+    if (visibleDayView.canPageForward) {
+      setDayStartIndex(visibleDayView.startIndex + visibleDayView.viewCount)
+      return
+    }
+
+    if (nextWeek) {
+      onSelectWeek(nextWeek.weekStartKey)
+    }
+  }
+
   return (
-    <div className="grid gap-4">
-      <div className="-mx-6 overflow-hidden border-y border-border/80 bg-background/50">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 p-3">
+    <div className="grid gap-4" ref={containerRef}>
+      <div className="overflow-hidden border-y border-border/80 bg-background/50">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 p-4 sm:p-6">
           <div>
             <p className="text-sm font-medium">Weekly availability</p>
             <p className="text-xs text-muted-foreground">Choose one of the available start times below.</p>
@@ -648,32 +707,32 @@ function WeeklyAvailabilityPicker({
               type="button"
               variant="outline"
               size="icon"
-              aria-label="Previous available week"
-              disabled={!previousWeek}
-              onClick={() => previousWeek && onSelectWeek(previousWeek.weekStartKey)}
+              aria-label="Previous available dates"
+              disabled={!visibleDayView.canPageBackward && !previousWeek}
+              onClick={goToPreviousRange}
             >
               <ChevronLeft data-icon="inline-start" />
             </Button>
-            <Badge variant="outline">{grid.weeks[selectedWeekIndex]?.label ?? "Available week"}</Badge>
+            <Badge variant="outline">{rangeLabel}</Badge>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              aria-label="Next available week"
-              disabled={!nextWeek}
-              onClick={() => nextWeek && onSelectWeek(nextWeek.weekStartKey)}
+              aria-label="Next available dates"
+              disabled={!visibleDayView.canPageForward && !nextWeek}
+              onClick={goToNextRange}
             >
               <ChevronRight data-icon="inline-start" />
             </Button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="w-full min-w-[38rem]">
+        <div className="overflow-hidden">
+          <div className="w-full">
             <div className="grid border-b border-border/80" style={{ gridTemplateColumns: columnTemplate }}>
               <div className="border-r border-border/80 bg-muted/20" />
-              {grid.days.map((day) => (
-                <div key={day.dateKey} className="border-r border-border/80 px-3 py-3 text-center last:border-r-0">
+              {visibleDays.map((day) => (
+                <div key={day.dateKey} data-public-booking-day={day.dateKey} className="border-r border-border/80 px-2 py-3 text-center last:border-r-0 sm:px-3">
                   <p className="text-sm font-medium">
                     <span className="hidden lg:inline">{day.weekday}</span>
                     <span className="lg:hidden">{day.weekdayShort}</span>
@@ -696,7 +755,7 @@ function WeeklyAvailabilityPicker({
                 ))}
               </div>
 
-              {grid.days.map((day) => (
+              {visibleDays.map((day) => (
                 <div key={day.dateKey} className="relative border-r border-border/80 last:border-r-0" style={{ height: gridHeight }}>
                   <div className="pointer-events-none absolute inset-0">
                     {grid.hourTicks.slice(0, -1).map((tick) => (
@@ -753,9 +812,6 @@ function WeeklyAvailabilityPicker({
                 <Clock data-icon="inline-start" className="text-brand-orange" />
                 Selected start: {timeLabel(selectedOption.startsAt, timeZone)}
               </p>
-              {showLocalTime ? (
-                <p className="mt-1 text-xs text-muted-foreground">Your local time: {timeLabel(selectedOption.startsAt, browserTimeZone)}</p>
-              ) : null}
             </div>
             <Badge variant="outline">{shortTimeLabel(selectedOption.startsAt, timeZone)}-{shortTimeLabel(selectedOption.endsAt, timeZone)}</Badge>
           </div>
@@ -778,15 +834,7 @@ function WeeklyAvailabilityPicker({
   )
 }
 
-function BookingStepBadges({
-  activeStep,
-  bookingLabel,
-  timeZone,
-}: {
-  activeStep: BookingStep
-  bookingLabel: string
-  timeZone: string
-}) {
+function BookingStepBadges({ activeStep }: { activeStep: BookingStep }) {
   const steps: Array<{ id: BookingStep; label: string }> = [
     { id: "services", label: "1. Services" },
     { id: "details", label: "2. Details" },
@@ -794,16 +842,10 @@ function BookingStepBadges({
   ]
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
         {steps.map((step) => (
           <Badge key={step.id} variant={step.id === activeStep ? "secondary" : "outline"}>{step.label}</Badge>
         ))}
-      </div>
-      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-        <Badge variant="secondary">{bookingLabel}</Badge>
-        <Badge variant="outline">{timeZone}</Badge>
-      </div>
     </div>
   )
 }

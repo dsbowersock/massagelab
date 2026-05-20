@@ -7,6 +7,7 @@ import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { normalizePublicBookingSlug, normalizePublicBookingStateSlug } from "@/lib/public-booking-url"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookingPicker } from "./[practiceSlug]/booking-picker"
@@ -22,7 +23,9 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   if (!(await isCalendarDatabaseReady())) {
     return (
       <BookingShell practiceName="Booking">
-        <CalendarUnavailableNotice />
+        <BookingShellSection>
+          <CalendarUnavailableNotice />
+        </BookingShellSection>
       </BookingShell>
     )
   }
@@ -62,7 +65,9 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   } catch {
     return (
       <BookingShell practiceName="Booking">
-        <CalendarUnavailableNotice />
+        <BookingShellSection>
+          <CalendarUnavailableNotice />
+        </BookingShellSection>
       </BookingShell>
     )
   }
@@ -79,7 +84,9 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   if (!policy.enabled) {
     return (
       <BookingShell practiceName={practice.name}>
-        <CalendarUnavailableNotice />
+        <BookingShellSection>
+          <CalendarUnavailableNotice />
+        </BookingShellSection>
       </BookingShell>
     )
   }
@@ -87,7 +94,9 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   if (!viewerUserId && policy.requireClientAccount) {
     return (
       <BookingShell practiceName={practice.name}>
-        <AccountRequiredCard bookingPath={currentBookingPath} />
+        <BookingShellSection>
+          <AccountRequiredCard bookingPath={currentBookingPath} />
+        </BookingShellSection>
       </BookingShell>
     )
   }
@@ -135,7 +144,6 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
     policy: {
       approvalMode: (policy.approvalMode === "AUTO_CONFIRM" ? "AUTO_CONFIRM" : "MANUAL") as "AUTO_CONFIRM" | "MANUAL",
       anyProviderEnabled: policy.anyProviderEnabled,
-      dualTimezoneDisplay: policy.dualTimezoneDisplay,
       requireClientAccount: policy.requireClientAccount,
     },
     primaryServices: primaryServices.map((service) => ({
@@ -178,24 +186,30 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
 
   return (
     <BookingShell practiceName={practice.name}>
-      <Alert className="border-border/80 bg-card/80 backdrop-blur">
-        <CalendarDays />
-        <div>
-          <AlertTitle>Request an appointment</AlertTitle>
-          <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
-        </div>
-      </Alert>
+      <BookingShellSection>
+        <Alert className="border-border/80 bg-card/80 backdrop-blur">
+          <CalendarDays />
+          <div>
+            <AlertTitle>Request an appointment</AlertTitle>
+            <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
+          </div>
+        </Alert>
+      </BookingShellSection>
 
       {primaryServices.length === 0 || providerPreferences.length === 0 ? (
         publiclyBookableProviders.length > 0 && !viewerUserId ? (
-          <AccountRequiredCard bookingPath={currentBookingPath} />
+          <BookingShellSection>
+            <AccountRequiredCard bookingPath={currentBookingPath} />
+          </BookingShellSection>
         ) : (
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle>No online booking times available</CardTitle>
-              <CardDescription>The practice needs at least one active primary service, publicly bookable provider, and availability rule.</CardDescription>
-            </CardHeader>
-          </Card>
+          <BookingShellSection>
+            <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+              <CardHeader>
+                <CardTitle>No online booking times available</CardTitle>
+                <CardDescription>The practice needs at least one active primary service, publicly bookable provider, and availability rule.</CardDescription>
+              </CardHeader>
+            </Card>
+          </BookingShellSection>
         )
       ) : (
         <BookingPicker model={bookingModel} />
@@ -206,14 +220,27 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
 
 function BookingShell({ practiceName, children }: { practiceName: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <div>
-          <p className="text-sm font-medium text-brand-orange">Online booking</p>
-          <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
+    <div className="min-h-screen bg-transparent py-4 sm:py-6 lg:py-8">
+      <div className="space-y-5">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-brand-orange">Online booking</p>
+              <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
+            </div>
+            <Badge variant="secondary">Client booking</Badge>
+          </div>
         </div>
         {children}
       </div>
+    </div>
+  )
+}
+
+function BookingShellSection({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      {children}
     </div>
   )
 }

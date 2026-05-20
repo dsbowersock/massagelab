@@ -59,3 +59,13 @@ export function buildSequenceWeekGrid<T extends SequenceOptionLike>(options: T[]
   totalMinutes: number
   hourTicks: number[]
 }
+
+export function publicBookingDayViewCount(containerWidth: unknown): 1 | 3 | 7
+
+export function visibleSequenceDays<T>(days: T[], viewCount: unknown, requestedStartIndex?: unknown): {
+  days: T[]
+  startIndex: number
+  viewCount: number
+  canPageBackward: boolean
+  canPageForward: boolean
+}

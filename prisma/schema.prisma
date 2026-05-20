@@ -1088,7 +1088,7 @@ model BookingPolicy {
   staffVisibility       BookingStaffVisibility @default(PUBLIC_LABELS)
   dualTimezoneDisplay   Boolean               @default(true)
   proximityNoticeEnabled Boolean              @default(false)
-  proximityRadiusMiles  Int                   @default(50)
+  proximityRadiusMiles  Int                   @default(45)
   requireClientAccount  Boolean               @default(false)
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt

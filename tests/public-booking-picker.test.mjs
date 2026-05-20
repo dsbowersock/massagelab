@@ -5,7 +5,9 @@ import {
   buildSequenceWeekGrid,
   groupSequenceOptionsByLocalDate,
   providerPreferenceModel,
+  publicBookingDayViewCount,
   sequenceWeekStartKey,
+  visibleSequenceDays,
 } from "../lib/public-booking-picker.js"
 
 describe("public booking picker helpers", () => {
@@ -70,5 +72,29 @@ describe("public booking picker helpers", () => {
     assert.equal(monday.slots[1].startMinutes, 9 * 60 + 15)
     assert.equal(wednesday.slots[0].startMinutes, 14 * 60)
     assert.ok(grid.hourTicks.includes(8 * 60))
+  })
+
+  it("switches public availability from week to three-day to single-day views as width narrows", () => {
+    assert.equal(publicBookingDayViewCount(980), 7)
+    assert.equal(publicBookingDayViewCount(720), 3)
+    assert.equal(publicBookingDayViewCount(420), 1)
+  })
+
+  it("pages visible public availability days without overflowing the current week", () => {
+    const grid = buildSequenceWeekGrid([
+      { startsAt: "2026-05-25T13:00:00.000Z", endsAt: "2026-05-25T14:00:00.000Z" },
+      { startsAt: "2026-05-26T13:00:00.000Z", endsAt: "2026-05-26T14:00:00.000Z" },
+      { startsAt: "2026-05-29T13:00:00.000Z", endsAt: "2026-05-29T14:00:00.000Z" },
+    ], "America/New_York", "2026-05-24")
+
+    const firstPage = visibleSequenceDays(grid.days, 3, 0)
+    const lastPage = visibleSequenceDays(grid.days, 3, 5)
+
+    assert.deepEqual(firstPage.days.map((day) => day.weekdayShort), ["Sun", "Mon", "Tue"])
+    assert.equal(firstPage.canPageBackward, false)
+    assert.equal(firstPage.canPageForward, true)
+    assert.deepEqual(lastPage.days.map((day) => day.weekdayShort), ["Thu", "Fri", "Sat"])
+    assert.equal(lastPage.startIndex, 4)
+    assert.equal(lastPage.canPageForward, false)
   })
 })

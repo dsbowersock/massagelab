@@ -959,7 +959,7 @@ export async function saveBookingPolicyAction(formData: FormData) {
         staffVisibility,
         dualTimezoneDisplay: fieldBoolean(formData, "dualTimezoneDisplay"),
         proximityNoticeEnabled: fieldBoolean(formData, "proximityNoticeEnabled"),
-        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 50)),
+        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 45)),
         requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
       },
       update: {
@@ -973,7 +973,7 @@ export async function saveBookingPolicyAction(formData: FormData) {
         staffVisibility,
         dualTimezoneDisplay: fieldBoolean(formData, "dualTimezoneDisplay"),
         proximityNoticeEnabled: fieldBoolean(formData, "proximityNoticeEnabled"),
-        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 50)),
+        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 45)),
         requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
       },
     })
