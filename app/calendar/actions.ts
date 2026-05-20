@@ -32,6 +32,11 @@ import { mergeCalendarPreferencePatch } from "@/lib/calendar-preferences"
 import { canRescheduleCalendarEvent } from "@/lib/calendar-workspace"
 import { FEATURE_KEYS, getUserEntitlementState } from "@/lib/membership"
 import {
+  normalizePublicBookingSlug,
+  normalizePublicBookingStateSlug,
+  publicBookingPathForPractice,
+} from "@/lib/public-booking-url"
+import {
   FREE_CALENDAR_LIMITS,
   buildServiceSnapshot,
   composeAppointmentServices,
@@ -170,7 +175,14 @@ async function assertPracticeTherapist(practiceId: string, therapistId: string) 
 async function getPracticeOrThrow(practiceId: string) {
   const practice = await prisma.practice.findUnique({
     where: { id: practiceId },
-    select: { id: true, name: true, slug: true, timezone: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      timezone: true,
+      publicBookingStateSlug: true,
+      publicBookingSlug: true,
+    },
   })
 
   if (!practice) {
@@ -878,14 +890,18 @@ async function writeCalendarAuditAndNotifications(
   }
 }
 
-function revalidateCalendarRoutes(practiceSlug?: string) {
+function revalidateCalendarRoutes(practiceSlug?: string, publicBookingPath?: string) {
   revalidatePath("/calendar")
   revalidatePath("/calendar/requests")
   revalidatePath("/calendar/availability")
   revalidatePath("/calendar/booking")
   revalidatePath("/book/[practiceSlug]", "page")
+  revalidatePath("/book/[stateSlug]/[bookingSlug]", "page")
   if (practiceSlug) {
     revalidatePath(`/book/${practiceSlug}`)
+  }
+  if (publicBookingPath) {
+    revalidatePath(publicBookingPath)
   }
 }
 
@@ -944,6 +960,7 @@ export async function saveBookingPolicyAction(formData: FormData) {
         dualTimezoneDisplay: fieldBoolean(formData, "dualTimezoneDisplay"),
         proximityNoticeEnabled: fieldBoolean(formData, "proximityNoticeEnabled"),
         proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 50)),
+        requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
       },
       update: {
         enabled: fieldBoolean(formData, "enabled"),
@@ -957,11 +974,80 @@ export async function saveBookingPolicyAction(formData: FormData) {
         dualTimezoneDisplay: fieldBoolean(formData, "dualTimezoneDisplay"),
         proximityNoticeEnabled: fieldBoolean(formData, "proximityNoticeEnabled"),
         proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 50)),
+        requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
       },
     })
   })
 
-  revalidateCalendarRoutes(practice.slug)
+  revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
+  redirect("/calendar/booking")
+}
+
+export async function savePublicBookingUrlAction(formData: FormData) {
+  const userId = await currentUserId()
+  await assertCalendarDatabaseReady()
+  const practiceId = fieldString(formData, "practiceId")
+  const membership = await assertPracticeAccess(practiceId, userId, STAFF_ROLES)
+  const practice = await getPracticeOrThrow(practiceId)
+  const therapistCount = await prisma.practiceMembership.count({
+    where: {
+      practiceId,
+      role: { in: ["OWNER", "THERAPIST"] },
+    },
+  })
+  const canManagePublicBookingUrl = ["OWNER", "STAFF"].includes(membership.role) || (
+    membership.role === "THERAPIST" && therapistCount === 1
+  )
+
+  if (!canManagePublicBookingUrl) {
+    throw new Error("Only owners and staff can manage public booking links.")
+  }
+
+  const requestedStateSlug = fieldString(formData, "publicBookingStateSlug")
+  const requestedBookingSlug = fieldString(formData, "publicBookingSlug")
+  const publicBookingStateSlug = normalizePublicBookingStateSlug(requestedStateSlug)
+  const publicBookingSlug = normalizePublicBookingSlug(requestedBookingSlug)
+
+  if (!requestedStateSlug && !requestedBookingSlug) {
+    await prisma.practice.update({
+      where: { id: practiceId },
+      data: {
+        publicBookingStateSlug: null,
+        publicBookingSlug: null,
+      },
+    })
+    revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
+    redirect("/calendar/booking")
+  }
+
+  if (!publicBookingStateSlug) {
+    throw new Error("Choose a state before saving a branded booking URL.")
+  }
+  if (!publicBookingSlug || publicBookingSlug.length < 3) {
+    throw new Error("Choose a branded booking URL name with at least three letters or numbers.")
+  }
+
+  const existing = await prisma.practice.findFirst({
+    where: {
+      publicBookingStateSlug,
+      publicBookingSlug,
+      NOT: { id: practiceId },
+    },
+    select: { id: true },
+  })
+  if (existing) {
+    throw new Error("That public booking URL is already in use in this state.")
+  }
+
+  await prisma.practice.update({
+    where: { id: practiceId },
+    data: {
+      publicBookingStateSlug,
+      publicBookingSlug,
+    },
+  })
+
+  revalidateCalendarRoutes(practice.slug, `/book/${publicBookingStateSlug}/${publicBookingSlug}`)
   redirect("/calendar/booking")
 }
 
@@ -990,6 +1076,7 @@ export async function saveProviderBookingPolicyAction(formData: FormData) {
       minRestMinutes: Math.max(0, fieldInteger(formData, "minRestMinutes", 0)),
       dailyAppointmentLimit: parseOptionalPositive(formData, "dailyAppointmentLimit"),
       weeklyAppointmentLimit: parseOptionalPositive(formData, "weeklyAppointmentLimit"),
+      requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
     },
     update: {
       publiclyBookable: fieldBoolean(formData, "publiclyBookable"),
@@ -997,10 +1084,11 @@ export async function saveProviderBookingPolicyAction(formData: FormData) {
       minRestMinutes: Math.max(0, fieldInteger(formData, "minRestMinutes", 0)),
       dailyAppointmentLimit: parseOptionalPositive(formData, "dailyAppointmentLimit"),
       weeklyAppointmentLimit: parseOptionalPositive(formData, "weeklyAppointmentLimit"),
+      requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
     },
   })
 
-  revalidateCalendarRoutes(practice.slug)
+  revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
   redirect("/calendar/booking")
 }
 
@@ -1045,14 +1133,44 @@ export async function saveProviderCapacityRulesAction(formData: FormData) {
     }
   })
 
-  revalidateCalendarRoutes(practice.slug)
+  revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
   redirect("/calendar/booking")
 }
 
-async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practiceId: string, userId: string, practiceClientId?: string) {
-  if (practiceClientId) {
+type BookingClientIdentity = {
+  userId: string | null
+  guestName?: string
+  guestEmail?: string
+  guestPhone?: string
+  practiceClientId?: string
+}
+
+function publicBookingClientIdentity(formData: FormData, userId: string | null): BookingClientIdentity {
+  if (userId) {
+    return { userId }
+  }
+
+  const guestName = fieldString(formData, "guestName")
+  const guestEmail = normalizeEmail(fieldString(formData, "guestEmail"))
+  const guestPhone = fieldString(formData, "guestPhone")
+
+  if (!guestName) {
+    throw new Error("Enter your name before requesting an appointment.")
+  }
+  if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+    throw new Error("Enter a valid email before requesting an appointment.")
+  }
+  if (!guestPhone) {
+    throw new Error("Enter your phone number before requesting an appointment.")
+  }
+
+  return { userId: null, guestName, guestEmail, guestPhone }
+}
+
+async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practiceId: string, identity: BookingClientIdentity) {
+  if (identity.practiceClientId) {
     const existing = await tx.practiceClient.findFirst({
-      where: { id: practiceClientId, practiceId },
+      where: { id: identity.practiceClientId, practiceId },
       select: { id: true, userId: true },
     })
     if (!existing) {
@@ -1061,8 +1179,39 @@ async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practic
     return existing
   }
 
+  if (!identity.userId) {
+    const existingGuest = await tx.practiceClient.findFirst({
+      where: {
+        practiceId,
+        userId: null,
+        email: identity.guestEmail,
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+    if (existingGuest) {
+      return tx.practiceClient.update({
+        where: { id: existingGuest.id },
+        data: {
+          displayName: identity.guestName,
+          email: identity.guestEmail,
+          phone: identity.guestPhone,
+        },
+      })
+    }
+
+    return tx.practiceClient.create({
+      data: {
+        practiceId,
+        userId: null,
+        displayName: identity.guestName,
+        email: identity.guestEmail,
+        phone: identity.guestPhone,
+      },
+    })
+  }
+
   const user = await tx.user.findUnique({
-    where: { id: userId },
+    where: { id: identity.userId },
     select: { name: true, email: true },
   })
 
@@ -1070,12 +1219,12 @@ async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practic
     where: {
       practiceId_userId: {
         practiceId,
-        userId,
+        userId: identity.userId,
       },
     },
     create: {
       practiceId,
-      userId,
+      userId: identity.userId,
       displayName: user?.name ?? null,
       email: user?.email ?? null,
     },
@@ -1176,6 +1325,7 @@ async function assertProviderBookingPolicyLimits({
 
 async function createBookingSequenceMutation({
   userId,
+  clientIdentity,
   practiceId,
   primaryServiceVariantId,
   addOnServiceVariantIds,
@@ -1186,7 +1336,8 @@ async function createBookingSequenceMutation({
   forceStatus,
   waitlistEntryId,
 }: {
-  userId: string
+  userId: string | null
+  clientIdentity?: BookingClientIdentity
   practiceId: string
   primaryServiceVariantId: string
   addOnServiceVariantIds: string[]
@@ -1203,8 +1354,12 @@ async function createBookingSequenceMutation({
     addOnServiceVariantIds,
     requestedPressureLevel,
     preferredProviderId,
+    viewerUserId: userId,
     maxOptions: 80,
   })
+  if (!userId && !context.allowGuestBooking) {
+    throw new Error("Sign in before requesting an appointment with this practice.")
+  }
   const requestedStart = startsAt.toISOString()
   const option = context.options.find((candidate: { startsAt: string }) => candidate.startsAt === requestedStart)
   if (!option) {
@@ -1224,7 +1379,7 @@ async function createBookingSequenceMutation({
   })
 
   await prisma.$transaction(async (tx) => {
-    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, userId, practiceClientId)
+    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity ?? { userId, practiceClientId })
     const bookingGroup = await tx.bookingGroup.create({
       data: {
         practiceId,
@@ -1366,12 +1521,14 @@ async function createBookingSequenceMutation({
     }
   })
 
-  revalidateCalendarRoutes(context.practice.slug)
-  return context.practice.slug
+  const publicBookingPath = publicBookingPathForPractice(context.practice)
+  revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+  return publicBookingPath
 }
 
 export async function requestBookingSequenceAction(formData: FormData) {
-  const userId = await currentUserId()
+  const session = await getCurrentSession()
+  const userId = session?.user?.id ?? null
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
@@ -1383,9 +1540,11 @@ export async function requestBookingSequenceAction(formData: FormData) {
   if (!practiceId || !primaryServiceVariantId || !pressureLevel || !startsAt) {
     throw new Error("Choose a service, pressure preference, and available time.")
   }
+  const clientIdentity = publicBookingClientIdentity(formData, userId)
 
-  const slug = await createBookingSequenceMutation({
+  const publicBookingPath = await createBookingSequenceMutation({
     userId,
+    clientIdentity,
     practiceId,
     primaryServiceVariantId,
     addOnServiceVariantIds,
@@ -1394,11 +1553,12 @@ export async function requestBookingSequenceAction(formData: FormData) {
     preferredProviderId,
   })
 
-  redirect(`/book/${slug}?booking=requested`)
+  redirect(`${publicBookingPath}?booking=requested`)
 }
 
 export async function joinBookingWaitlistAction(formData: FormData) {
-  const userId = await currentUserId()
+  const session = await getCurrentSession()
+  const userId = session?.user?.id ?? null
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
@@ -1410,6 +1570,7 @@ export async function joinBookingWaitlistAction(formData: FormData) {
   if (!practiceId || !primaryServiceVariantId || !pressureLevel) {
     throw new Error("Choose a service and pressure preference before joining the waitlist.")
   }
+  const clientIdentity = publicBookingClientIdentity(formData, userId)
 
   const context = await publicBookingSequenceOptions({
     practiceId,
@@ -1417,15 +1578,19 @@ export async function joinBookingWaitlistAction(formData: FormData) {
     addOnServiceVariantIds,
     requestedPressureLevel: pressureLevel,
     preferredProviderId,
+    viewerUserId: userId,
     maxOptions: 1,
   })
 
+  if (!userId && !context.allowGuestBooking) {
+    throw new Error("Sign in before joining this practice waitlist.")
+  }
   if (context.options.length > 0) {
     throw new Error("Choose an available appointment time before joining the waitlist.")
   }
 
   await prisma.$transaction(async (tx) => {
-    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, userId)
+    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity)
     await tx.bookingWaitlistEntry.create({
       data: {
         practiceId,
@@ -1440,8 +1605,9 @@ export async function joinBookingWaitlistAction(formData: FormData) {
     })
   })
 
-  revalidateCalendarRoutes(context.practice.slug)
-  redirect(`/book/${context.practice.slug}?waitlist=joined`)
+  const publicBookingPath = publicBookingPathForPractice(context.practice)
+  revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+  redirect(`${publicBookingPath}?waitlist=joined`)
 }
 
 export async function convertWaitlistEntryAction(formData: FormData) {
@@ -2207,7 +2373,7 @@ async function createAppointmentMutation(formData: FormData) {
       eventId: event.id,
       actorUserId: userId,
       action: plan.auditAction,
-      recipientUserIds: [practiceClient.userId, therapistId],
+      recipientUserIds: [practiceClient.userId, therapistId].filter((recipientUserId): recipientUserId is string => Boolean(recipientUserId)),
       payload: { title, serviceCount: composition.items.length, therapistId, practiceClientId: practiceClient.id, resourceIds },
     })
   })
@@ -2658,7 +2824,7 @@ export async function updateAppointmentRequestStatusAction(formData: FormData) {
       eventId: appointment.eventId,
       actorUserId: userId,
       action: auditAction,
-      recipientUserIds: [appointment.practiceClient.userId, appointment.therapistId],
+      recipientUserIds: [appointment.practiceClient.userId, appointment.therapistId].filter((recipientUserId): recipientUserId is string => Boolean(recipientUserId)),
       payload: { action: notificationAction, title: appointment.serviceName ?? appointment.serviceType.name, appointmentId: appointment.id },
     })
   })

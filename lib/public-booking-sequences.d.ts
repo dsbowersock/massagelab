@@ -14,6 +14,7 @@ export type PublicBookingSequenceProvider = {
   minRestMinutes?: number | null
   dailyAppointmentLimit?: number | null
   weeklyAppointmentLimit?: number | null
+  requireClientAccount?: boolean | null
 }
 
 export type PublicBookingSequenceItem = {
@@ -49,6 +50,8 @@ export type PublicBookingSequenceContext = {
   selections: any[]
   providers: PublicBookingSequenceProvider[]
   options: PublicBookingSequenceOption[]
+  allowGuestBooking: boolean
+  accountMode: string
 }
 
 export function normalizePublicBookingSequenceDescriptor(input: unknown): PublicBookingSequenceDescriptor
@@ -60,6 +63,7 @@ export function buildPublicBookingSequenceCacheKey(input: {
   requestedPressureLevel: number
   preferredProviderId?: string | null
   maxOptions?: number
+  accountMode?: string
   policySignature: string
   serviceSignature: string
   providerSignature: string
@@ -72,6 +76,7 @@ export function publicBookingSequenceOptions(input: {
   addOnServiceVariantIds?: string[]
   requestedPressureLevel: number
   preferredProviderId?: string
+  viewerUserId?: string | null
   now?: Date
   maxOptions?: number
   db?: any
@@ -83,6 +88,7 @@ export function cachedPublicBookingSequenceOptions(input: {
   addOnServiceVariantIds?: string[]
   requestedPressureLevel: number
   preferredProviderId?: string
+  viewerUserId?: string | null
   maxOptions?: number
 }): Promise<PublicBookingSequenceContext>
 

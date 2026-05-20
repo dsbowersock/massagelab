@@ -4,8 +4,11 @@ import { describe, it } from "node:test"
 
 const schema = readFileSync(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
 const actions = readFileSync(new URL("../app/calendar/actions.ts", import.meta.url), "utf8")
+const bookingSettingsPage = readFileSync(new URL("../app/calendar/booking/page.tsx", import.meta.url), "utf8")
 const bookingPage = readFileSync(new URL("../app/book/[practiceSlug]/page.tsx", import.meta.url), "utf8")
+const publicBookingPage = readFileSync(new URL("../app/book/public-booking-page.tsx", import.meta.url), "utf8")
 const bookingPicker = readFileSync(new URL("../app/book/[practiceSlug]/booking-picker.tsx", import.meta.url), "utf8")
+const sequenceOptionsRoute = readFileSync(new URL("../app/api/book/[practiceSlug]/sequence-options/route.ts", import.meta.url), "utf8")
 const publicBookingSequences = readFileSync(new URL("../lib/public-booking-sequences.js", import.meta.url), "utf8")
 
 describe("calendar booking settings schema and route surface", () => {
@@ -25,10 +28,18 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(schema, /publicLocationLabel\s+String\?/)
     assert.match(schema, /publicLatitude\s+Float\?/)
     assert.match(schema, /publicLongitude\s+Float\?/)
+    assert.match(schema, /publicBookingStateSlug\s+String\?/)
+    assert.match(schema, /publicBookingSlug\s+String\?/)
+    assert.match(schema, /@@unique\(\[publicBookingStateSlug,\s*publicBookingSlug\]\)/)
+    assert.match(schema, /userId\s+String\?/)
+    assert.match(schema, /user\s+User\?\s+@relation/)
+    assert.match(schema, /requireClientAccount\s+Boolean\s+@default\(false\)/)
   })
 
   it("exposes booking settings, sequence request, waitlist, and conversion actions", () => {
     assert.equal(existsSync(new URL("../app/calendar/booking/page.tsx", import.meta.url)), true)
+    assert.equal(existsSync(new URL("../lib/public-booking-url.js", import.meta.url)), true)
+    assert.equal(existsSync(new URL("../app/book/[practiceSlug]/[bookingSlug]/page.tsx", import.meta.url)), true)
     assert.match(actions, /export async function saveBookingPolicyAction/)
     assert.match(actions, /export async function saveProviderBookingPolicyAction/)
     assert.match(actions, /export async function saveProviderCapacityRulesAction/)
@@ -36,6 +47,35 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(actions, /export async function joinBookingWaitlistAction/)
     assert.match(actions, /export async function convertWaitlistEntryAction/)
     assert.equal(existsSync(new URL("../app/api/book/[practiceSlug]/sequence-options/route.ts", import.meta.url)), true)
+  })
+
+  it("organizes booking settings into tabs and exposes public booking links", () => {
+    assert.match(bookingSettingsPage, /Tabs defaultValue="booking-rules"/)
+    assert.match(bookingSettingsPage, /TabsTrigger value="public-page"/)
+    assert.match(bookingSettingsPage, /TabsTrigger value="providers"/)
+    assert.match(bookingSettingsPage, /TabsTrigger value="capacity"/)
+    assert.match(bookingSettingsPage, /PublicBookingLinkCard/)
+    assert.match(bookingSettingsPage, /savePublicBookingUrlAction/)
+  })
+
+  it("allows anonymous public booking while keeping account-required gates explicit", () => {
+    assert.doesNotMatch(publicBookingPage, /if \(!session\?\.user\?\.id\)/)
+    assert.match(publicBookingPage, /requireClientAccount/)
+    assert.match(publicBookingPage, /viewerUserId/)
+    assert.match(bookingPicker, /name="guestName"/)
+    assert.match(bookingPicker, /name="guestEmail"/)
+    assert.match(bookingPicker, /name="guestPhone"/)
+    assert.match(bookingPicker, /AccountBenefitsCard/)
+  })
+
+  it("keeps public sequence loading anonymous-capable with account-aware cache keys", () => {
+    assert.doesNotMatch(sequenceOptionsRoute, /return NextResponse\.json\(\{ error: "Unauthorized" \}/)
+    assert.match(sequenceOptionsRoute, /viewerUserId/)
+    assert.match(sequenceOptionsRoute, /account-required/)
+    assert.match(publicBookingSequences, /viewerUserId/)
+    assert.match(publicBookingSequences, /allowGuestBooking/)
+    assert.match(publicBookingSequences, /requireClientAccount/)
+    assert.match(publicBookingSequences, /accountMode/)
   })
 
   it("loads public booking sequence options lazily instead of precomputing every group", () => {

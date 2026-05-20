@@ -21,6 +21,8 @@ describe("booking policy defaults", () => {
       maxAdvanceDays: 14,
       approvalMode: "AUTO_CONFIRM",
     })
+    assert.equal(normalizeBookingPolicy(null).requireClientAccount, false)
+    assert.equal(normalizeBookingPolicy({ requireClientAccount: true }).requireClientAccount, true)
     assert.equal(bookingStatusForApprovalMode("MANUAL"), "REQUESTED")
     assert.equal(bookingStatusForApprovalMode("AUTO_CONFIRM"), "CONFIRMED")
   })
@@ -33,6 +35,7 @@ describe("booking policy defaults", () => {
       minRestMinutes: 0,
       dailyAppointmentLimit: null,
       weeklyAppointmentLimit: null,
+      requireClientAccount: false,
     })
 
     assert.deepEqual(normalizeProviderBookingPolicy({
@@ -42,6 +45,7 @@ describe("booking policy defaults", () => {
       minRestMinutes: 20,
       dailyAppointmentLimit: 4,
       weeklyAppointmentLimit: 16,
+      requireClientAccount: true,
     }, { userId: "provider_1", label: "Default Provider" }), {
       providerUserId: "provider_1",
       publiclyBookable: false,
@@ -49,6 +53,7 @@ describe("booking policy defaults", () => {
       minRestMinutes: 20,
       dailyAppointmentLimit: 4,
       weeklyAppointmentLimit: 16,
+      requireClientAccount: true,
     })
   })
 })

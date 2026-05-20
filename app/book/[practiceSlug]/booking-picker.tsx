@@ -6,6 +6,8 @@ import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/c
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { MAX_PUBLIC_ADD_ONS } from "@/lib/public-booking-constants"
 import { cn } from "@/lib/utils"
@@ -61,6 +63,10 @@ type BookingOptionModel = {
     approvalMode: "MANUAL" | "AUTO_CONFIRM"
     anyProviderEnabled: boolean
     dualTimezoneDisplay: boolean
+    requireClientAccount: boolean
+  }
+  viewer: {
+    isSignedIn: boolean
   }
   primaryServices: BookingService[]
   addOnServices: BookingService[]
@@ -124,6 +130,9 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const [sequenceError, setSequenceError] = useState("")
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
+  const [guestName, setGuestName] = useState("")
+  const [guestEmail, setGuestEmail] = useState("")
+  const [guestPhone, setGuestPhone] = useState("")
   const addOnVariantOrder = useMemo(() => model.addOnServices.flatMap((service) => service.variants.map((variant) => variant.id)), [model.addOnServices])
   const orderedSelectedAddOnVariantIds = useMemo(() => (
     addOnVariantOrder.filter((variantId) => selectedAddOnVariantIds.includes(variantId))
@@ -131,6 +140,11 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
 
   const browserTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : model.timeZone
   const showLocalTime = model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone
+  const guestContactComplete = model.viewer.isSignedIn || (
+    guestName.trim().length > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()) &&
+    guestPhone.trim().length > 0
+  )
 
   useEffect(() => {
     if (!selectedPrimaryVariantId) {
@@ -379,6 +393,17 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       </Card>
 
       <div className="grid gap-4">
+        {!model.viewer.isSignedIn ? (
+          <AccountBenefitsCard
+            guestName={guestName}
+            guestEmail={guestEmail}
+            guestPhone={guestPhone}
+            onGuestNameChange={setGuestName}
+            onGuestEmailChange={setGuestEmail}
+            onGuestPhoneChange={setGuestPhone}
+          />
+        ) : null}
+
         <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -428,7 +453,8 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                       <input type="hidden" name="requestedPressureLevel" value={requestedPressureLevel} />
                       <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
                       <input type="hidden" name="startsAt" value={option.startsAt} />
-                      <Button type="submit" size="sm" className="bg-primary hover:bg-brand-orange-glow">
+                      <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
+                      <Button type="submit" size="sm" className="bg-primary hover:bg-brand-orange-glow" disabled={!guestContactComplete}>
                         {option.status === "CONFIRMED" ? "Book" : "Request"}
                       </Button>
                     </form>
@@ -457,7 +483,8 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   ))}
                   <input type="hidden" name="requestedPressureLevel" value={requestedPressureLevel} />
                   <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
-                  <Button type="submit" variant="outline">Join waitlist</Button>
+                  <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
+                  <Button type="submit" variant="outline" disabled={!guestContactComplete}>Join waitlist</Button>
                 </form>
               </div>
             ) : (
@@ -485,5 +512,67 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
         ) : null}
       </div>
     </div>
+  )
+}
+
+function GuestHiddenContactInputs({
+  isSignedIn,
+  guestName,
+  guestEmail,
+  guestPhone,
+}: {
+  isSignedIn: boolean
+  guestName: string
+  guestEmail: string
+  guestPhone: string
+}) {
+  if (isSignedIn) return null
+  return (
+    <>
+      <input type="hidden" name="guestName" value={guestName} />
+      <input type="hidden" name="guestEmail" value={guestEmail} />
+      <input type="hidden" name="guestPhone" value={guestPhone} />
+    </>
+  )
+}
+
+function AccountBenefitsCard({
+  guestName,
+  guestEmail,
+  guestPhone,
+  onGuestNameChange,
+  onGuestEmailChange,
+  onGuestPhoneChange,
+}: {
+  guestName: string
+  guestEmail: string
+  guestPhone: string
+  onGuestNameChange: (value: string) => void
+  onGuestEmailChange: (value: string) => void
+  onGuestPhoneChange: (value: string) => void
+}) {
+  return (
+    <Card className="border-border/80 bg-card/90 backdrop-blur">
+      <CardHeader>
+        <CardTitle className="text-base">Your contact information</CardTitle>
+        <CardDescription>
+          You can book as a guest. A free account can save these details and make request status easier to track later.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="guestName">Name</Label>
+          <Input id="guestName" name="guestName" value={guestName} onChange={(event) => onGuestNameChange(event.target.value)} autoComplete="name" required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="guestEmail">Email</Label>
+          <Input id="guestEmail" name="guestEmail" type="email" value={guestEmail} onChange={(event) => onGuestEmailChange(event.target.value)} autoComplete="email" required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="guestPhone">Phone</Label>
+          <Input id="guestPhone" name="guestPhone" type="tel" value={guestPhone} onChange={(event) => onGuestPhoneChange(event.target.value)} autoComplete="tel" required />
+        </div>
+      </CardContent>
+    </Card>
   )
 }
