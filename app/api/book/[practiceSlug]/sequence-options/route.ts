@@ -54,7 +54,7 @@ export async function POST(
       practiceId: practice.id,
       ...descriptor,
       viewerUserId,
-      maxOptions: 8,
+      maxOptions: 80,
     })
 
     return NextResponse.json({ options: context.options })

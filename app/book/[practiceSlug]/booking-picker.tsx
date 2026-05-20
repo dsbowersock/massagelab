@@ -7,11 +7,13 @@ import { CalendarDays, Check, Clock, LogIn, MapPin, Plus, SlidersHorizontal, Use
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { groupSequenceOptionsByLocalDate, practiceLocalDateKey, providerPreferenceModel, sequenceOptionKey } from "@/lib/public-booking-picker"
 import { MAX_PUBLIC_ADD_ONS } from "@/lib/public-booking-constants"
 import { cn } from "@/lib/utils"
 
@@ -83,6 +85,8 @@ type BookingOptionModel = {
   }
 }
 
+type BookingStep = "services" | "details" | "time"
+
 function moneyLabel(cents: number | null, currency: string) {
   if (cents == null) return null
   return new Intl.NumberFormat(undefined, {
@@ -124,23 +128,32 @@ function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude
 export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const pathname = usePathname()
   const firstPrimaryVariant = model.primaryServices[0]?.variants[0]
+  const initialProviderPreference = providerPreferenceModel(model.providers)
+  const [activeStep, setActiveStep] = useState<BookingStep>("services")
   const [selectedPrimaryVariantId, setSelectedPrimaryVariantId] = useState(firstPrimaryVariant?.id ?? "")
   const [selectedAddOnVariantIds, setSelectedAddOnVariantIds] = useState<string[]>([])
   const [requestedPressureLevel, setRequestedPressureLevel] = useState(3)
-  const [preferredProviderId, setPreferredProviderId] = useState(model.providers[0]?.id ?? "")
+  const [preferredProviderId, setPreferredProviderId] = useState(initialProviderPreference.defaultProviderId)
   const [distanceNotice, setDistanceNotice] = useState("")
   const [sequenceOptions, setSequenceOptions] = useState<SequenceOption[]>([])
   const [sequenceLoading, setSequenceLoading] = useState(false)
   const [sequenceError, setSequenceError] = useState("")
   const [sequenceLoaded, setSequenceLoaded] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
+  const [selectedDateKey, setSelectedDateKey] = useState("")
+  const [selectedSequenceKey, setSelectedSequenceKey] = useState("")
   const [guestName, setGuestName] = useState("")
   const [guestEmail, setGuestEmail] = useState("")
   const [guestPhone, setGuestPhone] = useState("")
+  const providerPreference = useMemo(() => providerPreferenceModel(model.providers), [model.providers])
   const addOnVariantOrder = useMemo(() => model.addOnServices.flatMap((service) => service.variants.map((variant) => variant.id)), [model.addOnServices])
   const orderedSelectedAddOnVariantIds = useMemo(() => (
     addOnVariantOrder.filter((variantId) => selectedAddOnVariantIds.includes(variantId))
   ), [addOnVariantOrder, selectedAddOnVariantIds])
+  const sequenceDateGroups = useMemo(() => groupSequenceOptionsByLocalDate(sequenceOptions, model.timeZone), [model.timeZone, sequenceOptions])
+  const availableDateKeys = useMemo(() => new Set(sequenceDateGroups.map((group) => group.dateKey)), [sequenceDateGroups])
+  const selectedDateGroup = sequenceDateGroups.find((group) => group.dateKey === selectedDateKey) ?? sequenceDateGroups[0] ?? null
+  const selectedSequenceOption = sequenceOptions.find((option) => sequenceOptionKey(option) === selectedSequenceKey) ?? null
 
   const bookingReturnPath = pathname || `/book/${model.practiceSlug}`
   const loginHref = `/login?callbackUrl=${encodeURIComponent(bookingReturnPath)}`
@@ -152,6 +165,15 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()) &&
     guestPhone.trim().length > 0
   )
+  const canContinueToTime = guestContactComplete
+
+  useEffect(() => {
+    setPreferredProviderId(providerPreference.defaultProviderId)
+  }, [providerPreference.defaultProviderId])
+
+  useEffect(() => {
+    setSelectedSequenceKey("")
+  }, [orderedSelectedAddOnVariantIds, preferredProviderId, requestedPressureLevel, selectedPrimaryVariantId])
 
   useEffect(() => {
     if (!selectedPrimaryVariantId) {
@@ -215,6 +237,19 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
     }
   }, [model.practiceSlug, orderedSelectedAddOnVariantIds, preferredProviderId, reloadToken, requestedPressureLevel, selectedPrimaryVariantId])
 
+  useEffect(() => {
+    if (sequenceDateGroups.length === 0) {
+      setSelectedDateKey("")
+      setSelectedSequenceKey("")
+      return
+    }
+
+    if (!selectedDateKey || !sequenceDateGroups.some((group) => group.dateKey === selectedDateKey)) {
+      setSelectedDateKey(sequenceDateGroups[0].dateKey)
+      setSelectedSequenceKey("")
+    }
+  }, [selectedDateKey, sequenceDateGroups])
+
   function toggleAddOn(variantId: string) {
     setSelectedAddOnVariantIds((current) => {
       if (current.includes(variantId)) return current.filter((id) => id !== variantId)
@@ -262,21 +297,18 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)]">
-      <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">1. Choose services</Badge>
-            <Badge variant="outline">2. Pressure</Badge>
-            <Badge variant="outline">3. Choose time</Badge>
-          </div>
-          <CardTitle className="mt-3">Services and add-ons</CardTitle>
-          <CardDescription>Build one continuous booking request. Add-ons are scheduled after the primary service.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Primary service</p>
+    <div className="grid gap-4">
+      <BookingStepBadges activeStep={activeStep} />
+
+      {activeStep === "services" ? (
+        <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+          <CardHeader>
+            <CardTitle>Services and add-ons</CardTitle>
+            <CardDescription>Build one continuous booking request. Add-ons are scheduled after the primary service.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
             <div className="grid gap-2">
+              <p className="text-sm font-medium">Primary service</p>
               {model.primaryServices.flatMap((service) => service.variants.map((variant) => {
                 const price = moneyLabel(variant.priceCents, variant.currency)
                 const selected = variant.id === selectedPrimaryVariantId
@@ -307,15 +339,13 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                 )
               }))}
             </div>
-          </div>
 
-          {model.addOnServices.length > 0 ? (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Add-ons</p>
-                <p className="text-xs text-muted-foreground">Choose up to {MAX_PUBLIC_ADD_ONS} add-ons.</p>
+            {model.addOnServices.length > 0 ? (
+              <>
+                <Separator />
                 <div className="grid gap-2">
+                  <p className="text-sm font-medium">Add-ons</p>
+                  <p className="text-xs text-muted-foreground">Choose up to {MAX_PUBLIC_ADD_ONS} add-ons.</p>
                   {model.addOnServices.flatMap((service) => service.variants.map((variant) => {
                     const price = moneyLabel(variant.priceCents, variant.currency)
                     const selected = selectedAddOnVariantIds.includes(variant.id)
@@ -342,84 +372,111 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                     )
                   }))}
                 </div>
-              </div>
-            </>
-          ) : null}
+              </>
+            ) : null}
 
-          <Separator />
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="size-4 text-brand-orange" />
-              <p className="text-sm font-medium">Preferred pressure</p>
+            <div className="flex justify-end">
+              <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={() => setActiveStep("details")}>
+                Continue
+              </Button>
             </div>
-            <div className="grid grid-cols-5 gap-2">
-              {[1, 2, 3, 4, 5].map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setRequestedPressureLevel(level)}
-                  className={cn(
-                    "rounded-md border px-3 py-2 text-sm font-medium transition hover:border-primary/70",
-                    requestedPressureLevel === level ? "border-primary/70 bg-primary/10" : "border-border/70 bg-background/60",
-                  )}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Pressure is a comfort preference from light to firm. Higher pressure does not necessarily mean deep tissue.
-            </p>
-          </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-          {model.providers.length > 1 ? (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Provider preference</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {model.providers.map((provider) => (
+      {activeStep === "details" ? (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+            <CardHeader>
+              <CardTitle>Preferences</CardTitle>
+              <CardDescription>Set pressure and provider preferences before choosing a time.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-3">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="size-4 text-brand-orange" />
+                  <p className="text-sm font-medium">Preferred pressure</p>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map((level) => (
                     <button
-                      key={provider.id || "any-provider"}
+                      key={level}
                       type="button"
-                      onClick={() => setPreferredProviderId(provider.id)}
+                      onClick={() => setRequestedPressureLevel(level)}
                       className={cn(
-                        "rounded-md border p-3 text-left text-sm transition hover:border-primary/70 hover:bg-primary/5",
-                        provider.id === preferredProviderId ? "border-primary/70 bg-primary/10" : "border-border/70 bg-background/60",
+                        "rounded-md border px-3 py-2 text-sm font-medium transition hover:border-primary/70",
+                        requestedPressureLevel === level ? "border-primary/70 bg-primary/10" : "border-border/70 bg-background/60",
                       )}
                     >
-                      <UserRound className="mb-2 size-4 text-brand-orange" />
-                      {provider.label}
+                      {level}
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Pressure is a comfort preference from light to firm. Higher pressure does not necessarily mean deep tissue.
+                </p>
               </div>
-            </>
+
+              {providerPreference.shouldShowProviderPreference ? (
+                <>
+                  <Separator />
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium">Provider preference</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {model.providers.map((provider) => (
+                        <button
+                          key={provider.id || "any-provider"}
+                          type="button"
+                          onClick={() => setPreferredProviderId(provider.id)}
+                          className={cn(
+                            "rounded-md border p-3 text-left text-sm transition hover:border-primary/70 hover:bg-primary/5",
+                            provider.id === preferredProviderId ? "border-primary/70 bg-primary/10" : "border-border/70 bg-background/60",
+                          )}
+                        >
+                          <UserRound className="mb-2 size-4 text-brand-orange" />
+                          {provider.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              <div className="flex flex-wrap justify-between gap-2">
+                <Button type="button" variant="outline" onClick={() => setActiveStep("services")}>Back</Button>
+                <div className="grid gap-2 justify-items-end">
+                  <Button type="button" className="bg-primary hover:bg-brand-orange-glow" disabled={!canContinueToTime} onClick={() => setActiveStep("time")}>
+                    Choose time
+                  </Button>
+                  {!canContinueToTime ? <p className="text-xs text-muted-foreground">Enter contact details before choosing a time.</p> : null}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {!model.viewer.isSignedIn ? (
+            <AccountBenefitsCard
+              guestName={guestName}
+              guestEmail={guestEmail}
+              guestPhone={guestPhone}
+              loginHref={loginHref}
+              registerHref={registerHref}
+              onGuestNameChange={setGuestName}
+              onGuestEmailChange={setGuestEmail}
+              onGuestPhoneChange={setGuestPhone}
+            />
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      ) : null}
 
-      <div className="grid gap-4">
-        {!model.viewer.isSignedIn ? (
-          <AccountBenefitsCard
-            guestName={guestName}
-            guestEmail={guestEmail}
-            guestPhone={guestPhone}
-            loginHref={loginHref}
-            registerHref={registerHref}
-            onGuestNameChange={setGuestName}
-            onGuestEmailChange={setGuestEmail}
-            onGuestPhoneChange={setGuestPhone}
-          />
-        ) : null}
-
+      {activeStep === "time" ? (
         <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <CalendarDays data-icon="inline-start" className="text-brand-orange" />
-                  Available sequences
+                  Choose a time
                 </CardTitle>
                 <CardDescription>
                   {model.policy.approvalMode === "AUTO_CONFIRM" ? "These times confirm immediately." : "These times are sent as appointment requests."}
@@ -428,10 +485,10 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
               <Badge variant="outline">{model.timeZone}</Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="grid gap-4">
             {sequenceLoading && !sequenceLoaded ? (
               <div className="rounded-lg border border-border/80 bg-background/50 p-6">
-                <p className="text-sm text-muted-foreground">Loading available sequences...</p>
+                <p className="text-sm text-muted-foreground">Loading available times...</p>
               </div>
             ) : sequenceError ? (
               <div className="rounded-lg border border-dashed border-border/80 bg-background/50 p-6">
@@ -440,50 +497,93 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   Try again
                 </Button>
               </div>
-            ) : sequenceOptions.length > 0 ? (
-              sequenceOptions.map((option) => (
-                <div key={`${option.startsAt}-${option.items.map((item) => item.providerUserId).join("-")}`} className="rounded-lg border border-border/80 bg-background/60 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="flex items-center gap-2 font-medium">
-                        <Clock className="size-4 text-brand-orange" />
-                        {timeLabel(option.startsAt, model.timeZone)}
-                      </p>
-                      {showLocalTime ? (
-                        <p className="mt-1 text-xs text-muted-foreground">Your local time: {timeLabel(option.startsAt, browserTimeZone)}</p>
-                      ) : null}
-                    </div>
-                    <form action={requestBookingSequenceAction}>
-                      <input type="hidden" name="practiceId" value={model.practiceId} />
-                      <input type="hidden" name="primaryServiceVariantId" value={selectedPrimaryVariantId} />
-                      {orderedSelectedAddOnVariantIds.map((variantId) => (
-                        <input key={variantId} type="hidden" name="addOnServiceVariantIds" value={variantId} />
-                      ))}
-                      <input type="hidden" name="requestedPressureLevel" value={requestedPressureLevel} />
-                      <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
-                      <input type="hidden" name="startsAt" value={option.startsAt} />
-                      <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
-                      <Button type="submit" size="sm" className="bg-primary hover:bg-brand-orange-glow" disabled={!guestContactComplete}>
-                        {option.status === "CONFIRMED" ? "Book" : "Request"}
-                      </Button>
-                    </form>
+            ) : sequenceDateGroups.length > 0 && selectedDateGroup ? (
+              <>
+                <div className="grid gap-4 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+                  <div className="rounded-lg border border-border/80 bg-background/50 p-2">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDateGroup.date}
+                      onSelect={(date) => {
+                        if (!date) return
+                        const dateKey = practiceLocalDateKey(date, model.timeZone)
+                        if (availableDateKeys.has(dateKey)) {
+                          setSelectedDateKey(dateKey)
+                          setSelectedSequenceKey("")
+                        }
+                      }}
+                      disabled={(date) => !availableDateKeys.has(practiceLocalDateKey(date, model.timeZone))}
+                      timeZone={model.timeZone}
+                      className="mx-auto"
+                    />
                   </div>
-                  <div className="mt-3 grid gap-2">
-                    {option.items.map((item) => (
-                      <div key={`${item.sortOrder}-${item.serviceVariantId}`} className="rounded-md border border-border/60 bg-card/70 px-3 py-2 text-sm">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span>{item.serviceName} · {item.serviceVariantName}</span>
-                          <span className="text-muted-foreground">{shortTimeLabel(item.startsAt, model.timeZone)}-{shortTimeLabel(item.endsAt, model.timeZone)}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{item.providerLabel}</p>
-                      </div>
-                    ))}
+
+                  <div className="grid content-start gap-3">
+                    {selectedDateGroup.options.map((option) => {
+                      const optionKey = sequenceOptionKey(option)
+                      const selected = optionKey === selectedSequenceKey
+
+                      return (
+                        <button
+                          key={optionKey}
+                          type="button"
+                          onClick={() => setSelectedSequenceKey(optionKey)}
+                          className={cn(
+                            "w-full rounded-lg border p-4 text-left transition hover:border-primary/70 hover:bg-primary/5",
+                            selected ? "border-primary/70 bg-primary/10" : "border-border/80 bg-background/60",
+                          )}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="flex items-center gap-2 font-medium">
+                                <Clock className="size-4 text-brand-orange" />
+                                {shortTimeLabel(option.startsAt, model.timeZone)}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">{timeLabel(option.startsAt, model.timeZone)}</p>
+                              {showLocalTime ? (
+                                <p className="mt-1 text-xs text-muted-foreground">Your local time: {timeLabel(option.startsAt, browserTimeZone)}</p>
+                              ) : null}
+                            </div>
+                            {selected ? <Check data-icon="inline-start" className="text-brand-orange" /> : null}
+                          </div>
+                          <div className="mt-3 grid gap-2">
+                            {option.items.map((item) => (
+                              <div key={`${item.sortOrder}-${item.serviceVariantId}`} className="rounded-md border border-border/60 bg-card/70 px-3 py-2 text-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span>{item.serviceName} · {item.serviceVariantName}</span>
+                                  <span className="text-muted-foreground">{shortTimeLabel(item.startsAt, model.timeZone)}-{shortTimeLabel(item.endsAt, model.timeZone)}</span>
+                                </div>
+                                <p className="mt-1 text-xs text-muted-foreground">{item.providerLabel}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
-              ))
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Button type="button" variant="outline" onClick={() => setActiveStep("details")}>Back</Button>
+                  <form action={requestBookingSequenceAction}>
+                    <input type="hidden" name="practiceId" value={model.practiceId} />
+                    <input type="hidden" name="primaryServiceVariantId" value={selectedPrimaryVariantId} />
+                    {orderedSelectedAddOnVariantIds.map((variantId) => (
+                      <input key={variantId} type="hidden" name="addOnServiceVariantIds" value={variantId} />
+                    ))}
+                    <input type="hidden" name="requestedPressureLevel" value={requestedPressureLevel} />
+                    <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
+                    <input type="hidden" name="startsAt" value={selectedSequenceOption?.startsAt ?? ""} />
+                    <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
+                    <Button type="submit" className="bg-primary hover:bg-brand-orange-glow" disabled={!selectedSequenceOption || !guestContactComplete}>
+                      {selectedSequenceOption?.status === "CONFIRMED" ? "Book selected time" : "Request selected time"}
+                    </Button>
+                  </form>
+                </div>
+              </>
             ) : sequenceLoaded ? (
               <div className="rounded-lg border border-dashed border-border/80 bg-background/50 p-6">
-                <p className="text-sm text-muted-foreground">No available sequence fits these services, pressure preference, provider rules, and current capacity.</p>
+                <p className="text-sm text-muted-foreground">No available time fits these services, pressure preference, provider rules, and current capacity.</p>
                 <form action={joinBookingWaitlistAction} className="mt-4">
                   <input type="hidden" name="practiceId" value={model.practiceId} />
                   <input type="hidden" name="primaryServiceVariantId" value={selectedPrimaryVariantId} />
@@ -493,33 +593,36 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   <input type="hidden" name="requestedPressureLevel" value={requestedPressureLevel} />
                   <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
                   <GuestHiddenContactInputs isSignedIn={model.viewer.isSignedIn} guestName={guestName} guestEmail={guestEmail} guestPhone={guestPhone} />
-                  <Button type="submit" variant="outline" disabled={!guestContactComplete}>Join waitlist</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={() => setActiveStep("details")}>Back</Button>
+                    <Button type="submit" variant="outline" disabled={!guestContactComplete}>Join waitlist</Button>
+                  </div>
                 </form>
               </div>
             ) : (
               <div className="rounded-lg border border-border/80 bg-background/50 p-6">
-                <p className="text-sm text-muted-foreground">Loading available sequences...</p>
+                <p className="text-sm text-muted-foreground">Loading available times...</p>
               </div>
             )}
           </CardContent>
         </Card>
+      ) : null}
 
-        {model.proximity.enabled ? (
-          <Card className="border-border/80 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <MapPin className="size-4 text-brand-orange" />
-                Practice location
-              </CardTitle>
-              <CardDescription>{model.proximity.label ?? model.practiceName}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button type="button" variant="outline" size="sm" onClick={checkDistance}>Check distance</Button>
-              {distanceNotice ? <p className="text-sm text-muted-foreground">{distanceNotice}</p> : null}
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+      {model.proximity.enabled ? (
+        <Card className="border-border/80 bg-card/90 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPin className="size-4 text-brand-orange" />
+              Practice location
+            </CardTitle>
+            <CardDescription>{model.proximity.label ?? model.practiceName}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button type="button" variant="outline" size="sm" onClick={checkDistance}>Check distance</Button>
+            {distanceNotice ? <p className="text-sm text-muted-foreground">{distanceNotice}</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }
@@ -542,6 +645,22 @@ function GuestHiddenContactInputs({
       <input type="hidden" name="guestEmail" value={guestEmail} />
       <input type="hidden" name="guestPhone" value={guestPhone} />
     </>
+  )
+}
+
+function BookingStepBadges({ activeStep }: { activeStep: BookingStep }) {
+  const steps: Array<{ id: BookingStep; label: string }> = [
+    { id: "services", label: "1. Services" },
+    { id: "details", label: "2. Details" },
+    { id: "time", label: "3. Time" },
+  ]
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {steps.map((step) => (
+        <Badge key={step.id} variant={step.id === activeStep ? "secondary" : "outline"}>{step.label}</Badge>
+      ))}
+    </div>
   )
 }
 

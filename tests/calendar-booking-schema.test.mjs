@@ -8,6 +8,7 @@ const bookingSettingsPage = readFileSync(new URL("../app/calendar/booking/page.t
 const bookingPage = readFileSync(new URL("../app/book/[practiceSlug]/page.tsx", import.meta.url), "utf8")
 const publicBookingPage = readFileSync(new URL("../app/book/public-booking-page.tsx", import.meta.url), "utf8")
 const bookingPicker = readFileSync(new URL("../app/book/[practiceSlug]/booking-picker.tsx", import.meta.url), "utf8")
+const bookingPickerHelpers = readFileSync(new URL("../lib/public-booking-picker.js", import.meta.url), "utf8")
 const sequenceOptionsRoute = readFileSync(new URL("../app/api/book/[practiceSlug]/sequence-options/route.ts", import.meta.url), "utf8")
 const publicBookingSequences = readFileSync(new URL("../lib/public-booking-sequences.js", import.meta.url), "utf8")
 const loginForm = readFileSync(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
@@ -78,6 +79,19 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(loginForm, /safeCallbackUrl/)
     assert.match(loginForm, /router\.push\(callbackUrl\)/)
     assert.match(registerPage, /callbackUrl/)
+  })
+
+  it("renders public booking as a wizard with calendar-backed time selection", () => {
+    assert.match(bookingPicker, /BookingStep/)
+    assert.match(bookingPicker, /Services/)
+    assert.match(bookingPicker, /Details/)
+    assert.match(bookingPicker, /Time/)
+    assert.match(bookingPicker, /<Calendar/)
+    assert.match(bookingPicker, /selectedSequenceKey/)
+    assert.match(bookingPicker, /groupSequenceOptionsByLocalDate/)
+    assert.match(bookingPicker, /providerPreferenceModel/)
+    assert.match(bookingPickerHelpers, /shouldShowProviderPreference/)
+    assert.doesNotMatch(bookingPicker, /sequenceOptions\.map\(\(option\)/)
   })
 
   it("keeps public sequence loading anonymous-capable with account-aware cache keys", () => {

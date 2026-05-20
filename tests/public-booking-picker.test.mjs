@@ -1,0 +1,53 @@
+import assert from "node:assert/strict"
+import { describe, it } from "node:test"
+
+import {
+  groupSequenceOptionsByLocalDate,
+  providerPreferenceModel,
+} from "../lib/public-booking-picker.js"
+
+describe("public booking picker helpers", () => {
+  it("hides provider preference when any-provider plus one named provider is the only meaningful choice", () => {
+    const model = providerPreferenceModel([
+      { id: "", label: "Any available provider" },
+      { id: "provider_1", label: "Derrick Bowersock" },
+    ])
+
+    assert.equal(model.shouldShowProviderPreference, false)
+    assert.equal(model.defaultProviderId, "")
+    assert.deepEqual(model.namedProviders, [{ id: "provider_1", label: "Derrick Bowersock" }])
+  })
+
+  it("shows provider preference when multiple named providers are available", () => {
+    const model = providerPreferenceModel([
+      { id: "", label: "Any available provider" },
+      { id: "provider_1", label: "Derrick Bowersock" },
+      { id: "provider_2", label: "Available provider" },
+    ])
+
+    assert.equal(model.shouldShowProviderPreference, true)
+    assert.equal(model.defaultProviderId, "")
+  })
+
+  it("defaults to the sole named provider when any-provider is not available", () => {
+    const model = providerPreferenceModel([
+      { id: "provider_1", label: "Derrick Bowersock" },
+    ])
+
+    assert.equal(model.shouldShowProviderPreference, false)
+    assert.equal(model.defaultProviderId, "provider_1")
+  })
+
+  it("groups sequence options by the practice-local calendar date", () => {
+    const groups = groupSequenceOptionsByLocalDate([
+      { startsAt: "2026-05-26T01:30:00.000Z", endsAt: "2026-05-26T02:30:00.000Z" },
+      { startsAt: "2026-05-25T14:00:00.000Z", endsAt: "2026-05-25T15:00:00.000Z" },
+      { startsAt: "2026-05-26T13:00:00.000Z", endsAt: "2026-05-26T14:00:00.000Z" },
+    ], "America/New_York")
+
+    assert.deepEqual(groups.map((group) => group.dateKey), ["2026-05-25", "2026-05-26"])
+    assert.deepEqual(groups.map((group) => group.options.length), [2, 1])
+    assert.equal(groups[0].options[0].startsAt, "2026-05-25T14:00:00.000Z")
+    assert.equal(groups[0].options[1].startsAt, "2026-05-26T01:30:00.000Z")
+  })
+})
