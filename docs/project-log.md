@@ -69,6 +69,8 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-18 | Calendar services use variants and resources. | Provider services are templates; selected variants drive duration, buffers, displayed pricing, snapshots, and resource requirements. Payment collection, Stripe Connect payouts, taxes, package redemption, and external calendar sync are deferred. |
 | 2026-05-18 | Use Team/Practice in frontend copy. | Keep the internal `PRACTICE` membership enum stable, but use `Team/Practice` where users need context for the team membership tier. |
 | 2026-05-18 | Operator calendar uses FullCalendar OSS. | The open-source React/daygrid/timegrid/interaction plugins cover day, week, 5-day, month, click-to-create, drag/drop, and resize. Premium resource-lane scheduling is deferred. |
+| 2026-05-20 | Elasticsearch/OpenSearch is not used for booking v1. | Public slot generation stays deterministic over Prisma-backed scheduling, service, provider, policy, capacity, and availability data. Search infrastructure can be reconsidered only after v1 behavior and scale demand it. |
+| 2026-05-20 | Arbitrary custom public booking fields remain deferred. | Pressure level is the only new required public booking field in v1; broader custom intake fields wait for a dedicated requirements and PHI-boundary plan. |
 
 ## Change History
 
@@ -76,6 +78,8 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 - Completed `codex/calendar-booking-settings-plan`: added booking policy storage, provider booking policy/capacity rules, service primary/add-on roles, public booking pressure selection, deterministic sequential service/add-on slot solving, team sequencing, waitlist entries and conversion, public location distance notices, and `/calendar/booking`.
 - Replaced the planned fake-it/scarcity idea with provider capacity protection: total daily/weekly massage minutes, pressure-level budgets from 1-5, provider rest gaps, and server-side revalidation before booking writes.
+- Completed the CR review hardening pass for booking v1: transactional provider policy/capacity rechecks, atomic waitlist conversion, practice-timezone waitlist conversion, practice-local booking horizons, public-provider empty-state handling, add-on cap consistency, and multi-service migration backfill are now recorded as landed constraints.
+- Closed the public sequence-generation follow-up: `/book/[practiceSlug]` no longer precomputes every public service/add-on/pressure/provider combination server-side, and selected descriptors load options on demand through the deterministic solver with short-TTL caching while submit actions still revalidate before writes.
 
 ### 2026-05-18
 

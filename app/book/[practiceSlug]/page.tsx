@@ -2,44 +2,14 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CalendarDays, LockKeyhole } from "lucide-react"
 import { getCurrentSession } from "@/auth"
-import { buildAvailabilitySlots, isoDate } from "@/lib/calendar"
-import { resolveAvailabilityForDate } from "@/lib/calendar-availability"
-import { buildSequentialBookingOptions, normalizeBookingPolicy } from "@/lib/booking-policy"
+import { normalizeBookingPolicy } from "@/lib/booking-policy"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
-import { serviceVariantBookableMinutes } from "@/lib/service-catalog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookingPicker } from "./booking-picker"
-
-const ACTIVE_EVENT_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
-
-function nextDates(count: number) {
-  const start = new Date()
-  start.setUTCHours(0, 0, 0, 0)
-
-  return Array.from({ length: count }, (_, index) => {
-    const date = new Date(start)
-    date.setUTCDate(start.getUTCDate() + index)
-    return isoDate(date)
-  })
-}
-
-function addOnCombinations<T>(items: T[], maxItems = 3) {
-  const combinations: T[][] = [[]]
-  const capped = items.slice(0, 8)
-
-  for (const item of capped) {
-    const next = combinations
-      .filter((combination) => combination.length < maxItems)
-      .map((combination) => [...combination, item])
-    combinations.push(...next)
-  }
-
-  return combinations
-}
 
 export default async function BookingPage({
   params,
@@ -70,11 +40,6 @@ export default async function BookingPage({
           include: {
             variants: {
               where: { active: true, clientVisible: true },
-              include: {
-                resourceRequirements: {
-                  include: { resource: true },
-                },
-              },
               orderBy: [{ sortOrder: "asc" }, { durationMinutes: "asc" }],
             },
           },
@@ -129,65 +94,6 @@ export default async function BookingPage({
     )
   }
 
-  const now = new Date()
-  const [rules, schedules, overrides, blockingEvents, resourceBookings, capacityRules, existingAppointments] = await Promise.all([
-    prisma.therapistAvailabilityRule.findMany({
-      where: {
-        practiceId: practice.id,
-        active: true,
-      },
-    }),
-    prisma.calendarAvailabilitySchedule.findMany({
-      where: { practiceId: practice.id, active: true },
-      include: { intervals: true },
-      orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }],
-    }),
-    prisma.calendarAvailabilityOverride.findMany({
-      where: { practiceId: practice.id },
-      include: { intervals: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.calendarEvent.findMany({
-      where: {
-        practiceId: practice.id,
-        blocksAvailability: true,
-        status: { in: [...ACTIVE_EVENT_STATUSES] },
-        endsAt: { gte: now },
-      },
-      select: { ownerUserId: true, startsAt: true, endsAt: true },
-    }),
-    prisma.calendarResourceBooking.findMany({
-      where: {
-        resource: { practiceId: practice.id },
-        endsAt: { gte: now },
-        event: {
-          blocksAvailability: true,
-          status: { in: [...ACTIVE_EVENT_STATUSES] },
-        },
-      },
-      select: { resourceId: true, startsAt: true, endsAt: true },
-    }),
-    prisma.providerBookingCapacityRule.findMany({
-      where: { practiceId: practice.id, active: true },
-    }),
-    prisma.appointment.findMany({
-      where: {
-        practiceId: practice.id,
-        status: { in: ["REQUESTED", "CONFIRMED"] },
-        endsAt: { gte: now },
-      },
-      select: {
-        therapistId: true,
-        startsAt: true,
-        endsAt: true,
-        status: true,
-        requestedPressureLevel: true,
-        massageCapacityMinutes: true,
-      },
-    }),
-  ])
-
-  const dates = nextDates(policy.maxAdvanceDays)
   const bookableServices = practice.serviceTypes
     .map((service) => ({
       ...service,
@@ -210,120 +116,11 @@ export default async function BookingPage({
       weeklyAppointmentLimit: providerPolicy?.weeklyAppointmentLimit ?? null,
     }
   })
-  const slotsByVariantAndProvider: Record<string, Array<{ startsAt: Date }>> = {}
-  const cutoff = new Date(now.getTime() + policy.minNoticeMinutes * 60_000)
-
-  for (const service of bookableServices) {
-    for (const variant of service.variants) {
-      const variantResourceIds = variant.resourceRequirements
-        .filter((requirement) => requirement.resource.active)
-        .map((requirement) => requirement.resourceId)
-      const variantResourceBlocks = resourceBookings.filter((booking) => variantResourceIds.includes(booking.resourceId))
-      const eligibleTherapists = providers.filter((therapist) => (
-        therapist.publiclyBookable &&
-        (service.eligibleProviderIds.length === 0 || service.eligibleProviderIds.includes(therapist.userId))
-      ))
-
-      for (const therapist of eligibleTherapists) {
-        const therapistRules = rules.filter((rule) => rule.therapistId === therapist.userId)
-        const therapistSchedules = schedules
-          .filter((schedule) => schedule.therapistId === therapist.userId)
-          .map((schedule) => ({
-            active: schedule.active,
-            effectiveFrom: schedule.effectiveFrom,
-            effectiveTo: schedule.effectiveTo,
-            intervals: schedule.intervals,
-          }))
-        const therapistOverrides = overrides
-          .filter((override) => override.therapistId === therapist.userId)
-          .map((override) => ({
-            date: override.date,
-            kind: override.kind,
-            intervals: override.intervals,
-          }))
-        const therapistBlocks = blockingEvents.filter((event) => event.ownerUserId === therapist.userId)
-        const slots = dates.flatMap((date) => {
-          const resolvedAvailability = resolveAvailabilityForDate({
-            date,
-            weeklyRules: therapistRules,
-            schedules: therapistSchedules,
-            overrides: therapistOverrides,
-          })
-          const dayOfWeek = new Date(`${date}T00:00:00.000Z`).getUTCDay()
-          return buildAvailabilitySlots({
-            date,
-            serviceDurationMinutes: serviceVariantBookableMinutes(variant),
-            now: cutoff,
-            rules: resolvedAvailability.intervals.map((interval) => ({
-              dayOfWeek,
-              startMinute: interval.startMinute,
-              endMinute: interval.endMinute,
-              active: true,
-            })),
-            blocks: [...therapistBlocks, ...variantResourceBlocks],
-            appointments: [],
-            timeZone: practice.timezone,
-          })
-        })
-
-        slotsByVariantAndProvider[`${variant.id}:${therapist.userId}`] = slots
-      }
-    }
-  }
-
-  const addOnVariants = addOnServices.flatMap((service) => service.variants.map((variant) => ({ service, variant })))
   const publiclyBookableProviders = providers.filter((provider) => provider.publiclyBookable)
   const providerPreferences = [
     ...(policy.anyProviderEnabled && publiclyBookableProviders.length > 0 ? [{ id: "", label: "Any available provider" }] : []),
     ...publiclyBookableProviders.map((provider) => ({ id: provider.userId, label: provider.label })),
   ]
-  const sequenceGroups = primaryServices.flatMap((service) => service.variants.flatMap((primaryVariant) => (
-    addOnCombinations(addOnVariants).flatMap((addOns) => {
-      const variants = [
-        { service, variant: primaryVariant },
-        ...addOns,
-      ]
-      const selections = variants.map((selection) => ({
-        serviceVariantId: selection.variant.id,
-        serviceName: selection.service.name,
-        serviceVariantName: selection.variant.name,
-        bookingRole: selection.service.bookingRole,
-        bookableMinutes: serviceVariantBookableMinutes(selection.variant),
-        durationMinutes: selection.variant.durationMinutes,
-        massageCapacityMinutes: selection.service.countsTowardMassageCapacity ? selection.variant.durationMinutes : 0,
-        countsTowardMassageCapacity: selection.service.countsTowardMassageCapacity,
-        eligibleProviderIds: selection.service.eligibleProviderIds,
-      }))
-      return [1, 2, 3, 4, 5].flatMap((pressureLevel) => (
-        providerPreferences.map((providerPreference) => ({
-          primaryServiceVariantId: primaryVariant.id,
-          addOnServiceVariantIds: addOns.map((addOn) => addOn.variant.id),
-          requestedPressureLevel: pressureLevel,
-          preferredProviderId: providerPreference.id,
-          options: buildSequentialBookingOptions({
-            practiceId: practice.id,
-            timeZone: practice.timezone,
-            pressureLevel,
-            policy,
-            providers,
-            selections,
-            slotsByVariantAndProvider,
-            capacityRules,
-            existingBookings: existingAppointments.map((appointment) => ({
-              providerUserId: appointment.therapistId,
-              startsAt: appointment.startsAt,
-              endsAt: appointment.endsAt,
-              status: appointment.status,
-              requestedPressureLevel: appointment.requestedPressureLevel,
-              massageCapacityMinutes: appointment.massageCapacityMinutes,
-            })),
-            preferredProviderId: providerPreference.id || null,
-            maxOptions: 8,
-          }),
-        }))
-      ))
-    })
-  )))
 
   const bookingModel = {
     practiceId: practice.id,
@@ -364,7 +161,6 @@ export default async function BookingPage({
       })),
     })),
     providers: providerPreferences,
-    sequenceGroups,
     proximity: {
       enabled: policy.proximityNoticeEnabled && typeof practice.publicLatitude === "number" && typeof practice.publicLongitude === "number",
       label: practice.publicLocationLabel,

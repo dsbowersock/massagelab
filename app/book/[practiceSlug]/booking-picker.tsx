@@ -1,12 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { CalendarDays, Check, Clock, MapPin, Plus, SlidersHorizontal, UserRound } from "lucide-react"
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { MAX_PUBLIC_ADD_ONS } from "@/lib/public-booking-constants"
 import { cn } from "@/lib/utils"
 
 type BookingVariant = {
@@ -51,14 +52,6 @@ type SequenceOption = {
   items: SequenceItem[]
 }
 
-type SequenceGroup = {
-  primaryServiceVariantId: string
-  addOnServiceVariantIds: string[]
-  requestedPressureLevel: number
-  preferredProviderId: string
-  options: SequenceOption[]
-}
-
 type BookingOptionModel = {
   practiceId: string
   practiceSlug: string
@@ -72,7 +65,6 @@ type BookingOptionModel = {
   primaryServices: BookingService[]
   addOnServices: BookingService[]
   providers: ProviderPreference[]
-  sequenceGroups: SequenceGroup[]
   proximity: {
     enabled: boolean
     label: string | null
@@ -81,8 +73,6 @@ type BookingOptionModel = {
     radiusMiles: number
   }
 }
-
-const MAX_PUBLIC_ADD_ONS = 3
 
 function moneyLabel(cents: number | null, currency: string) {
   if (cents == null) return null
@@ -111,10 +101,6 @@ function shortTimeLabel(value: string, timeZone: string) {
   }).format(new Date(value))
 }
 
-function addOnKey(ids: string[]) {
-  return ids.join("|")
-}
-
 function distanceMiles(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
   const earthMiles = 3958.8
   const toRadians = (value: number) => (value * Math.PI) / 180
@@ -133,23 +119,80 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const [requestedPressureLevel, setRequestedPressureLevel] = useState(3)
   const [preferredProviderId, setPreferredProviderId] = useState(model.providers[0]?.id ?? "")
   const [distanceNotice, setDistanceNotice] = useState("")
+  const [sequenceOptions, setSequenceOptions] = useState<SequenceOption[]>([])
+  const [sequenceLoading, setSequenceLoading] = useState(false)
+  const [sequenceError, setSequenceError] = useState("")
+  const [sequenceLoaded, setSequenceLoaded] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const addOnVariantOrder = useMemo(() => model.addOnServices.flatMap((service) => service.variants.map((variant) => variant.id)), [model.addOnServices])
   const orderedSelectedAddOnVariantIds = useMemo(() => (
     addOnVariantOrder.filter((variantId) => selectedAddOnVariantIds.includes(variantId))
   ), [addOnVariantOrder, selectedAddOnVariantIds])
 
-  const selectedGroup = useMemo(() => (
-    model.sequenceGroups.find((group) => (
-      group.primaryServiceVariantId === selectedPrimaryVariantId &&
-      addOnKey(group.addOnServiceVariantIds) === addOnKey(orderedSelectedAddOnVariantIds) &&
-      group.requestedPressureLevel === requestedPressureLevel &&
-      group.preferredProviderId === preferredProviderId
-    ))
-  ), [model.sequenceGroups, orderedSelectedAddOnVariantIds, preferredProviderId, requestedPressureLevel, selectedPrimaryVariantId])
-
-  const sequenceOptions = selectedGroup?.options ?? []
   const browserTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : model.timeZone
   const showLocalTime = model.policy.dualTimezoneDisplay && browserTimeZone && browserTimeZone !== model.timeZone
+
+  useEffect(() => {
+    if (!selectedPrimaryVariantId) {
+      setSequenceOptions([])
+      setSequenceError("")
+      setSequenceLoaded(false)
+      setSequenceLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    let active = true
+
+    async function loadSequenceOptions() {
+      setSequenceLoading(true)
+      setSequenceError("")
+      setSequenceLoaded(false)
+      setSequenceOptions([])
+
+      try {
+        const response = await fetch(`/api/book/${model.practiceSlug}/sequence-options`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            primaryServiceVariantId: selectedPrimaryVariantId,
+            addOnServiceVariantIds: orderedSelectedAddOnVariantIds,
+            requestedPressureLevel,
+            preferredProviderId,
+          }),
+          signal: controller.signal,
+        })
+        const payload = await response.json().catch(() => ({}))
+
+        if (!active) return
+        if (!response.ok) {
+          throw new Error(typeof payload.error === "string" ? payload.error : "Unable to load available times.")
+        }
+
+        setSequenceOptions(Array.isArray(payload.options) ? payload.options : [])
+        setSequenceLoaded(true)
+      } catch (error) {
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) {
+          return
+        }
+
+        setSequenceOptions([])
+        setSequenceError(error instanceof Error ? error.message : "Unable to load available times.")
+        setSequenceLoaded(true)
+      } finally {
+        if (active) {
+          setSequenceLoading(false)
+        }
+      }
+    }
+
+    loadSequenceOptions()
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [model.practiceSlug, orderedSelectedAddOnVariantIds, preferredProviderId, reloadToken, requestedPressureLevel, selectedPrimaryVariantId])
 
   function toggleAddOn(variantId: string) {
     setSelectedAddOnVariantIds((current) => {
@@ -352,7 +395,18 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {sequenceOptions.length > 0 ? (
+            {sequenceLoading && !sequenceLoaded ? (
+              <div className="rounded-lg border border-border/80 bg-background/50 p-6">
+                <p className="text-sm text-muted-foreground">Loading available sequences...</p>
+              </div>
+            ) : sequenceError ? (
+              <div className="rounded-lg border border-dashed border-border/80 bg-background/50 p-6">
+                <p className="text-sm text-muted-foreground">{sequenceError}</p>
+                <Button type="button" variant="outline" className="mt-4" onClick={() => setReloadToken((value) => value + 1)}>
+                  Try again
+                </Button>
+              </div>
+            ) : sequenceOptions.length > 0 ? (
               sequenceOptions.map((option) => (
                 <div key={`${option.startsAt}-${option.items.map((item) => item.providerUserId).join("-")}`} className="rounded-lg border border-border/80 bg-background/60 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -392,7 +446,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   </div>
                 </div>
               ))
-            ) : (
+            ) : sequenceLoaded ? (
               <div className="rounded-lg border border-dashed border-border/80 bg-background/50 p-6">
                 <p className="text-sm text-muted-foreground">No available sequence fits these services, pressure preference, provider rules, and current capacity.</p>
                 <form action={joinBookingWaitlistAction} className="mt-4">
@@ -405,6 +459,10 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   <input type="hidden" name="preferredProviderId" value={preferredProviderId} />
                   <Button type="submit" variant="outline">Join waitlist</Button>
                 </form>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border/80 bg-background/50 p-6">
+                <p className="text-sm text-muted-foreground">Loading available sequences...</p>
               </div>
             )}
           </CardContent>
