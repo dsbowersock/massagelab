@@ -184,17 +184,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   }
 
   return (
-    <BookingShell practiceName={practice.name}>
-      <BookingShellSection>
-        <Alert className="border-border/80 bg-card/80 backdrop-blur">
-          <CalendarDays />
-          <div>
-            <AlertTitle>Request an appointment</AlertTitle>
-            <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
-          </div>
-        </Alert>
-      </BookingShellSection>
-
+    <BookingShell practiceName={practice.name} heroAside={<BookingRequestNotice />}>
       {primaryServices.length === 0 || providerPreferences.length === 0 ? (
         publiclyBookableProviders.length > 0 && !viewerUserId ? (
           <BookingShellSection>
@@ -217,14 +207,33 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   )
 }
 
-function BookingShell({ practiceName, children }: { practiceName: string; children: React.ReactNode }) {
+function BookingRequestNotice() {
+  return (
+    <Alert className="w-full border-border/80 bg-card/80 backdrop-blur">
+      <CalendarDays />
+      <div>
+        <AlertTitle>Request an appointment</AlertTitle>
+        <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
+      </div>
+    </Alert>
+  )
+}
+
+function BookingShell({ practiceName, heroAside, children }: { practiceName: string; heroAside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-transparent py-4 sm:py-6 lg:py-8">
       <div className="space-y-5">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div>
-            <p className="text-sm font-medium text-brand-orange">Online booking with</p>
-            <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
+          <div className="flex flex-wrap items-end justify-between gap-4 lg:gap-6">
+            <div className="min-w-0 flex-1 basis-80">
+              <p className="text-sm font-medium text-brand-orange">Online booking with</p>
+              <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
+            </div>
+            {heroAside ? (
+              <div className="w-full min-[960px]:w-auto min-[960px]:max-w-xl min-[960px]:flex-1 min-[960px]:basis-[28rem]">
+                {heroAside}
+              </div>
+            ) : null}
           </div>
         </div>
         {children}

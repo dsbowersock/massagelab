@@ -86,6 +86,9 @@ describe("calendar booking settings schema and route surface", () => {
   it("renders public booking as a wizard with weekly availability time selection", () => {
     assert.match(bookingPicker, /BookingStep/)
     assert.match(publicBookingPage, /Online booking with/)
+    assert.match(publicBookingPage, /heroAside/)
+    assert.match(publicBookingPage, /BookingRequestNotice/)
+    assert.match(publicBookingPage, /min-\[960px\]:max-w-xl/)
     assert.doesNotMatch(publicBookingPage, /Client booking/)
     assert.doesNotMatch(bookingPicker, /bookingLabel="Client booking"/)
     assert.match(bookingPicker, /Popover/)
