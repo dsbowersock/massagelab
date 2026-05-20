@@ -303,11 +303,11 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   }
 
   return (
-    <div className="grid gap-4">
-      <BookingStepBadges activeStep={activeStep} />
+    <div className="grid w-full gap-4">
+      <BookingStepBadges activeStep={activeStep} bookingLabel="Client booking" timeZone={model.timeZone} />
 
       {activeStep === "services" ? (
-        <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+        <Card className="w-full border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
           <CardHeader>
             <CardTitle>Services and add-ons</CardTitle>
             <CardDescription>Build one continuous booking request. Add-ons are scheduled after the primary service.</CardDescription>
@@ -476,7 +476,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
       ) : null}
 
       {activeStep === "time" ? (
-        <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+        <Card className="w-full border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -778,7 +778,15 @@ function WeeklyAvailabilityPicker({
   )
 }
 
-function BookingStepBadges({ activeStep }: { activeStep: BookingStep }) {
+function BookingStepBadges({
+  activeStep,
+  bookingLabel,
+  timeZone,
+}: {
+  activeStep: BookingStep
+  bookingLabel: string
+  timeZone: string
+}) {
   const steps: Array<{ id: BookingStep; label: string }> = [
     { id: "services", label: "1. Services" },
     { id: "details", label: "2. Details" },
@@ -786,10 +794,16 @@ function BookingStepBadges({ activeStep }: { activeStep: BookingStep }) {
   ]
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {steps.map((step) => (
-        <Badge key={step.id} variant={step.id === activeStep ? "secondary" : "outline"}>{step.label}</Badge>
-      ))}
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {steps.map((step) => (
+          <Badge key={step.id} variant={step.id === activeStep ? "secondary" : "outline"}>{step.label}</Badge>
+        ))}
+      </div>
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <Badge variant="secondary">{bookingLabel}</Badge>
+        <Badge variant="outline">{timeZone}</Badge>
+      </div>
     </div>
   )
 }

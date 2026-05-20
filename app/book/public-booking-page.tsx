@@ -7,7 +7,6 @@ import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { normalizePublicBookingSlug, normalizePublicBookingStateSlug } from "@/lib/public-booking-url"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookingPicker } from "./[practiceSlug]/booking-picker"
@@ -187,11 +186,6 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
         </div>
       </Alert>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">Client booking</Badge>
-        <Badge variant="outline">{practice.timezone}</Badge>
-      </div>
-
       {primaryServices.length === 0 || providerPreferences.length === 0 ? (
         publiclyBookableProviders.length > 0 && !viewerUserId ? (
           <AccountRequiredCard bookingPath={currentBookingPath} />
@@ -214,14 +208,9 @@ function BookingShell({ practiceName, children }: { practiceName: string; childr
   return (
     <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-brand-orange">Online booking</p>
-            <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
-          </div>
-          <Button asChild variant="outline">
-            <Link href="/calendar">Calendar</Link>
-          </Button>
+        <div>
+          <p className="text-sm font-medium text-brand-orange">Online booking</p>
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
         </div>
         {children}
       </div>

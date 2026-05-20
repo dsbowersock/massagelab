@@ -83,6 +83,9 @@ describe("calendar booking settings schema and route surface", () => {
 
   it("renders public booking as a wizard with weekly availability time selection", () => {
     assert.match(bookingPicker, /BookingStep/)
+    assert.match(bookingPicker, /bookingLabel="Client booking"/)
+    assert.match(bookingPicker, /timeZone=\{model\.timeZone\}/)
+    assert.match(bookingPicker, /ml-auto flex flex-wrap items-center justify-end/)
     assert.match(bookingPicker, /Services/)
     assert.match(bookingPicker, /Details/)
     assert.match(bookingPicker, /Time/)
@@ -99,6 +102,7 @@ describe("calendar booking settings schema and route surface", () => {
     assert.doesNotMatch(bookingPicker, /day\.bands\.map/)
     assert.doesNotMatch(bookingPickerHelpers, /buildAvailabilityBands/)
     assert.doesNotMatch(bookingPicker, /sequenceOptions\.map\(\(option\)/)
+    assert.doesNotMatch(publicBookingPage, /href="\/calendar"/)
   })
 
   it("keeps public sequence loading anonymous-capable with account-aware cache keys", () => {
