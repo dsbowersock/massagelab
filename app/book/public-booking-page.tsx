@@ -209,8 +209,8 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
 
 function BookingRequestNotice() {
   return (
-    <Alert className="w-full border-border/80 bg-card/80 p-3 backdrop-blur [&>svg]:left-3 [&>svg]:top-3 [&>svg~*]:pl-6">
-      <CalendarDays />
+    <Alert className="w-full border-border/80 bg-card/80 p-3 backdrop-blur [&>svg]:left-3 [&>svg]:top-3 [&>svg~*]:pl-9">
+      <CalendarDays className="size-5" />
       <div>
         <AlertTitle>Request an appointment</AlertTitle>
         <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
@@ -228,6 +228,7 @@ function BookingShell({ practiceName, heroAside, children }: { practiceName: str
             <div className="min-w-0 flex-1 basis-80">
               <p className="text-sm font-medium text-brand-orange">Online booking with</p>
               <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
+              <div id="public-booking-step-indicators" className="mt-4 hidden min-[960px]:block" />
             </div>
             {heroAside ? (
               <div className="w-full min-[960px]:w-auto min-[960px]:max-w-lg min-[960px]:flex-1 min-[960px]:basis-96">

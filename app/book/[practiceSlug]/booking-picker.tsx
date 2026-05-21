@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { createPortal } from "react-dom"
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
 import { Badge } from "@/components/ui/badge"
@@ -174,6 +175,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   const [guestName, setGuestName] = useState("")
   const [guestEmail, setGuestEmail] = useState("")
   const [guestPhone, setGuestPhone] = useState("")
+  const [heroStepIndicatorTarget, setHeroStepIndicatorTarget] = useState<HTMLElement | null>(null)
   const providerPreference = useMemo(() => providerPreferenceModel(model.providers), [model.providers])
   const addOnVariantOrder = useMemo(() => model.addOnServices.flatMap((service) => service.variants.map((variant) => variant.id)), [model.addOnServices])
   const orderedSelectedAddOnVariantIds = useMemo(() => (
@@ -195,6 +197,10 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   useEffect(() => {
     setPreferredProviderId(providerPreference.defaultProviderId)
   }, [providerPreference.defaultProviderId])
+
+  useEffect(() => {
+    setHeroStepIndicatorTarget(document.getElementById("public-booking-step-indicators"))
+  }, [])
 
   useEffect(() => {
     setSelectedSequenceKey("")
@@ -323,7 +329,8 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
 
   return (
     <div className="grid w-full gap-4">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+      {heroStepIndicatorTarget ? createPortal(<BookingStepBadges activeStep={activeStep} />, heroStepIndicatorTarget) : null}
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 min-[960px]:hidden">
         <BookingStepBadges activeStep={activeStep} />
       </div>
 
