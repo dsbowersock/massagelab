@@ -1,12 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { CalendarDays, LockKeyhole } from "lucide-react"
+import { LockKeyhole } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { normalizeBookingPolicy } from "@/lib/booking-policy"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { normalizePublicBookingSlug, normalizePublicBookingStateSlug } from "@/lib/public-booking-url"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookingPicker } from "./[practiceSlug]/booking-picker"
@@ -184,7 +183,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   }
 
   return (
-    <BookingShell practiceName={practice.name} heroAside={<BookingRequestNotice />}>
+    <BookingShell practiceName={practice.name}>
       {primaryServices.length === 0 || providerPreferences.length === 0 ? (
         publiclyBookableProviders.length > 0 && !viewerUserId ? (
           <BookingShellSection>
@@ -207,23 +206,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   )
 }
 
-function BookingRequestNotice() {
-  return (
-    <Alert className="w-full border-border/80 bg-card/80 p-0 backdrop-blur">
-      <div className="flex min-w-0 items-start gap-3 p-3">
-        <CalendarDays className="mt-0.5 size-5 shrink-0 text-foreground" />
-        <div className="min-w-0">
-          <AlertTitle className="mb-1 leading-snug">Request an appointment</AlertTitle>
-          <AlertDescription className="max-w-[46ch] text-pretty leading-relaxed">
-            These requests store scheduling details only. Clinical notes are not part of this booking flow.
-          </AlertDescription>
-        </div>
-      </div>
-    </Alert>
-  )
-}
-
-function BookingShell({ practiceName, heroAside, children }: { practiceName: string; heroAside?: React.ReactNode; children: React.ReactNode }) {
+function BookingShell({ practiceName, children }: { practiceName: string; children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-3 lg:pb-8 lg:pt-4">
       <div className="space-y-5">
@@ -234,11 +217,6 @@ function BookingShell({ practiceName, heroAside, children }: { practiceName: str
               <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
               <div id="public-booking-step-indicators" className="mt-4 hidden min-[960px]:block" />
             </div>
-            {heroAside ? (
-              <div className="w-full min-[960px]:w-auto min-[960px]:max-w-lg min-[960px]:flex-1 min-[960px]:basis-96">
-                {heroAside}
-              </div>
-            ) : null}
           </div>
         </div>
         {children}
