@@ -47,12 +47,7 @@ export function PublicBookingLinkCard({ legalPath, activePath }: PublicBookingLi
       return
     }
 
-    try {
-      await copyActiveLink()
-    } catch (error) {
-      console.error("Failed to use copy fallback for public booking link share", error)
-      setMessage(`Unable to share link. ${linkActionErrorMessage(error)}`)
-    }
+    await copyActiveLink()
   }
 
   return (

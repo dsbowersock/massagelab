@@ -66,6 +66,7 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(publicBookingLinkCard, /navigator\.share/)
     assert.match(publicBookingLinkCard, /console\.error\("Failed to copy public booking link"/)
     assert.match(publicBookingLinkCard, /console\.error\("Failed to share public booking link"/)
+    assert.doesNotMatch(publicBookingLinkCard, /Failed to use copy fallback for public booking link share/)
     assert.match(publicBookingLinkCard, /setMessage\(`Unable to copy link\./)
     assert.match(publicBookingLinkCard, /setMessage\(`Unable to share link\./)
   })
