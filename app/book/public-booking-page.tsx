@@ -209,11 +209,15 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
 
 function BookingRequestNotice() {
   return (
-    <Alert className="w-full border-border/80 bg-card/80 p-3 backdrop-blur [&>svg]:left-3 [&>svg]:top-3 [&>svg~*]:pl-9">
-      <CalendarDays className="size-5" />
-      <div>
-        <AlertTitle>Request an appointment</AlertTitle>
-        <AlertDescription>These requests store scheduling details only. Clinical notes are not part of this booking flow.</AlertDescription>
+    <Alert className="w-full border-border/80 bg-card/80 p-0 backdrop-blur">
+      <div className="flex min-w-0 items-start gap-3 p-3">
+        <CalendarDays className="mt-0.5 size-5 shrink-0 text-foreground" />
+        <div className="min-w-0">
+          <AlertTitle className="mb-1 leading-snug">Request an appointment</AlertTitle>
+          <AlertDescription className="max-w-[46ch] text-pretty leading-relaxed">
+            These requests store scheduling details only. Clinical notes are not part of this booking flow.
+          </AlertDescription>
+        </div>
       </div>
     </Alert>
   )
