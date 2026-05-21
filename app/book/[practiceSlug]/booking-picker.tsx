@@ -352,6 +352,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                   <button
                     key={variant.id}
                     type="button"
+                    aria-pressed={selected}
                     onClick={() => setSelectedPrimaryVariantId(variant.id)}
                     className={cn(
                       "w-full rounded-lg border p-4 text-left transition hover:border-primary/70 hover:bg-primary/5",
@@ -390,6 +391,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                       <button
                         key={variant.id}
                         type="button"
+                        aria-pressed={selected}
                         onClick={() => toggleAddOn(variant.id)}
                         disabled={disabled}
                         className={cn(
@@ -438,6 +440,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                     <button
                       key={level}
                       type="button"
+                      aria-pressed={requestedPressureLevel === level}
                       onClick={() => setRequestedPressureLevel(level)}
                       className={cn(
                         "rounded-md border px-3 py-2 text-sm font-medium transition hover:border-primary/70",
@@ -463,6 +466,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
                         <button
                           key={provider.id || "any-provider"}
                           type="button"
+                          aria-pressed={provider.id === preferredProviderId}
                           onClick={() => setPreferredProviderId(provider.id)}
                           className={cn(
                             "rounded-md border p-3 text-left text-sm transition hover:border-primary/70 hover:bg-primary/5",

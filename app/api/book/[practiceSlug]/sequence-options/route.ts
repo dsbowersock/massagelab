@@ -60,7 +60,7 @@ export async function POST(
 
     return NextResponse.json({ options: context.options })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load booking options."
-    return NextResponse.json({ error: message }, { status: 400 })
+    console.error("Unable to load public booking sequence options", error)
+    return NextResponse.json({ error: "Unable to load booking options." }, { status: 400 })
   }
 }

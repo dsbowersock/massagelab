@@ -14,6 +14,7 @@ const sequenceOptionsRoute = readFileSync(new URL("../app/api/book/[practiceSlug
 const publicBookingSequences = readFileSync(new URL("../lib/public-booking-sequences.js", import.meta.url), "utf8")
 const loginForm = readFileSync(new URL("../app/login/login-form.tsx", import.meta.url), "utf8")
 const registerPage = readFileSync(new URL("../app/register/page.tsx", import.meta.url), "utf8")
+const publicBookingLinkCard = readFileSync(new URL("../app/calendar/booking/public-booking-link-card.tsx", import.meta.url), "utf8")
 
 describe("calendar booking settings schema and route surface", () => {
   it("defines policy, capacity, waitlist, pressure, and service role storage", () => {
@@ -61,6 +62,12 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(bookingSettingsPage, /TabsTrigger value="capacity"/)
     assert.match(bookingSettingsPage, /PublicBookingLinkCard/)
     assert.match(bookingSettingsPage, /savePublicBookingUrlAction/)
+    assert.match(publicBookingLinkCard, /navigator\.clipboard\.writeText\(activeUrl\)/)
+    assert.match(publicBookingLinkCard, /navigator\.share/)
+    assert.match(publicBookingLinkCard, /console\.error\("Failed to copy public booking link"/)
+    assert.match(publicBookingLinkCard, /console\.error\("Failed to share public booking link"/)
+    assert.match(publicBookingLinkCard, /setMessage\(`Unable to copy link\./)
+    assert.match(publicBookingLinkCard, /setMessage\(`Unable to share link\./)
   })
 
   it("allows anonymous public booking while keeping account-required gates explicit", () => {
@@ -77,8 +84,10 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(bookingPicker, /\/register\?callbackUrl=/)
     assert.match(bookingPicker, /Continue as guest/)
     assert.match(publicBookingPage, /AccountRequiredCard bookingPath/)
+    assert.match(publicBookingPage, /primaryServices\.length > 0 && providerPreferences\.length === 0 && publiclyBookableProviders\.length > 0 && !viewerUserId/)
     assert.match(publicBookingPage, /\/register\?callbackUrl=/)
     assert.match(loginForm, /safeCallbackUrl/)
+    assert.match(loginForm, /value\.includes\("\\\\"\)/)
     assert.match(loginForm, /router\.push\(callbackUrl\)/)
     assert.match(registerPage, /callbackUrl/)
   })
@@ -118,6 +127,9 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(bookingPicker, /visibleSequenceDays/)
     assert.match(bookingPicker, /providerPreferenceModel/)
     assert.match(bookingPicker, /day\.slots\.map/)
+    assert.match(bookingPicker, /aria-pressed=\{selected\}/)
+    assert.match(bookingPicker, /aria-pressed=\{requestedPressureLevel === level\}/)
+    assert.match(bookingPicker, /aria-pressed=\{provider\.id === preferredProviderId\}/)
     assert.match(bookingPicker, /rounded-none border-x-0/)
     assert.match(bookingPicker, /overflow-hidden border-y/)
     assert.match(bookingPicker, /data-public-booking-day/)
@@ -142,6 +154,14 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(publicBookingSequences, /allowGuestBooking/)
     assert.match(publicBookingSequences, /requireClientAccount/)
     assert.match(publicBookingSequences, /accountMode/)
+    assert.match(sequenceOptionsRoute, /console\.error\("Unable to load public booking sequence options"/)
+    assert.match(sequenceOptionsRoute, /error: "Unable to load booking options\."/)
+    assert.doesNotMatch(sequenceOptionsRoute, /error: message/)
+    assert.match(publicBookingPage, /console\.error\("Unable to load public booking page"/)
+    assert.match(publicBookingPage, /const fallbackLabel = therapist\.user\.name \?\? "Provider"/)
+    assert.match(publicBookingSequences, /const fallbackLabel = membership\.user\.name \?\? "Provider"/)
+    assert.doesNotMatch(publicBookingPage, /fallbackLabel = therapist\.user\.name \?\? therapist\.user\.email/)
+    assert.doesNotMatch(publicBookingSequences, /fallbackLabel = membership\.user\.name \?\? membership\.user\.email/)
   })
 
   it("loads public booking sequence options lazily instead of precomputing every group", () => {

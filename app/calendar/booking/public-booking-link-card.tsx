@@ -15,6 +15,10 @@ function absoluteUrl(path: string) {
   return `${window.location.origin}${path}`
 }
 
+function linkActionErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error"
+}
+
 export function PublicBookingLinkCard({ legalPath, activePath }: PublicBookingLinkCardProps) {
   const [message, setMessage] = useState("")
   const activeUrl = useMemo(() => absoluteUrl(activePath), [activePath])
@@ -22,18 +26,33 @@ export function PublicBookingLinkCard({ legalPath, activePath }: PublicBookingLi
   const usingBrandedUrl = activePath !== legalPath
 
   async function copyActiveLink() {
-    await navigator.clipboard.writeText(activeUrl)
-    setMessage("Link copied.")
+    try {
+      await navigator.clipboard.writeText(activeUrl)
+      setMessage("Link copied.")
+    } catch (error) {
+      console.error("Failed to copy public booking link", error)
+      setMessage(`Unable to copy link. ${linkActionErrorMessage(error)}`)
+    }
   }
 
   async function shareActiveLink() {
     if (navigator.share) {
-      await navigator.share({ title: "Book an appointment", url: activeUrl })
-      setMessage("Share sheet opened.")
+      try {
+        await navigator.share({ title: "Book an appointment", url: activeUrl })
+        setMessage("Share sheet opened.")
+      } catch (error) {
+        console.error("Failed to share public booking link", error)
+        setMessage(`Unable to share link. ${linkActionErrorMessage(error)}`)
+      }
       return
     }
 
-    await copyActiveLink()
+    try {
+      await copyActiveLink()
+    } catch (error) {
+      console.error("Failed to use copy fallback for public booking link share", error)
+      setMessage(`Unable to share link. ${linkActionErrorMessage(error)}`)
+    }
   }
 
   return (

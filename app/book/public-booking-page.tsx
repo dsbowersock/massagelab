@@ -60,7 +60,8 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
         },
       },
     })
-  } catch {
+  } catch (error) {
+    console.error("Unable to load public booking page", error)
     return (
       <BookingShell practiceName="Booking">
         <BookingShellSection>
@@ -111,7 +112,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   const showStaffLabels = policy.staffVisibility === "PUBLIC_LABELS"
   const providers = practice.memberships.map((therapist) => {
     const providerPolicy = providerPolicyByUserId.get(therapist.userId)
-    const fallbackLabel = therapist.user.name ?? therapist.user.email ?? "Provider"
+    const fallbackLabel = therapist.user.name ?? "Provider"
     return {
       userId: therapist.userId,
       label: showStaffLabels ? (providerPolicy?.displayLabel || fallbackLabel) : "Available provider",
@@ -185,7 +186,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   return (
     <BookingShell practiceName={practice.name}>
       {primaryServices.length === 0 || providerPreferences.length === 0 ? (
-        publiclyBookableProviders.length > 0 && !viewerUserId ? (
+        primaryServices.length > 0 && providerPreferences.length === 0 && publiclyBookableProviders.length > 0 && !viewerUserId ? (
           <BookingShellSection>
             <AccountRequiredCard bookingPath={currentBookingPath} />
           </BookingShellSection>

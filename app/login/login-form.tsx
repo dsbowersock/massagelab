@@ -23,7 +23,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 function safeCallbackUrl(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account"
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/account"
   return value
 }
 

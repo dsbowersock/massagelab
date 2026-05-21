@@ -155,10 +155,13 @@ describe("calendar creation route wiring", () => {
 
   it("keeps ongoing resource bookings in public booking availability checks", async () => {
     const publicBookingSequences = await readFile("lib/public-booking-sequences.js", "utf8")
-    const resourceQuery = publicBookingSequences.slice(
-      publicBookingSequences.indexOf("db.calendarResourceBooking.findMany"),
-      publicBookingSequences.indexOf("select: { resourceId: true, startsAt: true, endsAt: true }"),
-    )
+    const resourceQueryStart = publicBookingSequences.indexOf("db.calendarResourceBooking.findMany")
+    const resourceQueryEnd = publicBookingSequences.indexOf("select: { resourceId: true, startsAt: true, endsAt: true }")
+
+    assert.notEqual(resourceQueryStart, -1, "Expected resource booking query start marker to exist.")
+    assert.notEqual(resourceQueryEnd, -1, "Expected resource booking query select marker to exist.")
+
+    const resourceQuery = publicBookingSequences.slice(resourceQueryStart, resourceQueryEnd)
 
     assert.match(resourceQuery, /endsAt:\s*\{\s*gte:\s*now\s*\}/)
     assert.doesNotMatch(resourceQuery, /startsAt:\s*\{\s*gte:\s*now\s*\}/)
