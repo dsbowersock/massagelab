@@ -154,15 +154,18 @@ describe("calendar creation route wiring", () => {
   })
 
   it("keeps ongoing resource bookings in public booking availability checks", async () => {
-    const bookingPage = await readFile("app/book/[practiceSlug]/page.tsx", "utf8")
-    const resourceQuery = bookingPage.slice(
-      bookingPage.indexOf("prisma.calendarResourceBooking.findMany"),
-      bookingPage.indexOf("select: { resourceId: true, startsAt: true, endsAt: true }"),
-    )
+    const publicBookingSequences = await readFile("lib/public-booking-sequences.js", "utf8")
+    const resourceQueryStart = publicBookingSequences.indexOf("db.calendarResourceBooking.findMany")
+    const resourceQueryEnd = publicBookingSequences.indexOf("select: { resourceId: true, startsAt: true, endsAt: true }")
+
+    assert.notEqual(resourceQueryStart, -1, "Expected resource booking query start marker to exist.")
+    assert.notEqual(resourceQueryEnd, -1, "Expected resource booking query select marker to exist.")
+
+    const resourceQuery = publicBookingSequences.slice(resourceQueryStart, resourceQueryEnd)
 
     assert.match(resourceQuery, /endsAt:\s*\{\s*gte:\s*now\s*\}/)
     assert.doesNotMatch(resourceQuery, /startsAt:\s*\{\s*gte:\s*now\s*\}/)
-    assert.match(resourceQuery, /resource:\s*\{\s*practiceId:\s*practice\.id\s*\}/)
+    assert.match(resourceQuery, /resource:\s*\{\s*practiceId\s*\}/)
   })
 
   it("rechecks appointment conflicts inside the write transaction and links the canonical client", async () => {

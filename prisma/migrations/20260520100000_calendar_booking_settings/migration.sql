@@ -35,7 +35,7 @@ CREATE TABLE "BookingPolicy" (
   "staffVisibility" "BookingStaffVisibility" NOT NULL DEFAULT 'PUBLIC_LABELS',
   "dualTimezoneDisplay" BOOLEAN NOT NULL DEFAULT true,
   "proximityNoticeEnabled" BOOLEAN NOT NULL DEFAULT false,
-  "proximityRadiusMiles" INTEGER NOT NULL DEFAULT 50,
+  "proximityRadiusMiles" INTEGER NOT NULL DEFAULT 45,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "BookingPolicy_pkey" PRIMARY KEY ("id")

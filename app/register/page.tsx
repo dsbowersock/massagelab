@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,13 +8,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 
+function safeCallbackUrl(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account"
+  return value
+}
+
 export default function RegisterPage() {
+  const [callbackUrl, setCallbackUrl] = useState("/account")
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [status, setStatus] = useState("")
   const [devLink, setDevLink] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    setCallbackUrl(safeCallbackUrl(new URLSearchParams(window.location.search).get("callbackUrl")))
+  }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -70,7 +81,7 @@ export default function RegisterPage() {
               </p>
             )}
             <div className="flex flex-wrap gap-4 text-sm text-brand-orange">
-              <Link href="/login" className="underline-offset-4 hover:underline">
+              <Link href={loginHref} className="underline-offset-4 hover:underline">
                 Back to login
               </Link>
               <Link href="/forgot-password" className="underline-offset-4 hover:underline">

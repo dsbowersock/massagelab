@@ -7,7 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: local-first privacy boundaries, account performance, browser QA automation, and organizing the next branch sequence after alpha readiness verification.
+- Current focus: public booking v1 follow-ups are complete enough to wrap; next focus is the sitewide visual system and account-page polish pass.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates.
 - Public `/roadmap` route: product-facing app copy only. This file is the internal operating tracker.
 
@@ -38,7 +38,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Open | P2 | Education and flashcards design | [Roadmap](roadmap.md), [TODO](../TODO.md) | Shared anatomy data requirements are defined before adding visible Education routes or flashcard workflows. |
 | Open | P2 | Payload CMS integration plan | [TODO](../TODO.md) | Blog-first Payload plan resolves database/schema ownership, auth boundaries, packages, env vars, deployment behavior, uploads, previews, and role/paid-content leakage risks. |
 | Open | P2 | External calendar sync integration plan | [Calendar wiki](wiki/calendar-creation-flows.md), [Privacy wiki](wiki/privacy-and-phi.md) | Google, Apple, and Outlook sync rules define OAuth scopes, import/export direction, conflict behavior, PHI boundaries, and membership treatment before implementation. |
-| Completed | P2 | Online booking settings, waitlist, and provider capacity controls | Square-inspired calendar settings review | Booking policies now cover manual vs auto-confirm approval, provider visibility/rest gaps, min/max scheduling windows, daily appointment limits, pressure-level massage-hour capacity, sequential service/add-on booking, team sequencing, waitlist conversion, staff visibility, and opt-in distance notices without client location storage. |
+| Completed | P2 | Online booking settings, public access, waitlist, and provider capacity controls | Square-inspired calendar settings review, follow-up review branch | Booking policies now cover manual vs auto-confirm approval, provider visibility/rest gaps, min/max scheduling windows, daily appointment limits, pressure-level massage-hour capacity, sequential service/add-on booking, team sequencing, waitlist conversion, staff visibility, opt-in distance notices without client location storage, tabbed provider settings, public share links, state-prefixed branded URLs, anonymous guest booking unless account-required, and a wizard-style public booking flow with weekly availability slots. |
 | Open | P2 | Stripe Connect marketplace payments plan | [Billing wiki](wiki/billing-memberships.md), [Calendar wiki](wiki/calendar-creation-flows.md) | Provider onboarding, payout accounts, booking deposits, cancellation fees, taxes, packages, refunds, and platform fee rules are scoped before booking payment collection. |
 
 ## Later
@@ -69,6 +69,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-18 | Calendar services use variants and resources. | Provider services are templates; selected variants drive duration, buffers, displayed pricing, snapshots, and resource requirements. Payment collection, Stripe Connect payouts, taxes, package redemption, and external calendar sync are deferred. |
 | 2026-05-18 | Use Team/Practice in frontend copy. | Keep the internal `PRACTICE` membership enum stable, but use `Team/Practice` where users need context for the team membership tier. |
 | 2026-05-18 | Operator calendar uses FullCalendar OSS. | The open-source React/daygrid/timegrid/interaction plugins cover day, week, 5-day, month, click-to-create, drag/drop, and resize. Premium resource-lane scheduling is deferred. |
+| 2026-05-20 | Elasticsearch/OpenSearch is not used for booking v1. | Public slot generation stays deterministic over Prisma-backed scheduling, service, provider, policy, capacity, and availability data. Search infrastructure can be reconsidered only after v1 behavior and scale demand it. |
+| 2026-05-20 | Arbitrary custom public booking fields remain deferred. | Pressure level is the only new required public booking field in v1; broader custom intake fields wait for a dedicated requirements and PHI-boundary plan. |
+| 2026-05-20 | Public booking is guest-capable by default. | Practice-wide and provider-specific policies can require a client account, but otherwise guests can request appointments with required contact details while optional sign-in/register prompts explain account benefits. |
+| 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
 
@@ -76,6 +80,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 - Completed `codex/calendar-booking-settings-plan`: added booking policy storage, provider booking policy/capacity rules, service primary/add-on roles, public booking pressure selection, deterministic sequential service/add-on slot solving, team sequencing, waitlist entries and conversion, public location distance notices, and `/calendar/booking`.
 - Replaced the planned fake-it/scarcity idea with provider capacity protection: total daily/weekly massage minutes, pressure-level budgets from 1-5, provider rest gaps, and server-side revalidation before booking writes.
+- Completed the CR review hardening pass for booking v1: transactional provider policy/capacity rechecks, atomic waitlist conversion, practice-timezone waitlist conversion, practice-local booking horizons, public-provider empty-state handling, add-on cap consistency, and multi-service migration backfill are now recorded as landed constraints.
+- Closed the public sequence-generation follow-up: `/book/[practiceSlug]` no longer precomputes every public service/add-on/pressure/provider combination server-side, and selected descriptors load options on demand through the deterministic solver with short-TTL caching while submit actions still revalidate before writes.
+- Completed `codex/calendar-booking-followups`: `/calendar/booking` is tabbed, providers can see/copy/share public booking links, optional state-prefixed branded booking URLs route to the same renderer, and anonymous clients can book or waitlist unless practice/provider policy requires an account.
+- Reworked the public booking UI into a single-route wizard with Services, Details, and Time steps; single-provider preference selectors are hidden, sign-in/register prompts are optional for guests, and time selection uses a responsive weekly availability grid with directly clickable start slots.
+- Hardened follow-up review findings: sequence-option API failures return a generic client message while logging server-side, public booking load errors are logged, account-required fallback only appears for provider-eligibility shortfalls, share/copy failures are handled, login callback URLs reject backslashes, staff email is not used as public provider-label fallback, toggle controls expose `aria-pressed`, and brittle resource-booking test slicing now asserts markers first.
 
 ### 2026-05-18
 

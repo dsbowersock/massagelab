@@ -5,10 +5,12 @@ import {
   saveBookingPolicyAction,
   saveProviderBookingPolicyAction,
   saveProviderCapacityRulesAction,
+  savePublicBookingUrlAction,
 } from "@/app/calendar/actions"
 import { normalizeBookingPolicy } from "@/lib/booking-policy"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { legalPublicBookingPath, publicBookingPathForPractice, US_STATE_OPTIONS } from "@/lib/public-booking-url"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,7 +19,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarOperatorShell } from "../calendar-operator-shell"
+import { PublicBookingLinkCard } from "./public-booking-link-card"
 
 const weekdays = [
   ["0", "Sunday"],
@@ -77,7 +81,10 @@ export default async function CalendarBookingSettingsPage() {
 
   const policy = normalizeBookingPolicy(practice.bookingPolicy)
   const canManagePracticePolicy = membership.role === "OWNER" || membership.role === "STAFF"
+  const canManagePublicBookingUrl = canManagePracticePolicy || (membership.role === "THERAPIST" && practice.memberships.length === 1)
   const providerPolicyByUserId = new Map(practice.providerBookingPolicies.map((row) => [row.providerUserId, row]))
+  const legalBookingPath = legalPublicBookingPath(practice)
+  const activeBookingPath = publicBookingPathForPractice(practice)
 
   return (
     <BookingSettingsShell>
@@ -92,7 +99,7 @@ export default async function CalendarBookingSettingsPage() {
               <CalendarCog className="size-6 text-brand-orange" />
               Booking settings
             </CardTitle>
-            <CardDescription>Approval mode, provider capacity, pressure limits, waitlist readiness, and public location notices.</CardDescription>
+            <CardDescription>Approval mode, public links, provider rules, capacity, and service-role guidance.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline"><Link href="/calendar/services">Services</Link></Button>
@@ -101,221 +108,299 @@ export default async function CalendarBookingSettingsPage() {
         </CardHeader>
       </Card>
 
-      {canManagePracticePolicy ? (
-        <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <SlidersHorizontal className="size-5 text-brand-orange" />
-              Practice booking policy
-            </CardTitle>
-            <CardDescription>These defaults control public booking before provider-specific capacity rules are applied.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={saveBookingPolicyAction} className="grid gap-4">
-              <input type="hidden" name="practiceId" value={practice.id} />
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
-                  <Checkbox name="enabled" defaultChecked={policy.enabled} />
-                  <span>Enable online booking</span>
-                </label>
-                <div className="space-y-2">
-                  <Label>Approval mode</Label>
-                  <Select name="approvalMode" defaultValue={policy.approvalMode}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MANUAL">Manual approval</SelectItem>
-                      <SelectItem value="AUTO_CONFIRM">Auto-confirm</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Staff visibility</Label>
-                  <Select name="staffVisibility" defaultValue={policy.staffVisibility}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PUBLIC_LABELS">Show public labels</SelectItem>
-                      <SelectItem value="HIDE_STAFF">Hide staff names</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="minNoticeMinutes">Minimum notice minutes</Label>
-                  <Input id="minNoticeMinutes" name="minNoticeMinutes" type="number" min="0" defaultValue={policy.minNoticeMinutes} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maxAdvanceDays">Max advance days</Label>
-                  <Input id="maxAdvanceDays" name="maxAdvanceDays" type="number" min="1" defaultValue={policy.maxAdvanceDays} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dailyAppointmentLimit">Practice daily appointment limit</Label>
-                  <Input id="dailyAppointmentLimit" name="dailyAppointmentLimit" type="number" min="1" defaultValue={policy.dailyAppointmentLimit ?? ""} placeholder="No limit" />
-                </div>
-              </div>
+      <Tabs defaultValue="booking-rules" className="space-y-4">
+        <TabsList className="flex h-auto flex-wrap justify-start">
+          <TabsTrigger value="booking-rules">Booking rules</TabsTrigger>
+          <TabsTrigger value="public-page">Public page</TabsTrigger>
+          <TabsTrigger value="providers">Providers</TabsTrigger>
+          <TabsTrigger value="capacity">Capacity</TabsTrigger>
+          <TabsTrigger value="service-roles">Service roles</TabsTrigger>
+        </TabsList>
 
-              <div className="grid gap-3 md:grid-cols-3">
-                <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
-                  <Checkbox name="anyProviderEnabled" defaultChecked={policy.anyProviderEnabled} />
-                  <span>Offer any-available provider</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
-                  <Checkbox name="teamSequencingEnabled" defaultChecked={policy.teamSequencingEnabled} />
-                  <span>Allow team sequences</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
-                  <Checkbox name="dualTimezoneDisplay" defaultChecked={policy.dualTimezoneDisplay} />
-                  <span>Show client-local time helper</span>
-                </label>
-              </div>
-
-              <Separator />
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="publicLocationLabel">Public location label</Label>
-                  <Input id="publicLocationLabel" name="publicLocationLabel" defaultValue={practice.publicLocationLabel ?? ""} placeholder="Downtown Columbus studio" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="publicLatitude">Latitude</Label>
-                  <Input id="publicLatitude" name="publicLatitude" type="number" step="0.000001" defaultValue={practice.publicLatitude ?? ""} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="publicLongitude">Longitude</Label>
-                  <Input id="publicLongitude" name="publicLongitude" type="number" step="0.000001" defaultValue={practice.publicLongitude ?? ""} />
-                </div>
-                <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm md:col-span-2">
-                  <Checkbox name="proximityNoticeEnabled" defaultChecked={policy.proximityNoticeEnabled} />
-                  <span>Offer optional distance notice</span>
-                </label>
-                <div className="space-y-2">
-                  <Label htmlFor="proximityRadiusMiles">Distance notice miles</Label>
-                  <Input id="proximityRadiusMiles" name="proximityRadiusMiles" type="number" min="1" defaultValue={policy.proximityRadiusMiles} />
-                </div>
-              </div>
-
-              <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Save booking policy</Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <Notice title="Provider settings only" description="Therapists can manage their own public booking label, rest gap, and capacity rules. Owners and staff manage practice-wide policy." />
-      )}
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        {practice.memberships.map((provider) => {
-          const providerPolicy = providerPolicyByUserId.get(provider.userId)
-          const canManageProvider = membership.role !== "THERAPIST" || provider.userId === session.user.id
-          const capacityRules = practice.providerBookingCapacityRules.filter((rule) => rule.providerUserId === provider.userId)
-          const displayName = provider.user.name ?? provider.user.email ?? "Provider"
-
-          return (
-            <Card key={provider.userId} className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+        <TabsContent value="booking-rules" className="space-y-4">
+          {canManagePracticePolicy ? (
+            <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <UserRound className="size-5 text-brand-orange" />
-                  {displayName}
+                  <SlidersHorizontal className="size-5 text-brand-orange" />
+                  Practice booking policy
                 </CardTitle>
-                <CardDescription>Rest gaps and massage-hour pressure capacity protect the provider&apos;s day and week.</CardDescription>
+                <CardDescription>These defaults control public booking before provider-specific rules are applied.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <form action={saveProviderBookingPolicyAction} className="grid gap-3">
+              <CardContent>
+                <form action={saveBookingPolicyAction} className="grid gap-4">
                   <input type="hidden" name="practiceId" value={practice.id} />
-                  <input type="hidden" name="providerUserId" value={provider.userId} />
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
-                      <Checkbox name="publiclyBookable" defaultChecked={providerPolicy?.publiclyBookable ?? true} disabled={!canManageProvider} />
-                      <span>Publicly bookable</span>
+                      <Checkbox name="enabled" defaultChecked={policy.enabled} />
+                      <span>Enable online booking</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
+                      <Checkbox name="requireClientAccount" defaultChecked={policy.requireClientAccount} />
+                      <span>Require client accounts</span>
                     </label>
                     <div className="space-y-2">
-                      <Label>Public label</Label>
-                      <Input name="displayLabel" defaultValue={providerPolicy?.displayLabel ?? ""} placeholder={displayName} disabled={!canManageProvider} />
+                      <Label>Approval mode</Label>
+                      <Select name="approvalMode" defaultValue={policy.approvalMode}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MANUAL">Manual approval</SelectItem>
+                          <SelectItem value="AUTO_CONFIRM">Auto-confirm</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Rest minutes between sessions</Label>
-                      <Input name="minRestMinutes" type="number" min="0" defaultValue={providerPolicy?.minRestMinutes ?? 0} disabled={!canManageProvider} />
+                      <Label>Staff visibility</Label>
+                      <Select name="staffVisibility" defaultValue={policy.staffVisibility}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PUBLIC_LABELS">Show public labels</SelectItem>
+                          <SelectItem value="HIDE_STAFF">Hide staff names</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Daily appointment limit</Label>
-                      <Input name="dailyAppointmentLimit" type="number" min="1" defaultValue={providerPolicy?.dailyAppointmentLimit ?? ""} placeholder="No limit" disabled={!canManageProvider} />
+                      <Label htmlFor="minNoticeMinutes">Minimum notice minutes</Label>
+                      <Input id="minNoticeMinutes" name="minNoticeMinutes" type="number" min="0" defaultValue={policy.minNoticeMinutes} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Weekly appointment limit</Label>
-                      <Input name="weeklyAppointmentLimit" type="number" min="1" defaultValue={providerPolicy?.weeklyAppointmentLimit ?? ""} placeholder="No limit" disabled={!canManageProvider} />
+                      <Label htmlFor="maxAdvanceDays">Max advance days</Label>
+                      <Input id="maxAdvanceDays" name="maxAdvanceDays" type="number" min="1" defaultValue={policy.maxAdvanceDays} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="dailyAppointmentLimit">Practice daily appointment limit</Label>
+                      <Input id="dailyAppointmentLimit" name="dailyAppointmentLimit" type="number" min="1" defaultValue={policy.dailyAppointmentLimit ?? ""} placeholder="No limit" />
                     </div>
                   </div>
-                  <Button type="submit" variant="outline" disabled={!canManageProvider}>Save provider policy</Button>
-                </form>
 
-                <Separator />
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
+                      <Checkbox name="anyProviderEnabled" defaultChecked={policy.anyProviderEnabled} />
+                      <span>Offer any-available provider</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
+                      <Checkbox name="teamSequencingEnabled" defaultChecked={policy.teamSequencingEnabled} />
+                      <span>Allow team sequences</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
+                      <Checkbox name="dualTimezoneDisplay" defaultChecked={policy.dualTimezoneDisplay} />
+                      <span>Show client-local time helper</span>
+                    </label>
+                  </div>
 
-                <form action={saveProviderCapacityRulesAction} className="grid gap-3">
-                  <input type="hidden" name="practiceId" value={practice.id} />
-                  <input type="hidden" name="providerUserId" value={provider.userId} />
-                  <div className="flex items-center gap-2">
-                    <Clock className="size-4 text-brand-orange" />
-                    <p className="text-sm font-medium">Capacity rules</p>
+                  <Separator />
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="publicLocationLabel">Public location label</Label>
+                      <Input id="publicLocationLabel" name="publicLocationLabel" defaultValue={practice.publicLocationLabel ?? ""} placeholder="Downtown Columbus studio" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="publicLatitude">Latitude</Label>
+                      <Input id="publicLatitude" name="publicLatitude" type="number" step="0.000001" defaultValue={practice.publicLatitude ?? ""} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="publicLongitude">Longitude</Label>
+                      <Input id="publicLongitude" name="publicLongitude" type="number" step="0.000001" defaultValue={practice.publicLongitude ?? ""} />
+                    </div>
+                    <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm md:col-span-2">
+                      <Checkbox name="proximityNoticeEnabled" defaultChecked={policy.proximityNoticeEnabled} />
+                      <span>Offer optional distance notice</span>
+                    </label>
+                    <div className="space-y-2">
+                      <Label htmlFor="proximityRadiusMiles">Distance notice miles</Label>
+                      <Input id="proximityRadiusMiles" name="proximityRadiusMiles" type="number" min="1" defaultValue={policy.proximityRadiusMiles} />
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    {Array.from({ length: 12 }, (_, index) => {
-                      const rule = capacityRules[index]
-                      return (
-                        <div key={rule?.id ?? index} className="grid gap-2 rounded-md border border-border/70 bg-background/60 p-2 md:grid-cols-[1fr_1fr_1fr_1fr]">
-                          <Select name={`capacityPeriod${index}`} defaultValue={rule?.period ?? "WEEKLY"} disabled={!canManageProvider}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="WEEKLY">Weekly</SelectItem>
-                              <SelectItem value="DAILY">Daily</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select name={`capacityDayOfWeek${index}`} defaultValue={String(rule?.dayOfWeek ?? -1)} disabled={!canManageProvider}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="-1">Any day</SelectItem>
-                              {weekdays.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <Select name={`capacityPressureLevel${index}`} defaultValue={String(rule?.pressureLevel ?? 0)} disabled={!canManageProvider}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">Total minutes</SelectItem>
-                              {[1, 2, 3, 4, 5].map((level) => <SelectItem key={level} value={String(level)}>Pressure {level}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <Input name={`capacityMaxMinutes${index}`} type="number" min="0" defaultValue={rule?.maxMinutes ?? ""} placeholder="Max minutes" disabled={!canManageProvider} />
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <Button type="submit" variant="outline" disabled={!canManageProvider}>Save capacity rules</Button>
+
+                  <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Save booking policy</Button>
                 </form>
               </CardContent>
             </Card>
-          )
-        })}
-      </div>
+          ) : (
+            <Notice title="Provider settings only" description="Therapists can manage their own public label, account requirement, rest gap, and capacity rules. Owners and staff manage practice-wide policy." />
+          )}
+        </TabsContent>
 
-      <Card className="border-border/80 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="size-5 text-brand-orange" />
-            Service role guidance
-          </CardTitle>
-          <CardDescription>Primary services start a booking. Add-ons can be chained after a primary service.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2 md:grid-cols-2">
-          {practice.serviceTypes.map((service) => (
-            <Link key={service.id} href={`/calendar/services/${service.id}`} className="rounded-md border border-border/70 bg-background/60 p-3 hover:border-brand-orange/60">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">{service.name}</p>
-                  <p className="text-sm text-muted-foreground">{service.variants.length} active variant{service.variants.length === 1 ? "" : "s"}</p>
-                </div>
-                <Badge variant={service.bookingRole === "PRIMARY" ? "secondary" : "outline"}>
-                  {service.bookingRole === "PRIMARY" ? "Primary" : "Add-on"}
-                </Badge>
-              </div>
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
+        <TabsContent value="public-page" className="space-y-4">
+          <PublicBookingLinkCard legalPath={legalBookingPath} activePath={activeBookingPath} />
+          {canManagePublicBookingUrl ? (
+            <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+              <CardHeader>
+                <CardTitle>Branded booking URL</CardTitle>
+                <CardDescription>Set an optional state-prefixed URL. Leave both fields empty to use only the legal-name URL.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action={savePublicBookingUrlAction} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:items-end">
+                  <input type="hidden" name="practiceId" value={practice.id} />
+                  <div className="space-y-2">
+                    <Label htmlFor="publicBookingStateSlug">State</Label>
+                    <select
+                      id="publicBookingStateSlug"
+                      name="publicBookingStateSlug"
+                      defaultValue={practice.publicBookingStateSlug ?? ""}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="">No branded state</option>
+                      {US_STATE_OPTIONS.map(([slug, label]) => (
+                        <option key={slug} value={slug}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="publicBookingSlug">URL name</Label>
+                    <Input id="publicBookingSlug" name="publicBookingSlug" defaultValue={practice.publicBookingSlug ?? ""} placeholder="massagewithderrick" />
+                  </div>
+                  <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">Save URL</Button>
+                </form>
+              </CardContent>
+            </Card>
+          ) : (
+            <Notice title="Public URL is read-only" description="Ask a practice owner or staff member to change the branded booking URL." />
+          )}
+        </TabsContent>
+
+        <TabsContent value="providers" className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            {practice.memberships.map((provider) => {
+              const providerPolicy = providerPolicyByUserId.get(provider.userId)
+              const canManageProvider = membership.role !== "THERAPIST" || provider.userId === session.user.id
+              const displayName = provider.user.name ?? provider.user.email ?? "Provider"
+
+              return (
+                <Card key={provider.userId} className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <UserRound className="size-5 text-brand-orange" />
+                      {displayName}
+                    </CardTitle>
+                    <CardDescription>Public visibility, labels, rest gaps, account requirements, and appointment limits.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form action={saveProviderBookingPolicyAction} className="grid gap-3">
+                      <input type="hidden" name="practiceId" value={practice.id} />
+                      <input type="hidden" name="providerUserId" value={provider.userId} />
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
+                          <Checkbox name="publiclyBookable" defaultChecked={providerPolicy?.publiclyBookable ?? true} disabled={!canManageProvider} />
+                          <span>Publicly bookable</span>
+                        </label>
+                        <label className="flex items-center gap-2 rounded-md border border-border/70 bg-background/60 p-3 text-sm">
+                          <Checkbox name="requireClientAccount" defaultChecked={providerPolicy?.requireClientAccount ?? false} disabled={!canManageProvider} />
+                          <span>Require client accounts</span>
+                        </label>
+                        <div className="space-y-2">
+                          <Label>Public label</Label>
+                          <Input name="displayLabel" defaultValue={providerPolicy?.displayLabel ?? ""} placeholder={displayName} disabled={!canManageProvider} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Rest minutes between sessions</Label>
+                          <Input name="minRestMinutes" type="number" min="0" defaultValue={providerPolicy?.minRestMinutes ?? 0} disabled={!canManageProvider} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Daily appointment limit</Label>
+                          <Input name="dailyAppointmentLimit" type="number" min="1" defaultValue={providerPolicy?.dailyAppointmentLimit ?? ""} placeholder="No limit" disabled={!canManageProvider} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Weekly appointment limit</Label>
+                          <Input name="weeklyAppointmentLimit" type="number" min="1" defaultValue={providerPolicy?.weeklyAppointmentLimit ?? ""} placeholder="No limit" disabled={!canManageProvider} />
+                        </div>
+                      </div>
+                      <Button type="submit" variant="outline" disabled={!canManageProvider}>Save provider policy</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="capacity" className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            {practice.memberships.map((provider) => {
+              const canManageProvider = membership.role !== "THERAPIST" || provider.userId === session.user.id
+              const capacityRules = practice.providerBookingCapacityRules.filter((rule) => rule.providerUserId === provider.userId)
+              const displayName = provider.user.name ?? provider.user.email ?? "Provider"
+
+              return (
+                <Card key={provider.userId} className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="size-5 text-brand-orange" />
+                      {displayName}
+                    </CardTitle>
+                    <CardDescription>Massage-hour pressure capacity protects the provider&apos;s day and week.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form action={saveProviderCapacityRulesAction} className="grid gap-3">
+                      <input type="hidden" name="practiceId" value={practice.id} />
+                      <input type="hidden" name="providerUserId" value={provider.userId} />
+                      <div className="grid gap-2">
+                        {Array.from({ length: 12 }, (_, index) => {
+                          const rule = capacityRules[index]
+                          return (
+                            <div key={rule?.id ?? index} className="grid gap-2 rounded-md border border-border/70 bg-background/60 p-2 md:grid-cols-[1fr_1fr_1fr_1fr]">
+                              <Select name={`capacityPeriod${index}`} defaultValue={rule?.period ?? "WEEKLY"} disabled={!canManageProvider}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="WEEKLY">Weekly</SelectItem>
+                                  <SelectItem value="DAILY">Daily</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select name={`capacityDayOfWeek${index}`} defaultValue={String(rule?.dayOfWeek ?? -1)} disabled={!canManageProvider}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="-1">Any day</SelectItem>
+                                  {weekdays.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                              <Select name={`capacityPressureLevel${index}`} defaultValue={String(rule?.pressureLevel ?? 0)} disabled={!canManageProvider}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">Total minutes</SelectItem>
+                                  {[1, 2, 3, 4, 5].map((level) => <SelectItem key={level} value={String(level)}>Pressure {level}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                              <Input name={`capacityMaxMinutes${index}`} type="number" min="0" defaultValue={rule?.maxMinutes ?? ""} placeholder="Max minutes" disabled={!canManageProvider} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <Button type="submit" variant="outline" disabled={!canManageProvider}>Save capacity rules</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="service-roles">
+          <Card className="border-border/80 bg-card/90 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="size-5 text-brand-orange" />
+                Service role guidance
+              </CardTitle>
+              <CardDescription>Primary services start a booking. Add-ons can be chained after a primary service.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2 md:grid-cols-2">
+              {practice.serviceTypes.map((service) => (
+                <Link key={service.id} href={`/calendar/services/${service.id}`} className="rounded-md border border-border/70 bg-background/60 p-3 hover:border-brand-orange/60">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{service.name}</p>
+                      <p className="text-sm text-muted-foreground">{service.variants.length} active variant{service.variants.length === 1 ? "" : "s"}</p>
+                    </div>
+                    <Badge variant={service.bookingRole === "PRIMARY" ? "secondary" : "outline"}>
+                      {service.bookingRole === "PRIMARY" ? "Primary" : "Add-on"}
+                    </Badge>
+                  </div>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </BookingSettingsShell>
   )
 }

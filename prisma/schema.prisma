@@ -754,6 +754,8 @@ model Practice {
   publicLocationLabel String?
   publicLatitude    Float?
   publicLongitude   Float?
+  publicBookingStateSlug String?
+  publicBookingSlug String?
   createdById       String?
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
@@ -774,6 +776,8 @@ model Practice {
   bookingGroups     BookingGroup[]
   bookingWaitlistEntries BookingWaitlistEntry[]
   calendarAuditLogs CalendarAuditLog[]
+
+  @@unique([publicBookingStateSlug, publicBookingSlug])
 }
 
 model PracticeMembership {
@@ -793,14 +797,14 @@ model PracticeMembership {
 model PracticeClient {
   id           String        @id @default(cuid())
   practiceId   String
-  userId       String
+  userId       String?
   displayName  String?
   email        String?
   phone        String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   practice     Practice      @relation(fields: [practiceId], references: [id], onDelete: Cascade)
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   bookingGroups BookingGroup[]
   bookingWaitlistEntries BookingWaitlistEntry[]
@@ -1084,7 +1088,8 @@ model BookingPolicy {
   staffVisibility       BookingStaffVisibility @default(PUBLIC_LABELS)
   dualTimezoneDisplay   Boolean               @default(true)
   proximityNoticeEnabled Boolean              @default(false)
-  proximityRadiusMiles  Int                   @default(50)
+  proximityRadiusMiles  Int                   @default(45)
+  requireClientAccount  Boolean               @default(false)
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   practice              Practice              @relation(fields: [practiceId], references: [id], onDelete: Cascade)
@@ -1099,6 +1104,7 @@ model ProviderBookingPolicy {
   minRestMinutes        Int      @default(0)
   dailyAppointmentLimit Int?
   weeklyAppointmentLimit Int?
+  requireClientAccount  Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   practice              Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)

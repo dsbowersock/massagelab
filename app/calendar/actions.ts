@@ -6,12 +6,10 @@ import { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { normalizeEmail } from "@/lib/auth-security"
 import { prisma } from "@/lib/prisma"
-import { buildAvailabilitySlots, dateAtMinute, dateValue, isoDate, localDateTimeToUtc, parseTimeToMinute } from "@/lib/calendar"
+import { dateAtMinute, dateValue, localDateTimeToUtc, parseTimeToMinute } from "@/lib/calendar"
 import {
-  buildSequentialBookingOptions,
   capacityAllowsBooking,
   hasRestGapConflict,
-  normalizeBookingPolicy,
   normalizePressureLevel,
   providerAppointmentLimitAllows,
 } from "@/lib/booking-policy"
@@ -22,6 +20,7 @@ import {
   resolveAvailabilityForDate,
 } from "@/lib/calendar-availability"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
+import { MAX_PUBLIC_ADD_ONS, PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
 import {
   buildCalendarCreationPlan,
   buildCalendarNotificationIntents,
@@ -32,6 +31,11 @@ import {
 import { mergeCalendarPreferencePatch } from "@/lib/calendar-preferences"
 import { canRescheduleCalendarEvent } from "@/lib/calendar-workspace"
 import { FEATURE_KEYS, getUserEntitlementState } from "@/lib/membership"
+import {
+  normalizePublicBookingSlug,
+  normalizePublicBookingStateSlug,
+  publicBookingPathForPractice,
+} from "@/lib/public-booking-url"
 import {
   FREE_CALENDAR_LIMITS,
   buildServiceSnapshot,
@@ -49,7 +53,6 @@ const THERAPIST_ROLES = ["OWNER", "THERAPIST"] as const
 const ACTIVE_EVENT_STATUSES = ["REQUESTED", "CONFIRMED", "ACTIVE"] as const
 const CALENDAR_NOTE_SENSITIVE_PATTERN = /(soap|pain|diagnosis|assessment|treatment|transcript|intake response|journal|symptom|medical history|client condition)/i
 const NEW_APPOINTMENT_CLIENT_VALUE = "__new_client__"
-const MAX_PUBLIC_ADD_ONS = 3
 
 type CalendarDb = typeof prisma | Prisma.TransactionClient
 
@@ -172,7 +175,14 @@ async function assertPracticeTherapist(practiceId: string, therapistId: string) 
 async function getPracticeOrThrow(practiceId: string) {
   const practice = await prisma.practice.findUnique({
     where: { id: practiceId },
-    select: { id: true, name: true, slug: true, timezone: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      timezone: true,
+      publicBookingStateSlug: true,
+      publicBookingSlug: true,
+    },
   })
 
   if (!practice) {
@@ -880,26 +890,19 @@ async function writeCalendarAuditAndNotifications(
   }
 }
 
-function revalidateCalendarRoutes(practiceSlug?: string) {
+function revalidateCalendarRoutes(practiceSlug?: string, publicBookingPath?: string) {
   revalidatePath("/calendar")
   revalidatePath("/calendar/requests")
   revalidatePath("/calendar/availability")
   revalidatePath("/calendar/booking")
   revalidatePath("/book/[practiceSlug]", "page")
+  revalidatePath("/book/[stateSlug]/[bookingSlug]", "page")
   if (practiceSlug) {
     revalidatePath(`/book/${practiceSlug}`)
   }
-}
-
-function nextBookingDates(count: number, timeZone = "UTC", now = new Date()) {
-  const localStartDate = calendarDateParts(now, timeZone).date
-  const start = new Date(`${localStartDate}T00:00:00.000Z`)
-
-  return Array.from({ length: Math.max(1, count) }, (_, index) => {
-    const date = new Date(start)
-    date.setUTCDate(start.getUTCDate() + index)
-    return isoDate(date)
-  })
+  if (publicBookingPath) {
+    revalidatePath(publicBookingPath)
+  }
 }
 
 function parseOptionalPositive(formData: FormData, key: string) {
@@ -956,7 +959,8 @@ export async function saveBookingPolicyAction(formData: FormData) {
         staffVisibility,
         dualTimezoneDisplay: fieldBoolean(formData, "dualTimezoneDisplay"),
         proximityNoticeEnabled: fieldBoolean(formData, "proximityNoticeEnabled"),
-        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 50)),
+        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 45)),
+        requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
       },
       update: {
         enabled: fieldBoolean(formData, "enabled"),
@@ -969,12 +973,81 @@ export async function saveBookingPolicyAction(formData: FormData) {
         staffVisibility,
         dualTimezoneDisplay: fieldBoolean(formData, "dualTimezoneDisplay"),
         proximityNoticeEnabled: fieldBoolean(formData, "proximityNoticeEnabled"),
-        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 50)),
+        proximityRadiusMiles: Math.max(1, fieldInteger(formData, "proximityRadiusMiles", 45)),
+        requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
       },
     })
   })
 
-  revalidateCalendarRoutes(practice.slug)
+  revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
+  redirect("/calendar/booking")
+}
+
+export async function savePublicBookingUrlAction(formData: FormData) {
+  const userId = await currentUserId()
+  await assertCalendarDatabaseReady()
+  const practiceId = fieldString(formData, "practiceId")
+  const membership = await assertPracticeAccess(practiceId, userId, STAFF_ROLES)
+  const practice = await getPracticeOrThrow(practiceId)
+  const therapistCount = await prisma.practiceMembership.count({
+    where: {
+      practiceId,
+      role: { in: ["OWNER", "THERAPIST"] },
+    },
+  })
+  const canManagePublicBookingUrl = ["OWNER", "STAFF"].includes(membership.role) || (
+    membership.role === "THERAPIST" && therapistCount === 1
+  )
+
+  if (!canManagePublicBookingUrl) {
+    throw new Error("Only owners and staff can manage public booking links.")
+  }
+
+  const requestedStateSlug = fieldString(formData, "publicBookingStateSlug")
+  const requestedBookingSlug = fieldString(formData, "publicBookingSlug")
+  const publicBookingStateSlug = normalizePublicBookingStateSlug(requestedStateSlug)
+  const publicBookingSlug = normalizePublicBookingSlug(requestedBookingSlug)
+
+  if (!requestedStateSlug && !requestedBookingSlug) {
+    await prisma.practice.update({
+      where: { id: practiceId },
+      data: {
+        publicBookingStateSlug: null,
+        publicBookingSlug: null,
+      },
+    })
+    revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
+    redirect("/calendar/booking")
+  }
+
+  if (!publicBookingStateSlug) {
+    throw new Error("Choose a state before saving a branded booking URL.")
+  }
+  if (!publicBookingSlug || publicBookingSlug.length < 3) {
+    throw new Error("Choose a branded booking URL name with at least three letters or numbers.")
+  }
+
+  const existing = await prisma.practice.findFirst({
+    where: {
+      publicBookingStateSlug,
+      publicBookingSlug,
+      NOT: { id: practiceId },
+    },
+    select: { id: true },
+  })
+  if (existing) {
+    throw new Error("That public booking URL is already in use in this state.")
+  }
+
+  await prisma.practice.update({
+    where: { id: practiceId },
+    data: {
+      publicBookingStateSlug,
+      publicBookingSlug,
+    },
+  })
+
+  revalidateCalendarRoutes(practice.slug, `/book/${publicBookingStateSlug}/${publicBookingSlug}`)
   redirect("/calendar/booking")
 }
 
@@ -1003,6 +1076,7 @@ export async function saveProviderBookingPolicyAction(formData: FormData) {
       minRestMinutes: Math.max(0, fieldInteger(formData, "minRestMinutes", 0)),
       dailyAppointmentLimit: parseOptionalPositive(formData, "dailyAppointmentLimit"),
       weeklyAppointmentLimit: parseOptionalPositive(formData, "weeklyAppointmentLimit"),
+      requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
     },
     update: {
       publiclyBookable: fieldBoolean(formData, "publiclyBookable"),
@@ -1010,10 +1084,11 @@ export async function saveProviderBookingPolicyAction(formData: FormData) {
       minRestMinutes: Math.max(0, fieldInteger(formData, "minRestMinutes", 0)),
       dailyAppointmentLimit: parseOptionalPositive(formData, "dailyAppointmentLimit"),
       weeklyAppointmentLimit: parseOptionalPositive(formData, "weeklyAppointmentLimit"),
+      requireClientAccount: fieldBoolean(formData, "requireClientAccount"),
     },
   })
 
-  revalidateCalendarRoutes(practice.slug)
+  revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
   redirect("/calendar/booking")
 }
 
@@ -1058,254 +1133,44 @@ export async function saveProviderCapacityRulesAction(formData: FormData) {
     }
   })
 
-  revalidateCalendarRoutes(practice.slug)
+  revalidateCalendarRoutes(practice.slug, publicBookingPathForPractice(practice))
   redirect("/calendar/booking")
 }
 
-async function publicBookingSequenceOptions({
-  practiceId,
-  primaryServiceVariantId,
-  addOnServiceVariantIds,
-  requestedPressureLevel,
-  preferredProviderId = "",
-  now = new Date(),
-  maxOptions = 12,
-}: {
-  practiceId: string
-  primaryServiceVariantId: string
-  addOnServiceVariantIds: string[]
-  requestedPressureLevel: number
-  preferredProviderId?: string
-  now?: Date
-  maxOptions?: number
-}) {
-  const pressureLevel = normalizePressureLevel(requestedPressureLevel)
-  if (!pressureLevel) {
-    throw new Error("Choose a pressure preference from 1 to 5.")
-  }
-
-  const practice = await prisma.practice.findUnique({
-    where: { id: practiceId },
-    include: {
-      bookingPolicy: true,
-      memberships: {
-        where: { role: { in: ["OWNER", "THERAPIST"] } },
-        include: { user: { select: { name: true, email: true } } },
-        orderBy: { createdAt: "asc" },
-      },
-      providerBookingPolicies: true,
-    },
-  })
-
-  if (!practice) {
-    throw new Error("Choose a valid practice calendar.")
-  }
-
-  const policy = normalizeBookingPolicy(practice.bookingPolicy)
-  if (!policy.enabled) {
-    return { practice, policy, variants: [], selections: [], providers: [], options: [] }
-  }
-
-  const variantIds = [...new Set([primaryServiceVariantId, ...addOnServiceVariantIds].filter(Boolean))].slice(0, 5)
-  const variants = await prisma.serviceVariant.findMany({
-    where: {
-      id: { in: variantIds },
-      active: true,
-      clientVisible: true,
-      serviceType: {
-        practiceId,
-        active: true,
-        clientVisible: true,
-      },
-    },
-    include: {
-      serviceType: true,
-      resourceRequirements: {
-        include: { resource: true },
-      },
-    },
-  })
-  const variantById = new Map(variants.map((variant) => [variant.id, variant]))
-  const orderedVariants = variantIds.map((id) => variantById.get(id)).filter(Boolean) as ServiceVariantForScheduling[]
-  if (orderedVariants.length !== variantIds.length || orderedVariants.length === 0) {
-    throw new Error("Choose available booking services.")
-  }
-
-  const primary = orderedVariants[0]
-  if (primary.serviceType.bookingRole !== "PRIMARY") {
-    throw new Error("Choose a primary service before add-ons.")
-  }
-  if (orderedVariants.slice(1).some((variant) => variant.serviceType.bookingRole !== "ADD_ON")) {
-    throw new Error("Only add-on services can be added after the primary service.")
-  }
-
-  const providerPolicyByUserId = new Map(practice.providerBookingPolicies.map((policyRow) => [policyRow.providerUserId, policyRow]))
-  const showStaffLabels = policy.staffVisibility === "PUBLIC_LABELS"
-  const providers = practice.memberships.map((membership) => {
-    const providerPolicy = providerPolicyByUserId.get(membership.userId)
-    const fallbackLabel = membership.user.name ?? membership.user.email ?? "Provider"
-    return {
-      userId: membership.userId,
-      label: showStaffLabels ? (providerPolicy?.displayLabel || fallbackLabel) : "Available provider",
-      publiclyBookable: providerPolicy?.publiclyBookable ?? true,
-      minRestMinutes: providerPolicy?.minRestMinutes ?? 0,
-      dailyAppointmentLimit: providerPolicy?.dailyAppointmentLimit ?? null,
-      weeklyAppointmentLimit: providerPolicy?.weeklyAppointmentLimit ?? null,
-    }
-  })
-
-  const [rules, schedules, overrides, blockingEvents, resourceBookings, capacityRules, existingAppointments] = await Promise.all([
-    prisma.therapistAvailabilityRule.findMany({
-      where: { practiceId, active: true },
-    }),
-    prisma.calendarAvailabilitySchedule.findMany({
-      where: { practiceId, active: true },
-      include: { intervals: true },
-      orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }],
-    }),
-    prisma.calendarAvailabilityOverride.findMany({
-      where: { practiceId },
-      include: { intervals: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.calendarEvent.findMany({
-      where: {
-        practiceId,
-        blocksAvailability: true,
-        status: { in: [...ACTIVE_EVENT_STATUSES] },
-        endsAt: { gte: now },
-      },
-      select: { ownerUserId: true, startsAt: true, endsAt: true },
-    }),
-    prisma.calendarResourceBooking.findMany({
-      where: {
-        resource: { practiceId },
-        endsAt: { gte: now },
-        event: {
-          blocksAvailability: true,
-          status: { in: [...ACTIVE_EVENT_STATUSES] },
-        },
-      },
-      select: { resourceId: true, startsAt: true, endsAt: true },
-    }),
-    prisma.providerBookingCapacityRule.findMany({
-      where: { practiceId, active: true },
-    }),
-    prisma.appointment.findMany({
-      where: {
-        practiceId,
-        status: { in: ["REQUESTED", "CONFIRMED"] },
-        endsAt: { gte: now },
-      },
-      select: {
-        therapistId: true,
-        startsAt: true,
-        endsAt: true,
-        status: true,
-        requestedPressureLevel: true,
-        massageCapacityMinutes: true,
-      },
-    }),
-  ])
-
-  const dates = nextBookingDates(policy.maxAdvanceDays, practice.timezone, now)
-  const cutoff = new Date(now.getTime() + policy.minNoticeMinutes * 60_000)
-  const slotsByVariantAndProvider: Record<string, Array<{ startsAt: Date }>> = {}
-
-  for (const variant of orderedVariants) {
-    const variantResourceIds = serviceResourceIds(variant)
-    const variantResourceBlocks = resourceBookings.filter((booking) => variantResourceIds.includes(booking.resourceId))
-    const eligibleProviders = providers.filter((provider) => (
-      provider.publiclyBookable &&
-      (variant.serviceType.eligibleProviderIds.length === 0 || variant.serviceType.eligibleProviderIds.includes(provider.userId))
-    ))
-
-    for (const provider of eligibleProviders) {
-      const therapistRules = rules.filter((rule) => rule.therapistId === provider.userId)
-      const therapistSchedules = schedules
-        .filter((schedule) => schedule.therapistId === provider.userId)
-        .map((schedule) => ({
-          active: schedule.active,
-          effectiveFrom: schedule.effectiveFrom,
-          effectiveTo: schedule.effectiveTo,
-          intervals: schedule.intervals,
-        }))
-      const therapistOverrides = overrides
-        .filter((override) => override.therapistId === provider.userId)
-        .map((override) => ({
-          date: override.date,
-          kind: override.kind,
-          intervals: override.intervals,
-        }))
-      const therapistBlocks = blockingEvents.filter((event) => event.ownerUserId === provider.userId)
-      const slots = dates.flatMap((date) => {
-        const resolvedAvailability = resolveAvailabilityForDate({
-          date,
-          weeklyRules: therapistRules,
-          schedules: therapistSchedules,
-          overrides: therapistOverrides,
-        })
-        const dayOfWeek = new Date(`${date}T00:00:00.000Z`).getUTCDay()
-        return buildAvailabilitySlots({
-          date,
-          serviceDurationMinutes: serviceVariantBookableMinutes(variant),
-          now: cutoff,
-          rules: resolvedAvailability.intervals.map((interval) => ({
-            dayOfWeek,
-            startMinute: interval.startMinute,
-            endMinute: interval.endMinute,
-            active: true,
-          })),
-          blocks: [...therapistBlocks, ...variantResourceBlocks],
-          appointments: [],
-          timeZone: practice.timezone,
-        })
-      })
-
-      slotsByVariantAndProvider[`${variant.id}:${provider.userId}`] = slots
-    }
-  }
-
-  const selections = orderedVariants.map((variant) => ({
-    serviceVariantId: variant.id,
-    serviceName: variant.serviceType.name,
-    serviceVariantName: variant.name,
-    bookingRole: variant.serviceType.bookingRole,
-    bookableMinutes: serviceVariantBookableMinutes(variant),
-    durationMinutes: variant.durationMinutes,
-    massageCapacityMinutes: variant.serviceType.countsTowardMassageCapacity ? variant.durationMinutes : 0,
-    countsTowardMassageCapacity: variant.serviceType.countsTowardMassageCapacity,
-    eligibleProviderIds: variant.serviceType.eligibleProviderIds,
-  }))
-
-  const options = buildSequentialBookingOptions({
-    practiceId,
-    timeZone: practice.timezone,
-    pressureLevel,
-    policy,
-    providers,
-    selections,
-    slotsByVariantAndProvider,
-    capacityRules,
-    existingBookings: existingAppointments.map((appointment) => ({
-      providerUserId: appointment.therapistId,
-      startsAt: appointment.startsAt,
-      endsAt: appointment.endsAt,
-      status: appointment.status,
-      requestedPressureLevel: appointment.requestedPressureLevel,
-      massageCapacityMinutes: appointment.massageCapacityMinutes,
-    })),
-    preferredProviderId: preferredProviderId || null,
-    maxOptions,
-  })
-
-  return { practice, policy, variants: orderedVariants, selections, providers, options }
+type BookingClientIdentity = {
+  userId: string | null
+  guestName?: string
+  guestEmail?: string
+  guestPhone?: string
+  practiceClientId?: string
 }
 
-async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practiceId: string, userId: string, practiceClientId?: string) {
-  if (practiceClientId) {
+function publicBookingClientIdentity(formData: FormData, userId: string | null): BookingClientIdentity {
+  if (userId) {
+    return { userId }
+  }
+
+  const guestName = fieldString(formData, "guestName")
+  const guestEmail = normalizeEmail(fieldString(formData, "guestEmail"))
+  const guestPhone = fieldString(formData, "guestPhone")
+
+  if (!guestName) {
+    throw new Error("Enter your name before requesting an appointment.")
+  }
+  if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+    throw new Error("Enter a valid email before requesting an appointment.")
+  }
+  if (!guestPhone) {
+    throw new Error("Enter your phone number before requesting an appointment.")
+  }
+
+  return { userId: null, guestName, guestEmail, guestPhone }
+}
+
+async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practiceId: string, identity: BookingClientIdentity) {
+  if (identity.practiceClientId) {
     const existing = await tx.practiceClient.findFirst({
-      where: { id: practiceClientId, practiceId },
+      where: { id: identity.practiceClientId, practiceId },
       select: { id: true, userId: true },
     })
     if (!existing) {
@@ -1314,8 +1179,39 @@ async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practic
     return existing
   }
 
+  if (!identity.userId) {
+    const existingGuest = await tx.practiceClient.findFirst({
+      where: {
+        practiceId,
+        userId: null,
+        email: identity.guestEmail,
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+    if (existingGuest) {
+      return tx.practiceClient.update({
+        where: { id: existingGuest.id },
+        data: {
+          displayName: identity.guestName,
+          email: identity.guestEmail,
+          phone: identity.guestPhone,
+        },
+      })
+    }
+
+    return tx.practiceClient.create({
+      data: {
+        practiceId,
+        userId: null,
+        displayName: identity.guestName,
+        email: identity.guestEmail,
+        phone: identity.guestPhone,
+      },
+    })
+  }
+
   const user = await tx.user.findUnique({
-    where: { id: userId },
+    where: { id: identity.userId },
     select: { name: true, email: true },
   })
 
@@ -1323,12 +1219,12 @@ async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practic
     where: {
       practiceId_userId: {
         practiceId,
-        userId,
+        userId: identity.userId,
       },
     },
     create: {
       practiceId,
-      userId,
+      userId: identity.userId,
       displayName: user?.name ?? null,
       email: user?.email ?? null,
     },
@@ -1429,6 +1325,7 @@ async function assertProviderBookingPolicyLimits({
 
 async function createBookingSequenceMutation({
   userId,
+  clientIdentity,
   practiceId,
   primaryServiceVariantId,
   addOnServiceVariantIds,
@@ -1439,7 +1336,8 @@ async function createBookingSequenceMutation({
   forceStatus,
   waitlistEntryId,
 }: {
-  userId: string
+  userId: string | null
+  clientIdentity?: BookingClientIdentity
   practiceId: string
   primaryServiceVariantId: string
   addOnServiceVariantIds: string[]
@@ -1456,8 +1354,12 @@ async function createBookingSequenceMutation({
     addOnServiceVariantIds,
     requestedPressureLevel,
     preferredProviderId,
-    maxOptions: 80,
+    viewerUserId: userId,
+    maxOptions: PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS,
   })
+  if (!userId && !context.allowGuestBooking) {
+    throw new Error("Sign in before requesting an appointment with this practice.")
+  }
   const requestedStart = startsAt.toISOString()
   const option = context.options.find((candidate: { startsAt: string }) => candidate.startsAt === requestedStart)
   if (!option) {
@@ -1477,7 +1379,7 @@ async function createBookingSequenceMutation({
   })
 
   await prisma.$transaction(async (tx) => {
-    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, userId, practiceClientId)
+    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity ?? { userId, practiceClientId })
     const bookingGroup = await tx.bookingGroup.create({
       data: {
         practiceId,
@@ -1619,12 +1521,14 @@ async function createBookingSequenceMutation({
     }
   })
 
-  revalidateCalendarRoutes(context.practice.slug)
-  return context.practice.slug
+  const publicBookingPath = publicBookingPathForPractice(context.practice)
+  revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+  return publicBookingPath
 }
 
 export async function requestBookingSequenceAction(formData: FormData) {
-  const userId = await currentUserId()
+  const session = await getCurrentSession()
+  const userId = session?.user?.id ?? null
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
@@ -1636,9 +1540,11 @@ export async function requestBookingSequenceAction(formData: FormData) {
   if (!practiceId || !primaryServiceVariantId || !pressureLevel || !startsAt) {
     throw new Error("Choose a service, pressure preference, and available time.")
   }
+  const clientIdentity = publicBookingClientIdentity(formData, userId)
 
-  const slug = await createBookingSequenceMutation({
+  const publicBookingPath = await createBookingSequenceMutation({
     userId,
+    clientIdentity,
     practiceId,
     primaryServiceVariantId,
     addOnServiceVariantIds,
@@ -1647,11 +1553,12 @@ export async function requestBookingSequenceAction(formData: FormData) {
     preferredProviderId,
   })
 
-  redirect(`/book/${slug}?booking=requested`)
+  redirect(`${publicBookingPath}?booking=requested`)
 }
 
 export async function joinBookingWaitlistAction(formData: FormData) {
-  const userId = await currentUserId()
+  const session = await getCurrentSession()
+  const userId = session?.user?.id ?? null
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const primaryServiceVariantId = fieldString(formData, "primaryServiceVariantId")
@@ -1663,6 +1570,7 @@ export async function joinBookingWaitlistAction(formData: FormData) {
   if (!practiceId || !primaryServiceVariantId || !pressureLevel) {
     throw new Error("Choose a service and pressure preference before joining the waitlist.")
   }
+  const clientIdentity = publicBookingClientIdentity(formData, userId)
 
   const context = await publicBookingSequenceOptions({
     practiceId,
@@ -1670,15 +1578,19 @@ export async function joinBookingWaitlistAction(formData: FormData) {
     addOnServiceVariantIds,
     requestedPressureLevel: pressureLevel,
     preferredProviderId,
+    viewerUserId: userId,
     maxOptions: 1,
   })
 
+  if (!userId && !context.allowGuestBooking) {
+    throw new Error("Sign in before joining this practice waitlist.")
+  }
   if (context.options.length > 0) {
     throw new Error("Choose an available appointment time before joining the waitlist.")
   }
 
   await prisma.$transaction(async (tx) => {
-    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, userId)
+    const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity)
     await tx.bookingWaitlistEntry.create({
       data: {
         practiceId,
@@ -1693,8 +1605,9 @@ export async function joinBookingWaitlistAction(formData: FormData) {
     })
   })
 
-  revalidateCalendarRoutes(context.practice.slug)
-  redirect(`/book/${context.practice.slug}?waitlist=joined`)
+  const publicBookingPath = publicBookingPathForPractice(context.practice)
+  revalidateCalendarRoutes(context.practice.slug, publicBookingPath)
+  redirect(`${publicBookingPath}?waitlist=joined`)
 }
 
 export async function convertWaitlistEntryAction(formData: FormData) {
@@ -2460,7 +2373,7 @@ async function createAppointmentMutation(formData: FormData) {
       eventId: event.id,
       actorUserId: userId,
       action: plan.auditAction,
-      recipientUserIds: [practiceClient.userId, therapistId],
+      recipientUserIds: [practiceClient.userId, therapistId].filter((recipientUserId): recipientUserId is string => Boolean(recipientUserId)),
       payload: { title, serviceCount: composition.items.length, therapistId, practiceClientId: practiceClient.id, resourceIds },
     })
   })
@@ -2911,7 +2824,7 @@ export async function updateAppointmentRequestStatusAction(formData: FormData) {
       eventId: appointment.eventId,
       actorUserId: userId,
       action: auditAction,
-      recipientUserIds: [appointment.practiceClient.userId, appointment.therapistId],
+      recipientUserIds: [appointment.practiceClient.userId, appointment.therapistId].filter((recipientUserId): recipientUserId is string => Boolean(recipientUserId)),
       payload: { action: notificationAction, title: appointment.serviceName ?? appointment.serviceType.name, appointmentId: appointment.id },
     })
   })

@@ -145,6 +145,7 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
   const isHomePage = pathname === "/"
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
+  const isPublicBookingRoute = pathname.startsWith("/book/")
   const showRouteWordmark = !isHomePage && !isCalendarOperatorRoute
   const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
   const hasPortraitBar = renderMode === "drawer" && !isCalendarOperatorRoute
@@ -257,7 +258,7 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
           ref={contentRef}
           className={cn(
             "ml-app-content mx-auto w-full",
-            isCalendarOperatorRoute ? "max-w-none" : "max-w-screen-2xl",
+            isCalendarOperatorRoute || isPublicBookingRoute ? "max-w-none" : "max-w-screen-2xl",
             isCalendarWorkspaceRoute && "h-full min-h-0 pb-0",
             hasPortraitBar && portraitBarAtBottom && "pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]",
             hasPortraitBar && !portraitBarAtBottom
