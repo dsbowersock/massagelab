@@ -211,11 +211,11 @@ function BookingShell({ practiceName, children }: { practiceName: string; childr
     <div className="min-h-screen bg-transparent pb-4 pt-2 sm:pb-6 sm:pt-3 lg:pb-8 lg:pt-4">
       <div className="space-y-5">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-start justify-between gap-4 lg:gap-6">
-            <div className="min-w-0 flex-1 basis-80">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 lg:gap-x-6">
+            <div id="public-booking-step-indicators" className="order-2 hidden w-full min-[760px]:block min-[900px]:order-1 min-[900px]:w-auto" />
+            <div className="order-1 ml-auto min-w-0 max-w-full text-right min-[900px]:order-2 min-[900px]:flex-1 min-[900px]:basis-80">
               <p className="text-sm font-medium text-brand-orange">Online booking with</p>
               <h1 className="text-3xl font-semibold tracking-normal text-foreground">{practiceName}</h1>
-              <div id="public-booking-step-indicators" className="mt-4 hidden min-[960px]:block" />
             </div>
           </div>
         </div>

@@ -330,7 +330,7 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
   return (
     <div className="grid w-full gap-4">
       {heroStepIndicatorTarget ? createPortal(<BookingStepBadges activeStep={activeStep} />, heroStepIndicatorTarget) : null}
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 min-[960px]:hidden">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 min-[760px]:hidden">
         <BookingStepBadges activeStep={activeStep} />
       </div>
 
