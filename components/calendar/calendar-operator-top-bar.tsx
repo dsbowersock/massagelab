@@ -30,13 +30,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -237,21 +230,10 @@ function CalendarDrawerButton({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [selectedTherapistId, setSelectedTherapistId] = useState("")
   const { calendarContext } = useSidebarCalendarContext()
   const pendingAppointmentRequestCount = calendarContext.pendingAppointmentRequestCount ?? 0
   const openWaitlistEntryCount = calendarContext.openWaitlistEntryCount ?? 0
   const hasActionableRequests = pendingAppointmentRequestCount > 0 || openWaitlistEntryCount > 0
-
-  useEffect(() => {
-    setSelectedTherapistId((current) => {
-      if (current && calendarContext.therapists.some((therapist) => therapist.id === current)) {
-        return current
-      }
-
-      return calendarContext.therapists[0]?.id ?? ""
-    })
-  }, [calendarContext.therapists])
 
   const updateOpen = useCallback((nextOpen: boolean) => {
     setOpen(nextOpen)
@@ -340,21 +322,6 @@ function CalendarDrawerButton({
             </div>
           ) : (
             <>
-              {calendarContext.therapists.length > 1 && (
-                <Select value={selectedTherapistId} onValueChange={setSelectedTherapistId}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Practitioner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {calendarContext.therapists.map((therapist) => (
-                      <SelectItem key={therapist.id} value={therapist.id}>
-                        {therapist.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
               <Calendar
                 mode="single"
                 selected={selectedDate}

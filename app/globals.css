@@ -457,7 +457,7 @@
   }
 
   html[data-theme-transition="toggle-light"]::view-transition-old(root) {
-    animation: none;
+    animation-name: none;
   }
 
   html[data-theme-transition="toggle-light"]::view-transition-new(root) {

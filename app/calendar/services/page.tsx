@@ -56,7 +56,11 @@ export default async function ServicesPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {services.length > 0 ? services.map((service) => (
-            <Link key={service.id} href={`/calendar/services/${service.id}`}>
+            <Link
+              key={service.id}
+              href={`/calendar/services/${service.id}`}
+              className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               <AppInset className="block p-4 transition hover:border-brand-orange/60">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

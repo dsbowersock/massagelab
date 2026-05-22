@@ -124,7 +124,7 @@ const SidebarProvider = React.forwardRef<
           const isTextInput =
             activeElement instanceof HTMLInputElement ||
             activeElement instanceof HTMLTextAreaElement ||
-            activeElement?.getAttribute("contenteditable") === "true" ||
+            (activeElement instanceof HTMLElement && activeElement.isContentEditable) ||
             activeElement?.getAttribute("role") === "textbox"
 
           if (!isTextInput) {

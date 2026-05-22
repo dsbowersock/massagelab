@@ -33,10 +33,11 @@ describe("Navigation IA model", () => {
     assert.deepEqual(secondaryNavigationRoutes.map((route) => route.href), [])
     assert.deepEqual(accountMenuRoutes.map((route) => route.href), [
       "/account",
-      "/account",
+      "/account?tab=app-settings",
       "/account?tab=security",
       "/support",
     ])
+    assert.equal(new Set(accountMenuRoutes.map((route) => route.href)).size, accountMenuRoutes.length)
     assert.deepEqual(accountMenuRoutes.map((route) => route.label), ["Account", "Settings", "Security", "User Support"])
 
     const primaryHrefs = primaryNavigationGroups.flatMap((group) => group.routes.map((route) => route.href))
