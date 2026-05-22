@@ -2,9 +2,8 @@ import Link from "next/link"
 import { hashToken, isTokenUsable } from "@/lib/auth-security"
 import { ensureUserRole } from "@/lib/auth-users"
 import { prisma } from "@/lib/prisma"
+import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
 
 export default async function VerifyEmailPage({
   searchParams,
@@ -44,21 +43,12 @@ export default async function VerifyEmailPage({
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-xl space-y-6">
-        <PageHeading>Email Verification</PageHeading>
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </CardHeader>
-          <CardContent>
+    <AppPageShell title="Email Verification" width="narrow">
+        <AppSurface title={title} description={description}>
             <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href={verified ? "/login?verified=1" : "/login"}>Go to login</Link>
             </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        </AppSurface>
+    </AppPageShell>
   )
 }

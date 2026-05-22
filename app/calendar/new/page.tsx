@@ -3,8 +3,8 @@ import { CalendarDays, CalendarOff, ClipboardList, Plus, Settings2, UsersRound }
 import { getCurrentSession } from "@/auth"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarOperatorShell } from "../calendar-operator-shell"
 
 const flowCards = [
@@ -90,32 +90,32 @@ export default async function NewCalendarItemPage({
 
   return (
     <CalendarCreateShell>
-      <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-        <CardHeader>
-          <CardTitle>{membership.practice.name}</CardTitle>
-          <CardDescription>
+      <AppSurface
+        title={membership.practice.name}
+        description={
+          <>
             Create scheduling metadata only. Do not add SOAP notes, pain maps, transcripts, or clinical details to calendar payloads.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+          </>
+        }
+        className={appCalloutClassName}
+      />
 
       <div className="grid gap-4 md:grid-cols-2">
         {flowCards.map((flow) => {
           const Icon = flow.icon
 
           return (
-            <Card key={flow.href} className="border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
-              <CardHeader>
-                <Icon className="mb-2 h-5 w-5 text-brand-orange" aria-hidden="true" />
-                <CardTitle>{flow.title}</CardTitle>
-                <CardDescription>{flow.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <AppSurface
+              key={flow.href}
+              title={flow.title}
+              description={flow.description}
+              icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+              className="transition-colors hover:bg-accent"
+            >
                 <Button asChild variant="outline">
                   <Link href={withStartsAt(flow.href)}>Open</Link>
                 </Button>
-              </CardContent>
-            </Card>
+            </AppSurface>
           )
         })}
       </div>
@@ -137,12 +137,5 @@ function CalendarCreateShell({ children }: { children: React.ReactNode }) {
 }
 
 function CalendarCard({ title, description }: { title: string; description: string }) {
-  return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  )
+  return <AppSurface title={title} description={description} />
 }

@@ -1,6 +1,7 @@
 "use client"
 
-import { Layout, Moon, PanelLeft, Sun, UserRound } from "lucide-react"
+import { Layout, Monitor, Moon, PanelLeft, Sun, UserRound } from "lucide-react"
+import type { ThemeMode } from "@/components/providers/settings-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
 import { getSidebarButtonPosition, resolveSidebarButtonSettings } from "@/lib/app-settings"
@@ -35,6 +36,12 @@ const sidebarButtonPositions = [
 ]
 
 const themeModes = [
+  {
+    value: "system",
+    label: "System",
+    description: "Follow this device's light or dark preference.",
+    icon: Monitor,
+  },
   {
     value: "dark",
     label: "Dark",
@@ -96,8 +103,8 @@ export function AccountAppSettingsPanel() {
       >
         <RadioGroup
           value={settings.themeMode}
-          onValueChange={(value) => updateSettings({ themeMode: value as "dark" | "light" })}
-          className="grid gap-3 sm:grid-cols-2"
+          onValueChange={(value) => updateSettings({ themeMode: value as ThemeMode })}
+          className="grid gap-3 sm:grid-cols-3"
         >
           {themeModes.map((option) => {
             const Icon = option.icon

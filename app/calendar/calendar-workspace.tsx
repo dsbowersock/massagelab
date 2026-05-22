@@ -132,12 +132,14 @@ export function CalendarWorkspace({
   providerAvailability,
   preferences,
   currentUserId,
+  initialDate,
 }: {
   events: WorkspaceEvent[]
   providers: WorkspaceProvider[]
   providerAvailability: ProviderAvailabilityInterval[]
   preferences: CalendarPreferences
   currentUserId: string
+  initialDate?: string
 }) {
   const calendarRef = useRef<FullCalendar | null>(null)
   const splitRefs = useRef<Record<string, FullCalendar | null>>({})
@@ -299,6 +301,13 @@ export function CalendarWorkspace({
     scrollCalendarsToUsefulTime()
   }, [calendarApis, scrollCalendarsToUsefulTime])
 
+  useEffect(() => {
+    if (!initialDate) return
+
+    const animationFrame = window.requestAnimationFrame(() => gotoDate(initialDate))
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [gotoDate, initialDate])
+
   const updateProviderViewMode = useCallback((value: string) => {
     const nextMode = hasMultipleProviders ? value : "only-me"
     setProviderViewMode(nextMode)
@@ -396,6 +405,7 @@ export function CalendarWorkspace({
           }}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView={viewName}
+          initialDate={initialDate}
           views={{
             timeGridFiveDay: {
               type: "timeGrid",

@@ -6,6 +6,7 @@ import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { normalizeCalendarPreferences } from "@/lib/calendar-preferences"
 import { buildCalendarWorkspaceEvent } from "@/lib/calendar-workspace"
 import { prisma } from "@/lib/prisma"
+import { AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,24 +18,21 @@ import { CalendarWorkspace } from "./calendar-workspace"
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ practice?: string }>
+  searchParams?: Promise<{ practice?: string; date?: string }>
 }) {
   const session = await getCurrentSession()
 
   if (!session?.user?.id) {
     return (
       <CalendarShell>
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Sign in to use practice scheduling</CardTitle>
-            <CardDescription>Calendar data is cloud-backed practice metadata. Clinical notes remain local-first.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <AppSurface
+          title="Sign in to use practice scheduling"
+          description="Calendar data is cloud-backed practice metadata. Clinical notes remain local-first."
+        >
             <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/login">Go to login</Link>
             </Button>
-          </CardContent>
-        </Card>
+        </AppSurface>
       </CalendarShell>
     )
   }
@@ -47,7 +45,9 @@ export default async function CalendarPage({
     )
   }
 
-  const selectedPracticeId = (await searchParams)?.practice
+  const params = await searchParams
+  const selectedPracticeId = params?.practice
+  const requestedDate = normalizeCalendarDateParam(params?.date)
   let memberships
 
   try {
@@ -69,7 +69,7 @@ export default async function CalendarPage({
   if (memberships.length === 0) {
     return (
       <CalendarShell>
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+        <Card className={appSurfaceClassName}>
           <CardHeader>
             <CardTitle>Create a practice calendar</CardTitle>
             <CardDescription>This creates a small-practice scheduling workspace with you as owner.</CardDescription>
@@ -186,6 +186,7 @@ export default async function CalendarPage({
         providerAvailability={providerAvailability}
         preferences={preferences}
         currentUserId={session.user.id}
+        initialDate={requestedDate}
       />
     </CalendarShell>
   )
@@ -197,14 +198,35 @@ function CalendarShell({ children }: { children: React.ReactNode }) {
 
 function CalendarUnavailableNotice() {
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Calendar is temporarily unavailable</CardTitle>
-        <CardDescription>Practice scheduling is not available right now.</CardDescription>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">
+    <AppSurface
+      title="Calendar is temporarily unavailable"
+      description="Practice scheduling is not available right now."
+      contentClassName="text-sm text-muted-foreground"
+    >
         <p>Please try again later or contact support if this keeps happening.</p>
-      </CardContent>
-    </Card>
+    </AppSurface>
   )
+}
+
+function normalizeCalendarDateParam(value: unknown) {
+  if (typeof value !== "string") return undefined
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return undefined
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(0, month - 1, day))
+  date.setUTCFullYear(year)
+
+  if (
+    date.getUTCFullYear() !== year
+    || date.getUTCMonth() !== month - 1
+    || date.getUTCDate() !== day
+  ) {
+    return undefined
+  }
+
+  return value
 }

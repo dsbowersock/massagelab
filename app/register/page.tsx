@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 
 function safeCallbackUrl(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account"
@@ -46,17 +45,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-xl space-y-6">
-        <PageHeading>Create Account</PageHeading>
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Email account</CardTitle>
-            <CardDescription>
+    <AppPageShell title="Create Account" width="narrow">
+        <AppSurface
+          title="Email account"
+          description={
+            <>
               Verify your email before signing in. If you already used Google, sign in and set an email password from Security.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
+            </>
+          }
+          contentClassName="gap-5"
+        >
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
@@ -74,7 +72,7 @@ export default function RegisterPage() {
                 Create account
               </Button>
             </form>
-            {status && <p className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm text-muted-foreground">{status}</p>}
+            {status && <AppInset className="p-3 text-sm text-muted-foreground">{status}</AppInset>}
             {devLink && (
               <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
                 Development verification link: <Link className="underline" href={devLink}>{devLink}</Link>
@@ -88,9 +86,7 @@ export default function RegisterPage() {
                 Set or reset password
               </Link>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        </AppSurface>
+    </AppPageShell>
   )
 }

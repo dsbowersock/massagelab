@@ -12,9 +12,9 @@ import { Review } from "./components/review"
 import { SubjectiveInfo } from "./components/subjective-info"
 import { TranscriptReview } from "./components/transcript-review"
 import type { PainMapSelection, TranscriptSegment } from "./types"
+import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -391,11 +391,8 @@ export default function SoapNotesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <PageHeading>S.O.A.P. Notes</PageHeading>
-
-        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
+    <AppPageShell title="S.O.A.P. Notes" width="standard">
+        <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
@@ -407,7 +404,7 @@ export default function SoapNotesPage() {
           </CardHeader>
         </Card>
 
-        <Card className="bg-card/90 p-6 backdrop-blur">
+        <Card className={`${appSurfaceClassName} p-6`}>
           <div className="space-y-6">
             <div className="space-y-3">
               <div className="hidden md:block">
@@ -501,7 +498,6 @@ export default function SoapNotesPage() {
             {message && <p className="text-sm text-brand-orange">{message}</p>}
           </div>
         </Card>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

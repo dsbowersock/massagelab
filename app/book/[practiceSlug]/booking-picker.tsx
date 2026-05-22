@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { createPortal } from "react-dom"
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, LogIn, MapPin, Plus, SlidersHorizontal, UserPlus, UserRound } from "lucide-react"
 import { joinBookingWaitlistAction, requestBookingSequenceAction } from "@/app/calendar/actions"
+import { AppSurface } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -318,12 +319,10 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
 
   if (!firstPrimaryVariant) {
     return (
-      <Card className="border-border/80 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle>No online services yet</CardTitle>
-          <CardDescription>This practice has not published client-visible primary services.</CardDescription>
-        </CardHeader>
-      </Card>
+      <AppSurface
+        title="No online services yet"
+        description="This practice has not published client-visible primary services."
+      />
     )
   }
 
@@ -597,19 +596,15 @@ export function BookingPicker({ model }: { model: BookingOptionModel }) {
 
       {model.proximity.enabled ? (
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-          <Card className="border-border/80 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <MapPin className="size-4 text-brand-orange" />
-                Practice location
-              </CardTitle>
-              <CardDescription>{model.proximity.label ?? model.practiceName}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <AppSurface
+            title="Practice location"
+            description={model.proximity.label ?? model.practiceName}
+            icon={<MapPin className="size-4" aria-hidden="true" />}
+            contentClassName="gap-3"
+          >
               <Button type="button" variant="outline" size="sm" onClick={checkDistance}>Check distance</Button>
               {distanceNotice ? <p className="text-sm text-muted-foreground">{distanceNotice}</p> : null}
-            </CardContent>
-          </Card>
+          </AppSurface>
         </div>
       ) : null}
     </div>
@@ -941,14 +936,17 @@ function AccountBenefitsCard({
   onGuestPhoneChange: (value: string) => void
 }) {
   return (
-    <Card className="border-border/80 bg-card/90 backdrop-blur">
-      <CardHeader>
+    <AppSurface
+      className="border-border/80"
+      contentClassName="grid gap-3"
+    >
+      <div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <CardTitle className="text-base">Your contact information</CardTitle>
-            <CardDescription className="mt-2">
+            <h2 className="text-base font-semibold">Your contact information</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               You can book as a guest. A free account can save these details and make request status easier to track later.
-            </CardDescription>
+            </p>
           </div>
           <Dialog>
             <DialogTrigger asChild>
@@ -988,8 +986,7 @@ function AccountBenefitsCard({
             </DialogContent>
           </Dialog>
         </div>
-      </CardHeader>
-      <CardContent className="grid gap-3">
+      </div>
         <div className="space-y-2">
           <Label htmlFor="guestName">Name</Label>
           <Input id="guestName" name="guestName" value={guestName} onChange={(event) => onGuestNameChange(event.target.value)} autoComplete="name" required />
@@ -1002,7 +999,6 @@ function AccountBenefitsCard({
           <Label htmlFor="guestPhone">Phone</Label>
           <Input id="guestPhone" name="guestPhone" type="tel" value={guestPhone} onChange={(event) => onGuestPhoneChange(event.target.value)} autoComplete="tel" required />
         </div>
-      </CardContent>
-    </Card>
+    </AppSurface>
   )
 }

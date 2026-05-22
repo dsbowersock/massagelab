@@ -24,11 +24,11 @@ describe("App settings helpers", () => {
     assert.deepEqual(normalizeAppSettings({
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
-      themeMode: "light",
+      themeMode: "system",
     }), {
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
-      themeMode: "light",
+      themeMode: "system",
     })
   })
 
@@ -36,7 +36,7 @@ describe("App settings helpers", () => {
     assert.deepEqual(normalizeAppSettings({
       sidebarPosition: "center",
       sidebarTriggerPosition: "middle",
-      themeMode: "system",
+      themeMode: "high-contrast",
     }), defaultAppSettings)
   })
 

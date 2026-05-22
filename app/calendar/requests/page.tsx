@@ -4,6 +4,7 @@ import { getCurrentSession } from "@/auth"
 import { convertWaitlistEntryAction, updateAppointmentRequestStatusAction } from "@/app/calendar/actions"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { AppInset, AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -90,14 +91,14 @@ export default async function CalendarRequestsPage() {
 
   return (
     <RequestsShell>
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Requests</CardTitle>
           <CardDescription>Confirm or decline client appointment requests. Reviews create audit rows and internal notification intents.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {requests.length > 0 ? requests.map((request) => (
-            <div key={request.id} className="rounded-md border border-neutral-800 bg-background/70 p-4">
+            <AppInset key={request.id} className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{formatDateTime(request.startsAt, membership.practice.timezone)}</p>
@@ -127,14 +128,14 @@ export default async function CalendarRequestsPage() {
                   </form>
                 </div>
               </div>
-            </div>
+            </AppInset>
           )) : (
             <p className="text-sm text-muted-foreground">No open appointment requests.</p>
           )}
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-brand-orange" />
@@ -151,7 +152,7 @@ export default async function CalendarRequestsPage() {
             const startHelpId = `waitlist-start-help-${entry.id}`
 
             return (
-              <div key={entry.id} className="rounded-md border border-neutral-800 bg-background/70 p-4">
+              <AppInset key={entry.id} className="p-4">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
                   <div>
                     <p className="font-medium">{serviceLabels.join(" + ") || "Requested services"}</p>
@@ -189,7 +190,7 @@ export default async function CalendarRequestsPage() {
                     <Button type="submit" size="sm" className="bg-primary hover:bg-brand-orange-glow">Convert to appointment</Button>
                   </form>
                 </div>
-              </div>
+              </AppInset>
             )
           }) : (
             <p className="text-sm text-muted-foreground">No open waitlist entries.</p>
@@ -212,12 +213,5 @@ function RequestsShell({ children }: { children: React.ReactNode }) {
 }
 
 function Notice({ title, description }: { title: string; description: string }) {
-  return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  )
+  return <AppSurface title={title} description={description} />
 }

@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react"
 import { Copy, ExternalLink, Share2 } from "lucide-react"
+import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 type PublicBookingLinkCardProps = {
   legalPath: string
@@ -51,22 +51,21 @@ export function PublicBookingLinkCard({ legalPath, activePath }: PublicBookingLi
   }
 
   return (
-    <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Public booking page</CardTitle>
-        <CardDescription>Share this link with clients. The legal-name URL remains available even when a branded URL is active.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <AppSurface
+      title="Public booking page"
+      description="Share this link with clients. The legal-name URL remains available even when a branded URL is active."
+      contentClassName="gap-4"
+    >
         <div className="grid gap-3">
-          <div className="rounded-md border border-border/70 bg-background/60 p-3">
+          <AppInset className="p-3">
             <p className="text-xs font-medium uppercase text-muted-foreground">Active share link</p>
             <p className="mt-1 break-all text-sm">{activeUrl}</p>
-          </div>
+          </AppInset>
           {usingBrandedUrl ? (
-            <div className="rounded-md border border-border/70 bg-background/60 p-3">
+            <AppInset className="p-3">
               <p className="text-xs font-medium uppercase text-muted-foreground">Legal-name link</p>
               <p className="mt-1 break-all text-sm">{legalUrl}</p>
-            </div>
+            </AppInset>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -86,7 +85,6 @@ export function PublicBookingLinkCard({ legalPath, activePath }: PublicBookingLi
           </Button>
         </div>
         {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-      </CardContent>
-    </Card>
+    </AppSurface>
   )
 }

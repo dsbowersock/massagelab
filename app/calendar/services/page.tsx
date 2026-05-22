@@ -3,6 +3,7 @@ import { Settings2 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { AppInset, AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarOperatorShell } from "../calendar-operator-shell"
@@ -40,7 +41,7 @@ export default async function ServicesPage() {
 
   return (
     <ServicesShell>
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div>
             <CardTitle className="flex items-center gap-2">
@@ -55,7 +56,12 @@ export default async function ServicesPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {services.length > 0 ? services.map((service) => (
-            <Link key={service.id} href={`/calendar/services/${service.id}`} className="block rounded-md border border-neutral-800 bg-background/70 p-4 hover:border-brand-orange/60">
+            <Link
+              key={service.id}
+              href={`/calendar/services/${service.id}`}
+              className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <AppInset className="block p-4 transition hover:border-brand-orange/60">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{service.name}</p>
@@ -70,6 +76,7 @@ export default async function ServicesPage() {
                   {service.active ? "Active" : "Inactive"} · {service.clientVisible ? "Bookable" : "Internal"}
                 </span>
               </div>
+              </AppInset>
             </Link>
           )) : (
             <p className="text-sm text-muted-foreground">No services yet. Add a service before opening client booking.</p>
@@ -93,11 +100,6 @@ function ServicesShell({ children }: { children: React.ReactNode }) {
 
 function Notice({ title, description }: { title: string; description: string }) {
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
+    <AppSurface title={title} description={description} />
   )
 }

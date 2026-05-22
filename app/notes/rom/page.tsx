@@ -2,11 +2,11 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
 import { Activity, Download, FileText, FolderOpen, Gauge, Printer, Save, ShieldCheck } from "lucide-react"
+import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
 import { type MeasurementAxis, useDeviceMotionSensors } from "@/hooks/use-device-motion-sensors"
 import {
@@ -251,11 +251,8 @@ export default function RomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <PageHeading>Range of Motion</PageHeading>
-
-        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
+    <AppPageShell title="Range of Motion" width="standard">
+        <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
@@ -268,7 +265,7 @@ export default function RomPage() {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle>Measurement</CardTitle>
               <CardDescription>Use device orientation when available or enter degrees manually.</CardDescription>
@@ -368,7 +365,7 @@ export default function RomPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle>Session</CardTitle>
               <CardDescription>{documentData.entries.length} measurements saved locally.</CardDescription>
@@ -385,8 +382,7 @@ export default function RomPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }
 

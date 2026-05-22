@@ -7,7 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: public booking v1 follow-ups are complete enough to wrap; next focus is the sitewide visual system and account-page polish pass.
+- Current focus: public booking v1 follow-ups and the sitewide visual system polish pass are complete enough to wrap; next focus should be selected from the remaining P2 branch candidates.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates.
 - Public `/roadmap` route: product-facing app copy only. This file is the internal operating tracker.
 
@@ -31,7 +31,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Status | Priority | Work | Source | Acceptance |
 | --- | --- | --- | --- | --- |
 | Open | P3 | Prepare public SEO launch checklist | [May 17 audit](audits/2026-05-17-project-review.md), [Roadmap](roadmap.md) | Intentional private-alpha `noindex` remains until launch readiness; metadata, trust pages, and public copy are ready before indexing changes. |
-| Open | P2 | Sitewide visual system and account-page polish pass | Account page visual refresh | The rest of the site is updated with the account page's visual polish, and shared page shell, surface, inset, action, and status styles come from one source of truth unless a route documents an intentional exception. |
+| Completed | P2 | Sitewide visual system and account-page polish pass | Account page visual refresh | Shared page shell, surface, inset, action, notice, and status styles now come from `components/ui/app-surface.tsx`; public, account, auth, documentation, booking, calendar-management, admin, and local-first documentation surfaces use the shared treatment, with Chimer, Anatomime, and the dense calendar workspace kept as intentional route-owned exceptions. |
 | Open | P2 | Generative music spike | [Roadmap](roadmap.md), [TODO](../TODO.md) | Hidden proof of concept confirms package viability, sample hosting, licensing, bundle size, autoplay behavior, and audio cleanup before product UI planning. |
 | Open | P2 | Trust pages and public identity | [Roadmap](roadmap.md), [TODO](../TODO.md) | Terms, privacy/legal, About Me, and clearer public trust copy are scoped before wider release. |
 | Open | P2 | Anatomy content review and expansion | [TODO](../TODO.md), [Roadmap](roadmap.md) | First seed scope is reviewed; citation sources are chosen; expansion only proceeds after the code-first seed shape is accepted. |
@@ -75,6 +75,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-05-21
+
+- Completed `codex/sitewide-visual-system-polish`: added shared app surface primitives, wired account settings to the shared source of truth, migrated public/auth/account/documentation/booking/calendar-management/admin/local-first documentation route surfaces, and removed stale global page/card utility classes while preserving route-owned Chimer, Anatomime, and dense calendar workspace visuals.
+- Extended the visual-system pass with Intent-inspired sitewide sidebar/topbar polish: the sidebar now uses a tighter docked rail with icon tooltips, calendar action menus, footer account controls, and request/waitlist badges; the mini calendar moved into a global topbar popover that respects sidebar side preferences and hides during Chimer immersive states.
 
 ### 2026-05-20
 

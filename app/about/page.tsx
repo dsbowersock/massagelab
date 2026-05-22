@@ -1,8 +1,7 @@
 import Link from "next/link"
 import { FileText, LockKeyhole, Map, Timer } from "lucide-react"
+import { AppPageShell, AppSurface, AppInset, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
 
 const alphaTools = [
   {
@@ -30,30 +29,24 @@ const priorities = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <section className="space-y-5">
-          <PageHeading>About MassageLab</PageHeading>
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <div className="mb-2 flex items-center gap-2">
-                <LockKeyhole className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-                <CardTitle>Local-first tools for massage work</CardTitle>
-              </div>
-              <CardDescription>
+    <AppPageShell title="About MassageLab" contentClassName="gap-8">
+        <AppSurface
+          title="Local-first tools for massage work"
+          description={
+            <>
                 MassageLab is a private-alpha toolkit for massage therapists, massage students, educators, and small practices. It starts with practical treatment-room and classroom tools, then grows toward paid memberships that can fund compliant storage, practice operations, education, and research workflows.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
+            </>
+          }
+          icon={<LockKeyhole className="h-5 w-5" aria-hidden="true" />}
+          contentClassName="flex flex-wrap gap-3"
+        >
               <Button asChild className="bg-primary hover:bg-brand-orange-glow">
                 <Link href="/pricing">View pricing</Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/about/derrick">About Derrick</Link>
               </Button>
-            </CardContent>
-          </Card>
-        </section>
+        </AppSurface>
 
         <section className="space-y-4">
           <div>
@@ -67,36 +60,34 @@ export default function AboutPage() {
               const Icon = tool.icon
 
               return (
-                <Card key={tool.title} className="border-neutral-800 bg-card/90 backdrop-blur">
-                  <CardHeader>
-                    <Icon className="mb-2 h-5 w-5 text-brand-orange" aria-hidden="true" />
-                    <CardTitle>{tool.title}</CardTitle>
-                    <CardDescription>{tool.description}</CardDescription>
-                  </CardHeader>
-                </Card>
+                <AppSurface
+                  key={tool.title}
+                  title={tool.title}
+                  description={tool.description}
+                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                />
               )
             })}
           </div>
         </section>
 
-        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-          <CardHeader>
-            <CardTitle>What guides the project</CardTitle>
-            <CardDescription>
+        <AppSurface
+          title="What guides the project"
+          description={
+            <>
               The guiding line is simple: make your skills work for you, without pushing therapists into unsafe data practices.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </>
+          }
+          className={appCalloutClassName}
+        >
             <div className="grid gap-3 md:grid-cols-3">
               {priorities.map((priority) => (
-                <div key={priority} className="rounded-md border border-brand-orange/30 bg-background/60 p-3 text-sm">
+                <AppInset key={priority} className="p-3 text-sm">
                   {priority}
-                </div>
+                </AppInset>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        </AppSurface>
+    </AppPageShell>
   )
 }

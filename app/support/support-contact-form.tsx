@@ -3,8 +3,8 @@
 import * as React from "react"
 import { Send } from "lucide-react"
 import { buildSupportMailtoUrl } from "@/lib/support-contact"
+import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,14 +26,14 @@ export function SupportContactForm({ initialName, initialContact }: SupportConta
   }
 
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Contact MassageLab</CardTitle>
-        <CardDescription>
+    <AppSurface
+      title="Contact MassageLab"
+      description={
+        <>
           This opens your email app with the support request filled in. No message is uploaded to MassageLab from this form.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </>
+      }
+    >
         <form onSubmit={handleSubmit} className="grid gap-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
@@ -83,7 +83,6 @@ export function SupportContactForm({ initialName, initialContact }: SupportConta
             Open Email
           </Button>
         </form>
-      </CardContent>
-    </Card>
+    </AppSurface>
   )
 }
