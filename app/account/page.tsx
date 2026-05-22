@@ -31,11 +31,11 @@ import {
   settingsSurfaceClassName,
 } from "@/components/account/settings-surfaces"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
+import { AppNotice, AppPageShell } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { TabsContent } from "@/components/ui/tabs"
 
 type AccountPageProps = {
@@ -759,12 +759,9 @@ const signedOutAccountItemStatuses = {
 
 function AccountShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <PageHeading>Account</PageHeading>
+    <AppPageShell title="Account">
         {children}
-      </div>
-    </div>
+    </AppPageShell>
   )
 }
 
@@ -845,10 +842,7 @@ function AccountNotice({
   }
 
   return (
-    <div className={`rounded-md border p-3 text-sm ${notice.className}`}>
-      <p className="font-medium">{notice.title}</p>
-      <p className="mt-1 text-muted-foreground">{notice.description}</p>
-    </div>
+    <AppNotice title={notice.title} description={notice.description} tone={notice.tone} />
   )
 }
 
@@ -865,7 +859,7 @@ function accountNotice({
     return {
       title: "Checkout complete",
       description: "Stripe is syncing your membership. If the status has not updated yet, refresh after the webhook finishes.",
-      className: "border-brand-orange/40 bg-primary/10",
+      tone: "accent" as const,
     }
   }
 
@@ -873,7 +867,7 @@ function accountNotice({
     return {
       title: "Checkout cancelled",
       description: "No membership changes were made. Free access remains available.",
-      className: "border-neutral-800 bg-card/90",
+      tone: "default" as const,
     }
   }
 
@@ -881,7 +875,7 @@ function accountNotice({
     return {
       title: "Billing portal closed",
       description: "Any subscription changes made in Stripe will appear here after the webhook syncs.",
-      className: "border-brand-orange/40 bg-primary/10",
+      tone: "accent" as const,
     }
   }
 
@@ -889,7 +883,7 @@ function accountNotice({
     return {
       title: "Billing portal unavailable",
       description: "There is no Stripe customer connected to this account yet.",
-      className: "border-neutral-800 bg-card/90",
+      tone: "default" as const,
     }
   }
 
@@ -897,7 +891,7 @@ function accountNotice({
     return {
       title: "Billing portal unavailable",
       description: "Stripe could not start the billing portal. Check the Stripe Customer Portal and secret key configuration.",
-      className: "border-destructive/40 bg-destructive/10",
+      tone: "destructive" as const,
     }
   }
 
@@ -905,7 +899,7 @@ function accountNotice({
     return {
       title: "Checkout unavailable",
       description: billingMessage(billing),
-      className: "border-destructive/40 bg-destructive/10",
+      tone: "destructive" as const,
     }
   }
 

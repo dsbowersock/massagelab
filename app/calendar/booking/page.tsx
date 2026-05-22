@@ -11,6 +11,7 @@ import { normalizeBookingPolicy } from "@/lib/booking-policy"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { legalPublicBookingPath, publicBookingPathForPractice, US_STATE_OPTIONS } from "@/lib/public-booking-url"
+import { AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -88,7 +89,7 @@ export default async function CalendarBookingSettingsPage() {
 
   return (
     <BookingSettingsShell>
-      <Card className="border-border/80 bg-card/95 shadow-xl shadow-black/20 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -119,7 +120,7 @@ export default async function CalendarBookingSettingsPage() {
 
         <TabsContent value="booking-rules" className="space-y-4">
           {canManagePracticePolicy ? (
-            <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+            <Card className={appSurfaceClassName}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <SlidersHorizontal className="size-5 text-brand-orange" />
@@ -224,7 +225,7 @@ export default async function CalendarBookingSettingsPage() {
         <TabsContent value="public-page" className="space-y-4">
           <PublicBookingLinkCard legalPath={legalBookingPath} activePath={activeBookingPath} />
           {canManagePublicBookingUrl ? (
-            <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+            <Card className={appSurfaceClassName}>
               <CardHeader>
                 <CardTitle>Branded booking URL</CardTitle>
                 <CardDescription>Set an optional state-prefixed URL. Leave both fields empty to use only the legal-name URL.</CardDescription>
@@ -267,7 +268,7 @@ export default async function CalendarBookingSettingsPage() {
               const displayName = provider.user.name ?? provider.user.email ?? "Provider"
 
               return (
-                <Card key={provider.userId} className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+                <Card key={provider.userId} className={appSurfaceClassName}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <UserRound className="size-5 text-brand-orange" />
@@ -322,7 +323,7 @@ export default async function CalendarBookingSettingsPage() {
               const displayName = provider.user.name ?? provider.user.email ?? "Provider"
 
               return (
-                <Card key={provider.userId} className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+                <Card key={provider.userId} className={appSurfaceClassName}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Clock className="size-5 text-brand-orange" />
@@ -375,7 +376,7 @@ export default async function CalendarBookingSettingsPage() {
         </TabsContent>
 
         <TabsContent value="service-roles">
-          <Card className="border-border/80 bg-card/90 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="size-5 text-brand-orange" />
@@ -411,11 +412,6 @@ function BookingSettingsShell({ children }: { children: React.ReactNode }) {
 
 function Notice({ title, description }: { title: string; description: string }) {
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
+    <AppSurface title={title} description={description} />
   )
 }

@@ -2,11 +2,11 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { Download, FileText, FolderOpen, Printer, Save, ShieldCheck } from "lucide-react"
+import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createEditableDocumentHtml,
@@ -172,11 +172,8 @@ export default function IntakePage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <PageHeading>Intake Form</PageHeading>
-
-        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
+    <AppPageShell title="Intake Form" width="standard">
+        <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
@@ -188,7 +185,7 @@ export default function IntakePage() {
           </CardHeader>
         </Card>
 
-        <Card className="bg-card/90 backdrop-blur">
+        <Card className={appSurfaceClassName}>
           <CardHeader>
             <CardTitle>Client Details</CardTitle>
             <CardDescription>Use only the fields you need for your practice workflow.</CardDescription>
@@ -270,7 +267,6 @@ export default function IntakePage() {
             {message && <p className="text-sm text-brand-orange">{message}</p>}
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

@@ -2,8 +2,7 @@ import Link from "next/link"
 import { Mail, Map, ShieldCheck } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
+import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { SupportContactForm } from "@/app/support/support-contact-form"
 
 async function getSupportDefaults() {
@@ -31,51 +30,40 @@ export default async function SupportPage() {
   const defaults = await getSupportDefaults()
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <section className="space-y-5">
-          <PageHeading>User Support</PageHeading>
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <div className="mb-2 flex items-center gap-2">
-                <Mail className="h-5 w-5 text-brand-orange" />
-                <CardTitle>Get help with MassageLab</CardTitle>
-              </div>
-              <CardDescription>
+    <AppPageShell title="User Support" width="standard">
+        <AppSurface
+          title="Get help with MassageLab"
+          description={
+            <>
                 Send a support request to contactmassagelab@gmail.com. Please avoid sending client PHI or sensitive clinical details.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </section>
+            </>
+          }
+          icon={<Mail className="h-5 w-5" aria-hidden="true" />}
+        />
 
         <SupportContactForm initialName={defaults.name} initialContact={defaults.contact} />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Link href="/roadmap">
-            <Card className="h-full border-neutral-800 bg-card/90 backdrop-blur transition-colors hover:bg-accent">
-              <CardHeader>
-                <div className="mb-2 flex items-center gap-2">
-                  <Map className="h-5 w-5 text-brand-orange" />
-                  <CardTitle>Roadmap</CardTitle>
-                </div>
-                <CardDescription>See planned product work, compliance milestones, and funding-dependent features.</CardDescription>
-              </CardHeader>
-            </Card>
+            <AppSurface
+              title="Roadmap"
+              description="See planned product work, compliance milestones, and funding-dependent features."
+              icon={<Map className="h-5 w-5" aria-hidden="true" />}
+              className="h-full transition-colors hover:bg-accent"
+            />
           </Link>
 
-          <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-            <CardHeader>
-              <div className="mb-2 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-brand-orange" />
-                <CardTitle>Privacy note</CardTitle>
-              </div>
-              <CardDescription>
+          <AppSurface
+            title="Privacy note"
+            description={
+              <>
                 Support messages are sent through your email client. MassageLab does not upload this form content from the browser.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+              </>
+            }
+            icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
+            className={appCalloutClassName}
+          />
         </div>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

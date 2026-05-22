@@ -10,17 +10,21 @@ import {
   Brain,
   CalendarCog,
   CalendarDays,
+  CalendarOff,
   ChevronsUpDown,
   ChevronRight,
   Clock,
+  ClipboardList,
   FileText,
   Home,
   Info,
   LifeBuoy,
+  ListChecks,
   LogIn,
   LogOut,
   LucideIcon,
   Map,
+  MoreHorizontal,
   Plus,
   Settings,
   Settings2,
@@ -28,11 +32,12 @@ import {
   Timer,
   UserPlus,
   UserRound,
+  UsersRound,
   Wrench,
 } from "lucide-react"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar } from "@/components/ui/calendar"
+import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   DropdownMenu,
@@ -44,13 +49,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -59,33 +57,23 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useSidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
 import {
   accountMenuRoutes,
-  calendarSidebarActions,
+  calendarMenuActions,
   isNavigationRouteActive,
   primaryNavigationGroups,
   secondaryNavigationRoutes,
 } from "@/lib/navigation"
-import { emptySidebarCalendarContext, shouldLoadSidebarCalendarContext } from "@/lib/sidebar-calendar-context"
 import { shouldExpandSidebarFromRail } from "@/lib/sidebar-layout"
 import { cn } from "@/lib/utils"
-
-export type SidebarCalendarContext = {
-  practice: {
-    id: string
-    name: string
-  } | null
-  therapists: Array<{
-    id: string
-    label: string
-  }>
-  canManageAvailability: boolean
-}
 
 export type SidebarUser = {
   name: string
@@ -98,11 +86,14 @@ const routeIcons = {
   Brain,
   CalendarCog,
   CalendarDays,
+  CalendarOff,
   Clock,
+  ClipboardList,
   FileText,
   Home,
   Info,
   LifeBuoy,
+  ListChecks,
   Map,
   Plus,
   Settings,
@@ -110,6 +101,7 @@ const routeIcons = {
   ShieldCheck,
   Timer,
   UserRound,
+  UsersRound,
 } satisfies Record<string, LucideIcon>
 
 const primaryGroupIcons: Record<string, LucideIcon> = {
@@ -125,7 +117,15 @@ const sidebarSectionTriggerClass = cn(
   "group-data-[collapsible=icon]:!px-0 group-data-[collapsible=icon]:!opacity-100 group-data-[collapsible=icon]:justify-center",
 )
 
-function SidebarSectionTrigger({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+function SidebarSectionTrigger({
+  icon: Icon,
+  label,
+  onRailOpen,
+}: {
+  icon: LucideIcon
+  label: string
+  onRailOpen: () => void
+}) {
   const { renderMode, setOpen, state } = useSidebar()
 
   return (
@@ -133,8 +133,10 @@ function SidebarSectionTrigger({ icon: Icon, label }: { icon: LucideIcon; label:
       <CollapsibleTrigger
         aria-label={label}
         title={label}
-        onClick={() => {
+        onClick={(event) => {
           if (shouldExpandSidebarFromRail({ renderMode, state })) {
+            event.preventDefault()
+            onRailOpen()
             setOpen(true)
           }
         }}
@@ -163,7 +165,7 @@ type NavigationGroup = {
 const primaryGroups = primaryNavigationGroups as NavigationGroup[]
 const secondaryRoutes = secondaryNavigationRoutes as NavigationRoute[]
 const accountRoutes = accountMenuRoutes as NavigationRoute[]
-const calendarActions = calendarSidebarActions as NavigationRoute[]
+const calendarMenuRoutes = calendarMenuActions as NavigationRoute[]
 
 function initials(name: string, email: string) {
   const source = name || email
@@ -244,6 +246,49 @@ function SidebarRoute({
 }
 
 function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: "left" | "right" }) {
+  const activeGroupIds = React.useMemo(() => {
+    return primaryGroups
+      .filter((group) => group.id !== "home")
+      .filter((group) => group.routes.some((route) => isNavigationRouteActive(pathname, route.href)))
+      .map((group) => group.id)
+  }, [pathname])
+  const activeGroupKey = activeGroupIds.join("|")
+  const [openGroupIds, setOpenGroupIds] = React.useState<Set<string>>(() => new Set(activeGroupIds))
+
+  React.useEffect(() => {
+    if (activeGroupIds.length === 0) {
+      return
+    }
+
+    setOpenGroupIds((current) => {
+      const next = new Set(current)
+
+      for (const groupId of activeGroupIds) {
+        next.add(groupId)
+      }
+
+      return next
+    })
+  }, [activeGroupKey, activeGroupIds])
+
+  const setGroupOpen = React.useCallback((groupId: string, isOpen: boolean) => {
+    setOpenGroupIds((current) => {
+      const next = new Set(current)
+
+      if (isOpen) {
+        next.add(groupId)
+      } else {
+        next.delete(groupId)
+      }
+
+      return next
+    })
+  }, [])
+
+  const expandGroup = React.useCallback((groupId: string) => {
+    setGroupOpen(groupId, true)
+  }, [setGroupOpen])
+
   return (
     <>
       {primaryGroups.map((group) => {
@@ -253,7 +298,11 @@ function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: 
               <SidebarGroupContent>
                 <SidebarMenu>
                   {group.routes.map((route) => (
-                    <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
+                    route.id === "calendar" ? (
+                      <CalendarSidebarRoute key={route.id} pathname={pathname} tooltipSide={tooltipSide} />
+                    ) : (
+                      <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
+                    )
                   ))}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -261,15 +310,30 @@ function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: 
           )
         }
 
+        const groupIsOpen = openGroupIds.has(group.id)
+
         return (
-          <Collapsible key={group.id} className="group/collapsible">
+          <Collapsible
+            key={group.id}
+            open={groupIsOpen}
+            onOpenChange={(isOpen) => setGroupOpen(group.id, isOpen)}
+            className="group/collapsible"
+          >
             <SidebarGroup className="py-1">
-              <SidebarSectionTrigger icon={primaryGroupIcons[group.id] ?? FileText} label={group.label} />
+              <SidebarSectionTrigger
+                icon={primaryGroupIcons[group.id] ?? FileText}
+                label={group.label}
+                onRailOpen={() => expandGroup(group.id)}
+              />
               <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {group.routes.map((route) => (
-                      <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
+                      route.id === "calendar" ? (
+                        <CalendarSidebarRoute key={route.id} pathname={pathname} tooltipSide={tooltipSide} />
+                      ) : (
+                        <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
+                      )
                     ))}
                   </SidebarMenu>
                 </SidebarGroupContent>
@@ -282,75 +346,130 @@ function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: 
   )
 }
 
-function CalendarSidebarSection({
-  calendarContext,
-  pathname,
-}: {
-  calendarContext: SidebarCalendarContext
-  pathname: string
-}) {
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(new Date())
-  const [selectedTherapistId, setSelectedTherapistId] = React.useState(calendarContext.therapists[0]?.id ?? "")
-  const { navigateFromSidebar } = useSidebarNavigation()
+function formatSidebarCount(count: number) {
+  if (count > 99) {
+    return "99+"
+  }
 
-  React.useEffect(() => {
-    setSelectedTherapistId(calendarContext.therapists[0]?.id ?? "")
-  }, [calendarContext.therapists])
+  return String(count)
+}
+
+function CalendarRequestBadges({
+  pendingAppointmentRequestCount,
+  openWaitlistEntryCount,
+}: {
+  pendingAppointmentRequestCount: number
+  openWaitlistEntryCount: number
+}) {
+  const hasRequests = pendingAppointmentRequestCount > 0
+  const hasWaitlist = openWaitlistEntryCount > 0
+
+  if (!hasRequests && !hasWaitlist) {
+    return null
+  }
 
   return (
-    <Collapsible className="group/collapsible">
-      <SidebarGroup className="py-1">
-        <SidebarSectionTrigger icon={CalendarDays} label="Calendar" />
-        <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
-          <SidebarGroupContent className="flex flex-col gap-3">
-            {calendarContext.therapists.length > 1 && (
-              <Select value={selectedTherapistId} onValueChange={setSelectedTherapistId}>
-                <SelectTrigger className="h-8 border-sidebar-border bg-sidebar-accent/40 text-xs">
-                  <SelectValue placeholder="Practitioner" />
-                </SelectTrigger>
-                <SelectContent data-sidebar-floating="true">
-                  {calendarContext.therapists.map((therapist) => (
-                    <SelectItem key={therapist.id} value={therapist.id}>
-                      {therapist.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => setSelectedDate(date)}
-              className="mx-auto w-full rounded-md border border-sidebar-border bg-sidebar-accent/20 p-2 [--cell-size:1.4rem]"
-            />
-            <SidebarMenu>
-              {calendarActions.map((route) => {
-                const Icon = routeIcons[route.icon] ?? CalendarDays
-                const isActive = route.id === "calendar-availability"
-                  ? isNavigationRouteActive(pathname, route.href)
-                  : route.id === "calendar-open" && pathname === "/calendar"
+    <>
+      <div className="absolute right-8 top-1/2 flex -translate-y-1/2 items-center gap-1 group-data-[collapsible=icon]:hidden">
+        {hasRequests && (
+          <Badge
+            variant="secondary"
+            className="h-5 rounded-full px-1.5 py-0 text-[10px] leading-none"
+            title={`${pendingAppointmentRequestCount} pending appointment request${pendingAppointmentRequestCount === 1 ? "" : "s"}`}
+          >
+            R {formatSidebarCount(pendingAppointmentRequestCount)}
+          </Badge>
+        )}
+        {hasWaitlist && (
+          <Badge
+            variant="outline"
+            className="h-5 rounded-full border-sidebar-border bg-sidebar-accent/60 px-1.5 py-0 text-[10px] leading-none text-sidebar-foreground"
+            title={`${openWaitlistEntryCount} open waitlist ${openWaitlistEntryCount === 1 ? "entry" : "entries"}`}
+          >
+            W {formatSidebarCount(openWaitlistEntryCount)}
+          </Badge>
+        )}
+      </div>
+      <span
+        aria-hidden="true"
+        className="absolute right-1.5 top-1.5 hidden size-1.5 rounded-full bg-primary shadow-[0_0_0_2px_hsl(var(--sidebar-background))] group-data-[collapsible=icon]:block"
+      />
+    </>
+  )
+}
 
-                return (
-                  <SidebarMenuItem key={route.id}>
-                    <SidebarMenuButton asChild size="sm" isActive={isActive}>
-                      <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-                        <Icon />
-                        <span>{route.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
-    </Collapsible>
+function CalendarSidebarRoute({
+  pathname,
+  tooltipSide,
+}: {
+  pathname: string
+  tooltipSide: "left" | "right"
+}) {
+  const { isMobile } = useSidebar()
+  const { settings } = useSettings()
+  const { calendarContext } = useSidebarCalendarContext()
+  const { navigateFromSidebar } = useSidebarNavigation()
+  const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
+  const menuAlign = isMobile ? "end" : "start"
+  const pendingAppointmentRequestCount = calendarContext.pendingAppointmentRequestCount ?? 0
+  const openWaitlistEntryCount = calendarContext.openWaitlistEntryCount ?? 0
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={isNavigationRouteActive(pathname, "/calendar")}
+        tooltip={{ children: "Calendar", side: tooltipSide }}
+        className="group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]"
+      >
+        <Link href="/calendar" onClick={(event) => navigateFromSidebar(event, "/calendar")}>
+          <CalendarDays />
+          <span>Calendar</span>
+        </Link>
+      </SidebarMenuButton>
+      <CalendarRequestBadges
+        pendingAppointmentRequestCount={pendingAppointmentRequestCount}
+        openWaitlistEntryCount={openWaitlistEntryCount}
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuAction showOnHover aria-label="Calendar actions" data-slot="menu-action-trigger">
+            <MoreHorizontal />
+          </SidebarMenuAction>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          data-sidebar-floating="true"
+          side={menuSide}
+          align={menuAlign}
+          sideOffset={4}
+          className="min-w-56"
+        >
+          <DropdownMenuLabel>Calendar actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {calendarMenuRoutes.map((route) => {
+            const Icon = routeIcons[route.icon] ?? CalendarDays
+
+            return (
+              <DropdownMenuItem key={route.id} asChild>
+                <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                  <Icon className="mr-2 h-4 w-4" />
+                  {route.label}
+                </Link>
+              </DropdownMenuItem>
+            )
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
   )
 }
 
 function NavSecondary({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
   const { navigateFromSidebar } = useSidebarNavigation()
+
+  if (secondaryRoutes.length === 0) {
+    return null
+  }
 
   return (
     <SidebarGroup className="p-0">
@@ -390,6 +509,7 @@ function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; p
   const fallback = initials(name, email)
   const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
   const isAccountRouteActive = accountRoutes.some((route) => isNavigationRouteActive(pathname, route.href))
+  const supportRoute = accountRoutes.find((route) => route.id === "user-support")
 
   return (
     <SidebarMenu>
@@ -408,11 +528,11 @@ function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; p
                 {user?.image && <AvatarImage src={user.image} alt={name} />}
                 <AvatarFallback className="rounded-lg">{fallback}</AvatarFallback>
               </Avatar>
-              <span className="grid flex-1 text-left text-sm leading-tight">
+              <span className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-semibold">{name}</span>
                 <span className={cn("truncate text-xs", compact && "hidden")}>{email}</span>
               </span>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -480,6 +600,14 @@ function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; p
                     Settings
                   </Link>
                 </DropdownMenuItem>
+                {supportRoute && (
+                  <DropdownMenuItem asChild>
+                    <Link href={supportRoute.href} onClick={(event) => navigateFromSidebar(event, supportRoute.href)}>
+                      <LifeBuoy className="mr-2 h-4 w-4" />
+                      {supportRoute.label}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
             )}
           </DropdownMenuContent>
@@ -489,45 +617,50 @@ function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; p
   )
 }
 
-function SidebarLogoTrigger({ tooltipSide }: { tooltipSide: "left" | "right" }) {
-  const { toggleSidebar } = useSidebar()
+function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" }) {
+  const { navigateFromSidebar } = useSidebarNavigation()
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          type="button"
-          size="lg"
-          aria-label="Toggle sidebar"
-          title="Toggle sidebar"
-          tooltip={{ children: "Toggle sidebar", side: tooltipSide }}
-          onClick={toggleSidebar}
-          className={cn(
-            "h-10 w-full justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/80 p-1 text-sidebar-accent-foreground shadow-sm hover:bg-sidebar-accent",
-            "focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-            "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0",
-          )}
-        >
-          <Image
-            src="/brand/massagelab-mark-square-tight.png"
-            alt=""
-            width={32}
-            height={32}
-            className="hidden object-contain group-data-[collapsible=icon]:block"
-            data-testid="sidebar-brand-mark-trigger"
-            sizes="32px"
-          />
-          <Image
-            src="/brand/massagelab-wordmark-uppercase-tight.png"
-            alt=""
-            width={180}
-            height={54}
-            className="h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden"
-            data-testid="sidebar-brand-wordmark-trigger"
-            sizes="180px"
-          />
-          <span className="sr-only">Toggle sidebar</span>
-        </SidebarMenuButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/"
+              aria-label="MassageLab home"
+              title="MassageLab home"
+              onClick={(event) => navigateFromSidebar(event, "/")}
+              className={cn(
+                "ml-sidebar-brand-frame flex h-10 w-full items-center justify-center rounded-lg border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
+              )}
+            >
+              <Image
+                src="/brand/massagelab-mark-square-tight.png"
+                alt=""
+                width={32}
+                height={32}
+                className="hidden object-contain group-data-[collapsible=icon]:block"
+                data-testid="sidebar-brand-mark-trigger"
+                sizes="32px"
+                loading="eager"
+              />
+              <Image
+                src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
+                alt=""
+                width={180}
+                height={54}
+                className="h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden"
+                data-testid="sidebar-brand-wordmark-trigger"
+                sizes="180px"
+                loading="eager"
+              />
+              <span className="sr-only">MassageLab home</span>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side={tooltipSide}>MassageLab home</TooltipContent>
+        </Tooltip>
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -535,10 +668,8 @@ function SidebarLogoTrigger({ tooltipSide }: { tooltipSide: "left" | "right" }) 
 
 export function AppSidebarClient({
   user,
-  calendarContext,
 }: {
   user: SidebarUser
-  calendarContext: SidebarCalendarContext
 }) {
   const pathname = usePathname() ?? ""
   const { settings } = useSettings()
@@ -548,8 +679,6 @@ export function AppSidebarClient({
   const isDrawer = renderMode === "drawer"
   const isCompactLandscape = renderMode === "compact-rail"
   const previousPathnameRef = React.useRef(pathname)
-  const [hydratedCalendarContext, setHydratedCalendarContext] = React.useState<SidebarCalendarContext>(calendarContext)
-  const shouldHydrateCalendarContext = Boolean(user && shouldLoadSidebarCalendarContext(pathname))
 
   React.useEffect(() => {
     if (previousPathnameRef.current === pathname) {
@@ -563,32 +692,6 @@ export function AppSidebarClient({
     }
   }, [pathname, renderMode, setOpen])
 
-  React.useEffect(() => {
-    let cancelled = false
-
-    if (!shouldHydrateCalendarContext) {
-      setHydratedCalendarContext(emptySidebarCalendarContext as SidebarCalendarContext)
-      return
-    }
-
-    fetch("/api/calendar/sidebar-context")
-      .then((response) => response.ok ? response.json() : emptySidebarCalendarContext)
-      .then((nextCalendarContext) => {
-        if (!cancelled) {
-          setHydratedCalendarContext(nextCalendarContext as SidebarCalendarContext)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHydratedCalendarContext(emptySidebarCalendarContext as SidebarCalendarContext)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [shouldHydrateCalendarContext, pathname])
-
   return (
     <Sidebar side={settings.sidebarPosition} collapsible="icon">
       {isDrawer ? (
@@ -597,7 +700,7 @@ export function AppSidebarClient({
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="lg" className="justify-center data-[state=open]:bg-sidebar-accent">
                 <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
-                  <span className="hidden aspect-square size-8 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/80 text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
+                  <span className="ml-sidebar-brand-frame hidden aspect-square size-8 items-center justify-center rounded-lg border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
                     <Image
                       src="/brand/massagelab-mark-square-tight.png"
                       alt=""
@@ -606,16 +709,18 @@ export function AppSidebarClient({
                       className="object-contain"
                       data-testid="sidebar-brand-mark"
                       sizes="28px"
+                      loading="eager"
                     />
                   </span>
                   <Image
-                    src="/brand/massagelab-wordmark-uppercase-tight.png"
+                    src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
                     alt="MassageLab"
                     width={180}
                     height={54}
                     className={cn("h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden")}
                     data-testid="sidebar-brand-wordmark"
                     sizes="180px"
+                    loading="eager"
                   />
                 </Link>
               </SidebarMenuButton>
@@ -624,7 +729,7 @@ export function AppSidebarClient({
         </SidebarHeader>
       ) : (
         <SidebarHeader>
-          <SidebarLogoTrigger tooltipSide={tooltipSide} />
+          <SidebarLogoHomeLink tooltipSide={tooltipSide} />
         </SidebarHeader>
       )}
       {isCompactLandscape ? (
@@ -642,7 +747,6 @@ export function AppSidebarClient({
               settings.sidebarPosition === "right" && "group-data-[state=expanded]:order-2",
             )}>
               <NavPrimary pathname={pathname} tooltipSide={tooltipSide} />
-              <CalendarSidebarSection calendarContext={hydratedCalendarContext} pathname={pathname} />
             </div>
             <div
               className={cn(
@@ -667,7 +771,6 @@ export function AppSidebarClient({
         <>
           <SidebarContent className="gap-0">
             <NavPrimary pathname={pathname} tooltipSide={tooltipSide} />
-            <CalendarSidebarSection calendarContext={hydratedCalendarContext} pathname={pathname} />
           </SidebarContent>
           <SidebarFooter className={cn(isDrawer && "gap-2 border-t border-sidebar-border")}>
             <NavSecondary pathname={pathname} />

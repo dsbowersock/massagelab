@@ -13,7 +13,7 @@ import {
 describe("Account preference helpers", () => {
   it("builds a versioned sync payload from safe local settings", () => {
     const payload = buildUserPreferencePayload({
-      appSettings: { sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "light" },
+      appSettings: { sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "system" },
       chimerSettings: { movingBackgroundEnabled: false },
       anatomimeSettings: { roundLimit: 8 },
       notePreferences: { defaultNoteType: "soap" },
@@ -21,7 +21,7 @@ describe("Account preference helpers", () => {
     })
 
     assert.equal(payload.version, USER_PREFERENCES_VERSION)
-    assert.deepEqual(payload.app_settings, { sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "light" })
+    assert.deepEqual(payload.app_settings, { sidebarPosition: "right", sidebarTriggerPosition: "bottom", themeMode: "system" })
     assert.deepEqual(payload.chimer_settings, { movingBackgroundEnabled: false })
     assert.deepEqual(payload.anatomime_settings, { roundLimit: 8 })
     assert.deepEqual(payload.note_preferences, { defaultNoteType: "soap" })

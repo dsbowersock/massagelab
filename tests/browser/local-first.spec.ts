@@ -45,16 +45,21 @@ async function clickAndWaitForDownload(page: Page, name: RegExp) {
   await download
 }
 
+async function gotoHydratedLocalPage(page: Page, path: string) {
+  await page.goto(path, { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle")
+}
+
 test("local-first clinical document save and export flows do not upload entered content", async ({ page }) => {
   const leaks = captureClinicalNetworkLeaks(page)
 
-  await page.goto("/notes/soap", { waitUntil: "domcontentloaded" })
+  await gotoHydratedLocalPage(page, "/notes/soap")
   await expect(page.getByRole("heading", { name: /S\.O\.A\.P\. Notes/i })).toBeVisible()
   await page.getByLabel(/Client Name/i).fill(ML_BROWSER_QA_SENTINEL)
   await page.getByRole("button", { name: /Save Local Draft/i }).click()
   await expect(page.getByText(/Draft saved locally in this browser/i)).toBeVisible()
 
-  await page.goto("/notes/intake", { waitUntil: "domcontentloaded" })
+  await gotoHydratedLocalPage(page, "/notes/intake")
   await expect(page.getByRole("heading", { name: /Intake Form/i })).toBeVisible()
   await page.getByLabel(/Client Name/i).fill(ML_BROWSER_QA_SENTINEL)
   await page.getByLabel(/Current Conditions/i).fill(`${ML_BROWSER_QA_SENTINEL} with limited rotation`)
@@ -63,7 +68,7 @@ test("local-first clinical document save and export flows do not upload entered 
   await clickAndWaitForDownload(page, /Export JSON/i)
   await expect(page.getByText(/MassageLab did not upload this form/i)).toBeVisible()
 
-  await page.goto("/notes/journal", { waitUntil: "domcontentloaded" })
+  await gotoHydratedLocalPage(page, "/notes/journal")
   await expect(page.getByRole("heading", { name: /Client Journal/i })).toBeVisible()
   await page.getByLabel(/Client name/i).fill(ML_BROWSER_QA_SENTINEL)
   await page.getByLabel(/Region/i).fill("left shoulder")
@@ -74,7 +79,7 @@ test("local-first clinical document save and export flows do not upload entered 
   await clickAndWaitForDownload(page, /Export JSON/i)
   await expect(page.getByText(/MassageLab did not upload this journal/i)).toBeVisible()
 
-  await page.goto("/notes/rom", { waitUntil: "domcontentloaded" })
+  await gotoHydratedLocalPage(page, "/notes/rom")
   await expect(page.getByRole("heading", { name: /Range of Motion/i })).toBeVisible()
   await page.getByLabel(/Client name/i).fill(ML_BROWSER_QA_SENTINEL)
   await page.getByLabel(/Movement/i).fill("cervical rotation")

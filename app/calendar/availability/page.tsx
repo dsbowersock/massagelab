@@ -11,6 +11,7 @@ import {
 import { formatMinuteLabel } from "@/lib/calendar"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -58,17 +59,11 @@ export default async function CalendarAvailabilityPage() {
   if (!session?.user?.id) {
     return (
       <AvailabilityShell>
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>Sign in to manage availability</CardTitle>
-            <CardDescription>Availability belongs to a practice calendar.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <AppSurface title="Sign in to manage availability" description="Availability belongs to a practice calendar.">
             <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/login">Go to login</Link>
             </Button>
-          </CardContent>
-        </Card>
+        </AppSurface>
       </AvailabilityShell>
     )
   }
@@ -103,17 +98,11 @@ export default async function CalendarAvailabilityPage() {
   if (!membership) {
     return (
       <AvailabilityShell>
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle>No therapist calendar yet</CardTitle>
-            <CardDescription>Create or join a practice calendar before setting availability.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <AppSurface title="No therapist calendar yet" description="Create or join a practice calendar before setting availability.">
             <Button asChild className="bg-primary hover:bg-brand-orange-glow">
               <Link href="/calendar">Open calendar</Link>
             </Button>
-          </CardContent>
-        </Card>
+        </AppSurface>
       </AvailabilityShell>
     )
   }
@@ -172,7 +161,7 @@ export default async function CalendarAvailabilityPage() {
 
   return (
     <AvailabilityShell>
-      <Card className="border-border/80 bg-card/95 shadow-xl shadow-black/20 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -206,7 +195,7 @@ export default async function CalendarAvailabilityPage() {
 
         <TabsContent value="weekly">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-brand-orange" />
@@ -223,7 +212,7 @@ export default async function CalendarAvailabilityPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle>Named schedules</CardTitle>
               <CardDescription>Use date-ranged schedules for seasonal hours, alternate routines, or provider-specific availability plans.</CardDescription>
@@ -254,7 +243,7 @@ export default async function CalendarAvailabilityPage() {
         </TabsContent>
 
         <TabsContent value="overrides">
-          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle>One-time changes and blackout days</CardTitle>
               <CardDescription>Closed, blackout, and holiday overrides take precedence over one-time open intervals and recurring schedules.</CardDescription>
@@ -304,7 +293,7 @@ export default async function CalendarAvailabilityPage() {
 
         <TabsContent value="blocks">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-          <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+          <Card className={appSurfaceClassName}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CalendarOff data-icon="inline-start" className="text-brand-orange" />
@@ -390,7 +379,7 @@ function SummaryMetric({
   value: number | string
 }) {
   return (
-    <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/10 backdrop-blur">
+    <Card className={appSurfaceClassName}>
       <CardContent className="flex items-center gap-3 p-4">
         <div className="flex size-10 items-center justify-center rounded-md border border-border/70 bg-background/70">
           <Icon className="size-4 text-brand-orange" />
@@ -426,7 +415,7 @@ function WeeklyAvailabilityPlanner({
   }))
 
   return (
-    <Card className="border-border/80 bg-card/95 shadow-xl shadow-black/15 backdrop-blur">
+    <Card className={appSurfaceClassName}>
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -538,7 +527,7 @@ function ProviderAndDayFields({
 
 function AvailabilityList({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) {
   return (
-    <Card className="border-border/80 bg-card/95 shadow-lg shadow-black/15 backdrop-blur">
+    <Card className={appSurfaceClassName}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
@@ -559,12 +548,5 @@ function AvailabilityRow({ title, detail }: { title: string; detail: string }) {
 }
 
 function CalendarUnavailableNotice() {
-  return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Calendar is temporarily unavailable</CardTitle>
-        <CardDescription>Availability tools are not available right now. Please try again later.</CardDescription>
-      </CardHeader>
-    </Card>
-  )
+  return <AppSurface title="Calendar is temporarily unavailable" description="Availability tools are not available right now. Please try again later." />
 }

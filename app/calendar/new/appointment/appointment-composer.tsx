@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react"
 import { AlertTriangle, Plus, X } from "lucide-react"
 import { createAppointmentFormAction, type AppointmentActionState } from "@/app/calendar/actions"
+import { appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -99,7 +100,7 @@ export function AppointmentComposer({
       <input type="hidden" name="overrideKey" value={overrideKey} />
       <input type="hidden" name="allowOutsideAvailability" value={outsideAvailabilityReady ? "true" : "false"} />
       <div className="space-y-4">
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+        <Card className={appSurfaceClassName}>
           <CardHeader>
             <CardTitle>Appointment details</CardTitle>
             <CardDescription>Service selections set appointment duration, buffers, price display, and required resources.</CardDescription>
@@ -157,7 +158,7 @@ export function AppointmentComposer({
                       key={service.id}
                       type="button"
                       onClick={() => eligible && toggleService(service.id)}
-                      className={`rounded-md border p-3 text-left transition ${selected ? "border-brand-orange bg-primary/10" : "border-neutral-800 bg-background/70"} ${eligible ? "hover:border-brand-orange/70" : "cursor-not-allowed opacity-50"}`}
+                      className={`rounded-md border p-3 text-left transition ${selected ? "border-brand-orange bg-primary/10" : "border-border/80 bg-background/70"} ${eligible ? "hover:border-brand-orange/70" : "cursor-not-allowed opacity-50"}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
@@ -184,7 +185,7 @@ export function AppointmentComposer({
               </div>
               <div className="space-y-2">
                 <Label>Block preview</Label>
-                <div className="rounded-md border border-neutral-800 bg-background/70 px-3 py-2 text-sm">
+                <div className={`${appInsetClassName} px-3 py-2 text-sm`}>
                   {totalMinutes || 0} minutes · {formatMoney(totalPriceCents, currency)}
                 </div>
               </div>
@@ -219,7 +220,7 @@ export function AppointmentComposer({
         </Button>
       </div>
 
-      <Card className="h-fit border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={`${appSurfaceClassName} h-fit`}>
         <CardHeader>
           <CardTitle>{selectedClient ? selectedClient.label : "New client"}</CardTitle>
           <CardDescription>Customer details are scheduling context only.</CardDescription>
@@ -234,7 +235,7 @@ export function AppointmentComposer({
           <div className="space-y-2">
             <p className="text-sm font-medium">Selected services</p>
             {selectedServices.map((service) => (
-              <div key={service.id} className="flex items-start justify-between gap-3 rounded-md bg-background/70 p-3 text-sm">
+              <div key={service.id} className={`${appInsetClassName} flex items-start justify-between gap-3 p-3 text-sm`}>
                 <div>
                   <p>{service.serviceName}</p>
                   <p className="text-muted-foreground">{service.variantName}</p>

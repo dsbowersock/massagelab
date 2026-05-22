@@ -2,8 +2,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { Brain, CalendarDays, ClipboardList, HeartHandshake, ShieldCheck, Timer, UserRound } from "lucide-react"
 import { getCurrentSession } from "@/auth"
+import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const tools = [
   {
@@ -44,24 +44,26 @@ export default async function Home() {
   const session = await getCurrentSession()
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-md border border-border bg-card/90 p-6 shadow-lg backdrop-blur">
+    <AppPageShell>
+        <AppSurface contentClassName="gap-5">
           <div className="mx-auto mb-5 max-w-3xl">
             <h1 className="sr-only">MassageLab</h1>
             <div aria-hidden="true" className="relative mb-3 flex w-full justify-center py-3 sm:py-4">
               <div className="absolute inset-x-8 top-1/2 h-16 -translate-y-1/2 rounded-full bg-brand-orange-glow/20 blur-3xl sm:inset-x-16" />
-              <Image
-                src="/brand/massagelab-wordmark-uppercase-tight.png"
-                alt=""
-                width={360}
-                height={108}
-                className="relative h-auto w-full max-w-[28rem] object-contain drop-shadow-[0_0_32px_hsl(var(--brand-orange-glow)/0.2)]"
-                data-testid="home-brand-wordmark"
-                style={{ viewTransitionName: "massagelab-wordmark" }}
-                sizes="(max-width: 640px) 82vw, 448px"
-                priority
-              />
+              <span className="ml-brand-asset-frame relative inline-flex max-w-full rounded-2xl">
+                <Image
+                  src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
+                  alt=""
+                  width={360}
+                  height={108}
+                  className="relative h-auto w-full max-w-[28rem] object-contain"
+                  data-testid="home-brand-wordmark"
+                  style={{ viewTransitionName: "massagelab-wordmark" }}
+                  sizes="(max-width: 640px) 82vw, 448px"
+                  loading="eager"
+                  priority
+                />
+              </span>
             </div>
             <p className="text-lg text-muted-foreground">
               Practical tools for massage therapists, students, and clients. Clinical tools are local-first until compliant hosted sync is funded and reviewed.
@@ -72,30 +74,23 @@ export default async function Home() {
             {tools.map((tool) => {
               const Icon = tool.icon
               return (
-                <Card key={tool.href} className="border-neutral-800 bg-card/90 backdrop-blur">
-                  <CardHeader>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <Icon className="h-5 w-5 text-brand-orange" />
-                      <span className="rounded-sm border border-brand-orange/40 px-2 py-1 text-xs text-brand-orange-soft">
-                        {tool.status}
-                      </span>
-                    </div>
-                    <CardTitle>{tool.title}</CardTitle>
-                    <CardDescription>{tool.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                <AppSurface
+                  key={tool.href}
+                  title={tool.title}
+                  description={tool.description}
+                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                  badge={tool.status}
+                >
                     <Button asChild className="w-full bg-primary hover:bg-brand-orange-glow">
                       <Link href={tool.href}>{tool.action}</Link>
                     </Button>
-                  </CardContent>
-                </Card>
+                </AppSurface>
               )
             })}
           </div>
-        </section>
+        </AppSurface>
 
-        <section className="rounded-md border border-neutral-800 bg-card/90 p-5 backdrop-blur">
-          <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+        <AppSurface contentClassName="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div className="flex items-start gap-3">
               <UserRound className="mt-1 h-5 w-5 shrink-0 text-brand-orange" />
               <div>
@@ -126,40 +121,34 @@ export default async function Home() {
                 </>
               )}
             </div>
-          </div>
-        </section>
+        </AppSurface>
 
         <section className="grid gap-4 md:grid-cols-2">
-          <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-            <CardHeader>
-              <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-brand-orange" />
-                <CardTitle>Local-first clinical boundary</CardTitle>
-              </div>
-              <CardDescription>
+          <AppSurface
+            title="Local-first clinical boundary"
+            description={
+              <>
                 MassageLab does not host notes, journals, intake forms, or movement data in this alpha. Exported files stay under user control.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+              </>
+            }
+            icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
+            className={appCalloutClassName}
+          />
 
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <div className="mb-3 flex items-center gap-2">
-                <HeartHandshake className="h-5 w-5 text-brand-orange" />
-                <CardTitle>Support compliant sync</CardTitle>
-              </div>
-              <CardDescription>
+          <AppSurface
+            title="Support compliant sync"
+            description={
+              <>
                 Memberships and donations will help fund HIPAA-capable infrastructure, BAAs, audit logging, security review, and future cross-device clinical sync.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </>
+            }
+            icon={<HeartHandshake className="h-5 w-5" aria-hidden="true" />}
+          >
               <Button asChild variant="outline">
                 <Link href="/roadmap">Open roadmap</Link>
               </Button>
-            </CardContent>
-          </Card>
+          </AppSurface>
         </section>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

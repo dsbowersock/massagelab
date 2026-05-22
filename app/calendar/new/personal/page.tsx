@@ -4,6 +4,7 @@ import { getCurrentSession } from "@/auth"
 import { createPersonalEventAction } from "@/app/calendar/actions"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -49,7 +50,7 @@ export default async function NewPersonalEventPage({
 
   return (
     <PersonalShell>
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarOff className="h-5 w-5 text-brand-orange" aria-hidden="true" />
@@ -105,12 +106,5 @@ function PersonalShell({ children }: { children: React.ReactNode }) {
 }
 
 function Notice({ title, description }: { title: string; description: string }) {
-  return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  )
+  return <AppSurface title={title} description={description} />
 }

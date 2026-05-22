@@ -1,6 +1,7 @@
 import { getCurrentSession } from "@/auth"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
-import type { SidebarCalendarContext, SidebarUser } from "@/components/sidebar/app-sidebar-client"
+import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
+import type { SidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
 import { canSyncAccountPreferences } from "@/lib/account-preferences"
 import { emptySidebarCalendarContext } from "@/lib/sidebar-calendar-context"
 
@@ -30,7 +31,7 @@ export async function getAppSidebarData() {
 }
 
 export async function AppSidebar() {
-  const { user, calendarContext } = await getAppSidebarData()
+  const { user } = await getAppSidebarData()
 
-  return <AppSidebarClient user={user} calendarContext={calendarContext} />
+  return <AppSidebarClient user={user} />
 }

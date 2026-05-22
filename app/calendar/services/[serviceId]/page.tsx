@@ -3,8 +3,8 @@ import { notFound } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
+import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarOperatorShell } from "../../calendar-operator-shell"
 import { ServiceForm } from "../service-form"
 
@@ -80,12 +80,5 @@ function ServiceShell({ children }: { children: React.ReactNode }) {
 }
 
 function Notice({ title, description }: { title: string; description: string }) {
-  return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-    </Card>
-  )
+  return <AppSurface title={title} description={description} />
 }

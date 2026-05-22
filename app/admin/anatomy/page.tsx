@@ -12,11 +12,11 @@ import {
   updateAnatomyTermAction,
   updateCorrectionFlagAction,
 } from "@/app/admin/anatomy/actions"
+import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
 
 type AnatomyTermRow = {
@@ -95,7 +95,7 @@ export default async function AnatomyAdminPage() {
 
   return (
     <AdminShell>
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Create anatomy term</CardTitle>
           <CardDescription>
@@ -124,7 +124,7 @@ export default async function AnatomyAdminPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Recent terms</CardTitle>
           <CardDescription>Edit status, difficulty, regions, systems, and summaries for recent terms.</CardDescription>
@@ -134,7 +134,7 @@ export default async function AnatomyAdminPage() {
             <p className="text-sm text-muted-foreground">No database terms found yet. Run `npm run anatomy:seed` to import the local library.</p>
           ) : (
             terms.map((term) => (
-              <form key={term.id} action={updateAnatomyTermAction} className="rounded-md border border-neutral-800 bg-background/70 p-4">
+              <form key={term.id} action={updateAnatomyTermAction} className={`${appInsetClassName} p-4`}>
                 <input type="hidden" name="id" value={term.id} />
                 <div className="grid gap-4 md:grid-cols-2">
                   <TextField id={`name-${term.id}`} name="preferred_name" label={term.slug} defaultValue={term.preferredName} />
@@ -156,20 +156,20 @@ export default async function AnatomyAdminPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Aliases, relationships, and sources</CardTitle>
           <CardDescription>Use stable relationships now so future flashcards, SOAP helpers, and games can share the same content graph.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 lg:grid-cols-3">
-          <form action={createAnatomyAliasAction} className="space-y-3 rounded-md border border-neutral-800 bg-background/70 p-4">
+          <form action={createAnatomyAliasAction} className={`${appInsetClassName} space-y-3 p-4`}>
             <h3 className="font-semibold">Add alias</h3>
             <TermSelect terms={terms} id="term_id" label="Term" />
             <TextField id="alias" label="Alias" required />
             <Button type="submit" variant="outline">Add alias</Button>
           </form>
 
-          <form action={createAnatomyRelationshipAction} className="space-y-3 rounded-md border border-neutral-800 bg-background/70 p-4">
+          <form action={createAnatomyRelationshipAction} className={`${appInsetClassName} space-y-3 p-4`}>
             <h3 className="font-semibold">Add relationship</h3>
             <TermSelect terms={terms} id="source_term_id" label="Source term" />
             <TextField id="relationship_type" label="Type" placeholder="part-of, innervates, attaches-to" required />
@@ -177,7 +177,7 @@ export default async function AnatomyAdminPage() {
             <Button type="submit" variant="outline">Add relationship</Button>
           </form>
 
-          <form action={createAnatomySourceAction} className="space-y-3 rounded-md border border-neutral-800 bg-background/70 p-4">
+          <form action={createAnatomySourceAction} className={`${appInsetClassName} space-y-3 p-4`}>
             <h3 className="font-semibold">Add source</h3>
             <TextField id="label" label="Label" required />
             <TextField id="slug" label="Slug" />
@@ -189,7 +189,7 @@ export default async function AnatomyAdminPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Correction flags</CardTitle>
           <CardDescription>Users can flag issues; editors/admins decide whether to resolve or reject them.</CardDescription>
@@ -199,7 +199,7 @@ export default async function AnatomyAdminPage() {
             <p className="text-sm text-muted-foreground">No correction flags yet.</p>
           ) : (
             flags.map((flag) => (
-              <form key={flag.id} action={updateCorrectionFlagAction} className="rounded-md border border-neutral-800 bg-background/70 p-4">
+              <form key={flag.id} action={updateCorrectionFlagAction} className={`${appInsetClassName} p-4`}>
                 <input type="hidden" name="id" value={flag.id} />
                 <div className="mb-3">
                   <p className="text-sm font-medium">{flag.term?.preferredName ?? "General content issue"}</p>
@@ -216,7 +216,7 @@ export default async function AnatomyAdminPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Seed import</CardTitle>
           <CardDescription>
@@ -238,12 +238,9 @@ export default async function AnatomyAdminPage() {
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <PageHeading>Anatomy Admin</PageHeading>
+    <AppPageShell title="Anatomy Admin">
         {children}
-      </div>
-    </div>
+    </AppPageShell>
   )
 }
 

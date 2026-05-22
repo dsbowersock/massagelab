@@ -1,8 +1,7 @@
 import Link from "next/link"
 import { CalendarDays, Clock, FileText, HeartHandshake, ShieldCheck, UserRound } from "lucide-react"
+import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
 
 const recentlyShipped = [
   {
@@ -20,7 +19,7 @@ const recentlyShipped = [
   {
     title: "Cleaner alpha navigation",
     description:
-      "The sidebar now groups Home, Tools, Documentation, and Games, with secondary support and roadmap links plus account actions in the account menu.",
+      "The sidebar now uses the brand mark as the home link, groups product routes under Tools, Documentation, Games, and About, and keeps support links inside the account menu.",
     icon: CalendarDays,
   },
   {
@@ -97,18 +96,16 @@ export default function RoadmapPage() {
   const donationUrl = process.env.NEXT_PUBLIC_STRIPE_DONATION_URL?.trim()
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <section className="space-y-5">
-          <PageHeading>MassageLab Roadmap</PageHeading>
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle>Current alpha direction</CardTitle>
-              <CardDescription>
+    <AppPageShell title="MassageLab Roadmap" contentClassName="gap-8">
+        <AppSurface
+          title="Current alpha direction"
+          description={
+            <>
                 The next phase is alpha stabilization: verify what already shipped, regression-check Chimer polish, and design calendar creation flows before adding larger product bets.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
+            </>
+          }
+          contentClassName="flex flex-wrap gap-3"
+        >
               <Button asChild className="bg-primary hover:bg-brand-orange-glow">
                 <Link href="/register">Create an account</Link>
               </Button>
@@ -121,9 +118,7 @@ export default function RoadmapPage() {
                   Donate
                 </Link>
               </Button>
-            </CardContent>
-          </Card>
-        </section>
+        </AppSurface>
 
         <section className="space-y-4">
           <div>
@@ -134,13 +129,12 @@ export default function RoadmapPage() {
             {recentlyShipped.map((feature) => {
               const Icon = feature.icon
               return (
-                <Card key={feature.title} className="border-neutral-800 bg-card/90 backdrop-blur">
-                  <CardHeader>
-                    <Icon className="mb-2 h-5 w-5 text-brand-orange" />
-                    <CardTitle>{feature.title}</CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
-                </Card>
+                <AppSurface
+                  key={feature.title}
+                  title={feature.title}
+                  description={feature.description}
+                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                />
               )
             })}
           </div>
@@ -155,13 +149,13 @@ export default function RoadmapPage() {
             {currentFocus.map((feature) => {
               const Icon = feature.icon
               return (
-                <Card key={feature.title} className="border-brand-orange/40 bg-primary/10 backdrop-blur">
-                  <CardHeader>
-                    <Icon className="mb-2 h-5 w-5 text-brand-orange" />
-                    <CardTitle>{feature.title}</CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
-                </Card>
+                <AppSurface
+                  key={feature.title}
+                  title={feature.title}
+                  description={feature.description}
+                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                  className={appCalloutClassName}
+                />
               )
             })}
           </div>
@@ -176,45 +170,46 @@ export default function RoadmapPage() {
             {laterProductTracks.map((feature) => {
               const Icon = feature.icon
               return (
-                <Card key={feature.title} className="border-neutral-800 bg-card/90 backdrop-blur">
-                  <CardHeader>
-                    <Icon className="mb-2 h-5 w-5 text-brand-orange" />
-                    <CardTitle>{feature.title}</CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
-                </Card>
+                <AppSurface
+                  key={feature.title}
+                  title={feature.title}
+                  description={feature.description}
+                  icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                />
               )
             })}
           </div>
         </section>
 
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle>Future compliance work</CardTitle>
-              <CardDescription>
+          <AppSurface
+            title="Future compliance work"
+            description={
+              <>
                 Managed clinical sync is not the immediate alpha build. It needs funding and operational readiness before it can be offered responsibly.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </>
+            }
+          >
               <div className="grid gap-3">
                 {upfrontNeeds.map((need) => (
-                  <div key={need} className="rounded-md border border-brand-orange/30 bg-background/60 p-3 text-sm">
+                  <AppInset key={need} className="p-3 text-sm">
                     {need}
-                  </div>
+                  </AppInset>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+          </AppSurface>
 
-          <Card id="donate" className="scroll-mt-20 border-neutral-800 bg-card/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle>Donate</CardTitle>
-              <CardDescription>
+          <AppSurface
+            id="donate"
+            title="Donate"
+            description={
+              <>
                 Donations help fund the compliance, infrastructure, and review work needed for future managed clinical sync.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </>
+            }
+            className="scroll-mt-20"
+            contentClassName="gap-4"
+          >
               <p className="text-sm text-muted-foreground">
                 Memberships and donations are separate from the local-first alpha tools. Notes, intake forms, journals, and ROM data remain under user control.
               </p>
@@ -232,10 +227,8 @@ export default function RoadmapPage() {
                   <Link href="/account">View memberships</Link>
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+          </AppSurface>
         </div>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

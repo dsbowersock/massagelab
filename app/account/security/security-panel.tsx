@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -110,23 +110,24 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
 
   return (
     <div className="space-y-6">
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Sign-in methods</CardTitle>
-          <CardDescription>
+      <AppSurface
+        title="Sign-in methods"
+        description={
+          <>
             Keep at least one verified way to sign in. Google can be unlinked only after email/password sign-in is enabled.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+          </>
+        }
+        contentClassName="gap-5"
+      >
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md border border-neutral-800 bg-background/70 p-3">
+            <AppInset className="p-3">
               <p className="text-xs uppercase tracking-normal text-muted-foreground">Email/password</p>
               <p className="mt-1 text-sm font-medium">{passwordAvailable ? "Enabled" : "Not enabled"}</p>
-            </div>
-            <div className="rounded-md border border-neutral-800 bg-background/70 p-3">
+            </AppInset>
+            <AppInset className="p-3">
               <p className="text-xs uppercase tracking-normal text-muted-foreground">Google</p>
               <p className="mt-1 text-sm font-medium">{googleAccountLinked ? "Linked" : "Not linked"}</p>
-            </div>
+            </AppInset>
           </div>
 
           <form className="space-y-3" onSubmit={savePassword}>
@@ -165,17 +166,17 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
               Unlink Google
             </Button>
           ) : null}
-        </CardContent>
-      </Card>
+      </AppSurface>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Authenticator-app 2FA</CardTitle>
-          <CardDescription>
+      <AppSurface
+        title="Authenticator-app 2FA"
+        description={
+          <>
             Use an authenticator app for email/password sign-in. Google sign-in relies on Google account security in this alpha.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+          </>
+        }
+        contentClassName="gap-5"
+      >
           <p className="text-sm text-muted-foreground">Current status: {enabled ? "Enabled" : "Not enabled"}</p>
 
           {!enabled && (
@@ -184,7 +185,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
                 Start setup
               </Button>
               {qrCode && (
-                <div className="space-y-4 rounded-md border border-neutral-800 bg-background/70 p-4">
+                <AppInset className="space-y-4 p-4">
                   <Image src={qrCode} alt="Authenticator setup QR code" width={220} height={220} unoptimized />
                   <p className="break-all text-sm text-muted-foreground">Manual code: {manualCode}</p>
                   <div className="space-y-2">
@@ -194,7 +195,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
                   <Button type="button" variant="outline" onClick={enableTwoFactor}>
                     Verify and enable
                   </Button>
-                </div>
+                </AppInset>
               )}
             </div>
           )}
@@ -223,9 +224,8 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
             </div>
           )}
 
-          {status && <p className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm text-muted-foreground">{status}</p>}
-        </CardContent>
-      </Card>
+          {status && <AppInset className="p-3 text-sm text-muted-foreground">{status}</AppInset>}
+      </AppSurface>
     </div>
   )
 }

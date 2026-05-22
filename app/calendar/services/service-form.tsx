@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { createServiceAction, updateServiceAction } from "@/app/calendar/actions"
+import { appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -79,7 +80,7 @@ export function ServiceForm({
       <input type="hidden" name="practiceId" value={practiceId} />
       {service ? <input type="hidden" name="serviceId" value={service.id} /> : null}
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Service details</CardTitle>
           <CardDescription>These settings control booking visibility, class eligibility, and calendar color.</CardDescription>
@@ -118,7 +119,7 @@ export function ServiceForm({
               <Label>Eligible providers</Label>
               <div className="grid gap-2 md:grid-cols-2">
                 {providers.map((provider) => (
-                  <label key={provider.userId} className="flex items-center gap-2 rounded-md border border-neutral-800 bg-background/70 p-3 text-sm">
+                  <label key={provider.userId} className={`${appInsetClassName} flex items-center gap-2 p-3 text-sm`}>
                     <Checkbox
                       name="eligibleProviderIds"
                       value={provider.userId}
@@ -162,7 +163,7 @@ export function ServiceForm({
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Variants</CardTitle>
           <CardDescription>Variants set the bookable duration, processing time, buffers, and displayed price.</CardDescription>
@@ -171,7 +172,7 @@ export function ServiceForm({
           {Array.from({ length: 3 }, (_, index) => {
             const variant = variants[index]
             return (
-              <div key={variant?.id ?? index} className="grid gap-3 rounded-md border border-neutral-800 bg-background/70 p-3 md:grid-cols-6">
+              <div key={variant?.id ?? index} className={`${appInsetClassName} grid gap-3 p-3 md:grid-cols-6`}>
                 {variant ? <input type="hidden" name={`variantId${index}`} value={variant.id} /> : null}
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor={`variantName${index}`}>Variant</Label>
@@ -217,7 +218,7 @@ export function ServiceForm({
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Clinical templates</CardTitle>
           <CardDescription>Reusable local-first template references only. Do not enter client-specific clinical content here.</CardDescription>
@@ -238,7 +239,7 @@ export function ServiceForm({
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+      <Card className={appSurfaceClassName}>
         <CardHeader>
           <CardTitle>Operations</CardTitle>
           <CardDescription>These fields are stored for provider operations. They do not charge clients or collect payment yet.</CardDescription>

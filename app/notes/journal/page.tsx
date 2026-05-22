@@ -2,11 +2,11 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { Download, FileText, FolderOpen, Plus, Printer, Save, ShieldCheck } from "lucide-react"
+import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createEditableDocumentHtml,
@@ -209,11 +209,8 @@ export default function JournalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <PageHeading>Client Journal</PageHeading>
-
-        <Card className="border-brand-orange/40 bg-primary/10 backdrop-blur">
+    <AppPageShell title="Client Journal" width="standard">
+        <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
@@ -225,7 +222,7 @@ export default function JournalPage() {
           </CardHeader>
         </Card>
 
-        <Card className="border-neutral-800 bg-card/90 backdrop-blur">
+        <Card className={appSurfaceClassName}>
           <CardHeader>
             <CardTitle>New Entry</CardTitle>
             <CardDescription>Pain, sensation, and incident entries share one local export file.</CardDescription>
@@ -327,7 +324,7 @@ export default function JournalPage() {
 
         <div className="grid gap-3">
           {journal.entries.map((savedEntry) => (
-            <Card key={savedEntry.id} className="border-neutral-800 bg-background/70">
+            <Card key={savedEntry.id} className="border-border/80 bg-background/85">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">{formatEntryKind(savedEntry.kind)} - {savedEntry.region || "Unspecified region"}</CardTitle>
@@ -340,7 +337,6 @@ export default function JournalPage() {
             </Card>
           ))}
         </div>
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

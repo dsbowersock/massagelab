@@ -6,7 +6,8 @@ import { createContext, useContext, useEffect, useState } from "react"
 
 type SidebarPosition = "left" | "right"
 type SidebarTriggerPosition = "top" | "bottom"
-type ThemeMode = "dark" | "light"
+export type ThemeMode = "dark" | "light" | "system"
+export type ResolvedThemeMode = "dark" | "light"
 
 interface Settings {
   sidebarPosition: SidebarPosition
@@ -27,12 +28,23 @@ function normalizeSettings(value: unknown): Settings {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
 
-function applyThemeClass(themeMode: ThemeMode) {
-  const root = document.documentElement
+export function resolveThemeMode(themeMode: ThemeMode): ResolvedThemeMode {
+  if (themeMode !== "system") {
+    return themeMode
+  }
 
-  root.classList.toggle("dark", themeMode === "dark")
-  root.classList.toggle("light", themeMode === "light")
-  root.style.colorScheme = themeMode
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+}
+
+export function applyThemeClass(themeMode: ThemeMode) {
+  const root = document.documentElement
+  const resolvedThemeMode = resolveThemeMode(themeMode)
+
+  root.classList.toggle("dark", resolvedThemeMode === "dark")
+  root.classList.toggle("light", resolvedThemeMode === "light")
+  root.dataset.themeMode = themeMode
+  root.dataset.resolvedThemeMode = resolvedThemeMode
+  root.style.colorScheme = resolvedThemeMode
 }
 
 export function SettingsProvider({
@@ -47,6 +59,19 @@ export function SettingsProvider({
 
   useEffect(() => {
     applyThemeClass(settings.themeMode)
+
+    if (settings.themeMode !== "system") {
+      return
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const handleSystemThemeChange = () => applyThemeClass("system")
+
+    mediaQuery.addEventListener("change", handleSystemThemeChange)
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleSystemThemeChange)
+    }
   }, [settings.themeMode])
 
   useEffect(() => {

@@ -3,10 +3,9 @@ import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { createCorrectionFlagAction } from "@/app/anatomy/corrections/actions"
 import { prisma } from "@/lib/prisma"
+import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { PageHeading } from "@/components/ui/page-heading"
 import { Textarea } from "@/components/ui/textarea"
 
 export default async function AnatomyCorrectionsPage() {
@@ -37,14 +36,14 @@ export default async function AnatomyCorrectionsPage() {
 
   return (
     <CorrectionShell>
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Flag anatomy content</CardTitle>
-          <CardDescription>
+      <AppSurface
+        title="Flag anatomy content"
+        description={
+          <>
             Report incorrect or unclear anatomy content. Users can flag issues, but only editors/admins can change published content.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </>
+        }
+      >
           <form action={createCorrectionFlagAction} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="term_id">Term</Label>
@@ -74,31 +73,24 @@ export default async function AnatomyCorrectionsPage() {
               Submit flag
             </Button>
           </form>
-        </CardContent>
-      </Card>
+      </AppSurface>
 
-      <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle>Your flags</CardTitle>
-          <CardDescription>Track the correction flags you have submitted.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <AppSurface title="Your flags" description="Track the correction flags you have submitted." contentClassName="gap-3">
           {flags.length === 0 ? (
             <p className="text-sm text-muted-foreground">You have not submitted any correction flags yet.</p>
           ) : (
             flags.map((flag) => (
-              <div key={flag.id} className="rounded-md border border-neutral-800 bg-background/70 p-4">
+              <AppInset key={flag.id} className="p-4">
                 <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-medium">{flag.term?.preferredName ?? "General content issue"}</p>
                   <span className="text-sm text-brand-orange">{flag.status}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">{flag.issueType}: {flag.message}</p>
                 {flag.resolutionNote && <p className="mt-2 text-sm text-muted-foreground">Resolution: {flag.resolutionNote}</p>}
-              </div>
+              </AppInset>
             ))
           )}
-        </CardContent>
-      </Card>
+      </AppSurface>
 
       <Button asChild variant="outline">
         <Link href="/account">Back to account</Link>
@@ -109,11 +101,8 @@ export default async function AnatomyCorrectionsPage() {
 
 function CorrectionShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <PageHeading>Anatomy Corrections</PageHeading>
+    <AppPageShell title="Anatomy Corrections" width="standard">
         {children}
-      </div>
-    </div>
+    </AppPageShell>
   )
 }

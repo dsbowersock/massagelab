@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { BadgeDollarSign, CheckCircle2, Palette, ShieldCheck } from "lucide-react"
+import { appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,7 +62,7 @@ export function MembershipPricingCards({
 }: MembershipPricingCardsProps) {
   return (
     <section className={cn("space-y-4", className)} aria-labelledby="membership-pricing-heading">
-      <div className="flex flex-col gap-3 rounded-md border border-brand-orange/35 bg-primary/10 p-4 sm:flex-row sm:items-start">
+      <div className={cn(appCalloutClassName, "flex flex-col gap-3 rounded-md p-4 sm:flex-row sm:items-start")}>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-brand-orange/35 bg-background/50">
           <BadgeDollarSign className="h-5 w-5 text-brand-orange" aria-hidden="true" />
         </div>
@@ -79,7 +80,7 @@ export function MembershipPricingCards({
       </div>
 
       <Tabs defaultValue={catalog.defaultInterval} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-md border border-neutral-800 bg-background/80 p-1 sm:w-[26rem]">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-md border border-border/80 bg-background/80 p-1 sm:w-[26rem]">
           {catalog.intervals.map((interval) => (
             <TabsTrigger
               key={interval.id}
@@ -127,12 +128,13 @@ function PlanCard({
 
   return (
     <Card className={cn(
-      "flex h-full flex-col border-neutral-800 bg-card/90 backdrop-blur",
+      appSurfaceClassName,
+      "flex h-full flex-col",
       active && "border-brand-orange/60",
     )}>
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Badge variant="outline" className="border-neutral-700 text-muted-foreground">
+          <Badge variant="outline" className="border-border/80 text-muted-foreground">
             {plan.eyebrow}
           </Badge>
           {active ? (

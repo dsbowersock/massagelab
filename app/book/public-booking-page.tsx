@@ -6,8 +6,8 @@ import { normalizeBookingPolicy } from "@/lib/booking-policy"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
 import { normalizePublicBookingSlug, normalizePublicBookingStateSlug } from "@/lib/public-booking-url"
+import { AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookingPicker } from "./[practiceSlug]/booking-picker"
 
 type PublicBookingLookup =
@@ -192,12 +192,10 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
           </BookingShellSection>
         ) : (
           <BookingShellSection>
-            <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-              <CardHeader>
-                <CardTitle>No online booking times available</CardTitle>
-                <CardDescription>The practice needs at least one active primary service, publicly bookable provider, and availability rule.</CardDescription>
-              </CardHeader>
-            </Card>
+            <AppSurface
+              title="No online booking times available"
+              description="The practice needs at least one active primary service, publicly bookable provider, and availability rule."
+            />
           </BookingShellSection>
         )
       ) : (
@@ -236,12 +234,10 @@ function BookingShellSection({ children }: { children: React.ReactNode }) {
 
 function CalendarUnavailableNotice() {
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Online booking is temporarily unavailable</CardTitle>
-        <CardDescription>Appointment requests are not available right now. Please try again later.</CardDescription>
-      </CardHeader>
-    </Card>
+    <AppSurface
+      title="Online booking is temporarily unavailable"
+      description="Appointment requests are not available right now. Please try again later."
+    />
   )
 }
 
@@ -250,24 +246,22 @@ function AccountRequiredCard({ bookingPath }: { bookingPath: string }) {
   const registerHref = `/register?callbackUrl=${encodeURIComponent(bookingPath)}`
 
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <LockKeyhole className="h-5 w-5 text-brand-orange" />
-          Sign in to request an appointment
-        </CardTitle>
-        <CardDescription>
+    <AppSurface
+      title="Sign in to request an appointment"
+      description={
+        <>
           This practice requires a free client account before booking. Accounts keep your contact details ready and make it easier to follow request status.
-        </CardDescription>
-      </CardHeader>
-      <CardFooter className="flex-wrap gap-2">
+        </>
+      }
+      icon={<LockKeyhole className="h-5 w-5" aria-hidden="true" />}
+      contentClassName="flex flex-row flex-wrap gap-2"
+    >
         <Button asChild className="w-fit bg-primary hover:bg-brand-orange-glow">
           <Link href={registerHref}>Create free account</Link>
         </Button>
         <Button asChild variant="outline" className="w-fit">
           <Link href={loginHref}>Sign in</Link>
         </Button>
-      </CardFooter>
-    </Card>
+    </AppSurface>
   )
 }

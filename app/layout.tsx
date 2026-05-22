@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { getAppSidebarData } from "@/components/sidebar/sidebar"
 import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
+import { SidebarCalendarProvider } from "@/components/sidebar/sidebar-calendar-provider"
 import { SettingsProvider } from "@/components/providers/settings-provider"
 import { ServiceWorkerProvider } from "@/components/providers/service-worker-provider"
 import { TherapistSettingsProvider } from "@/components/providers/therapist-settings-provider"
@@ -55,12 +56,14 @@ export default async function RootLayout({
         <SettingsProvider syncEnabled={canSyncAccountSettings}>
           <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
             <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
-              <AppSidebarClient user={user} calendarContext={calendarContext} />
-              <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
-                <main className="relative h-full min-w-0 overflow-hidden">
-                  <LayoutWrapper user={user}>{children}</LayoutWrapper>
-                </main>
-              </SidebarInset>
+              <SidebarCalendarProvider enabled={Boolean(user)} initialContext={calendarContext}>
+                <AppSidebarClient user={user} />
+                <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
+                  <main className="relative h-full min-w-0 overflow-hidden">
+                    <LayoutWrapper user={user}>{children}</LayoutWrapper>
+                  </main>
+                </SidebarInset>
+              </SidebarCalendarProvider>
             </SidebarProvider>
           </TherapistSettingsProvider>
         </SettingsProvider>

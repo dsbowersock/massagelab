@@ -5,8 +5,8 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { Mail, ShieldCheck } from "lucide-react"
+import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -70,14 +70,15 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   }
 
   return (
-    <Card className="border-neutral-800 bg-card/90 backdrop-blur">
-      <CardHeader>
-        <CardTitle>MassageLab account</CardTitle>
-        <CardDescription>
+    <AppSurface
+      title="MassageLab account"
+      description={
+        <>
           Sign in to sync preferences, profile defaults, progress, templates, and achievements. Core tools still work without login.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+        </>
+      }
+      contentClassName="gap-5"
+    >
         <form className="space-y-3" onSubmit={handleEmailLogin}>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -132,9 +133,9 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         )}
 
         {status && (
-          <p className="rounded-md border border-neutral-800 bg-background/70 p-3 text-sm text-muted-foreground">
+          <AppInset className="p-3 text-sm text-muted-foreground">
             {status}
-          </p>
+          </AppInset>
         )}
 
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
@@ -145,7 +146,6 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
             Forgot password?
           </Link>
         </div>
-      </CardContent>
-    </Card>
+    </AppSurface>
   )
 }
