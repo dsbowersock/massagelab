@@ -1,6 +1,6 @@
 # MassageLab TODO
 
-Active planning and progress tracking now lives in [docs/project-log.md](docs/project-log.md). Keep this file as source evidence and a detailed checkbox list, but mirror meaningful status changes in the project log.
+Current project state now lives in [docs/project-state.md](docs/project-state.md), and chronological progress tracking lives in [docs/project-log.md](docs/project-log.md). Keep this file as source evidence and a detailed historical checkbox list, but mirror meaningful status changes in the project state and project log.
 
 ## Current Branch
 
@@ -30,7 +30,7 @@ Active planning and progress tracking now lives in [docs/project-log.md](docs/pr
 - [x] Online booking settings, waitlist, and provider capacity controls inspired by Square's calendar and booking settings, excluding payments and external sync implementation.
 - [ ] External Google/Apple/Outlook calendar sync integration plan.
 - [ ] Stripe Connect marketplace payments plan for provider booking payments, deposits, cancellation fees, taxes, packages, refunds, payouts, and platform fees.
-- [ ] Sitewide visual system and account-page polish pass: update the rest of the site with the account page's visual polish and move shared page/surface/inset styling into one source of truth so route elements stay cohesive unless an intentional exception is documented.
+- [x] Sitewide visual system and account-page polish pass: update the rest of the site with the account page's visual polish and move shared page/surface/inset styling into one source of truth so route elements stay cohesive unless an intentional exception is documented.
 - [ ] Generative music spike.
 - [ ] Terms, privacy/legal, About Me, and public trust pages.
 - [ ] Anatomy content expansion and review workflow.

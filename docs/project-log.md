@@ -1,15 +1,17 @@
 # MassageLab Project Log
 
-This is the canonical repo-backed planning and progress log for MassageLab. Use it first when deciding what is active, what is next, and what changed recently.
+This is the canonical chronological planning and progress log for MassageLab. Use [project-state.md](project-state.md) first for the current snapshot, then use this file for decisions, completed work, and change history.
 
-Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes here.
+Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: public booking v1 follow-ups and the sitewide visual system polish pass are complete enough to wrap; next focus should be selected from the remaining P2 branch candidates.
+- Current focus: project-source-of-truth consolidation, then anatomy content review and expansion.
+- Current-state source of truth: [project-state.md](project-state.md).
+- Database status: Prisma schema validates; the configured Neon/Postgres database is up to date with 19 migrations as of 2026-05-27.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates.
-- Public `/roadmap` route: product-facing app copy only. This file is the internal operating tracker.
+- Public `/roadmap` route: product-facing app copy only. Internal operating state lives in [project-state.md](project-state.md) and this log.
 
 ## Now
 
@@ -24,7 +26,8 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Completed | P2 | Build calendar creation flows | [Roadmap](roadmap.md), [TODO](../TODO.md), [Calendar wiki](wiki/calendar-creation-flows.md) | Appointment, client request, personal event, class, and reminder flows use a shared event index with conservative role permissions, audit rows, and internal notification intent records. |
 | Completed | P2 | Add calendar service catalog and availability readiness | [Calendar wiki](wiki/calendar-creation-flows.md) | Calendar migrations are applied; services have variants, resources, operational policy fields, scheduling snapshots, and resource conflict checks for appointments, classes, and public booking. |
 | Completed | P2 | Build operator calendar workspace | [Calendar wiki](wiki/calendar-creation-flows.md) | `/calendar` uses a draggable FullCalendar workspace with provider view preferences, server-validated rescheduling, advanced provider availability, multi-service appointment composition, and clinical-rich service template references that avoid client-specific PHI. |
-| Active | P2 | Maintain this project log | This consolidation plan | Future meaningful changes, completed plans, branch outcomes, and priority changes are appended to the change history. |
+| Completed | P1 | Consolidate project source of truth | [Project state](project-state.md), [Superpowers plan](superpowers/plans/2026-05-27-project-source-of-truth-consolidation.md) | `docs/project-state.md` is the read-first current-state file; `docs/project-log.md` remains chronological history; README, wiki, roadmap, TODO, and agent instructions point to the same convention. |
+| Active | P2 | Maintain project state and log | [Project state](project-state.md) | Future meaningful changes update the current state first and append completed plans, branch outcomes, and priority changes to this change history. |
 
 ## Next
 
@@ -54,7 +57,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Date | Decision | Notes |
 | --- | --- | --- |
-| 2026-05-17 | `docs/project-log.md` is the active internal tracker. | `TODO.md`, `docs/roadmap.md`, `docs/alpha-qa.md`, audits, and wiki pages remain source evidence. |
+| 2026-05-27 | `docs/project-state.md` is the read-first current-state tracker. | `docs/project-log.md` remains chronological history; `TODO.md`, `docs/roadmap.md`, `docs/alpha-qa.md`, audits, and wiki pages remain source evidence unless mirrored into current state. |
+| 2026-05-27 | Detailed implementation plans live under `docs/superpowers/plans/`. | Use these plans for multi-step implementation handoffs while keeping current state concise. |
+| 2026-05-17 | `docs/project-log.md` became the active internal tracker. | Superseded on 2026-05-27 for current snapshot duties; this file remains the chronological progress and decision log. |
 | 2026-05-17 | Update this log for meaningful progress. | Add change-history entries when a plan is created, priority changes, branch work completes, or a significant implementation lands. |
 | 2026-05-17 | Keep PHI-bearing workflows local-first during alpha. | Account sync must not include SOAP, intake, journal, ROM, client, treatment, or other clinical content. Hosted clinical sync stays gated and unimplemented until compliance requirements are met. |
 | 2026-05-17 | Use feature-based entitlements. | Code should check feature keys such as `chimer_custom_colors`, not named plans. Free and Student are internal access states; Student is not Stripe-backed. |
@@ -75,6 +80,15 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-05-27
+
+- Added `docs/project-state.md` as the read-first current-state source of truth and clarified that `docs/project-log.md` is the chronological progress and decision log.
+- Added `AGENTS.md` so future agents read project state first, preserve local-first PHI boundaries, avoid secrets/row-level database details in docs, and use feature-key entitlement checks.
+- Added `docs/superpowers/plans/2026-05-27-project-source-of-truth-consolidation.md` for implementation tracking and updated README, wiki index, TODO, and roadmap references to the same documentation convention.
+- Verified the Prisma schema and configured database state during consolidation: 19 migrations are present and the configured Neon/Postgres schema was reported up to date.
+- Recorded the latest anatomy database direction: 3D/spatial body-map tables, entity maps, movement visualization records, and joint/movement/ROM integrity constraints are now part of the anatomy foundation.
+- Reconciled dependency notes with the May 27 security review: no high or critical advisories are documented, with remaining Next/PostCSS, Nodemailer, and dependency-level findings tracked as accepted residual risk.
 
 ### 2026-05-21
 
@@ -123,6 +137,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Source Evidence Index
 
+- [Project state](project-state.md): read-first current state, database status, live surfaces, open priorities, and update rules.
 - [TODO](../TODO.md): preserved checkbox list and source evidence for active and recently completed work.
 - [Roadmap](roadmap.md): branch-ready and phased product direction.
 - [Alpha QA](alpha-qa.md): private-alpha verification checklist.
