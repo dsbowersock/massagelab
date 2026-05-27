@@ -36,14 +36,15 @@ Donations and future memberships help fund:
 
 ## Project Status
 
-MassageLab is in private alpha. The current priority is release readiness: verify the existing surfaces, keep local-first boundaries intact, resolve dependency alerts, and make the public documentation clearer.
+MassageLab is in private alpha. The current operating priority is tracked in the project state, with local-first clinical boundaries, release readiness, anatomy content quality, and public trust work kept visible as the project moves toward wider use.
 
-The active planning and progress tracker is [docs/project-log.md](docs/project-log.md). The roadmap remains available in [docs/roadmap.md](docs/roadmap.md), and the preserved working task list is in [TODO.md](TODO.md).
+The read-first current-state tracker is [docs/project-state.md](docs/project-state.md). Chronological progress and decisions live in [docs/project-log.md](docs/project-log.md). The roadmap remains available in [docs/roadmap.md](docs/roadmap.md), and the preserved working task list is in [TODO.md](TODO.md).
 
 ## Documentation
 
 Project documentation lives in [docs/wiki](docs/wiki/index.md):
 
+- [Project state](docs/project-state.md)
 - [Project log](docs/project-log.md)
 - [Local development](docs/wiki/local-development.md)
 - [Privacy and PHI posture](docs/wiki/privacy-and-phi.md)

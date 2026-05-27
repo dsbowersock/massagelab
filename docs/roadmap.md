@@ -1,8 +1,8 @@
 # MassageLab Roadmap
 
-This file captures the branch-ready roadmap after the May 8-13, 2026 alpha refresh work.
+This file captures product-direction source evidence after the May 8-13, 2026 alpha refresh work.
 
-Active planning and progress tracking now lives in [project-log.md](project-log.md). Keep this roadmap as product-direction source evidence and mirror meaningful status changes in the project log.
+Current project state now lives in [project-state.md](project-state.md), and chronological progress tracking lives in [project-log.md](project-log.md). Keep this roadmap as product-direction source evidence and mirror meaningful status changes in the project state and project log.
 
 ## Recently Completed
 
@@ -13,7 +13,9 @@ Active planning and progress tracking now lives in [project-log.md](project-log.
 - Branding and PWA assets shipped with updated favicon, app icons, brand mark, wordmark, and sidebar logo placement.
 - Runtime/dependency hygiene shipped with Node.js `24.x` pinning and recent dependency security updates.
 
-## Branch Order
+## Historical Branch Order
+
+This order is preserved as source evidence from the alpha-refresh planning period. Use [project-state.md](project-state.md) for the current priority order.
 
 1. `codex/alpha-release-readiness`
 2. `codex/calendar-creation-flows-plan`
