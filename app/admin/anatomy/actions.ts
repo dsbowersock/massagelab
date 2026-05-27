@@ -5,12 +5,22 @@ import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
 import type { AccountRole, AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
+import { parseAnatomyEntitySelection } from "@/lib/anatomy-queries"
 import { prisma } from "@/lib/prisma"
 
 const VALID_TERM_KINDS = new Set(["SYSTEM", "ORGAN", "TISSUE", "BONE", "MUSCLE", "JOINT", "NERVE", "VESSEL", "LIGAMENT", "TENDON", "CELL", "OTHER"])
 const VALID_DIFFICULTIES = new Set(["EASY", "MEDIUM", "HARD"])
 const VALID_STATUSES = new Set(["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"])
 const VALID_FLAG_STATUSES = new Set(["OPEN", "RESOLVED", "REJECTED"])
+const VALID_ENTITY_RELATIONSHIP_TYPES = new Set([
+  "deep_to",
+  "superficial_to",
+  "supplies",
+  "includes_branch",
+  "may_affect_region",
+  "overlaps_region",
+  "related_to",
+])
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key)
@@ -141,6 +151,48 @@ export async function createAnatomyRelationshipAction(formData: FormData) {
       sourceTermId,
       targetTermId,
       relationshipType,
+    },
+  })
+
+  revalidatePath("/admin/anatomy")
+}
+
+export async function createAnatomyEntityRelationshipAction(formData: FormData) {
+  await requireEditor()
+  const source = parseAnatomyEntitySelection(formString(formData, "source_entity_type"), formString(formData, "source_entity_slug"))
+  const targetInput = formString(formData, "target_entity")
+  const [targetInputType, targetInputSlug] = targetInput.split(":", 2)
+  const target = parseAnatomyEntitySelection(
+    formString(formData, "target_entity_type") || targetInputType,
+    formString(formData, "target_entity_slug") || targetInputSlug,
+  )
+  const relationshipType = formString(formData, "relationship_type").toLowerCase()
+  const sourceId = formString(formData, "source_id")
+
+  if (!source || !target || !VALID_ENTITY_RELATIONSHIP_TYPES.has(relationshipType)) {
+    return
+  }
+
+  await prisma.anatomyRelationship.upsert({
+    where: {
+      sourceEntityType_sourceEntitySlug_relationshipType_targetEntityType_targetEntitySlug: {
+        sourceEntityType: source.entityType,
+        sourceEntitySlug: source.entitySlug,
+        relationshipType,
+        targetEntityType: target.entityType,
+        targetEntitySlug: target.entitySlug,
+      },
+    },
+    create: {
+      sourceEntityType: source.entityType,
+      sourceEntitySlug: source.entitySlug,
+      relationshipType,
+      targetEntityType: target.entityType,
+      targetEntitySlug: target.entitySlug,
+      sourceId: sourceId || null,
+    },
+    update: {
+      sourceId: sourceId || null,
     },
   })
 

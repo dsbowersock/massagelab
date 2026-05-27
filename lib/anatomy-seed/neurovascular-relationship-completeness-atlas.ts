@@ -1,0 +1,183 @@
+import type { AnatomySeedSection } from "./sections.ts"
+
+const APPLIED_HUMAN_ANATOMY_SOURCE = "applied-human-anatomy"
+const APPLIED_HUMAN_ANATOMY_LOCATOR = "https://open.umn.edu/opentextbooks/textbooks/1266"
+
+type RelationshipRow = NonNullable<AnatomySeedSection["relationships"]>[number]
+type CitationRow = NonNullable<AnatomySeedSection["citations"]>[number]
+
+const NEUROVASCULAR_RELATIONSHIPS: RelationshipRow[] = [
+  {
+    id: "relationship-external-jugular-vein-drains-neck",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "external-jugular-vein",
+    relationshipType: "drains_region",
+    targetEntityType: "region",
+    targetEntitySlug: "neck",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-axillary-artery-supplies-shoulder-girdle",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "axillary-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "shoulder-girdle",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-cephalic-vein-drains-upper-limb",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "cephalic-vein",
+    relationshipType: "drains_region",
+    targetEntityType: "region",
+    targetEntitySlug: "upper-limb",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-abdominal-aorta-supplies-abdomen",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "abdominal-aorta",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "abdomen",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-internal-thoracic-artery-supplies-thorax",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "internal-thoracic-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "thorax",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-internal-pudendal-vein-drains-pelvis",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "internal-pudendal-vein",
+    relationshipType: "drains_region",
+    targetEntityType: "region",
+    targetEntitySlug: "pelvis",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-basilic-vein-drains-upper-limb",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "basilic-vein",
+    relationshipType: "drains_region",
+    targetEntityType: "region",
+    targetEntitySlug: "upper-limb",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-femoral-artery-supplies-thigh",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "femoral-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "thigh",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-femoral-vein-drains-thigh",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "femoral-vein",
+    relationshipType: "drains_region",
+    targetEntityType: "region",
+    targetEntitySlug: "thigh",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-anterior-tibial-artery-supplies-leg",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "anterior-tibial-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "leg",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-posterior-tibial-artery-supplies-leg",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "posterior-tibial-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "leg",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-external-carotid-artery-supplies-head-face-jaw",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "external-carotid-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "head-face-jaw",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-maxillary-artery-supplies-jaw",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "maxillary-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "jaw",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-superficial-temporal-artery-supplies-head",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "superficial-temporal-artery",
+    relationshipType: "supplies_region",
+    targetEntityType: "region",
+    targetEntitySlug: "head",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-facial-vein-drains-face",
+    sourceEntityType: "blood_supply",
+    sourceEntitySlug: "facial-vein",
+    relationshipType: "drains_region",
+    targetEntityType: "region",
+    targetEntitySlug: "face",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-sacral-plexus-gives-rise-to-sciatic-nerve",
+    sourceEntityType: "nerve",
+    sourceEntitySlug: "sacral-plexus",
+    relationshipType: "gives_rise_to",
+    targetEntityType: "nerve",
+    targetEntitySlug: "sciatic-nerve",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+  {
+    id: "relationship-lumbar-plexus-gives-rise-to-ilioinguinal-nerve",
+    sourceEntityType: "nerve",
+    sourceEntitySlug: "lumbar-plexus",
+    relationshipType: "gives_rise_to",
+    targetEntityType: "nerve",
+    targetEntitySlug: "ilioinguinal-nerve",
+    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+  },
+]
+
+function sourceReferenceCitation(relationship: RelationshipRow): CitationRow {
+  return {
+    id: `citation-source-ref-${relationship.id}`,
+    slug: `citation-source-ref-${relationship.id}`,
+    entityType: relationship.sourceEntityType,
+    entitySlug: relationship.sourceEntitySlug,
+    factType: "seed_source_reference",
+    factSlug: `relationship:${relationship.id}`,
+    sourceRef: relationship.sourceRef,
+    sourceLocator: APPLIED_HUMAN_ANATOMY_LOCATOR,
+    citationNote: "Reviewed source-reference row for a neurovascular relationship seed fact.",
+    reviewStatus: "reviewed",
+  }
+}
+
+export const NEUROVASCULAR_RELATIONSHIP_COMPLETENESS_ATLAS_SECTION: AnatomySeedSection = {
+  relationships: NEUROVASCULAR_RELATIONSHIPS,
+  citations: NEUROVASCULAR_RELATIONSHIPS.map(sourceReferenceCitation),
+}

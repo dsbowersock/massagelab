@@ -52,7 +52,8 @@ describe("Account page tab model", () => {
       "subscription-status",
       "billing-portal",
       "anatomy-feedback",
-      "content-tools",
+      "anatomy-browser-access",
+      "account-session",
     ])
   })
 
@@ -112,6 +113,10 @@ describe("Account page tab model", () => {
     assert.deepEqual(
       filterAccountPageGroups("therapist defaults").flatMap((group) => group.items.map((item) => item.id)),
       ["therapist-defaults"],
+    )
+    assert.deepEqual(
+      filterAccountPageGroups("anatomy browser").flatMap((group) => group.items.map((item) => item.id)),
+      ["tools"],
     )
     assert.deepEqual(
       filterAccountPageGroups("practice").map((group) => group.id),

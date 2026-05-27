@@ -1,4 +1,4 @@
-export type AccountRole = "USER" | "STUDENT" | "LICENSED_THERAPIST" | "CLIENT" | "EDITOR" | "ADMIN"
+export type AccountRole = "USER" | "STUDENT" | "LICENSED_THERAPIST" | "CLIENT" | "EDITOR" | "ANATOMY_ADMIN" | "ADMIN"
 
 export type VerificationStatus = "UNVERIFIED" | "PENDING" | "VERIFIED" | "EXPIRED" | "REJECTED" | "REVOKED"
 

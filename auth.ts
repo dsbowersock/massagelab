@@ -222,7 +222,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           : sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
         sessionUser.capabilities = (token.capabilities ?? {
           canAdministerAccounts: sessionUser.role === "ADMIN",
-          canManageAnatomyContent: sessionUser.role === "ADMIN" || sessionUser.role === "EDITOR",
+          canManageAnatomyContent: sessionUser.role === "ADMIN" || sessionUser.role === "ANATOMY_ADMIN",
           canManageClients: false,
           canRequestCredentials: true,
           canUseLocalClinicalTools: true,

@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PageHeading } from "@/components/ui/page-heading"
 
 export const appPageShellClassName = "min-h-screen bg-transparent p-4 sm:p-6 lg:p-8"
 
@@ -33,13 +32,9 @@ export type AppPageWidth = keyof typeof appPageWidthClassNames
 
 export function AppPageShell({
   children,
-  title,
-  description,
   width = "wide",
-  align = "center",
   className,
   contentClassName,
-  headingClassName,
 }: {
   children: React.ReactNode
   title?: React.ReactNode
@@ -53,11 +48,6 @@ export function AppPageShell({
   return (
     <div className={cn(appPageShellClassName, className)}>
       <div className={cn("mx-auto flex w-full flex-col gap-6", appPageWidthClassNames[width], contentClassName)}>
-        {title ? (
-          <PageHeading description={description} align={align} className={headingClassName}>
-            {title}
-          </PageHeading>
-        ) : null}
         {children}
       </div>
     </div>

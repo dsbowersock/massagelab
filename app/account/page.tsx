@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import {
   BadgeCheck,
   CreditCard,
+  Database,
   FileCheck2,
   GraduationCap,
   Shield,
@@ -152,7 +153,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     "practice-profile": "Coming later",
     people: "Coming later",
     "calendar-availability": "Open calendar",
-    tools: canManageAnatomy ? "Admin tools available" : "Feedback",
+    tools: canManageAnatomy ? "Anatomy browser" : "Feedback",
     membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
     "orders-invoices": "Coming later",
   }
@@ -357,6 +358,14 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
             title="Verify credentials"
             description="Submit license or student enrollment details for role access."
           />
+          {sessionUser.capabilities?.canManageAnatomyContent ? (
+            <AccountActionLink
+              href="/admin/anatomy"
+              icon={<Database className="h-4 w-4" aria-hidden="true" />}
+              title="Open anatomy browser"
+              description="Search and inspect the protected anatomy foundation database."
+            />
+          ) : null}
           <div className={cn(settingsInsetClassName, "p-4")}>
             <p className="text-sm font-medium">Session</p>
             <p className="mt-1 text-sm text-muted-foreground">End this browser session and return to the public home page.</p>
@@ -710,23 +719,28 @@ function ToolsTab({ sessionUser }: { sessionUser: AccountSessionUser }) {
       </Card>
 
       {canManageAnatomy ? (
-        <Card id="content-tools" className={settingsSurfaceClassName}>
+        <Card id="anatomy-browser-access" className={settingsSurfaceClassName}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-              Content tools
+              <Database className="h-5 w-5 text-brand-orange" aria-hidden="true" />
+              Anatomy browser
             </CardTitle>
-            <CardDescription>Admin and editor roles can manage the anatomy content database.</CardDescription>
+            <CardDescription>
+              Access is limited to full admins and users with the dedicated anatomy admin role.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+              <Link href="/admin/anatomy">Open anatomy browser</Link>
+            </Button>
             <Button asChild variant="outline">
-              <Link href="/admin/anatomy">Open anatomy admin</Link>
+              <Link href="/admin/anatomy?quick=scapula-attachments">Scapula attachments</Link>
             </Button>
           </CardContent>
         </Card>
       ) : null}
 
-      <Card className={settingsSurfaceClassName}>
+      <Card id="account-session" className={settingsSurfaceClassName}>
         <CardHeader>
           <CardTitle>Session</CardTitle>
           <CardDescription>Sign out of this browser session.</CardDescription>

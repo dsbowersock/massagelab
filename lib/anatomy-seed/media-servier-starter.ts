@@ -1,0 +1,161 @@
+import type { AnatomySeedSection } from "./sections.ts"
+
+const SERVIER_SOURCE = "servier-medical-art"
+const SERVIER_ATTRIBUTION = "Image provided by Servier Medical Art (https://smart.servier.com/), licensed under CC BY 4.0."
+const SERVIER_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+const SERVIER_LICENSE_PAGE = "https://smart.servier.com/using-smart-images-what-you-can-do/"
+const SERVIER_CITATION_PAGE = "https://smart.servier.com/how-to-cite-servier-medical-art/"
+
+const starterImages = [
+  {
+    slug: "servier-heart-2d-illustration",
+    title: "Servier Heart 2D Illustration",
+    description: "Reviewed Servier Medical Art 2D heart illustration for client education, flashcards, and cardiovascular anatomy browsing.",
+    sourcePage: "https://smart.servier.com/smart_image/heart-14/",
+    sourceUrl: "https://smart.servier.com/wp-content/uploads/2016/10/coeur_11.png",
+    storagePath: "anatomy/servier/2d/heart.png",
+    entityType: "anatomy_structure",
+    entitySlug: "heart",
+    entityLinks: [
+      { entityType: "anatomy_structure", entitySlug: "heart", role: "primary", notes: "Primary 2D education image for the heart structure." },
+      { entityType: "anatomy_concept", entitySlug: "heart", role: "client_education", notes: "Client-friendly heart education image." },
+      { entityType: "anatomy_concept", entitySlug: "cardiovascular-system", role: "region_context", notes: "Cardiovascular system overview context." },
+    ],
+  },
+  {
+    slug: "servier-brain-2d-illustration",
+    title: "Servier Brain 2D Illustration",
+    description: "Reviewed Servier Medical Art 2D brain illustration for client education, flashcards, and nervous-system anatomy browsing.",
+    sourcePage: "https://smart.servier.com/smart_image/smart-brain/",
+    sourceUrl: "https://smart.servier.com/wp-content/uploads/2016/10/cerveau_09.png",
+    storagePath: "anatomy/servier/2d/brain.png",
+    entityType: "anatomy_structure",
+    entitySlug: "brain",
+    entityLinks: [
+      { entityType: "anatomy_structure", entitySlug: "brain", role: "primary", notes: "Primary 2D education image for the brain structure." },
+      { entityType: "anatomy_concept", entitySlug: "brain", role: "client_education", notes: "Client-friendly brain education image." },
+      { entityType: "anatomy_concept", entitySlug: "nervous-system", role: "region_context", notes: "Nervous-system overview context." },
+    ],
+  },
+  {
+    slug: "servier-lungs-2d-illustration",
+    title: "Servier Lungs 2D Illustration",
+    description: "Reviewed Servier Medical Art 2D lungs illustration for client education, flashcards, and respiratory anatomy browsing.",
+    sourcePage: "https://smart.servier.com/smart_image/lungs-11/",
+    sourceUrl: "https://smart.servier.com/wp-content/uploads/2016/10/poumons_01.png",
+    storagePath: "anatomy/servier/2d/lungs.png",
+    entityType: "anatomy_structure",
+    entitySlug: "lung",
+    entityLinks: [
+      { entityType: "anatomy_structure", entitySlug: "lung", role: "primary", notes: "Primary 2D education image for lung anatomy." },
+      { entityType: "anatomy_concept", entitySlug: "lung", role: "client_education", notes: "Client-friendly lungs education image." },
+      { entityType: "anatomy_concept", entitySlug: "respiratory-system", role: "region_context", notes: "Respiratory system overview context." },
+    ],
+  },
+  {
+    slug: "servier-lymphatic-circulation-2d-illustration",
+    title: "Servier Lymphatic Circulation 2D Illustration",
+    description: "Reviewed Servier Medical Art 2D lymphatic circulation illustration for lymphatic education and body-system browsing.",
+    sourcePage: "https://smart.servier.com/smart_image/lymphatic-circulation-overview/",
+    sourceUrl: "https://smart.servier.com/wp-content/uploads/2016/10/Systeme_lymphatique_circu-1.png",
+    storagePath: "anatomy/servier/2d/lymphatic-circulation.png",
+    entityType: "anatomy_concept",
+    entitySlug: "lymphatic-system",
+    entityLinks: [
+      { entityType: "anatomy_concept", entitySlug: "lymphatic-system", role: "primary", notes: "Primary 2D education image for lymphatic system overview." },
+      { entityType: "anatomy_structure", entitySlug: "lymphatic-vessel", role: "reference", notes: "Lymphatic vessel context within the circulation illustration." },
+    ],
+  },
+  {
+    slug: "servier-integumentary-system-2d-illustration",
+    title: "Servier Integumentary System 2D Illustration",
+    description: "Reviewed Servier Medical Art 2D integumentary system illustration for skin education, body-system browsing, and flashcards.",
+    sourcePage: "https://smart.servier.com/smart_image/integumentary-system-overview/",
+    sourceUrl: "https://smart.servier.com/wp-content/uploads/2022/06/Integumentary-system-3.png",
+    storagePath: "anatomy/servier/2d/integumentary-system.png",
+    entityType: "anatomy_structure",
+    entitySlug: "skin",
+    entityLinks: [
+      { entityType: "anatomy_structure", entitySlug: "skin", role: "primary", notes: "Primary 2D education image for the skin structure." },
+      { entityType: "anatomy_concept", entitySlug: "integumentary-system", role: "client_education", notes: "Client-friendly integumentary system education image." },
+    ],
+  },
+  {
+    slug: "servier-eye-structure-2d-illustration",
+    title: "Servier Eye Structure 2D Illustration",
+    description: "Reviewed Servier Medical Art 2D eye structure illustration for client education, flashcards, and visual-system browsing.",
+    sourcePage: "https://smart.servier.com/smart_image/eye-structure/",
+    sourceUrl: "https://smart.servier.com/wp-content/uploads/2016/10/Eye-structure.png",
+    storagePath: "anatomy/servier/2d/eye-structure.png",
+    entityType: "anatomy_structure",
+    entitySlug: "eye",
+    entityLinks: [
+      { entityType: "anatomy_structure", entitySlug: "eye", role: "primary", notes: "Primary 2D education image for the eye structure." },
+      { entityType: "anatomy_concept", entitySlug: "eye", role: "client_education", notes: "Client-friendly eye education image." },
+    ],
+  },
+] as const
+
+export const MEDIA_SERVIER_STARTER_SECTION = {
+  mediaAssets: starterImages.map((asset) => ({
+    id: `media-${asset.slug}`,
+    slug: asset.slug,
+    title: asset.title,
+    mediaType: "image",
+    description: asset.description,
+    sourceRef: SERVIER_SOURCE,
+    sourceUrl: asset.sourceUrl,
+    storagePath: asset.storagePath,
+    license: "CC BY 4.0",
+    licenseUrl: SERVIER_LICENSE_URL,
+    attribution: SERVIER_ATTRIBUTION,
+    author: "Servier Medical Art",
+    usageScope: "open_reuse",
+    reviewStatus: "reviewed",
+    format: "png",
+    metadata: {
+      r2Upload: true,
+      sourceKind: "servier-2d-education-image",
+      sourcePage: asset.sourcePage,
+      licenseVerifiedAt: "2026-05-26",
+      licensePage: SERVIER_LICENSE_PAGE,
+      citationPage: SERVIER_CITATION_PAGE,
+      visualStyle: "2d-medical-illustration",
+      ingestionStatus: "pending_r2_upload",
+    },
+  })),
+  mediaEntityLinks: starterImages.flatMap((asset) => asset.entityLinks.map((link) => ({
+    id: `media-link-${asset.slug}-${link.entityType}-${link.entitySlug}-${link.role}`,
+    assetSlug: asset.slug,
+    entityType: link.entityType,
+    entitySlug: link.entitySlug,
+    role: link.role,
+    notes: link.notes,
+  }))),
+  citations: starterImages.flatMap((asset) => [
+    {
+      id: `citation-${asset.slug}-media-source`,
+      slug: `citation-${asset.slug}-media-source`,
+      entityType: asset.entityType,
+      entitySlug: asset.entitySlug,
+      factType: "media_source",
+      factSlug: asset.slug,
+      sourceRef: SERVIER_SOURCE,
+      sourceLocator: asset.sourcePage,
+      citationNote: "Servier Medical Art image page selected for 2D education media ingestion with stored direct image URL, license, attribution, and R2 upload path.",
+      reviewStatus: "reviewed",
+    },
+    {
+      id: `citation-${asset.slug}-media-license`,
+      slug: `citation-${asset.slug}-media-license`,
+      entityType: asset.entityType,
+      entitySlug: asset.entitySlug,
+      factType: "media_license",
+      factSlug: asset.slug,
+      sourceRef: SERVIER_SOURCE,
+      sourceLocator: SERVIER_LICENSE_PAGE,
+      citationNote: "Servier Medical Art states SMART images are available under CC BY 4.0 and provides attribution guidance for reuse.",
+      reviewStatus: "reviewed",
+    },
+  ]),
+} satisfies AnatomySeedSection
