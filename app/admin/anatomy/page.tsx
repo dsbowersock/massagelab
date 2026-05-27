@@ -59,6 +59,7 @@ const TERM_KINDS = ["SYSTEM", "ORGAN", "TISSUE", "BONE", "MUSCLE", "JOINT", "NER
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"]
 const STATUSES = ["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]
 const FLAG_STATUSES = ["OPEN", "RESOLVED", "REJECTED"]
+const SOURCE_USAGE_SCOPES = ["OPEN_REUSE", "INTERNAL_REFERENCE", "COMMERCIAL_LICENSED", "REVIEW_ONLY"]
 const ANATOMY_DETAIL_LOOKUP_TAKE = 2000
 
 type AnatomyAdminPageProps = {
@@ -121,6 +122,9 @@ type AnatomyBrowserData = {
   citations: Record<string, unknown>[]
   externalIdentifiers: Record<string, unknown>[]
   mediaAssets: Record<string, unknown>[]
+  spatialModels: Record<string, unknown>[]
+  spatialEntityMaps: Record<string, unknown>[]
+  movementVisualizations: Record<string, unknown>[]
   entityNames: Record<string, string>
   entityOptions: Array<{ entityType: string; entitySlug: string; label: string }>
 }
@@ -913,6 +917,13 @@ function MaintenanceView({ counts, terms, flags }: { counts: AnatomyFoundationCo
             <TextField id="slug" label="Slug" />
             <TextField id="url" label="URL" />
             <TextField id="license" label="License" />
+            <TextField id="license_url" name="license_url" label="License URL" />
+            <SelectField id="usage_scope" name="usage_scope" label="Usage scope" values={SOURCE_USAGE_SCOPES} defaultValue="REVIEW_ONLY" />
+            <TextField id="accessed_at" name="accessed_at" label="Accessed date" placeholder="YYYY-MM-DD" />
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea id="notes" name="notes" rows={3} />
+            </div>
             <TextField id="attribution" label="Attribution" required />
             <Button type="submit" variant="outline">Add source</Button>
           </form>
@@ -1002,6 +1013,8 @@ function EntityDetailPanel({
   const citationRows = selectedEntityCitations(data, selectedEntity, selectedEntityDetail)
   const identifierRows = selectedEntityExternalIdentifiers(data, selectedEntity, selectedEntityDetail)
   const mediaRows = selectedEntityMediaAssets(data, selectedEntity, selectedEntityDetail)
+  const spatialMappingRows = selectedEntitySpatialMappings(data, selectedEntity, selectedEntityDetail)
+  const movementVisualizationRows = selectedEntityMovementVisualizations(data, selectedEntity, selectedEntityDetail)
 
   if (!detail) {
     return (
@@ -1069,6 +1082,33 @@ function EntityDetailPanel({
               formatLabel(recordText(asset, "usageScope")),
             ].filter(Boolean).join(" / "))}
             empty="No media assets found yet."
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className={`${appInsetClassName} p-3`}>
+          <p className="mb-2 text-sm font-medium">Spatial mappings</p>
+          <CompactList
+            items={spatialMappingRows.map((map) => [
+              relationText(map, "model", "name") || recordText(map, "modelSlug"),
+              recordText(map, "label") || recordText(map, "slug"),
+              formatLabel(recordText(map, "mappingPrecision")),
+              formatLabel(recordText(map, "reviewStatus")),
+            ].filter(Boolean).join(" / "))}
+            empty="No spatial mappings found yet."
+          />
+        </div>
+        <div className={`${appInsetClassName} p-3`}>
+          <p className="mb-2 text-sm font-medium">Movement visualizations</p>
+          <CompactList
+            items={movementVisualizationRows.map((visualization) => [
+              relationText(visualization, "model", "name") || recordText(visualization, "modelSlug"),
+              relationText(visualization, "movement", "movementName") || recordText(visualization, "slug"),
+              recordText(visualization, "plane"),
+              formatLabel(recordText(visualization, "reviewStatus")),
+            ].filter(Boolean).join(" / "))}
+            empty="No movement visualization rows found yet."
           />
         </div>
       </div>
@@ -1768,6 +1808,42 @@ function selectedEntityMediaAssets(
   ))
 }
 
+function selectedEntitySpatialMappings(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return authoritativeDetail.spatialMappings as Record<string, unknown>[]
+  }
+
+  return data.spatialEntityMaps.filter((map) => (
+    recordText(map, "entityType") === selectedEntity.entityType &&
+    recordText(map, "entitySlug") === selectedEntity.entitySlug
+  ))
+}
+
+function selectedEntityMovementVisualizations(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return authoritativeDetail.movementVisualizations as Record<string, unknown>[]
+  }
+
+  return data.movementVisualizations.filter((visualization) => {
+    const primaryMatches = (
+      recordText(visualization, "primaryEntityType") === selectedEntity.entityType &&
+      recordText(visualization, "primaryEntitySlug") === selectedEntity.entitySlug
+    )
+    const jointMatches = selectedEntity.entityType === "JOINT" && relationText(visualization, "joint", "slug") === selectedEntity.entitySlug
+    const movementMatches = selectedEntity.entityType === "JOINT_MOVEMENT" && relationText(visualization, "movement", "slug") === selectedEntity.entitySlug
+
+    return primaryMatches || jointMatches || movementMatches
+  })
+}
+
 function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <AppPageShell title="Anatomy Admin">
@@ -1871,6 +1947,9 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     citations,
     externalIdentifiers,
     mediaAssets,
+    spatialModels,
+    spatialEntityMaps,
+    movementVisualizations,
   ] = await Promise.all([
     prisma.anatomyRegion.count(),
     prisma.bone.count(),
@@ -1891,6 +1970,9 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     prisma.anatomyCitation.count(),
     prisma.externalAnatomyIdentifier.count(),
     prisma.anatomyMediaAsset.count(),
+    prisma.anatomySpatialModel.count(),
+    prisma.anatomySpatialEntityMap.count(),
+    prisma.anatomyMovementVisualization.count(),
   ])
 
   return [
@@ -1913,6 +1995,9 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     { label: "Citations", value: citations },
     { label: "External IDs", value: externalIdentifiers },
     { label: "Media assets", value: mediaAssets },
+    { label: "Spatial models", value: spatialModels },
+    { label: "Spatial maps", value: spatialEntityMaps },
+    { label: "Movement visuals", value: movementVisualizations },
   ]
 }
 
@@ -1938,6 +2023,9 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     citations,
     externalIdentifiers,
     mediaAssets,
+    spatialModels,
+    spatialEntityMaps,
+    movementVisualizations,
   ] = await Promise.all([
     prisma.anatomyRegion.findMany({
       include: {
@@ -2114,6 +2202,27 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       orderBy: [{ usageScope: "asc" }, { title: "asc" }],
       take: 80,
     }),
+    prisma.anatomySpatialModel.findMany({
+      include: { source: true, mediaAsset: true },
+      orderBy: [{ reviewStatus: "asc" }, { name: "asc" }],
+      take: 80,
+    }),
+    prisma.anatomySpatialEntityMap.findMany({
+      include: { model: true, source: true },
+      orderBy: [{ reviewStatus: "asc" }, { entityType: "asc" }, { entitySlug: "asc" }],
+      take: 160,
+    }),
+    prisma.anatomyMovementVisualization.findMany({
+      include: {
+        model: true,
+        joint: true,
+        movement: true,
+        rangeOfMotion: true,
+        source: true,
+      },
+      orderBy: [{ reviewStatus: "asc" }, { slug: "asc" }],
+      take: 80,
+    }),
   ])
 
   const entityNames: Record<string, string> = {}
@@ -2171,6 +2280,9 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     citations: citations as Record<string, unknown>[],
     externalIdentifiers: externalIdentifiers as Record<string, unknown>[],
     mediaAssets: mediaAssets as Record<string, unknown>[],
+    spatialModels: spatialModels as Record<string, unknown>[],
+    spatialEntityMaps: spatialEntityMaps as Record<string, unknown>[],
+    movementVisualizations: movementVisualizations as Record<string, unknown>[],
     entityNames,
     entityOptions,
   }
@@ -2325,6 +2437,46 @@ async function getAnatomyQuickResult(key: AnatomyQuickQueryKey | undefined): Pro
           meta: row.source.label,
           detail: row.entityLinks.map((link) => `${link.entityType}:${link.entitySlug}`).join("; "),
         })),
+      }
+    }
+    case "spatial-review-queue": {
+      const [maps, visualizations] = await Promise.all([
+        prisma.anatomySpatialEntityMap.findMany({
+          where: { reviewStatus: { not: "REVIEWED" } },
+          include: { model: true, source: true },
+          orderBy: [{ entityType: "asc" }, { entitySlug: "asc" }],
+          take: 40,
+        }),
+        prisma.anatomyMovementVisualization.findMany({
+          where: { reviewStatus: { not: "REVIEWED" } },
+          include: {
+            model: true,
+            joint: true,
+            movement: true,
+            source: true,
+          },
+          orderBy: { slug: "asc" },
+          take: 40,
+        }),
+      ])
+
+      return {
+        title: "3D and spatial review queue",
+        description: "Shows body-map mappings and ROM visualization anchors that stay review-only until runtime mesh, node, and rig details are confirmed.",
+        rows: [
+          ...maps.map((row) => ({
+            title: `${row.entityType} / ${row.entitySlug}`,
+            subtitle: `${row.model.name} / ${formatLabel(row.mappingPrecision)}`,
+            meta: formatLabel(row.reviewStatus),
+            detail: [row.source.label, row.notes].filter(Boolean).join(" - "),
+          })),
+          ...visualizations.map((row) => ({
+            title: `${row.joint.name} / ${row.movement.movementName}`,
+            subtitle: row.model.name,
+            meta: formatLabel(row.reviewStatus),
+            detail: [row.source.label, row.notes].filter(Boolean).join(" - "),
+          })),
+        ],
       }
     }
     case "game-ready-prompts": {

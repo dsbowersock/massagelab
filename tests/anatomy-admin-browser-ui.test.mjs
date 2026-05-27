@@ -42,4 +42,34 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(pageSource, /function citationHref/)
     assert.match(pageSource, /target="_blank"/)
   })
+
+  it("surfaces spatial review state in counts, quick queries, and entity details", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+
+    assert.match(pageSource, /spatial-review-queue/)
+    assert.match(pageSource, /Spatial models/)
+    assert.match(pageSource, /Spatial maps/)
+    assert.match(pageSource, /Movement visuals/)
+    assert.match(pageSource, /function selectedEntitySpatialMappings/)
+    assert.match(pageSource, /function selectedEntityMovementVisualizations/)
+    assert.match(pageSource, /Spatial mappings/)
+    assert.match(pageSource, /Movement visualizations/)
+    assert.match(pageSource, /anatomySpatialEntityMap\.findMany/)
+    assert.match(pageSource, /anatomyMovementVisualization\.findMany/)
+  })
+
+  it("shows complete anatomy source metadata fields in the admin source form", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+    const actionsSource = await readFile(new URL("../app/admin/anatomy/actions.ts", import.meta.url), "utf8")
+
+    assert.match(pageSource, /name="license_url"/)
+    assert.match(pageSource, /name="usage_scope"/)
+    assert.match(pageSource, /name="accessed_at"/)
+    assert.match(pageSource, /name="notes"/)
+    assert.match(actionsSource, /parseAnatomyAdminSourceInput/)
+    assert.match(actionsSource, /licenseUrl: sourceInput\.licenseUrl/)
+    assert.match(actionsSource, /usageScope: sourceInput\.usageScope/)
+    assert.match(actionsSource, /accessedAt: sourceInput\.accessedAt/)
+    assert.match(actionsSource, /notes: sourceInput\.notes/)
+  })
 })

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
+import { parseAnatomyAdminSourceInput } from "@/lib/anatomy-admin-source-input"
 import type { AccountRole, AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
 import { parseAnatomyEntitySelection } from "@/lib/anatomy-queries"
 import { prisma } from "@/lib/prisma"
@@ -201,20 +202,23 @@ export async function createAnatomyEntityRelationshipAction(formData: FormData) 
 
 export async function createAnatomySourceAction(formData: FormData) {
   await requireEditor()
-  const label = formString(formData, "label")
-  const slug = slugify(formString(formData, "slug") || label)
+  const sourceInput = parseAnatomyAdminSourceInput(formData)
 
-  if (!label || !slug) {
+  if (!sourceInput) {
     return
   }
 
   await prisma.anatomySource.create({
     data: {
-      slug,
-      label,
-      url: formString(formData, "url") || null,
-      license: formString(formData, "license") || null,
-      attribution: formString(formData, "attribution"),
+      slug: sourceInput.slug,
+      label: sourceInput.label,
+      url: sourceInput.url,
+      license: sourceInput.license,
+      licenseUrl: sourceInput.licenseUrl,
+      usageScope: sourceInput.usageScope,
+      accessedAt: sourceInput.accessedAt,
+      notes: sourceInput.notes,
+      attribution: sourceInput.attribution,
     },
   })
 

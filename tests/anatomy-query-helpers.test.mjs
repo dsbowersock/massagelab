@@ -25,6 +25,7 @@ describe("Anatomy database query helpers", () => {
     assert.ok(quickQueryKeys.includes("missing-citations"))
     assert.ok(quickQueryKeys.includes("has-reviewed-citations"))
     assert.ok(quickQueryKeys.includes("has-open-media"))
+    assert.ok(quickQueryKeys.includes("spatial-review-queue"))
     assert.ok(quickQueryKeys.includes("game-ready-prompts"))
   })
 

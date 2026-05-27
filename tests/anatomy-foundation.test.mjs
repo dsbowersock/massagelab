@@ -1840,6 +1840,54 @@ describe("Anatomy data foundation", () => {
     )
   })
 
+  it("keeps review-only media and spatial rows citation-backed without promoting them to reviewed", () => {
+    const reviewOnlyAssets = ANATOMY_FOUNDATION_SEED.mediaAssets.filter((asset) => asset.usageScope === "review_only")
+    const citationKeys = new Set(ANATOMY_FOUNDATION_SEED.citations.map((citation) => [
+      citation.entityType,
+      citation.entitySlug,
+      citation.factType,
+      citation.factSlug ?? "",
+      citation.sourceRef,
+    ].join(":")))
+
+    assert.ok(reviewOnlyAssets.length >= 4)
+    for (const asset of reviewOnlyAssets) {
+      assert.equal(asset.reviewStatus, "needs_review", `${asset.slug} should stay review-only until source/media approval`)
+      assert.ok(asset.sourceUrl, `${asset.slug} needs source URL`)
+      assert.ok(asset.license, `${asset.slug} needs license`)
+      assert.ok(asset.licenseUrl, `${asset.slug} needs license URL`)
+      assert.ok(asset.attribution, `${asset.slug} needs attribution`)
+      assert.ok(
+        ANATOMY_FOUNDATION_SEED.citations.some((citation) => citation.factSlug === asset.slug && citation.reviewStatus === "needs_review"),
+        `${asset.slug} needs a matching review citation`,
+      )
+    }
+
+    assert.ok(ANATOMY_FOUNDATION_SEED.spatialModels.every((modelRow) => modelRow.reviewStatus === "needs_review"))
+    assert.ok(ANATOMY_FOUNDATION_SEED.spatialEntityMaps.every((map) => map.reviewStatus === "needs_review"))
+    assert.ok(ANATOMY_FOUNDATION_SEED.movementVisualizations.every((visualization) => visualization.reviewStatus === "needs_review"))
+
+    for (const map of ANATOMY_FOUNDATION_SEED.spatialEntityMaps) {
+      assert.ok(citationKeys.has([
+        map.entityType,
+        map.entitySlug,
+        "spatial_entity_mapping",
+        map.slug,
+        map.sourceRef,
+      ].join(":")), `${map.slug} needs a spatial entity mapping citation`)
+    }
+
+    for (const visualization of ANATOMY_FOUNDATION_SEED.movementVisualizations) {
+      assert.ok(citationKeys.has([
+        "joint_movement",
+        visualization.movement,
+        "movement_visualization_protocol",
+        visualization.slug,
+        visualization.sourceRef,
+      ].join(":")), `${visualization.slug} needs a movement visualization citation`)
+    }
+  })
+
   it("classifies anatomy sources by commercial-safe reuse policy", () => {
     const sourceBySlug = new Map(ANATOMY_FOUNDATION_SEED.sources.map((source) => [source.slug, source]))
 
@@ -2015,7 +2063,7 @@ describe("Anatomy data foundation", () => {
 
     assert.deepEqual(bioportalIdentifiers, [])
     assert.deepEqual(bioportalCitations, [])
-    assert.equal(coverage.needsReviewCitationCount, 29)
+    assert.equal(coverage.needsReviewCitationCount, 30)
 
     for (const [entityType, entitySlug] of [
       ["bone", "scapula"],

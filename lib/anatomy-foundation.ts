@@ -2846,6 +2846,7 @@ export const NECK_SHOULDER_UPPER_BACK_SEED: AnatomyFoundationSeed = {
     { id: "citation-spine-scapula-uberon-definition", slug: "citation-spine-scapula-uberon-definition", entityType: "bone_landmark", entitySlug: "spine-of-scapula", factType: "definition", sourceRef: "ols-uberon", sourceLocator: "UBERON:0004651", citationNote: "UBERON scapula spine term used for scapular landmark alignment.", reviewStatus: "reviewed" },
     { id: "citation-glenoid-cavity-uberon-definition", slug: "citation-glenoid-cavity-uberon-definition", entityType: "bone_landmark", entitySlug: "glenoid-cavity", factType: "definition", sourceRef: "ols-uberon", sourceLocator: "UBERON:0006657", citationNote: "UBERON glenoid fossa term used for glenoid landmark alignment.", reviewStatus: "reviewed" },
     { id: "citation-bodyparts3d-scapula-media", slug: "citation-bodyparts3d-scapula-media", entityType: "bone", entitySlug: "scapula", factType: "media_source", factSlug: "bodyparts3d-scapula-reference", sourceRef: "bodyparts3d", sourceLocator: "BodyParts3D download/API documentation", citationNote: "Open-license BodyParts3D source record for future scapula media/model import.", reviewStatus: "reviewed" },
+    { id: "citation-wikimedia-gray-scapula-candidate-media-source", slug: "citation-wikimedia-gray-scapula-candidate-media-source", entityType: "bone", entitySlug: "scapula", factType: "media_source", factSlug: "wikimedia-gray-scapula-candidate", sourceRef: "wikimedia-commons", sourceLocator: "https://commons.wikimedia.org/wiki/Category:Scapula", citationNote: "Review-only Wikimedia category candidate. Exact file, license, author, and attribution must be selected before public use.", reviewStatus: "needs_review" },
     ...BASE_SHOULDER_CHEST_REVIEWED_MUSCLE_CITATIONS,
   ],
   externalIdentifiers: [
@@ -2923,6 +2924,7 @@ export const NECK_SHOULDER_UPPER_BACK_SEED: AnatomyFoundationSeed = {
     { id: "media-link-bodyparts3d-scapula-bone", assetSlug: "bodyparts3d-scapula-reference", entityType: "bone", entitySlug: "scapula", role: "primary" },
     { id: "media-link-bodyparts3d-scapula-acromion", assetSlug: "bodyparts3d-scapula-reference", entityType: "bone_landmark", entitySlug: "acromion", role: "reference" },
     { id: "media-link-bodyparts3d-scapula-glenoid", assetSlug: "bodyparts3d-scapula-reference", entityType: "bone_landmark", entitySlug: "glenoid-cavity", role: "reference" },
+    { id: "media-link-wikimedia-gray-scapula-candidate-bone", assetSlug: "wikimedia-gray-scapula-candidate", entityType: "bone", entitySlug: "scapula", role: "reference", notes: "Review-only candidate link; per-file Wikimedia license and attribution are not locked." },
     { id: "media-link-bodyparts3d-shoulder-region", assetSlug: "bodyparts3d-shoulder-girdle-reference", entityType: "region", entitySlug: "shoulder-girdle", role: "region_context" },
     { id: "media-link-bodyparts3d-glenohumeral-game", assetSlug: "bodyparts3d-shoulder-girdle-reference", entityType: "joint", entitySlug: "glenohumeral", role: "game_prompt" },
   ],

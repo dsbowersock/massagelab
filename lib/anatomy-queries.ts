@@ -37,6 +37,7 @@ export type AnatomyQuickQueryKey =
   | "has-reviewed-citations"
   | "missing-citations"
   | "has-open-media"
+  | "spatial-review-queue"
   | "game-ready-prompts"
 
 export type AnatomyAdminQuickQuery = {
@@ -158,6 +159,11 @@ export const ANATOMY_ADMIN_QUICK_QUERIES: AnatomyAdminQuickQuery[] = [
     key: "has-open-media",
     label: "Open-license media",
     description: "Entities with reviewed open-license media or model candidates.",
+  },
+  {
+    key: "spatial-review-queue",
+    label: "3D review queue",
+    description: "Spatial maps and ROM visualizations still pending runtime/model review.",
   },
   {
     key: "game-ready-prompts",
