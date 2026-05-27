@@ -18,7 +18,12 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "admin:grant": "node scripts/grant-admin.mjs",
-    "anatomy:seed": "node prisma/seed.mjs"
+    "anatomy:seed": "node --experimental-strip-types prisma/seed.ts",
+    "anatomy:grant-admin": "node scripts/grant-anatomy-admin.mjs",
+    "anatomy:media:check": "node --experimental-strip-types scripts/anatomy-r2-media.ts check",
+    "anatomy:media:setup-bucket": "node --experimental-strip-types scripts/anatomy-r2-media.ts setup-bucket",
+    "anatomy:media:status": "node --experimental-strip-types scripts/anatomy-r2-media.ts status",
+    "anatomy:media:upload": "node --experimental-strip-types scripts/anatomy-r2-media.ts upload"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
@@ -112,7 +117,7 @@
     }
   },
   "prisma": {
-    "seed": "node prisma/seed.mjs"
+    "seed": "node --experimental-strip-types prisma/seed.ts"
   },
   "engines": {
     "node": "24.x"

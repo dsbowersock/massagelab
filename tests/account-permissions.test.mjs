@@ -16,7 +16,7 @@ import {
 
 describe("Account permission helpers", () => {
   it("normalizes supported roles and drops unknown values", () => {
-    assert.deepEqual(normalizeRoles(["user", "ADMIN", "licensed_therapist", "owner", "admin", null]), ["USER", "ADMIN", "LICENSED_THERAPIST"])
+    assert.deepEqual(normalizeRoles(["user", "ADMIN", "licensed_therapist", "anatomy_admin", "owner", "admin", null]), ["USER", "ADMIN", "LICENSED_THERAPIST", "ANATOMY_ADMIN"])
   })
 
   it("normalizes multi-role assignments with verification status", () => {
@@ -41,9 +41,12 @@ describe("Account permission helpers", () => {
     assert.equal(canAdministerAccounts(["ADMIN"]), true)
   })
 
-  it("lets editors manage anatomy content without account administration", () => {
-    assert.equal(canManageAnatomyContent(["EDITOR"]), true)
+  it("requires an explicit anatomy role or admin role for anatomy administration", () => {
+    assert.equal(canManageAnatomyContent(["ANATOMY_ADMIN"]), true)
+    assert.equal(canManageAnatomyContent(["ADMIN"]), true)
+    assert.equal(canManageAnatomyContent(["EDITOR"]), false)
     assert.equal(canAdministerAccounts(["EDITOR"]), false)
+    assert.equal(canAdministerAccounts(["ANATOMY_ADMIN"]), false)
   })
 
   it("keeps regular users out of anatomy administration", () => {

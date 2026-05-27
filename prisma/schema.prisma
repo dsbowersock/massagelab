@@ -12,6 +12,7 @@ enum Role {
   LICENSED_THERAPIST
   CLIENT
   EDITOR
+  ANATOMY_ADMIN
   ADMIN
 }
 
@@ -48,6 +49,123 @@ enum AnatomyStatus {
   REVIEW
   PUBLISHED
   ARCHIVED
+}
+
+enum AnatomyEntityType {
+  REGION
+  BLOOD_SUPPLY
+  BONE
+  BONE_LANDMARK
+  JOINT
+  JOINT_MOVEMENT
+  RANGE_OF_MOTION
+  MUSCLE
+  MUSCLE_ATTACHMENT
+  MUSCLE_ACTION
+  NERVE
+  MUSCLE_INNERVATION
+  LIGAMENT
+  ANATOMY_STRUCTURE
+  ANATOMY_CONCEPT
+  PAIN_MAP_REGION
+  CLIENT_TERM
+}
+
+enum PainMapLaterality {
+  LEFT
+  RIGHT
+  BILATERAL
+  MIDLINE
+  VARIABLE
+  UNSPECIFIED
+}
+
+enum PainMapSurface {
+  ANTERIOR
+  POSTERIOR
+  LATERAL
+  MEDIAL
+  SUPERIOR
+  INFERIOR
+  DEEP
+  VARIABLE
+  UNSPECIFIED
+}
+
+enum AnatomyRelativeDepth {
+  SUPERFICIAL
+  INTERMEDIATE
+  DEEP
+  VARIABLE
+}
+
+enum MuscleAttachmentType {
+  ORIGIN
+  INSERTION
+}
+
+enum MuscleActionRole {
+  PRIMARY
+  SECONDARY
+  STABILIZER
+}
+
+enum MuscleContractionType {
+  CONCENTRIC
+  ECCENTRIC
+  ISOMETRIC
+  REVERSE_ACTION
+}
+
+enum BloodSupplyKind {
+  ARTERY
+  VEIN
+}
+
+enum ClientTermConfidence {
+  DIRECT
+  LIKELY
+  BROAD
+}
+
+enum AnatomyEntityTermType {
+  PREFERRED
+  FORMAL
+  COMMON
+  CLINICAL
+  HISTORICAL
+  EPONYM
+  ABBREVIATION
+  ALTERNATE
+}
+
+enum AnatomySourceUsageScope {
+  OPEN_REUSE
+  INTERNAL_REFERENCE
+  COMMERCIAL_LICENSED
+  REVIEW_ONLY
+}
+
+enum AnatomyFactReviewStatus {
+  STARTER
+  NEEDS_REVIEW
+  REVIEWED
+}
+
+enum AnatomyMediaType {
+  IMAGE
+  DIAGRAM
+  MODEL_3D
+  EMBED
+  SOURCE_LINK
+}
+
+enum AnatomyMediaRole {
+  PRIMARY
+  REFERENCE
+  REGION_CONTEXT
+  GAME_PROMPT
+  CLIENT_EDUCATION
 }
 
 enum ProgressStatus {
@@ -668,27 +786,149 @@ model AnatomyAlias {
 
 model AnatomyRelationship {
   id               String      @id @default(cuid())
-  sourceTermId     String
+  sourceTermId     String?
   relationshipType String
-  targetTermId     String
+  targetTermId     String?
+  sourceEntityType AnatomyEntityType?
+  sourceEntitySlug String?
+  targetEntityType AnatomyEntityType?
+  targetEntitySlug String?
   details          Json        @default("{}")
+  sourceId         String?
   createdAt        DateTime    @default(now())
-  sourceTerm       AnatomyTerm @relation("RelationshipSource", fields: [sourceTermId], references: [id], onDelete: Cascade)
-  targetTerm       AnatomyTerm @relation("RelationshipTarget", fields: [targetTermId], references: [id], onDelete: Cascade)
+  sourceTerm       AnatomyTerm? @relation("RelationshipSource", fields: [sourceTermId], references: [id], onDelete: Cascade)
+  targetTerm       AnatomyTerm? @relation("RelationshipTarget", fields: [targetTermId], references: [id], onDelete: Cascade)
+  source           AnatomySource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@unique([sourceTermId, relationshipType, targetTermId])
+  @@unique([sourceEntityType, sourceEntitySlug, relationshipType, targetEntityType, targetEntitySlug])
+  @@index([sourceEntityType, sourceEntitySlug])
+  @@index([targetEntityType, targetEntitySlug])
+  @@index([sourceId])
 }
 
 model AnatomySource {
-  id          String             @id @default(cuid())
-  slug        String             @unique
+  id          String                  @id @default(cuid())
+  slug        String                  @unique
   label       String
   url         String?
   license     String?
+  licenseUrl  String?
+  usageScope  AnatomySourceUsageScope @default(REVIEW_ONLY)
+  accessedAt  DateTime?
+  notes       String?
   attribution String
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
   refs        AnatomySourceRef[]
+  anatomyRegions AnatomyRegion[]
+  bloodSupply BloodSupply[]
+  bones       Bone[]
+  boneLandmarks BoneLandmark[]
+  joints      Joint[]
+  jointMovements JointMovement[]
+  rangesOfMotion RangeOfMotion[]
+  muscles     Muscle[]
+  muscleAttachments MuscleAttachment[]
+  muscleActions MuscleAction[]
+  nerves      Nerve[]
+  muscleInnervations MuscleInnervation[]
+  ligaments   Ligament[]
+  structures  AnatomyStructure[]
+  concepts    AnatomyConcept[]
+  painMapRegions PainMapRegion[]
+  clientTerms ClientTerm[]
+  entityTerms AnatomyEntityTerm[]
+  relationships AnatomyRelationship[]
+  citations   AnatomyCitation[]
+  externalIdentifiers ExternalAnatomyIdentifier[]
+  mediaAssets AnatomyMediaAsset[]
+}
+
+model AnatomyCitation {
+  id            String                  @id @default(cuid())
+  slug          String                  @unique
+  entityType    AnatomyEntityType
+  entitySlug    String
+  factType      String
+  factSlug      String?
+  sourceId      String
+  sourceLocator String?
+  citationNote  String?
+  reviewStatus  AnatomyFactReviewStatus @default(NEEDS_REVIEW)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  source        AnatomySource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([entityType, entitySlug, factType, factSlug, sourceId, sourceLocator])
+  @@index([entityType, entitySlug])
+  @@index([factType, factSlug])
+  @@index([sourceId])
+  @@index([reviewStatus])
+}
+
+model ExternalAnatomyIdentifier {
+  id         String            @id @default(cuid())
+  entityType AnatomyEntityType
+  entitySlug String
+  provider   String
+  identifier String
+  iri        String?
+  label      String?
+  sourceId   String
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  source     AnatomySource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([entityType, entitySlug, provider, identifier])
+  @@index([entityType, entitySlug])
+  @@index([provider, identifier])
+  @@index([sourceId])
+}
+
+model AnatomyMediaAsset {
+  id           String                  @id @default(cuid())
+  slug         String                  @unique
+  title        String
+  mediaType    AnatomyMediaType
+  description  String?
+  sourceId     String
+  sourceUrl    String
+  remoteUrl    String?
+  storagePath  String?
+  thumbnailUrl String?
+  license      String
+  licenseUrl   String
+  attribution  String
+  author       String?
+  usageScope   AnatomySourceUsageScope @default(REVIEW_ONLY)
+  reviewStatus AnatomyFactReviewStatus @default(NEEDS_REVIEW)
+  width        Int?
+  height       Int?
+  format       String?
+  metadata     Json?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  source       AnatomySource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  entityLinks  AnatomyMediaEntity[]
+
+  @@index([mediaType])
+  @@index([usageScope, reviewStatus])
+  @@index([sourceId])
+}
+
+model AnatomyMediaEntity {
+  id         String            @id @default(cuid())
+  assetId    String
+  entityType AnatomyEntityType
+  entitySlug String
+  role       AnatomyMediaRole  @default(REFERENCE)
+  notes      String?
+  createdAt  DateTime          @default(now())
+  asset      AnatomyMediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, entityType, entitySlug, role])
+  @@index([entityType, entitySlug])
 }
 
 model AnatomySourceRef {
@@ -732,6 +972,380 @@ model AnatomyAuditLog {
   afterValue  Json?
   createdAt   DateTime @default(now())
   actor       User?    @relation("AnatomyAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+model AnatomyRegion {
+  id             String          @id @default(cuid())
+  slug           String          @unique
+  name           String
+  description    String?
+  parentRegionId String?
+  sourceId       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  parentRegion   AnatomyRegion?  @relation("AnatomyRegionHierarchy", fields: [parentRegionId], references: [id], onDelete: SetNull)
+  childRegions   AnatomyRegion[] @relation("AnatomyRegionHierarchy")
+  source         AnatomySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  bloodSupply    BloodSupply[]
+  bones          Bone[]
+  joints         Joint[]
+  muscles        Muscle[]
+  nerves         Nerve[]
+  ligaments      Ligament[]
+  structures     AnatomyStructure[]
+  painMapRegions PainMapRegion[]
+  clientTerms    ClientTerm[]
+
+  @@index([parentRegionId])
+  @@index([sourceId])
+}
+
+model BloodSupply {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  name        String
+  kind        BloodSupplyKind
+  regionId    String
+  description String?
+  sourceId    String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  region      AnatomyRegion   @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source      AnatomySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([kind])
+  @@index([regionId])
+  @@index([sourceId])
+}
+
+model Bone {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  formalName  String?
+  description String?
+  regionId    String
+  sourceId    String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  region      AnatomyRegion      @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source      AnatomySource      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  landmarks   BoneLandmark[]
+  attachments MuscleAttachment[]
+
+  @@index([regionId])
+  @@index([sourceId])
+}
+
+model BoneLandmark {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  boneId      String
+  description String?
+  sourceId    String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  bone        Bone               @relation(fields: [boneId], references: [id], onDelete: Cascade)
+  source      AnatomySource      @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  attachments MuscleAttachment[]
+
+  @@index([boneId])
+  @@index([sourceId])
+}
+
+model Joint {
+  id             String          @id @default(cuid())
+  slug           String          @unique
+  name           String
+  jointType      String
+  regionId       String
+  description    String?
+  sourceId       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  region         AnatomyRegion   @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source         AnatomySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  movements      JointMovement[]
+  rangesOfMotion RangeOfMotion[]
+  muscleActions  MuscleAction[]
+  ligaments      Ligament[]
+  clientTerms    ClientTerm[]
+
+  @@index([regionId])
+  @@index([sourceId])
+}
+
+model JointMovement {
+  id             String          @id @default(cuid())
+  slug           String          @unique
+  jointId        String
+  movementName   String
+  plane          String?
+  axis           String?
+  description    String?
+  sourceId       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  joint          Joint           @relation(fields: [jointId], references: [id], onDelete: Cascade)
+  source         AnatomySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  rangesOfMotion RangeOfMotion[]
+  muscleActions  MuscleAction[]
+
+  @@index([jointId])
+  @@index([sourceId])
+}
+
+model RangeOfMotion {
+  id                  String        @id @default(cuid())
+  slug                String        @unique
+  jointId             String
+  movementId          String
+  typicalMinDegrees   Int?
+  typicalMaxDegrees   Int?
+  typicalMinValue     Float?
+  typicalMaxValue     Float?
+  measurementUnit     String        @default("degrees")
+  measurementPosition String
+  notes               String?
+  sourceId            String
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  joint               Joint         @relation(fields: [jointId], references: [id], onDelete: Cascade)
+  movement            JointMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  source              AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([jointId, movementId, measurementPosition])
+  @@index([movementId])
+  @@index([sourceId])
+}
+
+model Muscle {
+  id               String               @id @default(cuid())
+  slug             String               @unique
+  name             String
+  formalName       String
+  alternateNames   String[]             @default([])
+  etymology        String?
+  languageOfOrigin String?
+  description      String?
+  regionId         String
+  relativeDepth    AnatomyRelativeDepth @default(VARIABLE)
+  depthNotes       String?
+  sourceId         String
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  region           AnatomyRegion        @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source           AnatomySource        @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  attachments      MuscleAttachment[]
+  actions          MuscleAction[]
+  innervations     MuscleInnervation[]
+  clientTerms      ClientTerm[]
+
+  @@index([regionId])
+  @@index([relativeDepth])
+  @@index([sourceId])
+}
+
+model MuscleAttachment {
+  id          String               @id @default(cuid())
+  slug        String               @unique
+  muscleId    String
+  type        MuscleAttachmentType
+  boneId      String
+  landmarkId  String?
+  description String
+  sourceId    String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  muscle      Muscle               @relation(fields: [muscleId], references: [id], onDelete: Cascade)
+  bone        Bone                 @relation(fields: [boneId], references: [id], onDelete: Restrict)
+  landmark    BoneLandmark?        @relation(fields: [landmarkId], references: [id], onDelete: SetNull)
+  source      AnatomySource        @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([muscleId, type])
+  @@index([boneId])
+  @@index([landmarkId])
+  @@index([sourceId])
+}
+
+model MuscleAction {
+  id              String                @id @default(cuid())
+  slug            String                @unique
+  muscleId        String
+  jointId         String
+  movementId      String
+  role            MuscleActionRole
+  contractionType MuscleContractionType
+  description     String
+  sourceId        String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  muscle          Muscle                @relation(fields: [muscleId], references: [id], onDelete: Cascade)
+  joint           Joint                 @relation(fields: [jointId], references: [id], onDelete: Restrict)
+  movement        JointMovement         @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  source          AnatomySource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([muscleId, jointId, movementId, role, contractionType])
+  @@index([jointId, movementId])
+  @@index([movementId, role])
+  @@index([sourceId])
+}
+
+model Nerve {
+  id           String               @id @default(cuid())
+  slug         String               @unique
+  name         String
+  nerveRoots   String[]             @default([])
+  regionId     String
+  description  String?
+  sourceId     String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  region       AnatomyRegion        @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source       AnatomySource        @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  innervations MuscleInnervation[]
+
+  @@index([regionId])
+  @@index([sourceId])
+}
+
+model MuscleInnervation {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  muscleId    String
+  nerveId     String
+  description String?
+  sourceId    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  muscle      Muscle        @relation(fields: [muscleId], references: [id], onDelete: Cascade)
+  nerve       Nerve         @relation(fields: [nerveId], references: [id], onDelete: Restrict)
+  source      AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([muscleId, nerveId])
+  @@index([nerveId])
+  @@index([sourceId])
+}
+
+model Ligament {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  regionId    String
+  jointId     String?
+  description String?
+  sourceId    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  region      AnatomyRegion @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  joint       Joint?        @relation(fields: [jointId], references: [id], onDelete: SetNull)
+  source      AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([regionId])
+  @@index([jointId])
+  @@index([sourceId])
+}
+
+model AnatomyStructure {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  name          String
+  structureType String
+  regionId      String
+  description   String?
+  sourceId      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  region        AnatomyRegion @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source        AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  clientTerms   ClientTerm[]
+
+  @@index([structureType])
+  @@index([regionId])
+  @@index([sourceId])
+}
+
+model AnatomyConcept {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  conceptType String
+  bodySystem  String?
+  description String?
+  sourceId    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  source      AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([conceptType])
+  @@index([bodySystem])
+  @@index([sourceId])
+}
+
+model PainMapRegion {
+  id                       String        @id @default(cuid())
+  slug                     String        @unique
+  name                     String
+  regionId                 String
+  laterality               PainMapLaterality @default(UNSPECIFIED)
+  surface                  PainMapSurface    @default(UNSPECIFIED)
+  plainLanguageDescription String?
+  sourceId                 String
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  region                   AnatomyRegion @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  source                   AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([regionId])
+  @@index([sourceId])
+}
+
+model ClientTerm {
+  id                       String               @id @default(cuid())
+  slug                     String               @unique
+  term                     String
+  plainLanguageDescription String
+  mappedRegionId           String?
+  mappedMuscleId           String?
+  mappedJointId            String?
+  mappedStructureId        String?
+  confidence               ClientTermConfidence
+  notes                    String?
+  sourceId                 String
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  mappedRegion             AnatomyRegion?       @relation(fields: [mappedRegionId], references: [id], onDelete: SetNull)
+  mappedMuscle             Muscle?              @relation(fields: [mappedMuscleId], references: [id], onDelete: SetNull)
+  mappedJoint              Joint?               @relation(fields: [mappedJointId], references: [id], onDelete: SetNull)
+  mappedStructure          AnatomyStructure?     @relation(fields: [mappedStructureId], references: [id], onDelete: SetNull)
+  source                   AnatomySource        @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([term])
+  @@index([mappedRegionId])
+  @@index([mappedMuscleId])
+  @@index([mappedJointId])
+  @@index([mappedStructureId])
+  @@index([sourceId])
+}
+
+model AnatomyEntityTerm {
+  id                String                @id @default(cuid())
+  slug              String                @unique
+  anatomyEntityType AnatomyEntityType
+  anatomyEntitySlug String
+  term              String
+  termType          AnatomyEntityTermType
+  languageOfOrigin  String?
+  notes             String?
+  sourceId          String
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  source            AnatomySource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([anatomyEntityType, anatomyEntitySlug, term, termType])
+  @@index([anatomyEntityType, anatomyEntitySlug])
+  @@index([sourceId])
 }
 
 model AuthAttempt {

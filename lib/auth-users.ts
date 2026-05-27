@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 
 export function highestRole(roles: AccountRole[]): AccountRole {
   if (roles.includes("ADMIN")) return "ADMIN"
+  if (roles.includes("ANATOMY_ADMIN")) return "ANATOMY_ADMIN"
   if (roles.includes("EDITOR")) return "EDITOR"
   if (roles.includes("LICENSED_THERAPIST")) return "LICENSED_THERAPIST"
   if (roles.includes("STUDENT")) return "STUDENT"
