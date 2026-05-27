@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/.playwright-mcp/
+/anatomy-table-top-scrollbar.png
 
 # next.js
 /.next/
