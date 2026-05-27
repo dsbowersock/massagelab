@@ -35,6 +35,7 @@ export type AnatomySourceUsageScope = "open_reuse" | "internal_reference" | "com
 export type AnatomyFactReviewStatus = "starter" | "needs_review" | "reviewed"
 export type AnatomyMediaType = "image" | "diagram" | "model_3d" | "embed" | "source_link"
 export type AnatomyMediaRole = "primary" | "reference" | "region_context" | "game_prompt" | "client_education"
+export type AnatomySpatialMappingPrecision = "exact" | "composite" | "broad_context" | "region_context" | "landmark" | "needs_review"
 export type AnatomyTermType =
   | "preferred"
   | "formal"
@@ -329,6 +330,68 @@ export type AnatomyMediaEntityLink = {
   notes?: string
 }
 
+export type AnatomySpatialModel = {
+  id: string
+  slug: string
+  name: string
+  description?: string
+  mediaAssetSlug?: string
+  sourceRef: string
+  coordinateSystem: string
+  unit: string
+  forwardAxis: string
+  upAxis: string
+  scaleToMeters: number
+  defaultCamera?: Record<string, unknown>
+  interactionNotes?: string
+  usageScope: AnatomySourceUsageScope
+  reviewStatus: AnatomyFactReviewStatus
+  metadata?: Record<string, unknown>
+}
+
+export type AnatomySpatialEntityMap = {
+  id: string
+  slug: string
+  modelSlug: string
+  entityType: AnatomyEntityType
+  entitySlug: string
+  label?: string
+  mappingPrecision: AnatomySpatialMappingPrecision
+  meshName?: string
+  nodeName?: string
+  materialName?: string
+  bodyparts3dPartIds?: string[]
+  laterality?: PainMapLaterality
+  surface?: PainMapSurface
+  selectable?: boolean
+  palpationTarget?: boolean
+  painSelectionTarget?: boolean
+  notes?: string
+  metadata?: Record<string, unknown>
+  sourceRef: string
+  reviewStatus: AnatomyFactReviewStatus
+}
+
+export type AnatomyMovementVisualization = {
+  id: string
+  slug: string
+  modelSlug: string
+  joint: string
+  movement: string
+  rangeOfMotion?: string
+  primaryEntityType?: AnatomyEntityType
+  primaryEntitySlug?: string
+  motionAxis?: Record<string, unknown>
+  plane?: string
+  neutralPose?: Record<string, unknown>
+  startDegrees?: number
+  endDegrees?: number
+  notes?: string
+  metadata?: Record<string, unknown>
+  sourceRef: string
+  reviewStatus: AnatomyFactReviewStatus
+}
+
 export type AnatomyFoundationSeed = {
   sources: FoundationSource[]
   bodyRegions: BodyRegion[]
@@ -355,6 +418,9 @@ export type AnatomyFoundationSeed = {
   externalIdentifiers: ExternalAnatomyIdentifier[]
   mediaAssets: AnatomyMediaAsset[]
   mediaEntityLinks: AnatomyMediaEntityLink[]
+  spatialModels: AnatomySpatialModel[]
+  spatialEntityMaps: AnatomySpatialEntityMap[]
+  movementVisualizations: AnatomyMovementVisualization[]
 }
 
 export type AnatomyFoundationSearchResult = {
@@ -2839,6 +2905,9 @@ export const NECK_SHOULDER_UPPER_BACK_SEED: AnatomyFoundationSeed = {
     { id: "media-link-bodyparts3d-shoulder-region", assetSlug: "bodyparts3d-shoulder-girdle-reference", entityType: "region", entitySlug: "shoulder-girdle", role: "region_context" },
     { id: "media-link-bodyparts3d-glenohumeral-game", assetSlug: "bodyparts3d-shoulder-girdle-reference", entityType: "joint", entitySlug: "glenohumeral", role: "game_prompt" },
   ],
+  spatialModels: [],
+  spatialEntityMaps: [],
+  movementVisualizations: [],
 }
 
 function uniqueStrings(values: string[]) {
@@ -5375,6 +5444,9 @@ const COLLECTION_NAMES = [
   "externalIdentifiers",
   "mediaAssets",
   "mediaEntityLinks",
+  "spatialModels",
+  "spatialEntityMaps",
+  "movementVisualizations",
 ] as const
 
 function slugsFor<T extends { slug: string }>(items: T[]) {
@@ -5610,6 +5682,8 @@ export function validateAnatomyFoundation(seed: AnatomyFoundationSeed = ANATOMY_
   const nerveSlugs = slugsFor(seed.nerves)
   const structureSlugs = slugsFor(seed.structures)
   const mediaAssetSlugs = slugsFor(seed.mediaAssets)
+  const spatialModelSlugs = slugsFor(seed.spatialModels)
+  const rangeOfMotionSlugs = slugsFor(seed.rangesOfMotion)
 
   const validSource = (sourceRef: string, label: string) => {
     if (!sourceSlugs.has(sourceRef)) issues.push(`Invalid sourceRef for ${label}: ${sourceRef}`)
@@ -5815,6 +5889,29 @@ export function validateAnatomyFoundation(seed: AnatomyFoundationSeed = ANATOMY_
   seed.mediaEntityLinks.forEach((link) => {
     if (!mediaAssetSlugs.has(link.assetSlug)) issues.push(`Invalid media asset for media entity link ${link.id}`)
     if (!entityExists(seed, link.entityType, link.entitySlug)) issues.push(`Invalid media entity target for ${link.id}`)
+  })
+  seed.spatialModels.forEach((model) => {
+    validSource(model.sourceRef, `spatial model ${model.id}`)
+    if (model.mediaAssetSlug && !mediaAssetSlugs.has(model.mediaAssetSlug)) issues.push(`Invalid media asset for spatial model ${model.id}`)
+    if (!model.coordinateSystem) issues.push(`Spatial model requires coordinate system for ${model.id}`)
+    if (!model.unit) issues.push(`Spatial model requires unit for ${model.id}`)
+    if (model.scaleToMeters <= 0) issues.push(`Spatial model requires positive scale for ${model.id}`)
+  })
+  seed.spatialEntityMaps.forEach((map) => {
+    if (!spatialModelSlugs.has(map.modelSlug)) issues.push(`Invalid spatial model for spatial entity map ${map.id}`)
+    if (!entityExists(seed, map.entityType, map.entitySlug)) issues.push(`Invalid spatial entity target for ${map.id}`)
+    validSource(map.sourceRef, `spatial entity map ${map.id}`)
+    if (!map.mappingPrecision) issues.push(`Spatial entity map requires mapping precision for ${map.id}`)
+  })
+  seed.movementVisualizations.forEach((visualization) => {
+    if (!spatialModelSlugs.has(visualization.modelSlug)) issues.push(`Invalid spatial model for movement visualization ${visualization.id}`)
+    if (!jointSlugs.has(visualization.joint)) issues.push(`Invalid joint for movement visualization ${visualization.id}`)
+    if (!movementSlugs.has(visualization.movement)) issues.push(`Invalid movement for movement visualization ${visualization.id}`)
+    if (visualization.rangeOfMotion && !rangeOfMotionSlugs.has(visualization.rangeOfMotion)) issues.push(`Invalid ROM for movement visualization ${visualization.id}`)
+    if (visualization.primaryEntityType && visualization.primaryEntitySlug && !entityExists(seed, visualization.primaryEntityType, visualization.primaryEntitySlug)) {
+      issues.push(`Invalid primary entity for movement visualization ${visualization.id}`)
+    }
+    validSource(visualization.sourceRef, `movement visualization ${visualization.id}`)
   })
 
   return issues

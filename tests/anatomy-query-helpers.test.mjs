@@ -111,6 +111,18 @@ describe("Anatomy database query helpers", () => {
           return [{ provider: "UBERON", identifier: "UBERON:0006849" }]
         },
       },
+      anatomySpatialEntityMap: {
+        findMany: async (args) => {
+          calls.push(["anatomySpatialEntityMap.findMany", args])
+          return [{ slug: "massagelab-human-bodymap-v1-bone-scapula", entitySlug: "scapula" }]
+        },
+      },
+      anatomyMovementVisualization: {
+        findMany: async (args) => {
+          calls.push(["anatomyMovementVisualization.findMany", args])
+          return [{ slug: "massagelab-human-bodymap-v1-shoulder-abduction" }]
+        },
+      },
     })
 
     await helpers.getMusclesAttachedToBone("scapula")
@@ -122,6 +134,9 @@ describe("Anatomy database query helpers", () => {
     await helpers.getEntityCitations("BONE", "scapula")
     await helpers.getEntityMediaAssets("BONE", "scapula", { openLicenseOnly: true })
     await helpers.getEntityExternalIdentifiers("BONE", "scapula")
+    await helpers.getEntitySpatialMappings("BONE", "scapula", { modelSlug: "massagelab-human-bodymap-v1", selectableOnly: true })
+    await helpers.getBodyMapSpatialTargets({ modelSlug: "massagelab-human-bodymap-v1", painSelectionOnly: true })
+    await helpers.getMovementVisualization("glenohumeral", "shoulder-abduction", { modelSlug: "massagelab-human-bodymap-v1" })
 
     assert.equal(calls[0][1].where.attachments.some.bone.slug, "scapula")
     assert.equal(calls[1][1].where.innervations.some.nerve.slug, "accessory-nerve")
@@ -136,6 +151,9 @@ describe("Anatomy database query helpers", () => {
     assert.equal(calls[7][1].where.usageScope, "OPEN_REUSE")
     assert.equal(calls[8][1].where.entityType, "BONE")
     assert.equal(calls[8][1].where.entitySlug, "scapula")
+    assert.ok(calls.some((call) => call[0] === "anatomySpatialEntityMap.findMany" && call[1].where.entitySlug === "scapula"))
+    assert.ok(calls.some((call) => call[0] === "anatomySpatialEntityMap.findMany" && call[1].where.painSelectionTarget === true))
+    assert.ok(calls.some((call) => call[0] === "anatomyMovementVisualization.findMany" && call[1].where.joint.slug === "glenohumeral"))
   })
 
   it("queries entity detail and downstream tool candidate pools", async () => {

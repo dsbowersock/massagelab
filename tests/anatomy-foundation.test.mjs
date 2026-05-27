@@ -223,6 +223,7 @@ describe("Anatomy data foundation", () => {
       "media-bodyparts3d-bone-multiview",
       "media-bodyparts3d-muscle-batch-2",
       "media-bodyparts3d-muscle-multiview",
+      "spatial-body-map-foundation",
       "neck-shoulder-upper-back",
       "trunk-spine-pelvis",
       "upper-limb",
@@ -1799,6 +1800,38 @@ describe("Anatomy data foundation", () => {
     }
   })
 
+  it("prepares 3D body-map spatial mappings and ROM visualization anchors", () => {
+    const sourceBySlug = new Map(ANATOMY_FOUNDATION_SEED.sources.map((source) => [source.slug, source]))
+    const model = ANATOMY_FOUNDATION_SEED.spatialModels.find((entry) => entry.slug === "massagelab-human-bodymap-v1")
+    const modelAsset = ANATOMY_FOUNDATION_SEED.mediaAssets.find((asset) => asset.slug === "bodyparts3d-runtime-human-glb-candidate")
+    const bicepsMap = ANATOMY_FOUNDATION_SEED.spatialEntityMaps.find((entry) => entry.entityType === "muscle" && entry.entitySlug === "biceps-brachii")
+    const topShoulderMap = ANATOMY_FOUNDATION_SEED.spatialEntityMaps.find((entry) => entry.entityType === "pain_map_region" && entry.entitySlug === "top-of-shoulder")
+    const shoulderAbduction = ANATOMY_FOUNDATION_SEED.movementVisualizations.find((entry) => entry.slug === "massagelab-human-bodymap-v1-shoulder-abduction")
+
+    assert.equal(sourceBySlug.get("massagelab-authored-3d-body-map-protocol")?.usageScope, "commercial_licensed")
+    assert.ok(model)
+    assert.equal(model.mediaAssetSlug, "bodyparts3d-runtime-human-glb-candidate")
+    assert.equal(model.coordinateSystem, "right-handed-y-up")
+    assert.equal(model.reviewStatus, "needs_review")
+    assert.equal(modelAsset?.mediaType, "model_3d")
+    assert.equal(modelAsset?.usageScope, "review_only")
+    assert.equal(modelAsset?.metadata?.targetRuntimeFormat, "glb")
+    assert.equal(bicepsMap?.mappingPrecision, "exact")
+    assert.ok(bicepsMap?.bodyparts3dPartIds?.includes("FMA37682"))
+    assert.equal(bicepsMap?.palpationTarget, true)
+    assert.equal(topShoulderMap?.painSelectionTarget, true)
+    assert.equal(topShoulderMap?.surface, "superior")
+    assert.equal(shoulderAbduction?.joint, "glenohumeral")
+    assert.equal(shoulderAbduction?.movement, "shoulder-abduction")
+    assert.equal(shoulderAbduction?.rangeOfMotion, "shoulder-abduction")
+    assert.ok(
+      ANATOMY_FOUNDATION_SEED.citations.some((citation) => (
+        citation.factType === "spatial_model_protocol"
+        && citation.factSlug === "massagelab-human-bodymap-v1"
+      )),
+    )
+  })
+
   it("classifies anatomy sources by commercial-safe reuse policy", () => {
     const sourceBySlug = new Map(ANATOMY_FOUNDATION_SEED.sources.map((source) => [source.slug, source]))
 
@@ -1808,6 +1841,7 @@ describe("Anatomy data foundation", () => {
     assert.equal(sourceBySlug.get("human-bio-media")?.usageScope, "open_reuse")
     assert.equal(sourceBySlug.get("servier-medical-art")?.license, "CC BY 4.0")
     assert.equal(sourceBySlug.get("servier-medical-art")?.usageScope, "open_reuse")
+    assert.equal(sourceBySlug.get("massagelab-authored-3d-body-map-protocol")?.usageScope, "commercial_licensed")
     assert.equal(sourceBySlug.get("bodyparts3d-stl-github-mirror")?.usageScope, "review_only")
     assert.equal(sourceBySlug.get("wikimedia-bodyparts3d-stl-category")?.usageScope, "review_only")
     assert.equal(sourceBySlug.get("ols-uberon")?.license, "CC BY 3.0")
@@ -1973,7 +2007,7 @@ describe("Anatomy data foundation", () => {
 
     assert.deepEqual(bioportalIdentifiers, [])
     assert.deepEqual(bioportalCitations, [])
-    assert.equal(coverage.needsReviewCitationCount, 16)
+    assert.equal(coverage.needsReviewCitationCount, 29)
 
     for (const [entityType, entitySlug] of [
       ["bone", "scapula"],

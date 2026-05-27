@@ -30,6 +30,9 @@ const COLLECTION_KEYS = [
   "externalIdentifiers",
   "mediaAssets",
   "mediaEntityLinks",
+  "spatialModels",
+  "spatialEntityMaps",
+  "movementVisualizations",
 ] as const
 
 function painMapDefaults(region: PainMapRegion): PainMapRegion {
