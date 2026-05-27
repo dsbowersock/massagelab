@@ -972,6 +972,9 @@ describe("Anatomy data foundation", () => {
     seed.mediaEntityLinks[0].entitySlug = "missing-entity"
     seed.painMapRegions[0].laterality = undefined
     seed.painMapRegions[1].surface = undefined
+    seed.movementVisualizations[0].primaryEntitySlug = undefined
+    seed.movementVisualizations[0].movement = "cervical-rotation"
+    seed.movementVisualizations[0].rangeOfMotion = "cervical-rotation"
 
     const issues = validateAnatomyFoundation(seed)
 
@@ -987,6 +990,9 @@ describe("Anatomy data foundation", () => {
     assert.ok(issues.some((issue) => issue.includes("Invalid media entity target")))
     assert.ok(issues.some((issue) => issue.includes("Pain map requires laterality")))
     assert.ok(issues.some((issue) => issue.includes("Pain map requires surface")))
+    assert.ok(issues.some((issue) => issue.includes("requires both primary entity type and slug")))
+    assert.ok(issues.some((issue) => issue.includes("does not belong to joint")))
+    assert.ok(issues.some((issue) => issue.includes("does not match joint")))
   })
 
   it("keeps open-license reuse explicit across sources, identifiers, citations, and media", () => {

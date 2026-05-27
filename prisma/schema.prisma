@@ -1020,11 +1020,10 @@ model AnatomyMovementVisualization {
   updatedAt         DateTime                @updatedAt
   model             AnatomySpatialModel     @relation(fields: [modelId], references: [id], onDelete: Cascade)
   joint             Joint                   @relation(fields: [jointId], references: [id], onDelete: Restrict)
-  movement          JointMovement           @relation(fields: [movementId], references: [id], onDelete: Restrict)
-  rangeOfMotion     RangeOfMotion?          @relation(fields: [rangeOfMotionId], references: [id], onDelete: SetNull)
+  movement          JointMovement           @relation(fields: [movementId, jointId], references: [id, jointId], onDelete: Restrict)
+  rangeOfMotion     RangeOfMotion?          @relation(fields: [rangeOfMotionId, jointId, movementId], references: [id, jointId, movementId], onDelete: Restrict)
   source            AnatomySource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
 
-  @@unique([modelId, jointId, movementId, primaryEntityType, primaryEntitySlug])
   @@index([modelId])
   @@index([jointId])
   @@index([movementId])
@@ -1197,6 +1196,7 @@ model JointMovement {
   muscleActions  MuscleAction[]
   movementVisualizations AnatomyMovementVisualization[]
 
+  @@unique([id, jointId])
   @@index([jointId])
   @@index([sourceId])
 }
@@ -1221,6 +1221,7 @@ model RangeOfMotion {
   source              AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   movementVisualizations AnatomyMovementVisualization[]
 
+  @@unique([id, jointId, movementId])
   @@unique([jointId, movementId, measurementPosition])
   @@index([movementId])
   @@index([sourceId])

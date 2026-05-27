@@ -151,9 +151,17 @@ describe("Anatomy database query helpers", () => {
     assert.equal(calls[7][1].where.usageScope, "OPEN_REUSE")
     assert.equal(calls[8][1].where.entityType, "BONE")
     assert.equal(calls[8][1].where.entitySlug, "scapula")
-    assert.ok(calls.some((call) => call[0] === "anatomySpatialEntityMap.findMany" && call[1].where.entitySlug === "scapula"))
-    assert.ok(calls.some((call) => call[0] === "anatomySpatialEntityMap.findMany" && call[1].where.painSelectionTarget === true))
-    assert.ok(calls.some((call) => call[0] === "anatomyMovementVisualization.findMany" && call[1].where.joint.slug === "glenohumeral"))
+    const entitySpatialMappingCall = calls.find((call) => call[0] === "anatomySpatialEntityMap.findMany" && call[1].where.entitySlug === "scapula")
+    const bodyMapSpatialTargetsCall = calls.find((call) => call[0] === "anatomySpatialEntityMap.findMany" && call[1].where.painSelectionTarget === true)
+    const movementVisualizationCall = calls.find((call) => call[0] === "anatomyMovementVisualization.findMany")
+
+    assert.equal(entitySpatialMappingCall?.[1].where.model.slug, "massagelab-human-bodymap-v1")
+    assert.equal(entitySpatialMappingCall?.[1].where.selectable, true)
+    assert.equal(bodyMapSpatialTargetsCall?.[1].where.model.slug, "massagelab-human-bodymap-v1")
+    assert.equal(bodyMapSpatialTargetsCall?.[1].where.selectable, true)
+    assert.equal(movementVisualizationCall?.[1].where.model.slug, "massagelab-human-bodymap-v1")
+    assert.equal(movementVisualizationCall?.[1].where.joint.slug, "glenohumeral")
+    assert.equal(movementVisualizationCall?.[1].where.movement.slug, "shoulder-abduction")
   })
 
   it("queries entity detail and downstream tool candidate pools", async () => {

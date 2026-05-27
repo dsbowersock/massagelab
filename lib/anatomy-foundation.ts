@@ -23,6 +23,27 @@ export type AnatomyEntityType =
   | "pain_map_region"
   | "client_term"
 
+const ANATOMY_ENTITY_TYPES = [
+  "region",
+  "blood_supply",
+  "anatomy_structure",
+  "anatomy_concept",
+  "bone",
+  "bone_landmark",
+  "joint",
+  "joint_movement",
+  "range_of_motion",
+  "muscle",
+  "muscle_attachment",
+  "muscle_action",
+  "nerve",
+  "muscle_innervation",
+  "ligament",
+  "pain_map_region",
+  "client_term",
+] as const satisfies readonly AnatomyEntityType[]
+const ANATOMY_ENTITY_TYPE_SET = new Set<string>(ANATOMY_ENTITY_TYPES)
+
 export type MuscleRelativeDepth = "superficial" | "intermediate" | "deep" | "variable"
 export type MuscleAttachmentType = "origin" | "insertion"
 export type MuscleActionRole = "primary" | "secondary" | "stabilizer"
@@ -5465,6 +5486,10 @@ function textMatches(value: string | undefined, normalizedQuery: string) {
   return Boolean(value && normalizeText(value).includes(normalizedQuery))
 }
 
+function isAnatomyEntityType(value: unknown): value is AnatomyEntityType {
+  return typeof value === "string" && ANATOMY_ENTITY_TYPE_SET.has(value)
+}
+
 function entitySlugSet(seed: AnatomyFoundationSeed, entityType: AnatomyEntityType) {
   switch (entityType) {
     case "region":
@@ -5502,6 +5527,7 @@ function entitySlugSet(seed: AnatomyFoundationSeed, entityType: AnatomyEntityTyp
     case "client_term":
       return slugsFor(seed.clientTerms)
   }
+  return new Set<string>()
 }
 
 function entityExists(seed: AnatomyFoundationSeed, entityType: AnatomyEntityType, slug: string) {
@@ -5684,6 +5710,8 @@ export function validateAnatomyFoundation(seed: AnatomyFoundationSeed = ANATOMY_
   const mediaAssetSlugs = slugsFor(seed.mediaAssets)
   const spatialModelSlugs = slugsFor(seed.spatialModels)
   const rangeOfMotionSlugs = slugsFor(seed.rangesOfMotion)
+  const movementBySlug = new Map(seed.jointMovements.map((movement) => [movement.slug, movement]))
+  const rangeOfMotionBySlug = new Map(seed.rangesOfMotion.map((range) => [range.slug, range]))
 
   const validSource = (sourceRef: string, label: string) => {
     if (!sourceSlugs.has(sourceRef)) issues.push(`Invalid sourceRef for ${label}: ${sourceRef}`)
@@ -5904,12 +5932,29 @@ export function validateAnatomyFoundation(seed: AnatomyFoundationSeed = ANATOMY_
     if (!map.mappingPrecision) issues.push(`Spatial entity map requires mapping precision for ${map.id}`)
   })
   seed.movementVisualizations.forEach((visualization) => {
+    const movement = movementBySlug.get(visualization.movement)
+    const rangeOfMotion = visualization.rangeOfMotion ? rangeOfMotionBySlug.get(visualization.rangeOfMotion) : undefined
+    const hasPrimaryEntityType = Boolean(visualization.primaryEntityType)
+    const hasPrimaryEntitySlug = Boolean(visualization.primaryEntitySlug)
+
     if (!spatialModelSlugs.has(visualization.modelSlug)) issues.push(`Invalid spatial model for movement visualization ${visualization.id}`)
     if (!jointSlugs.has(visualization.joint)) issues.push(`Invalid joint for movement visualization ${visualization.id}`)
     if (!movementSlugs.has(visualization.movement)) issues.push(`Invalid movement for movement visualization ${visualization.id}`)
     if (visualization.rangeOfMotion && !rangeOfMotionSlugs.has(visualization.rangeOfMotion)) issues.push(`Invalid ROM for movement visualization ${visualization.id}`)
-    if (visualization.primaryEntityType && visualization.primaryEntitySlug && !entityExists(seed, visualization.primaryEntityType, visualization.primaryEntitySlug)) {
-      issues.push(`Invalid primary entity for movement visualization ${visualization.id}`)
+    if (movement && movement.joint !== visualization.joint) {
+      issues.push(`Movement ${visualization.movement} does not belong to joint ${visualization.joint} for movement visualization ${visualization.id}`)
+    }
+    if (rangeOfMotion && (rangeOfMotion.joint !== visualization.joint || rangeOfMotion.movement !== visualization.movement)) {
+      issues.push(`ROM ${visualization.rangeOfMotion} does not match joint ${visualization.joint} and movement ${visualization.movement} for movement visualization ${visualization.id}`)
+    }
+    if (hasPrimaryEntityType !== hasPrimaryEntitySlug) {
+      issues.push(`Movement visualization ${visualization.id} requires both primary entity type and slug`)
+    } else if (visualization.primaryEntityType && visualization.primaryEntitySlug) {
+      if (!isAnatomyEntityType(visualization.primaryEntityType)) {
+        issues.push(`Invalid primary entity type for movement visualization ${visualization.id}`)
+      } else if (!entityExists(seed, visualization.primaryEntityType, visualization.primaryEntitySlug)) {
+        issues.push(`Invalid primary entity for movement visualization ${visualization.id}`)
+      }
     }
     validSource(visualization.sourceRef, `movement visualization ${visualization.id}`)
   })
