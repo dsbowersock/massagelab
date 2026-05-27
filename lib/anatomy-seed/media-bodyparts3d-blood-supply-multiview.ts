@@ -167,7 +167,7 @@ function bodyParts3dImageUrl(mapping: BodyParts3dBloodSupplyMapping, view: Multi
     ],
   }
 
-  return `http://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
+  return `https://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
 }
 
 function assetSlug(mapping: BodyParts3dBloodSupplyMapping, view: MultiView) {

@@ -19,7 +19,7 @@ function slugify(value: string) {
 }
 
 function relationshipId(spec: LigamentRelationshipSpec) {
-  return `relationship-${spec.ligament}-${slugify(spec.relationshipType)}-${spec.targetEntitySlug}`
+  return `relationship-${spec.ligament}-${slugify(spec.relationshipType)}-${slugify(spec.targetEntityType)}-${spec.targetEntitySlug}`
 }
 
 function sourceReferenceCitation(

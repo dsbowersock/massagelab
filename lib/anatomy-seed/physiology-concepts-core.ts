@@ -36,7 +36,7 @@ const CONCEPTS: ConceptSpec[] = [
     description: "A muscle fascicle is a bundle of muscle fibers wrapped by connective tissue. Fascicle direction helps explain muscle shape, force direction, and why some muscles pull at different angles.",
     sourceRef: PHYSIOLOGY_SOURCE,
     locator: LOCATOR,
-    terms: [{ term: "fascicle", termType: "preferred" }, { term: "muscle bundle", termType: "common" }],
+    terms: [{ term: "fascicle", termType: "common" }, { term: "muscle bundle", termType: "common" }],
   },
   {
     id: "concept-motor-unit",

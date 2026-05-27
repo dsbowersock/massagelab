@@ -52,7 +52,7 @@ function bodyParts3dImageUrl(partIds: readonly string[]): string {
     ],
   }
 
-  return `http://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
+  return `https://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
 }
 
 const muscleImages: readonly BodyParts3dMuscleMediaSeed[] = [

@@ -4518,11 +4518,11 @@ function profile(
 }
 
 function bodyParts3dFallbackImageUrl(profile: BodyParts3dFallbackProfile, view: BodyParts3dFallbackView): string {
-  return `http://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(bodyParts3dRenderConfig(profile, view)))}`
+  return `https://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(bodyParts3dRenderConfig(profile, view)))}`
 }
 
 function bodyParts3dFallbackAnimationUrl(profile: BodyParts3dFallbackProfile): string {
-  return `http://lifesciencedb.jp/bp3d/API/animation?${encodeURIComponent(JSON.stringify(bodyParts3dRenderConfig(profile)))}`
+  return `https://lifesciencedb.jp/bp3d/API/animation?${encodeURIComponent(JSON.stringify(bodyParts3dRenderConfig(profile)))}`
 }
 
 function bodyParts3dRenderConfig(profile: BodyParts3dFallbackProfile, view?: BodyParts3dFallbackView) {
@@ -5504,7 +5504,9 @@ function sourceReferenceCitationTargets(seed: AnatomyFoundationSeed): SourceRefe
     entityType: identifier.entityType,
     entitySlug: identifier.entitySlug,
     sourceRef: identifier.sourceRef,
-    factSlug: `external_identifier:${identifier.provider}:${identifier.identifier}`,
+    factSlug: identifier.identifier.toLowerCase().startsWith(`${identifier.provider.toLowerCase()}:`)
+      ? `external_identifier:${identifier.identifier}`
+      : `external_identifier:${identifier.provider}:${identifier.identifier}`,
   }))
 
   return targets

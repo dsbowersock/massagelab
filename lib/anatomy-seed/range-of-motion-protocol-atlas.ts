@@ -226,6 +226,18 @@ const ROM_PROTOCOL_SPECS: RomProtocolSpec[] = [
     sourceLocator: CDC_ROM_LOCATOR,
   },
   {
+    slug: "tarsometatarsal-glide-tracking",
+    joint: "tarsometatarsal-joints",
+    movement: "tarsometatarsal-glide",
+    typicalMinValue: 0,
+    typicalMaxValue: 5,
+    measurementUnit: "ordinal_0_5",
+    measurementPosition: "Non-diagnostic observation scale for midfoot adaptability during education, gait discussion, or therapist note context.",
+    notes: "Ordinal tracking metadata for tarsometatarsal glide; do not treat as diagnostic joint-play grading.",
+    sourceRef: ROM_TRACKING_SOURCE,
+    sourceLocator: ROM_TRACKING_LOCATOR,
+  },
+  {
     slug: "jaw-depression-opening-rom",
     joint: "temporomandibular-joint",
     movement: "jaw-depression",

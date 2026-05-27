@@ -12,7 +12,7 @@ const starterImages = [
     slug: "bodyparts3d-brain-anatomogram",
     title: "BodyParts3D Brain Anatomogram",
     description: "Reviewed BodyParts3D/Anatomography PNG source image for brain anatomy media ingestion into R2.",
-    sourceUrl: "http://lifesciencedb.jp/bp3d/API/image.cgi?shorten=n8vamGbSjOzKuWvaiWeK55b8",
+    sourceUrl: "https://lifesciencedb.jp/bp3d/API/image.cgi?shorten=n8vamGbSjOzKuWvaiWeK55b8",
     storagePath: "anatomy/bodyparts3d/anatomograms/brain.png",
     entityLinks: [
       { entityType: "anatomy_structure", entitySlug: "brain", role: "primary", notes: "Starter gross anatomy media for nervous-system education." },
@@ -23,7 +23,7 @@ const starterImages = [
     slug: "bodyparts3d-heart-anatomogram",
     title: "BodyParts3D Heart Anatomogram",
     description: "Reviewed BodyParts3D/Anatomography PNG source image for heart anatomy media ingestion into R2.",
-    sourceUrl: "http://lifesciencedb.jp/bp3d/API/image.cgi?shorten=rCK5vOCmiKDqiqmqm4Xfimua",
+    sourceUrl: "https://lifesciencedb.jp/bp3d/API/image.cgi?shorten=rCK5vOCmiKDqiqmqm4Xfimua",
     storagePath: "anatomy/bodyparts3d/anatomograms/heart.png",
     entityLinks: [
       { entityType: "anatomy_structure", entitySlug: "heart", role: "primary", notes: "Starter gross anatomy media for cardiovascular education." },
@@ -34,7 +34,7 @@ const starterImages = [
     slug: "bodyparts3d-eye-anatomogram",
     title: "BodyParts3D Eye Anatomogram",
     description: "Reviewed BodyParts3D/Anatomography PNG source image for eye anatomy media ingestion into R2.",
-    sourceUrl: "http://lifesciencedb.jp/bp3d/API/image.cgi?shorten=bKnS1jXXPDqWfaSDmaK5HbOD",
+    sourceUrl: "https://lifesciencedb.jp/bp3d/API/image.cgi?shorten=bKnS1jXXPDqWfaSDmaK5HbOD",
     storagePath: "anatomy/bodyparts3d/anatomograms/eye.png",
     entityLinks: [
       { entityType: "anatomy_structure", entitySlug: "eye", role: "primary", notes: "Starter gross anatomy media for special-sense anatomy education." },

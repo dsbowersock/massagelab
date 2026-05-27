@@ -170,7 +170,7 @@ function sourceReferenceCitation(relationship: RelationshipRow): CitationRow {
     entitySlug: relationship.sourceEntitySlug,
     factType: "seed_source_reference",
     factSlug: `relationship:${relationship.id}`,
-    sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
+    sourceRef: relationship.sourceRef,
     sourceLocator: APPLIED_HUMAN_ANATOMY_LOCATOR,
     citationNote: "Reviewed source-reference row for a neurovascular relationship seed fact.",
     reviewStatus: "reviewed",

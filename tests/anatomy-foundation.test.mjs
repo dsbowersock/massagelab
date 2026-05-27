@@ -342,7 +342,7 @@ describe("Anatomy data foundation", () => {
         citation.sourceLocator === identifierValue), `${boneSlug} needs a reviewed external identifier citation`)
       assert.ok(citations.some((citation) =>
         citation.factType === "seed_source_reference" &&
-        citation.factSlug === `external_identifier:UBERON:${identifierValue}` &&
+        citation.factSlug === `external_identifier:${identifierValue}` &&
         citation.sourceRef === "ols-uberon"), `${boneSlug} needs a reviewed source-reference citation for the identifier`)
     }
   })
@@ -384,7 +384,7 @@ describe("Anatomy data foundation", () => {
         citation.sourceLocator === identifierValue), `${boneSlug} needs a reviewed external identifier citation`)
       assert.ok(citations.some((citation) =>
         citation.factType === "seed_source_reference" &&
-        citation.factSlug === `external_identifier:UBERON:${identifierValue}` &&
+        citation.factSlug === `external_identifier:${identifierValue}` &&
         citation.sourceRef === "ols-uberon"), `${boneSlug} needs a reviewed source-reference citation for the identifier`)
     }
   })
@@ -422,7 +422,7 @@ describe("Anatomy data foundation", () => {
         citation.sourceLocator === identifierValue), `${boneSlug} needs a reviewed external identifier citation`)
       assert.ok(citations.some((citation) =>
         citation.factType === "seed_source_reference" &&
-        citation.factSlug === `external_identifier:UBERON:${identifierValue}` &&
+        citation.factSlug === `external_identifier:${identifierValue}` &&
         citation.sourceRef === "ols-uberon"), `${boneSlug} needs a reviewed source-reference citation for the identifier`)
     }
   })
@@ -478,7 +478,7 @@ describe("Anatomy data foundation", () => {
         citation.sourceLocator === identifierValue), `${boneSlug} needs a reviewed external identifier citation`)
       assert.ok(citations.some((citation) =>
         citation.factType === "seed_source_reference" &&
-        citation.factSlug === `external_identifier:UBERON:${identifierValue}` &&
+        citation.factSlug === `external_identifier:${identifierValue}` &&
         citation.sourceRef === "ols-uberon"), `${boneSlug} needs a reviewed source-reference citation for the identifier`)
     }
   })
@@ -519,7 +519,7 @@ describe("Anatomy data foundation", () => {
         citation.sourceLocator === identifierValue), `${boneSlug} needs a reviewed external identifier citation`)
       assert.ok(citations.some((citation) =>
         citation.factType === "seed_source_reference" &&
-        citation.factSlug === `external_identifier:UBERON:${identifierValue}` &&
+        citation.factSlug === `external_identifier:${identifierValue}` &&
         citation.sourceRef === "ols-uberon"), `${boneSlug} needs a reviewed source-reference citation for the identifier`)
     }
   })
@@ -1364,7 +1364,7 @@ describe("Anatomy data foundation", () => {
       assert.equal(asset?.usageScope, "open_reuse")
       assert.equal(asset?.reviewStatus, "reviewed")
       assert.equal(asset?.license, "CC BY 4.0")
-      assert.match(asset?.sourceUrl ?? "", /^http:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
+      assert.match(asset?.sourceUrl ?? "", /^https:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
       assert.match(asset?.storagePath ?? "", /^anatomy\/bodyparts3d\/anatomograms\/.+\.png$/)
       assert.equal(asset?.metadata?.r2Upload, true)
       assert.equal(asset?.metadata?.sourceKind, "bodyparts3d-anatomography-api-image")
@@ -1467,7 +1467,7 @@ describe("Anatomy data foundation", () => {
       assert.equal(asset?.usageScope, "open_reuse")
       assert.equal(asset?.reviewStatus, "reviewed")
       assert.equal(asset?.license, "CC BY 4.0")
-      assert.match(asset?.sourceUrl ?? "", /^http:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
+      assert.match(asset?.sourceUrl ?? "", /^https:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
       assert.match(asset?.storagePath ?? "", /^anatomy\/bodyparts3d\/anatomograms\/.+\.png$/)
       assert.equal(asset?.metadata?.r2Upload, true)
       assert.equal(asset?.metadata?.sourceKind, "bodyparts3d-anatomography-api-image")
@@ -1522,7 +1522,7 @@ describe("Anatomy data foundation", () => {
         assert.equal(asset?.usageScope, "open_reuse")
         assert.equal(asset?.reviewStatus, "reviewed")
         assert.equal(asset?.license, "CC BY 4.0")
-        assert.match(asset?.sourceUrl ?? "", /^http:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
+        assert.match(asset?.sourceUrl ?? "", /^https:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
         assert.match(asset?.storagePath ?? "", new RegExp(`^anatomy/bodyparts3d/anatomograms/muscles/${muscleSlug}/${viewSlug}\\.png$`))
         assert.equal(asset?.metadata?.r2Upload, true)
         assert.equal(asset?.metadata?.sourceKind, "bodyparts3d-anatomography-api-image")
@@ -1578,7 +1578,7 @@ describe("Anatomy data foundation", () => {
         assert.equal(asset?.usageScope, "open_reuse")
         assert.equal(asset?.reviewStatus, "reviewed")
         assert.equal(asset?.license, "CC BY 4.0")
-        assert.match(asset?.sourceUrl ?? "", /^http:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
+        assert.match(asset?.sourceUrl ?? "", /^https:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
         assert.match(asset?.storagePath ?? "", new RegExp(`^anatomy/bodyparts3d/anatomograms/bones/${boneSlug}/${viewSlug}\\.png$`))
         assert.equal(asset?.metadata?.r2Upload, true)
         assert.equal(asset?.metadata?.sourceKind, "bodyparts3d-anatomography-api-image")
@@ -1634,7 +1634,7 @@ describe("Anatomy data foundation", () => {
         assert.equal(asset?.usageScope, "open_reuse")
         assert.equal(asset?.reviewStatus, "reviewed")
         assert.equal(asset?.license, "CC BY 4.0")
-        assert.match(asset?.sourceUrl ?? "", /^http:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
+        assert.match(asset?.sourceUrl ?? "", /^https:\/\/lifesciencedb\.jp\/bp3d\/API\/image\?%7B/)
         assert.match(asset?.storagePath ?? "", new RegExp(`^anatomy/bodyparts3d/anatomograms/blood-supply/${bloodSupplySlug}/${viewSlug}\\.png$`))
         assert.equal(asset?.metadata?.r2Upload, true)
         assert.equal(asset?.metadata?.sourceKind, "bodyparts3d-anatomography-api-image")

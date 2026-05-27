@@ -101,12 +101,17 @@ type AnatomyBrowserView =
   | "maintenance"
 
 type AnatomyBrowserData = {
+  regions: Record<string, unknown>[]
   muscles: Record<string, unknown>[]
   structures: Record<string, unknown>[]
   concepts: Record<string, unknown>[]
   bones: Record<string, unknown>[]
+  boneLandmarks: Record<string, unknown>[]
   joints: Record<string, unknown>[]
+  jointMovements: Record<string, unknown>[]
+  rangesOfMotion: Record<string, unknown>[]
   nerves: Record<string, unknown>[]
+  ligaments: Record<string, unknown>[]
   bloodSupply: Record<string, unknown>[]
   painRegions: Record<string, unknown>[]
   clientTerms: Record<string, unknown>[]
@@ -119,6 +124,8 @@ type AnatomyBrowserData = {
   entityNames: Record<string, string>
   entityOptions: Array<{ entityType: string; entitySlug: string; label: string }>
 }
+
+type AnatomyEntityDetailPayload = Awaited<ReturnType<typeof anatomyQueries.getAnatomyEntityDetail>> | null
 
 type DataTableColumn<T> = {
   header: string
@@ -161,7 +168,7 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
   const selectedView = browserViewFromParam(params?.view, quickQueryKey, searchQuery)
   const selectedEntity = parseAnatomyEntitySelection(params?.entityType, params?.entitySlug)
 
-  const [termRows, flagRows, foundationCounts, browserData, searchResults, quickResult] = await Promise.all([
+  const [termRows, flagRows, foundationCounts, browserData, searchResults, quickResult, selectedEntityDetail] = await Promise.all([
     prisma.anatomyTerm.findMany({
       select: {
         id: true,
@@ -190,6 +197,9 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
     getAnatomyBrowserData(),
     searchQuery ? anatomyQueries.searchAnatomyEntities(searchQuery, 18) : Promise.resolve([]),
     getAnatomyQuickResult(quickQueryKey),
+    selectedEntity
+      ? anatomyQueries.getAnatomyEntityDetail(selectedEntity.entityType, selectedEntity.entitySlug).catch(() => null)
+      : Promise.resolve(null),
   ])
   const terms = termRows as AnatomyTermRow[]
   const flags = flagRows as CorrectionFlagRow[]
@@ -204,6 +214,7 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
         selectedQuickQueryKey={quickQueryKey}
         selectedView={selectedView}
         selectedEntity={selectedEntity}
+        selectedEntityDetail={selectedEntityDetail}
         browserData={browserData}
         terms={terms}
         flags={flags}
@@ -220,6 +231,7 @@ function AnatomyDatabaseBrowser({
   selectedQuickQueryKey,
   selectedView,
   selectedEntity,
+  selectedEntityDetail,
   browserData,
   terms,
   flags,
@@ -231,6 +243,7 @@ function AnatomyDatabaseBrowser({
   selectedQuickQueryKey?: AnatomyQuickQueryKey
   selectedView: AnatomyBrowserView
   selectedEntity: AnatomyEntitySelection | null
+  selectedEntityDetail: AnatomyEntityDetailPayload
   browserData: AnatomyBrowserData
   terms: AnatomyTermRow[]
   flags: CorrectionFlagRow[]
@@ -280,6 +293,7 @@ function AnatomyDatabaseBrowser({
             <EntityDetailPanel
               data={browserData}
               selectedEntity={selectedEntity}
+              selectedEntityDetail={selectedEntityDetail}
               selectedView={selectedView}
               searchQuery={searchQuery}
             />
@@ -973,19 +987,21 @@ function MaintenanceView({ counts, terms, flags }: { counts: AnatomyFoundationCo
 function EntityDetailPanel({
   data,
   selectedEntity,
+  selectedEntityDetail,
   selectedView,
   searchQuery,
 }: {
   data: AnatomyBrowserData
   selectedEntity: AnatomyEntitySelection
+  selectedEntityDetail: AnatomyEntityDetailPayload
   selectedView: AnatomyBrowserView
   searchQuery: string
 }) {
-  const detail = selectedEntityDetail(data, selectedEntity)
-  const relatedRows = selectedEntityRelationships(data, selectedEntity)
-  const citationRows = selectedEntityCitations(data, selectedEntity)
-  const identifierRows = selectedEntityExternalIdentifiers(data, selectedEntity)
-  const mediaRows = selectedEntityMediaAssets(data, selectedEntity)
+  const detail = selectedEntityDisplayDetail(data, selectedEntity, selectedEntityDetail)
+  const relatedRows = selectedEntityRelationships(data, selectedEntity, selectedEntityDetail)
+  const citationRows = selectedEntityCitations(data, selectedEntity, selectedEntityDetail)
+  const identifierRows = selectedEntityExternalIdentifiers(data, selectedEntity, selectedEntityDetail)
+  const mediaRows = selectedEntityMediaAssets(data, selectedEntity, selectedEntityDetail)
 
   if (!detail) {
     return (
@@ -1468,18 +1484,22 @@ function depthRelationshipLabels(data: AnatomyBrowserData, muscleSlug: string) {
     .map((row) => `${formatLabel(row.relationshipType)} ${row.label}`)
 }
 
-function selectedEntityDetail(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection) {
-  const row = selectedEntityRecord(data, selectedEntity)
+function selectedEntityDisplayDetail(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail: AnatomyEntityDetailPayload,
+) {
+  const row = authoritativeDetail?.entity ? asRecord(authoritativeDetail.entity) : selectedEntityRecord(data, selectedEntity)
 
-  if (!row) {
+  if (!row || Object.keys(row).length === 0) {
     return null
   }
 
   const description = recordText(row, "description") || recordText(row, "plainLanguageDescription")
-  const facts = selectedEntityFacts(data, selectedEntity, row)
+  const facts = selectedEntityFacts(data, selectedEntity, row, authoritativeDetail)
 
   return {
-    label: entityLabel(data, selectedEntity.entityType, selectedEntity.entitySlug),
+    label: entityDisplayLabel(data, selectedEntity, row),
     subtitle: [
       recordText(row, "formalName"),
       recordText(row, "jointType"),
@@ -1503,30 +1523,64 @@ function selectedEntityDetail(data: AnatomyBrowserData, selectedEntity: AnatomyE
 
 function selectedEntityRecord(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection) {
   switch (selectedEntity.entityType) {
+    case "REGION":
+      return data.regions.find((region) => recordText(region, "slug") === selectedEntity.entitySlug)
     case "ANATOMY_CONCEPT":
       return data.concepts.find((concept) => recordText(concept, "slug") === selectedEntity.entitySlug)
     case "ANATOMY_STRUCTURE":
       return data.structures.find((structure) => recordText(structure, "slug") === selectedEntity.entitySlug)
     case "BONE":
       return data.bones.find((bone) => recordText(bone, "slug") === selectedEntity.entitySlug)
+    case "BONE_LANDMARK":
+      return data.boneLandmarks.find((landmark) => recordText(landmark, "slug") === selectedEntity.entitySlug)
     case "JOINT":
       return data.joints.find((joint) => recordText(joint, "slug") === selectedEntity.entitySlug)
+    case "JOINT_MOVEMENT":
+      return data.jointMovements.find((movement) => recordText(movement, "slug") === selectedEntity.entitySlug)
+    case "RANGE_OF_MOTION":
+      return data.rangesOfMotion.find((rom) => recordText(rom, "slug") === selectedEntity.entitySlug)
+    case "MUSCLE":
+      return data.muscles.find((muscle) => recordText(muscle, "slug") === selectedEntity.entitySlug)
     case "NERVE":
       return data.nerves.find((nerve) => recordText(nerve, "slug") === selectedEntity.entitySlug)
+    case "LIGAMENT":
+      return data.ligaments.find((ligament) => recordText(ligament, "slug") === selectedEntity.entitySlug)
     case "BLOOD_SUPPLY":
       return data.bloodSupply.find((vessel) => recordText(vessel, "slug") === selectedEntity.entitySlug)
     case "PAIN_MAP_REGION":
       return data.painRegions.find((region) => recordText(region, "slug") === selectedEntity.entitySlug)
     case "CLIENT_TERM":
       return data.clientTerms.find((term) => recordText(term, "slug") === selectedEntity.entitySlug)
-    case "MUSCLE":
-    default:
-      return data.muscles.find((muscle) => recordText(muscle, "slug") === selectedEntity.entitySlug)
+    case "MUSCLE_ATTACHMENT":
+    case "MUSCLE_ACTION":
+    case "MUSCLE_INNERVATION":
+      return undefined
   }
 }
 
-function selectedEntityFacts(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection, row: Record<string, unknown>) {
+function entityDisplayLabel(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection, row: Record<string, unknown>) {
+  return (
+    data.entityNames[entityKey(selectedEntity.entityType, selectedEntity.entitySlug)] ||
+    recordText(row, "name") ||
+    recordText(row, "movementName") ||
+    recordText(row, "term") ||
+    recordText(row, "title") ||
+    selectedEntity.entitySlug
+  )
+}
+
+function selectedEntityFacts(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  row: Record<string, unknown>,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
   switch (selectedEntity.entityType) {
+    case "REGION":
+      return [
+        relationText(row, "parentRegion", "name") ? `Parent region: ${relationText(row, "parentRegion", "name")}` : "",
+        recordText(row, "bodySystem") ? `Body system: ${formatLabel(recordText(row, "bodySystem"))}` : "",
+      ].filter(Boolean)
     case "MUSCLE":
       return [
         ...attachmentLines(recordArray(row, "attachments")),
@@ -1546,14 +1600,35 @@ function selectedEntityFacts(data: AnatomyBrowserData, selectedEntity: AnatomyEn
         ...recordArray(row, "landmarks").map((landmark) => `Landmark: ${recordText(landmark, "name")}`),
         ...uniqueStrings(recordArray(row, "attachments").map((attachment) => `Attachment: ${relationText(attachment, "muscle", "name")}`)),
       ]
+    case "BONE_LANDMARK":
+      return [
+        relationText(row, "bone", "name") ? `Bone: ${relationText(row, "bone", "name")}` : "",
+      ].filter(Boolean)
     case "JOINT":
       return [
         ...recordArray(row, "movements").map((movement) => `Movement: ${movementLine(movement)}`),
         ...recordArray(row, "rangesOfMotion").map((rom) => `ROM: ${romLine(rom)}`),
         ...recordArray(row, "ligaments").map((ligament) => `Ligament: ${recordText(ligament, "name")}`),
       ]
+    case "JOINT_MOVEMENT":
+      return [
+        relationText(row, "joint", "name") ? `Joint: ${relationText(row, "joint", "name")}` : "",
+        recordText(row, "plane") ? `Plane: ${formatLabel(recordText(row, "plane"))}` : "",
+        recordText(row, "axis") ? `Axis: ${formatLabel(recordText(row, "axis"))}` : "",
+      ].filter(Boolean)
+    case "RANGE_OF_MOTION":
+      return [
+        relationText(row, "joint", "name") ? `Joint: ${relationText(row, "joint", "name")}` : "",
+        relationText(row, "movement", "movementName") ? `Movement: ${relationText(row, "movement", "movementName")}` : "",
+        romLine(row) ? `ROM: ${romLine(row)}` : "",
+      ].filter(Boolean)
     case "NERVE":
       return recordArray(row, "innervations").map((innervation) => `Innervates ${relationText(innervation, "muscle", "name")}`)
+    case "LIGAMENT":
+      return [
+        relationText(row, "joint", "name") ? `Joint: ${relationText(row, "joint", "name")}` : "",
+        relationText(row, "region", "name") ? `Region: ${relationText(row, "region", "name")}` : "",
+      ].filter(Boolean)
     case "BLOOD_SUPPLY":
       return relationshipLabels(data, {
         sourceType: "BLOOD_SUPPLY",
@@ -1565,13 +1640,13 @@ function selectedEntityFacts(data: AnatomyBrowserData, selectedEntity: AnatomyEn
     case "ANATOMY_STRUCTURE":
       return [
         recordText(row, "structureType") ? `Type: ${formatLabel(recordText(row, "structureType"))}` : "",
-        ...selectedEntityRelationships(data, selectedEntity).map((relationship) => `${formatLabel(relationship.relationshipType)} ${relationship.label}`),
+        ...selectedEntityRelationships(data, selectedEntity, authoritativeDetail).map((relationship) => `${formatLabel(relationship.relationshipType)} ${relationship.label}`),
       ].filter(Boolean)
     case "ANATOMY_CONCEPT":
       return [
         recordText(row, "conceptType") ? `Type: ${formatLabel(recordText(row, "conceptType"))}` : "",
         recordText(row, "bodySystem") ? `Body system: ${formatLabel(recordText(row, "bodySystem"))}` : "",
-        ...selectedEntityRelationships(data, selectedEntity).map((relationship) => `${formatLabel(relationship.relationshipType)} ${relationship.label}`),
+        ...selectedEntityRelationships(data, selectedEntity, authoritativeDetail).map((relationship) => `${formatLabel(relationship.relationshipType)} ${relationship.label}`),
       ].filter(Boolean)
     case "PAIN_MAP_REGION":
       return [
@@ -1592,12 +1667,23 @@ function selectedEntityFacts(data: AnatomyBrowserData, selectedEntity: AnatomyEn
         relationText(row, "mappedJoint", "name") ? `Joint: ${relationText(row, "mappedJoint", "name")}` : "",
         relationText(row, "mappedStructure", "name") ? `Structure: ${relationText(row, "mappedStructure", "name")}` : "",
       ].filter(Boolean)
-    default:
-      return []
   }
+
+  return []
 }
 
-function selectedEntityRelationships(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection) {
+function selectedEntityRelationships(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return [
+      ...authoritativeDetail.relationships.outgoing.map((relationship) => relationshipRowFromDetail(data, relationship, "outgoing")),
+      ...authoritativeDetail.relationships.incoming.map((relationship) => relationshipRowFromDetail(data, relationship, "incoming")),
+    ]
+  }
+
   return data.relationships
     .flatMap((relationship) => {
       const sourceMatches = recordText(relationship, "sourceEntityType") === selectedEntity.entityType && recordText(relationship, "sourceEntitySlug") === selectedEntity.entitySlug
@@ -1621,21 +1707,59 @@ function selectedEntityRelationships(data: AnatomyBrowserData, selectedEntity: A
     })
 }
 
-function selectedEntityCitations(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection) {
+function relationshipRowFromDetail(data: AnatomyBrowserData, relationship: unknown, direction: "outgoing" | "incoming") {
+  const entityType = direction === "outgoing" ? recordText(relationship, "targetEntityType") : recordText(relationship, "sourceEntityType")
+  const entitySlug = direction === "outgoing" ? recordText(relationship, "targetEntitySlug") : recordText(relationship, "sourceEntitySlug")
+
+  return {
+    direction,
+    relationshipType: recordText(relationship, "relationshipType"),
+    entityType,
+    entitySlug,
+    label: entityLabel(data, entityType, entitySlug),
+    source: relationText(relationship, "source", "label"),
+  }
+}
+
+function selectedEntityCitations(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return authoritativeDetail.citations as Record<string, unknown>[]
+  }
+
   return data.citations.filter((citation) => (
     recordText(citation, "entityType") === selectedEntity.entityType &&
     recordText(citation, "entitySlug") === selectedEntity.entitySlug
   ))
 }
 
-function selectedEntityExternalIdentifiers(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection) {
+function selectedEntityExternalIdentifiers(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return authoritativeDetail.externalIdentifiers as Record<string, unknown>[]
+  }
+
   return data.externalIdentifiers.filter((identifier) => (
     recordText(identifier, "entityType") === selectedEntity.entityType &&
     recordText(identifier, "entitySlug") === selectedEntity.entitySlug
   ))
 }
 
-function selectedEntityMediaAssets(data: AnatomyBrowserData, selectedEntity: AnatomyEntitySelection) {
+function selectedEntityMediaAssets(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return authoritativeDetail.mediaAssets as Record<string, unknown>[]
+  }
+
   return data.mediaAssets.filter((asset) => (
     recordArray(asset, "entityLinks").some((link) => (
       recordText(link, "entityType") === selectedEntity.entityType &&
@@ -1794,12 +1918,17 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
 
 async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
   const [
+    regions,
     muscles,
     structures,
     concepts,
     bones,
+    boneLandmarks,
     joints,
+    jointMovements,
+    rangesOfMotion,
     nerves,
+    ligaments,
     bloodSupply,
     painRegions,
     clientTerms,
@@ -1810,6 +1939,14 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     externalIdentifiers,
     mediaAssets,
   ] = await Promise.all([
+    prisma.anatomyRegion.findMany({
+      include: {
+        parentRegion: true,
+        source: true,
+      },
+      orderBy: { name: "asc" },
+      take: 120,
+    }),
     prisma.muscle.findMany({
       include: {
         region: true,
@@ -1858,6 +1995,14 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       orderBy: { name: "asc" },
       take: 80,
     }),
+    prisma.boneLandmark.findMany({
+      include: {
+        bone: true,
+        source: true,
+      },
+      orderBy: { name: "asc" },
+      take: 160,
+    }),
     prisma.joint.findMany({
       include: {
         region: true,
@@ -1872,6 +2017,23 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       orderBy: { name: "asc" },
       take: 80,
     }),
+    prisma.jointMovement.findMany({
+      include: {
+        joint: true,
+        source: true,
+      },
+      orderBy: { movementName: "asc" },
+      take: 160,
+    }),
+    prisma.rangeOfMotion.findMany({
+      include: {
+        joint: true,
+        movement: true,
+        source: true,
+      },
+      orderBy: { slug: "asc" },
+      take: 160,
+    }),
     prisma.nerve.findMany({
       include: {
         region: true,
@@ -1883,6 +2045,15 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       },
       orderBy: { name: "asc" },
       take: 80,
+    }),
+    prisma.ligament.findMany({
+      include: {
+        region: true,
+        joint: true,
+        source: true,
+      },
+      orderBy: { name: "asc" },
+      take: 160,
     }),
     prisma.bloodSupply.findMany({
       include: {
@@ -1950,10 +2121,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     entityNames[entityKey(entityType, slug)] = label
   }
 
-  for (const region of await prisma.anatomyRegion.findMany({ orderBy: { name: "asc" }, take: 80 })) {
-    addEntityName("REGION", region.slug, region.name)
-  }
-
+  for (const region of regions) addEntityName("REGION", region.slug, region.name)
   for (const muscle of muscles) addEntityName("MUSCLE", muscle.slug, muscle.name)
   for (const structure of structures) addEntityName("ANATOMY_STRUCTURE", structure.slug, structure.name)
   for (const concept of concepts) addEntityName("ANATOMY_CONCEPT", concept.slug, concept.name)
@@ -1961,11 +2129,15 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     addEntityName("BONE", bone.slug, bone.name)
     for (const landmark of bone.landmarks) addEntityName("BONE_LANDMARK", landmark.slug, landmark.name)
   }
+  for (const landmark of boneLandmarks) addEntityName("BONE_LANDMARK", landmark.slug, landmark.name)
   for (const joint of joints) {
     addEntityName("JOINT", joint.slug, joint.name)
     for (const movement of joint.movements) addEntityName("JOINT_MOVEMENT", movement.slug, movement.movementName)
     for (const ligament of joint.ligaments) addEntityName("LIGAMENT", ligament.slug, ligament.name)
   }
+  for (const movement of jointMovements) addEntityName("JOINT_MOVEMENT", movement.slug, movement.movementName)
+  for (const rom of rangesOfMotion) addEntityName("RANGE_OF_MOTION", rom.slug, rom.slug)
+  for (const ligament of ligaments) addEntityName("LIGAMENT", ligament.slug, ligament.name)
   for (const nerve of nerves) addEntityName("NERVE", nerve.slug, nerve.name)
   for (const vessel of bloodSupply) addEntityName("BLOOD_SUPPLY", vessel.slug, vessel.name)
   for (const painRegion of painRegions) addEntityName("PAIN_MAP_REGION", painRegion.slug, painRegion.name)
@@ -1979,12 +2151,17 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     .sort((left, right) => left.label.localeCompare(right.label))
 
   return {
+    regions: regions as Record<string, unknown>[],
     muscles: muscles as Record<string, unknown>[],
     structures: structures as Record<string, unknown>[],
     concepts: concepts as Record<string, unknown>[],
     bones: bones as Record<string, unknown>[],
+    boneLandmarks: boneLandmarks as Record<string, unknown>[],
     joints: joints as Record<string, unknown>[],
+    jointMovements: jointMovements as Record<string, unknown>[],
+    rangesOfMotion: rangesOfMotion as Record<string, unknown>[],
     nerves: nerves as Record<string, unknown>[],
+    ligaments: ligaments as Record<string, unknown>[],
     bloodSupply: bloodSupply as Record<string, unknown>[],
     painRegions: painRegions as Record<string, unknown>[],
     clientTerms: clientTerms as Record<string, unknown>[],

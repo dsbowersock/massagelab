@@ -899,6 +899,7 @@ export const LOWER_LIMB_SECTION: AnatomySeedSection = {
     { id: "joint-knee", slug: "knee-joint", name: "Knee Joint", jointType: "modified synovial hinge", region: "knee", sourceRef: REVIEW_SOURCE },
     { id: "joint-ankle", slug: "ankle-joint", name: "Ankle Joint", jointType: "synovial hinge", region: "ankle", sourceRef: REVIEW_SOURCE },
     { id: "joint-subtalar", slug: "subtalar-joint", name: "Subtalar Joint", jointType: "synovial plane", region: "foot", sourceRef: REVIEW_SOURCE },
+    { id: "joint-foot-tmt", slug: "tarsometatarsal-joints", name: "Tarsometatarsal Joints", jointType: "synovial plane", region: "foot", sourceRef: REVIEW_SOURCE },
     { id: "joint-foot-mtp", slug: "metatarsophalangeal-joints", name: "Metatarsophalangeal Joints", jointType: "synovial condyloid", region: "foot", sourceRef: REVIEW_SOURCE },
   ],
   jointMovements: [

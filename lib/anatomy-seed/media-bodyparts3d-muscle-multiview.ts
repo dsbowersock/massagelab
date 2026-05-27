@@ -210,7 +210,7 @@ function bodyParts3dImageUrl(partIds: readonly string[], view: MultiView): strin
     ],
   }
 
-  return `http://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
+  return `https://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
 }
 
 function assetSlug(mapping: BodyParts3dMuscleMapping, view: MultiView) {

@@ -71,7 +71,7 @@ function sourceReferenceCitation(spec: BoneIdentifierSpec): CitationRow {
     entityType: "bone",
     entitySlug: spec.slug,
     factType: "seed_source_reference",
-    factSlug: `external_identifier:UBERON:${spec.identifier}`,
+    factSlug: `external_identifier:${spec.identifier}`,
     sourceRef: OLS_UBERON_SOURCE,
     sourceLocator: olsClassUrl(spec.identifier),
     citationNote: "Reviewed source-reference row for the OLS UBERON external identifier seed fact.",

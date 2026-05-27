@@ -105,6 +105,15 @@ const JOINT_MOVEMENT_COMPLETENESS_SPECS: JointMovementSpec[] = [
     description: "Sacroiliac counternutation describes the small reverse sacral nodding motion used for non-diagnostic pelvis and low-back mechanics education.",
     commonTerms: ["SI joint counternutation", "sacrum nodding backward"],
   },
+  {
+    slug: "tarsometatarsal-glide",
+    joint: "tarsometatarsal-joints",
+    movementName: "Tarsometatarsal Glide",
+    plane: "variable",
+    axis: "variable",
+    description: "Tarsometatarsal glide describes small midfoot plane-joint motion between the distal tarsals and metatarsal bases during arch loading and foot adaptation.",
+    commonTerms: ["TMT joint glide", "midfoot glide"],
+  },
 ]
 
 const JOINT_MOVEMENT_COMPLETENESS_ROWS: JointMovementRow[] = JOINT_MOVEMENT_COMPLETENESS_SPECS.map((spec) => ({

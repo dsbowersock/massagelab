@@ -324,7 +324,7 @@ function bodyParts3dImageUrl(mapping: BodyParts3dBoneMapping, view: MultiView): 
     ],
   }
 
-  return `http://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
+  return `https://lifesciencedb.jp/bp3d/API/image?${encodeURIComponent(JSON.stringify(config))}`
 }
 
 function assetSlug(mapping: BodyParts3dBoneMapping, view: MultiView) {

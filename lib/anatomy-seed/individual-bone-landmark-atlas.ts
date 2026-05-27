@@ -333,7 +333,7 @@ const INDIVIDUAL_BONE_LANDMARK_CITATIONS: CitationRow[] = INDIVIDUAL_BONE_LANDMA
     reviewedLandmarkCitation(
       spec.landmarkSlug,
       "anatomy_landmark",
-      `bone-landmark-${spec.landmarkSlug}`,
+    `landmark-${spec.landmarkSlug}`,
       APPLIED_HUMAN_ANATOMY_SOURCE,
       APPLIED_HUMAN_ANATOMY_LOCATOR,
       "MassageLab-authored landmark summary reviewed against the commercial-safe applied human anatomy source record.",

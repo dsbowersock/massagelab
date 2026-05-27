@@ -151,6 +151,7 @@ const NECK_REVIEWED_MUSCLE_CITATIONS: CitationSeedRows = NECK_REVIEWED_MUSCLE_CI
     entityType: "muscle",
     entitySlug: spec.slug,
     factType: "clinical_summary",
+    factSlug: "clinical-summary",
     sourceRef: APPLIED_HUMAN_ANATOMY_SOURCE,
     sourceLocator: APPLIED_HUMAN_ANATOMY_LOCATOR,
     citationNote: "MassageLab-authored summary verified against open-reuse applied anatomy material.",
