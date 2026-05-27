@@ -101,6 +101,17 @@ export const SOURCES_SEED_SECTION: AnatomySeedSection = {
       sourceRef: "MassageLab-owned ROM tracking metadata for commercial product use.",
     },
     {
+      id: "source-massagelab-authored-3d-body-map-protocol",
+      slug: "massagelab-authored-3d-body-map-protocol",
+      name: "MassageLab Authored 3D Body Map Interaction Protocol",
+      license: "MassageLab-authored proprietary data",
+      usageScope: "commercial_licensed",
+      accessedAt: "2026-05-27T00:00:00.000Z",
+      notes: "Use for MassageLab-authored 3D interaction metadata, model coordinate conventions, selectable target semantics, palpation target flags, body-map hit-zone mapping, and ROM visualization anchors. This is not an external clinical authority.",
+      attribution: "MassageLab authored 3D body-map interaction metadata.",
+      sourceRef: "MassageLab-owned 3D body-map and ROM visualization metadata for commercial product use.",
+    },
+    {
       id: "source-massagelab-authored-energetic-anatomy",
       slug: "massagelab-authored-energetic-anatomy",
       name: "MassageLab Authored Energetic Anatomy Taxonomy",

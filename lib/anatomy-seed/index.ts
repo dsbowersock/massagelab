@@ -38,6 +38,7 @@ import { RANGE_OF_MOTION_PROTOCOL_ATLAS_SECTION } from "./range-of-motion-protoc
 import { REMAINING_BODY_SYSTEM_CONCEPTS_SECTION } from "./remaining-body-system-concepts.ts"
 import { SOFT_TISSUE_ATLAS_SECTION } from "./soft-tissue-atlas.ts"
 import { SOURCES_SEED_SECTION } from "./sources.ts"
+import { SPATIAL_BODY_MAP_FOUNDATION_SECTION } from "./spatial-body-map-foundation.ts"
 import { STRUCTURE_RELATIONSHIP_COMPLETENESS_ATLAS_SECTION } from "./structure-relationship-completeness-atlas.ts"
 import { TRUNK_SPINE_PELVIS_SECTION } from "./trunk-spine-pelvis.ts"
 import { UPPER_LIMB_SECTION } from "./upper-limb.ts"
@@ -90,6 +91,7 @@ export const ANATOMY_SEED_SECTION_NAMES = [
   "media-bodyparts3d-bone-multiview",
   "media-bodyparts3d-muscle-batch-2",
   "media-bodyparts3d-muscle-multiview",
+  "spatial-body-map-foundation",
   "neck-shoulder-upper-back",
   "trunk-spine-pelvis",
   "upper-limb",
@@ -138,6 +140,7 @@ export const ANATOMY_SEED_SECTIONS: AnatomySeedSection[] = [
   MEDIA_BODYPARTS3D_BONE_MULTIVIEW_SECTION,
   MEDIA_BODYPARTS3D_MUSCLE_BATCH_2_SECTION,
   MEDIA_BODYPARTS3D_MUSCLE_MULTIVIEW_SECTION,
+  SPATIAL_BODY_MAP_FOUNDATION_SECTION,
   NECK_SHOULDER_UPPER_BACK_SECTION,
   TRUNK_SPINE_PELVIS_SECTION,
   UPPER_LIMB_SECTION,

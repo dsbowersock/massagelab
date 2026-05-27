@@ -603,6 +603,7 @@ async function seedAnatomyFoundation(seed: AnatomyFoundationSeed) {
   const landmarkBySlug = new Map<string, { id: string }>()
   const jointBySlug = new Map<string, { id: string }>()
   const movementBySlug = new Map<string, { id: string }>()
+  const rangeBySlug = new Map<string, { id: string }>()
   const muscleBySlug = new Map<string, { id: string }>()
   const nerveBySlug = new Map<string, { id: string }>()
   const structureBySlug = new Map<string, { id: string }>()
@@ -985,10 +986,11 @@ async function seedAnatomyFoundation(seed: AnatomyFoundationSeed) {
       notes,
       sourceId: source.id,
     })) {
+      rangeBySlug.set(range.slug, { id: existingRange.id })
       return
     }
 
-    await prisma.rangeOfMotion.upsert({
+    const row = await prisma.rangeOfMotion.upsert({
       where: { slug: range.slug },
       create: {
         id: range.id,
@@ -1017,6 +1019,8 @@ async function seedAnatomyFoundation(seed: AnatomyFoundationSeed) {
         sourceId: source.id,
       },
     })
+
+    rangeBySlug.set(range.slug, row)
   })
   mark("skeleton-joints-rom")
 
@@ -2056,6 +2060,369 @@ async function seedAnatomyFoundation(seed: AnatomyFoundationSeed) {
     })
   })
   mark("media-links")
+
+  const spatialModelBySlug = new Map<string, { id: string }>()
+  const existingSpatialModelBySlug = await existingRowsBySlug<{
+    id: string
+    slug: string
+    name: string
+    description: string | null
+    mediaAssetId: string | null
+    sourceId: string
+    coordinateSystem: string
+    unit: string
+    forwardAxis: string
+    upAxis: string
+    scaleToMeters: number
+    defaultCamera: Prisma.JsonValue
+    interactionNotes: string | null
+    usageScope: AnatomySourceUsageScope
+    reviewStatus: AnatomyFactReviewStatus
+    metadata: Prisma.JsonValue
+  }>(prisma.anatomySpatialModel as any, seed.spatialModels.map((model) => model.slug), {
+    id: true,
+    slug: true,
+    name: true,
+    description: true,
+    mediaAssetId: true,
+    sourceId: true,
+    coordinateSystem: true,
+    unit: true,
+    forwardAxis: true,
+    upAxis: true,
+    scaleToMeters: true,
+    defaultCamera: true,
+    interactionNotes: true,
+    usageScope: true,
+    reviewStatus: true,
+    metadata: true,
+  })
+
+  await mapWithConcurrency(seed.spatialModels, async (model) => {
+    const source = requireMapValue(sourceBySlug, model.sourceRef, "spatial model source")
+    const mediaAsset = model.mediaAssetSlug ? requireMapValue(mediaAssetBySlug, model.mediaAssetSlug, "spatial model media asset") : null
+    const description = model.description ?? null
+    const mediaAssetId = mediaAsset?.id ?? null
+    const defaultCamera = (model.defaultCamera ?? {}) as Prisma.InputJsonValue
+    const interactionNotes = model.interactionNotes ?? null
+    const usageScope = enumValue<AnatomySourceUsageScope>(model.usageScope)
+    const reviewStatus = enumValue<AnatomyFactReviewStatus>(model.reviewStatus)
+    const metadata = (model.metadata ?? {}) as Prisma.InputJsonValue
+    const existingModel = existingSpatialModelBySlug.get(model.slug)
+
+    if (existingModel && recordMatches(existingModel, {
+      name: model.name,
+      description,
+      mediaAssetId,
+      sourceId: source.id,
+      coordinateSystem: model.coordinateSystem,
+      unit: model.unit,
+      forwardAxis: model.forwardAxis,
+      upAxis: model.upAxis,
+      scaleToMeters: model.scaleToMeters,
+      defaultCamera,
+      interactionNotes,
+      usageScope,
+      reviewStatus,
+      metadata,
+    })) {
+      spatialModelBySlug.set(model.slug, { id: existingModel.id })
+      return
+    }
+
+    const row = await prisma.anatomySpatialModel.upsert({
+      where: { slug: model.slug },
+      create: {
+        id: model.id,
+        slug: model.slug,
+        name: model.name,
+        description,
+        mediaAssetId,
+        sourceId: source.id,
+        coordinateSystem: model.coordinateSystem,
+        unit: model.unit,
+        forwardAxis: model.forwardAxis,
+        upAxis: model.upAxis,
+        scaleToMeters: model.scaleToMeters,
+        defaultCamera,
+        interactionNotes,
+        usageScope,
+        reviewStatus,
+        metadata,
+      },
+      update: {
+        name: model.name,
+        description,
+        mediaAssetId,
+        sourceId: source.id,
+        coordinateSystem: model.coordinateSystem,
+        unit: model.unit,
+        forwardAxis: model.forwardAxis,
+        upAxis: model.upAxis,
+        scaleToMeters: model.scaleToMeters,
+        defaultCamera,
+        interactionNotes,
+        usageScope,
+        reviewStatus,
+        metadata,
+      },
+    })
+
+    spatialModelBySlug.set(model.slug, row)
+  })
+  mark("spatial-models")
+
+  const existingSpatialEntityMapBySlug = await existingRowsBySlug<{
+    id: string
+    slug: string
+    modelId: string
+    entityType: AnatomyEntityType
+    entitySlug: string
+    label: string | null
+    mappingPrecision: string
+    meshName: string | null
+    nodeName: string | null
+    materialName: string | null
+    bodyparts3dPartIds: string[]
+    laterality: PainMapLaterality
+    surface: PainMapSurface
+    selectable: boolean
+    palpationTarget: boolean
+    painSelectionTarget: boolean
+    notes: string | null
+    metadata: Prisma.JsonValue
+    sourceId: string
+    reviewStatus: AnatomyFactReviewStatus
+  }>(prisma.anatomySpatialEntityMap as any, seed.spatialEntityMaps.map((map) => map.slug), {
+    id: true,
+    slug: true,
+    modelId: true,
+    entityType: true,
+    entitySlug: true,
+    label: true,
+    mappingPrecision: true,
+    meshName: true,
+    nodeName: true,
+    materialName: true,
+    bodyparts3dPartIds: true,
+    laterality: true,
+    surface: true,
+    selectable: true,
+    palpationTarget: true,
+    painSelectionTarget: true,
+    notes: true,
+    metadata: true,
+    sourceId: true,
+    reviewStatus: true,
+  })
+
+  await mapWithConcurrency(seed.spatialEntityMaps, async (map) => {
+    const model = requireMapValue(spatialModelBySlug, map.modelSlug, "spatial entity map model")
+    const source = requireMapValue(sourceBySlug, map.sourceRef, "spatial entity map source")
+    const entityType = enumValue<AnatomyEntityType>(map.entityType)
+    const label = map.label ?? null
+    const meshName = map.meshName ?? null
+    const nodeName = map.nodeName ?? null
+    const materialName = map.materialName ?? null
+    const bodyparts3dPartIds = map.bodyparts3dPartIds ?? []
+    const laterality = enumValue<PainMapLaterality>(map.laterality ?? "unspecified")
+    const surface = enumValue<PainMapSurface>(map.surface ?? "unspecified")
+    const selectable = map.selectable ?? true
+    const palpationTarget = map.palpationTarget ?? false
+    const painSelectionTarget = map.painSelectionTarget ?? false
+    const notes = map.notes ?? null
+    const metadata = (map.metadata ?? {}) as Prisma.InputJsonValue
+    const reviewStatus = enumValue<AnatomyFactReviewStatus>(map.reviewStatus)
+    const existingMap = existingSpatialEntityMapBySlug.get(map.slug)
+
+    if (existingMap && recordMatches(existingMap, {
+      modelId: model.id,
+      entityType,
+      entitySlug: map.entitySlug,
+      label,
+      mappingPrecision: map.mappingPrecision,
+      meshName,
+      nodeName,
+      materialName,
+      bodyparts3dPartIds,
+      laterality,
+      surface,
+      selectable,
+      palpationTarget,
+      painSelectionTarget,
+      notes,
+      metadata,
+      sourceId: source.id,
+      reviewStatus,
+    })) {
+      return
+    }
+
+    await prisma.anatomySpatialEntityMap.upsert({
+      where: { slug: map.slug },
+      create: {
+        id: map.id,
+        slug: map.slug,
+        modelId: model.id,
+        entityType,
+        entitySlug: map.entitySlug,
+        label,
+        mappingPrecision: map.mappingPrecision,
+        meshName,
+        nodeName,
+        materialName,
+        bodyparts3dPartIds,
+        laterality,
+        surface,
+        selectable,
+        palpationTarget,
+        painSelectionTarget,
+        notes,
+        metadata,
+        sourceId: source.id,
+        reviewStatus,
+      },
+      update: {
+        modelId: model.id,
+        entityType,
+        entitySlug: map.entitySlug,
+        label,
+        mappingPrecision: map.mappingPrecision,
+        meshName,
+        nodeName,
+        materialName,
+        bodyparts3dPartIds,
+        laterality,
+        surface,
+        selectable,
+        palpationTarget,
+        painSelectionTarget,
+        notes,
+        metadata,
+        sourceId: source.id,
+        reviewStatus,
+      },
+    })
+  })
+  mark("spatial-entity-maps")
+
+  const existingMovementVisualizationBySlug = await existingRowsBySlug<{
+    id: string
+    slug: string
+    modelId: string
+    jointId: string
+    movementId: string
+    rangeOfMotionId: string | null
+    primaryEntityType: AnatomyEntityType | null
+    primaryEntitySlug: string | null
+    motionAxis: Prisma.JsonValue
+    plane: string | null
+    neutralPose: Prisma.JsonValue
+    startDegrees: number | null
+    endDegrees: number | null
+    notes: string | null
+    metadata: Prisma.JsonValue
+    sourceId: string
+    reviewStatus: AnatomyFactReviewStatus
+  }>(prisma.anatomyMovementVisualization as any, seed.movementVisualizations.map((visualization) => visualization.slug), {
+    id: true,
+    slug: true,
+    modelId: true,
+    jointId: true,
+    movementId: true,
+    rangeOfMotionId: true,
+    primaryEntityType: true,
+    primaryEntitySlug: true,
+    motionAxis: true,
+    plane: true,
+    neutralPose: true,
+    startDegrees: true,
+    endDegrees: true,
+    notes: true,
+    metadata: true,
+    sourceId: true,
+    reviewStatus: true,
+  })
+
+  await mapWithConcurrency(seed.movementVisualizations, async (visualization) => {
+    const model = requireMapValue(spatialModelBySlug, visualization.modelSlug, "movement visualization model")
+    const joint = requireMapValue(jointBySlug, visualization.joint, "movement visualization joint")
+    const movement = requireMapValue(movementBySlug, visualization.movement, "movement visualization movement")
+    const rangeOfMotion = visualization.rangeOfMotion ? requireMapValue(rangeBySlug, visualization.rangeOfMotion, "movement visualization ROM") : null
+    const primaryEntityType = visualization.primaryEntityType ? enumValue<AnatomyEntityType>(visualization.primaryEntityType) : null
+    const primaryEntitySlug = visualization.primaryEntitySlug ?? null
+    const motionAxis = (visualization.motionAxis ?? {}) as Prisma.InputJsonValue
+    const plane = visualization.plane ?? null
+    const neutralPose = (visualization.neutralPose ?? {}) as Prisma.InputJsonValue
+    const startDegrees = visualization.startDegrees ?? null
+    const endDegrees = visualization.endDegrees ?? null
+    const notes = visualization.notes ?? null
+    const metadata = (visualization.metadata ?? {}) as Prisma.InputJsonValue
+    const source = requireMapValue(sourceBySlug, visualization.sourceRef, "movement visualization source")
+    const reviewStatus = enumValue<AnatomyFactReviewStatus>(visualization.reviewStatus)
+    const existingVisualization = existingMovementVisualizationBySlug.get(visualization.slug)
+
+    if (existingVisualization && recordMatches(existingVisualization, {
+      modelId: model.id,
+      jointId: joint.id,
+      movementId: movement.id,
+      rangeOfMotionId: rangeOfMotion?.id ?? null,
+      primaryEntityType,
+      primaryEntitySlug,
+      motionAxis,
+      plane,
+      neutralPose,
+      startDegrees,
+      endDegrees,
+      notes,
+      metadata,
+      sourceId: source.id,
+      reviewStatus,
+    })) {
+      return
+    }
+
+    await prisma.anatomyMovementVisualization.upsert({
+      where: { slug: visualization.slug },
+      create: {
+        id: visualization.id,
+        slug: visualization.slug,
+        modelId: model.id,
+        jointId: joint.id,
+        movementId: movement.id,
+        rangeOfMotionId: rangeOfMotion?.id ?? null,
+        primaryEntityType,
+        primaryEntitySlug,
+        motionAxis,
+        plane,
+        neutralPose,
+        startDegrees,
+        endDegrees,
+        notes,
+        metadata,
+        sourceId: source.id,
+        reviewStatus,
+      },
+      update: {
+        modelId: model.id,
+        jointId: joint.id,
+        movementId: movement.id,
+        rangeOfMotionId: rangeOfMotion?.id ?? null,
+        primaryEntityType,
+        primaryEntitySlug,
+        motionAxis,
+        plane,
+        neutralPose,
+        startDegrees,
+        endDegrees,
+        notes,
+        metadata,
+        sourceId: source.id,
+        reviewStatus,
+      },
+    })
+  })
+  mark("movement-visualizations")
 }
 
 async function cleanupObsoleteFoundationSources(seed: AnatomyFoundationSeed) {

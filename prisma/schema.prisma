@@ -843,6 +843,9 @@ model AnatomySource {
   citations   AnatomyCitation[]
   externalIdentifiers ExternalAnatomyIdentifier[]
   mediaAssets AnatomyMediaAsset[]
+  spatialModels AnatomySpatialModel[]
+  spatialEntityMaps AnatomySpatialEntityMap[]
+  movementVisualizations AnatomyMovementVisualization[]
 }
 
 model AnatomyCitation {
@@ -911,6 +914,7 @@ model AnatomyMediaAsset {
   updatedAt    DateTime                @updatedAt
   source       AnatomySource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   entityLinks  AnatomyMediaEntity[]
+  spatialModels AnatomySpatialModel[]
 
   @@index([mediaType])
   @@index([usageScope, reviewStatus])
@@ -929,6 +933,104 @@ model AnatomyMediaEntity {
 
   @@unique([assetId, entityType, entitySlug, role])
   @@index([entityType, entitySlug])
+}
+
+model AnatomySpatialModel {
+  id                       String                         @id @default(cuid())
+  slug                     String                         @unique
+  name                     String
+  description              String?
+  mediaAssetId             String?
+  sourceId                 String
+  coordinateSystem         String                         @default("right-handed-y-up")
+  unit                     String                         @default("meter")
+  forwardAxis              String                         @default("-Z")
+  upAxis                   String                         @default("Y")
+  scaleToMeters            Float                          @default(1)
+  defaultCamera            Json                           @default("{}")
+  interactionNotes         String?
+  usageScope               AnatomySourceUsageScope        @default(REVIEW_ONLY)
+  reviewStatus             AnatomyFactReviewStatus        @default(NEEDS_REVIEW)
+  metadata                 Json                           @default("{}")
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @updatedAt
+  mediaAsset               AnatomyMediaAsset?             @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  source                   AnatomySource                  @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  entityMaps               AnatomySpatialEntityMap[]
+  movementVisualizations   AnatomyMovementVisualization[]
+
+  @@index([mediaAssetId])
+  @@index([sourceId])
+  @@index([usageScope, reviewStatus])
+}
+
+model AnatomySpatialEntityMap {
+  id                  String                  @id @default(cuid())
+  slug                String                  @unique
+  modelId             String
+  entityType          AnatomyEntityType
+  entitySlug          String
+  label               String?
+  mappingPrecision    String
+  meshName            String?
+  nodeName            String?
+  materialName        String?
+  bodyparts3dPartIds  String[]                @default([])
+  laterality          PainMapLaterality       @default(UNSPECIFIED)
+  surface             PainMapSurface          @default(UNSPECIFIED)
+  selectable          Boolean                 @default(true)
+  palpationTarget     Boolean                 @default(false)
+  painSelectionTarget Boolean                 @default(false)
+  notes               String?
+  metadata            Json                    @default("{}")
+  sourceId            String
+  reviewStatus        AnatomyFactReviewStatus @default(NEEDS_REVIEW)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  model               AnatomySpatialModel     @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  source              AnatomySource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([modelId])
+  @@index([modelId, entityType, entitySlug])
+  @@index([entityType, entitySlug])
+  @@index([sourceId])
+  @@index([selectable, palpationTarget, painSelectionTarget])
+  @@index([reviewStatus])
+}
+
+model AnatomyMovementVisualization {
+  id                String                  @id @default(cuid())
+  slug              String                  @unique
+  modelId           String
+  jointId           String
+  movementId        String
+  rangeOfMotionId   String?
+  primaryEntityType AnatomyEntityType?
+  primaryEntitySlug String?
+  motionAxis        Json                    @default("{}")
+  plane             String?
+  neutralPose       Json                    @default("{}")
+  startDegrees      Float?
+  endDegrees        Float?
+  notes             String?
+  metadata          Json                    @default("{}")
+  sourceId          String
+  reviewStatus      AnatomyFactReviewStatus @default(NEEDS_REVIEW)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  model             AnatomySpatialModel     @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  joint             Joint                   @relation(fields: [jointId], references: [id], onDelete: Restrict)
+  movement          JointMovement           @relation(fields: [movementId, jointId], references: [id, jointId], onDelete: Restrict)
+  rangeOfMotion     RangeOfMotion?          @relation(fields: [rangeOfMotionId, jointId, movementId], references: [id, jointId, movementId], onDelete: Restrict)
+  source            AnatomySource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([modelId])
+  @@index([jointId])
+  @@index([movementId])
+  @@index([rangeOfMotionId])
+  @@index([primaryEntityType, primaryEntitySlug])
+  @@index([sourceId])
+  @@index([reviewStatus])
 }
 
 model AnatomySourceRef {
@@ -1071,6 +1173,7 @@ model Joint {
   muscleActions  MuscleAction[]
   ligaments      Ligament[]
   clientTerms    ClientTerm[]
+  movementVisualizations AnatomyMovementVisualization[]
 
   @@index([regionId])
   @@index([sourceId])
@@ -1091,7 +1194,9 @@ model JointMovement {
   source         AnatomySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   rangesOfMotion RangeOfMotion[]
   muscleActions  MuscleAction[]
+  movementVisualizations AnatomyMovementVisualization[]
 
+  @@unique([id, jointId])
   @@index([jointId])
   @@index([sourceId])
 }
@@ -1114,7 +1219,9 @@ model RangeOfMotion {
   joint               Joint         @relation(fields: [jointId], references: [id], onDelete: Cascade)
   movement            JointMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
   source              AnatomySource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  movementVisualizations AnatomyMovementVisualization[]
 
+  @@unique([id, jointId, movementId])
   @@unique([jointId, movementId, measurementPosition])
   @@index([movementId])
   @@index([sourceId])

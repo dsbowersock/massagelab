@@ -85,6 +85,9 @@ type AnatomyQueryClient = {
   anatomyRegion?: QueryDelegate
   anatomyStructure?: QueryDelegate
   anatomyRelationship?: QueryDelegate
+  anatomyMovementVisualization?: QueryDelegate
+  anatomySpatialEntityMap?: QueryDelegate
+  anatomySpatialModel?: QueryDelegate
   bloodSupply?: QueryDelegate
   bone?: QueryDelegate
   boneLandmark?: QueryDelegate
@@ -292,6 +295,12 @@ function requireDelegate<T extends keyof AnatomyQueryClient>(client: AnatomyQuer
   return delegate
 }
 
+function optionalFindMany<T extends keyof AnatomyQueryClient>(client: AnatomyQueryClient, key: T, args: Record<string, unknown>) {
+  const delegate = client[key]
+
+  return delegate?.findMany(args) ?? Promise.resolve([])
+}
+
 const ENTITY_DELEGATE_BY_TYPE: Partial<Record<AnatomyEntityTypeValue, keyof AnatomyQueryClient>> = {
   REGION: "anatomyRegion",
   BLOOD_SUPPLY: "bloodSupply",
@@ -477,6 +486,55 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
       })
     },
 
+    getEntitySpatialMappings(entityType: AnatomyEntityTypeValue, entitySlug: string, options: { modelSlug?: string; selectableOnly?: boolean } = {}) {
+      return requireDelegate(client, "anatomySpatialEntityMap").findMany({
+        where: {
+          entityType,
+          entitySlug,
+          ...(options.selectableOnly ? { selectable: true } : {}),
+          ...(options.modelSlug ? { model: { slug: options.modelSlug } } : {}),
+        },
+        include: {
+          model: true,
+          source: true,
+        },
+        orderBy: [{ mappingPrecision: "asc" }, { slug: "asc" }],
+      })
+    },
+
+    getBodyMapSpatialTargets(options: { modelSlug?: string; painSelectionOnly?: boolean } = {}) {
+      return requireDelegate(client, "anatomySpatialEntityMap").findMany({
+        where: {
+          selectable: true,
+          ...(options.painSelectionOnly ? { painSelectionTarget: true } : {}),
+          ...(options.modelSlug ? { model: { slug: options.modelSlug } } : {}),
+        },
+        include: {
+          model: true,
+          source: true,
+        },
+        orderBy: [{ entityType: "asc" }, { entitySlug: "asc" }],
+      })
+    },
+
+    getMovementVisualization(jointSlug: string, movementSlug: string, options: { modelSlug?: string } = {}) {
+      return requireDelegate(client, "anatomyMovementVisualization").findMany({
+        where: {
+          joint: { slug: jointSlug },
+          movement: { slug: movementSlug },
+          ...(options.modelSlug ? { model: { slug: options.modelSlug } } : {}),
+        },
+        include: {
+          model: true,
+          joint: true,
+          movement: true,
+          rangeOfMotion: true,
+          source: true,
+        },
+        orderBy: [{ reviewStatus: "asc" }, { slug: "asc" }],
+      })
+    },
+
     async getAnatomyEntityDetail(entityType: AnatomyEntityTypeValue, entitySlug: string) {
       const delegateKey = ENTITY_DELEGATE_BY_TYPE[entityType]
 
@@ -490,7 +548,14 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
         throw new Error(`Anatomy entity detail requires prisma.${delegateKey}.findFirst.`)
       }
 
-      const [entity, outgoingRelationships, incomingRelationships, citations, mediaAssets, externalIdentifiers] = await Promise.all([
+      const movementVisualizationWhere = {
+        OR: [
+          { primaryEntityType: entityType, primaryEntitySlug: entitySlug },
+          ...(entityType === "JOINT" ? [{ joint: { slug: entitySlug } }] : []),
+          ...(entityType === "JOINT_MOVEMENT" ? [{ movement: { slug: entitySlug } }] : []),
+        ],
+      }
+      const [entity, outgoingRelationships, incomingRelationships, citations, mediaAssets, externalIdentifiers, spatialMappings, movementVisualizations] = await Promise.all([
         delegate.findFirst({ where: { slug: entitySlug } }),
         requireDelegate(client, "anatomyRelationship").findMany({
           where: { sourceEntityType: entityType, sourceEntitySlug: entitySlug },
@@ -517,6 +582,24 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
           include: { source: true },
           orderBy: [{ provider: "asc" }, { identifier: "asc" }],
         }),
+        optionalFindMany(client, "anatomySpatialEntityMap", {
+          where: { entityType, entitySlug },
+          include: { model: true, source: true },
+          orderBy: [{ mappingPrecision: "asc" }, { slug: "asc" }],
+        }),
+        movementVisualizationWhere.OR.length > 0
+          ? optionalFindMany(client, "anatomyMovementVisualization", {
+            where: movementVisualizationWhere,
+            include: {
+              model: true,
+              joint: true,
+              movement: true,
+              rangeOfMotion: true,
+              source: true,
+            },
+            orderBy: [{ reviewStatus: "asc" }, { slug: "asc" }],
+          })
+          : Promise.resolve([]),
       ])
 
       return {
@@ -530,6 +613,8 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
         citations,
         mediaAssets,
         externalIdentifiers,
+        spatialMappings,
+        movementVisualizations,
       }
     },
 
