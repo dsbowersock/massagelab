@@ -1,0 +1,78 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e6]:
+      - list [ref=e8]:
+        - listitem [ref=e9]:
+          - link "MassageLab home" [ref=e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e11]: MassageLab home
+      - generic [ref=e12]:
+        - button "Tools" [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+        - button "Documentation" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+        - button "Games" [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+        - button "About" [ref=e39] [cursor=pointer]:
+          - img [ref=e40]
+      - list [ref=e43]:
+        - listitem [ref=e44]:
+          - button "G" [ref=e45] [cursor=pointer]:
+            - generic [ref=e47]: G
+      - button "Toggle Sidebar" [ref=e48]
+    - main [ref=e49]:
+      - main [ref=e50]:
+        - generic [ref=e51]:
+          - generic [ref=e53]:
+            - button "Expand navigation" [ref=e55] [cursor=pointer]:
+              - img
+            - generic [ref=e56]: Account / Login
+            - navigation "breadcrumb" [ref=e58]:
+              - list [ref=e59]:
+                - listitem [ref=e60]:
+                  - link "Account" [ref=e61] [cursor=pointer]:
+                    - /url: /account
+                - listitem [ref=e62]:
+                  - img [ref=e63]
+                - listitem [ref=e65]:
+                  - link "Login" [disabled] [ref=e66]
+            - generic [ref=e68]:
+              - group "Theme" [ref=e69]:
+                - 'group "Theme: dark" [ref=e70]':
+                  - radio "Use system theme":
+                    - img
+                    - generic: System
+                  - radio "Use light theme":
+                    - img
+                    - generic: Light
+                  - radio "Use dark theme" [checked]:
+                    - img
+                    - generic: Dark
+              - button "Open calendar" [ref=e71] [cursor=pointer]:
+                - img
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - generic [ref=e79]: MassageLab account
+              - generic [ref=e80]: Sign in to sync preferences, profile defaults, progress, templates, and achievements. Core tools still work without login.
+            - generic [ref=e81]:
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - text: Email
+                  - textbox "Email" [ref=e84]:
+                    - /placeholder: you@example.com
+                - generic [ref=e85]:
+                  - text: Password
+                  - textbox "Password" [ref=e86]
+                - button "Sign in with email" [ref=e87] [cursor=pointer]:
+                  - img
+                  - text: Sign in with email
+              - button "Continue with Google" [ref=e88] [cursor=pointer]:
+                - img
+                - text: Continue with Google
+              - generic [ref=e89]:
+                - link "Create an account" [ref=e90] [cursor=pointer]:
+                  - /url: /register?callbackUrl=%2Faccount
+                - link "Forgot password?" [ref=e91] [cursor=pointer]:
+                  - /url: /forgot-password
+  - button "Open Next.js Dev Tools" [ref=e97] [cursor=pointer]:
+    - img [ref=e98]
