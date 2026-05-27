@@ -972,9 +972,11 @@ describe("Anatomy data foundation", () => {
     seed.mediaEntityLinks[0].entitySlug = "missing-entity"
     seed.painMapRegions[0].laterality = undefined
     seed.painMapRegions[1].surface = undefined
-    seed.movementVisualizations[0].primaryEntitySlug = undefined
-    seed.movementVisualizations[0].movement = "cervical-rotation"
-    seed.movementVisualizations[0].rangeOfMotion = "cervical-rotation"
+    const shoulderAbductionVisualization = seed.movementVisualizations.find((entry) => entry.slug === "massagelab-human-bodymap-v1-shoulder-abduction")
+    assert.ok(shoulderAbductionVisualization)
+    shoulderAbductionVisualization.primaryEntitySlug = undefined
+    shoulderAbductionVisualization.movement = "cervical-rotation"
+    shoulderAbductionVisualization.rangeOfMotion = "cervical-rotation"
 
     const issues = validateAnatomyFoundation(seed)
 

@@ -20,5 +20,10 @@ ALTER TABLE "AnatomyMovementVisualization" ADD CONSTRAINT "AnatomyMovementVisual
     OR ("primaryEntityType" IS NOT NULL AND "primaryEntitySlug" IS NOT NULL)
   );
 
+CREATE UNIQUE INDEX "AnatomyMovementVisualization_model_joint_movement_no_primary_key"
+  ON "AnatomyMovementVisualization"("modelId", "jointId", "movementId")
+  WHERE "primaryEntityType" IS NULL AND "primaryEntitySlug" IS NULL;
+
 CREATE UNIQUE INDEX "AnatomyMovementVisualization_model_joint_movement_primary_key"
-  ON "AnatomyMovementVisualization"("modelId", "jointId", "movementId", "primaryEntityType", "primaryEntitySlug") NULLS NOT DISTINCT;
+  ON "AnatomyMovementVisualization"("modelId", "jointId", "movementId", "primaryEntityType", "primaryEntitySlug")
+  WHERE "primaryEntityType" IS NOT NULL AND "primaryEntitySlug" IS NOT NULL;
