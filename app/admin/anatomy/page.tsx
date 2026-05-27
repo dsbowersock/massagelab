@@ -2,6 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
 import { canManageAnatomyContent } from "@/lib/account-permissions"
+import { SOURCE_USAGE_SCOPES } from "@/lib/anatomy-admin-source-input"
 import {
   ANATOMY_ADMIN_QUICK_QUERIES,
   buildAnatomyEntityHref,
@@ -59,7 +60,6 @@ const TERM_KINDS = ["SYSTEM", "ORGAN", "TISSUE", "BONE", "MUSCLE", "JOINT", "NER
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"]
 const STATUSES = ["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]
 const FLAG_STATUSES = ["OPEN", "RESOLVED", "REJECTED"]
-const SOURCE_USAGE_SCOPES = ["OPEN_REUSE", "INTERNAL_REFERENCE", "COMMERCIAL_LICENSED", "REVIEW_ONLY"]
 const ANATOMY_DETAIL_LOOKUP_TAKE = 2000
 
 type AnatomyAdminPageProps = {

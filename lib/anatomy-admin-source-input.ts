@@ -16,12 +16,14 @@ export type AnatomyAdminSourceInput = {
   attribution: string
 }
 
-const SOURCE_USAGE_SCOPES = new Set<AnatomyAdminSourceUsageScope>([
+export const SOURCE_USAGE_SCOPES: AnatomyAdminSourceUsageScope[] = [
   "OPEN_REUSE",
   "INTERNAL_REFERENCE",
   "COMMERCIAL_LICENSED",
   "REVIEW_ONLY",
-])
+]
+
+const SOURCE_USAGE_SCOPE_SET = new Set<AnatomyAdminSourceUsageScope>(SOURCE_USAGE_SCOPES)
 
 function formString(formData: Pick<FormData, "get">, key: string) {
   const value = formData.get(key)
@@ -43,7 +45,7 @@ function nullableString(value: string) {
 function usageScope(value: string): AnatomyAdminSourceUsageScope {
   const normalized = value.trim().replace(/-/g, "_").toUpperCase()
 
-  return SOURCE_USAGE_SCOPES.has(normalized as AnatomyAdminSourceUsageScope)
+  return SOURCE_USAGE_SCOPE_SET.has(normalized as AnatomyAdminSourceUsageScope)
     ? normalized as AnatomyAdminSourceUsageScope
     : "REVIEW_ONLY"
 }

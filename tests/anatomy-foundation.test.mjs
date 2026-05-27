@@ -1842,7 +1842,9 @@ describe("Anatomy data foundation", () => {
 
   it("keeps review-only media and spatial rows citation-backed without promoting them to reviewed", () => {
     const reviewOnlyAssets = ANATOMY_FOUNDATION_SEED.mediaAssets.filter((asset) => asset.usageScope === "review_only")
-    const citationKeys = new Set(ANATOMY_FOUNDATION_SEED.citations.map((citation) => [
+    const reviewCitationKeys = new Set(ANATOMY_FOUNDATION_SEED.citations
+      .filter((citation) => citation.reviewStatus === "needs_review")
+      .map((citation) => [
       citation.entityType,
       citation.entitySlug,
       citation.factType,
@@ -1868,7 +1870,7 @@ describe("Anatomy data foundation", () => {
     assert.ok(ANATOMY_FOUNDATION_SEED.movementVisualizations.every((visualization) => visualization.reviewStatus === "needs_review"))
 
     for (const map of ANATOMY_FOUNDATION_SEED.spatialEntityMaps) {
-      assert.ok(citationKeys.has([
+      assert.ok(reviewCitationKeys.has([
         map.entityType,
         map.entitySlug,
         "spatial_entity_mapping",
@@ -1878,7 +1880,7 @@ describe("Anatomy data foundation", () => {
     }
 
     for (const visualization of ANATOMY_FOUNDATION_SEED.movementVisualizations) {
-      assert.ok(citationKeys.has([
+      assert.ok(reviewCitationKeys.has([
         "joint_movement",
         visualization.movement,
         "movement_visualization_protocol",
