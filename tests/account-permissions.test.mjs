@@ -70,7 +70,7 @@ describe("Account permission helpers", () => {
         canManageAnatomyContent: false,
         canManageClients: true,
         canRequestCredentials: true,
-        canUseLocalClinicalTools: true,
+        canUseLocalClinicalTools: false,
         canUseChimerCustomColors: false,
         hostedClinicalSyncEnabled: false,
       },
@@ -82,6 +82,12 @@ describe("Account permission helpers", () => {
       buildAccountCapabilities([{ role: "USER", status: "VERIFIED" }], {
         features: [FEATURE_KEYS.chimerCustomColors],
       }).canUseChimerCustomColors,
+      true,
+    )
+    assert.equal(
+      buildAccountCapabilities([{ role: "LICENSED_THERAPIST", status: "VERIFIED" }], {
+        features: [FEATURE_KEYS.therapistDocumentationTools],
+      }).canUseLocalClinicalTools,
       true,
     )
   })

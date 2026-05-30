@@ -225,7 +225,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           canManageAnatomyContent: sessionUser.role === "ADMIN" || sessionUser.role === "ANATOMY_ADMIN",
           canManageClients: false,
           canRequestCredentials: true,
-          canUseLocalClinicalTools: true,
+          canUseLocalClinicalTools: false,
           canUseChimerCustomColors: false,
           hostedClinicalSyncEnabled: false,
         }) as AccountCapabilities

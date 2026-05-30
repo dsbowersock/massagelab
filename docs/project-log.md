@@ -7,10 +7,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Next focus is local-first client-facing forms, starting with a tablet-friendly intake workflow that can hand off into therapist notes on the same device.
+- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus is the local-first intake form-builder workspace with therapist-owned templates, tablet fill mode, recurring pain/discomfort maps, local client/document dashboards, and user-controlled exports.
 - Current-state source of truth: [project-state.md](project-state.md).
 - Database status: Prisma schema validates; the configured Neon/Postgres database is up to date with 19 migrations as of 2026-05-27.
-- Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates.
+- Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. Intake now uses an encrypted browser vault that requires therapist passphrase unlock before viewing or creating documents. Privacy architecture now separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing app copy only. Internal operating state lives in [project-state.md](project-state.md) and this log.
 
 ## Now
@@ -27,7 +27,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Completed | P2 | Add calendar service catalog and availability readiness | [Calendar wiki](wiki/calendar-creation-flows.md) | Calendar migrations are applied; services have variants, resources, operational policy fields, scheduling snapshots, and resource conflict checks for appointments, classes, and public booking. |
 | Completed | P2 | Build operator calendar workspace | [Calendar wiki](wiki/calendar-creation-flows.md) | `/calendar` uses a draggable FullCalendar workspace with provider view preferences, server-validated rescheduling, advanced provider availability, multi-service appointment composition, and clinical-rich service template references that avoid client-specific PHI. |
 | Completed | P1 | Consolidate project source of truth | [Project state](project-state.md), [Superpowers plan](superpowers/plans/2026-05-27-project-source-of-truth-consolidation.md) | `docs/project-state.md` is the read-first current-state file; `docs/project-log.md` remains chronological history; README, wiki, roadmap, TODO, and agent instructions point to the same convention. |
-| Active | P2 | Build local-first client intake and tablet handoff workflow | [Project state](project-state.md), [Local-first forms plan](superpowers/plans/2026-05-27-local-first-client-intake-forms.md), [Privacy wiki](wiki/privacy-and-phi.md) | Client-facing intake works comfortably on a tablet, saves only in browser-local storage, exports user-controlled files, clears safely between clients, and gives the therapist a clean review path before SOAP notes. |
+| Active | P2 | Build local-first client intake and tablet handoff workflow | [Project state](project-state.md), [Local-first forms plan](superpowers/plans/2026-05-27-local-first-client-intake-forms.md), [Intake form-builder plan](superpowers/plans/2026-05-28-intake-form-builder-local-documents-v1.md), [Privacy wiki](wiki/privacy-and-phi.md) | Client-facing intake works comfortably on a tablet, form templates are locally configurable, pain/discomfort maps can be reused before sessions, local clients/documents are linked in-browser, exports are user-controlled, and no clinical content is uploaded. |
 | Active | P2 | Maintain project state and log | [Project state](project-state.md) | Future meaningful changes update the current state first and append completed plans, branch outcomes, and priority changes to this change history. |
 
 ## Next
@@ -58,6 +58,8 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Date | Decision | Notes |
 | --- | --- | --- |
+| 2026-05-29 | Separate wellness data, professional records, and sharing consent. | Client-owned wellness data may become cloud-backed under a privacy-controlled consumer-health domain, therapist professional records stay local-first until hosted PHI gates pass, local records should move toward an offline passphrase-unlocked vault, and live therapist viewing of cloud wellness data is deferred. |
+| 2026-05-29 | Gate therapist note-taking behind a feature entitlement. | SOAP, intake, journal, ROM, and related therapist professional-record tools remain visible, but viewing or creating records requires `therapist_documentation_tools`, currently granted by active Therapist and Team/Practice memberships only. |
 | 2026-05-27 | `docs/project-state.md` is the read-first current-state tracker. | `docs/project-log.md` remains chronological history; `TODO.md`, `docs/roadmap.md`, `docs/alpha-qa.md`, audits, and wiki pages remain source evidence unless mirrored into current state. |
 | 2026-05-27 | Detailed implementation plans live under `docs/superpowers/plans/`. | Use these plans for multi-step implementation handoffs while keeping current state concise. |
 | 2026-05-27 | Anatomy data is sufficient for the current alpha baseline. | Further 3D/spatial runtime tooling is deferred as a later feature addition; the next core product focus is local-first client-facing forms and tablet handoff into therapist notes. |
@@ -82,6 +84,19 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-05-29
+
+- Added the privacy-first data architecture wiki to separate account/contact/booking data, future client-owned wellness records, therapist professional-record vault data, sharing consent, and intentional professional-record references.
+- Recorded that cloud wellness storage is a future privacy-controlled domain, while therapist professional records remain local-first and should move toward an offline passphrase-unlocked encrypted vault before broader local documentation expansion.
+- Documented that encryption alone does not remove BAA obligations for cloud providers maintaining ePHI on behalf of a covered entity or business associate, and added current HHS, FTC, Vercel, and Cloudflare source links for future compliance planning.
+- Implemented the encrypted in-browser intake vault: therapists must create or unlock a local passphrase vault before using `/notes/intake`, saved intake workspaces are stored as AES-GCM ciphertext, existing plaintext workspaces can be migrated in place, and browser QA verifies the clinical sentinel is not stored in plaintext.
+- Added the `therapist_documentation_tools` entitlement gate for therapist note-taking surfaces: `/notes` still shows SOAP, intake, journal, and ROM tools, while direct tool access renders a membership-required gate unless the session has the feature-backed local clinical tools capability.
+
+### 2026-05-28
+
+- Implemented the local-first intake form-builder workspace direction: built-in full-intake and pain/discomfort-map templates, therapist-created local templates, tablet fill mode, local client/document dashboards, native JSON/DOC/print-PDF exports, and optional encrypted `.mlab` workspace bundles.
+- Documented that pre-arrival remote/client account behavior remains limited to contact/profile and booking status until hosted PHI storage passes the compliance gates; clinical intake responses, signatures, and pain maps stay local-first.
 
 ### 2026-05-27
 
@@ -147,6 +162,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - [Alpha QA](alpha-qa.md): private-alpha verification checklist.
 - [May 17 project review](audits/2026-05-17-project-review.md): performance, Sentry, privacy, PWA, architecture, dependency, and remediation backlog review.
 - [Wiki index](wiki/index.md): repo-backed operational documentation entrypoint.
+- [Privacy-first data architecture](wiki/privacy-first-data-architecture.md): account/contact/booking, client wellness, therapist professional-record vault, sharing consent, and hosted PHI gate boundaries.
 - [Release checklist](wiki/release-checklist.md): alpha release gate and manual focus areas.
 - [Privacy and PHI posture](wiki/privacy-and-phi.md): local-first and hosted clinical sync boundaries.
 - [PWA offline strategy](wiki/pwa-offline-strategy.md): install/offline behavior, public-tool route allowlist, and online-only exclusions.
