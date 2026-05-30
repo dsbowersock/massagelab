@@ -8,6 +8,7 @@ This directory is the repo-backed project wiki. Keep operational, implementation
 - [Project log](../project-log.md)
 - [Local development](local-development.md)
 - [Privacy and PHI posture](privacy-and-phi.md)
+- [Privacy-first data architecture](privacy-first-data-architecture.md)
 - [PWA offline strategy](pwa-offline-strategy.md)
 - [Calendar creation flows](calendar-creation-flows.md)
 - [Billing and memberships](billing-memberships.md)

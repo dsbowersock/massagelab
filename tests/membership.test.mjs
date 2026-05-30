@@ -25,7 +25,7 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling), false)
   })
 
-  it("grants calendar scheduling depth to Therapist and Team/Practice memberships", () => {
+  it("grants documentation tools and calendar scheduling depth to Therapist and Team/Practice memberships", () => {
     const active = buildEntitlements({
       subscriptions: [
         {
@@ -51,16 +51,39 @@ describe("Membership and entitlement helpers", () => {
 
     assert.equal(active.level, "THERAPIST")
     assert.equal(active.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
+    assert.equal(active.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarTeamScheduling), false)
+    assert.equal(teamPractice.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
     assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarTeamScheduling), true)
     assert.equal(pastDue.level, "FREE")
+    assert.equal(pastDue.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
     assert.equal(canceled.level, "FREE")
+    assert.equal(canceled.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(canceled.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
     assert.equal(isActiveSubscriptionStatus("trialing"), true)
     assert.equal(isActiveSubscriptionStatus("incomplete"), false)
+  })
+
+  it("does not unlock therapist documentation tools for supporter or student access", () => {
+    const supporter = buildEntitlements({
+      subscriptions: [{ status: "active", membershipLevel: "SUPPORTER" }],
+      now: new Date("2026-05-15T00:00:00.000Z"),
+    })
+    const student = buildEntitlements({
+      studentAccess: {
+        studentStatus: "ACTIVE",
+        studentAccessExpiresAt: new Date("2026-06-01T00:00:00.000Z"),
+      },
+      now: new Date("2026-05-15T00:00:00.000Z"),
+    })
+
+    assert.equal(supporter.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
+    assert.equal(supporter.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
+    assert.equal(student.level, "STUDENT")
+    assert.equal(student.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
   })
 
   it("models internal student access without requiring Stripe", () => {

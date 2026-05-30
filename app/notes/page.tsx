@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { Activity, ClipboardCheck, ClipboardList, FileText, Footprints, HeartPulse, LifeBuoy, ShieldCheck } from "lucide-react"
+import { Activity, ClipboardCheck, ClipboardList, FileText, Footprints, HeartPulse, LifeBuoy, LockKeyhole, ShieldCheck } from "lucide-react"
+import { getCurrentSession } from "@/auth"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 
 const noteTypes = [
@@ -12,7 +13,7 @@ const noteTypes = [
   },
   {
     title: "Intake Forms",
-    description: "Collect client intake details as local-first files.",
+    description: "Unlock an encrypted local vault to build templates, fill tablet forms, and export linked intake documents.",
     icon: ClipboardList,
     href: "/notes/intake",
     available: true,
@@ -40,14 +41,18 @@ const plannedTools = [
   { title: "Orthopedic Tests", icon: Activity },
 ]
 
-export default function NotesPage() {
+export default async function NotesPage() {
+  const session = await getCurrentSession()
+  const canUseLocalClinicalTools = Boolean(session?.user?.capabilities?.canUseLocalClinicalTools)
+  const lockedHref = session?.user?.id ? "/account?tab=membership" : "/login"
+
   return (
     <AppPageShell title="Local-First Documentation">
         <AppSurface
-          title="PHI stays under user control"
+          title={canUseLocalClinicalTools ? "PHI stays under user control" : "Therapist or Team/Practice required"}
           description={
             <>
-                MassageLab does not upload notes, intake forms, journals, or movement data in this alpha. Users are responsible for how exported files are stored or shared.
+                MassageLab does not upload notes, intake forms, journals, or movement data in this alpha. Therapist note-taking tools are visible here, but using them requires an active Therapist or Team/Practice membership.
             </>
           }
           icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
@@ -57,15 +62,19 @@ export default function NotesPage() {
         <div className="grid gap-4 md:grid-cols-2">
           {noteTypes.map((note) => {
             const Icon = note.icon
+            const href = canUseLocalClinicalTools ? note.href : lockedHref
             return (
-              <Link key={note.href} href={note.href}>
+              <Link key={note.href} href={href}>
                 <AppSurface
                   title={note.title}
                   description={note.description}
                   icon={<Icon className="h-5 w-5" aria-hidden="true" />}
                   className="h-full transition-colors hover:bg-accent"
                 >
-                    <p className="text-sm text-muted-foreground">Open {note.title.toLowerCase()}</p>
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {!canUseLocalClinicalTools ? <LockKeyhole className="h-4 w-4" aria-hidden="true" /> : null}
+                      <span>{canUseLocalClinicalTools ? `Open ${note.title.toLowerCase()}` : "Therapist or Team/Practice required"}</span>
+                    </p>
                 </AppSurface>
               </Link>
             )

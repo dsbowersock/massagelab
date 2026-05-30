@@ -25,6 +25,7 @@ if (features.includes("chimer_custom_colors")) {
 - Student access is internal to MassageLab and is not a Stripe subscription.
 - Supporter, Therapist, and Practice are paid Stripe-backed membership levels.
 - The first paid feature key is `chimer_custom_colors`.
+- Therapist note-taking tools use the `therapist_documentation_tools` feature key and are unlocked only by active Therapist or Practice memberships.
 - Stripe subscription records grant membership only when their Price ID matches one of the configured Supporter, Therapist, or Practice price environment variables.
 - Student, donation, unknown, archived, or otherwise unmapped Stripe products and prices must not grant a paid membership.
 
@@ -58,6 +59,7 @@ Current:
 - `calendar_basic_scheduling`
 - `calendar_full_scheduling`
 - `calendar_team_scheduling`
+- `therapist_documentation_tools`
 
 Reserved for later:
 
@@ -72,6 +74,8 @@ Reserved for later:
 Cloud storage and PHI-related tools must remain behind the separate compliance gates documented in [privacy-and-phi.md](privacy-and-phi.md).
 
 Frontend copy may call the `PRACTICE` membership tier `Team/Practice` for clarity. Keep code checks feature-based instead of branching on the displayed plan label.
+
+Therapist documentation surfaces should remain visible in the app so users can see what is available, but creating or viewing SOAP, intake, journal, ROM, and similar therapist note-taking records requires the `therapist_documentation_tools` entitlement. Supporter and Student access do not unlock these tools.
 
 ## Stripe Setup Checklist
 
