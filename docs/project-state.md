@@ -7,7 +7,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 ## Current Snapshot
 
 - Status: private alpha.
-- Active branch at last verification: `codex/anatomy-review`.
+- Active branch at last verification: `codex/local-first-client-intake-forms`.
 - Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current build focus is the local-first intake form-builder workspace: therapist-owned templates, tablet fill mode, recurring pain/discomfort maps, local client/document dashboards, and user-controlled exports.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. Intake now uses an encrypted browser vault that requires therapist passphrase unlock before viewing or creating documents. Hosted clinical sync remains gated and unimplemented until compliance requirements are met. The privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing copy only. Internal operating state lives here and in `docs/project-log.md`.

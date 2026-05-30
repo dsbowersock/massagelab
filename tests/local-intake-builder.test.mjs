@@ -63,6 +63,31 @@ describe("local intake form builder", () => {
     assert.deepEqual(validateFormDefinition(starterIntakeTemplates[0]), [])
   })
 
+  it("rejects malformed raw form definitions before normalization can coerce them", () => {
+    const issues = validateFormDefinition({
+      id: "malformed",
+      title: " ",
+      kind: "custom",
+      sections: [
+        {
+          id: "section",
+          title: "",
+          questions: [
+            { id: "unknown-type", type: "mystery", label: "Unknown type" },
+            { id: "missing-label", type: "short_text", label: "" },
+            { id: "empty-choice", type: "single_choice", label: "Choose", options: [""] },
+          ],
+        },
+      ],
+    })
+
+    assert.ok(issues.some((issue) => issue.includes("Template title is required")))
+    assert.ok(issues.some((issue) => issue.includes("Section section needs a title")))
+    assert.ok(issues.some((issue) => issue.includes("unknown-type has an unsupported type")))
+    assert.ok(issues.some((issue) => issue.includes("missing-label needs a label")))
+    assert.ok(issues.some((issue) => issue.includes("empty-choice needs options")))
+  })
+
   it("normalizes responses to the known template question shape", () => {
     const response = normalizeFormResponse({
       templateId: "template-full-intake-v1",
@@ -181,6 +206,10 @@ describe("local intake form builder", () => {
     assert.equal(decrypted.notice, "MassageLab did not upload these local clinical documents. User controls storage and sharing.")
     await assert.rejects(() => createEncryptedIntakeBundle(workspace, "short"), /at least 8/)
     await assert.rejects(() => decryptEncryptedIntakeBundle({ format: "other" }, "correct horse battery staple"), /Expected a MassageLab/)
+    await assert.rejects(
+      () => decryptEncryptedIntakeBundle(bundle, "wrong horse battery staple"),
+      (error) => error instanceof Error && error.message === "Failed to decrypt intake bundle",
+    )
   })
 
   it("encrypts the in-browser workspace vault without storing clinical plaintext", async () => {

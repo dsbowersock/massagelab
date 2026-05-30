@@ -262,9 +262,12 @@ function normalizeSoapNoteData(data: SoapNoteData): SoapNoteData {
     ...emptySoapNote,
     ...data,
     schemaVersion: 2,
+    subjectiveEntries: Array.isArray(data.subjectiveEntries) ? data.subjectiveEntries : [],
+    objectiveEntries: Array.isArray(data.objectiveEntries) ? data.objectiveEntries : [],
     assessment: {
       ...emptySoapNote.assessment,
       ...(data.assessment ?? {}),
+      techniques: Array.isArray(data.assessment?.techniques) ? data.assessment.techniques : [],
     },
     treatmentPlan: {
       ...emptySoapNote.treatmentPlan,

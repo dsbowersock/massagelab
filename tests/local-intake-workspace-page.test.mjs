@@ -34,6 +34,16 @@ describe("local intake workspace page source", () => {
     assert.doesNotMatch(source, /localStorage\.setItem\(INTAKE_WORKSPACE_STORAGE_KEY,\s*JSON\.stringify\((?:nextWorkspace|normalized)\)/)
   })
 
+  it("does not fall back to unrelated local documents or preserve answers across template switches", async () => {
+    const source = await readFile(new URL("../app/notes/intake/client-page.tsx", import.meta.url), "utf8")
+
+    assert.doesNotMatch(source, /\?\?\s*workspace\.documents\[0\]/)
+    assert.match(source, /selectedDocumentId\s*\?\s*workspace\.documents\.find/)
+    assert.match(source, /setActiveResponse\(blankResponse\(copy\.id, \[copy, \.\.\.workspace\.templates\]\)\)/)
+    assert.match(source, /setActiveResponse\(blankResponse\(template\.id, \[template, \.\.\.workspace\.templates\]\)\)/)
+    assert.match(source, /setActiveResponse\(blankResponse\(fallbackTemplateId, workspace\.templates\)\)/)
+  })
+
   it("keeps built-in templates grounded in current intake and pain-map fields", async () => {
     const source = await readFile(new URL("../lib/local-intake-builder.js", import.meta.url), "utf8")
 

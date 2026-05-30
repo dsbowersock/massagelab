@@ -58,6 +58,8 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(pwaSpec, /\/icons\/maskable-icon-512\.png/)
 
   assert.match(localFirstSpec, /ML_BROWSER_QA_SENTINEL/)
+  assert.match(localFirstSpec, /decodeURIComponent\(rawUrl\)/)
+  assert.match(localFirstSpec, /encodeURIComponent\(ML_BROWSER_QA_SENTINEL\)/)
   assert.match(localFirstSpec, /\/api\/clinical\/sync/)
   assert.match(localFirstSpec, /\/api\/clients\//)
   assert.match(localFirstSpec, /POST|PUT|PATCH|DELETE/)

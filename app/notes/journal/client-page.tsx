@@ -92,6 +92,13 @@ function formatEntryKind(kind: JournalEntryKind) {
   return "Incident"
 }
 
+function formatLocalDate(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 function generateJournalText(data: JournalDocument) {
   const entries = data.entries.length > 0
     ? data.entries.map((entry, index) => [
@@ -119,7 +126,7 @@ function generateJournalText(data: JournalDocument) {
 
 export default function JournalPage() {
   const [journal, setJournal] = useState<JournalDocument>(emptyJournal)
-  const [entry, setEntry] = useState<JournalEntry>({ ...emptyEntry, date: new Date().toISOString().slice(0, 10) })
+  const [entry, setEntry] = useState<JournalEntry>({ ...emptyEntry, date: formatLocalDate() })
   const [message, setMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -152,7 +159,7 @@ export default function JournalPage() {
       ...current,
       entries: [{ ...entry, id: localId(), intensity: Number(entry.intensity) || 0 }, ...current.entries],
     }))
-    setEntry({ ...emptyEntry, date: new Date().toISOString().slice(0, 10) })
+    setEntry({ ...emptyEntry, date: formatLocalDate() })
     setMessage("Entry added to the local journal.")
   }
 

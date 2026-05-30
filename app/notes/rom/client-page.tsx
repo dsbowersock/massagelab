@@ -38,6 +38,8 @@ type RomDocument = {
   entries: RomEntry[]
 }
 
+type DeviceBaseline = { axis: MeasurementAxis; value: number }
+
 const emptyRomDocument: RomDocument = {
   schemaVersion: 1,
   documentType: "rom-session",
@@ -84,6 +86,13 @@ function axisLabel(axis: MeasurementAxis) {
   return "Left/right tilt"
 }
 
+function formatLocalDate(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 function generateRomText(data: RomDocument) {
   const entries = data.entries.length > 0
     ? data.entries.map((entry, index) => [
@@ -118,16 +127,17 @@ export default function RomPage() {
   const [manualStart, setManualStart] = useState("0")
   const [manualEnd, setManualEnd] = useState("0")
   const [notes, setNotes] = useState("")
-  const [baseline, setBaseline] = useState<number | null>(null)
+  const [baseline, setBaseline] = useState<DeviceBaseline | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { orientation, requestAccess } = useDeviceMotionSensors()
 
   const currentDegrees = orientation[axis]
+  const baselineForAxis = baseline?.axis === axis ? baseline : null
   const deviceChange = useMemo(() => {
-    if (baseline === null || currentDegrees === null) return null
-    return normalizeDegrees(currentDegrees - baseline)
-  }, [baseline, currentDegrees])
+    if (!baselineForAxis || currentDegrees === null) return null
+    return normalizeDegrees(currentDegrees - baselineForAxis.value)
+  }, [baselineForAxis, currentDegrees])
 
   useEffect(() => {
     const draft = window.localStorage.getItem(ROM_STORAGE_KEY)
@@ -154,7 +164,7 @@ export default function RomPage() {
       return
     }
 
-    setBaseline(currentDegrees)
+    setBaseline({ axis, value: currentDegrees })
     setMessage("Baseline captured.")
   }
 
@@ -165,12 +175,12 @@ export default function RomPage() {
   }
 
   const addDeviceMeasurement = () => {
-    if (baseline === null || currentDegrees === null) {
+    if (!baselineForAxis || currentDegrees === null) {
       setMessage("Capture a baseline and current device angle first.")
       return
     }
 
-    addMeasurement(baseline, currentDegrees, "device-orientation")
+    addMeasurement(baselineForAxis.value, currentDegrees, "device-orientation")
   }
 
   const addMeasurement = (start: number, end: number, source: RomEntry["source"]) => {
@@ -181,7 +191,7 @@ export default function RomPage() {
 
     const entry: RomEntry = {
       id: localId(),
-      date: new Date().toISOString().slice(0, 10),
+      date: formatLocalDate(),
       movement,
       side,
       axis,
@@ -301,7 +311,7 @@ export default function RomPage() {
 
               <div className="grid gap-3 rounded-md border border-neutral-800 bg-background/70 p-4 md:grid-cols-3">
                 <StatusTile label="Current" value={currentDegrees === null ? "No sensor" : `${currentDegrees} deg`} />
-                <StatusTile label="Baseline" value={baseline === null ? "Not set" : `${baseline} deg`} />
+                <StatusTile label="Baseline" value={baselineForAxis === null ? "Not set" : `${baselineForAxis.value} deg`} />
                 <StatusTile label="Change" value={deviceChange === null ? "Not ready" : `${deviceChange} deg`} />
               </div>
 

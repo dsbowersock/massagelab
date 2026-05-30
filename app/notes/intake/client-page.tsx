@@ -199,7 +199,9 @@ export default function IntakePage() {
   const activeTemplate = useMemo(() => getTemplate(workspace, selectedTemplateId), [workspace, selectedTemplateId])
   const builderTemplate = useMemo(() => getTemplate(workspace, builderTemplateId), [workspace, builderTemplateId])
   const selectedClient = workspace.clients.find((client: AnyRecord) => client.id === selectedClientId)
-  const selectedDocument = workspace.documents.find((document: AnyRecord) => document.id === selectedDocumentId) ?? workspace.documents[0]
+  const selectedDocument = selectedDocumentId
+    ? workspace.documents.find((document: AnyRecord) => document.id === selectedDocumentId)
+    : undefined
   const selectedDocumentClient = selectedDocument
     ? workspace.clients.find((client: AnyRecord) => client.id === selectedDocument.localClientId)
     : undefined
@@ -350,6 +352,7 @@ export default function IntakePage() {
     updateWorkspace((current) => ({ ...current, templates: [copy, ...current.templates] }))
     setBuilderTemplateId(copy.id)
     setSelectedTemplateId(copy.id)
+    setActiveResponse(blankResponse(copy.id, [copy, ...workspace.templates]))
     setMessage("Template duplicated. You can edit the copy now.")
   }
 
@@ -384,6 +387,7 @@ export default function IntakePage() {
     updateWorkspace((current) => ({ ...current, templates: [template, ...current.templates] }))
     setBuilderTemplateId(template.id)
     setSelectedTemplateId(template.id)
+    setActiveResponse(blankResponse(template.id, [template, ...workspace.templates]))
     setMessage("Custom form template created.")
   }
 
@@ -392,9 +396,11 @@ export default function IntakePage() {
       setMessage("Built-in starter templates cannot be archived. Duplicate one to customize it.")
       return
     }
+    const fallbackTemplateId = starterIntakeTemplates[0].id
     updateTemplate(template.id, (current) => ({ ...current, archived: true }))
-    setBuilderTemplateId(starterIntakeTemplates[0].id)
-    setSelectedTemplateId(starterIntakeTemplates[0].id)
+    setBuilderTemplateId(fallbackTemplateId)
+    setSelectedTemplateId(fallbackTemplateId)
+    setActiveResponse(blankResponse(fallbackTemplateId, workspace.templates))
     setMessage("Template archived locally.")
   }
 

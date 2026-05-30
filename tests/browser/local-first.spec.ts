@@ -18,7 +18,19 @@ function requestHitsBlockedClinicalPath(request: Request) {
 }
 
 function requestCarriesSentinel(request: Request) {
-  return request.url().includes(ML_BROWSER_QA_SENTINEL)
+  const rawUrl = request.url()
+  const encodedSentinel = encodeURIComponent(ML_BROWSER_QA_SENTINEL)
+  let decodedUrl = rawUrl
+
+  try {
+    decodedUrl = decodeURIComponent(rawUrl)
+  } catch {
+    decodedUrl = rawUrl
+  }
+
+  return rawUrl.includes(ML_BROWSER_QA_SENTINEL)
+    || rawUrl.includes(encodedSentinel)
+    || decodedUrl.includes(ML_BROWSER_QA_SENTINEL)
     || (request.postData() ?? "").includes(ML_BROWSER_QA_SENTINEL)
 }
 
