@@ -16,7 +16,7 @@ describe("local note client safety guards", () => {
   it("keeps ROM device baselines tied to their selected sensor axis", async () => {
     const source = await readFile(new URL("../app/notes/rom/client-page.tsx", import.meta.url), "utf8")
 
-    assert.match(source, /type DeviceBaseline = \{ axis: MeasurementAxis; value: number \}/)
+    assert.match(source, /\btype\s+DeviceBaseline\s*=\s*\{\s*axis\s*:\s*MeasurementAxis\s*;\s*value\s*:\s*number\s*\}/)
     assert.match(source, /baseline\?\.axis === axis/)
     assert.match(source, /baselineForAxis\.value/)
   })
