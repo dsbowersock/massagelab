@@ -15,7 +15,7 @@ The service worker may cache anonymous route documents for:
 - `/chimer`
 - `/anatomime`
 
-These routes are either public product surfaces or browser-local tools. SOAP, intake, journal, and ROM drafts still live in browser storage under the keys listed in [Privacy and PHI posture](privacy-and-phi.md). The service worker does not add a second PHI storage or sync layer.
+These routes are either public product surfaces or browser-local tools. SOAP, intake, journal, and ROM records live in the encrypted browser vault described in [Privacy and PHI posture](privacy-and-phi.md). The service worker does not add a second PHI storage or sync layer.
 
 ## Online-Only Routes
 

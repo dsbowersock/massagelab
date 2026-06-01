@@ -1,7 +1,7 @@
 "use client"
 
-import { ChangeEvent, useEffect, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Download, FileText, FolderOpen, Printer, Save, ShieldCheck } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { ChevronLeft, ChevronRight, FileText, Printer, Save, ShieldCheck } from "lucide-react"
 import { Assessment } from "./components/assessment"
 import { BodyDiagram } from "./components/body-diagram"
 import { IdentifyingInfo } from "./components/identifying-info"
@@ -20,12 +20,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   createEditableDocumentHtml,
-  createLocalDocumentExport,
   createLocalDocumentFilename,
-  parseLocalDocumentJson,
 } from "@/lib/local-documents"
-
-const SOAP_STORAGE_KEY = "massagelab-soap-draft"
+import {
+  PlaintextOutputWarningAction,
+  ProfessionalRecordVaultGate,
+  ProfessionalRecordVaultToolbar,
+  ProfessionalRecordVaultTransferControls,
+  useProfessionalRecordVault,
+} from "../professional-record-vault-provider"
 
 interface SoapNoteData {
   schemaVersion: number
@@ -209,54 +212,6 @@ function generateSoapText(data: SoapNoteData) {
   ].join("\n")
 }
 
-const researchTextKeys = new Set([
-  "type",
-  "intensity",
-  "priority",
-  "pattern",
-  "timePattern",
-  "bodyRegion",
-  "regionId",
-  "side",
-  "view",
-  "source",
-  "timestampRange",
-  "targetSoapSection",
-])
-
-function anonymizeStructuredValue(value: unknown, key = ""): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => anonymizeStructuredValue(item))
-  }
-
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([entryKey, entryValue]) => [entryKey, anonymizeStructuredValue(entryValue, entryKey)]),
-    )
-  }
-
-  if (typeof value === "string") {
-    return researchTextKeys.has(key) ? value : ""
-  }
-
-  return value
-}
-
-function createResearchExport(data: SoapNoteData) {
-  return {
-    schemaVersion: 2,
-    noteType: "soap",
-    researchExport: true,
-    anonymizedAt: new Date().toISOString(),
-    sessionMonth: data.date ? data.date.slice(0, 7) : "",
-    subjectiveEntries: anonymizeStructuredValue(data.subjectiveEntries),
-    objectiveEntries: anonymizeStructuredValue(data.objectiveEntries),
-    painMapSelections: anonymizeStructuredValue(data.bodyDiagram.painMapSelections),
-    assessmentTechniques: anonymizeStructuredValue(data.assessment.techniques),
-    transcriptSegmentCount: data.transcriptSegments.length,
-  }
-}
-
 function normalizeSoapNoteData(data: SoapNoteData): SoapNoteData {
   return {
     ...emptySoapNote,
@@ -283,27 +238,23 @@ function normalizeSoapNoteData(data: SoapNoteData): SoapNoteData {
 }
 
 export default function SoapNotesPage() {
+  const vault = useProfessionalRecordVault()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<SoapNoteData>(emptySoapNote)
   const [message, setMessage] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const loadedRevisionRef = useRef(-1)
 
   const CurrentStepComponent = steps.find((step) => step.id === currentStep)?.component
   const progress = (currentStep / steps.length) * 100
 
   useEffect(() => {
-    const draft = window.localStorage.getItem(SOAP_STORAGE_KEY)
-    if (draft) {
-      try {
-        setFormData(normalizeSoapNoteData(parseLocalDocumentJson(draft, emptySoapNote, {
-          discriminatorKey: "noteType",
-          discriminatorValue: "soap",
-        })))
-      } catch {
-        window.localStorage.removeItem(SOAP_STORAGE_KEY)
-      }
+    if (vault.status !== "unlocked" || loadedRevisionRef.current === vault.revision) {
+      return
     }
-  }, [])
+
+    loadedRevisionRef.current = vault.revision
+    setFormData(normalizeSoapNoteData(vault.payload.records?.soap?.draft ?? emptySoapNote))
+  }, [vault.status, vault.revision, vault.payload])
 
   const handleNext = () => {
     if (currentStep < steps.length) {
@@ -317,30 +268,12 @@ export default function SoapNotesPage() {
     }
   }
 
-  const saveLocalDraft = () => {
-    window.localStorage.setItem(SOAP_STORAGE_KEY, JSON.stringify(formData))
-    setMessage("Draft saved locally in this browser.")
-  }
-
-  const exportJson = () => {
-    const filename = createLocalDocumentFilename({
-      prefix: "massagelab-soap",
-      subject: formData.clientName,
-      extension: "json",
-    })
-    const exported = createLocalDocumentExport(formData)
-    downloadFile(filename, JSON.stringify(exported, null, 2), "application/json")
-    setMessage("Exported a user-controlled JSON file. MassageLab did not upload this note.")
-  }
-
-  const exportText = () => {
-    const filename = createLocalDocumentFilename({
-      prefix: "massagelab-soap",
-      subject: formData.clientName,
-      extension: "txt",
-    })
-    downloadFile(filename, generateSoapText(formData), "text/plain")
-    setMessage("Exported a user-controlled text file. MassageLab did not upload this note.")
+  const saveEncryptedDraft = async () => {
+    const saved = await vault.saveDraft("soap", formData, "SOAP draft saved in the encrypted professional-record vault.")
+    if (saved) {
+      loadedRevisionRef.current = vault.revision + 1
+      setMessage("SOAP draft saved in the encrypted professional-record vault.")
+    }
   }
 
   const exportDoc = () => {
@@ -354,54 +287,26 @@ export default function SoapNotesPage() {
       createEditableDocumentHtml({ title: "MassageLab SOAP Note", body: generateSoapText(formData) }),
       "application/msword",
     )
-    setMessage("Exported an editable document. MassageLab did not upload this note.")
+    setMessage("Created a plaintext DOC file from the unlocked vault. Store and share it carefully.")
   }
 
   const printPdf = () => {
     const opened = openPrintDocument(
       createEditableDocumentHtml({ title: "MassageLab SOAP Note", body: generateSoapText(formData) }),
     )
-    setMessage(opened ? "Opened a print view. Choose Save as PDF in your browser to export a PDF." : "Could not open the print view.")
-  }
-
-  const exportResearchJson = () => {
-    const filename = createLocalDocumentFilename({
-      prefix: "massagelab-soap-research",
-      subject: "anonymous",
-      extension: "json",
-      fallbackSubject: "anonymous",
-    })
-    downloadFile(filename, JSON.stringify(createResearchExport(formData), null, 2), "application/json")
-    setMessage("Exported an anonymized local research JSON file. Review before sharing outside your device.")
-  }
-
-  const importJson = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      const imported = normalizeSoapNoteData(parseLocalDocumentJson(await file.text(), emptySoapNote, {
-        discriminatorKey: "noteType",
-        discriminatorValue: "soap",
-      }))
-      setFormData(imported)
-      setMessage("Imported SOAP note. Review it before saving or exporting.")
-    } catch {
-      setMessage("Could not import that file. Choose a MassageLab SOAP JSON export.")
-    } finally {
-      event.target.value = ""
-    }
+    setMessage(opened ? "Opened a plaintext print view. Choose Save as PDF in your browser dialog." : "Could not open the print view.")
   }
 
   return (
-    <AppPageShell title="S.O.A.P. Notes" width="standard">
+    <ProfessionalRecordVaultGate>
+      <AppPageShell title="S.O.A.P. Notes" width="standard">
         <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
-              <CardTitle>Local-first PHI handling</CardTitle>
+              <CardTitle>Encrypted professional-record vault</CardTitle>
               <CardDescription>
-                This alpha does not send SOAP notes to a server. Local drafts stay in this browser, and exported files are the user&apos;s responsibility.
+                SOAP notes are stored in the unlocked browser vault. MassageLab does not upload this note or import plaintext clinical JSON.
               </CardDescription>
             </div>
           </CardHeader>
@@ -457,37 +362,24 @@ export default function SoapNotesPage() {
               </Button>
 
               <div className="flex flex-wrap gap-2">
-                <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={importJson} />
-                <Button variant="outline" type="button" onClick={() => fileInputRef.current?.click()}>
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  Import
-                </Button>
-                <Button variant="outline" type="button" onClick={saveLocalDraft}>
+                <Button variant="outline" type="button" onClick={saveEncryptedDraft}>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Local Draft
+                  Save encrypted draft
                 </Button>
                 {currentStep === steps.length ? (
                   <>
-                    <Button variant="outline" type="button" onClick={exportText}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Export Text
-                    </Button>
-                    <Button variant="outline" type="button" onClick={exportDoc}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Export DOC
-                    </Button>
-                    <Button variant="outline" type="button" onClick={printPdf}>
-                      <Printer className="mr-2 h-4 w-4" />
-                      Save PDF
-                    </Button>
-                    <Button variant="outline" type="button" onClick={exportResearchJson}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Research JSON
-                    </Button>
-                    <Button className="bg-primary hover:bg-brand-orange-glow" type="button" onClick={exportJson}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Export JSON
-                    </Button>
+                    <PlaintextOutputWarningAction
+                      label="Export DOC"
+                      description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."
+                      icon={<FileText className="mr-2 h-4 w-4" />}
+                      onConfirm={exportDoc}
+                    />
+                    <PlaintextOutputWarningAction
+                      label="Save PDF"
+                      description="This opens an unencrypted print view outside the vault. Use encrypted vault bundles for normal transfer."
+                      icon={<Printer className="mr-2 h-4 w-4" />}
+                      onConfirm={printPdf}
+                    />
                   </>
                 ) : (
                   <Button onClick={handleNext} className="bg-primary hover:bg-brand-orange-glow">
@@ -501,6 +393,19 @@ export default function SoapNotesPage() {
             {message && <p className="text-sm text-brand-orange">{message}</p>}
           </div>
         </Card>
-    </AppPageShell>
+        <Card className={appSurfaceClassName}>
+          <CardHeader className="space-y-4">
+            <div>
+              <CardTitle>Encrypted vault transfer</CardTitle>
+              <CardDescription>Export or import the full professional-record vault as an encrypted `.mlab` bundle.</CardDescription>
+            </div>
+            <ProfessionalRecordVaultToolbar />
+          </CardHeader>
+          <div className="px-6 pb-6">
+            <ProfessionalRecordVaultTransferControls idPrefix="soapVault" />
+          </div>
+        </Card>
+      </AppPageShell>
+    </ProfessionalRecordVaultGate>
   )
 }

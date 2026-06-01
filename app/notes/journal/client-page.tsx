@@ -1,7 +1,7 @@
 "use client"
 
-import { ChangeEvent, useEffect, useRef, useState } from "react"
-import { Download, FileText, FolderOpen, Plus, Printer, Save, ShieldCheck } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { FileText, Plus, Printer, Save, ShieldCheck } from "lucide-react"
 import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,12 +10,15 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createEditableDocumentHtml,
-  createLocalDocumentExport,
   createLocalDocumentFilename,
-  parseLocalDocumentJson,
 } from "@/lib/local-documents"
-
-const JOURNAL_STORAGE_KEY = "massagelab-client-journal-draft"
+import {
+  PlaintextOutputWarningAction,
+  ProfessionalRecordVaultGate,
+  ProfessionalRecordVaultToolbar,
+  ProfessionalRecordVaultTransferControls,
+  useProfessionalRecordVault,
+} from "../professional-record-vault-provider"
 
 type JournalEntryKind = "pain" | "sensation" | "incident"
 
@@ -125,24 +128,20 @@ function generateJournalText(data: JournalDocument) {
 }
 
 export default function JournalPage() {
+  const vault = useProfessionalRecordVault()
   const [journal, setJournal] = useState<JournalDocument>(emptyJournal)
   const [entry, setEntry] = useState<JournalEntry>({ ...emptyEntry, date: formatLocalDate() })
   const [message, setMessage] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const loadedRevisionRef = useRef(-1)
 
   useEffect(() => {
-    const draft = window.localStorage.getItem(JOURNAL_STORAGE_KEY)
-    if (draft) {
-      try {
-        setJournal(parseLocalDocumentJson(draft, emptyJournal, {
-          discriminatorKey: "documentType",
-          discriminatorValue: "client-journal",
-        }))
-      } catch {
-        window.localStorage.removeItem(JOURNAL_STORAGE_KEY)
-      }
+    if (vault.status !== "unlocked" || loadedRevisionRef.current === vault.revision) {
+      return
     }
-  }, [])
+
+    loadedRevisionRef.current = vault.revision
+    setJournal(normalizeJournalDocument(vault.payload.records?.journal?.draft ?? emptyJournal))
+  }, [vault.status, vault.revision, vault.payload])
 
   const updateEntry = <Key extends keyof JournalEntry>(key: Key, value: JournalEntry[Key]) => {
     setMessage(null)
@@ -163,19 +162,12 @@ export default function JournalPage() {
     setMessage("Entry added to the local journal.")
   }
 
-  const saveDraft = () => {
-    window.localStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(journal))
-    setMessage("Journal saved locally on this device.")
-  }
-
-  const exportJson = () => {
-    const filename = createLocalDocumentFilename({
-      prefix: "massagelab-journal",
-      subject: journal.clientName,
-      extension: "json",
-    })
-    downloadFile(filename, JSON.stringify(createLocalDocumentExport(journal), null, 2), "application/json")
-    setMessage("Exported a structured JSON file. MassageLab did not upload this journal.")
+  const saveEncryptedDraft = async () => {
+    const saved = await vault.saveDraft("journal", journal, "Journal saved in the encrypted professional-record vault.")
+    if (saved) {
+      loadedRevisionRef.current = vault.revision + 1
+      setMessage("Journal saved in the encrypted professional-record vault.")
+    }
   }
 
   const exportDoc = () => {
@@ -189,41 +181,24 @@ export default function JournalPage() {
       createEditableDocumentHtml({ title: "MassageLab Journal", body: generateJournalText(journal) }),
       "application/msword",
     )
-    setMessage("Exported an editable document. MassageLab did not upload this journal.")
+    setMessage("Created a plaintext DOC file from the unlocked vault. Store and share it carefully.")
   }
 
   const printPdf = () => {
     const opened = openPrintDocument(createEditableDocumentHtml({ title: "MassageLab Journal", body: generateJournalText(journal) }))
-    setMessage(opened ? "Opened a print view. Choose Save as PDF in your browser to export a PDF." : "Could not open the print view.")
-  }
-
-  const importJson = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      const imported = parseLocalDocumentJson(await file.text(), emptyJournal, {
-        discriminatorKey: "documentType",
-        discriminatorValue: "client-journal",
-      })
-      setJournal(imported)
-      setMessage("Imported journal. Review it before saving or exporting.")
-    } catch {
-      setMessage("Could not import that file. Choose a MassageLab journal JSON export.")
-    } finally {
-      event.target.value = ""
-    }
+    setMessage(opened ? "Opened a plaintext print view. Choose Save as PDF in your browser dialog." : "Could not open the print view.")
   }
 
   return (
-    <AppPageShell title="Client Journal" width="standard">
+    <ProfessionalRecordVaultGate>
+      <AppPageShell title="Client Journal" width="standard">
         <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
-              <CardTitle>Local-first sensitive health data</CardTitle>
+              <CardTitle>Encrypted professional-record vault</CardTitle>
               <CardDescription>
-                Journal data stays in this browser unless exported. Future account sync will remain disabled until compliant hosting is funded and reviewed.
+                Journal data is stored in the unlocked browser vault. MassageLab does not upload this journal or import plaintext clinical JSON.
               </CardDescription>
             </div>
           </CardHeader>
@@ -303,27 +278,22 @@ export default function JournalPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Add Entry
               </Button>
-              <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={importJson} />
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                <FolderOpen className="mr-2 h-4 w-4" />
-                Import
-              </Button>
-              <Button type="button" variant="outline" onClick={saveDraft}>
+              <Button type="button" variant="outline" onClick={saveEncryptedDraft}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Local Draft
+                Save encrypted draft
               </Button>
-              <Button type="button" variant="outline" onClick={exportDoc}>
-                <FileText className="mr-2 h-4 w-4" />
-                Export DOC
-              </Button>
-              <Button type="button" variant="outline" onClick={printPdf}>
-                <Printer className="mr-2 h-4 w-4" />
-                Save PDF
-              </Button>
-              <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={exportJson}>
-                <Download className="mr-2 h-4 w-4" />
-                Export JSON
-              </Button>
+              <PlaintextOutputWarningAction
+                label="Export DOC"
+                description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."
+                icon={<FileText className="mr-2 h-4 w-4" />}
+                onConfirm={exportDoc}
+              />
+              <PlaintextOutputWarningAction
+                label="Save PDF"
+                description="This opens an unencrypted print view outside the vault. Use encrypted vault bundles for normal transfer."
+                icon={<Printer className="mr-2 h-4 w-4" />}
+                onConfirm={printPdf}
+              />
             </div>
             {message && <p className="text-sm text-brand-orange">{message}</p>}
           </CardContent>
@@ -344,6 +314,27 @@ export default function JournalPage() {
             </Card>
           ))}
         </div>
-    </AppPageShell>
+        <Card className={appSurfaceClassName}>
+          <CardHeader className="space-y-4">
+            <div>
+              <CardTitle>Encrypted vault transfer</CardTitle>
+              <CardDescription>Export or import the full professional-record vault as an encrypted `.mlab` bundle.</CardDescription>
+            </div>
+            <ProfessionalRecordVaultToolbar />
+          </CardHeader>
+          <CardContent>
+            <ProfessionalRecordVaultTransferControls idPrefix="journalVault" />
+          </CardContent>
+        </Card>
+      </AppPageShell>
+    </ProfessionalRecordVaultGate>
   )
+}
+
+function normalizeJournalDocument(value: Partial<JournalDocument> | null | undefined): JournalDocument {
+  return {
+    ...emptyJournal,
+    ...(value ?? {}),
+    entries: Array.isArray(value?.entries) ? value.entries : [],
+  }
 }

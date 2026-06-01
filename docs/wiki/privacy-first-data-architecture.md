@@ -54,7 +54,7 @@ The target local storage design is an offline `ProfessionalRecordVault`:
 - wrong-passphrase rejection without exposing plaintext
 - explicit export/import flows for backup and transfer
 
-The intake module now uses this vault model in browser storage. SOAP, journal, and ROM drafts remain interim browser-local behavior until they are migrated to the same vault pattern. Encrypted browser storage and encrypted export bundles do not replace device passcodes, OS disk encryption, browser profile security, backups, staff policies, or incident-response procedures.
+SOAP, intake, journal, and ROM now use this shared vault model in browser storage under `massagelab-professional-record-vault-v1`. Encrypted `.mlab` full-vault bundles are the normal transfer and backup format; DOC/PDF output is available only after an explicit plaintext-output warning. Encrypted browser storage and encrypted export bundles do not replace device passcodes, OS disk encryption, browser profile security, backups, staff policies, or incident-response procedures.
 
 ### Future Sharing Bridge
 

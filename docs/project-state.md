@@ -1,15 +1,15 @@
 # MassageLab Project State
 
-Verified: 2026-05-29
+Verified: 2026-05-30
 
 This is the read-first source of truth for MassageLab's current project state. Use it before `docs/project-log.md`, `docs/roadmap.md`, `TODO.md`, audits, or wiki pages when deciding what is active now.
 
 ## Current Snapshot
 
 - Status: private alpha.
-- Active branch at last verification: `codex/local-first-client-intake-forms`.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current build focus is the local-first intake form-builder workspace: therapist-owned templates, tablet fill mode, recurring pain/discomfort maps, local client/document dashboards, and user-controlled exports.
-- Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. Intake now uses an encrypted browser vault that requires therapist passphrase unlock before viewing or creating documents. Hosted clinical sync remains gated and unimplemented until compliance requirements are met. The privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
+- Active branch at last verification: `codex/privacy-first-records-framework`.
+- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current build focus is the local-first professional-record framework: one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, and user-controlled encrypted vault transfer.
+- Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and ROM now use one passphrase-unlocked encrypted browser vault before viewing or saving documents. Hosted clinical sync remains gated and unimplemented until compliance requirements are met. The privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing copy only. Internal operating state lives here and in `docs/project-log.md`.
 
 ## Database State
@@ -25,7 +25,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 
 - Public app shell: home, support, pricing, public roadmap, about, login/register, password reset, and email verification.
 - Chimer: treatment-room timer and clock mode, with custom colors gated by `chimer_custom_colors`.
-- Local-first notes: SOAP notes, intake, journal, and ROM routes are visible from `/notes`, but professional-record viewing/creation is gated by `therapist_documentation_tools`. Once unlocked by membership, these routes save locally unless a user explicitly exports. Intake has been upgraded from a fixed local form into a local form-builder workspace with encrypted browser-vault storage, local templates, local client profiles, linked local documents, recurring pain/discomfort maps, and JSON/DOC/PDF/encrypted-bundle export paths.
+- Local-first notes: SOAP notes, intake, journal, and ROM routes are visible from `/notes`, but professional-record viewing/creation is gated by `therapist_documentation_tools`. Once unlocked by membership, these routes require the local professional-record vault passphrase before showing clinical content. The shared encrypted browser vault stores SOAP drafts, intake workspaces, journal drafts, and ROM sessions under `massagelab-professional-record-vault-v1`; legacy plaintext route keys are migration inputs only. Encrypted `.mlab` full-vault bundles are the normal transfer format, while DOC/PDF output requires an explicit plaintext warning.
 - Calendar and booking: operator calendar workspace, appointment/class/personal/reminder creation, service catalog, availability, booking settings, public booking links, guest-capable booking, waitlist, and provider capacity controls.
 - Accounts and billing: profile/preferences, security settings, role verification, membership status, Stripe Checkout, Stripe portal, and signed webhook foundation.
 - Anatomy and education foundation: Anatomime, admin anatomy browser, anatomy correction workflow, code-backed seed content, Postgres anatomy tables, anatomy media catalog/provenance, R2 media workflow docs, and 3D/spatial mapping schema. This baseline is considered enough for the current alpha; 3D runtime tooling is a later feature addition, not a current core priority.
@@ -35,7 +35,8 @@ This is the read-first source of truth for MassageLab's current project state. U
 
 - P1: Keep this file and `docs/project-log.md` current when meaningful project state changes.
 - P2: Build local-first client-facing forms and tablet handoff workflows, starting with intake and therapist review/notes continuity on the same device.
-- P2: Extend the encrypted local professional-record vault pattern beyond intake before expanding therapist-generated SOAP, journal, or ROM records beyond the current draft/export model.
+- P2: Harden the shared encrypted professional-record vault UX, backup guidance, and manual QA before expanding therapist-generated records beyond the current local-first alpha workflows.
+- P2: Plan role-aware module surfaces and sidebar IA so anonymous, signed-in, student, client, therapist, Team/Practice, practice-role, and admin contexts resolve to appropriate visible tools before broad portal or paywall expansion.
 - P2: Scope trust pages and public identity: terms, privacy/legal, About Me, and launch-ready public trust copy.
 - P2: Plan external Google/Apple/Outlook calendar sync before implementation.
 - P2: Plan Stripe Connect marketplace payments before booking payment collection.

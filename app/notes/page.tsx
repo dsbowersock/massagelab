@@ -6,28 +6,28 @@ import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/compo
 const noteTypes = [
   {
     title: "S.O.A.P. Notes",
-    description: "Create, save locally, import, and export session notes.",
+    description: "Create and save session notes in the encrypted professional-record vault.",
     icon: FileText,
     href: "/notes/soap",
     available: true,
   },
   {
     title: "Intake Forms",
-    description: "Unlock an encrypted local vault to build templates, fill tablet forms, and export linked intake documents.",
+    description: "Build templates, fill tablet forms, and link intake documents inside the shared vault.",
     icon: ClipboardList,
     href: "/notes/intake",
     available: true,
   },
   {
     title: "Client Journal",
-    description: "Track pain, sensation, and incidents as local-first entries.",
+    description: "Track pain, sensation, and incidents in encrypted local records.",
     icon: HeartPulse,
     href: "/notes/journal",
     available: true,
   },
   {
     title: "Range of Motion",
-    description: "Capture manual or phone-orientation movement measurements locally.",
+    description: "Capture manual or phone-orientation movement measurements in the vault.",
     icon: Activity,
     href: "/notes/rom",
     available: true,
@@ -52,7 +52,7 @@ export default async function NotesPage() {
           title={canUseLocalClinicalTools ? "PHI stays under user control" : "Therapist or Team/Practice required"}
           description={
             <>
-                MassageLab does not upload notes, intake forms, journals, or movement data in this alpha. Therapist note-taking tools are visible here, but using them requires an active Therapist or Team/Practice membership.
+                MassageLab stores therapist documentation in one encrypted local professional-record vault in this alpha. Therapist note-taking tools are visible here, but using them requires an active Therapist or Team/Practice membership.
             </>
           }
           icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}

@@ -28,23 +28,16 @@ Use this checklist before tagging or deploying a private-alpha build. Keep SOAP 
 
 ## Local-First Documentation
 
-- Anonymous user can open `/notes`, `/notes/soap`, `/notes/intake`, `/notes/journal`, and `/notes/rom` without an account.
-- SOAP draft save/load stays in browser local storage under `massagelab-soap-draft`.
-- Intake draft save/load stays in browser local storage under `massagelab-intake-draft`.
-- Journal draft save/load stays in browser local storage under `massagelab-client-journal-draft`.
-- ROM draft save/load stays in browser local storage under `massagelab-rom-session-draft`.
-- SOAP JSON export includes `schemaVersion: 2`, `noteType: "soap"`, `exportedAt`, structured pain-map selections, and transcript review segments.
-- Legacy SOAP `schemaVersion: 1` exports import successfully and receive current default fields.
-- Intake JSON export includes `schemaVersion: 1`, `formType: "intake"`, and `exportedAt`.
-- Journal JSON export includes `schemaVersion: 1`, `documentType: "client-journal"`, and `exportedAt`.
-- ROM JSON export includes `schemaVersion: 1`, `documentType: "rom-session"`, and `exportedAt`.
-- SOAP text export contains the local-first PHI responsibility notice.
-- SOAP research JSON export removes direct identifiers and free-text fields before creating the local anonymized file.
-- SOAP, intake, journal, and ROM DOC exports open as editable documents.
-- SOAP, intake, journal, and ROM Save PDF buttons open browser print views without uploading data.
-- Valid exported SOAP, intake, journal, and ROM JSON files import successfully and preserve default fields for older exports.
-- Wrong document types and malformed JSON files are rejected with user-facing error messages.
-- Anonymous SOAP, intake, journal, and ROM save/import/export flows do not send clinical content over the network.
+- Anonymous user can open `/notes` and see available therapist documentation tools, while `/notes/soap`, `/notes/intake`, `/notes/journal`, and `/notes/rom` show the membership-required gate without an active Therapist or Team/Practice membership.
+- With `therapist_documentation_tools`, SOAP, intake, journal, and ROM require the shared encrypted professional-record vault before viewing or saving clinical content.
+- The shared vault is stored under `massagelab-professional-record-vault-v1`; legacy plaintext keys are one-time migration inputs only.
+- Valid legacy plaintext drafts under `massagelab-soap-draft`, `massagelab-intake-workspace-v1`, `massagelab-client-journal-draft`, and `massagelab-rom-session-draft` migrate into the encrypted vault on first setup, then imported plaintext keys are removed.
+- Malformed legacy drafts and older encrypted intake vaults are preserved non-destructively with user-facing warnings.
+- Encrypted `.mlab` full-vault export/import works with the correct password and rejects wrong passwords or malformed bundles.
+- Plaintext JSON/TXT/research export and plaintext JSON import controls are not present on SOAP, intake, journal, or ROM routes.
+- SOAP, intake, journal, and ROM DOC exports open only after an explicit plaintext-output warning.
+- SOAP, intake, journal, and ROM Save PDF buttons open browser print views only after an explicit plaintext-output warning.
+- SOAP, intake, journal, and ROM save/export/import flows do not send clinical content over the network.
 - Transcript text can be pasted or imported, segmented, reviewed, and inserted only after the therapist explicitly selects segments.
 - Body-map selections capture region, side, view, intensity, symptom types, descriptors, notes, and anatomy term candidates.
 

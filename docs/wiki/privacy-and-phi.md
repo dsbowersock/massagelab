@@ -8,14 +8,18 @@ Therapist note-taking tools are visible in the app, but creating or viewing SOAP
 
 ## Local-First Storage
 
-- SOAP drafts stay in the current browser under `massagelab-soap-draft`.
-- Intake form-builder workspaces stay encrypted in the current browser under `massagelab-intake-workspace-v1`. The therapist must unlock the local vault before viewing or creating intake documents. This workspace can contain local form templates, local client profiles, linked local form responses, and pain/discomfort maps.
-- Journal drafts stay in the current browser under `massagelab-client-journal-draft`.
-- ROM drafts stay in the current browser under `massagelab-rom-session-draft`.
+SOAP, intake, journal, and ROM records stay in the current browser under one encrypted professional-record vault: `massagelab-professional-record-vault-v1`. The therapist must unlock the vault with a local passphrase before viewing or saving professional-record content. The passphrase stays in React memory for the current app session and is not sent to MassageLab.
 
-Exports are user-controlled files. Users are responsible for storing, transmitting, and backing them up appropriately. Intake workspaces can export JSON, editable DOC/print-to-PDF document views, and optional password-encrypted `.mlab` bundles for local transfer or backup.
+The vault payload contains:
 
-The target professional-record storage model is an offline encrypted vault unlocked by a therapist-entered passphrase for the current browser/app session. Intake now uses this model. SOAP, journal, and ROM browser-local drafts still need a later migration before they have the same vault behavior.
+- SOAP draft data
+- intake form-builder workspace data, including local templates, local client profiles, linked local form responses, and pain/discomfort maps
+- journal draft data
+- ROM session draft data
+
+Legacy plaintext keys are migration inputs only: `massagelab-soap-draft`, `massagelab-intake-workspace-v1`, `massagelab-client-journal-draft`, and `massagelab-rom-session-draft`. On first vault setup, valid plaintext drafts are encrypted into the shared vault and the imported plaintext keys are removed only after the encrypted write succeeds. Malformed legacy drafts and older encrypted intake vaults are preserved non-destructively.
+
+Encrypted `.mlab` full-vault bundles are the normal user-controlled transfer and backup format. DOC and print/PDF outputs remain available only after an explicit plaintext-output warning. Plaintext clinical JSON imports and plaintext JSON/TXT/research exports are not part of the current route UI.
 
 ## Intake Form Builder Boundary
 
@@ -23,14 +27,14 @@ The target professional-record storage model is an offline encrypted vault unloc
 - Built-in intake templates mirror the current Google intake workflow and body-map placeholders, but the app renders MassageLab-native JSON, DOC, and print/PDF outputs instead of exact Google Doc/XLSX files.
 - Pre-arrival remote flows are limited to contact/profile and booking status information. Remote client accounts must not show clinical documents until hosted PHI storage passes the compliance gates below.
 - Future client-owned wellness data may become cloud-backed under a separate privacy-controlled domain, but therapist remote viewing and professional-record import remain deferred until consent, audit, compliance, and product gates are implemented.
-- Intake vault data is encrypted at rest in browser storage and unlocked in memory for the current browser session. Encrypted storage and encrypted exports do not replace device passcodes, OS disk encryption, access policies, or backups.
+- Professional-record vault data is encrypted at rest in browser storage and unlocked in memory for the current browser session. Encrypted storage and encrypted exports do not replace device passcodes, OS disk encryption, access policies, or backups.
 - Local transfer methods such as Bluetooth, local Wi-Fi, mesh, and browser peer-to-peer transfer are deferred until a dedicated risk model covers authentication, encryption, audit expectations, vendor/BAA requirements, and operating procedures.
 
 ## PWA Cache Boundary
 
 The PWA service worker may cache anonymous public shell/tool route documents for home, Chimer, Anatomime, and local-first documentation tools. It must not cache account, auth, billing, calendar, booking, admin, hosted clinical sync, client, or other `/api/*` responses.
 
-SOAP, journal, and ROM content remains in browser local storage only when the user saves local drafts. Intake content remains in the encrypted browser vault after the therapist saves it. The service worker must not create a second PHI cache, queue clinical uploads, or store request bodies.
+SOAP, intake, journal, and ROM content remains in the encrypted browser vault after the therapist saves it. The service worker must not create a second PHI cache, queue clinical uploads, or store request bodies.
 
 ## Sync Boundary
 
