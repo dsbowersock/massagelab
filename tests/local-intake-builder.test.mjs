@@ -8,21 +8,21 @@ import {
   createClinicalDocumentFromResponse,
   createClientProfileFromResponse,
   createDefaultIntakeWorkspace,
-  createEncryptedIntakeBundle,
-  createEncryptedIntakeWorkspaceVault,
   createFormResponseExportText,
   createPainMapPlaceholderValues,
-  createWorkspaceExport,
-  decryptEncryptedIntakeBundle,
-  decryptEncryptedIntakeWorkspaceVault,
   formatBodyMapAnswer,
-  isEncryptedIntakeWorkspaceVault,
   normalizeFormResponse,
   normalizeIntakeWorkspace,
   requiredQuestionIssues,
   starterIntakeTemplates,
   validateFormDefinition,
 } from "../lib/local-intake-builder.js"
+import {
+  createEmptyProfessionalRecordVaultPayload,
+  createEncryptedProfessionalRecordVault,
+  decryptEncryptedProfessionalRecordVault,
+  setProfessionalRecordVaultIntakeWorkspace,
+} from "../lib/professional-record-vault.js"
 
 describe("local intake form builder", () => {
   it("defines the local-only intake workspace contract and starter templates", () => {
@@ -193,44 +193,29 @@ describe("local intake form builder", () => {
     assert.equal(workspace.clients[0].displayName, "Jane Client")
   })
 
-  it("round-trips encrypted export bundles and rejects malformed imports", async () => {
-    const workspace = createWorkspaceExport(createDefaultIntakeWorkspace("2026-05-28T12:00:00.000Z"), "2026-05-28T12:30:00.000Z")
-    const bundle = await createEncryptedIntakeBundle(workspace, "correct horse battery staple", {
-      iterations: 1000,
-      exportedAt: "2026-05-28T12:31:00.000Z",
-    })
-    const decrypted = await decryptEncryptedIntakeBundle(bundle, "correct horse battery staple")
-
-    assert.equal(bundle.format, "massagelab-local-encrypted-bundle")
-    assert.equal(bundle.algorithm, "AES-GCM")
-    assert.equal(decrypted.notice, "MassageLab did not upload these local clinical documents. User controls storage and sharing.")
-    await assert.rejects(() => createEncryptedIntakeBundle(workspace, "short"), /at least 8/)
-    await assert.rejects(() => decryptEncryptedIntakeBundle({ format: "other" }, "correct horse battery staple"), /Expected a MassageLab/)
-    await assert.rejects(
-      () => decryptEncryptedIntakeBundle(bundle, "wrong horse battery staple"),
-      (error) => error instanceof Error && error.message === "Failed to decrypt intake bundle",
-    )
-  })
-
-  it("encrypts the in-browser workspace vault without storing clinical plaintext", async () => {
+  it("stores intake workspaces through the shared professional-record vault", async () => {
     const workspace = normalizeIntakeWorkspace({
       ...createDefaultIntakeWorkspace("2026-05-29T12:00:00.000Z"),
       clients: [{ displayName: "Sensitive Client", email: "sensitive@example.com", phone: "555-1212" }],
     })
-    const vault = await createEncryptedIntakeWorkspaceVault(workspace, "correct horse battery staple", {
+    const payload = setProfessionalRecordVaultIntakeWorkspace(
+      createEmptyProfessionalRecordVaultPayload("2026-05-29T12:00:00.000Z"),
+      workspace,
+      "2026-05-29T12:30:00.000Z",
+    )
+    const vault = await createEncryptedProfessionalRecordVault(payload, "correct horse battery staple", {
       iterations: 1000,
       updatedAt: "2026-05-29T12:30:00.000Z",
     })
     const serialized = JSON.stringify(vault)
-    const decrypted = await decryptEncryptedIntakeWorkspaceVault(vault, "correct horse battery staple")
+    const decrypted = await decryptEncryptedProfessionalRecordVault(vault, "correct horse battery staple")
 
-    assert.equal(vault.format, "massagelab-local-intake-vault")
+    assert.equal(vault.format, "massagelab-professional-record-vault")
     assert.equal(vault.purpose, "professional-record-vault")
-    assert.equal(isEncryptedIntakeWorkspaceVault(vault), true)
     assert.equal(serialized.includes("Sensitive Client"), false)
     assert.equal(serialized.includes("sensitive@example.com"), false)
-    assert.equal(decrypted.clients[0].displayName, "Sensitive Client")
-    await assert.rejects(() => decryptEncryptedIntakeWorkspaceVault(vault, "wrong horse battery staple"), /Could not unlock/)
-    await assert.rejects(() => createEncryptedIntakeWorkspaceVault(workspace, "short"), /at least 8/)
+    assert.equal(decrypted.records.intake.workspace.clients[0].displayName, "Sensitive Client")
+    await assert.rejects(() => decryptEncryptedProfessionalRecordVault(vault, "wrong horse battery staple"), /Could not unlock/)
+    await assert.rejects(() => createEncryptedProfessionalRecordVault(payload, "short"), /at least 8/)
   })
 })

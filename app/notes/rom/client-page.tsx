@@ -1,7 +1,7 @@
 "use client"
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
-import { Activity, Download, FileText, FolderOpen, Gauge, Printer, Save, ShieldCheck } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Activity, FileText, Gauge, Printer, Save, ShieldCheck } from "lucide-react"
 import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,12 +11,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { type MeasurementAxis, useDeviceMotionSensors } from "@/hooks/use-device-motion-sensors"
 import {
   createEditableDocumentHtml,
-  createLocalDocumentExport,
   createLocalDocumentFilename,
-  parseLocalDocumentJson,
 } from "@/lib/local-documents"
-
-const ROM_STORAGE_KEY = "massagelab-rom-session-draft"
+import {
+  PlaintextOutputWarningAction,
+  ProfessionalRecordVaultGate,
+  ProfessionalRecordVaultToolbar,
+  ProfessionalRecordVaultTransferControls,
+  useProfessionalRecordVault,
+} from "../professional-record-vault-provider"
 
 type RomEntry = {
   id: string
@@ -120,6 +123,7 @@ function generateRomText(data: RomDocument) {
 }
 
 export default function RomPage() {
+  const vault = useProfessionalRecordVault()
   const [documentData, setDocumentData] = useState<RomDocument>(emptyRomDocument)
   const [movement, setMovement] = useState("")
   const [side, setSide] = useState("")
@@ -129,7 +133,7 @@ export default function RomPage() {
   const [notes, setNotes] = useState("")
   const [baseline, setBaseline] = useState<DeviceBaseline | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const loadedRevisionRef = useRef(-1)
   const { orientation, requestAccess } = useDeviceMotionSensors()
 
   const currentDegrees = orientation[axis]
@@ -140,18 +144,13 @@ export default function RomPage() {
   }, [baselineForAxis, currentDegrees])
 
   useEffect(() => {
-    const draft = window.localStorage.getItem(ROM_STORAGE_KEY)
-    if (draft) {
-      try {
-        setDocumentData(parseLocalDocumentJson(draft, emptyRomDocument, {
-          discriminatorKey: "documentType",
-          discriminatorValue: "rom-session",
-        }))
-      } catch {
-        window.localStorage.removeItem(ROM_STORAGE_KEY)
-      }
+    if (vault.status !== "unlocked" || loadedRevisionRef.current === vault.revision) {
+      return
     }
-  }, [])
+
+    loadedRevisionRef.current = vault.revision
+    setDocumentData(normalizeRomDocument(vault.payload.records?.rom?.draft ?? emptyRomDocument))
+  }, [vault.status, vault.revision, vault.payload])
 
   const enableSensors = async () => {
     const result = await requestAccess()
@@ -206,19 +205,12 @@ export default function RomPage() {
     setMessage("Measurement added locally.")
   }
 
-  const saveDraft = () => {
-    window.localStorage.setItem(ROM_STORAGE_KEY, JSON.stringify(documentData))
-    setMessage("ROM session saved locally on this device.")
-  }
-
-  const exportJson = () => {
-    const filename = createLocalDocumentFilename({
-      prefix: "massagelab-rom",
-      subject: documentData.clientName,
-      extension: "json",
-    })
-    downloadFile(filename, JSON.stringify(createLocalDocumentExport(documentData), null, 2), "application/json")
-    setMessage("Exported a structured JSON file. MassageLab did not upload this ROM session.")
+  const saveEncryptedDraft = async () => {
+    const saved = await vault.saveDraft("rom", documentData, "ROM session saved in the encrypted professional-record vault.")
+    if (saved) {
+      loadedRevisionRef.current = vault.revision + 1
+      setMessage("ROM session saved in the encrypted professional-record vault.")
+    }
   }
 
   const exportDoc = () => {
@@ -232,43 +224,26 @@ export default function RomPage() {
       createEditableDocumentHtml({ title: "MassageLab Range of Motion Session", body: generateRomText(documentData) }),
       "application/msword",
     )
-    setMessage("Exported an editable document. MassageLab did not upload this ROM session.")
+    setMessage("Created a plaintext DOC file from the unlocked vault. Store and share it carefully.")
   }
 
   const printPdf = () => {
     const opened = openPrintDocument(
       createEditableDocumentHtml({ title: "MassageLab Range of Motion Session", body: generateRomText(documentData) }),
     )
-    setMessage(opened ? "Opened a print view. Choose Save as PDF in your browser to export a PDF." : "Could not open the print view.")
-  }
-
-  const importJson = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      const imported = parseLocalDocumentJson(await file.text(), emptyRomDocument, {
-        discriminatorKey: "documentType",
-        discriminatorValue: "rom-session",
-      })
-      setDocumentData(imported)
-      setMessage("Imported ROM session. Review it before saving or exporting.")
-    } catch {
-      setMessage("Could not import that file. Choose a MassageLab ROM JSON export.")
-    } finally {
-      event.target.value = ""
-    }
+    setMessage(opened ? "Opened a plaintext print view. Choose Save as PDF in your browser dialog." : "Could not open the print view.")
   }
 
   return (
-    <AppPageShell title="Range of Motion" width="standard">
+    <ProfessionalRecordVaultGate>
+      <AppPageShell title="Range of Motion" width="standard">
         <Card className={appCalloutClassName}>
           <CardHeader className="flex flex-row items-start gap-3 space-y-0">
             <ShieldCheck className="mt-1 h-5 w-5 text-brand-orange" />
             <div>
-              <CardTitle>Local-first movement data</CardTitle>
+              <CardTitle>Encrypted professional-record vault</CardTitle>
               <CardDescription>
-                ROM measurements stay in this browser unless exported. Sensor readings are captured only in the active page session.
+                ROM measurements are stored in the unlocked browser vault. Sensor readings are captured only in the active page session.
               </CardDescription>
             </div>
           </CardHeader>
@@ -349,27 +324,22 @@ export default function RomPage() {
                 <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={addManualMeasurement}>
                   Add Manual Measurement
                 </Button>
-                <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={importJson} />
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  Import
-                </Button>
-                <Button type="button" variant="outline" onClick={saveDraft}>
+                <Button type="button" variant="outline" onClick={saveEncryptedDraft}>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Local Draft
+                  Save encrypted draft
                 </Button>
-                <Button type="button" variant="outline" onClick={exportDoc}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Export DOC
-                </Button>
-                <Button type="button" variant="outline" onClick={printPdf}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Save PDF
-                </Button>
-                <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={exportJson}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export JSON
-                </Button>
+                <PlaintextOutputWarningAction
+                  label="Export DOC"
+                  description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."
+                  icon={<FileText className="mr-2 h-4 w-4" />}
+                  onConfirm={exportDoc}
+                />
+                <PlaintextOutputWarningAction
+                  label="Save PDF"
+                  description="This opens an unencrypted print view outside the vault. Use encrypted vault bundles for normal transfer."
+                  icon={<Printer className="mr-2 h-4 w-4" />}
+                  onConfirm={printPdf}
+                />
               </div>
               {message && <p className="text-sm text-brand-orange">{message}</p>}
             </CardContent>
@@ -392,7 +362,20 @@ export default function RomPage() {
             </CardContent>
           </Card>
         </div>
-    </AppPageShell>
+        <Card className={appSurfaceClassName}>
+          <CardHeader className="space-y-4">
+            <div>
+              <CardTitle>Encrypted vault transfer</CardTitle>
+              <CardDescription>Export or import the full professional-record vault as an encrypted `.mlab` bundle.</CardDescription>
+            </div>
+            <ProfessionalRecordVaultToolbar />
+          </CardHeader>
+          <CardContent>
+            <ProfessionalRecordVaultTransferControls idPrefix="romVault" />
+          </CardContent>
+        </Card>
+      </AppPageShell>
+    </ProfessionalRecordVaultGate>
   )
 }
 
@@ -403,4 +386,12 @@ function StatusTile({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-medium">{value}</p>
     </div>
   )
+}
+
+function normalizeRomDocument(value: Partial<RomDocument> | null | undefined): RomDocument {
+  return {
+    ...emptyRomDocument,
+    ...(value ?? {}),
+    entries: Array.isArray(value?.entries) ? value.entries : [],
+  }
 }

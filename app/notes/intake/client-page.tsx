@@ -1,14 +1,11 @@
 "use client"
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Archive,
   ClipboardList,
   Copy,
-  Download,
   FileText,
-  FolderOpen,
-  KeyRound,
   LayoutDashboard,
   Plus,
   Printer,
@@ -40,16 +37,10 @@ import {
   BODY_MAP_PARTS,
   BODY_MAP_SIDES,
   FORM_QUESTION_TYPES,
-  INTAKE_WORKSPACE_STORAGE_KEY,
   createClinicalDocumentFromResponse,
   createClientProfileFromResponse,
   createDefaultIntakeWorkspace,
-  createEncryptedIntakeBundle,
-  createEncryptedIntakeWorkspaceVault,
   createFormResponseExportText,
-  createWorkspaceExport,
-  decryptEncryptedIntakeWorkspaceVault,
-  isEncryptedIntakeWorkspaceVault,
   normalizeFormResponse,
   normalizeIntakeWorkspace,
   requiredQuestionIssues,
@@ -61,9 +52,15 @@ import {
   createEditableDocumentHtml,
   createLocalDocumentFilename,
 } from "@/lib/local-documents"
+import {
+  PlaintextOutputWarningAction,
+  ProfessionalRecordVaultGate,
+  ProfessionalRecordVaultToolbar,
+  ProfessionalRecordVaultTransferControls,
+  useProfessionalRecordVault,
+} from "../professional-record-vault-provider"
 
 type AnyRecord = Record<string, any>
-type VaultStatus = "loading" | "setup" | "legacy" | "locked" | "unlocked" | "corrupt"
 
 function nowIso() {
   return new Date().toISOString()
@@ -94,14 +91,6 @@ function openPrintDocument(html: string) {
   printWindow.focus()
   printWindow.print()
   return true
-}
-
-function workspaceFilename(extension = "json") {
-  return createLocalDocumentFilename({
-    prefix: "massagelab-intake-workspace",
-    subject: "local",
-    extension,
-  })
 }
 
 function documentFilename(document: AnyRecord, client: AnyRecord | undefined, extension = "json") {
@@ -145,6 +134,7 @@ function replaceById(items: AnyRecord[], nextItem: AnyRecord) {
 }
 
 export default function IntakePage() {
+  const vault = useProfessionalRecordVault()
   const [workspace, setWorkspace] = useState<AnyRecord>(() => createDefaultIntakeWorkspace())
   const [activeTab, setActiveTab] = useState("dashboard")
   const [selectedTemplateId, setSelectedTemplateId] = useState(starterIntakeTemplates[0].id)
@@ -153,14 +143,8 @@ export default function IntakePage() {
   const [selectedDocumentId, setSelectedDocumentId] = useState("")
   const [activeResponse, setActiveResponse] = useState<AnyRecord>(() => blankResponse(starterIntakeTemplates[0].id, starterIntakeTemplates))
   const [message, setMessage] = useState<string | null>(null)
-  const [encryptedPassword, setEncryptedPassword] = useState("")
-  const [vaultStatus, setVaultStatus] = useState<VaultStatus>("loading")
-  const [vaultPassphrase, setVaultPassphrase] = useState("")
-  const [vaultPasswordInput, setVaultPasswordInput] = useState("")
-  const [vaultConfirmInput, setVaultConfirmInput] = useState("")
-  const [legacyWorkspace, setLegacyWorkspace] = useState<AnyRecord | null>(null)
   const [manualClient, setManualClient] = useState({ displayName: "", email: "", phone: "" })
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const loadedRevisionRef = useRef(-1)
 
   const hydrateWorkspace = (nextWorkspace: AnyRecord) => {
     const normalized = normalizeIntakeWorkspace(nextWorkspace)
@@ -174,27 +158,13 @@ export default function IntakePage() {
   }
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(INTAKE_WORKSPACE_STORAGE_KEY)
-    if (!raw) {
-      setVaultStatus("setup")
+    if (vault.status !== "unlocked" || loadedRevisionRef.current === vault.revision) {
       return
     }
 
-    try {
-      const parsed = JSON.parse(raw)
-      if (isEncryptedIntakeWorkspaceVault(parsed)) {
-        setVaultStatus("locked")
-        return
-      }
-
-      setLegacyWorkspace(normalizeIntakeWorkspace(parsed))
-      setVaultStatus("legacy")
-      setMessage("Existing plaintext intake workspace found. Create a passphrase to encrypt it before continuing.")
-    } catch {
-      setVaultStatus("corrupt")
-      setMessage("This browser has unreadable intake vault data. Reset the local vault only if you have a backup or do not need this browser's intake data.")
-    }
-  }, [])
+    loadedRevisionRef.current = vault.revision
+    hydrateWorkspace(vault.payload.records?.intake?.workspace ?? createDefaultIntakeWorkspace())
+  }, [vault.status, vault.revision, vault.payload])
 
   const activeTemplate = useMemo(() => getTemplate(workspace, selectedTemplateId), [workspace, selectedTemplateId])
   const builderTemplate = useMemo(() => getTemplate(workspace, builderTemplateId), [workspace, builderTemplateId])
@@ -208,24 +178,17 @@ export default function IntakePage() {
   const selectedDocumentTemplate = selectedDocument ? getTemplate(workspace, selectedDocument.templateId) : undefined
   const builderIssues = validateFormDefinition(builderTemplate)
 
-  const persistWorkspace = async (nextWorkspace = workspace, successMessage = "Encrypted intake workspace saved in this browser.") => {
-    if (!vaultPassphrase) {
-      setVaultStatus("locked")
-      setMessage("Unlock the intake vault before saving local clinical documents.")
-      return null
-    }
-
+  const persistWorkspace = async (nextWorkspace = workspace, successMessage = "Intake workspace saved in the encrypted professional-record vault.") => {
     const normalized = normalizeIntakeWorkspace({ ...nextWorkspace, updatedAt: nowIso() })
-    try {
-      const vault = await createEncryptedIntakeWorkspaceVault(normalized, vaultPassphrase)
-      window.localStorage.setItem(INTAKE_WORKSPACE_STORAGE_KEY, JSON.stringify(vault))
+    const saved = await vault.saveIntakeWorkspace(normalized, successMessage)
+    if (saved) {
+      loadedRevisionRef.current = vault.revision + 1
       setWorkspace(normalized)
       setMessage(successMessage)
       return normalized
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not save the encrypted intake vault.")
-      return null
     }
+    setMessage("Could not save the intake workspace. Unlock the professional-record vault and try again.")
+    return null
   }
 
   const updateWorkspace = (updater: (current: AnyRecord) => AnyRecord) => {
@@ -296,7 +259,7 @@ export default function IntakePage() {
       updatedAt: now,
     })
 
-    const savedWorkspace = await persistWorkspace(nextWorkspace, "Form response saved in the encrypted local vault and linked to the local client.")
+    const savedWorkspace = await persistWorkspace(nextWorkspace, "Form response saved in the encrypted professional-record vault and linked to the local client.")
     if (!savedWorkspace) return
     setSelectedClientId(client.id)
     setSelectedDocumentId(document.id)
@@ -475,32 +438,6 @@ export default function IntakePage() {
     }))
   }
 
-  const selectedDocumentPayload = () => {
-    if (!selectedDocument) return null
-    return {
-      document: selectedDocument,
-      client: selectedDocumentClient,
-      template: selectedDocumentTemplate,
-      localFirst: true,
-      notice: "MassageLab did not upload this local clinical document.",
-    }
-  }
-
-  const exportWorkspaceJson = () => {
-    downloadFile(workspaceFilename("json"), JSON.stringify(createWorkspaceExport(workspace), null, 2), "application/json")
-    setMessage("Exported the local intake workspace JSON. MassageLab did not upload it.")
-  }
-
-  const exportSelectedDocumentJson = () => {
-    const payload = selectedDocumentPayload()
-    if (!payload || !selectedDocument) {
-      setMessage("Save a form response before exporting a document.")
-      return
-    }
-    downloadFile(documentFilename(selectedDocument, selectedDocumentClient, "json"), JSON.stringify(payload, null, 2), "application/json")
-    setMessage("Exported the selected local document JSON.")
-  }
-
   const exportSelectedDocumentDoc = () => {
     if (!selectedDocument || !selectedDocumentTemplate) {
       setMessage("Save a form response before exporting a document.")
@@ -516,7 +453,7 @@ export default function IntakePage() {
       createEditableDocumentHtml({ title: selectedDocument.title, body }),
       "application/msword",
     )
-    setMessage("Exported an editable DOC file. MassageLab did not upload it.")
+    setMessage("Created a plaintext DOC file from the unlocked vault. Store and share it carefully.")
   }
 
   const printSelectedDocumentPdf = () => {
@@ -530,160 +467,33 @@ export default function IntakePage() {
       client: selectedDocumentClient,
     })
     const opened = openPrintDocument(createEditableDocumentHtml({ title: selectedDocument.title, body }))
-    setMessage(opened ? "Opened print view. Choose Save as PDF in the browser dialog." : "Could not open print view.")
-  }
-
-  const exportEncryptedBundle = async () => {
-    try {
-      const bundle = await createEncryptedIntakeBundle(createWorkspaceExport(workspace), encryptedPassword)
-      downloadFile(workspaceFilename("mlab"), JSON.stringify(bundle, null, 2), "application/vnd.massagelab.encrypted+json")
-      setMessage("Exported encrypted .mlab bundle. Keep the password separate from the file.")
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not create encrypted export bundle.")
-    }
-  }
-
-  const importWorkspace = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      const parsed = JSON.parse(await file.text())
-      const nextWorkspace = normalizeIntakeWorkspace(parsed)
-      setWorkspace(nextWorkspace)
-      setSelectedTemplateId(nextWorkspace.activeTemplateId)
-      setBuilderTemplateId(nextWorkspace.activeTemplateId)
-      setActiveResponse(blankResponse(nextWorkspace.activeTemplateId, nextWorkspace.templates))
-      setMessage("Imported a local intake workspace JSON. Review it before saving.")
-    } catch {
-      setMessage("Could not import that file. Choose a MassageLab intake workspace JSON export.")
-    } finally {
-      event.target.value = ""
-    }
+    setMessage(opened ? "Opened a plaintext print view. Choose Save as PDF in your browser dialog." : "Could not open print view.")
   }
 
   const clearLocalWorkspace = async () => {
     const nextWorkspace = createDefaultIntakeWorkspace()
-    const savedWorkspace = await persistWorkspace(nextWorkspace, "Encrypted intake workspace cleared. The empty vault remains locked to this passphrase.")
+    const savedWorkspace = await persistWorkspace(nextWorkspace, "Intake workspace cleared in the encrypted professional-record vault.")
     if (!savedWorkspace) return
     setSelectedClientId("")
     setSelectedDocumentId("")
     setActiveResponse(blankResponse(savedWorkspace.activeTemplateId, savedWorkspace.templates))
   }
 
-  const createVaultFromWorkspace = async (sourceWorkspace: AnyRecord, successMessage: string) => {
-    const passphrase = vaultPasswordInput.trim()
-    const confirmation = vaultConfirmInput.trim()
-
-    if (passphrase.length < 8) {
-      setMessage("Intake vault passphrase must be at least 8 characters.")
-      return
-    }
-    if (passphrase !== confirmation) {
-      setMessage("Passphrase confirmation does not match.")
-      return
-    }
-
-    try {
-      const normalized = normalizeIntakeWorkspace(sourceWorkspace)
-      const vault = await createEncryptedIntakeWorkspaceVault(normalized, passphrase)
-      window.localStorage.setItem(INTAKE_WORKSPACE_STORAGE_KEY, JSON.stringify(vault))
-      hydrateWorkspace(normalized)
-      setVaultPassphrase(passphrase)
-      setVaultPasswordInput("")
-      setVaultConfirmInput("")
-      setLegacyWorkspace(null)
-      setVaultStatus("unlocked")
-      setMessage(successMessage)
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not create the encrypted intake vault.")
-    }
-  }
-
-  const unlockVault = async () => {
-    const passphrase = vaultPasswordInput.trim()
-    if (passphrase.length < 8) {
-      setMessage("Enter the intake vault passphrase.")
-      return
-    }
-
-    try {
-      const raw = window.localStorage.getItem(INTAKE_WORKSPACE_STORAGE_KEY)
-      const parsed = raw ? JSON.parse(raw) : null
-      if (!isEncryptedIntakeWorkspaceVault(parsed)) {
-        setVaultStatus(raw ? "legacy" : "setup")
-        setMessage(raw ? "This workspace needs to be encrypted before continuing." : "Create an encrypted intake vault before continuing.")
-        return
-      }
-
-      const nextWorkspace = await decryptEncryptedIntakeWorkspaceVault(parsed, passphrase)
-      hydrateWorkspace(nextWorkspace)
-      setVaultPassphrase(passphrase)
-      setVaultPasswordInput("")
-      setVaultConfirmInput("")
-      setVaultStatus("unlocked")
-      setMessage("Intake vault unlocked for this browser session.")
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not unlock the intake vault.")
-    }
-  }
-
-  const lockVault = () => {
-    hydrateWorkspace(createDefaultIntakeWorkspace())
-    setVaultPassphrase("")
-    setVaultPasswordInput("")
-    setVaultConfirmInput("")
-    setVaultStatus("locked")
-    setMessage("Intake vault locked.")
-  }
-
-  const resetCorruptVault = () => {
-    window.localStorage.removeItem(INTAKE_WORKSPACE_STORAGE_KEY)
-    hydrateWorkspace(createDefaultIntakeWorkspace())
-    setVaultPassphrase("")
-    setVaultPasswordInput("")
-    setVaultConfirmInput("")
-    setLegacyWorkspace(null)
-    setVaultStatus("setup")
-    setMessage("Unreadable local vault data removed. Create a new encrypted intake vault to continue.")
-  }
-
-  if (vaultStatus !== "unlocked") {
-    return (
-      <VaultGatePanel
-        status={vaultStatus}
-        message={message}
-        password={vaultPasswordInput}
-        confirmation={vaultConfirmInput}
-        onPasswordChange={setVaultPasswordInput}
-        onConfirmationChange={setVaultConfirmInput}
-        onUnlockVault={unlockVault}
-        onCreateVault={() => createVaultFromWorkspace(createDefaultIntakeWorkspace(), "Encrypted intake vault created and unlocked for this browser session.")}
-        onEncryptLegacyWorkspace={() => createVaultFromWorkspace(legacyWorkspace ?? createDefaultIntakeWorkspace(), "Existing plaintext intake workspace encrypted and unlocked for this browser session.")}
-        onResetCorruptVault={resetCorruptVault}
-      />
-    )
-  }
-
   return (
-    <AppPageShell width="full">
+    <ProfessionalRecordVaultGate>
+      <AppPageShell width="full">
       <AppSurface
         title="Intake Form Builder"
-        description="Build, fill, review, and export local-first intake documents inside an encrypted browser vault."
+        description="Build, fill, review, and export local-first intake documents inside the encrypted professional-record vault."
         icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />}
         className={appCalloutClassName}
       >
         <div className="grid gap-3 md:grid-cols-3">
-          <AppStatusTile label="Storage" value="Encrypted local vault" description="Unlocked for this browser session; no clinical API upload." />
+          <AppStatusTile label="Storage" value="Professional-record vault" description="Unlocked for this browser session; no clinical API upload." />
           <AppStatusTile label="Templates" value={`${workspace.templates.filter((template: AnyRecord) => !template.archived).length}`} description="Built-in and local custom forms." />
           <AppStatusTile label="Documents" value={`${workspace.documents.length}`} description="Linked local form responses." />
         </div>
-        <div className="mt-4">
-          <Button type="button" variant="outline" onClick={lockVault}>
-            <KeyRound className="mr-2 h-4 w-4" />
-            Lock vault
-          </Button>
-        </div>
+        <ProfessionalRecordVaultToolbar className="mt-4" />
       </AppSurface>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
@@ -713,21 +523,13 @@ export default function IntakePage() {
             selectedDocumentId={selectedDocument?.id ?? ""}
             manualClient={manualClient}
             message={message}
-            encryptedPassword={encryptedPassword}
-            fileInputRef={fileInputRef}
             onSelectClient={setSelectedClientId}
             onSelectDocument={setSelectedDocumentId}
             onManualClientChange={setManualClient}
             onAddManualClient={addManualClient}
             onSaveWorkspace={() => persistWorkspace()}
-            onImportWorkspace={() => fileInputRef.current?.click()}
-            onImportWorkspaceFile={importWorkspace}
-            onExportWorkspaceJson={exportWorkspaceJson}
-            onExportSelectedDocumentJson={exportSelectedDocumentJson}
             onExportSelectedDocumentDoc={exportSelectedDocumentDoc}
             onPrintSelectedDocumentPdf={printSelectedDocumentPdf}
-            onEncryptedPasswordChange={setEncryptedPassword}
-            onExportEncryptedBundle={exportEncryptedBundle}
             onClearLocalWorkspace={clearLocalWorkspace}
           />
         </TabsContent>
@@ -771,125 +573,8 @@ export default function IntakePage() {
           <ClientAccountPanel client={selectedClient} />
         </TabsContent>
       </Tabs>
-    </AppPageShell>
-  )
-}
-
-function VaultGatePanel({
-  status,
-  message,
-  password,
-  confirmation,
-  onPasswordChange,
-  onConfirmationChange,
-  onUnlockVault,
-  onCreateVault,
-  onEncryptLegacyWorkspace,
-  onResetCorruptVault,
-}: AnyRecord) {
-  const isSetup = status === "setup"
-  const isLegacy = status === "legacy"
-  const isLocked = status === "locked"
-  const isCorrupt = status === "corrupt"
-  const title = isSetup
-    ? "Create encrypted vault"
-    : isLegacy
-      ? "Encrypt existing workspace"
-      : isCorrupt
-        ? "Intake vault needs attention"
-        : "Unlock intake vault"
-  const description = isSetup
-    ? "Create an offline passphrase for this browser before making or viewing intake documents."
-    : isLegacy
-      ? "A previous plaintext local workspace exists. Encrypt it with a passphrase before continuing."
-      : isCorrupt
-        ? "MassageLab could not read this browser's intake vault data."
-        : "Enter the passphrase to unlock local intake documents for this browser session."
-
-  return (
-    <AppPageShell width="narrow">
-      <AppSurface
-        title={title}
-        description={description}
-        icon={<KeyRound className="h-5 w-5" aria-hidden="true" />}
-        className={appCalloutClassName}
-      >
-        <AppNotice
-          title="Local professional-record vault"
-          description="The intake module stays locked until the therapist unlocks it. The passphrase is not sent to MassageLab and cannot be recovered by the server."
-        />
-
-        {status === "loading" ? (
-          <p className="text-sm text-muted-foreground">Checking this browser&apos;s intake vault...</p>
-        ) : null}
-
-        {isLocked ? (
-          <AppInset className="grid gap-3 p-4">
-            <div className="space-y-2">
-              <Label htmlFor="intakeVaultPassword">Vault passphrase</Label>
-              <Input
-                id="intakeVaultPassword"
-                type="password"
-                value={password}
-                onChange={(event) => onPasswordChange(event.target.value)}
-                autoComplete="current-password"
-              />
-            </div>
-            <Button type="button" onClick={onUnlockVault} className="justify-self-start bg-primary hover:bg-brand-orange-glow">
-              <KeyRound className="mr-2 h-4 w-4" />
-              Unlock vault
-            </Button>
-          </AppInset>
-        ) : null}
-
-        {isSetup || isLegacy ? (
-          <AppInset className="grid gap-3 p-4">
-            <div className="space-y-2">
-              <Label htmlFor="newIntakeVaultPassword">New vault passphrase</Label>
-              <Input
-                id="newIntakeVaultPassword"
-                type="password"
-                value={password}
-                onChange={(event) => onPasswordChange(event.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmIntakeVaultPassword">Confirm passphrase</Label>
-              <Input
-                id="confirmIntakeVaultPassword"
-                type="password"
-                value={confirmation}
-                onChange={(event) => onConfirmationChange(event.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-            <Button
-              type="button"
-              onClick={isLegacy ? onEncryptLegacyWorkspace : onCreateVault}
-              className="justify-self-start bg-primary hover:bg-brand-orange-glow"
-            >
-              <KeyRound className="mr-2 h-4 w-4" />
-              {isLegacy ? "Encrypt existing workspace" : "Create encrypted vault"}
-            </Button>
-          </AppInset>
-        ) : null}
-
-        {isCorrupt ? (
-          <AppInset className="grid gap-3 p-4">
-            <p className="text-sm text-muted-foreground">
-              If you have an exported backup, keep it outside this browser before resetting. Resetting removes this unreadable local vault entry only.
-            </p>
-            <Button type="button" variant="outline" onClick={onResetCorruptVault} className="justify-self-start">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Reset local vault
-            </Button>
-          </AppInset>
-        ) : null}
-
-        {message ? <p className="text-sm text-brand-orange">{message}</p> : null}
-      </AppSurface>
-    </AppPageShell>
+      </AppPageShell>
+    </ProfessionalRecordVaultGate>
   )
 }
 
@@ -899,21 +584,13 @@ function DashboardPanel({
   selectedDocumentId,
   manualClient,
   message,
-  encryptedPassword,
-  fileInputRef,
   onSelectClient,
   onSelectDocument,
   onManualClientChange,
   onAddManualClient,
   onSaveWorkspace,
-  onImportWorkspace,
-  onImportWorkspaceFile,
-  onExportWorkspaceJson,
-  onExportSelectedDocumentJson,
   onExportSelectedDocumentDoc,
   onPrintSelectedDocumentPdf,
-  onEncryptedPasswordChange,
-  onExportEncryptedBundle,
   onClearLocalWorkspace,
 }: AnyRecord) {
   const selectedClient = workspace.clients.find((client: AnyRecord) => client.id === selectedClientId)
@@ -925,22 +602,13 @@ function DashboardPanel({
     <>
       <AppSurface
         title="Therapist local dashboard"
-        description="Review local clients and linked clinical documents stored in this browser."
+        description="Review local clients and linked clinical documents stored in the encrypted browser vault."
         icon={<LayoutDashboard className="h-5 w-5" aria-hidden="true" />}
       >
-        <input ref={fileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={onImportWorkspaceFile} />
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={onImportWorkspace}>
-            <FolderOpen className="mr-2 h-4 w-4" />
-            Import workspace
-          </Button>
           <Button type="button" variant="outline" onClick={onSaveWorkspace}>
             <Save className="mr-2 h-4 w-4" />
-            Save local workspace
-          </Button>
-          <Button type="button" onClick={onExportWorkspaceJson} className="bg-primary hover:bg-brand-orange-glow">
-            <Download className="mr-2 h-4 w-4" />
-            Export workspace JSON
+            Save encrypted workspace
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -953,7 +621,7 @@ function DashboardPanel({
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear this browser&apos;s intake workspace?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This removes local clients, templates, and documents from this browser. Export anything needed before clearing.
+                  This removes local clients, templates, and intake documents from the encrypted vault in this browser.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -1031,40 +699,25 @@ function DashboardPanel({
       </AppSurface>
 
       <AppSurface
-        title="Local document exports"
-        description="Generate user-controlled files from the selected local document or the whole workspace."
+        title="Document output and vault transfer"
+        description="Encrypted `.mlab` vault bundles are the normal transfer format. DOC and PDF outputs are plaintext and require confirmation."
         icon={<FileText className="h-5 w-5" aria-hidden="true" />}
       >
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={onExportSelectedDocumentJson}>
-            <Download className="mr-2 h-4 w-4" />
-            Export document JSON
-          </Button>
-          <Button type="button" variant="outline" onClick={onExportSelectedDocumentDoc}>
-            <FileText className="mr-2 h-4 w-4" />
-            Export DOC
-          </Button>
-          <Button type="button" variant="outline" onClick={onPrintSelectedDocumentPdf}>
-            <Printer className="mr-2 h-4 w-4" />
-            Save PDF
-          </Button>
+          <PlaintextOutputWarningAction
+            label="Export DOC"
+            description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."
+            icon={<FileText className="mr-2 h-4 w-4" />}
+            onConfirm={onExportSelectedDocumentDoc}
+          />
+          <PlaintextOutputWarningAction
+            label="Save PDF"
+            description="This opens an unencrypted print view outside the vault. Use encrypted vault bundles for normal transfer."
+            icon={<Printer className="mr-2 h-4 w-4" />}
+            onConfirm={onPrintSelectedDocumentPdf}
+          />
         </div>
-        <AppInset className="grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="encryptedBundlePassword">Encrypted export password</Label>
-            <Input
-              id="encryptedBundlePassword"
-              type="password"
-              value={encryptedPassword}
-              onChange={(event) => onEncryptedPasswordChange(event.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-          <Button type="button" onClick={onExportEncryptedBundle} className="bg-primary hover:bg-brand-orange-glow">
-            <KeyRound className="mr-2 h-4 w-4" />
-            Export encrypted bundle
-          </Button>
-        </AppInset>
+        <ProfessionalRecordVaultTransferControls idPrefix="intakeVault" />
         {message ? <p className="text-sm text-brand-orange">{message}</p> : null}
       </AppSurface>
     </>

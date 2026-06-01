@@ -28,4 +28,34 @@ describe("local note client safety guards", () => {
     assert.match(source, /objectiveEntries: Array\.isArray\(data\.objectiveEntries\)/)
     assert.match(source, /techniques: Array\.isArray\(data\.assessment\?\.techniques\)/)
   })
+
+  it("routes therapist documentation through the shared professional-record vault", async () => {
+    for (const route of ["soap", "intake", "journal", "rom"]) {
+      const source = await readFile(new URL(`../app/notes/${route}/client-page.tsx`, import.meta.url), "utf8")
+
+      assert.match(source, /ProfessionalRecordVaultGate/)
+      assert.doesNotMatch(source, /localStorage\.(?:getItem|setItem|removeItem)/)
+      assert.doesNotMatch(source, /parseLocalDocumentJson/)
+      assert.doesNotMatch(source, /massagelab-soap-draft/)
+      assert.doesNotMatch(source, /massagelab-client-journal-draft/)
+      assert.doesNotMatch(source, /massagelab-rom-session-draft/)
+      assert.doesNotMatch(source, /Export JSON/)
+      assert.doesNotMatch(source, /Research JSON/)
+      assert.doesNotMatch(source, /fetch\s*\(/)
+      assert.doesNotMatch(source, /\/api\/clinical\/sync/)
+      assert.doesNotMatch(source, /\/api\/clients\//)
+      assert.doesNotMatch(source, /\/api\/account\/preferences/)
+      assert.doesNotMatch(source, /prisma/i)
+    }
+  })
+
+  it("keeps the vault passphrase in React memory only", async () => {
+    const source = await readFile(new URL("../app/notes/professional-record-vault-provider.tsx", import.meta.url), "utf8")
+
+    assert.match(source, /PROFESSIONAL_RECORD_VAULT_STORAGE_KEY/)
+    assert.match(source, /useState\(""\)/)
+    assert.doesNotMatch(source, /sessionStorage/)
+    assert.doesNotMatch(source, /document\.cookie/)
+    assert.doesNotMatch(source, /account\/preferences/)
+  })
 })
