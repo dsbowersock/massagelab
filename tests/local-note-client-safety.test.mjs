@@ -34,6 +34,7 @@ describe("local note client safety guards", () => {
       const source = await readFile(new URL(`../app/notes/${route}/client-page.tsx`, import.meta.url), "utf8")
 
       assert.match(source, /ProfessionalRecordVaultGate/)
+      assert.match(source, /PlaintextOutputWarningAction/)
       assert.doesNotMatch(source, /localStorage\.(?:getItem|setItem|removeItem)/)
       assert.doesNotMatch(source, /parseLocalDocumentJson/)
       assert.doesNotMatch(source, /massagelab-soap-draft/)

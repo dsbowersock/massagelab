@@ -11,6 +11,7 @@ import {
   decryptEncryptedProfessionalRecordBundle,
   decryptEncryptedProfessionalRecordVault,
   isEncryptedProfessionalRecordVault,
+  mergeProfessionalRecordVaultPayloadChanges,
   setProfessionalRecordVaultDraft,
   setProfessionalRecordVaultIntakeWorkspace,
 } from "../lib/professional-record-vault.js"
@@ -141,5 +142,25 @@ describe("professional record vault", () => {
 
     assert.equal(payload.records.intake.workspace.clients[0].displayName, "Shared Intake Client")
     assert.ok(payload.records.intake.workspace.templates.length > 0)
+  })
+
+  it("merges stale tab saves into the latest stored vault payload", () => {
+    const base = createEmptyProfessionalRecordVaultPayload("2026-05-29T12:00:00.000Z")
+    const currentStored = setProfessionalRecordVaultDraft(base, "soap", {
+      schemaVersion: 2,
+      noteType: "soap",
+      clientName: "Saved in another tab",
+    })
+    const staleTabNext = setProfessionalRecordVaultDraft(base, "journal", {
+      schemaVersion: 1,
+      documentType: "client-journal",
+      clientName: "Saved in this tab",
+      entries: [],
+    })
+
+    const merged = mergeProfessionalRecordVaultPayloadChanges(base, staleTabNext, currentStored)
+
+    assert.equal(merged.records.soap.draft.clientName, "Saved in another tab")
+    assert.equal(merged.records.journal.draft.clientName, "Saved in this tab")
   })
 })

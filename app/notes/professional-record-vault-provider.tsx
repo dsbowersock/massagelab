@@ -26,6 +26,7 @@ import {
   decryptEncryptedProfessionalRecordBundle,
   decryptEncryptedProfessionalRecordVault,
   isEncryptedProfessionalRecordVault,
+  mergeProfessionalRecordVaultPayloadChanges,
   normalizeProfessionalRecordVaultPayload,
   setProfessionalRecordVaultDraft,
   setProfessionalRecordVaultIntakeWorkspace,
@@ -50,7 +51,7 @@ type ProfessionalRecordVaultContextValue = {
   unlockVault: (passphrase: string) => Promise<boolean>
   lockVault: () => void
   resetCorruptVault: () => void
-  persistPayload: (nextPayload: AnyRecord, successMessage?: string) => Promise<AnyRecord | null>
+  persistPayload: (nextPayload: AnyRecord, successMessage?: string, options?: { mergeCurrentStored?: boolean }) => Promise<AnyRecord | null>
   saveDraft: (recordType: "soap" | "journal" | "rom", draft: AnyRecord | null, successMessage?: string) => Promise<AnyRecord | null>
   saveIntakeWorkspace: (workspace: AnyRecord, successMessage?: string) => Promise<AnyRecord | null>
   exportEncryptedBundle: (password: string) => Promise<AnyRecord | null>
@@ -107,7 +108,11 @@ export function ProfessionalRecordVaultProvider({ children }: { children: ReactN
     inspectStoredVault()
   }, [inspectStoredVault])
 
-  const persistPayload = async (nextPayload: AnyRecord, successMessage = "Professional-record vault saved in this browser.") => {
+  const persistPayload = async (
+    nextPayload: AnyRecord,
+    successMessage = "Professional-record vault saved in this browser.",
+    options: { mergeCurrentStored?: boolean } = {},
+  ) => {
     if (!passphrase) {
       setStatus("locked")
       setPayload(createEmptyProfessionalRecordVaultPayload())
@@ -117,12 +122,27 @@ export function ProfessionalRecordVaultProvider({ children }: { children: ReactN
 
     try {
       const normalized = normalizeProfessionalRecordVaultPayload(nextPayload)
-      const vault = await createEncryptedProfessionalRecordVault(normalized, passphrase, {
-        createdAt: vaultCreatedAt,
+      let payloadToSave = normalized
+      let createdAt = vaultCreatedAt
+      const raw = window.localStorage.getItem(PROFESSIONAL_RECORD_VAULT_STORAGE_KEY)
+
+      if (raw && options.mergeCurrentStored !== false) {
+        const parsed = JSON.parse(raw)
+        if (!isEncryptedProfessionalRecordVault(parsed)) {
+          throw new Error("This browser's professional-record vault needs attention before saving.")
+        }
+
+        const currentStoredPayload = await decryptEncryptedProfessionalRecordVault(parsed, passphrase)
+        payloadToSave = mergeProfessionalRecordVaultPayloadChanges(payload, normalized, currentStoredPayload)
+        createdAt = typeof parsed.createdAt === "string" ? parsed.createdAt : createdAt
+      }
+
+      const vault = await createEncryptedProfessionalRecordVault(payloadToSave, passphrase, {
+        createdAt,
       })
       window.localStorage.setItem(PROFESSIONAL_RECORD_VAULT_STORAGE_KEY, JSON.stringify(vault))
       setVaultCreatedAt(vault.createdAt)
-      setPayload(normalized)
+      setPayload(payloadToSave)
       setRevision((current) => current + 1)
       setStatus("unlocked")
       setMessage(successMessage)
@@ -256,7 +276,7 @@ export function ProfessionalRecordVaultProvider({ children }: { children: ReactN
     try {
       const bundle = JSON.parse(text)
       const importedPayload = await decryptEncryptedProfessionalRecordBundle(bundle, password)
-      return persistPayload(importedPayload, "Encrypted professional-record bundle imported into this browser vault.")
+      return persistPayload(importedPayload, "Encrypted professional-record bundle imported into this browser vault.", { mergeCurrentStored: false })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not import that encrypted professional-record bundle.")
       return null
