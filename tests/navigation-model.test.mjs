@@ -175,8 +175,8 @@ describe("Navigation IA model", () => {
 
     assert.equal(primaryHrefs(supporterNavigation).includes("/notes"), true)
     assert.equal(primaryHrefs(studentNavigation).includes("/notes"), true)
-    assert.equal(supporterNavigation.calendarMenuActions.some((route) => route.href.startsWith("/notes/")), false)
-    assert.equal(studentNavigation.calendarMenuActions.some((route) => route.href.startsWith("/notes/")), false)
+    assert.equal(primaryHrefs(supporterNavigation).some((href) => href.startsWith("/notes/")), false)
+    assert.equal(primaryHrefs(studentNavigation).some((href) => href.startsWith("/notes/")), false)
   })
 
   it("does not place therapist professional-record previews in the client sidebar", () => {
@@ -270,5 +270,28 @@ describe("Navigation IA model", () => {
     ].filter((route) => route.visibleInSidebar)
 
     assert.equal(allSidebarRoutes.some((route) => /^\/notes\/(soap|intake|journal|rom)/.test(route.href)), false)
+  })
+
+  it("warns about unknown practice roles without granting navigation access", () => {
+    const warnings = []
+    const originalWarn = console.warn
+    console.warn = (...args) => warnings.push(args)
+
+    try {
+      const navigation = resolveNavigation({
+        authState: "signed-in",
+        roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+        practiceRoles: [{ practiceId: "practice-1", role: "MANAGER" }],
+      })
+
+      assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), ["/calendar"])
+      assert.equal(warnings.length, process.env.NODE_ENV === "production" ? 0 : 1)
+      if (process.env.NODE_ENV !== "production") {
+        assert.equal(warnings[0][0], "Unknown practice role in navigation context")
+        assert.deepEqual(warnings[0][1], { originalRole: "MANAGER", normalizedRole: "MANAGER" })
+      }
+    } finally {
+      console.warn = originalWarn
+    }
   })
 })

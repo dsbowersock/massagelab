@@ -71,7 +71,7 @@ async function loadSidebarFeatureKeys(userId: string, capabilities?: Record<stri
     const entitlements = await getUserEntitlementState(prisma, userId)
     return entitlements.features
   } catch (error) {
-    console.error("Failed to load sidebar entitlement context", { userId, error })
+    logSidebarContextLoadError("Failed to load sidebar entitlement context", error)
     return featureKeysFromCapabilities(capabilities)
   }
 }
@@ -84,8 +84,25 @@ async function loadSidebarPracticeRoles(userId: string) {
       orderBy: { createdAt: "asc" },
     })
   } catch (error) {
-    console.error("Failed to load sidebar practice role context", { userId, error })
+    logSidebarContextLoadError("Failed to load sidebar practice role context", error)
     return []
+  }
+}
+
+function logSidebarContextLoadError(message: string, error: unknown) {
+  console.error(message, { error: summarizeServerError(error) })
+}
+
+function summarizeServerError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return { name: typeof error }
+  }
+
+  const maybeError = error as { name?: unknown; code?: unknown }
+
+  return {
+    name: typeof maybeError.name === "string" ? maybeError.name : "Error",
+    code: typeof maybeError.code === "string" ? maybeError.code : undefined,
   }
 }
 
