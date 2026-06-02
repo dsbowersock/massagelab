@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/sheet"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { calendarSidebarActions, isNavigationRouteActive } from "@/lib/navigation"
+import { isNavigationRouteActive } from "@/lib/navigation"
 
 const routeIcons = {
   CalendarCog,
@@ -53,10 +53,8 @@ type CalendarAction = {
   id: string
   href: string
   label: string
-  icon: keyof typeof routeIcons
+  icon: string
 }
-
-const calendarActions = calendarSidebarActions as CalendarAction[]
 
 type TopbarBreadcrumb = {
   label: string
@@ -220,9 +218,11 @@ function parseCalendarDateParam(value: string | null) {
 }
 
 function CalendarDrawerButton({
+  calendarActions,
   user,
   side,
 }: {
+  calendarActions: CalendarAction[]
   user: SidebarUser
   side: "left" | "right"
 }) {
@@ -331,7 +331,7 @@ function CalendarDrawerButton({
 
               <div className="grid gap-1">
                 {calendarActions.map((action) => {
-                  const Icon = routeIcons[action.icon] ?? CalendarDays
+                  const Icon = routeIcons[action.icon as keyof typeof routeIcons] ?? CalendarDays
                   const active = action.href === "/calendar"
                     ? pathname === "/calendar"
                     : isNavigationRouteActive(pathname, action.href)
@@ -374,7 +374,13 @@ function CalendarDrawerButton({
   )
 }
 
-export function CalendarOperatorTopBar({ user }: { user: SidebarUser }) {
+export function CalendarOperatorTopBar({
+  calendarActions,
+  user,
+}: {
+  calendarActions: CalendarAction[]
+  user: SidebarUser
+}) {
   const pathname = usePathname() ?? "/"
   const { settings } = useSettings()
   const { renderMode, state, toggleSidebar } = useSidebar()
@@ -476,7 +482,7 @@ export function CalendarOperatorTopBar({ user }: { user: SidebarUser }) {
   )
 
   const calendarControl = (
-    <CalendarDrawerButton user={user} side={sidebarIsRight ? "left" : "right"} />
+    <CalendarDrawerButton calendarActions={calendarActions} user={user} side={sidebarIsRight ? "left" : "right"} />
   )
   const oppositeControls = (
     <div className="flex shrink-0 items-center gap-2">

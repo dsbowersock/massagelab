@@ -65,13 +65,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
-import {
-  accountMenuRoutes,
-  calendarMenuActions,
-  isNavigationRouteActive,
-  primaryNavigationGroups,
-  secondaryNavigationRoutes,
-} from "@/lib/navigation"
+import { isNavigationRouteActive } from "@/lib/navigation"
 import { shouldExpandSidebarFromRail } from "@/lib/sidebar-layout"
 import { cn } from "@/lib/utils"
 
@@ -162,10 +156,13 @@ type NavigationGroup = {
   routes: NavigationRoute[]
 }
 
-const primaryGroups = primaryNavigationGroups as NavigationGroup[]
-const secondaryRoutes = secondaryNavigationRoutes as NavigationRoute[]
-const accountRoutes = accountMenuRoutes as NavigationRoute[]
-const calendarMenuRoutes = calendarMenuActions as NavigationRoute[]
+export type SidebarNavigation = {
+  primaryNavigationGroups: NavigationGroup[]
+  secondaryNavigationRoutes: NavigationRoute[]
+  accountMenuRoutes: NavigationRoute[]
+  calendarSidebarActions: NavigationRoute[]
+  calendarMenuActions: NavigationRoute[]
+}
 
 function initials(name: string, email: string) {
   const source = name || email
@@ -245,13 +242,23 @@ function SidebarRoute({
   )
 }
 
-function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: "left" | "right" }) {
+function NavPrimary({
+  calendarMenuRoutes,
+  pathname,
+  primaryGroups,
+  tooltipSide,
+}: {
+  calendarMenuRoutes: NavigationRoute[]
+  pathname: string
+  primaryGroups: NavigationGroup[]
+  tooltipSide: "left" | "right"
+}) {
   const activeGroupIds = React.useMemo(() => {
     return primaryGroups
       .filter((group) => group.id !== "home")
       .filter((group) => group.routes.some((route) => isNavigationRouteActive(pathname, route.href)))
       .map((group) => group.id)
-  }, [pathname])
+  }, [pathname, primaryGroups])
   const activeGroupKey = activeGroupIds.join("|")
   const [openGroupIds, setOpenGroupIds] = React.useState<Set<string>>(() => new Set(activeGroupIds))
 
@@ -299,7 +306,7 @@ function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: 
                 <SidebarMenu>
                   {group.routes.map((route) => (
                     route.id === "calendar" ? (
-                      <CalendarSidebarRoute key={route.id} pathname={pathname} tooltipSide={tooltipSide} />
+                      <CalendarSidebarRoute key={route.id} calendarMenuRoutes={calendarMenuRoutes} pathname={pathname} tooltipSide={tooltipSide} />
                     ) : (
                       <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
                     )
@@ -330,8 +337,8 @@ function NavPrimary({ pathname, tooltipSide }: { pathname: string; tooltipSide: 
                   <SidebarMenu>
                     {group.routes.map((route) => (
                       route.id === "calendar" ? (
-                        <CalendarSidebarRoute key={route.id} pathname={pathname} tooltipSide={tooltipSide} />
-                      ) : (
+                        <CalendarSidebarRoute key={route.id} calendarMenuRoutes={calendarMenuRoutes} pathname={pathname} tooltipSide={tooltipSide} />
+                    ) : (
                         <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
                       )
                     ))}
@@ -399,9 +406,11 @@ function CalendarRequestBadges({
 }
 
 function CalendarSidebarRoute({
+  calendarMenuRoutes,
   pathname,
   tooltipSide,
 }: {
+  calendarMenuRoutes: NavigationRoute[]
   pathname: string
   tooltipSide: "left" | "right"
 }) {
@@ -431,40 +440,50 @@ function CalendarSidebarRoute({
         pendingAppointmentRequestCount={pendingAppointmentRequestCount}
         openWaitlistEntryCount={openWaitlistEntryCount}
       />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuAction showOnHover aria-label="Calendar actions" data-slot="menu-action-trigger">
-            <MoreHorizontal />
-          </SidebarMenuAction>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          data-sidebar-floating="true"
-          side={menuSide}
-          align={menuAlign}
-          sideOffset={4}
-          className="min-w-56"
-        >
-          <DropdownMenuLabel>Calendar actions</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {calendarMenuRoutes.map((route) => {
-            const Icon = routeIcons[route.icon] ?? CalendarDays
+      {calendarMenuRoutes.length > 0 ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuAction showOnHover aria-label="Calendar actions" data-slot="menu-action-trigger">
+              <MoreHorizontal />
+            </SidebarMenuAction>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            data-sidebar-floating="true"
+            side={menuSide}
+            align={menuAlign}
+            sideOffset={4}
+            className="min-w-56"
+          >
+            <DropdownMenuLabel>Calendar actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {calendarMenuRoutes.map((route) => {
+              const Icon = routeIcons[route.icon] ?? CalendarDays
 
-            return (
-              <DropdownMenuItem key={route.id} asChild>
-                <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
-                  <Icon className="mr-2 h-4 w-4" />
-                  {route.label}
-                </Link>
-              </DropdownMenuItem>
-            )
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              return (
+                <DropdownMenuItem key={route.id} asChild>
+                  <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                    <Icon className="mr-2 h-4 w-4" />
+                    {route.label}
+                  </Link>
+                </DropdownMenuItem>
+              )
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </SidebarMenuItem>
   )
 }
 
-function NavSecondary({ pathname, compact = false }: { pathname: string; compact?: boolean }) {
+function NavSecondary({
+  compact = false,
+  pathname,
+  secondaryRoutes,
+}: {
+  compact?: boolean
+  pathname: string
+  secondaryRoutes: NavigationRoute[]
+}) {
   const { navigateFromSidebar } = useSidebarNavigation()
 
   if (secondaryRoutes.length === 0) {
@@ -500,7 +519,17 @@ function NavSecondary({ pathname, compact = false }: { pathname: string; compact
   )
 }
 
-function AccountMenu({ user, pathname, compact = false }: { user: SidebarUser; pathname: string; compact?: boolean }) {
+function AccountMenu({
+  accountRoutes,
+  compact = false,
+  pathname,
+  user,
+}: {
+  accountRoutes: NavigationRoute[]
+  compact?: boolean
+  pathname: string
+  user: SidebarUser
+}) {
   const { isMobile } = useSidebar()
   const { settings } = useSettings()
   const { closeMobileSidebar, navigateFromSidebar } = useSidebarNavigation()
@@ -667,8 +696,10 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
 }
 
 export function AppSidebarClient({
+  navigation,
   user,
 }: {
+  navigation: SidebarNavigation
   user: SidebarUser
 }) {
   const pathname = usePathname() ?? ""
@@ -746,7 +777,12 @@ export function AppSidebarClient({
               "min-h-0 overflow-auto",
               settings.sidebarPosition === "right" && "group-data-[state=expanded]:order-2",
             )}>
-              <NavPrimary pathname={pathname} tooltipSide={tooltipSide} />
+              <NavPrimary
+                calendarMenuRoutes={navigation.calendarMenuActions}
+                pathname={pathname}
+                primaryGroups={navigation.primaryNavigationGroups}
+                tooltipSide={tooltipSide}
+              />
             </div>
             <div
               className={cn(
@@ -758,23 +794,28 @@ export function AppSidebarClient({
               )}
             >
               <div className="flex flex-col gap-2">
-                <NavSecondary pathname={pathname} compact />
-                <AccountMenu user={user} pathname={pathname} compact />
+                <NavSecondary pathname={pathname} secondaryRoutes={navigation.secondaryNavigationRoutes} compact />
+                <AccountMenu accountRoutes={navigation.accountMenuRoutes} user={user} pathname={pathname} compact />
               </div>
             </div>
           </SidebarContent>
           <SidebarFooter className="group-data-[state=expanded]:hidden">
-            <AccountMenu user={user} pathname={pathname} compact />
+            <AccountMenu accountRoutes={navigation.accountMenuRoutes} user={user} pathname={pathname} compact />
           </SidebarFooter>
         </>
       ) : (
         <>
           <SidebarContent className="gap-0">
-            <NavPrimary pathname={pathname} tooltipSide={tooltipSide} />
+            <NavPrimary
+              calendarMenuRoutes={navigation.calendarMenuActions}
+              pathname={pathname}
+              primaryGroups={navigation.primaryNavigationGroups}
+              tooltipSide={tooltipSide}
+            />
           </SidebarContent>
           <SidebarFooter className={cn(isDrawer && "gap-2 border-t border-sidebar-border")}>
-            <NavSecondary pathname={pathname} />
-            <AccountMenu user={user} pathname={pathname} />
+            <NavSecondary pathname={pathname} secondaryRoutes={navigation.secondaryNavigationRoutes} />
+            <AccountMenu accountRoutes={navigation.accountMenuRoutes} user={user} pathname={pathname} />
           </SidebarFooter>
         </>
       )}
