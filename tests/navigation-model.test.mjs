@@ -276,19 +276,24 @@ describe("Navigation IA model", () => {
     const warnings = []
     const originalWarn = console.warn
     console.warn = (...args) => warnings.push(args)
+    const context = {
+      authState: "signed-in",
+      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+      practiceRoles: [{ practiceId: "practice-1", role: "MANAGER" }],
+    }
 
     try {
-      const navigation = resolveNavigation({
-        authState: "signed-in",
-        roleAssignments: [{ role: "USER", status: "VERIFIED" }],
-        practiceRoles: [{ practiceId: "practice-1", role: "MANAGER" }],
-      })
+      const navigation = resolveNavigation(context)
+      const repeatedNavigation = resolveNavigation(context)
 
       assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), ["/calendar"])
-      assert.equal(warnings.length, process.env.NODE_ENV === "production" ? 0 : 1)
+      assert.deepEqual(repeatedNavigation.calendarSidebarActions.map((route) => route.href), ["/calendar"])
+      assert.equal(warnings.length, process.env.NODE_ENV === "production" ? 0 : 2)
       if (process.env.NODE_ENV !== "production") {
         assert.equal(warnings[0][0], "Unknown practice role in navigation context")
         assert.deepEqual(warnings[0][1], { originalRole: "MANAGER", normalizedRole: "MANAGER" })
+        assert.equal(warnings[1][0], "Unknown practice role in navigation context")
+        assert.deepEqual(warnings[1][1], { originalRole: "MANAGER", normalizedRole: "MANAGER" })
       }
     } finally {
       console.warn = originalWarn
