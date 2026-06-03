@@ -7,7 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus is the local-first professional-record framework with one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and role-aware shell/navigation structure before broader portal expansion.
+- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus is the local-first professional-record framework with one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and role-aware shell/navigation structure before broader portal expansion. The next documentation workflow should distinguish full initial intake from shorter follow-up intake, then carry therapist-reviewed intake details into SOAP drafting on the same device.
 - Current-state source of truth: [project-state.md](project-state.md).
 - Database status: Prisma schema validates; the configured Neon/Postgres database is up to date with 19 migrations as of 2026-05-27.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and ROM now use one encrypted browser vault that requires therapist passphrase unlock before viewing or saving documents. Privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
@@ -27,7 +27,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | Completed | P2 | Add calendar service catalog and availability readiness | [Calendar wiki](wiki/calendar-creation-flows.md) | Calendar migrations are applied; services have variants, resources, operational policy fields, scheduling snapshots, and resource conflict checks for appointments, classes, and public booking. |
 | Completed | P2 | Build operator calendar workspace | [Calendar wiki](wiki/calendar-creation-flows.md) | `/calendar` uses a draggable FullCalendar workspace with provider view preferences, server-validated rescheduling, advanced provider availability, multi-service appointment composition, and clinical-rich service template references that avoid client-specific PHI. |
 | Completed | P1 | Consolidate project source of truth | [Project state](project-state.md), [Superpowers plan](superpowers/plans/2026-05-27-project-source-of-truth-consolidation.md) | `docs/project-state.md` is the read-first current-state file; `docs/project-log.md` remains chronological history; README, wiki, roadmap, TODO, and agent instructions point to the same convention. |
-| Active | P2 | Build local-first client intake and tablet handoff workflow | [Project state](project-state.md), [Local-first forms plan](superpowers/plans/2026-05-27-local-first-client-intake-forms.md), [Intake form-builder plan](superpowers/plans/2026-05-28-intake-form-builder-local-documents-v1.md), [Privacy-first records plan](superpowers/plans/2026-05-30-privacy-first-records-framework.md), [Privacy wiki](wiki/privacy-and-phi.md) | Client-facing intake works comfortably on a tablet, form templates are locally configurable, pain/discomfort maps can be reused before sessions, local clients/documents are linked in-browser, professional records are stored in the encrypted local vault, exports are user-controlled, and no clinical content is uploaded. |
+| Active | P2 | Build local-first client intake and SOAP handoff workflow | [Project state](project-state.md), [Intake-to-SOAP plan](superpowers/plans/2026-06-03-intake-to-soap-continuity.md), [Local-first forms plan](superpowers/plans/2026-05-27-local-first-client-intake-forms.md), [Intake form-builder plan](superpowers/plans/2026-05-28-intake-form-builder-local-documents-v1.md), [Privacy-first records plan](superpowers/plans/2026-05-30-privacy-first-records-framework.md), [Privacy wiki](wiki/privacy-and-phi.md) | Initial intake remains a fuller first-visit form; follow-up intake starts from an existing local client and asks only appointment-relevant changes, current symptoms, safety updates, and today's goals. Either response can be reviewed and used to seed a SOAP draft inside the encrypted local vault without uploading clinical content. |
 | Active | P2 | Maintain project state and log | [Project state](project-state.md) | Future meaningful changes update the current state first and append completed plans, branch outcomes, and priority changes to this change history. |
 
 ## Next
@@ -59,6 +59,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Date | Decision | Notes |
 | --- | --- | --- |
+| 2026-06-03 | Split initial intake and follow-up intake before SOAP handoff. | Initial intake should remain a fuller first-visit form. Follow-up intake should start from an existing local client, avoid re-asking stable profile basics, focus on medical changes/current symptoms/today's goals, and roll into therapist-reviewed SOAP drafting inside the encrypted local vault. |
 | 2026-06-01 | Make role-aware module surfaces a dedicated follow-up branch. | The current branch ships the privacy-first records framework. Sidebar/module personalization should be implemented next through a tested role/capability navigation resolver for anonymous, signed-in, student, client, therapist, Team/Practice, practice-role, and admin contexts. |
 | 2026-06-01 | Keep role-aware surfaces structural until workflows are defined. | The implemented resolver filters sidebar groups, account menu routes, admin links, and calendar shortcuts by non-PHI auth, role, entitlement, and practice-role context while avoiding invented full dashboards. |
 | 2026-05-30 | Use one encrypted local professional-record vault for therapist documentation. | SOAP, intake, journal, and ROM share `massagelab-professional-record-vault-v1`; legacy route-specific plaintext keys are one-time migration inputs only, encrypted `.mlab` full-vault bundles are the normal transfer format, and DOC/PDF output requires an explicit plaintext warning. |
@@ -88,6 +89,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-06-03
+
+- Added the next-branch handoff plan at [Intake to SOAP continuity](superpowers/plans/2026-06-03-intake-to-soap-continuity.md), clarifying that initial intake and follow-up intake are separate local-first workflows before either rolls into SOAP.
+- Recorded that follow-up intake should start from an existing local client, avoid re-asking stable basic information, collect appointment-relevant changes and safety updates, and seed SOAP only through a therapist-reviewed local action inside the encrypted professional-record vault.
 
 ### 2026-06-01
 
