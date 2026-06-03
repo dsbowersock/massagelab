@@ -8,8 +8,18 @@ import {
   isNavigationRouteActive,
   navigationGroups,
   primaryNavigationGroups,
+  resolveNavigation,
   secondaryNavigationRoutes,
 } from "../lib/navigation.js"
+import { FEATURE_KEYS } from "../lib/membership.js"
+
+function primaryHrefs(navigation) {
+  return navigation.primaryNavigationGroups.flatMap((group) => group.routes.map((route) => route.href))
+}
+
+function primaryGroupIds(navigation) {
+  return navigation.primaryNavigationGroups.map((group) => group.id)
+}
 
 describe("Navigation IA model", () => {
   it("keeps visible alpha product routes grouped without exposing placeholders", () => {
@@ -111,5 +121,182 @@ describe("Navigation IA model", () => {
       "calendar-services-menu",
       "calendar-requests-menu",
     ])
+  })
+
+  it("resolves anonymous navigation without account or calendar actions", () => {
+    const navigation = resolveNavigation({ authState: "anonymous" })
+
+    assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "games", "about"])
+    assert.deepEqual(primaryHrefs(navigation), [
+      "/chimer",
+      "/calendar",
+      "/notes",
+      "/anatomime",
+      "/pricing",
+      "/roadmap",
+      "/about",
+      "/about/derrick",
+    ])
+    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), ["/support"])
+    assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), [])
+    assert.deepEqual(navigation.calendarMenuActions.map((route) => route.href), [])
+  })
+
+  it("resolves signed-in base users without practice-management shortcuts", () => {
+    const navigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling],
+      practiceRoles: [],
+    })
+
+    assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "games", "about"])
+    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), [
+      "/account",
+      "/account?tab=app-settings",
+      "/account?tab=security",
+      "/support",
+    ])
+    assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), ["/calendar"])
+    assert.deepEqual(navigation.calendarMenuActions.map((route) => route.href), [])
+  })
+
+  it("keeps supporter and student access from unlocking therapist documentation", () => {
+    const supporterNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling, FEATURE_KEYS.chimerCustomColors],
+    })
+    const studentNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "STUDENT", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling],
+    })
+
+    assert.equal(primaryHrefs(supporterNavigation).includes("/notes"), true)
+    assert.equal(primaryHrefs(studentNavigation).includes("/notes"), true)
+    assert.equal(primaryHrefs(supporterNavigation).some((href) => href.startsWith("/notes/")), false)
+    assert.equal(primaryHrefs(studentNavigation).some((href) => href.startsWith("/notes/")), false)
+  })
+
+  it("does not place therapist professional-record previews in the client sidebar", () => {
+    const navigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "CLIENT", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling],
+    })
+
+    assert.equal(primaryHrefs(navigation).includes("/notes"), false)
+    assert.equal(primaryHrefs(navigation).some((href) => href.startsWith("/notes/")), false)
+  })
+
+  it("shows documentation when the therapist documentation feature is present", () => {
+    const navigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling, FEATURE_KEYS.therapistDocumentationTools],
+    })
+
+    assert.equal(primaryHrefs(navigation).includes("/notes"), true)
+  })
+
+  it("filters practice calendar actions by practice role", () => {
+    const ownerNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      practiceRoles: [{ practiceId: "practice-1", role: "OWNER" }],
+    })
+    const therapistNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      practiceRoles: [{ practiceId: "practice-1", role: "THERAPIST" }],
+    })
+    const staffNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+      practiceRoles: [{ practiceId: "practice-1", role: "STAFF" }],
+    })
+
+    assert.deepEqual(ownerNavigation.calendarSidebarActions.map((route) => route.id), [
+      "calendar-open",
+      "calendar-add",
+      "calendar-availability",
+      "calendar-services",
+      "calendar-booking",
+      "calendar-requests",
+    ])
+    assert.deepEqual(ownerNavigation.calendarMenuActions.map((route) => route.id), [
+      "calendar-new-appointment",
+      "calendar-new-personal",
+      "calendar-new-class",
+      "calendar-new-reminder",
+      "calendar-services-menu",
+      "calendar-requests-menu",
+    ])
+    assert.equal(therapistNavigation.calendarMenuActions.some((route) => route.id === "calendar-new-class"), false)
+    assert.equal(staffNavigation.calendarSidebarActions.some((route) => route.id === "calendar-availability"), false)
+    assert.equal(staffNavigation.calendarMenuActions.some((route) => route.id === "calendar-new-personal"), false)
+    assert.equal(staffNavigation.calendarMenuActions.some((route) => route.id === "calendar-new-class"), true)
+  })
+
+  it("resolves admin navigation only for verified admin-capable roles", () => {
+    const anatomyAdminNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "ANATOMY_ADMIN", status: "VERIFIED" }],
+    })
+    const adminNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "ADMIN", status: "VERIFIED" }],
+    })
+    const pendingAdminNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "ADMIN", status: "PENDING" }],
+    })
+
+    assert.equal(primaryGroupIds(anatomyAdminNavigation).includes("admin"), true)
+    assert.equal(primaryHrefs(anatomyAdminNavigation).includes("/admin/anatomy"), true)
+    assert.equal(primaryGroupIds(adminNavigation).includes("admin"), true)
+    assert.equal(primaryHrefs(adminNavigation).includes("/admin/anatomy"), true)
+    assert.equal(primaryGroupIds(pendingAdminNavigation).includes("admin"), false)
+  })
+
+  it("does not expose direct professional-record routes from sidebar navigation", () => {
+    const allSidebarRoutes = [
+      ...navigationGroups.flatMap((group) => group.routes),
+      ...secondaryNavigationRoutes,
+      ...accountMenuRoutes,
+      ...calendarSidebarActions,
+      ...calendarMenuActions,
+    ].filter((route) => route.visibleInSidebar)
+
+    assert.equal(allSidebarRoutes.some((route) => /^\/notes\/(soap|intake|journal|rom)/.test(route.href)), false)
+  })
+
+  it("warns about unknown practice roles without granting navigation access", () => {
+    const warnings = []
+    const originalWarn = console.warn
+    console.warn = (...args) => warnings.push(args)
+    const context = {
+      authState: "signed-in",
+      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+      practiceRoles: [{ practiceId: "practice-1", role: "MANAGER" }],
+    }
+
+    try {
+      const navigation = resolveNavigation(context)
+      const repeatedNavigation = resolveNavigation(context)
+
+      assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), ["/calendar"])
+      assert.deepEqual(repeatedNavigation.calendarSidebarActions.map((route) => route.href), ["/calendar"])
+      assert.equal(warnings.length, process.env.NODE_ENV === "production" ? 0 : 2)
+      if (process.env.NODE_ENV !== "production") {
+        assert.equal(warnings[0][0], "Unknown practice role in navigation context")
+        assert.deepEqual(warnings[0][1], { originalRole: "MANAGER", normalizedRole: "MANAGER" })
+        assert.equal(warnings[1][0], "Unknown practice role in navigation context")
+        assert.deepEqual(warnings[1][1], { originalRole: "MANAGER", normalizedRole: "MANAGER" })
+      }
+    } finally {
+      console.warn = originalWarn
+    }
   })
 })

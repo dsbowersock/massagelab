@@ -5,10 +5,18 @@ import { usePathname } from "next/navigation"
 import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-top-bar"
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
 import { MovingBackground } from "@/components/moving-background"
-import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
+import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { cn } from "@/lib/utils"
 
-export function LayoutWrapper({ children, user }: { children: ReactNode; user: SidebarUser }) {
+export function LayoutWrapper({
+  children,
+  navigation,
+  user,
+}: {
+  children: ReactNode
+  navigation: SidebarNavigation
+  user: SidebarUser
+}) {
   const pathname = usePathname() ?? ""
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
@@ -29,7 +37,7 @@ export function LayoutWrapper({ children, user }: { children: ReactNode; user: S
           />
         </>
       )}
-      <CalendarOperatorTopBar user={user} />
+      <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
       <div
         className={cn(
           "ml-app-scroll relative z-10 min-h-0 w-full flex-1 overscroll-contain",

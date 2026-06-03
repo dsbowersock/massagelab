@@ -47,7 +47,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, canSyncAccountSettings } = await getAppSidebarData()
+  const { user, canSyncAccountSettings, navigation } = await getAppSidebarData()
 
   return (
     <html lang="en" className="dark h-full overflow-hidden">
@@ -57,10 +57,10 @@ export default async function RootLayout({
           <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
             <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
               <SidebarCalendarProvider enabled={Boolean(user)}>
-                <AppSidebarClient user={user} />
+                <AppSidebarClient user={user} navigation={navigation} />
                 <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
                   <main className="relative h-full min-w-0 overflow-hidden">
-                    <LayoutWrapper user={user}>{children}</LayoutWrapper>
+                    <LayoutWrapper user={user} navigation={navigation}>{children}</LayoutWrapper>
                   </main>
                 </SidebarInset>
               </SidebarCalendarProvider>

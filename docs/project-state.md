@@ -1,14 +1,14 @@
 # MassageLab Project State
 
-Verified: 2026-05-30
+Verified: 2026-06-03
 
 This is the read-first source of truth for MassageLab's current project state. Use it before `docs/project-log.md`, `docs/roadmap.md`, `TODO.md`, audits, or wiki pages when deciding what is active now.
 
 ## Current Snapshot
 
 - Status: private alpha.
-- Active branch at last verification: `codex/privacy-first-records-framework`.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current build focus is the local-first professional-record framework: one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, and user-controlled encrypted vault transfer.
+- Active branch at last verification: `role-aware-module-surfaces`.
+- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current build focus is the local-first professional-record framework plus role-aware shell structure: one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and tested sidebar/module visibility by auth, role, entitlement, and practice-role context. The next documentation workflow should distinguish a full initial intake from a shorter follow-up intake started from an existing local client, then let either intake type roll into therapist-reviewed SOAP drafting on the same device.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, and other PHI-bearing workflows remain local-first. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and ROM now use one passphrase-unlocked encrypted browser vault before viewing or saving documents. Hosted clinical sync remains gated and unimplemented until compliance requirements are met. The privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing copy only. Internal operating state lives here and in `docs/project-log.md`.
 
@@ -24,6 +24,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 ## Website And Tool Surface
 
 - Public app shell: home, support, pricing, public roadmap, about, login/register, password reset, and email verification.
+- Role-aware navigation shell: sidebar groups, account menu entries, admin links, and calendar shortcut actions resolve through tested route metadata using anonymous/signed-in state, verified account roles, feature keys, and practice roles. This is structural IA only; it does not create full role dashboards for workflows that are still undefined.
 - Chimer: treatment-room timer and clock mode, with custom colors gated by `chimer_custom_colors`.
 - Local-first notes: SOAP notes, intake, journal, and ROM routes are visible from `/notes`, but professional-record viewing/creation is gated by `therapist_documentation_tools`. Once unlocked by membership, these routes require the local professional-record vault passphrase before showing clinical content. The shared encrypted browser vault stores SOAP drafts, intake workspaces, journal drafts, and ROM sessions under `massagelab-professional-record-vault-v1`; legacy plaintext route keys are migration inputs only. Encrypted `.mlab` full-vault bundles are the normal transfer format, while DOC/PDF output requires an explicit plaintext warning.
 - Calendar and booking: operator calendar workspace, appointment/class/personal/reminder creation, service catalog, availability, booking settings, public booking links, guest-capable booking, waitlist, and provider capacity controls.
@@ -34,9 +35,9 @@ This is the read-first source of truth for MassageLab's current project state. U
 ## Open Priorities
 
 - P1: Keep this file and `docs/project-log.md` current when meaningful project state changes.
-- P2: Build local-first client-facing forms and tablet handoff workflows, starting with intake and therapist review/notes continuity on the same device.
+- P2: Build local-first intake-to-SOAP continuity: keep a fuller initial intake for new local clients, add a shorter follow-up intake started from an existing local client, and let either intake response seed a therapist-reviewed SOAP draft inside the encrypted local vault on the same device.
 - P2: Harden the shared encrypted professional-record vault UX, backup guidance, and manual QA before expanding therapist-generated records beyond the current local-first alpha workflows.
-- P2: Plan role-aware module surfaces and sidebar IA so anonymous, signed-in, student, client, therapist, Team/Practice, practice-role, and admin contexts resolve to appropriate visible tools before broad portal or paywall expansion.
+- P2: Keep future module additions wired through the role-aware navigation resolver instead of adding one-off sidebar role checks.
 - P2: Scope trust pages and public identity: terms, privacy/legal, About Me, and launch-ready public trust copy.
 - P2: Plan external Google/Apple/Outlook calendar sync before implementation.
 - P2: Plan Stripe Connect marketplace payments before booking payment collection.
