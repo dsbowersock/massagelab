@@ -68,6 +68,7 @@ Design MassageLab as a practice and therapist platform before expanding hosted c
 
 - Build the Practice/Therapist SaaS track around scheduling, documentation, client relationships, education, account management, and membership entitlements.
 - Define portals and access restrictions for practice owners, therapists working inside a practice, solo practice therapists, therapists whose workplace does not use MassageLab, students, clients, and future related audiences.
+- Explore voice transcription, intake conversation support, and therapist-reviewed SOAP assistance only after local/on-device feasibility and compliance requirements are understood.
 - Keep hosted clinical sync behind HIPAA, BAA, audit, access-control, encryption, backup, legal, and operating-policy gates.
 
 ### Phase 6: News And School Module
@@ -136,6 +137,15 @@ Goal: prove whether Alex Bainter's Generative.fm pieces can run reliably inside 
 - Confirm MIT licensing, bundle size, browser autoplay restrictions, start/stop cleanup, and audio context lifecycle.
 - Build only a minimal proof of concept before planning library, favorites, recently played, or persistent player-bar UI.
 
+## Voice Notes And SOAP Assist Goal
+
+Goal: reduce therapist note-taking burden without weakening the local-first clinical boundary.
+
+- Prefer local/on-device transcription when feasible, with no raw audio persistence by default.
+- Treat server transcription, cloud model processing, and managed transcript sync as future compliance-gated work that requires legal review, vendor review, BAAs where required, security controls, audit behavior, retention rules, and consent language.
+- Keep future transcription consent-first and therapist-reviewed: generated text should become editable draft material, not finalized clinical documentation.
+- Use membership messaging to explain that paid support helps fund this groundwork, while avoiding any claim that a membership currently unlocks hosted transcription, HIPAA-ready sync, or cloud SOAP drafting.
+
 ## Captured Ideas
 
 These are cleaned-up founder notes from May 12, 2026. They should remain visible until each item is either implemented, split into a branch plan, or deliberately removed.
@@ -150,6 +160,7 @@ These are cleaned-up founder notes from May 12, 2026. They should remain visible
 - Build a News section that pulls information from reputable sources such as the International Journal of Therapeutic Massage & Bodywork and other appropriate journals or professional publications.
 - Build an education/school module after deciding whether to use Moodle, another LMS, or a custom MassageLab education module.
 - Build the Practice/Therapist SaaS track.
+- Explore voice transcription and therapist-reviewed SOAP assistance for intake, session, and follow-up notes.
 - Develop different portals and access restrictions for practice owners, therapists working at a practice, solo practice therapists, therapists whose workplace does not use MassageLab, massage students, therapist clients, and future related audiences.
 - Add an Education section for interactive demonstrations.
 - Add Terms of Service and other legal information.

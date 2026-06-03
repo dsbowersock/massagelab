@@ -17,6 +17,10 @@ describe("local intake workspace page source", () => {
     assert.match(source, /Form builder/)
     assert.match(source, /Client account contact page/)
     assert.match(source, /Clear for next client/)
+    assert.match(source, /Start follow-up intake/)
+    assert.match(source, /Use in SOAP/)
+    assert.match(source, /createSoapDraftFromIntakeDocument/)
+    assert.match(source, /router\.push\("\/notes\/soap"\)/)
     assert.match(source, /localClientId/)
   })
 
@@ -27,6 +31,8 @@ describe("local intake workspace page source", () => {
     assert.doesNotMatch(source, /\/api\/clinical\/sync/)
     assert.doesNotMatch(source, /\/api\/clients\//)
     assert.doesNotMatch(source, /\/api\/account\/preferences/)
+    assert.doesNotMatch(source, /\/notes\/soap\?/)
+    assert.doesNotMatch(source, /window\.location/)
     assert.doesNotMatch(source, /prisma/i)
     assert.doesNotMatch(source, /localStorage\.setItem/)
     assert.doesNotMatch(source, /Export workspace JSON/)
@@ -49,6 +55,10 @@ describe("local intake workspace page source", () => {
 
     for (const marker of [
       "Full intake form",
+      "Follow-up intake",
+      "Changes since last visit",
+      "Current symptoms",
+      "Today's goals",
       "Pain/discomfort map",
       "Preferred Name",
       "Desired Pressure",

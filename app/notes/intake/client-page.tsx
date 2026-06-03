@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   Archive,
   ClipboardList,
@@ -59,6 +60,10 @@ import {
   ProfessionalRecordVaultTransferControls,
   useProfessionalRecordVault,
 } from "../professional-record-vault-provider"
+import {
+  createSoapDraftFromIntakeDocument,
+  hasMeaningfulSoapDraft,
+} from "@/lib/intake-soap-handoff"
 
 type AnyRecord = Record<string, any>
 
@@ -109,10 +114,11 @@ function getTemplate(workspace: AnyRecord, templateId: string) {
   return workspace.templates.find((template: AnyRecord) => template.id === templateId) ?? workspace.templates[0]
 }
 
-function blankResponse(templateId: string, templates: AnyRecord[]): AnyRecord {
+function blankResponse(templateId: string, templates: AnyRecord[], localClientId = ""): AnyRecord {
   return (normalizeFormResponse({
     id: createUiId("response"),
     templateId,
+    localClientId,
     answers: {},
     createdAt: nowIso(),
     updatedAt: nowIso(),
@@ -121,7 +127,7 @@ function blankResponse(templateId: string, templates: AnyRecord[]): AnyRecord {
     schemaVersion: 1,
     templateId,
     templateTitle: "Local form",
-    localClientId: "",
+    localClientId,
     answers: {},
     completedAt: "",
     createdAt: nowIso(),
@@ -134,6 +140,7 @@ function replaceById(items: AnyRecord[], nextItem: AnyRecord) {
 }
 
 export default function IntakePage() {
+  const router = useRouter()
   const vault = useProfessionalRecordVault()
   const [workspace, setWorkspace] = useState<AnyRecord>(() => createDefaultIntakeWorkspace())
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -177,6 +184,7 @@ export default function IntakePage() {
     : undefined
   const selectedDocumentTemplate = selectedDocument ? getTemplate(workspace, selectedDocument.templateId) : undefined
   const builderIssues = validateFormDefinition(builderTemplate)
+  const hasExistingSoapDraft = hasMeaningfulSoapDraft(vault.payload.records?.soap?.draft)
 
   const persistWorkspace = async (nextWorkspace = workspace, successMessage = "Intake workspace saved in the encrypted professional-record vault.") => {
     const normalized = normalizeIntakeWorkspace({ ...nextWorkspace, updatedAt: nowIso() })
@@ -199,7 +207,7 @@ export default function IntakePage() {
   const chooseTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId)
     setWorkspace((current) => normalizeIntakeWorkspace({ ...current, activeTemplateId: templateId, updatedAt: nowIso() }))
-    setActiveResponse(blankResponse(templateId, workspace.templates))
+    setActiveResponse(blankResponse(templateId, workspace.templates, selectedClientId))
     setMessage(null)
   }
 
@@ -293,6 +301,26 @@ export default function IntakePage() {
     setSelectedClientId(client.id)
     setManualClient({ displayName: "", email: "", phone: "" })
     setMessage("Local client profile added. Save the workspace to keep it in this browser.")
+  }
+
+  const startFollowUpIntake = (clientId = selectedClientId) => {
+    const client = workspace.clients.find((item: AnyRecord) => item.id === clientId)
+    const followUpTemplate = workspace.templates.find((template: AnyRecord) => template.id === "template-follow-up-intake-v1")
+    if (!client) {
+      setMessage("Select or add a local client before starting a follow-up intake.")
+      return
+    }
+    if (!followUpTemplate) {
+      setMessage("The built-in follow-up intake template is missing from this local workspace.")
+      return
+    }
+
+    setSelectedClientId(client.id)
+    setSelectedTemplateId(followUpTemplate.id)
+    setWorkspace((current) => normalizeIntakeWorkspace({ ...current, activeTemplateId: followUpTemplate.id, updatedAt: nowIso() }))
+    setActiveResponse(blankResponse(followUpTemplate.id, workspace.templates, client.id))
+    setActiveTab("fill")
+    setMessage(`Start follow-up intake for ${client.displayName || "this local client"}.`)
   }
 
   const updateTemplate = (templateId: string, updater: (template: AnyRecord) => AnyRecord) => {
@@ -470,6 +498,32 @@ export default function IntakePage() {
     setMessage(opened ? "Opened a plaintext print view. Choose Save as PDF in your browser dialog." : "Could not open print view.")
   }
 
+  const useSelectedDocumentInSoap = async (mode: "append" | "replace") => {
+    if (!selectedDocument || !selectedDocumentTemplate) {
+      setMessage("Select a saved intake document before starting SOAP.")
+      return
+    }
+
+    try {
+      const draft = createSoapDraftFromIntakeDocument({
+        document: selectedDocument,
+        client: selectedDocumentClient,
+        template: selectedDocumentTemplate,
+        existingDraft: vault.payload.records?.soap?.draft ?? null,
+        mode,
+      })
+      const saved = await vault.saveDraft("soap", draft, "SOAP draft seeded from the selected local intake response.")
+      if (!saved) {
+        setMessage("Could not save the SOAP draft. Unlock the professional-record vault and try again.")
+        return
+      }
+      setMessage("SOAP draft seeded from the selected local intake response.")
+      router.push("/notes/soap")
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not seed SOAP from this intake response.")
+    }
+  }
+
   const clearLocalWorkspace = async () => {
     const nextWorkspace = createDefaultIntakeWorkspace()
     const savedWorkspace = await persistWorkspace(nextWorkspace, "Intake workspace cleared in the encrypted professional-record vault.")
@@ -527,10 +581,13 @@ export default function IntakePage() {
             onSelectDocument={setSelectedDocumentId}
             onManualClientChange={setManualClient}
             onAddManualClient={addManualClient}
+            onStartFollowUpIntake={startFollowUpIntake}
             onSaveWorkspace={() => persistWorkspace()}
             onExportSelectedDocumentDoc={exportSelectedDocumentDoc}
             onPrintSelectedDocumentPdf={printSelectedDocumentPdf}
+            onUseSelectedDocumentInSoap={useSelectedDocumentInSoap}
             onClearLocalWorkspace={clearLocalWorkspace}
+            hasExistingSoapDraft={hasExistingSoapDraft}
           />
         </TabsContent>
 
@@ -588,15 +645,34 @@ function DashboardPanel({
   onSelectDocument,
   onManualClientChange,
   onAddManualClient,
+  onStartFollowUpIntake,
   onSaveWorkspace,
   onExportSelectedDocumentDoc,
   onPrintSelectedDocumentPdf,
+  onUseSelectedDocumentInSoap,
   onClearLocalWorkspace,
+  hasExistingSoapDraft,
 }: AnyRecord) {
   const selectedClient = workspace.clients.find((client: AnyRecord) => client.id === selectedClientId)
   const clientDocuments = selectedClient
     ? workspace.documents.filter((document: AnyRecord) => document.localClientId === selectedClient.id)
     : workspace.documents
+  const selectedDocument = selectedDocumentId
+    ? workspace.documents.find((document: AnyRecord) => document.id === selectedDocumentId)
+    : undefined
+  const selectedDocumentTemplate = selectedDocument
+    ? workspace.templates.find((template: AnyRecord) => template.id === selectedDocument.templateId)
+    : undefined
+  const selectedDocumentClient = selectedDocument
+    ? workspace.clients.find((client: AnyRecord) => client.id === selectedDocument.localClientId)
+    : undefined
+  const selectedDocumentPreview = selectedDocument && selectedDocumentTemplate
+    ? createFormResponseExportText({
+      response: selectedDocument.response,
+      template: selectedDocumentTemplate,
+      client: selectedDocumentClient,
+    })
+    : ""
 
   return (
     <>
@@ -672,9 +748,15 @@ function DashboardPanel({
               <span className="text-sm text-muted-foreground">{clientDocuments.length} documents</span>
             </div>
             {selectedClient ? (
-              <div className="mt-3 rounded-md border border-border/80 bg-background/70 p-3 text-sm">
-                <p className="font-medium">{selectedClient.displayName || "Unnamed local client"}</p>
-                <p className="mt-1 text-muted-foreground">{[selectedClient.email, selectedClient.phone].filter(Boolean).join(" / ") || "No contact details"}</p>
+              <div className="mt-3 grid gap-3 rounded-md border border-border/80 bg-background/70 p-3 text-sm">
+                <div>
+                  <p className="font-medium">{selectedClient.displayName || "Unnamed local client"}</p>
+                  <p className="mt-1 text-muted-foreground">{[selectedClient.email, selectedClient.phone].filter(Boolean).join(" / ") || "No contact details"}</p>
+                </div>
+                <Button type="button" variant="outline" onClick={() => onStartFollowUpIntake(selectedClient.id)} className="justify-self-start">
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  Start follow-up intake
+                </Button>
               </div>
             ) : null}
             <div className="mt-4 grid gap-2">
@@ -688,12 +770,20 @@ function DashboardPanel({
                   }`}
                 >
                   <span className="block font-medium">{document.title}</span>
-                  <span className="mt-1 block text-muted-foreground">{document.kind} / {new Date(document.createdAt).toLocaleString()}</span>
+                  <span className="mt-1 block text-muted-foreground">
+                    {[document.intakeType, document.kind].filter(Boolean).join(" ")} / {new Date(document.createdAt).toLocaleString()}
+                  </span>
                 </button>
               )) : (
                 <p className="rounded-md border border-dashed border-border/80 p-4 text-sm text-muted-foreground">No local documents linked yet.</p>
               )}
             </div>
+            {selectedDocumentPreview ? (
+              <AppInset className="mt-4 grid max-h-80 gap-2 overflow-auto p-3">
+                <h3 className="text-sm font-semibold">Selected document preview</h3>
+                <pre className="whitespace-pre-wrap text-xs text-muted-foreground">{selectedDocumentPreview}</pre>
+              </AppInset>
+            ) : null}
           </AppInset>
         </div>
       </AppSurface>
@@ -704,6 +794,33 @@ function DashboardPanel({
         icon={<FileText className="h-5 w-5" aria-hidden="true" />}
       >
         <div className="flex flex-wrap gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="outline" disabled={!selectedDocument}>
+                <FileText className="mr-2 h-4 w-4" />
+                Use in SOAP
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{hasExistingSoapDraft ? "Use this intake in the existing SOAP draft?" : "Start SOAP from this intake?"}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  MassageLab will save the SOAP seed inside the unlocked encrypted vault, then open the SOAP editor for therapist review.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                {hasExistingSoapDraft ? (
+                  <>
+                    <AlertDialogAction onClick={() => onUseSelectedDocumentInSoap("append")}>Append to SOAP</AlertDialogAction>
+                    <AlertDialogAction onClick={() => onUseSelectedDocumentInSoap("replace")}>Replace SOAP</AlertDialogAction>
+                  </>
+                ) : (
+                  <AlertDialogAction onClick={() => onUseSelectedDocumentInSoap("replace")}>Start SOAP note</AlertDialogAction>
+                )}
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <PlaintextOutputWarningAction
             label="Export DOC"
             description="This creates an unencrypted editable clinical document outside the vault. Use encrypted vault bundles for normal transfer."

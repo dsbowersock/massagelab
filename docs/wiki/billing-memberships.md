@@ -77,6 +77,8 @@ Frontend copy may call the `PRACTICE` membership tier `Team/Practice` for clarit
 
 Therapist documentation surfaces should remain visible in the app so users can see what is available, but creating or viewing SOAP, intake, journal, ROM, and similar therapist note-taking records requires the `therapist_documentation_tools` entitlement. Supporter and Student access do not unlock these tools.
 
+Membership messaging can explain that paid support helps fund future compliance-heavy documentation work, including voice notes, local transcription experiments, therapist-reviewed SOAP assistance, managed sync planning, BAAs, and audit controls. Keep that language separate from current benefits: memberships do not currently unlock hosted transcription, cloud SOAP drafting, HIPAA-ready sync, or any server-side PHI processing.
+
 ## Stripe Setup Checklist
 
 - Create active Stripe recurring Products and Prices only for Supporter, Therapist, and Practice.

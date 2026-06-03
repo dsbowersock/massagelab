@@ -28,6 +28,7 @@ describe("local intake form builder", () => {
   it("defines the local-only intake workspace contract and starter templates", () => {
     const workspace = createDefaultIntakeWorkspace("2026-05-28T12:00:00.000Z")
     const fullIntake = workspace.templates.find((template) => template.id === "template-full-intake-v1")
+    const followUpIntake = workspace.templates.find((template) => template.id === "template-follow-up-intake-v1")
     const painMap = workspace.templates.find((template) => template.id === "template-pain-map-v1")
 
     assert.equal(INTAKE_WORKSPACE_STORAGE_KEY, "massagelab-intake-workspace-v1")
@@ -36,7 +37,19 @@ describe("local intake form builder", () => {
     assert.equal(workspace.clients.length, 0)
     assert.equal(workspace.documents.length, 0)
     assert.equal(fullIntake.kind, "intake")
+    assert.equal(fullIntake.intakeType, "initial")
+    assert.equal(followUpIntake.kind, "intake")
+    assert.equal(followUpIntake.intakeType, "follow-up")
+    assert.ok(followUpIntake.sections.some((section) => section.id === "follow-up-updates"))
+    assert.ok(followUpIntake.sections.some((section) => section.id === "follow-up-pain-map"))
+    assert.equal(
+      followUpIntake.sections.flatMap((section) => section.questions).some((question) => question.id === "firstName"),
+      false,
+    )
+    assert.ok(followUpIntake.sections.flatMap((section) => section.questions).some((question) => question.id === "currentSymptoms"))
+    assert.ok(followUpIntake.sections.flatMap((section) => section.questions).some((question) => question.id === "followUpPainMap"))
     assert.equal(painMap.kind, "pain-map")
+    assert.equal(painMap.intakeType, "")
     assert.ok(fullIntake.sections.some((section) => section.id === "health-history"))
     assert.ok(fullIntake.sections.some((section) => section.id === "initial-pain-map"))
   })
@@ -106,6 +119,72 @@ describe("local intake form builder", () => {
     assert.equal(response.answers.informedConsent, true)
     assert.deepEqual(response.answers.medicalConditions, ["Headaches", "Low BP"])
     assert.equal("ignored" in response.answers, false)
+  })
+
+  it("normalizes intake workflow types without breaking old local documents", () => {
+    const workspace = createDefaultIntakeWorkspace("2026-06-03T12:00:00.000Z")
+    const followUpTemplate = workspace.templates.find((template) => template.id === "template-follow-up-intake-v1")
+    const fullIntakeTemplate = workspace.templates.find((template) => template.id === "template-full-intake-v1")
+    const customTemplate = {
+      id: "custom-intake",
+      schemaVersion: 1,
+      title: "Custom intake",
+      kind: "intake",
+      sections: [{ id: "section", title: "Section", questions: [{ id: "clientName", type: "short_text", label: "Client name" }] }],
+    }
+    const followUpResponse = normalizeFormResponse({
+      templateId: followUpTemplate.id,
+      localClientId: "client-1",
+      answers: {
+        followUpSessionDate: "2026-06-03",
+        currentSymptoms: "Left shoulder tightness.",
+        followUpPainMap: { selected: { "Left [Shoulder]": "Tender" }, notes: "Worse after overhead work." },
+        ignored: "drop me",
+      },
+    }, workspace.templates)
+    const initialResponse = normalizeFormResponse({
+      templateId: fullIntakeTemplate.id,
+      answers: {
+        firstName: "Jane",
+        lastName: "Client",
+        draping: true,
+        informedConsent: true,
+        clientSignature: "Jane Client",
+      },
+    }, workspace.templates)
+    const customResponse = normalizeFormResponse({
+      templateId: customTemplate.id,
+      answers: { clientName: "Custom Client" },
+    }, [customTemplate])
+
+    assert.equal(followUpResponse.intakeType, "follow-up")
+    assert.equal(followUpResponse.answers.currentSymptoms, "Left shoulder tightness.")
+    assert.equal("ignored" in followUpResponse.answers, false)
+    assert.equal(initialResponse.intakeType, "initial")
+    assert.equal(customResponse.intakeType, "")
+
+    const client = { id: "client-1", displayName: "Jane Client" }
+    const followUpDocument = createClinicalDocumentFromResponse(followUpResponse, client, followUpTemplate, "2026-06-03T12:05:00.000Z")
+    const normalizedWorkspace = normalizeIntakeWorkspace({
+      ...workspace,
+      documents: [
+        followUpDocument,
+        {
+          id: "legacy-document",
+          schemaVersion: 1,
+          kind: "intake",
+          title: "Legacy full intake",
+          templateId: fullIntakeTemplate.id,
+          localClientId: "client-1",
+          response: initialResponse,
+          status: "LOCAL_ONLY",
+        },
+      ],
+    })
+
+    assert.equal(followUpDocument.intakeType, "follow-up")
+    assert.equal(normalizedWorkspace.documents[0].intakeType, "follow-up")
+    assert.equal(normalizedWorkspace.documents[1].intakeType, "initial")
   })
 
   it("links normalized responses to local client profiles and documents", () => {

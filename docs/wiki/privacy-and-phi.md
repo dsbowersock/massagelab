@@ -52,6 +52,12 @@ MASSAGELAB_HIPAA_RISK_REVIEW_CONFIRMED=true
 
 Even when those flags are set, the current API returns `501` because hosted clinical storage is not implemented.
 
+## Future Voice Transcription And SOAP Assist
+
+Voice transcription, intake conversation transcription, and therapist-reviewed SOAP assistance are roadmap goals, not active hosted features. The preferred product direction is local/on-device processing with no raw audio persistence by default. Any server transcription, cloud model processing, or managed transcript sync must pass legal and compliance review first, including consent language, security review, vendor review, BAAs where required, audit controls, retention rules, breach response, and PHI-safe support/logging procedures.
+
+Membership copy may say that paid support helps fund this work, but it must not imply that membership currently unlocks hosted transcription, cloud SOAP drafting, HIPAA-ready sync, or any other server-side PHI workflow.
+
 ## Future Hosted Storage Requirements
 
 Managed HIPAA-compliant storage is a separate future product. It must include legal and compliance review, BAAs, access controls, audit logging, encryption, incident response, PHI-safe logging/email rules, and operating policies before implementation.
