@@ -29,6 +29,25 @@ describe("local note client safety guards", () => {
     assert.match(source, /techniques: Array\.isArray\(data\.assessment\?\.techniques\)/)
   })
 
+  it("shows member-supported roadmap signals without adding transcription capture", async () => {
+    const notesPage = await readFile(new URL("../app/notes/page.tsx", import.meta.url), "utf8")
+    const pricingPage = await readFile(new URL("../app/pricing/page.tsx", import.meta.url), "utf8")
+
+    assert.match(notesPage, /Voice notes goal/)
+    assert.match(notesPage, /Conversation transcription goal/)
+    assert.match(notesPage, /Memberships help fund the legal, security, and compliance work/)
+    assert.match(notesPage, /voice notes, SOAP assistance, and future managed sync/)
+    assert.match(notesPage, /More documentation tools we want to build/)
+    assert.match(pricingPage, /transcripts, and other PHI-bearing workflows are not hosted in this alpha/)
+
+    assert.doesNotMatch(notesPage, /getUserMedia/)
+    assert.doesNotMatch(notesPage, /MediaRecorder/)
+    assert.doesNotMatch(notesPage, /SpeechRecognition/)
+    assert.doesNotMatch(notesPage, /fetch\s*\(/)
+    assert.doesNotMatch(notesPage, /\/api\/clinical\/sync/)
+    assert.doesNotMatch(notesPage, /prisma/i)
+  })
+
   it("routes therapist documentation through the shared professional-record vault", async () => {
     for (const route of ["soap", "intake", "journal", "rom"]) {
       const source = await readFile(new URL(`../app/notes/${route}/client-page.tsx`, import.meta.url), "utf8")
@@ -46,6 +65,7 @@ describe("local note client safety guards", () => {
       assert.doesNotMatch(source, /\/api\/clinical\/sync/)
       assert.doesNotMatch(source, /\/api\/clients\//)
       assert.doesNotMatch(source, /\/api\/account\/preferences/)
+      assert.doesNotMatch(source, /\/notes\/soap\?/)
       assert.doesNotMatch(source, /prisma/i)
     }
   })

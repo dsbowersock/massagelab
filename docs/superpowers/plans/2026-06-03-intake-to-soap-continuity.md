@@ -57,3 +57,10 @@ Out of scope:
 - Both intake types can roll into a SOAP draft through a therapist-reviewed local action.
 - No clinical content leaves the browser-local encrypted professional-record vault.
 - Validation should include focused unit/source tests plus the usual lint, typecheck, test, and build gates before closing the branch.
+
+## Implementation Notes
+
+- Branch: `codex/intake-to-soap-continuity`.
+- Built-in intake templates now include `template-full-intake-v1` as `intakeType: "initial"` and `template-follow-up-intake-v1` as `intakeType: "follow-up"`, while older/custom local templates and documents normalize safely.
+- SOAP handoff is handled by a pure local helper that builds a therapist-reviewable SOAP draft seed from a selected local intake document, preserves existing SOAP content on explicit append, and replaces only after explicit replace confirmation.
+- The intake dashboard now previews selected local documents, starts follow-up intake from an existing local client, and saves SOAP seeds through `vault.saveDraft("soap", ...)` before routing to `/notes/soap` without PHI in URLs or API calls.

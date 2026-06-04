@@ -19,7 +19,7 @@ export default async function PricingPage() {
           title="Memberships fund the alpha without removing free access"
           description={
             <>
-                Basic Chimer and the local-first alpha tools remain available. Paid memberships currently unlock saved custom Chimer colors and establish the membership model for future account-backed features.
+                Basic Chimer and the local-first alpha tools remain available. Paid memberships currently unlock saved custom Chimer colors and help fund careful work toward future account-backed, compliance-ready features.
             </>
           }
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
@@ -41,7 +41,7 @@ export default async function PricingPage() {
           title="Clinical data boundary"
           description={
             <>
-              Memberships do not change the local-first alpha boundary. Clinical notes, intake forms, journals, movement data, and other PHI-bearing workflows are not hosted in this alpha.
+              Memberships do not change the local-first alpha boundary. Clinical notes, intake forms, journals, movement data, transcripts, and other PHI-bearing workflows are not hosted in this alpha.
             </>
           }
           icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}

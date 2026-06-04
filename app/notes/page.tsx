@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Activity, ClipboardCheck, ClipboardList, FileText, Footprints, HeartPulse, LifeBuoy, LockKeyhole, ShieldCheck } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { Badge } from "@/components/ui/badge"
 
 const noteTypes = [
   {
@@ -10,6 +11,8 @@ const noteTypes = [
     icon: FileText,
     href: "/notes/soap",
     available: true,
+    roadmapLabel: "Voice notes goal",
+    roadmapDescription: "Member support helps fund local transcription experiments and therapist-reviewed SOAP drafting.",
   },
   {
     title: "Intake Forms",
@@ -17,6 +20,8 @@ const noteTypes = [
     icon: ClipboardList,
     href: "/notes/intake",
     available: true,
+    roadmapLabel: "Conversation transcription goal",
+    roadmapDescription: "A future consent-first transcription helper should make intake conversations easier to turn into usable notes.",
   },
   {
     title: "Client Journal",
@@ -24,6 +29,8 @@ const noteTypes = [
     icon: HeartPulse,
     href: "/notes/journal",
     available: true,
+    roadmapLabel: "",
+    roadmapDescription: "",
   },
   {
     title: "Range of Motion",
@@ -31,20 +38,23 @@ const noteTypes = [
     icon: Activity,
     href: "/notes/rom",
     available: true,
+    roadmapLabel: "",
+    roadmapDescription: "",
   },
 ]
 
 const plannedTools = [
-  { title: "Postural Assessment", icon: Activity },
-  { title: "Muscle Testing", icon: ClipboardCheck },
-  { title: "Gait Assessment", icon: Footprints },
-  { title: "Orthopedic Tests", icon: Activity },
+  { title: "Postural Assessment", description: "Structured observations and photo-free posture notes.", icon: Activity },
+  { title: "Muscle Testing", description: "Scope-aware strength and response tracking.", icon: ClipboardCheck },
+  { title: "Gait Assessment", description: "Walking observations that stay in the local record.", icon: Footprints },
+  { title: "Orthopedic Tests", description: "Therapist-entered test notes with review prompts.", icon: Activity },
 ]
 
 export default async function NotesPage() {
   const session = await getCurrentSession()
   const canUseLocalClinicalTools = Boolean(session?.user?.capabilities?.canUseLocalClinicalTools)
   const lockedHref = session?.user?.id ? "/account?tab=membership" : "/login"
+  const membershipHref = session?.user?.id ? "/account?tab=membership" : "/pricing"
 
   return (
     <AppPageShell title="Local-First Documentation">
@@ -71,6 +81,14 @@ export default async function NotesPage() {
                   icon={<Icon className="h-5 w-5" aria-hidden="true" />}
                   className="h-full transition-colors hover:bg-accent"
                 >
+                    {note.roadmapLabel ? (
+                      <div className="mb-3 rounded-md border border-brand-orange/35 bg-primary/10 p-3">
+                        <Badge variant="outline" className="mb-2 border-brand-orange/40 text-brand-orange">
+                          {note.roadmapLabel}
+                        </Badge>
+                        <p className="text-sm text-muted-foreground">{note.roadmapDescription}</p>
+                      </div>
+                    ) : null}
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">
                       {!canUseLocalClinicalTools ? <LockKeyhole className="h-4 w-4" aria-hidden="true" /> : null}
                       <span>{canUseLocalClinicalTools ? `Open ${note.title.toLowerCase()}` : "Therapist or Team/Practice required"}</span>
@@ -81,32 +99,38 @@ export default async function NotesPage() {
           })}
         </div>
 
-        <AppSurface title="Planned Documentation Tools" description="These remain visible as roadmap tools until their workflows are implemented.">
+        <AppSurface
+          title="More documentation tools we want to build"
+          description="These are roadmap tools, not hidden features. Member support helps turn them into careful, useful workflows."
+        >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {plannedTools.map((tool) => {
                 const Icon = tool.icon
                 return (
-                  <AppInset key={tool.title} className="flex min-h-16 items-center gap-3 p-3 text-sm text-muted-foreground">
-                    <Icon className="h-4 w-4 text-brand-orange" />
-                    <span>{tool.title}</span>
+                  <AppInset key={tool.title} className="min-h-24 space-y-2 p-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-3 font-medium text-foreground">
+                      <Icon className="h-4 w-4 text-brand-orange" />
+                      <span>{tool.title}</span>
+                    </div>
+                    <p>{tool.description}</p>
                   </AppInset>
                 )
               })}
             </div>
         </AppSurface>
 
-        <Link href="/roadmap">
+        <Link href={membershipHref}>
           <AppSurface
-            title="Support the MassageLab roadmap"
+            title="Help fund careful documentation features"
             description={
               <>
-                Learn how roadmap funding helps unlock HIPAA-ready note sync, compliance infrastructure, and future clinical documentation tools.
+                Memberships help fund the legal, security, and compliance work needed for advanced documentation features like voice notes, SOAP assistance, and future managed sync.
               </>
             }
             icon={<LifeBuoy className="h-5 w-5" aria-hidden="true" />}
             className="transition-colors hover:bg-accent"
           >
-              <p className="text-sm text-muted-foreground">Open the roadmap</p>
+              <p className="text-sm text-muted-foreground">{session?.user?.id ? "Open membership" : "View memberships"}</p>
           </AppSurface>
         </Link>
     </AppPageShell>

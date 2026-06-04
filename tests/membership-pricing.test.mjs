@@ -67,4 +67,19 @@ describe("Membership pricing catalog", () => {
     assert.equal(catalog.plans[0].prices.year.isLookupAvailable, false)
     assert.equal(catalog.plans[0].prices.year.displayPrice, "Price unavailable")
   })
+
+  it("keeps compliance-heavy documentation goals in roadmap notes", async () => {
+    const catalog = await getMembershipPricingCatalog({ env: {} })
+    const supporter = catalog.plans.find((plan) => plan.membershipLevel === "SUPPORTER")
+    const therapist = catalog.plans.find((plan) => plan.membershipLevel === "THERAPIST")
+    const practice = catalog.plans.find((plan) => plan.membershipLevel === "PRACTICE")
+
+    assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance groundwork")))
+    assert.ok(therapist.roadmapNotes.some((note) => note.includes("local transcription experiments and SOAP drafting support")))
+    assert.ok(practice.roadmapNotes.some((note) => note.includes("BAAs, audit controls, and practice-ready documentation infrastructure")))
+
+    for (const plan of [supporter, therapist, practice]) {
+      assert.equal(plan.currentFeatures.some((feature) => /BAA|transcription|SOAP drafting|managed sync/i.test(feature)), false)
+    }
+  })
 })
