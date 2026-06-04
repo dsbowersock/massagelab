@@ -50,6 +50,24 @@ function followUpFixture() {
   return { client, document, template }
 }
 
+function formatLocalDateForTest(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function localDateEdgeInput() {
+  const offset = new Date(2026, 0, 2).getTimezoneOffset()
+  const hour = offset < 0 ? 0 : 23
+  const date = new Date(2026, 0, 2, hour, 30, 0, 0)
+  const textHour = String(hour).padStart(2, "0")
+  return {
+    date,
+    timestampText: `2026-01-02T${textHour}:30:00`,
+  }
+}
+
 describe("intake to SOAP handoff", () => {
   it("creates a therapist-reviewable SOAP draft from a follow-up intake", () => {
     const { client, document, template } = followUpFixture()
@@ -185,5 +203,49 @@ describe("intake to SOAP handoff", () => {
     assert.match(draft.generalNotes, /Short term goals: Reduce neck tension\./)
     assert.match(draft.generalNotes, /Desired Pressure: Firm/)
     assert.match(draft.bodyDiagram.notes, /Middle \[Neck\]: Tight/)
+  })
+
+  it("uses local calendar dates when seeding from Date values and parsed timestamps", () => {
+    const workspace = createDefaultIntakeWorkspace("2026-06-03T12:00:00.000Z")
+    const template = workspace.templates.find((item) => item.id === "template-follow-up-intake-v1")
+    const client = { id: "client-1", displayName: "Jane Client" }
+    const edge = localDateEdgeInput()
+    const baseAnswers = {
+      currentSymptoms: "Shoulder tension.",
+      todaysGoals: "Improve movement.",
+    }
+    const responseWithoutDate = normalizeFormResponse({
+      id: "response-local-date",
+      templateId: template.id,
+      localClientId: client.id,
+      answers: baseAnswers,
+    }, workspace.templates)
+    const draftFromDate = createSoapDraftFromIntakeDocument({
+      document: { response: responseWithoutDate },
+      client,
+      template,
+      existingDraft: null,
+      mode: "replace",
+      now: edge.date,
+    })
+
+    const responseWithParsedTimestamp = normalizeFormResponse({
+      id: "response-local-timestamp",
+      templateId: template.id,
+      localClientId: client.id,
+      completedAt: edge.timestampText,
+      answers: baseAnswers,
+    }, workspace.templates)
+    const draftFromParsedTimestamp = createSoapDraftFromIntakeDocument({
+      document: { response: responseWithParsedTimestamp },
+      client,
+      template,
+      existingDraft: null,
+      mode: "replace",
+      now: "2026-06-03T13:00:00.000Z",
+    })
+
+    assert.equal(draftFromDate.date, formatLocalDateForTest(edge.date))
+    assert.equal(draftFromParsedTimestamp.date, formatLocalDateForTest(new Date(edge.timestampText)))
   })
 })
