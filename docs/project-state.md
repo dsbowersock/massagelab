@@ -1,14 +1,14 @@
 # MassageLab Project State
 
-Verified: 2026-06-03
+Verified: 2026-06-04
 
 This is the read-first source of truth for MassageLab's current project state. Use it before `docs/project-log.md`, `docs/roadmap.md`, `TODO.md`, audits, or wiki pages when deciding what is active now.
 
 ## Current Snapshot
 
 - Status: private alpha.
-- Active branch at last verification: `codex/intake-to-soap-continuity`.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current build focus is the local-first professional-record framework plus role-aware shell structure: one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and tested sidebar/module visibility by auth, role, entitlement, and practice-role context. The current documentation branch distinguishes a full initial intake from a shorter follow-up intake started from an existing local client, then lets either intake type roll into therapist-reviewed SOAP drafting on the same device. Voice transcription and SOAP-assist are recorded as member-supported future goals only; no audio capture, transcription engine, LLM processing, or hosted PHI workflow is implemented. After this branch, prefer more functional/visual product surface work before more backend or compliance-heavy spikes.
+- Active branch at last verification: flashcards setup, prompt modes, and community decks V1.
+- Current focus: public-alpha Education flashcards now use a setup-first deck builder over sourced prompt modes: media identification, name-to-summary, name-to-region, name-to-category, and muscle origin/insertion/action/innervation. Anonymous users can browse public decks, create temporary browser decks, and study; signed-in users can save public/private deck templates, persist progress summaries, and earn aggregate achievements. Flashcards and Anatomime still use one reviewed sourced anatomy study adapter over `ANATOMY_FOUNDATION_SEED`; old Anatomime data remains archived reference only. 3D/spatial runtime tooling remains deferred. The local-first professional-record framework remains in place: one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and tested sidebar/module visibility by auth, role, entitlement, and practice-role context. Voice transcription and SOAP-assist are recorded as member-supported future goals only; no audio capture, transcription engine, LLM processing, or hosted PHI workflow is implemented.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, transcripts, and other PHI-bearing workflows remain local-first. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and ROM now use one passphrase-unlocked encrypted browser vault before viewing or saving documents. Hosted clinical sync remains gated and unimplemented until compliance requirements are met. The privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing copy only. Internal operating state lives here and in `docs/project-log.md`.
 
@@ -16,8 +16,8 @@ This is the read-first source of truth for MassageLab's current project state. U
 
 - Database stack: Prisma with Neon/Postgres.
 - Last verified checks: `npm run prisma:validate` passed and `npx prisma migrate status` reported the configured database schema is up to date.
-- Migration count at last verification: 19 migrations.
-- Latest migration area: anatomy 3D/spatial body-map foundation and movement-visualization integrity.
+- Migration count at last verification: 20 migrations.
+- Latest migration area: flashcard deck templates and signed-in study sessions.
 - No hosted clinical database work is planned for the next forms branch; intake and note content should remain browser-local unless the documented compliance gates are met. Future client-owned wellness storage must remain separate from therapist professional records and therapist remote access until the consent/sharing bridge is reviewed and intentionally enabled.
 - Do not document database rows, secrets, connection strings, or `.env.local` values in project docs.
 
@@ -29,14 +29,14 @@ This is the read-first source of truth for MassageLab's current project state. U
 - Local-first notes: SOAP notes, intake, journal, and ROM routes are visible from `/notes`, but professional-record viewing/creation is gated by `therapist_documentation_tools`. Once unlocked by membership, these routes require the local professional-record vault passphrase before showing clinical content. The shared encrypted browser vault stores SOAP drafts, intake workspaces, journal drafts, and ROM sessions under `massagelab-professional-record-vault-v1`; legacy plaintext route keys are migration inputs only. Intake now separates full initial forms from existing-client follow-up forms, and selected intake documents can seed a therapist-reviewed SOAP draft through an explicit append/replace action. `/notes` also shows friendly member-supported roadmap signals for future voice notes, intake conversation transcription, SOAP assistance, and managed sync; these are funding goals, not active hosted clinical features. Encrypted `.mlab` full-vault bundles are the normal transfer format, while DOC/PDF output requires an explicit plaintext warning.
 - Calendar and booking: operator calendar workspace, appointment/class/personal/reminder creation, service catalog, availability, booking settings, public booking links, guest-capable booking, waitlist, and provider capacity controls.
 - Accounts and billing: profile/preferences, security settings, role verification, membership status, Stripe Checkout, Stripe portal, and signed webhook foundation.
-- Anatomy and education foundation: Anatomime, admin anatomy browser, anatomy correction workflow, code-backed seed content, Postgres anatomy tables, anatomy media catalog/provenance, R2 media workflow docs, and 3D/spatial mapping schema. This baseline is considered enough for the current alpha; 3D runtime tooling is a later feature addition, not a current core priority.
+- Anatomy and education foundation: public `/education`, setup-first `/education/flashcards`, public deck detail routes under `/education/flashcards/decks/[slug]`, Anatomime, admin anatomy browser, anatomy correction workflow, code-backed seed content, Postgres anatomy tables, anatomy media catalog/provenance, R2 media workflow docs, and 3D/spatial mapping schema. Flashcards and Anatomime use the sourced study adapter; archived old Anatomime data is not runtime product truth. Public flashcard deck templates store sourced deck configuration only, not custom user-authored anatomy facts. This baseline is considered enough for the current alpha; 3D runtime tooling and voice-answer capture are later feature additions, not current core priorities.
 - PWA/offline: offline support is intentionally limited to anonymous public local tools; account, auth, billing, calendar, booking, clinical sync, client, and `/api/*` surfaces remain online-only.
 
 ## Open Priorities
 
 - P1: Keep this file and `docs/project-log.md` current when meaningful project state changes.
-- P2: Finish validation for local-first intake-to-SOAP continuity: full initial intake and shorter existing-client follow-up intake are implemented locally, and either intake response can seed a therapist-reviewed SOAP draft inside the encrypted local vault on the same device.
-- P2: Prefer the next branch to be more functional/visual product work rather than another backend or compliance-heavy branch; anatomy flashcards/study UI, richer Anatomime learning surfaces, or trust/public identity pages are better fits for the next work session.
+- P2: Continue validation for local-first intake-to-SOAP continuity and shared vault UX: full initial intake and shorter existing-client follow-up intake are implemented locally, and either intake response can seed a therapist-reviewed SOAP draft inside the encrypted local vault on the same device.
+- P2: Prefer the next branch to be more functional/visual product work rather than another backend or compliance-heavy branch; richer Anatomime learning surfaces, flashcard UX hardening, or trust/public identity pages are better fits for the next work session.
 - P2: Harden the shared encrypted professional-record vault UX, backup guidance, and manual QA before expanding therapist-generated records beyond the current local-first alpha workflows.
 - P2: Keep future module additions wired through the role-aware navigation resolver instead of adding one-off sidebar role checks.
 - P2: Scope trust pages and public identity: terms, privacy/legal, About Me, and launch-ready public trust copy.

@@ -8,6 +8,7 @@ import { signOut } from "next-auth/react"
 import {
   BadgeDollarSign,
   Brain,
+  BookOpen,
   CalendarCog,
   CalendarDays,
   CalendarOff,
@@ -78,6 +79,7 @@ export type SidebarUser = {
 const routeIcons = {
   BadgeDollarSign,
   Brain,
+  BookOpen,
   CalendarCog,
   CalendarDays,
   CalendarOff,
@@ -101,6 +103,7 @@ const routeIcons = {
 const primaryGroupIcons: Record<string, LucideIcon> = {
   tools: Wrench,
   documentation: FileText,
+  education: BookOpen,
   games: Brain,
   about: Info,
 }

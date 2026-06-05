@@ -368,6 +368,8 @@ model User {
   backupCodes           BackupCode[]
   learningProgress      LearningProgress[]
   achievements          Achievement[]
+  flashcardDecks        FlashcardDeck[]
+  flashcardStudySessions FlashcardStudySession[]
   noteTemplates         NoteTemplate[]
   formTemplates         FormTemplate[]
   documentationPreference DocumentationPreference?
@@ -746,6 +748,48 @@ model Achievement {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key, tool])
+}
+
+model FlashcardDeck {
+  id              String                  @id @default(cuid())
+  slug            String                  @unique
+  ownerUserId     String?
+  title           String
+  description     String?
+  config          Json                    @default("{}")
+  visibility      String                  @default("PUBLIC")
+  promptCount     Int                     @default(0)
+  completionCount Int                     @default(0)
+  attemptCount    Int                     @default(0)
+  answeredCount   Int                     @default(0)
+  correctCount    Int                     @default(0)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  owner           User?                   @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  studySessions   FlashcardStudySession[]
+
+  @@index([visibility, updatedAt])
+  @@index([ownerUserId, updatedAt])
+}
+
+model FlashcardStudySession {
+  id            String         @id @default(cuid())
+  userId        String
+  deckId        String?
+  deckConfig    Json           @default("{}")
+  promptIds     String[]       @default([])
+  status        String         @default("STARTED")
+  answeredCount Int            @default(0)
+  correctCount  Int            @default(0)
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deck          FlashcardDeck? @relation(fields: [deckId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt])
+  @@index([deckId, updatedAt])
 }
 
 model AnatomyTerm {

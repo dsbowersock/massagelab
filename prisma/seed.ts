@@ -1,10 +1,8 @@
 import { PrismaClient } from "@prisma/client"
 import type {
-  AnatomyDifficulty,
   AnatomyEntityTermType,
   AnatomyEntityType,
   AnatomyFactReviewStatus,
-  AnatomyKind,
   AnatomyMediaRole,
   AnatomyMediaType,
   AnatomyRelativeDepth,
@@ -22,7 +20,6 @@ import { neonConfig } from "@neondatabase/serverless"
 import { PrismaNeon } from "@prisma/adapter-neon"
 import ws from "ws"
 import { config } from "dotenv"
-import { anatomyTerms, getAnatomySources } from "../lib/anatomy.js"
 import {
   ANATOMY_FOUNDATION_SEED,
   validateAnatomyFoundation,
@@ -47,20 +44,6 @@ const OBSOLETE_FOUNDATION_SOURCE_SLUGS = [
   "future-clinical-citation-needed",
   "massagelab-initial-anatomy-foundation",
 ]
-
-function toEnum<T extends string>(value: string | undefined, fallback = "OTHER") {
-  return String(value || fallback).replace(/-/g, "_").toUpperCase() as T
-}
-
-function bodySystemsForTerm(term: { kind: string }) {
-  if (term.kind === "bone") return ["skeletal"]
-  if (term.kind === "muscle") return ["muscular"]
-  return []
-}
-
-function sourceLabel(source: { label?: string; name?: string }) {
-  return source.label ?? source.name ?? "Untitled anatomy source"
-}
 
 function normalizePublicBaseUrl(value: string | undefined) {
   return value?.trim().replace(/\/+$/, "") || undefined
@@ -133,40 +116,6 @@ function seededMediaMetadata(
   }
 
   return metadata as Prisma.InputJsonValue
-}
-
-async function seedSource(source: {
-  id: string
-  label?: string
-  name?: string
-  url?: string
-  license?: string
-  attribution: string
-}) {
-  return prisma.anatomySource.upsert({
-    where: { slug: source.id },
-    create: {
-      slug: source.id,
-      label: sourceLabel(source),
-      url: source.url ?? null,
-      license: source.license ?? null,
-      licenseUrl: null,
-      usageScope: "REVIEW_ONLY",
-      accessedAt: null,
-      notes: null,
-      attribution: source.attribution,
-    },
-    update: {
-      label: sourceLabel(source),
-      url: source.url ?? null,
-      license: source.license ?? null,
-      licenseUrl: null,
-      usageScope: "REVIEW_ONLY",
-      accessedAt: null,
-      notes: null,
-      attribution: source.attribution,
-    },
-  })
 }
 
 async function seedFoundationSources(seed: AnatomyFoundationSeed) {
@@ -545,46 +494,6 @@ async function existingMediaLinksByKey(assetIds: readonly string[]) {
   }
 
   return byKey
-}
-
-function termSourceRefKey(input: { termId: string; sourceId: string }) {
-  return [input.termId, input.sourceId].join("\u0000")
-}
-
-async function existingAnatomyAliasKeys(termIds: readonly string[]) {
-  const keys = new Set<string>()
-
-  for (const termIdChunk of chunked([...new Set(termIds)])) {
-    const rows = await prisma.anatomyAlias.findMany({
-      where: { termId: { in: termIdChunk } },
-      select: {
-        termId: true,
-        alias: true,
-      },
-    })
-
-    for (const row of rows) keys.add([row.termId, row.alias].join("\u0000"))
-  }
-
-  return keys
-}
-
-async function existingAnatomySourceRefKeys(termIds: readonly string[]) {
-  const keys = new Set<string>()
-
-  for (const termIdChunk of chunked([...new Set(termIds)])) {
-    const rows = await prisma.anatomySourceRef.findMany({
-      where: { termId: { in: termIdChunk } },
-      select: {
-        termId: true,
-        sourceId: true,
-      },
-    })
-
-    for (const row of rows) keys.add(termSourceRefKey(row))
-  }
-
-  return keys
 }
 
 async function seedAnatomyFoundation(seed: AnatomyFoundationSeed) {
@@ -2509,143 +2418,8 @@ async function cleanupObsoleteFoundationSources(seed: AnatomyFoundationSeed) {
   })
 }
 
-async function seedGenericAnatomyTerms() {
-  const sourceSlugs = getAnatomySources().map((source) => source.id)
-  for (const source of getAnatomySources()) {
-    await seedSource(source)
-  }
-
-  const sourceRows = await prisma.anatomySource.findMany({
-    where: { slug: { in: sourceSlugs } },
-    select: { id: true, slug: true },
-  })
-  const sourceBySlug = new Map(sourceRows.map((source) => [source.slug, source]))
-  const existingTermBySlug = await existingRowsBySlug<{
-    id: string
-    slug: string
-    kind: AnatomyKind
-    preferredName: string
-    summary: string | null
-    regions: string[]
-    bodySystems: string[]
-    difficulty: AnatomyDifficulty
-    status: string
-  }>(prisma.anatomyTerm as any, anatomyTerms.map((term) => term.id), {
-    id: true,
-    slug: true,
-    kind: true,
-    preferredName: true,
-    summary: true,
-    regions: true,
-    bodySystems: true,
-    difficulty: true,
-    status: true,
-  })
-  const anatomyTermBySlug = new Map<string, { id: string }>()
-
-  await mapWithConcurrency(anatomyTerms, async (term) => {
-    const kind = toEnum<AnatomyKind>(term.kind)
-    const summary = term.definition ?? null
-    const bodySystems = bodySystemsForTerm(term)
-    const difficulty = toEnum<AnatomyDifficulty>(term.difficulty, "MEDIUM")
-    const existingTerm = existingTermBySlug.get(term.id)
-
-    if (existingTerm && recordMatches(existingTerm, {
-      kind,
-      preferredName: term.name,
-      summary,
-      regions: term.regions,
-      bodySystems,
-      difficulty,
-      status: "PUBLISHED",
-    })) {
-      anatomyTermBySlug.set(term.id, { id: existingTerm.id })
-      return
-    }
-
-    const anatomyTerm = await prisma.anatomyTerm.upsert({
-      where: { slug: term.id },
-      create: {
-        slug: term.id,
-        kind,
-        preferredName: term.name,
-        summary,
-        regions: term.regions,
-        bodySystems,
-        difficulty,
-        status: "PUBLISHED",
-      },
-      update: {
-        kind,
-        preferredName: term.name,
-        summary,
-        regions: term.regions,
-        bodySystems,
-        difficulty,
-        status: "PUBLISHED",
-      },
-    })
-
-    anatomyTermBySlug.set(term.id, anatomyTerm)
-  })
-
-  const aliasRows = anatomyTerms.flatMap((term) => {
-    const anatomyTerm = requireMapValue(anatomyTermBySlug, term.id, "generic anatomy term")
-    return (term.aliases ?? []).map((alias) => ({
-      termId: anatomyTerm.id,
-      alias,
-    }))
-  })
-  const sourceRefRows = anatomyTerms.flatMap((term) => {
-    const anatomyTerm = requireMapValue(anatomyTermBySlug, term.id, "generic anatomy term")
-
-    return (term.sourceRefs ?? [])
-      .map((sourceRef) => {
-        const source = sourceBySlug.get(sourceRef)
-        if (!source) return null
-
-        return {
-          termId: anatomyTerm.id,
-          sourceId: source.id,
-        }
-      })
-      .filter((row): row is { termId: string; sourceId: string } => Boolean(row))
-  })
-  const existingAliasKeys = await existingAnatomyAliasKeys([...anatomyTermBySlug.values()].map((term) => term.id))
-  const existingSourceRefKeys = await existingAnatomySourceRefKeys([...anatomyTermBySlug.values()].map((term) => term.id))
-
-  await mapWithConcurrency(aliasRows, async (row) => {
-    if (existingAliasKeys.has([row.termId, row.alias].join("\u0000"))) return
-
-    await prisma.anatomyAlias.upsert({
-      where: {
-        termId_alias: {
-          termId: row.termId,
-          alias: row.alias,
-        },
-      },
-      create: row,
-      update: {},
-    })
-  })
-
-  await mapWithConcurrency(sourceRefRows, async (row) => {
-    if (existingSourceRefKeys.has(termSourceRefKey(row))) return
-
-    await prisma.anatomySourceRef.upsert({
-      where: {
-        termId_sourceId: row,
-      },
-      create: row,
-      update: {},
-    })
-  })
-}
-
 async function main() {
   const mark = seedTimingMarker("main")
-  await seedGenericAnatomyTerms()
-  mark("generic-anatomy-terms")
   await seedAnatomyFoundation(ANATOMY_FOUNDATION_SEED)
   mark("anatomy-foundation")
   await cleanupObsoleteFoundationSources(ANATOMY_FOUNDATION_SEED)

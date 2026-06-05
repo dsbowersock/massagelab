@@ -6,6 +6,10 @@ const publicRoutes = [
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
   { path: "/calendar", expectedText: /Calendar/i },
+  { path: "/education", expectedText: /Education/i },
+  { path: "/education/flashcards", expectedText: /Flashcards/i },
+  { path: "/education/flashcards/decks", expectedText: /Community Decks/i },
+  { path: "/education/flashcards/decks/starter-all-body-identification", expectedText: /All-body image identification/i },
   { path: "/anatomime", expectedText: /Anatomime/i },
 ] as const
 

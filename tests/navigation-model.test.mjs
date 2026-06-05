@@ -25,11 +25,12 @@ describe("Navigation IA model", () => {
   it("keeps visible alpha product routes grouped without exposing placeholders", () => {
     const groups = getVisibleNavigationGroups()
 
-    assert.deepEqual(groups.map((group) => group.id), ["tools", "documentation", "games", "about"])
+    assert.deepEqual(groups.map((group) => group.id), ["tools", "documentation", "education", "games", "about"])
     assert.deepEqual(groups.flatMap((group) => group.routes.map((route) => route.href)), [
       "/chimer",
       "/calendar",
       "/notes",
+      "/education/flashcards",
       "/anatomime",
       "/pricing",
       "/roadmap",
@@ -39,7 +40,7 @@ describe("Navigation IA model", () => {
   })
 
   it("separates primary, secondary, and account menu navigation", () => {
-    assert.deepEqual(primaryNavigationGroups.map((group) => group.id), ["tools", "documentation", "games", "about"])
+    assert.deepEqual(primaryNavigationGroups.map((group) => group.id), ["tools", "documentation", "education", "games", "about"])
     assert.deepEqual(secondaryNavigationRoutes.map((route) => route.href), [])
     assert.deepEqual(accountMenuRoutes.map((route) => route.href), [
       "/account",
@@ -63,12 +64,12 @@ describe("Navigation IA model", () => {
     assert.equal(isNavigationRouteActive("/chimer", "/"), false)
   })
 
-  it("retains hidden education and news groups as model-only placeholders", () => {
+  it("retains hidden home and news groups as model-only placeholders", () => {
     const modelOnlyGroupIds = navigationGroups
       .filter((group) => group.routes.length === 0 || group.routes.every((route) => route.visibleInSidebar === false))
       .map((group) => group.id)
 
-    assert.deepEqual(modelOnlyGroupIds, ["home", "education", "news"])
+    assert.deepEqual(modelOnlyGroupIds, ["home", "news"])
   })
 
   it("adds future audience metadata to every route", () => {
@@ -126,11 +127,12 @@ describe("Navigation IA model", () => {
   it("resolves anonymous navigation without account or calendar actions", () => {
     const navigation = resolveNavigation({ authState: "anonymous" })
 
-    assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "games", "about"])
+    assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "education", "games", "about"])
     assert.deepEqual(primaryHrefs(navigation), [
       "/chimer",
       "/calendar",
       "/notes",
+      "/education/flashcards",
       "/anatomime",
       "/pricing",
       "/roadmap",
@@ -150,7 +152,7 @@ describe("Navigation IA model", () => {
       practiceRoles: [],
     })
 
-    assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "games", "about"])
+    assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "education", "games", "about"])
     assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), [
       "/account",
       "/account?tab=app-settings",
