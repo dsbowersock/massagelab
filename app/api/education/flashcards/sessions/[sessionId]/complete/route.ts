@@ -136,7 +136,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
       select: { status: true },
     })
 
-    if (!currentSession || currentSession.status === "COMPLETED") return
+    if (!currentSession || currentSession.status !== "STARTED") return
 
     await tx.flashcardStudySession.update({
       where: { id: studySession.id },

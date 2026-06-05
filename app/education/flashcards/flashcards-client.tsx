@@ -106,6 +106,31 @@ function shufflePrompts(prompts: FlashcardPrompt[]) {
   return next
 }
 
+function sessionStartPayload(value: unknown) {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  const session = record.session && typeof record.session === "object" && !Array.isArray(record.session)
+    ? record.session as Record<string, unknown>
+    : {}
+  const promptIds = Array.isArray(session.promptIds)
+    ? session.promptIds.filter((promptId): promptId is string => typeof promptId === "string")
+    : []
+
+  return {
+    id: typeof session.id === "string" ? session.id : "",
+    promptIds,
+  }
+}
+
+function promptsFromPromptIds(prompts: FlashcardPrompt[], promptIds: string[]) {
+  const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt]))
+
+  return promptIds
+    .map((promptId) => promptById.get(promptId))
+    .filter((prompt): prompt is FlashcardPrompt => Boolean(prompt))
+}
+
 function configFromState(state: {
   category: string
   region: string
@@ -218,15 +243,18 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
   }
 
   const startDeck = async (config = setupConfig, deckSlug = "") => {
-    const nextDeck = shufflePrompts(prompts.filter((prompt) => configMatchesPrompt(prompt, config))).slice(0, config.count)
-    setActiveConfig(config)
-    setActiveDeck(nextDeck)
-    setActiveDeckSlug(deckSlug)
-    setCurrentIndex(0)
-    setAnswers({})
-    setCheckedResult(null)
-    setResults([])
     setSaveMessage("")
+
+    const activateDeck = (nextDeck: FlashcardPrompt[], nextSessionId = "") => {
+      setActiveConfig(config)
+      setActiveDeck(nextDeck)
+      setActiveDeckSlug(deckSlug)
+      setSessionId(nextSessionId)
+      setCurrentIndex(0)
+      setAnswers({})
+      setCheckedResult(null)
+      setResults([])
+    }
 
     if (isSignedIn) {
       try {
@@ -241,13 +269,24 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
           return
         }
 
-        const payload = await response.json()
-        setSessionId(payload.session?.id ?? "")
+        const session = sessionStartPayload(await response.json())
+        const sessionDeck = promptsFromPromptIds(prompts, session.promptIds)
+
+        if (!session.id || session.promptIds.length === 0 || sessionDeck.length !== session.promptIds.length) {
+          setSaveMessage("Progress tracking could not be started.")
+          return
+        }
+
+        activateDeck(sessionDeck, session.id)
+        return
       } catch (error) {
         console.error("Failed to start flashcard study session", error)
         setSaveMessage("Progress tracking could not be started.")
+        return
       }
     }
+
+    activateDeck(shufflePrompts(prompts.filter((prompt) => configMatchesPrompt(prompt, config))).slice(0, config.count))
   }
 
   const startFromDeck = (deck: FlashcardDeckSummary) => {
