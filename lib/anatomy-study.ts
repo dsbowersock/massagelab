@@ -347,9 +347,12 @@ function entityDisplayName(entityType: AnatomyStudyCategory, entity: FoundationS
   return undefined
 }
 
-function entityRegion(entityType: AnatomyStudyCategory, entity: FoundationStudyEntity) {
+function entityRegion(entityType: AnatomyStudyCategory, entity: FoundationStudyEntity, context: BuildContext) {
   if (entityType === "bone_landmark") {
-    return "spine"
+    const landmark = entity as BoneLandmark
+    const parentBone = context.seed.bones.find((bone) => bone.slug === landmark.bone)
+
+    return parentBone?.region ?? ("region" in entity ? entity.region : "spine")
   }
 
   return "region" in entity ? entity.region : "spine"
@@ -493,7 +496,8 @@ function cardFromEntity(entityType: AnatomyStudyCategory, entity: FoundationStud
     ...publicSummaryCitations.map((citation) => citation.sourceRef),
     ...media.map((asset) => asset.sourceRef),
   ])
-  const studyRegion = regionForFoundationRegion(entityRegion(entityType, entity))
+  const foundationRegion = entityRegion(entityType, entity, context)
+  const studyRegion = regionForFoundationRegion(foundationRegion)
 
   return {
     id: `${entityType}-${entity.slug}`,
@@ -507,7 +511,7 @@ function cardFromEntity(entityType: AnatomyStudyCategory, entity: FoundationStud
     summary: entity.description,
     regions: [studyRegion],
     regionLabels: [ANATOMY_STUDY_REGION_LABELS[studyRegion]],
-    foundationRegion: entityRegion(entityType, entity),
+    foundationRegion,
     difficulty: difficultyForEntity(entityType, entity),
     sourceRefs: [...sourceRefs],
     sources: publicSources(sourceRefs, context),
@@ -1011,8 +1015,8 @@ export function validateAnatomyStudyContent(cards: AnatomyStudyCard[] = studyCar
   return issues
 }
 
-function directLegacyIdCard(term: LegacyAnatomyTermLike) {
-  return studyCards.find((card) => card.id === term.id)
+function directLegacyIdCard(cards: AnatomyStudyCard[], term: LegacyAnatomyTermLike) {
+  return cards.find((card) => card.id === term.id)
 }
 
 export function getLegacyAnatomyCoverageAudit(legacyTerms: LegacyAnatomyTermLike[], seed: AnatomyFoundationSeed = ANATOMY_FOUNDATION_SEED): LegacyAnatomyCoverageRow[] {
@@ -1031,7 +1035,7 @@ export function getLegacyAnatomyCoverageAudit(legacyTerms: LegacyAnatomyTermLike
       return legacyCoverageRow(term, overrideCard, "mapped", "legacy-id-override")
     }
 
-    const directCard = cardById.get(term.id) ?? directLegacyIdCard(term)
+    const directCard = cardById.get(term.id) ?? directLegacyIdCard(contextCards, term)
     if (directCard) {
       return legacyCoverageRow(term, directCard, "sourced")
     }

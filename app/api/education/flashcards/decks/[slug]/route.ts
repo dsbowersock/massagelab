@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import {
+  FLASHCARD_ACHIEVEMENTS,
+  FLASHCARD_TOOL,
   accuracyPercent,
   getFlashcardStarterDecks,
   normalizeDeckVisibility,
@@ -13,6 +15,12 @@ import { prisma } from "@/lib/prisma"
 
 function json(value: unknown) {
   return value as Prisma.InputJsonValue
+}
+
+function objectBody(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 }
 
 function ownerName(owner: { name: string | null; profile?: { displayName: string | null } | null } | null) {
@@ -94,13 +102,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
     return NextResponse.json({ error: "Deck not found." }, { status: 404 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = objectBody(await request.json().catch(() => ({})))
   const title = typeof body.title === "string" && body.title.trim().length > 0
     ? body.title.trim().slice(0, 96)
     : existing.title
   const description = typeof body.description === "string" ? body.description.trim().slice(0, 240) : existing.description
   const config = "config" in body ? normalizeFlashcardDeckConfig(body.config) : normalizeFlashcardDeckConfig(existing.config)
-  const visibility = "visibility" in body ? normalizeDeckVisibility(body.visibility) : normalizeDeckVisibility(existing.visibility)
+  const previousVisibility = normalizeDeckVisibility(existing.visibility)
+  const visibility = "visibility" in body ? normalizeDeckVisibility(body.visibility) : previousVisibility
   const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
   const promptCount = promptCountForConfig(config, mediaOptions)
 
@@ -126,6 +135,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
       },
     },
   })
+
+  if (previousVisibility !== "PUBLIC" && visibility === "PUBLIC") {
+    await prisma.achievement.upsert({
+      where: { userId_key_tool: { userId: session.user.id, key: FLASHCARD_ACHIEVEMENTS.firstPublicDeck, tool: FLASHCARD_TOOL } },
+      create: {
+        userId: session.user.id,
+        key: FLASHCARD_ACHIEVEMENTS.firstPublicDeck,
+        tool: FLASHCARD_TOOL,
+        metadata: {},
+      },
+      update: {},
+    })
+  }
 
   return NextResponse.json({ deck: rowSummary(deck, session.user.id) })
 }

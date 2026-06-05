@@ -229,14 +229,23 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
     setSaveMessage("")
 
     if (isSignedIn) {
-      const response = await fetch("/api/education/flashcards/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(deckSlug ? { deckSlug } : { config }),
-      }).catch(() => null)
-      if (response?.ok) {
+      try {
+        const response = await fetch("/api/education/flashcards/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(deckSlug ? { deckSlug } : { config }),
+        })
+
+        if (!response.ok) {
+          setSaveMessage("Progress tracking could not be started.")
+          return
+        }
+
         const payload = await response.json()
         setSessionId(payload.session?.id ?? "")
+      } catch (error) {
+        console.error("Failed to start flashcard study session", error)
+        setSaveMessage("Progress tracking could not be started.")
       }
     }
   }
@@ -348,12 +357,23 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
       return
     }
 
-    await fetch(`/api/education/flashcards/sessions/${sessionId}/complete`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ results: finalResults }),
-    }).catch(() => null)
-    setSaveMessage("Progress saved.")
+    try {
+      const response = await fetch(`/api/education/flashcards/sessions/${sessionId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ results: finalResults }),
+      })
+
+      if (!response.ok) {
+        setSaveMessage("Progress could not be saved.")
+        return
+      }
+
+      setSaveMessage("Progress saved.")
+    } catch (error) {
+      console.error("Failed to complete flashcard study session", error)
+      setSaveMessage("Progress could not be saved.")
+    }
   }
 
   if (activeDeck.length > 0 && currentPrompt && activeConfig) {

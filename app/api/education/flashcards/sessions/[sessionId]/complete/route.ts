@@ -102,8 +102,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
   const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
   const promptById = new Map(createFlashcardPromptDeck(config, mediaOptions).map((prompt) => [prompt.id, prompt]))
   const allowedPromptIds = new Set(studySession.promptIds)
-  const results = submittedResults
-    .filter((result) => allowedPromptIds.has(result.promptId))
+  const deduplicatedSubmittedResults = new Map<string, { promptId: string; correct: boolean; score: number }>()
+
+  for (const result of submittedResults) {
+    if (allowedPromptIds.has(result.promptId)) {
+      deduplicatedSubmittedResults.set(result.promptId, result)
+    }
+  }
+
+  const results = [...deduplicatedSubmittedResults.values()]
     .map((result) => {
       const prompt = promptById.get(result.promptId)
       if (!prompt) return null
@@ -124,6 +131,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
   const correctCount = results.filter((result) => result.correct).length
 
   await prisma.$transaction(async (tx) => {
+    const currentSession = await tx.flashcardStudySession.findUnique({
+      where: { id: studySession.id },
+      select: { status: true },
+    })
+
+    if (!currentSession || currentSession.status === "COMPLETED") return
+
     await tx.flashcardStudySession.update({
       where: { id: studySession.id },
       data: {

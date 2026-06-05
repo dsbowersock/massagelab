@@ -24,7 +24,7 @@ CREATE TABLE "FlashcardStudySession" (
     "userId" TEXT NOT NULL,
     "deckId" TEXT,
     "deckConfig" JSONB NOT NULL DEFAULT '{}',
-    "promptIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "promptIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     "status" TEXT NOT NULL DEFAULT 'STARTED',
     "answeredCount" INTEGER NOT NULL DEFAULT 0,
     "correctCount" INTEGER NOT NULL DEFAULT 0,
