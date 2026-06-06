@@ -133,6 +133,8 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   await startButton.click()
 
   await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole("button", { name: "Reveal Answer" })).toBeVisible()
+  await page.getByRole("button", { name: "Reveal Answer" }).click()
   await expect(page.getByRole("button", { name: /Correct/i })).toBeVisible()
   expect(promptApiRequests).toBeGreaterThan(0)
 })
