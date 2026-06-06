@@ -283,7 +283,36 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       setResults([])
     }
 
+    const startTemporaryDeck = async (message = "") => {
+      try {
+        const response = await fetch("/api/education/flashcards/prompts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config, includePrompts: true }),
+        })
+
+        if (!response.ok) {
+          setSaveMessage("Deck could not be started.")
+          return
+        }
+
+        const prompts = promptDeckPayload(await response.json())
+        if (prompts.length === 0) {
+          setSaveMessage("Deck could not be started.")
+          return
+        }
+
+        activateDeck(prompts)
+        if (message) setSaveMessage(message)
+      } catch (error) {
+        console.error("Failed to start temporary flashcard deck", error)
+        setSaveMessage("Deck could not be started.")
+      }
+    }
+
     if (canPersistProgress) {
+      let fallbackMessage = ""
+
       try {
         const response = await fetch("/api/education/flashcards/sessions", {
           method: "POST",
@@ -292,14 +321,16 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         })
 
         if (!response.ok) {
-          setSaveMessage("Progress tracking could not be started.")
+          fallbackMessage = "Studying temporarily; progress tracking could not be started."
+          await startTemporaryDeck(fallbackMessage)
           return
         }
 
         const session = sessionStartPayload(await response.json())
 
         if (!session.id || session.promptIds.length === 0 || session.prompts.length !== session.promptIds.length) {
-          setSaveMessage("Progress tracking could not be started.")
+          fallbackMessage = "Studying temporarily; progress tracking could not be started."
+          await startTemporaryDeck(fallbackMessage)
           return
         }
 
@@ -307,34 +338,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         return
       } catch (error) {
         console.error("Failed to start flashcard study session", error)
-        setSaveMessage("Progress tracking could not be started.")
+        fallbackMessage = "Studying temporarily; progress tracking could not be started."
+        await startTemporaryDeck(fallbackMessage)
         return
       }
     }
 
-    try {
-      const response = await fetch("/api/education/flashcards/prompts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config, includePrompts: true }),
-      })
-
-      if (!response.ok) {
-        setSaveMessage("Deck could not be started.")
-        return
-      }
-
-      const prompts = promptDeckPayload(await response.json())
-      if (prompts.length === 0) {
-        setSaveMessage("Deck could not be started.")
-        return
-      }
-
-      activateDeck(prompts)
-    } catch (error) {
-      console.error("Failed to start temporary flashcard deck", error)
-      setSaveMessage("Deck could not be started.")
-    }
+    await startTemporaryDeck()
   }
 
   const startFromDeck = (deck: FlashcardDeckSummary) => {
@@ -439,8 +449,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       ? [...results, checkedResult]
       : results
 
-    if (!canPersistProgress || !sessionId) {
+    if (!canPersistProgress) {
       setSaveMessage("Sign in to save progress and achievements.")
+      return
+    }
+    if (!sessionId) {
+      setSaveMessage("This temporary session cannot save progress.")
       return
     }
 

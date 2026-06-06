@@ -103,3 +103,40 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
+
+test("signed-in flashcards fall back to temporary study when progress session fails", async ({ page }) => {
+  let sessionStartRequests = 0
+
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "browser-test-user" } }),
+    })
+  })
+  await page.route("**/api/education/flashcards/sessions", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback()
+      return
+    }
+
+    sessionStartRequests += 1
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Progress tracking could not be started." }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Sign in to save progress/i })).toHaveCount(0)
+
+  const startButton = page.getByRole("button", { name: /Start [1-9]/ })
+  await expect(startButton).toBeEnabled()
+  await startButton.click()
+
+  await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Studying temporarily; progress tracking could not be started\./i)).toBeVisible()
+  expect(sessionStartRequests).toBeGreaterThan(0)
+})

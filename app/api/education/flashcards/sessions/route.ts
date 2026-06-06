@@ -8,8 +8,25 @@ import { createFlashcardPromptDeck } from "@/lib/anatomy-study"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import { prisma } from "@/lib/prisma"
 
+const emptyMediaOptions = { mediaUrlBySlug: new Map<string, string>() }
+
 function json(value: unknown) {
   return value as Prisma.InputJsonValue
+}
+
+async function boundedMediaOptions() {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      loadAnatomyStudyMediaUrlOptions(),
+      new Promise<typeof emptyMediaOptions>((resolve) => {
+        timeoutId = setTimeout(() => resolve(emptyMediaOptions), 1500)
+      }),
+    ])
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
+  }
 }
 
 export async function POST(request: Request) {
@@ -38,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   const config = normalizeFlashcardDeckConfig(deck?.config ?? body.config)
-  const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
+  const mediaOptions = await boundedMediaOptions()
   const prompts = createFlashcardPromptDeck(config, mediaOptions)
   const promptIds = prompts.map((prompt) => prompt.id)
   if (promptIds.length === 0) {
@@ -53,7 +70,14 @@ export async function POST(request: Request) {
       promptIds,
       status: "STARTED",
     },
+  }).catch((error) => {
+    console.error("Failed to create flashcard study session", error)
+    return null
   })
+
+  if (!studySession) {
+    return NextResponse.json({ error: "Progress tracking could not be started." }, { status: 503 })
+  }
 
   return NextResponse.json({
     session: {
