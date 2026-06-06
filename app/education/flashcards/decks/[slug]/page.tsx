@@ -1,32 +1,33 @@
 import { notFound } from "next/navigation"
 import { Layers3 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
-import {
-  FLASHCARD_STARTER_DECKS,
-  accuracyPercent,
-  normalizeDeckVisibility,
-  normalizeFlashcardDeckConfig,
-} from "@/lib/flashcard-community"
 import type { FlashcardDeckSummary } from "@/lib/flashcard-community"
 import {
-  getAnatomyStudyCards,
-  getAnatomyStudyCategories,
-  getFlashcardPromptTypeCounts,
-  getAnatomyStudyRegions,
-  getAnatomyStudySources,
-} from "@/lib/anatomy-study"
-import { prisma } from "@/lib/prisma"
+  FLASHCARD_STATIC_CATEGORIES,
+  FLASHCARD_STATIC_PROMPT_TYPE_COUNTS,
+  FLASHCARD_STATIC_REGIONS,
+  FLASHCARD_STATIC_SOURCES,
+  FLASHCARD_STATIC_STARTER_DECKS,
+  getStaticStarterFlashcardDeck,
+} from "@/lib/flashcard-static-metadata"
 import { FlashcardsClient } from "../../flashcards-client"
 
 function displayName(owner: { name: string | null; profile?: { displayName: string | null } | null } | null) {
   return owner?.profile?.displayName ?? owner?.name ?? "MassageLab learner"
 }
 
-async function loadDeck(slug: string, viewerUserId?: string): Promise<FlashcardDeckSummary | null> {
-  const starter = FLASHCARD_STARTER_DECKS.find((deck) => deck.slug === slug)
-  if (starter) return starter
-
+async function loadPersistedDeck(slug: string): Promise<FlashcardDeckSummary | null> {
+  const [
+    { getCurrentSession },
+    { accuracyPercent, normalizeDeckVisibility, normalizeFlashcardDeckConfig },
+    { prisma },
+  ] = await Promise.all([
+    import("@/auth"),
+    import("@/lib/flashcard-community"),
+    import("@/lib/prisma"),
+  ])
+  const session = await getCurrentSession()
+  const viewerUserId = session?.user?.id
   const deck = await prisma.flashcardDeck.findUnique({
     where: { slug },
     include: {
@@ -62,31 +63,25 @@ async function loadDeck(slug: string, viewerUserId?: string): Promise<FlashcardD
 }
 
 export default async function FlashcardDeckPage({ params }: { params: Promise<{ slug: string }> }) {
-  const [{ slug }, session] = await Promise.all([params, getCurrentSession()])
-  const deck = await loadDeck(slug, session?.user?.id)
+  const { slug } = await params
+  const deck = getStaticStarterFlashcardDeck(slug) ?? await loadPersistedDeck(slug)
   if (!deck) notFound()
-
-  const cards = getAnatomyStudyCards()
-  const promptTypeCounts = getFlashcardPromptTypeCounts()
-  const categories = getAnatomyStudyCategories(cards)
-  const regions = getAnatomyStudyRegions(cards)
-  const sources = getAnatomyStudySources(cards)
 
   return (
     <AppPageShell title={deck.title} width="full" contentClassName="gap-6">
       <AppSurface
         title={deck.title}
-        description={`${deck.promptCount} eligible prompts from ${deck.ownerName}.`}
+        description={`${deck.promptCount} selected prompts from ${deck.ownerName}.`}
         icon={<Layers3 className="h-5 w-5" aria-hidden="true" />}
         badge={deck.isStarter ? "Starter" : deck.visibility}
       >
         <FlashcardsClient
-          categories={categories}
-          regions={regions}
-          sources={sources}
-          initialDecks={FLASHCARD_STARTER_DECKS}
-          initialPromptTypeCounts={promptTypeCounts}
-          isSignedIn={Boolean(session?.user?.id)}
+          categories={FLASHCARD_STATIC_CATEGORIES}
+          regions={FLASHCARD_STATIC_REGIONS}
+          sources={FLASHCARD_STATIC_SOURCES}
+          initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
+          initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
+          isSignedIn={false}
           initialDeck={deck}
         />
       </AppSurface>

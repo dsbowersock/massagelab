@@ -1,40 +1,32 @@
 import { Layers3 } from "lucide-react"
-import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
-import { FLASHCARD_STARTER_DECKS } from "@/lib/flashcard-community"
 import {
-  getAnatomyStudyCards,
-  getAnatomyStudyCategories,
-  getFlashcardPromptTypeCounts,
-  getAnatomyStudyRegions,
-  getAnatomyStudySources,
-} from "@/lib/anatomy-study"
+  FLASHCARD_STATIC_CATEGORIES,
+  FLASHCARD_STATIC_PROMPT_TYPE_COUNTS,
+  FLASHCARD_STATIC_REGIONS,
+  FLASHCARD_STATIC_SOURCES,
+  FLASHCARD_STATIC_STARTER_DECKS,
+} from "@/lib/flashcard-static-metadata"
 import { FlashcardsClient } from "./flashcards-client"
 
-export default async function EducationFlashcardsPage() {
-  const session = await getCurrentSession()
-  const cards = getAnatomyStudyCards()
-  const promptTypeCounts = getFlashcardPromptTypeCounts()
-  const categories = getAnatomyStudyCategories(cards)
-  const regions = getAnatomyStudyRegions(cards)
-  const sources = getAnatomyStudySources(cards)
-  const promptCount = promptTypeCounts.reduce((sum, promptType) => sum + promptType.promptCount, 0)
+export const dynamic = "force-static"
 
+export default function EducationFlashcardsPage() {
   return (
     <AppPageShell title="Flashcards" width="full" contentClassName="gap-6">
       <AppSurface
         title="Flashcards"
-        description={`${promptCount} sourced anatomy prompts for self-study.`}
+        description="Sourced anatomy prompts for self-study."
         icon={<Layers3 className="h-5 w-5" aria-hidden="true" />}
         badge="Public alpha"
       >
         <FlashcardsClient
-          categories={categories}
-          regions={regions}
-          sources={sources}
-          initialDecks={FLASHCARD_STARTER_DECKS}
-          initialPromptTypeCounts={promptTypeCounts}
-          isSignedIn={Boolean(session?.user?.id)}
+          categories={FLASHCARD_STATIC_CATEGORIES}
+          regions={FLASHCARD_STATIC_REGIONS}
+          sources={FLASHCARD_STATIC_SOURCES}
+          initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
+          initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
+          isSignedIn={false}
         />
       </AppSurface>
     </AppPageShell>

@@ -16,17 +16,17 @@ import type {
   FlashcardPromptType,
 } from "@/lib/anatomy-study"
 import {
-  ANATOMY_STUDY_CATEGORY_LABELS,
-  ANATOMY_STUDY_REGION_LABELS,
-  FLASHCARD_ANSWER_MODES,
-  FLASHCARD_PROMPT_TYPES,
-} from "@/lib/anatomy-study"
+  FLASHCARD_STATIC_ANSWER_MODES,
+  FLASHCARD_STATIC_CATEGORY_IDS,
+  FLASHCARD_STATIC_PROMPT_TYPES,
+  FLASHCARD_STATIC_REGION_IDS,
+} from "@/lib/flashcard-static-metadata"
 import type { FlashcardDeckSummary, NormalizedFlashcardDeckConfig } from "@/lib/flashcard-community"
 
 type Option = {
   id: string
   label: string
-  termCount: number
+  termCount?: number
 }
 
 type Source = {
@@ -131,8 +131,8 @@ function configFromState(state: {
   deckSize: number
 }): NormalizedFlashcardDeckConfig {
   return {
-    categories: state.category === "all" ? Object.keys(ANATOMY_STUDY_CATEGORY_LABELS) as NormalizedFlashcardDeckConfig["categories"] : [state.category as NormalizedFlashcardDeckConfig["categories"][number]],
-    regions: state.region === "all" ? Object.keys(ANATOMY_STUDY_REGION_LABELS) as NormalizedFlashcardDeckConfig["regions"] : [state.region as NormalizedFlashcardDeckConfig["regions"][number]],
+    categories: state.category === "all" ? [...FLASHCARD_STATIC_CATEGORY_IDS] : [state.category as NormalizedFlashcardDeckConfig["categories"][number]],
+    regions: state.region === "all" ? [...FLASHCARD_STATIC_REGION_IDS] : [state.region as NormalizedFlashcardDeckConfig["regions"][number]],
     difficulty: state.difficulty,
     promptTypes: state.promptTypes,
     answerMode: state.answerMode,
@@ -144,6 +144,10 @@ function configFromState(state: {
 function accuracy(correct: number, answered: number) {
   if (answered === 0) return 0
   return Math.round((correct / answered) * 100)
+}
+
+function optionLabel(option: Option) {
+  return typeof option.termCount === "number" ? `${option.label} (${option.termCount})` : option.label
 }
 
 export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
@@ -168,6 +172,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [saveMessage, setSaveMessage] = useState("")
   const [promptTypeCounts, setPromptTypeCounts] = useState(initialPromptTypeCounts)
   const [isLoadingPromptCounts, setIsLoadingPromptCounts] = useState(false)
+  const [canPersistProgress, setCanPersistProgress] = useState(isSignedIn)
 
   useEffect(() => {
     const stored = window.localStorage.getItem(draftStorageKey)
@@ -189,6 +194,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   useEffect(() => {
     let cancelled = false
 
+    fetch("/api/auth/session")
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!cancelled && payload?.user) setCanPersistProgress(true)
+      })
+      .catch(() => undefined)
+
     fetch("/api/education/flashcards/decks")
       .then((response) => response.ok ? response.json() : null)
       .then((payload) => {
@@ -205,7 +217,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     category,
     region,
     difficulty,
-    promptTypes: [...FLASHCARD_PROMPT_TYPES],
+    promptTypes: [...FLASHCARD_STATIC_PROMPT_TYPES],
     answerMode: "typed",
     deckSize: 20,
   }), [category, difficulty, region])
@@ -271,7 +283,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       setResults([])
     }
 
-    if (isSignedIn) {
+    if (canPersistProgress) {
       try {
         const response = await fetch("/api/education/flashcards/sessions", {
           method: "POST",
@@ -349,7 +361,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   const saveDeck = async () => {
-    if (!isSignedIn) {
+    if (!canPersistProgress) {
       persistDraftAndPromptSignIn()
       return
     }
@@ -427,7 +439,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       ? [...results, checkedResult]
       : results
 
-    if (!isSignedIn || !sessionId) {
+    if (!canPersistProgress || !sessionId) {
       setSaveMessage("Sign in to save progress and achievements.")
       return
     }
@@ -567,7 +579,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               <div className="rounded-md border border-border/80 p-3"><div className="text-muted-foreground">Answered</div><div className="text-lg font-semibold">{answeredCount}</div></div>
               <div className="rounded-md border border-border/80 p-3"><div className="text-muted-foreground">Correct</div><div className="text-lg font-semibold">{correctCount}</div></div>
             </div>
-            {!isSignedIn ? (
+            {!canPersistProgress ? (
               <div className="rounded-md border border-border/80 bg-card/70 p-3 text-sm text-muted-foreground">
                 <Lock className="mb-2 h-4 w-4" aria-hidden="true" />
                 Sign in to save progress and achievements.
@@ -597,14 +609,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               <Label htmlFor="flashcard-category">Category</Label>
               <select id="flashcard-category" value={category} onChange={(event) => setCategory(event.target.value)} className={selectClassName()}>
                 <option value="all">All categories</option>
-                {categories.map((option) => <option key={option.id} value={option.id}>{option.label} ({option.termCount})</option>)}
+                {categories.map((option) => <option key={option.id} value={option.id}>{optionLabel(option)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="flashcard-region">Region</Label>
               <select id="flashcard-region" value={region} onChange={(event) => setRegion(event.target.value)} className={selectClassName()}>
                 <option value="all">All regions</option>
-                {regions.map((option) => <option key={option.id} value={option.id}>{option.label} ({option.termCount})</option>)}
+                {regions.map((option) => <option key={option.id} value={option.id}>{optionLabel(option)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -637,7 +649,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             <div className="space-y-2">
               <Label htmlFor="answer-mode">Answer Mode</Label>
               <select id="answer-mode" value={answerMode} onChange={(event) => setAnswerMode(event.target.value as FlashcardAnswerMode)} className={selectClassName()}>
-                {FLASHCARD_ANSWER_MODES.map((mode) => <option key={mode} value={mode}>{answerModeLabels[mode]}</option>)}
+                {FLASHCARD_STATIC_ANSWER_MODES.map((mode) => <option key={mode} value={mode}>{answerModeLabels[mode]}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -667,7 +679,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
             <Badge variant="outline">{eligiblePromptCount} eligible prompts</Badge>
             {isLoadingPromptCounts ? <Badge variant="outline">Updating counts</Badge> : null}
-            {!isSignedIn ? (
+            {!canPersistProgress ? (
               <Button asChild variant="link" className="h-auto p-0 text-sm">
                 <Link href="/login?callbackUrl=/education/flashcards" onClick={persistDraftAndPromptSignIn}>Sign in to save progress</Link>
               </Button>
@@ -718,7 +730,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           ))}
         </div>
         <Button type="button" variant="outline" onClick={() => {
-          setPromptTypes([...FLASHCARD_PROMPT_TYPES])
+          setPromptTypes([...FLASHCARD_STATIC_PROMPT_TYPES])
           setCategory("all")
           setRegion("all")
           setDifficulty("hard")
