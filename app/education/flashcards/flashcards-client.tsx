@@ -122,6 +122,18 @@ function promptDeckPayload(value: unknown) {
   return promptRows(record.prompts)
 }
 
+async function localPromptDeck(config: NormalizedFlashcardDeckConfig) {
+  const { createFlashcardPromptDeck } = await import("@/lib/anatomy-study")
+
+  return createFlashcardPromptDeck(config, { mediaUrlBySlug: new Map() })
+}
+
+async function localPromptTypeCounts(config: NormalizedFlashcardDeckConfig) {
+  const { getFlashcardPromptTypeCounts } = await import("@/lib/anatomy-study")
+
+  return getFlashcardPromptTypeCounts(config, { mediaUrlBySlug: new Map() })
+}
+
 function configFromState(state: {
   category: string
   region: string
@@ -232,21 +244,34 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     let cancelled = false
     setIsLoadingPromptCounts(true)
 
-    fetch("/api/education/flashcards/prompts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config: countConfig }),
-    })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload) => {
+    async function updatePromptCounts() {
+      try {
+        const response = await fetch("/api/education/flashcards/prompts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config: countConfig }),
+        })
+        const payload = response.ok ? await response.json() : null
+
         if (!cancelled && Array.isArray(payload?.promptTypeCounts)) {
           setPromptTypeCounts(payload.promptTypeCounts)
+          return
         }
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setIsLoadingPromptCounts(false)
-      })
+      } catch {
+        // Fall back to the browser-side sourced adapter below.
+      }
+
+      try {
+        const counts = await localPromptTypeCounts(countConfig)
+        if (!cancelled) setPromptTypeCounts(counts)
+      } catch (error) {
+        console.error("Failed to calculate local flashcard prompt counts", error)
+      }
+    }
+
+    void updatePromptCounts().finally(() => {
+      if (!cancelled) setIsLoadingPromptCounts(false)
+    })
 
     return () => {
       cancelled = true
@@ -292,11 +317,23 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         })
 
         if (!response.ok) {
-          setSaveMessage("Deck could not be started.")
-          return
+          throw new Error(`Prompt API returned ${response.status}.`)
         }
 
         const prompts = promptDeckPayload(await response.json())
+        if (prompts.length === 0) {
+          throw new Error("Prompt API returned no prompts.")
+        }
+
+        activateDeck(prompts)
+        if (message) setSaveMessage(message)
+        return
+      } catch (error) {
+        console.warn("Falling back to local flashcard prompt generation", error)
+      }
+
+      try {
+        const prompts = await localPromptDeck(config)
         if (prompts.length === 0) {
           setSaveMessage("Deck could not be started.")
           return
@@ -305,7 +342,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         activateDeck(prompts)
         if (message) setSaveMessage(message)
       } catch (error) {
-        console.error("Failed to start temporary flashcard deck", error)
+        console.error("Failed to start temporary flashcard deck locally", error)
         setSaveMessage("Deck could not be started.")
       }
     }

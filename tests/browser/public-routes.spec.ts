@@ -104,6 +104,39 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("flashcards can start from local sourced prompts when the prompt API is unavailable", async ({ page }) => {
+  let promptApiRequests = 0
+
+  await page.route("**/api/education/flashcards/prompts", async (route) => {
+    promptApiRequests += 1
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Prompt API unavailable for browser test." }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+
+  await page.getByLabel("Category", { exact: true }).selectOption("muscle")
+  await page.getByLabel("Region", { exact: true }).selectOption("upper-extremity")
+  await page.getByLabel("Deck Size", { exact: true }).selectOption("10")
+  await page.getByLabel("Answer Mode", { exact: true }).selectOption("review")
+  await page.getByRole("checkbox", { name: /Identify From Image/i }).click()
+  await page.getByRole("checkbox", { name: /Name To Region/i }).click()
+  await page.getByRole("checkbox", { name: /Name To Category/i }).click()
+  await page.getByRole("checkbox", { name: /Muscle Action/i }).click()
+
+  const startButton = page.getByRole("button", { name: /Start 10/ })
+  await expect(startButton).toBeEnabled()
+  await startButton.click()
+
+  await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole("button", { name: /Correct/i })).toBeVisible()
+  expect(promptApiRequests).toBeGreaterThan(0)
+})
+
 test("signed-in flashcards fall back to temporary study when progress session fails", async ({ page }) => {
   let sessionStartRequests = 0
 
