@@ -3,18 +3,16 @@ import { Layers3 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import {
+  FLASHCARD_STARTER_DECKS,
   accuracyPercent,
-  getFlashcardStarterDecks,
   normalizeDeckVisibility,
   normalizeFlashcardDeckConfig,
 } from "@/lib/flashcard-community"
 import type { FlashcardDeckSummary } from "@/lib/flashcard-community"
-import type { AnatomyStudyBuildOptions } from "@/lib/anatomy-study"
-import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import {
   getAnatomyStudyCards,
   getAnatomyStudyCategories,
-  getAnatomyStudyPrompts,
+  getFlashcardPromptTypeCounts,
   getAnatomyStudyRegions,
   getAnatomyStudySources,
 } from "@/lib/anatomy-study"
@@ -25,8 +23,8 @@ function displayName(owner: { name: string | null; profile?: { displayName: stri
   return owner?.profile?.displayName ?? owner?.name ?? "MassageLab learner"
 }
 
-async function loadDeck(slug: string, mediaOptions: AnatomyStudyBuildOptions, viewerUserId?: string): Promise<FlashcardDeckSummary | null> {
-  const starter = getFlashcardStarterDecks(mediaOptions).find((deck) => deck.slug === slug)
+async function loadDeck(slug: string, viewerUserId?: string): Promise<FlashcardDeckSummary | null> {
+  const starter = FLASHCARD_STARTER_DECKS.find((deck) => deck.slug === slug)
   if (starter) return starter
 
   const deck = await prisma.flashcardDeck.findUnique({
@@ -65,16 +63,14 @@ async function loadDeck(slug: string, mediaOptions: AnatomyStudyBuildOptions, vi
 
 export default async function FlashcardDeckPage({ params }: { params: Promise<{ slug: string }> }) {
   const [{ slug }, session] = await Promise.all([params, getCurrentSession()])
-  const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
-  const deck = await loadDeck(slug, mediaOptions, session?.user?.id)
+  const deck = await loadDeck(slug, session?.user?.id)
   if (!deck) notFound()
 
-  const cards = getAnatomyStudyCards({}, mediaOptions)
-  const prompts = getAnatomyStudyPrompts({}, mediaOptions)
+  const cards = getAnatomyStudyCards()
+  const promptTypeCounts = getFlashcardPromptTypeCounts()
   const categories = getAnatomyStudyCategories(cards)
   const regions = getAnatomyStudyRegions(cards)
   const sources = getAnatomyStudySources(cards)
-  const starterDecks = getFlashcardStarterDecks(mediaOptions)
 
   return (
     <AppPageShell title={deck.title} width="full" contentClassName="gap-6">
@@ -85,11 +81,11 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
         badge={deck.isStarter ? "Starter" : deck.visibility}
       >
         <FlashcardsClient
-          prompts={prompts}
           categories={categories}
           regions={regions}
           sources={sources}
-          initialDecks={starterDecks}
+          initialDecks={FLASHCARD_STARTER_DECKS}
+          initialPromptTypeCounts={promptTypeCounts}
           isSignedIn={Boolean(session?.user?.id)}
           initialDeck={deck}
         />

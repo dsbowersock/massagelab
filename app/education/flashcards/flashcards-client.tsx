@@ -19,7 +19,6 @@ import {
   ANATOMY_STUDY_CATEGORY_LABELS,
   ANATOMY_STUDY_REGION_LABELS,
   FLASHCARD_ANSWER_MODES,
-  FLASHCARD_PROMPT_TYPE_LABELS,
   FLASHCARD_PROMPT_TYPES,
 } from "@/lib/anatomy-study"
 import type { FlashcardDeckSummary, NormalizedFlashcardDeckConfig } from "@/lib/flashcard-community"
@@ -44,12 +43,18 @@ type PromptResult = {
   score: number
 }
 
+type PromptTypeCount = {
+  id: FlashcardPromptType
+  label: string
+  promptCount: number
+}
+
 type FlashcardsClientProps = {
-  prompts: FlashcardPrompt[]
   categories: Option[]
   regions: Option[]
   sources: Source[]
   initialDecks: FlashcardDeckSummary[]
+  initialPromptTypeCounts: PromptTypeCount[]
   isSignedIn: boolean
   initialDeck?: FlashcardDeckSummary | null
 }
@@ -65,21 +70,11 @@ const answerModeLabels: Record<FlashcardAnswerMode, string> = {
   review: "Reveal Review",
 }
 
-const difficultyRank: Record<AnatomyStudyDifficulty, number> = {
-  easy: 1,
-  medium: 2,
-  hard: 3,
-}
-
 const deckSizeOptions = [10, 20, 30, 50, 100]
 const draftStorageKey = "massagelab-flashcard-draft-config-v1"
 
 function selectClassName() {
   return "h-10 rounded-md border border-border/80 bg-background/80 px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-}
-
-function promptTypeLabel(type: FlashcardPromptType) {
-  return FLASHCARD_PROMPT_TYPE_LABELS[type]
 }
 
 function normalizeAnswer(value: string) {
@@ -93,17 +88,12 @@ function fieldMatches(value: string, acceptedAnswers: string[]) {
   return acceptedAnswers.some((answer) => normalizeAnswer(answer) === normalized)
 }
 
-function shufflePrompts(prompts: FlashcardPrompt[]) {
-  const next = [...prompts]
+function promptRows(value: unknown) {
+  if (!Array.isArray(value)) return []
 
-  for (let index = next.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1))
-    const current = next[index]
-    next[index] = next[swapIndex]
-    next[swapIndex] = current
-  }
-
-  return next
+  return value.filter((prompt): prompt is FlashcardPrompt => (
+    Boolean(prompt && typeof prompt === "object" && !Array.isArray(prompt) && typeof (prompt as { id?: unknown }).id === "string")
+  ))
 }
 
 function sessionStartPayload(value: unknown) {
@@ -120,15 +110,16 @@ function sessionStartPayload(value: unknown) {
   return {
     id: typeof session.id === "string" ? session.id : "",
     promptIds,
+    prompts: promptRows(session.prompts),
   }
 }
 
-function promptsFromPromptIds(prompts: FlashcardPrompt[], promptIds: string[]) {
-  const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt]))
+function promptDeckPayload(value: unknown) {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 
-  return promptIds
-    .map((promptId) => promptById.get(promptId))
-    .filter((prompt): prompt is FlashcardPrompt => Boolean(prompt))
+  return promptRows(record.prompts)
 }
 
 function configFromState(state: {
@@ -150,19 +141,12 @@ function configFromState(state: {
   }
 }
 
-function configMatchesPrompt(prompt: FlashcardPrompt, config: Pick<NormalizedFlashcardDeckConfig, "categories" | "regions" | "difficulty" | "promptTypes">) {
-  return config.categories.includes(prompt.category) &&
-    prompt.regions.some((region) => config.regions.includes(region)) &&
-    difficultyRank[prompt.difficulty] <= difficultyRank[config.difficulty] &&
-    config.promptTypes.includes(prompt.type)
-}
-
 function accuracy(correct: number, answered: number) {
   if (answered === 0) return 0
   return Math.round((correct / answered) * 100)
 }
 
-export function FlashcardsClient({ prompts, categories, regions, sources, initialDecks, isSignedIn, initialDeck }: FlashcardsClientProps) {
+export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const [category, setCategory] = useState("all")
   const [region, setRegion] = useState("all")
   const [difficulty, setDifficulty] = useState<AnatomyStudyDifficulty>("medium")
@@ -182,6 +166,8 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
   const [checkedResult, setCheckedResult] = useState<PromptResult | null>(null)
   const [results, setResults] = useState<PromptResult[]>([])
   const [saveMessage, setSaveMessage] = useState("")
+  const [promptTypeCounts, setPromptTypeCounts] = useState(initialPromptTypeCounts)
+  const [isLoadingPromptCounts, setIsLoadingPromptCounts] = useState(false)
 
   useEffect(() => {
     const stored = window.localStorage.getItem(draftStorageKey)
@@ -215,17 +201,46 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
     }
   }, [])
 
+  const countConfig = useMemo(() => configFromState({
+    category,
+    region,
+    difficulty,
+    promptTypes: [...FLASHCARD_PROMPT_TYPES],
+    answerMode: "typed",
+    deckSize: 20,
+  }), [category, difficulty, region])
   const setupConfig = useMemo(() => configFromState({ category, region, difficulty, promptTypes, answerMode, deckSize }), [answerMode, category, deckSize, difficulty, promptTypes, region])
-  const eligiblePrompts = useMemo(() => prompts.filter((prompt) => configMatchesPrompt(prompt, setupConfig)), [prompts, setupConfig])
-  const promptTypeCounts = useMemo(() => {
-    const baseConfig = { ...setupConfig, promptTypes: [...FLASHCARD_PROMPT_TYPES] }
+  const eligiblePromptCount = useMemo(() => (
+    promptTypeCounts
+      .filter((type) => promptTypes.includes(type.id))
+      .reduce((sum, type) => sum + type.promptCount, 0)
+  ), [promptTypeCounts, promptTypes])
 
-    return FLASHCARD_PROMPT_TYPES.map((type) => ({
-      id: type,
-      label: promptTypeLabel(type),
-      promptCount: prompts.filter((prompt) => configMatchesPrompt(prompt, { ...baseConfig, promptTypes: [type] })).length,
-    }))
-  }, [prompts, setupConfig])
+  useEffect(() => {
+    let cancelled = false
+    setIsLoadingPromptCounts(true)
+
+    fetch("/api/education/flashcards/prompts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config: countConfig }),
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!cancelled && Array.isArray(payload?.promptTypeCounts)) {
+          setPromptTypeCounts(payload.promptTypeCounts)
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setIsLoadingPromptCounts(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [countConfig])
+
   const currentPrompt = activeDeck[currentIndex]
   const currentResult = currentPrompt ? results.find((result) => result.promptId === currentPrompt.id) ?? checkedResult : null
   const answeredCount = results.length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) ? 1 : 0)
@@ -270,14 +285,13 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
         }
 
         const session = sessionStartPayload(await response.json())
-        const sessionDeck = promptsFromPromptIds(prompts, session.promptIds)
 
-        if (!session.id || session.promptIds.length === 0 || sessionDeck.length !== session.promptIds.length) {
+        if (!session.id || session.promptIds.length === 0 || session.prompts.length !== session.promptIds.length) {
           setSaveMessage("Progress tracking could not be started.")
           return
         }
 
-        activateDeck(sessionDeck, session.id)
+        activateDeck(session.prompts, session.id)
         return
       } catch (error) {
         console.error("Failed to start flashcard study session", error)
@@ -286,7 +300,29 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
       }
     }
 
-    activateDeck(shufflePrompts(prompts.filter((prompt) => configMatchesPrompt(prompt, config))).slice(0, config.count))
+    try {
+      const response = await fetch("/api/education/flashcards/prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config, includePrompts: true }),
+      })
+
+      if (!response.ok) {
+        setSaveMessage("Deck could not be started.")
+        return
+      }
+
+      const prompts = promptDeckPayload(await response.json())
+      if (prompts.length === 0) {
+        setSaveMessage("Deck could not be started.")
+        return
+      }
+
+      activateDeck(prompts)
+    } catch (error) {
+      console.error("Failed to start temporary flashcard deck", error)
+      setSaveMessage("Deck could not be started.")
+    }
   }
 
   const startFromDeck = (deck: FlashcardDeckSummary) => {
@@ -609,9 +645,9 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
               <Input id="deck-title" value={deckTitle} onChange={(event) => setDeckTitle(event.target.value)} />
             </div>
             <div className="flex items-end">
-              <Button type="button" onClick={() => startDeck()} disabled={eligiblePrompts.length === 0}>
+              <Button type="button" onClick={() => startDeck()} disabled={eligiblePromptCount === 0}>
                 <Shuffle className="mr-2 h-4 w-4" aria-hidden="true" />
-                Start {Math.min(deckSize, eligiblePrompts.length)}
+                Start {Math.min(deckSize, eligiblePromptCount)}
               </Button>
             </div>
           </div>
@@ -629,7 +665,8 @@ export function FlashcardsClient({ prompts, categories, regions, sources, initia
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
-            <Badge variant="outline">{eligiblePrompts.length} eligible prompts</Badge>
+            <Badge variant="outline">{eligiblePromptCount} eligible prompts</Badge>
+            {isLoadingPromptCounts ? <Badge variant="outline">Updating counts</Badge> : null}
             {!isSignedIn ? (
               <Button asChild variant="link" className="h-auto p-0 text-sm">
                 <Link href="/login?callbackUrl=/education/flashcards" onClick={persistDraftAndPromptSignIn}>Sign in to save progress</Link>

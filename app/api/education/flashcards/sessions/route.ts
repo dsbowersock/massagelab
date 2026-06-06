@@ -2,9 +2,9 @@ import { NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import {
-  deckPromptIds,
   normalizeFlashcardDeckConfig,
 } from "@/lib/flashcard-community"
+import { createFlashcardPromptDeck } from "@/lib/anatomy-study"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import { prisma } from "@/lib/prisma"
 
@@ -39,7 +39,8 @@ export async function POST(request: Request) {
 
   const config = normalizeFlashcardDeckConfig(deck?.config ?? body.config)
   const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
-  const promptIds = deckPromptIds(config, mediaOptions)
+  const prompts = createFlashcardPromptDeck(config, mediaOptions)
+  const promptIds = prompts.map((prompt) => prompt.id)
   if (promptIds.length === 0) {
     return NextResponse.json({ error: "This deck has no eligible sourced prompts." }, { status: 400 })
   }
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
     session: {
       id: studySession.id,
       promptIds,
+      prompts,
       deckId: deck?.id ?? null,
     },
   }, { status: 201 })
