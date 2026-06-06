@@ -131,6 +131,8 @@ const starterDeckConfigs = [
   config: NormalizedFlashcardDeckConfig
 }>
 
+const starterDeckSlugs = new Set(starterDeckConfigs.map((deck) => deck.slug))
+
 export const FLASHCARD_STATIC_STARTER_DECKS: FlashcardDeckSummary[] = starterDeckConfigs.map((deck) => ({
   id: deck.slug,
   slug: deck.slug,
@@ -151,4 +153,8 @@ export const FLASHCARD_STATIC_STARTER_DECKS: FlashcardDeckSummary[] = starterDec
 
 export function getStaticStarterFlashcardDeck(slug: string) {
   return FLASHCARD_STATIC_STARTER_DECKS.find((deck) => deck.slug === slug) ?? null
+}
+
+export function isReservedStaticStarterFlashcardDeckSlug(slug: string) {
+  return starterDeckSlugs.has(slug)
 }

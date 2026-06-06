@@ -10,6 +10,7 @@ import {
   normalizeFlashcardDeckConfig,
   promptCountForConfig,
 } from "@/lib/flashcard-community"
+import { isReservedStaticStarterFlashcardDeckSlug } from "@/lib/flashcard-static-metadata"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import { prisma } from "@/lib/prisma"
 
@@ -103,6 +104,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   }
 
   const body = objectBody(await request.json().catch(() => ({})))
+  if (typeof body.slug === "string" && isReservedStaticStarterFlashcardDeckSlug(body.slug)) {
+    return NextResponse.json({ error: "Starter deck slugs are reserved." }, { status: 400 })
+  }
+
   const title = typeof body.title === "string" && body.title.trim().length > 0
     ? body.title.trim().slice(0, 96)
     : existing.title

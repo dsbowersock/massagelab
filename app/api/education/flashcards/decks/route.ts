@@ -3,7 +3,6 @@ import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import {
   FLASHCARD_ACHIEVEMENTS,
-  FLASHCARD_STARTER_DECKS,
   FLASHCARD_TOOL,
   accuracyPercent,
   getFlashcardStarterDecks,
@@ -12,14 +11,13 @@ import {
   promptCountForConfig,
   slugifyFlashcardDeckTitle,
 } from "@/lib/flashcard-community"
+import { isReservedStaticStarterFlashcardDeckSlug } from "@/lib/flashcard-static-metadata"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import { prisma } from "@/lib/prisma"
 
 function json(value: unknown) {
   return value as Prisma.InputJsonValue
 }
-
-const starterDeckSlugs = new Set(FLASHCARD_STARTER_DECKS.map((deck) => deck.slug))
 
 function displayName(owner: { name: string | null; email: string | null; profile?: { displayName: string | null } | null } | null) {
   return owner?.profile?.displayName ?? owner?.name ?? "MassageLab learner"
@@ -68,7 +66,7 @@ async function uniqueDeckSlug(title: string) {
   let slug = base
   let suffix = 1
 
-  while (starterDeckSlugs.has(slug) || await prisma.flashcardDeck.findUnique({ where: { slug }, select: { id: true } })) {
+  while (isReservedStaticStarterFlashcardDeckSlug(slug) || await prisma.flashcardDeck.findUnique({ where: { slug }, select: { id: true } })) {
     suffix += 1
     slug = `${base}-${suffix}`
   }

@@ -1,4 +1,5 @@
 import { Layers3 } from "lucide-react"
+import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import {
   FLASHCARD_STATIC_CATEGORIES,
@@ -9,9 +10,12 @@ import {
 } from "@/lib/flashcard-static-metadata"
 import { FlashcardsClient } from "../flashcards-client"
 
-export const dynamic = "force-static"
+export const dynamic = "force-dynamic"
 
-export default function FlashcardDecksPage() {
+export default async function FlashcardDecksPage() {
+  const session = await getCurrentSession()
+  const isSignedIn = Boolean(session?.user?.id)
+
   return (
     <AppPageShell title="Community Decks" width="full" contentClassName="gap-6">
       <AppSurface
@@ -26,7 +30,7 @@ export default function FlashcardDecksPage() {
           sources={FLASHCARD_STATIC_SOURCES}
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
-          isSignedIn={false}
+          isSignedIn={isSignedIn}
         />
       </AppSurface>
     </AppPageShell>

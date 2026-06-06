@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { Layers3 } from "lucide-react"
+import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import type { FlashcardDeckSummary } from "@/lib/flashcard-community"
 import {
@@ -12,22 +13,20 @@ import {
 } from "@/lib/flashcard-static-metadata"
 import { FlashcardsClient } from "../../flashcards-client"
 
+export const dynamic = "force-dynamic"
+
 function displayName(owner: { name: string | null; profile?: { displayName: string | null } | null } | null) {
   return owner?.profile?.displayName ?? owner?.name ?? "MassageLab learner"
 }
 
-async function loadPersistedDeck(slug: string): Promise<FlashcardDeckSummary | null> {
+async function loadPersistedDeck(slug: string, viewerUserId?: string): Promise<FlashcardDeckSummary | null> {
   const [
-    { getCurrentSession },
     { accuracyPercent, normalizeDeckVisibility, normalizeFlashcardDeckConfig },
     { prisma },
   ] = await Promise.all([
-    import("@/auth"),
     import("@/lib/flashcard-community"),
     import("@/lib/prisma"),
   ])
-  const session = await getCurrentSession()
-  const viewerUserId = session?.user?.id
   const deck = await prisma.flashcardDeck.findUnique({
     where: { slug },
     include: {
@@ -63,8 +62,10 @@ async function loadPersistedDeck(slug: string): Promise<FlashcardDeckSummary | n
 }
 
 export default async function FlashcardDeckPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const deck = getStaticStarterFlashcardDeck(slug) ?? await loadPersistedDeck(slug)
+  const [{ slug }, session] = await Promise.all([params, getCurrentSession()])
+  const viewerUserId = session?.user?.id
+  const isSignedIn = Boolean(viewerUserId)
+  const deck = getStaticStarterFlashcardDeck(slug) ?? await loadPersistedDeck(slug, viewerUserId)
   if (!deck) notFound()
 
   return (
@@ -81,7 +82,7 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
           sources={FLASHCARD_STATIC_SOURCES}
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
-          isSignedIn={false}
+          isSignedIn={isSignedIn}
           initialDeck={deck}
         />
       </AppSurface>
