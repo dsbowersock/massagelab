@@ -6,6 +6,10 @@ const publicRoutes = [
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
   { path: "/calendar", expectedText: /Calendar/i },
+  { path: "/education", expectedText: /Education/i },
+  { path: "/education/flashcards", expectedText: /Flashcards/i },
+  { path: "/education/flashcards/decks", expectedText: /Community Decks/i },
+  { path: "/education/flashcards/decks/starter-all-body-identification", expectedText: /All-body image identification/i },
   { path: "/anatomime", expectedText: /Anatomime/i },
 ] as const
 
@@ -76,3 +80,96 @@ for (const route of publicRoutes) {
     expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
   })
 }
+
+test("anonymous flashcards setup keeps prompt controls usable before count hydration", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+
+  const startButton = page.getByRole("button", { name: /Start [1-9]/ })
+  await expect(startButton).toBeEnabled()
+  await expect(page.getByText(/eligible prompts/i)).not.toContainText(/^0 eligible prompts$/)
+
+  const selectedPromptCheckboxes = page.locator('[role="checkbox"][aria-checked="true"]')
+  await expect(selectedPromptCheckboxes.first()).toBeEnabled()
+
+  await startButton.click()
+  await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("button", { name: /Check|Correct|Missed/i })).toBeVisible()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("flashcards can start from local sourced prompts when the prompt API is unavailable", async ({ page }) => {
+  let promptApiRequests = 0
+
+  await page.route("**/api/education/flashcards/prompts", async (route) => {
+    promptApiRequests += 1
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Prompt API unavailable for browser test." }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+
+  await page.getByLabel("Category", { exact: true }).selectOption("muscle")
+  await page.getByLabel("Region", { exact: true }).selectOption("upper-extremity")
+  await page.getByLabel("Deck Size", { exact: true }).selectOption("10")
+  await page.getByLabel("Answer Mode", { exact: true }).selectOption("review")
+  await page.getByRole("checkbox", { name: /Identify From Image/i }).click()
+  await page.getByRole("checkbox", { name: /Name To Region/i }).click()
+  await page.getByRole("checkbox", { name: /Name To Category/i }).click()
+  await page.getByRole("checkbox", { name: /Muscle Action/i }).click()
+
+  const startButton = page.getByRole("button", { name: /Start 10/ })
+  await expect(startButton).toBeEnabled()
+  await startButton.click()
+
+  await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole("button", { name: /Correct/i })).toBeVisible()
+  expect(promptApiRequests).toBeGreaterThan(0)
+})
+
+test("signed-in flashcards fall back to temporary study when progress session fails", async ({ page }) => {
+  let sessionStartRequests = 0
+
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "browser-test-user" } }),
+    })
+  })
+  await page.route("**/api/education/flashcards/sessions", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback()
+      return
+    }
+
+    sessionStartRequests += 1
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Progress tracking could not be started." }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Sign in to save progress/i })).toHaveCount(0)
+
+  const startButton = page.getByRole("button", { name: /Start [1-9]/ })
+  await expect(startButton).toBeEnabled()
+  await startButton.click()
+
+  await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Studying temporarily; progress tracking could not be started\./i)).toBeVisible()
+  expect(sessionStartRequests).toBeGreaterThan(0)
+})

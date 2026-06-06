@@ -229,7 +229,32 @@ describe("Anatomy data foundation", () => {
       "upper-limb",
       "lower-limb",
       "head-face-jaw",
+      "legacy-anatomime-coverage",
     ])
+  })
+
+  it("adds reviewed legacy Anatomime coverage entities to the sourced foundation", () => {
+    for (const muscleSlug of ["trapezius", "quadriceps-femoris", "erector-spinae", "multifidus", "external-anal-sphincter"]) {
+      assert.ok(ANATOMY_FOUNDATION_SEED.muscles.some((muscle) => muscle.slug === muscleSlug), `${muscleSlug} should be a sourced muscle`)
+      assert.ok(ANATOMY_FOUNDATION_SEED.citations.some((citation) => (
+        citation.entityType === "muscle" &&
+        citation.entitySlug === muscleSlug &&
+        citation.factType === "clinical_summary" &&
+        citation.reviewStatus === "reviewed" &&
+        citation.sourceRef === "applied-human-anatomy"
+      )), `${muscleSlug} should have a reviewed public summary citation`)
+    }
+
+    for (const structureSlug of ["skull", "vertebral-column", "spinous-process", "cuneiform-bones", "interfoveolar-ligament"]) {
+      assert.ok(ANATOMY_FOUNDATION_SEED.structures.some((structure) => structure.slug === structureSlug), `${structureSlug} should be a sourced structure`)
+      assert.ok(ANATOMY_FOUNDATION_SEED.citations.some((citation) => (
+        citation.entityType === "anatomy_structure" &&
+        citation.entitySlug === structureSlug &&
+        citation.factType === "clinical_summary" &&
+        citation.reviewStatus === "reviewed" &&
+        citation.sourceRef === "applied-human-anatomy"
+      )), `${structureSlug} should have a reviewed public summary citation`)
+    }
   })
 
   it("tracks atlas-grade individual bone coverage instead of relying on grouped placeholders", () => {

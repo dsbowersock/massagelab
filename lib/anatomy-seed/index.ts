@@ -14,6 +14,7 @@ import { HAND_FOOT_BONE_ONTOLOGY_IDENTIFIERS_SECTION } from "./hand-foot-bone-on
 import { HEAD_FACE_JAW_SECTION } from "./head-face-jaw.ts"
 import { INDIVIDUAL_BONE_LANDMARK_ATLAS_SECTION } from "./individual-bone-landmark-atlas.ts"
 import { JOINT_MOVEMENT_COMPLETENESS_ATLAS_SECTION } from "./joint-movement-completeness-atlas.ts"
+import { LEGACY_ANATOMIME_COVERAGE_SECTION } from "./legacy-anatomime-coverage.ts"
 import { LOWER_LIMB_SECTION } from "./lower-limb.ts"
 import { LIGAMENT_RELATIONSHIP_ATLAS_SECTION } from "./ligament-relationship-atlas.ts"
 import { MEDIA_BODYPARTS3D_BLOOD_SUPPLY_MULTIVIEW_SECTION } from "./media-bodyparts3d-blood-supply-multiview.ts"
@@ -97,6 +98,7 @@ export const ANATOMY_SEED_SECTION_NAMES = [
   "upper-limb",
   "lower-limb",
   "head-face-jaw",
+  "legacy-anatomime-coverage",
 ] as const
 
 export const ANATOMY_SEED_SECTIONS: AnatomySeedSection[] = [
@@ -146,4 +148,5 @@ export const ANATOMY_SEED_SECTIONS: AnatomySeedSection[] = [
   UPPER_LIMB_SECTION,
   LOWER_LIMB_SECTION,
   HEAD_FACE_JAW_SECTION,
+  LEGACY_ANATOMIME_COVERAGE_SECTION,
 ]

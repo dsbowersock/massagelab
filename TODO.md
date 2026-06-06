@@ -34,7 +34,8 @@ Current project state now lives in [docs/project-state.md](docs/project-state.md
 - [ ] Generative music spike.
 - [ ] Terms, privacy/legal, About Me, and public trust pages.
 - [ ] Anatomy content expansion and review workflow.
-- [ ] Education/flashcards design using shared anatomy data.
+- [x] Education/flashcards design using shared anatomy data.
+- [x] Setup-first flashcards with sourced prompt modes, anonymous temporary decks, public deck browsing, signed-in saved templates, and progress/achievement tracking.
 
 ## Payload CMS Planning
 
@@ -56,6 +57,8 @@ Current project state now lives in [docs/project-state.md](docs/project-state.md
 - [ ] Review the first seed scope: neck, shoulder girdle, upper back, scapular region, and glenohumeral region.
 - [ ] Expand the model only after review to cover lower back, pelvis/hip, knee, ankle/foot, forearm/wrist/hand, and thorax.
 - [ ] Choose authoritative citation sources for anatomy relationships and range-of-motion values; replace placeholder `future-clinical-citation-needed` source refs before clinical/public education release.
-- [ ] Add a mapping layer from the new foundation seed into existing `lib/anatomy.js` and Anatomime after the seed shape is accepted.
+- [x] Add a mapping layer from the new foundation seed into existing `lib/anatomy.js` and Anatomime after the seed shape is accepted.
+- [x] Archive the old Anatomime runtime data after auditing all 333 legacy rows as sourced or mapped into the sourced foundation.
 - [ ] Plan Prisma persistence only after the seed model stabilizes and import/update workflows are clear.
+- [x] Add focused flashcard deck/session persistence without moving sourced anatomy seed truth out of code.
 - [ ] Keep client-friendly terms non-diagnostic: terms should map to possible related regions and structures, while the therapist chooses what is clinically relevant.

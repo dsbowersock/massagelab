@@ -71,7 +71,7 @@ describe("Anatomy content helpers", () => {
 
     assert.ok(regions.some((region) => region.id === "lower-extremity"))
     assert.ok(regions.every((region) => region.termCount > 0))
-    assert.ok(sources.some((source) => source.id === "openstax-ap-2e"))
+    assert.ok(sources.some((source) => source.id === "applied-human-anatomy"))
   })
 
   it("reports duplicate ids, empty names, and invalid relationships", () => {
