@@ -637,7 +637,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             {promptTypeCounts.map((type) => (
               <label key={type.id} className="flex min-h-14 items-center justify-between gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-2 text-sm">
                 <span className="flex items-center gap-3">
-                  <Checkbox checked={promptTypes.includes(type.id)} onCheckedChange={() => togglePromptType(type.id)} disabled={type.promptCount === 0} />
+                  <Checkbox checked={promptTypes.includes(type.id)} onCheckedChange={() => togglePromptType(type.id)} disabled={!promptTypes.includes(type.id) && type.promptCount === 0} />
                   <span>{type.label}</span>
                 </span>
                 <Badge variant="outline">{type.promptCount}</Badge>

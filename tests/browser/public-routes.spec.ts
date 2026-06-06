@@ -80,3 +80,26 @@ for (const route of publicRoutes) {
     expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
   })
 }
+
+test("anonymous flashcards setup keeps prompt controls usable before count hydration", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+
+  const startButton = page.getByRole("button", { name: /Start [1-9]/ })
+  await expect(startButton).toBeEnabled()
+  await expect(page.getByText(/eligible prompts/i)).not.toContainText(/^0 eligible prompts$/)
+
+  const selectedPromptCheckboxes = page.locator('[role="checkbox"][aria-checked="true"]')
+  await expect(selectedPromptCheckboxes.first()).toBeEnabled()
+
+  await startButton.click()
+  await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("button", { name: /Check|Correct|Missed/i })).toBeVisible()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
