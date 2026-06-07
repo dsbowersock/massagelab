@@ -94,6 +94,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-06-07
+
+- Added Flashcard Mastery Progress V1: signed-in flashcard sessions now accumulate per-prompt attempt/correct/incorrect counts in `LearningProgress` metadata, treat 10 correct answers as mastery, and expose a signed-in progress dashboard with mastered/active prompt totals, aggregate accuracy, sessions, badges, best time, and recent prompt progress.
+- Added a signed-in setup option to skip mastered prompts when starting a deck. The server filters mastered prompt ids before creating the study session and returns a clear exhausted-deck response if every selected prompt is already mastered.
+- Added flashcard session duration storage on `FlashcardStudySession`, kept completion idempotent, and continued storing only prompt ids and result summaries rather than raw typed answers.
+
 ### 2026-06-04
 
 - Reworked `/education/flashcards` into a setup-first deck builder: users select category, region, depth, deck size, answer mode, and prompt modes before any card appears.

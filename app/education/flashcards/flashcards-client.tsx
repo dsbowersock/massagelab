@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ExternalLink, Layers3, Lock, Play, RotateCcw, Save, Shuffle, Sparkles, Timer, XCircle } from "lucide-react"
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ExternalLink, Layers3, Lock, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -51,6 +51,46 @@ type PromptTypeCount = {
 }
 
 type ActiveDeckKind = "temporary" | "starter" | "community"
+
+type FlashcardProgressDashboard = {
+  trackedPromptCount: number
+  activePromptCount: number
+  masteredPromptCount: number
+  totalAttempts: number
+  totalCorrect: number
+  totalIncorrect: number
+  accuracyPercent: number
+  masteryThreshold: number
+  completedSessionCount: number
+  achievementCount: number
+  bestDurationMs: number | null
+}
+
+type FlashcardRecentProgress = {
+  promptId: string
+  promptType: string
+  entityType: string
+  entitySlug: string
+  status: string
+  score: number | null
+  attemptCount: number
+  correctCount: number
+  incorrectCount: number
+  masteryThreshold: number
+  masteredAt: string | null
+  lastSeenAt: string
+}
+
+type FlashcardAchievementSummary = {
+  key: string
+  earnedAt: string
+}
+
+type FlashcardProgressPayload = {
+  progress: FlashcardProgressDashboard
+  recentProgress: FlashcardRecentProgress[]
+  achievements: FlashcardAchievementSummary[]
+}
 
 type FlashcardsClientProps = {
   categories: Option[]
@@ -129,6 +169,101 @@ function promptDeckPayload(value: unknown) {
     : {}
 
   return promptRows(record.prompts)
+}
+
+function numeric(value: unknown, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function text(value: unknown) {
+  return typeof value === "string" ? value : ""
+}
+
+function nullableNumber(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function progressPayload(value: unknown): FlashcardProgressPayload | null {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  const progress = record.progress && typeof record.progress === "object" && !Array.isArray(record.progress)
+    ? record.progress as Record<string, unknown>
+    : null
+
+  if (!progress) return null
+
+  const recentProgress = Array.isArray(record.recentProgress)
+    ? record.recentProgress.map((item) => {
+      const row = item && typeof item === "object" && !Array.isArray(item)
+        ? item as Record<string, unknown>
+        : {}
+
+      return {
+        promptId: text(row.promptId),
+        promptType: text(row.promptType),
+        entityType: text(row.entityType),
+        entitySlug: text(row.entitySlug),
+        status: text(row.status),
+        score: nullableNumber(row.score),
+        attemptCount: numeric(row.attemptCount),
+        correctCount: numeric(row.correctCount),
+        incorrectCount: numeric(row.incorrectCount),
+        masteryThreshold: numeric(row.masteryThreshold, 10),
+        masteredAt: text(row.masteredAt) || null,
+        lastSeenAt: text(row.lastSeenAt),
+      }
+    }).filter((item) => item.promptId)
+    : []
+  const achievements = Array.isArray(record.achievements)
+    ? record.achievements.map((item) => {
+      const row = item && typeof item === "object" && !Array.isArray(item)
+        ? item as Record<string, unknown>
+        : {}
+
+      return {
+        key: text(row.key),
+        earnedAt: text(row.earnedAt),
+      }
+    }).filter((item) => item.key)
+    : []
+
+  return {
+    progress: {
+      trackedPromptCount: numeric(progress.trackedPromptCount),
+      activePromptCount: numeric(progress.activePromptCount),
+      masteredPromptCount: numeric(progress.masteredPromptCount),
+      totalAttempts: numeric(progress.totalAttempts),
+      totalCorrect: numeric(progress.totalCorrect),
+      totalIncorrect: numeric(progress.totalIncorrect),
+      accuracyPercent: numeric(progress.accuracyPercent),
+      masteryThreshold: numeric(progress.masteryThreshold, 10),
+      completedSessionCount: numeric(progress.completedSessionCount),
+      achievementCount: numeric(progress.achievementCount),
+      bestDurationMs: nullableNumber(progress.bestDurationMs),
+    },
+    recentProgress,
+    achievements,
+  }
+}
+
+function formatDuration(durationMs: number | null) {
+  if (!durationMs) return "Not yet"
+  const totalSeconds = Math.max(1, Math.round(durationMs / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+}
+
+function titleFromSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 }
 
 async function localPromptDeck(config: NormalizedFlashcardDeckConfig) {
@@ -342,6 +477,30 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [promptTypeCounts, setPromptTypeCounts] = useState(initialPromptTypeCounts)
   const [isLoadingPromptCounts, setIsLoadingPromptCounts] = useState(false)
   const [canPersistProgress, setCanPersistProgress] = useState(isSignedIn)
+  const [skipMasteredPrompts, setSkipMasteredPrompts] = useState(false)
+  const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
+  const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
+  const studyStartedAtRef = useRef<number | null>(null)
+
+  const refreshProgressDashboard = useCallback(async () => {
+    if (!canPersistProgress) {
+      setProgressDashboard(null)
+      return
+    }
+
+    setIsLoadingProgressDashboard(true)
+    try {
+      const response = await fetch("/api/education/flashcards/progress")
+      if (!response.ok) return
+
+      const payload = progressPayload(await response.json())
+      if (payload) setProgressDashboard(payload)
+    } catch (error) {
+      console.error("Failed to load flashcard progress", error)
+    } finally {
+      setIsLoadingProgressDashboard(false)
+    }
+  }, [canPersistProgress])
 
   useEffect(() => {
     const stored = window.localStorage.getItem(draftStorageKey)
@@ -381,6 +540,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    void refreshProgressDashboard()
+  }, [refreshProgressDashboard])
 
   const countConfig = useMemo(() => configFromState({
     category,
@@ -440,6 +603,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const answeredCount = results.length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) ? 1 : 0)
   const correctCount = results.filter((result) => result.correct).length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) && checkedResult.correct ? 1 : 0)
   const progress = activeDeck.length > 0 ? ((currentIndex + 1) / activeDeck.length) * 100 : 0
+  const promptTypeLabelById = useMemo(() => new Map(promptTypeCounts.map((type) => [type.id, type.label])), [promptTypeCounts])
 
   const togglePromptType = (type: FlashcardPromptType) => {
     setPromptTypes((current) => {
@@ -468,6 +632,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         setActiveDeck(nextDeck)
         setActiveDeckKind(nextDeckKind)
         setSessionId(nextSessionId)
+        studyStartedAtRef.current = Date.now()
         setCurrentIndex(0)
         setAnswers({})
         setIsCardFlipped(false)
@@ -521,10 +686,16 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           const response = await fetch("/api/education/flashcards/sessions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(deckSlug ? { deckSlug } : { config }),
+            body: JSON.stringify(deckSlug ? { deckSlug, skipMastered: skipMasteredPrompts } : { config, skipMastered: skipMasteredPrompts }),
           })
 
           if (!response.ok) {
+            const payload = await response.json().catch(() => null)
+            if (skipMasteredPrompts && response.status === 409) {
+              setSaveMessage(typeof payload?.error === "string" ? payload.error : "All selected prompts are already mastered.")
+              return
+            }
+
             fallbackMessage = "Studying temporarily; progress tracking could not be started."
             await startTemporaryDeck(fallbackMessage)
             return
@@ -654,6 +825,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     setCheckedResult(null)
     setAnswers({})
     setIsCardFlipped(false)
+    studyStartedAtRef.current = null
   }
 
   const completeStudy = async () => {
@@ -675,7 +847,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       const response = await fetch(`/api/education/flashcards/sessions/${sessionId}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results: finalResults }),
+        body: JSON.stringify({
+          results: finalResults,
+          durationMs: studyStartedAtRef.current ? Date.now() - studyStartedAtRef.current : undefined,
+        }),
       })
 
       if (!response.ok) {
@@ -684,6 +859,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       }
 
       setSaveMessage("Progress saved.")
+      studyStartedAtRef.current = null
+      void refreshProgressDashboard()
     } catch (error) {
       console.error("Failed to complete flashcard study session", error)
       setSaveMessage("Progress could not be saved.")
@@ -938,6 +1115,16 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             })}
           </div>
 
+          {canPersistProgress ? (
+            <label className="mt-4 flex items-start gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-3 text-sm">
+              <Checkbox checked={skipMasteredPrompts} onCheckedChange={(checked) => setSkipMasteredPrompts(checked === true)} />
+              <span className="space-y-1">
+                <span className="block font-medium">Skip mastered prompts</span>
+                <span className="block text-muted-foreground">Hide prompts after {progressDashboard?.progress.masteryThreshold ?? 10} correct answers so new cards stay in rotation.</span>
+              </span>
+            </label>
+          ) : null}
+
           <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto]">
             <div className="space-y-2">
               <Label htmlFor="answer-mode">Answer Mode</Label>
@@ -1006,6 +1193,67 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
           Select All
         </Button>
+        {canPersistProgress ? (
+          <div className="space-y-3 rounded-md border border-border/80 bg-card/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" aria-hidden="true" />
+                <h3 className="text-sm font-medium">Your Progress</h3>
+              </div>
+              {isLoadingProgressDashboard ? <Badge variant="outline">Updating</Badge> : null}
+            </div>
+            {progressDashboard ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Mastered</div>
+                    <div className="font-semibold">{progressDashboard.progress.masteredPromptCount}</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Active</div>
+                    <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Accuracy</div>
+                    <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Best Time</div>
+                    <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
+                  <Badge variant="outline">{progressDashboard.progress.achievementCount} badges</Badge>
+                  <Badge variant="outline">{progressDashboard.progress.totalCorrect} correct</Badge>
+                </div>
+                {progressDashboard.recentProgress.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h4>
+                    {progressDashboard.recentProgress.slice(0, 3).map((item) => (
+                      <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
+                          {item.correctCount >= item.masteryThreshold ? (
+                            <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                          ) : null}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                          <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
+                          <span>{item.correctCount}/{item.masteryThreshold}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+            )}
+          </div>
+        ) : null}
         <div className="space-y-2">
           <h3 className="text-sm font-medium">Sources</h3>
           {sources.slice(0, 8).map((source) => (

@@ -6,7 +6,12 @@ import {
   completionAchievementKeys,
   normalizeFlashcardDeckConfig,
 } from "@/lib/flashcard-community"
+import {
+  flashcardProgressTool,
+  nextFlashcardProgressUpdate,
+} from "@/lib/flashcard-progress"
 import { createFlashcardPromptDeck } from "@/lib/anatomy-study"
+import type { AnatomyStudyRegion } from "@/lib/anatomy-study"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import { prisma } from "@/lib/prisma"
 
@@ -35,32 +40,37 @@ function resultRows(body: unknown) {
     .filter((result): result is { promptId: string; correct: boolean; score: number } => Boolean(result))
 }
 
+function durationMs(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null
+  const numeric = Number((body as { durationMs?: unknown }).durationMs)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+
+  return Math.min(24 * 60 * 60 * 1000, Math.trunc(numeric))
+}
+
 async function updatePromptProgress(userId: string, result: {
   promptId: string
   promptType: string
   entityType: string
   entitySlug: string
+  regions: AnatomyStudyRegion[]
   correct: boolean
   score: number
 }) {
-  const tool = `${FLASHCARD_TOOL}:${result.promptId}`
+  const tool = flashcardProgressTool(result.promptId)
   const existing = await prisma.learningProgress.findFirst({
     where: {
       userId,
       anatomyTermId: null,
       tool,
     },
-    select: { id: true },
+    select: { id: true, metadata: true },
   })
+  const update = nextFlashcardProgressUpdate(existing?.metadata, result)
   const data = {
-    status: result.correct ? "MASTERED" as const : "PRACTICING" as const,
-    score: result.score,
-    metadata: json({
-      promptId: result.promptId,
-      promptType: result.promptType,
-      entityType: result.entityType,
-      entitySlug: result.entitySlug,
-    }),
+    status: update.status,
+    score: update.score,
+    metadata: json(update.metadata),
     lastSeenAt: new Date(),
   }
 
@@ -98,6 +108,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
 
   const body = await request.json().catch(() => ({}))
   const submittedResults = resultRows(body)
+  const submittedDurationMs = durationMs(body)
   const config = normalizeFlashcardDeckConfig(studySession.deckConfig)
   const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
   const promptById = new Map(createFlashcardPromptDeck(config, mediaOptions).map((prompt) => [prompt.id, prompt]))
@@ -129,6 +140,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
 
   const answeredCount = results.length
   const correctCount = results.filter((result) => result.correct).length
+  let didComplete = false
 
   await prisma.$transaction(async (tx) => {
     const currentSession = await tx.flashcardStudySession.findUnique({
@@ -137,6 +149,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     })
 
     if (!currentSession || currentSession.status !== "STARTED") return
+    didComplete = true
 
     await tx.flashcardStudySession.update({
       where: { id: studySession.id },
@@ -144,6 +157,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
         status: "COMPLETED",
         answeredCount,
         correctCount,
+        durationMs: submittedDurationMs,
         completedAt: new Date(),
       },
     })
@@ -161,30 +175,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     }
   })
 
-  for (const result of results) {
-    await updatePromptProgress(session.user.id, result)
+  if (didComplete) {
+    for (const result of results) {
+      await updatePromptProgress(session.user.id, result)
+    }
+
+    for (const key of completionAchievementKeys(results, config)) {
+      await prisma.achievement.upsert({
+        where: { userId_key_tool: { userId: session.user.id, key, tool: FLASHCARD_TOOL } },
+        create: {
+          userId: session.user.id,
+          key,
+          tool: FLASHCARD_TOOL,
+          metadata: json({ sessionId: studySession.id }),
+        },
+        update: {},
+      })
+    }
   }
 
-  for (const key of completionAchievementKeys(results, config)) {
-    await prisma.achievement.upsert({
-      where: { userId_key_tool: { userId: session.user.id, key, tool: FLASHCARD_TOOL } },
-      create: {
-        userId: session.user.id,
-        key,
-        tool: FLASHCARD_TOOL,
-        metadata: json({ sessionId: studySession.id }),
-      },
-      update: {},
-    })
-  }
+  const responseAnsweredCount = didComplete ? answeredCount : studySession.answeredCount
+  const responseCorrectCount = didComplete ? correctCount : studySession.correctCount
 
   return NextResponse.json({
     session: {
       id: studySession.id,
       status: "COMPLETED",
-      answeredCount,
-      correctCount,
-      accuracyPercent: answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0,
+      answeredCount: responseAnsweredCount,
+      correctCount: responseCorrectCount,
+      accuracyPercent: responseAnsweredCount > 0 ? Math.round((responseCorrectCount / responseAnsweredCount) * 100) : 0,
     },
   })
 }

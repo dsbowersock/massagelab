@@ -169,6 +169,42 @@ test("signed-in flashcards fall back to temporary study when progress session fa
       body: JSON.stringify({ user: { id: "browser-test-user" } }),
     })
   })
+  await page.route("**/api/education/flashcards/progress", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        progress: {
+          trackedPromptCount: 2,
+          activePromptCount: 1,
+          masteredPromptCount: 1,
+          totalAttempts: 12,
+          totalCorrect: 10,
+          totalIncorrect: 2,
+          accuracyPercent: 83,
+          masteryThreshold: 10,
+          completedSessionCount: 1,
+          achievementCount: 1,
+          bestDurationMs: 45000,
+        },
+        recentProgress: [{
+          promptId: "name_to_region:muscle-biceps-brachii",
+          promptType: "name_to_region",
+          entityType: "muscle",
+          entitySlug: "biceps-brachii",
+          status: "MASTERED",
+          score: 100,
+          attemptCount: 10,
+          correctCount: 10,
+          incorrectCount: 0,
+          masteryThreshold: 10,
+          masteredAt: "2026-06-07T00:00:00.000Z",
+          lastSeenAt: "2026-06-07T00:00:00.000Z",
+        }],
+        achievements: [{ key: "flashcards:first-completion", earnedAt: "2026-06-07T00:00:00.000Z" }],
+      }),
+    })
+  })
   await page.route("**/api/education/flashcards/sessions", async (route) => {
     if (route.request().method() !== "POST") {
       await route.fallback()
@@ -176,6 +212,7 @@ test("signed-in flashcards fall back to temporary study when progress session fa
     }
 
     sessionStartRequests += 1
+    expect(JSON.parse(route.request().postData() ?? "{}").skipMastered).toBe(true)
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -186,6 +223,9 @@ test("signed-in flashcards fall back to temporary study when progress session fa
   await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
   await expect(page.getByRole("link", { name: /Sign in to save progress/i })).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Your Progress" })).toBeVisible()
+  await expect(page.getByText("Biceps Brachii")).toBeVisible()
+  await page.getByLabel("Skip mastered prompts").click()
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()

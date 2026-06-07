@@ -781,6 +781,7 @@ model FlashcardStudySession {
   status        String         @default("STARTED")
   answeredCount Int            @default(0)
   correctCount  Int            @default(0)
+  durationMs    Int?
   startedAt     DateTime       @default(now())
   completedAt   DateTime?
   createdAt     DateTime       @default(now())
