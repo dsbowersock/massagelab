@@ -95,6 +95,13 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
+  await page.getByLabel("Category", { exact: true }).selectOption("muscle")
+  await page.getByLabel("Region", { exact: true }).selectOption("upper-extremity")
+  await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
+  const imagePromptRow = page.locator("label").filter({ hasText: "Identify From Image" })
+  await expect(page.getByRole("checkbox", { name: /Identify From Image/i })).toBeEnabled()
+  await expect(imagePromptRow.getByText(/^[1-9]\d*$/)).toBeVisible({ timeout: 15_000 })
+
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()
   await expect(page.getByText(/eligible prompts/i)).not.toContainText(/^0 eligible prompts$/)
