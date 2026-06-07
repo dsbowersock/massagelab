@@ -35,9 +35,9 @@ async function optionalMediaOptions(shouldLoad: boolean) {
 export async function POST(request: Request) {
   const body = objectBody(await request.json().catch(() => ({})))
   const config = normalizeFlashcardDeckConfig(body.config)
-  const shouldLoadMediaUrls = body.includePrompts === true && config.promptTypes.includes("identify_from_media")
+  const shouldLoadMediaUrls = config.promptTypes.includes("identify_from_media")
   const mediaOptions = await optionalMediaOptions(shouldLoadMediaUrls)
-  const promptTypeCounts = getFlashcardPromptTypeCounts(config)
+  const promptTypeCounts = getFlashcardPromptTypeCounts(config, mediaOptions)
   const prompts = body.includePrompts === true
     ? createFlashcardPromptDeck(config, mediaOptions)
     : []
