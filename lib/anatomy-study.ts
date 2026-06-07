@@ -904,6 +904,12 @@ export function getAnatomyStudyPrompts(config: FlashcardDeckConfig = {}, options
 }
 
 export function createFlashcardPromptDeck(config: FlashcardDeckConfig = {}, options: AnatomyStudyBuildOptions = {}) {
+  const prompts = createFlashcardPromptPool(config, options)
+
+  return typeof config.count === "number" ? prompts.slice(0, Math.max(0, config.count)) : prompts
+}
+
+export function createFlashcardPromptPool(config: FlashcardDeckConfig = {}, options: AnatomyStudyBuildOptions = {}) {
   const prompts = [...getAnatomyStudyPrompts(config, options)]
   const rng = config.seed ? seededRng(config.seed) : Math.random
 
@@ -914,7 +920,7 @@ export function createFlashcardPromptDeck(config: FlashcardDeckConfig = {}, opti
     prompts[swapIndex] = current
   }
 
-  return typeof config.count === "number" ? prompts.slice(0, Math.max(0, config.count)) : prompts
+  return prompts
 }
 
 export function getFlashcardPromptTypeCounts(config: Omit<FlashcardDeckConfig, "promptTypes"> = {}, options: AnatomyStudyBuildOptions = {}) {

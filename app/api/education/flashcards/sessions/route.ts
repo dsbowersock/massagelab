@@ -4,7 +4,7 @@ import { getCurrentSession } from "@/auth"
 import {
   normalizeFlashcardDeckConfig,
 } from "@/lib/flashcard-community"
-import { createFlashcardPromptDeck } from "@/lib/anatomy-study"
+import { createFlashcardPromptDeck, createFlashcardPromptPool } from "@/lib/anatomy-study"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import {
   flashcardProgressTool,
@@ -66,7 +66,9 @@ export async function POST(request: Request) {
 
   const config = normalizeFlashcardDeckConfig(deck?.config ?? body.config)
   const mediaOptions = await boundedMediaOptions()
-  let prompts = createFlashcardPromptDeck(config, mediaOptions)
+  let prompts = skipMastered
+    ? createFlashcardPromptPool(config, mediaOptions)
+    : createFlashcardPromptDeck(config, mediaOptions)
   if (prompts.length === 0) {
     return NextResponse.json({ error: "This deck has no eligible sourced prompts." }, { status: 400 })
   }
@@ -88,7 +90,9 @@ export async function POST(request: Request) {
       })
       .filter(Boolean))
 
-    prompts = prompts.filter((prompt) => !masteredPromptIds.has(prompt.id))
+    prompts = prompts
+      .filter((prompt) => !masteredPromptIds.has(prompt.id))
+      .slice(0, config.count)
     if (prompts.length === 0) {
       return NextResponse.json({
         error: "All selected prompts are already mastered. Turn off skip mastered prompts to review them again.",
