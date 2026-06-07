@@ -62,12 +62,22 @@ type ProgressAggregateRow = {
   totalIncorrect: number
 }
 
+type ProgressPageRow = {
+  id: string
+  tool: string
+  status: string
+  score: number | null
+  metadata: unknown
+  lastSeenAt: Date
+}
+
 function promptIdFromTool(tool: string) {
   const prefix = `${FLASHCARD_TOOL}:`
   return tool.startsWith(prefix) ? tool.slice(prefix.length) : ""
 }
 
 function boundedInteger(value: string | null, fallback: number, min: number, max: number) {
+  if (value === null || value.trim() === "") return fallback
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return fallback
 
@@ -89,53 +99,78 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const page = boundedInteger(url.searchParams.get("page"), 1, 1, 1000)
   const pageSize = boundedInteger(url.searchParams.get("pageSize"), 8, 1, 50)
   const skip = (page - 1) * pageSize
-  const progressWhere = {
-    userId: session.user.id,
-    anatomyTermId: null,
-    tool: { startsWith: `${FLASHCARD_TOOL}:` },
-  }
   const flashcardToolLike = `${FLASHCARD_TOOL}:%`
   const promptIdStart = `${FLASHCARD_TOOL}:`.length + 1
 
   const [
     progressRows,
-    totalProgressRows,
     progressAggregateRows,
     completedSessionCount,
     bestSession,
     achievementCount,
     achievements,
   ] = await Promise.all([
-    prisma.learningProgress.findMany({
-      where: progressWhere,
-      select: {
-        tool: true,
-        status: true,
-        score: true,
-        metadata: true,
-        lastSeenAt: true,
-      },
-      orderBy: [
-        { lastSeenAt: "desc" },
-        { id: "desc" },
-      ],
-      skip,
-      take: pageSize,
-    }),
-    prisma.learningProgress.count({ where: progressWhere }),
+    prisma.$queryRaw<ProgressPageRow[]>`
+      WITH latest_progress AS (
+        SELECT DISTINCT ON (prompt_id)
+          "id",
+          "tool",
+          "status",
+          "score",
+          "metadata",
+          "lastSeenAt",
+          prompt_id
+        FROM (
+          SELECT
+            "id",
+            "tool",
+            "status",
+            "score",
+            "metadata",
+            "lastSeenAt",
+            COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})) AS prompt_id
+          FROM "LearningProgress"
+          WHERE "userId" = ${session.user.id}
+            AND "anatomyTermId" IS NULL
+            AND "tool" LIKE ${flashcardToolLike}
+        ) scoped_progress
+        WHERE prompt_id <> ''
+        ORDER BY prompt_id, "lastSeenAt" DESC, "id" DESC
+      )
+      SELECT
+        "id",
+        "tool",
+        "status",
+        "score",
+        "metadata",
+        "lastSeenAt"
+      FROM latest_progress
+      ORDER BY "lastSeenAt" DESC, "id" DESC
+      OFFSET ${skip}
+      LIMIT ${pageSize}
+    `,
     prisma.$queryRaw<ProgressAggregateRow[]>`
       WITH latest_progress AS (
-        SELECT DISTINCT ON (COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})))
-          COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})) AS prompt_id,
+        SELECT DISTINCT ON (prompt_id)
+          "id",
+          prompt_id,
           CASE WHEN "metadata"->>'attemptCount' ~ '^[0-9]+$' THEN ("metadata"->>'attemptCount')::int ELSE 0 END AS attempt_count,
           CASE WHEN "metadata"->>'correctCount' ~ '^[0-9]+$' THEN ("metadata"->>'correctCount')::int ELSE 0 END AS correct_count,
           CASE WHEN "metadata"->>'incorrectCount' ~ '^[0-9]+$' THEN ("metadata"->>'incorrectCount')::int ELSE 0 END AS incorrect_count,
           CASE WHEN "metadata"->>'masteryThreshold' ~ '^[0-9]+$' THEN ("metadata"->>'masteryThreshold')::int ELSE ${FLASHCARD_MASTERY_THRESHOLD} END AS mastery_threshold
-        FROM "LearningProgress"
-        WHERE "userId" = ${session.user.id}
-          AND "anatomyTermId" IS NULL
-          AND "tool" LIKE ${flashcardToolLike}
-        ORDER BY COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})), "lastSeenAt" DESC
+        FROM (
+          SELECT
+            "id",
+            "metadata",
+            "lastSeenAt",
+            COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})) AS prompt_id
+          FROM "LearningProgress"
+          WHERE "userId" = ${session.user.id}
+            AND "anatomyTermId" IS NULL
+            AND "tool" LIKE ${flashcardToolLike}
+        ) scoped_progress
+        WHERE prompt_id <> ''
+        ORDER BY prompt_id, "lastSeenAt" DESC, "id" DESC
       )
       SELECT
         COUNT(*)::int AS "trackedPromptCount",
@@ -237,8 +272,8 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     pagination: {
       page,
       pageSize,
-      totalRows: totalProgressRows,
-      nextPage: skip + progressRows.length < totalProgressRows ? page + 1 : null,
+      totalRows: trackedPromptCount,
+      nextPage: skip + progressRows.length < trackedPromptCount ? page + 1 : null,
     },
   }
 
