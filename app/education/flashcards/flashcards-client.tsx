@@ -280,6 +280,7 @@ function FlashcardSurface({
   result: PromptResult | null
 }) {
   const canRevealFromCard = isReviewMode && !isFlipped && !result
+  const shouldRenderBack = isFlipped || Boolean(result)
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -305,8 +306,8 @@ function FlashcardSurface({
           <article className="absolute inset-0 overflow-hidden rounded-lg border border-border/80 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--background)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden]">
             <PromptFront prompt={prompt} isReviewMode={isReviewMode} />
           </article>
-          <article className="absolute inset-0 overflow-hidden rounded-lg border border-primary/40 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--card)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-            <PromptBack prompt={prompt} result={result} />
+          <article aria-hidden={!shouldRenderBack} className="absolute inset-0 overflow-hidden rounded-lg border border-primary/40 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--card)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+            {shouldRenderBack ? <PromptBack prompt={prompt} result={result} /> : null}
           </article>
         </div>
       </div>

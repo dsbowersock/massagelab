@@ -99,8 +99,10 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await page.getByLabel("Region", { exact: true }).selectOption("upper-extremity")
   await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
   const imagePromptRow = page.locator("label").filter({ hasText: "Identify From Image" })
+  const regionPromptRow = page.locator("label").filter({ hasText: "Name To Region" })
   await expect(page.getByRole("checkbox", { name: /Identify From Image/i })).toBeEnabled()
-  await expect(imagePromptRow.getByText(/^[1-9]\d*$/)).toBeVisible({ timeout: 15_000 })
+  await expect(imagePromptRow.getByText(/^\d+$/)).toBeVisible({ timeout: 15_000 })
+  await expect(regionPromptRow.getByText(/^[1-9]\d*$/)).toBeVisible({ timeout: 15_000 })
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()
@@ -111,6 +113,7 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
 
   await startButton.click()
   await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText("Sourced Answer")).toHaveCount(0)
   await expect(page.getByRole("button", { name: /Check|Correct|Missed/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
@@ -149,7 +152,9 @@ test("flashcards can start from local sourced prompts when the prompt API is una
 
   await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 })
   await expect(page.getByRole("button", { name: "Reveal Answer" })).toBeVisible()
+  await expect(page.getByText("Sourced Answer")).toHaveCount(0)
   await page.getByRole("button", { name: "Reveal Answer" }).click()
+  await expect(page.getByText("Sourced Answer")).toBeVisible()
   await expect(page.getByRole("button", { name: /Correct/i })).toBeVisible()
   expect(promptApiRequests).toBeGreaterThan(0)
 })
