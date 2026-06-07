@@ -791,6 +791,7 @@ model FlashcardStudySession {
 
   @@index([userId, updatedAt])
   @@index([deckId, updatedAt])
+  @@index([userId, status, durationMs])
 }
 
 model AnatomyTerm {

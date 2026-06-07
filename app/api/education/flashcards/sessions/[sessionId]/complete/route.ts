@@ -48,7 +48,7 @@ function durationMs(body: unknown) {
   return Math.min(24 * 60 * 60 * 1000, Math.trunc(numeric))
 }
 
-async function updatePromptProgress(userId: string, result: {
+async function updatePromptProgress(tx: Prisma.TransactionClient, userId: string, result: {
   promptId: string
   promptType: string
   entityType: string
@@ -57,8 +57,9 @@ async function updatePromptProgress(userId: string, result: {
   correct: boolean
   score: number
 }) {
+  const now = new Date()
   const tool = flashcardProgressTool(result.promptId)
-  const existing = await prisma.learningProgress.findFirst({
+  const existing = await tx.learningProgress.findFirst({
     where: {
       userId,
       anatomyTermId: null,
@@ -71,16 +72,16 @@ async function updatePromptProgress(userId: string, result: {
     status: update.status,
     score: update.score,
     metadata: json(update.metadata),
-    lastSeenAt: new Date(),
+    lastSeenAt: now,
   }
 
   if (existing) {
-    await prisma.learningProgress.update({
+    await tx.learningProgress.update({
       where: { id: existing.id },
       data,
     })
   } else {
-    await prisma.learningProgress.create({
+    await tx.learningProgress.create({
       data: {
         userId,
         anatomyTermId: null,
@@ -141,18 +142,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
   const answeredCount = results.length
   const correctCount = results.filter((result) => result.correct).length
   let didComplete = false
+  let responseAnsweredCount = studySession.answeredCount
+  let responseCorrectCount = studySession.correctCount
 
   await prisma.$transaction(async (tx) => {
-    const currentSession = await tx.flashcardStudySession.findUnique({
-      where: { id: studySession.id },
-      select: { status: true },
-    })
-
-    if (!currentSession || currentSession.status !== "STARTED") return
-    didComplete = true
-
-    await tx.flashcardStudySession.update({
-      where: { id: studySession.id },
+    const completion = await tx.flashcardStudySession.updateMany({
+      where: { id: studySession.id, status: "STARTED" },
       data: {
         status: "COMPLETED",
         answeredCount,
@@ -161,6 +156,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
         completedAt: new Date(),
       },
     })
+
+    if (completion.count !== 1) return
+
+    didComplete = true
+    responseAnsweredCount = answeredCount
+    responseCorrectCount = correctCount
 
     if (studySession.deckId) {
       await tx.flashcardDeck.update({
@@ -173,15 +174,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
         },
       })
     }
-  })
-
-  if (didComplete) {
     for (const result of results) {
-      await updatePromptProgress(session.user.id, result)
+      await updatePromptProgress(tx, session.user.id, result)
     }
 
     for (const key of completionAchievementKeys(results, config)) {
-      await prisma.achievement.upsert({
+      await tx.achievement.upsert({
         where: { userId_key_tool: { userId: session.user.id, key, tool: FLASHCARD_TOOL } },
         create: {
           userId: session.user.id,
@@ -192,10 +190,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
         update: {},
       })
     }
-  }
+  })
 
-  const responseAnsweredCount = didComplete ? answeredCount : studySession.answeredCount
-  const responseCorrectCount = didComplete ? correctCount : studySession.correctCount
+  if (!didComplete) {
+    const currentSession = await prisma.flashcardStudySession.findUnique({
+      where: { id: studySession.id },
+      select: { answeredCount: true, correctCount: true },
+    })
+    responseAnsweredCount = currentSession?.answeredCount ?? responseAnsweredCount
+    responseCorrectCount = currentSession?.correctCount ?? responseCorrectCount
+  }
 
   return NextResponse.json({
     session: {
