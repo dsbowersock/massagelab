@@ -87,6 +87,14 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
+  await page.getByRole("button", { name: "Browse Premade Decks" }).click()
+  await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Community Decks" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Configure Custom Deck" }).click()
+  await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()
   await expect(page.getByText(/eligible prompts/i)).not.toContainText(/^0 eligible prompts$/)

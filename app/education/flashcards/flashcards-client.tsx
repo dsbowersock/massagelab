@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ExternalLink, Layers3, Lock, Play, RotateCcw, Save, Shuffle, Sparkles, Timer, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -307,6 +307,8 @@ function FlashcardSurface({
 }
 
 export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
+  const communityDecksRef = useRef<HTMLDivElement | null>(null)
+  const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
   const [category, setCategory] = useState("all")
   const [region, setRegion] = useState("all")
   const [difficulty, setDifficulty] = useState<AnatomyStudyDifficulty>("medium")
@@ -438,6 +440,11 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
 
       return [...current, type]
     })
+  }
+
+  const showSetupSection = (section: "community" | "custom") => {
+    const target = section === "community" ? communityDecksRef.current : customDeckBuilderRef.current
+    target?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   const startDeck = async (config = setupConfig, deckSlug = "") => {
@@ -799,10 +806,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 <p className="text-sm text-muted-foreground">Start from MassageLab or community deck templates.</p>
               </div>
             </div>
-            {communityDecks[0] ? (
-              <Button type="button" className="mt-4 w-full sm:w-auto" onClick={() => startFromDeck(communityDecks[0])} disabled={isStartingDeck}>
-                <Play className="mr-2 h-4 w-4" aria-hidden="true" />
-                {isStartingDeck ? "Starting..." : "Study Starter Deck"}
+            {communityDecks.length > 0 ? (
+              <Button type="button" className="mt-4 w-full sm:w-auto" onClick={() => showSetupSection("community")}>
+                <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
+                Browse Premade Decks
               </Button>
             ) : null}
           </div>
@@ -817,14 +824,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 <p className="text-sm text-muted-foreground">Choose the anatomy, prompt types, and review style before seeing cards.</p>
               </div>
             </div>
-            <Button type="button" variant="outline" className="mt-4 w-full sm:w-auto" onClick={() => startDeck()} disabled={eligiblePromptCount === 0 || isStartingDeck}>
-              <Shuffle className="mr-2 h-4 w-4" aria-hidden="true" />
-              {isStartingDeck ? "Starting..." : "Start Custom Deck"}
+            <Button type="button" variant="outline" className="mt-4 w-full sm:w-auto" onClick={() => showSetupSection("custom")}>
+              <Layers3 className="mr-2 h-4 w-4" aria-hidden="true" />
+              Configure Custom Deck
             </Button>
           </div>
         </div>
 
-        <div className="rounded-md border border-border/80 bg-background/70 p-4">
+        <div ref={communityDecksRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -861,7 +868,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           </div>
         </div>
 
-        <div className="rounded-md border border-border/80 bg-background/70 p-4">
+        <div ref={customDeckBuilderRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <Layers3 className="h-5 w-5 text-primary" aria-hidden="true" />
