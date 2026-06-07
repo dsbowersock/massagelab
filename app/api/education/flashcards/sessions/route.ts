@@ -74,6 +74,7 @@ export async function POST(request: Request) {
   }
 
   if (skipMastered) {
+    // TODO(flashcard-scale): if prompt pools grow into 1000+ ids, replace this single IN lookup with batched pagination or an indexed progress lookup.
     const progressRows = await prisma.learningProgress.findMany({
       where: {
         userId: session.user.id,
@@ -89,10 +90,11 @@ export async function POST(request: Request) {
         return metadata.promptId || (row.tool.startsWith(flashcardPromptToolPrefix) ? row.tool.slice(flashcardPromptToolPrefix.length) : "")
       })
       .filter(Boolean))
+    const deckCount = typeof config.count === "number" ? Math.max(0, config.count) : prompts.length
 
     prompts = prompts
       .filter((prompt) => !masteredPromptIds.has(prompt.id))
-      .slice(0, config.count)
+      .slice(0, deckCount)
     if (prompts.length === 0) {
       return NextResponse.json({
         error: "All selected prompts are already mastered. Turn off skip mastered prompts to review them again.",
