@@ -50,6 +50,8 @@ type PromptTypeCount = {
   promptCount: number
 }
 
+type ActiveDeckKind = "temporary" | "starter" | "community"
+
 type FlashcardsClientProps = {
   categories: Option[]
   regions: Option[]
@@ -69,6 +71,12 @@ const difficultyLabels: Record<AnatomyStudyDifficulty, string> = {
 const answerModeLabels: Record<FlashcardAnswerMode, string> = {
   typed: "Typed Check",
   review: "Reveal Review",
+}
+
+const activeDeckKindLabels: Record<ActiveDeckKind, string> = {
+  temporary: "Temporary Deck",
+  starter: "Starter Deck",
+  community: "Community Deck",
 }
 
 const deckSizeOptions = [10, 20, 30, 50, 100]
@@ -321,7 +329,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [communityDecks, setCommunityDecks] = useState(initialDecks)
   const [activeDeck, setActiveDeck] = useState<FlashcardPrompt[]>([])
   const [activeConfig, setActiveConfig] = useState<NormalizedFlashcardDeckConfig | null>(null)
-  const [activeDeckSlug, setActiveDeckSlug] = useState("")
+  const [activeDeckKind, setActiveDeckKind] = useState<ActiveDeckKind>("temporary")
   const [sessionId, setSessionId] = useState("")
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -447,17 +455,17 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     target?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
-  const startDeck = async (config = setupConfig, deckSlug = "") => {
+  const startDeck = async (config = setupConfig, deckSlug = "", deckKind: ActiveDeckKind = deckSlug ? "community" : "temporary") => {
     if (isStartingDeck) return
 
     setSaveMessage("")
     setIsStartingDeck(true)
 
     try {
-      const activateDeck = (nextDeck: FlashcardPrompt[], nextSessionId = "") => {
+      const activateDeck = (nextDeck: FlashcardPrompt[], nextSessionId = "", nextDeckKind = deckKind) => {
         setActiveConfig(config)
         setActiveDeck(nextDeck)
-        setActiveDeckSlug(deckSlug)
+        setActiveDeckKind(nextDeckKind)
         setSessionId(nextSessionId)
         setCurrentIndex(0)
         setAnswers({})
@@ -555,7 +563,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     setPromptTypes(deck.config.promptTypes)
     setAnswerMode(deck.config.answerMode)
     setDeckSize(deck.config.count)
-    void startDeck(deck.config, deck.isStarter ? "" : deck.slug)
+    void startDeck(deck.config, deck.isStarter ? "" : deck.slug, deck.isStarter ? "starter" : "community")
   }
 
   useEffect(() => {
@@ -628,6 +636,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   const previousPrompt = () => {
+    if (checkedResult) commitCurrentResult()
     setCheckedResult(null)
     setAnswers({})
     setIsCardFlipped(false)
@@ -637,6 +646,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const resetStudy = () => {
     setActiveDeck([])
     setActiveConfig(null)
+    setActiveDeckKind("temporary")
     setSessionId("")
     setCurrentIndex(0)
     setResults([])
@@ -693,7 +703,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>{currentIndex + 1} of {activeDeck.length}</span>
             <span>{accuracy(correctCount, answeredCount)}% correct</span>
-            {activeDeckSlug ? <Badge variant="outline">Community Deck</Badge> : <Badge variant="outline">Temporary Deck</Badge>}
+            <Badge variant="outline">{activeDeckKindLabels[activeDeckKind]}</Badge>
           </div>
         </div>
 
