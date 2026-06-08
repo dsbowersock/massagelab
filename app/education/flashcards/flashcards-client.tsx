@@ -410,31 +410,33 @@ function PromptBadges({ prompt }: { prompt: FlashcardPrompt }) {
 
 function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isReviewMode: boolean }) {
   return (
-    <div className="flex h-full flex-col gap-5 p-5 sm:p-7">
+    <div className="flex h-full flex-col gap-5 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] p-5 sm:p-7">
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
-          <span>Question</span>
-          <span>{prompt.typeLabel}</span>
+          <span>Front</span>
+          <span className="rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
         <p className="text-sm text-muted-foreground">{prompt.front.instruction}</p>
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center">
         {prompt.front.mode === "media" && prompt.front.media ? (
-          <figure className="flex h-full w-full flex-col overflow-hidden rounded-md border border-border/80 bg-background/70">
-            <div className="flex min-h-0 flex-1 items-center justify-center p-3">
+          <figure className="flex h-full w-full flex-col overflow-hidden rounded-md border border-border/80 bg-background/80 shadow-inner">
+            <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
               {/* eslint-disable-next-line @next/next/no-img-element -- reviewed source media can come from multiple external hosts not configured for next/image. */}
-              <img src={prompt.front.media.url} alt={prompt.front.media.title} className="max-h-[20rem] w-full object-contain sm:max-h-[26rem]" loading="lazy" referrerPolicy="no-referrer" />
+              <img src={prompt.front.media.url} alt={prompt.front.media.title} className="max-h-[19rem] w-full object-contain drop-shadow-sm sm:max-h-[25rem]" loading="lazy" referrerPolicy="no-referrer" />
             </div>
             <figcaption className="border-t border-border/80 px-3 py-2 text-xs text-muted-foreground">{prompt.front.media.title}</figcaption>
           </figure>
         ) : (
-          <h2 className="max-w-3xl break-words text-center text-3xl font-semibold tracking-normal sm:text-5xl">{prompt.front.title}</h2>
+          <div className="grid w-full place-items-center rounded-md border border-border/80 bg-background/65 px-4 py-10 shadow-inner sm:px-8">
+            <h2 className="max-w-3xl break-words text-center text-3xl font-semibold tracking-normal sm:text-5xl">{prompt.front.title}</h2>
+          </div>
         )}
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
-        <span>{isReviewMode ? "Reveal when ready, then mark your recall." : "Type your answer below, then check it."}</span>
+        <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
     </div>
@@ -443,7 +445,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
 
 function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: PromptResult | null }) {
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto p-5 sm:p-7">
+    <div className="flex h-full flex-col gap-5 overflow-y-auto bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-5 sm:p-7">
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Sourced Answer</span>
@@ -462,7 +464,7 @@ function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: Promp
 
       <div className="grid gap-3">
         {prompt.answerFields.map((field) => (
-          <div key={field.id} className="rounded-md border border-border/80 bg-background/70 p-4">
+          <div key={field.id} className="rounded-md border border-border/80 bg-background/75 p-4 shadow-inner">
             <div className="text-xs font-medium uppercase text-muted-foreground">{field.label}</div>
             <p className="mt-2 whitespace-pre-wrap break-words text-base leading-7 text-foreground">{field.answer}</p>
           </div>
@@ -546,8 +548,8 @@ function FlashcardSurface({
   const shouldRenderBack = isFlipped || Boolean(result)
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <div className="relative min-h-[30rem] sm:min-h-[34rem] [perspective:1600px]">
+    <div className="mx-auto w-full max-w-4xl">
+      <div className="relative min-h-[31rem] sm:min-h-[34rem] [perspective:1800px]">
         <div
           role={canRevealFromCard ? "button" : undefined}
           tabIndex={canRevealFromCard ? 0 : undefined}
@@ -561,15 +563,15 @@ function FlashcardSurface({
             }
           }}
           className={cn(
-            "absolute inset-0 rounded-lg transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
+            "absolute inset-0 rounded-xl transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
             isFlipped && "[transform:rotateY(180deg)]",
             canRevealFromCard && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
         >
-          <article className="absolute inset-0 overflow-hidden rounded-lg border border-border/80 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--background)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden]">
+          <article className="absolute inset-0 overflow-hidden rounded-xl border border-border/80 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--border))] ring-1 ring-white/5 [backface-visibility:hidden]">
             <PromptFront prompt={prompt} isReviewMode={isReviewMode} />
           </article>
-          <article aria-hidden={!shouldRenderBack} className="absolute inset-0 overflow-hidden rounded-lg border border-primary/40 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--card)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <article aria-hidden={!shouldRenderBack} className="absolute inset-0 overflow-hidden rounded-xl border border-primary/40 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--primary)/0.35)] ring-1 ring-primary/15 [backface-visibility:hidden] [transform:rotateY(180deg)]">
             {shouldRenderBack ? <PromptBack prompt={prompt} result={result} /> : null}
           </article>
         </div>
@@ -1083,17 +1085,23 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   if (activeDeck.length > 0 && currentPrompt && activeConfig) {
     const isReviewMode = activeConfig.answerMode === "review"
     const isCurrentCardFlipped = Boolean(currentResult) || isCardFlipped
+    const runnerStatusLabel = isReviewMode
+      ? "Practice only"
+      : canPersistProgress && sessionId
+        ? "Progress tracked"
+        : "Temporary study"
 
     return (
       <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/80 bg-background/70 p-3">
           <Button type="button" variant="outline" onClick={resetStudy}>
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             Setup
           </Button>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{currentIndex + 1} of {activeDeck.length}</span>
-            <span>{accuracy(correctCount, answeredCount)}% correct</span>
+          <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground" aria-live="polite">
+            <Badge variant="outline">Card {currentIndex + 1} of {activeDeck.length}</Badge>
+            <Badge variant="outline">{accuracy(correctCount, answeredCount)}% correct</Badge>
+            <Badge variant="outline">{runnerStatusLabel}</Badge>
             <Badge variant="outline">{activeDeckKindLabels[activeDeckKind]}</Badge>
           </div>
         </div>
@@ -1127,7 +1135,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               </div>
             ) : null}
 
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 rounded-md border border-border/80 bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mx-auto grid w-full max-w-4xl gap-3 rounded-xl border border-border/80 bg-background/75 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
               <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
                 <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                 Previous
@@ -1156,7 +1164,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               </div>
               {currentIndex >= activeDeck.length - 1 ? (
                 <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
-                  Save Results
+                  {isReviewMode ? "Finish Practice" : "Save Results"}
                 </Button>
               ) : (
                 <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
@@ -1176,6 +1184,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             <div className="rounded-md border border-border/80 p-3 text-sm">
               <div className="text-muted-foreground">Mode</div>
               <div className="font-medium">{answerModeLabels[activeConfig.answerMode]}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{runnerStatusLabel}</div>
             </div>
             {!canPersistProgress ? (
               <div className="rounded-md border border-border/80 bg-card/70 p-3 text-sm text-muted-foreground">

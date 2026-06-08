@@ -175,9 +175,10 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   await startButton.click()
 
   await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText("Practice only").first()).toBeVisible()
   await expect(page.getByRole("button", { name: "Reveal Answer" })).toBeVisible()
   await expect(page.getByText("Sourced Answer")).toHaveCount(0)
-  await page.getByRole("button", { name: "Reveal Answer" }).click()
+  await page.getByRole("button", { name: "Flip flashcard" }).click()
   await expect(page.getByText("Sourced Answer")).toBeVisible()
   await expect(page.getByRole("button", { name: /Correct/i })).toBeVisible()
   expect(promptApiRequests).toBeGreaterThan(0)
