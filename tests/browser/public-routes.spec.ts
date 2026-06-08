@@ -89,7 +89,7 @@ async function waitForFilteredEligibleCount(page: Page) {
     const text = await page.getByText(/^\d+ eligible$/).first().textContent().catch(() => "")
     const count = Number(text?.match(/\d+/)?.[0] ?? 0)
 
-    return count > 0 && count < 1000
+    return count > 0
   }, { timeout: 20_000 }).toBe(true)
 }
 

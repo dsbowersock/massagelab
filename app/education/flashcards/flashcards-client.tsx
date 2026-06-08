@@ -754,9 +754,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }, [countConfig])
 
   useEffect(() => {
-    if (selectedPromptIds.length === 0 || promptSummaries.length === 0) return
-    setSelectedPromptIds((current) => current.filter((promptId) => availablePromptIdSet.has(promptId)))
-  }, [availablePromptIdSet, promptSummaries.length, selectedPromptIds.length])
+    if (selectedPromptIds.length === 0 || availablePromptIdSet.size === 0) return
+    setSelectedPromptIds((current) => {
+      const next = current.filter((promptId) => availablePromptIdSet.has(promptId))
+      return next.length === current.length ? current : next
+    })
+  }, [availablePromptIdSet, selectedPromptIds])
 
   const currentPrompt = activeDeck[currentIndex]
   const currentResult = currentPrompt ? results.find((result) => result.promptId === currentPrompt.id) ?? checkedResult : null
