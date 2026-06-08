@@ -65,6 +65,7 @@ export type NormalizedFlashcardDeckConfig = {
   answerMode: FlashcardAnswerMode
   count: number
   seed: string
+  promptIds?: string[]
 }
 
 const categorySet = new Set<string>(ANATOMY_STUDY_CATEGORIES)
@@ -164,7 +165,7 @@ function clampCount(value: unknown) {
   const count = Number(value)
   if (!Number.isFinite(count)) return 20
 
-  return Math.min(100, Math.max(5, Math.trunc(count)))
+  return Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.trunc(count)))
 }
 
 export function normalizeFlashcardDeckConfig(input: unknown): NormalizedFlashcardDeckConfig {
@@ -183,6 +184,9 @@ export function normalizeFlashcardDeckConfig(input: unknown): NormalizedFlashcar
   const answerMode = answerModeSet.has(String(record.answerMode))
     ? String(record.answerMode) as FlashcardAnswerMode
     : "typed"
+  const promptIds = stringArray(record.promptIds)
+    .map((promptId) => promptId.trim())
+    .filter((promptId) => promptId.length > 0)
 
   return {
     categories: categories.length > 0 ? categories : [...ANATOMY_STUDY_CATEGORIES],
@@ -192,6 +196,7 @@ export function normalizeFlashcardDeckConfig(input: unknown): NormalizedFlashcar
     answerMode,
     count: clampCount(record.count),
     seed: sanitizeSeed(record.seed),
+    ...(promptIds.length > 0 ? { promptIds: [...new Set(promptIds)] } : {}),
   }
 }
 

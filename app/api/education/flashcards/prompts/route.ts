@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import {
   createFlashcardPromptDeck,
+  getAnatomyStudyPrompts,
   getFlashcardPromptTypeCounts,
 } from "@/lib/anatomy-study"
 import { normalizeFlashcardDeckConfig } from "@/lib/flashcard-community"
@@ -41,9 +42,21 @@ export async function POST(request: Request) {
   const prompts = body.includePrompts === true
     ? createFlashcardPromptDeck(config, mediaOptions)
     : []
+  const promptSummaries = body.includePromptSummaries === true
+    ? getAnatomyStudyPrompts(config, mediaOptions).map((prompt) => ({
+      id: prompt.id,
+      type: prompt.type,
+      typeLabel: prompt.typeLabel,
+      name: prompt.name,
+      categoryLabel: prompt.categoryLabel,
+      regionLabels: prompt.regionLabels,
+      difficulty: prompt.difficulty,
+    }))
+    : []
 
   return NextResponse.json({
     promptTypeCounts,
     prompts,
+    promptSummaries,
   })
 }
