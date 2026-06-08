@@ -23,6 +23,7 @@ describe("Flashcard community deck policy", () => {
       answerMode: "review",
       count: 500,
       seed: "user-seed",
+      promptIds: ["name_to_region:muscle-biceps-brachii", "", "name_to_region:muscle-biceps-brachii"],
     })
 
     assert.deepEqual(config.categories, ["muscle"])
@@ -30,8 +31,9 @@ describe("Flashcard community deck policy", () => {
     assert.equal(config.difficulty, "hard")
     assert.deepEqual(config.promptTypes, ["identify_from_media"])
     assert.equal(config.answerMode, "review")
-    assert.equal(config.count, 100)
+    assert.equal(config.count, 500)
     assert.equal(config.seed, "user-seed")
+    assert.deepEqual(config.promptIds, ["name_to_region:muscle-biceps-brachii"])
   })
 
   it("defaults saved deck visibility to public and keeps private explicit", () => {
@@ -99,5 +101,24 @@ describe("Flashcard community deck policy", () => {
     assert.ok(keys.includes("flashcards:prompt-type:name_to_region"))
     assert.ok(keys.includes("flashcards:region:upper-extremity"))
     assert.ok(keys.includes("flashcards:category:muscle"))
+  })
+
+  it("allows one-card and larger-than-preset flashcard decks", () => {
+    assert.equal(normalizeFlashcardDeckConfig({ count: 1 }).count, 1)
+    assert.equal(normalizeFlashcardDeckConfig({ count: 1000 }).count, 1000)
+    assert.equal(normalizeFlashcardDeckConfig({ count: -20 }).count, 1)
+  })
+
+  it("limits generated decks to selected prompt ids when provided", () => {
+    const config = normalizeFlashcardDeckConfig({
+      categories: ["muscle"],
+      regions: ["upper-extremity"],
+      promptTypes: ["name_to_region"],
+      promptIds: ["name_to_region:muscle-biceps-brachii"],
+      count: 20,
+      seed: "selected-prompts",
+    })
+
+    assert.deepEqual(deckPromptIds(config), ["name_to_region:muscle-biceps-brachii"])
   })
 })

@@ -173,6 +173,7 @@ export type FlashcardDeckConfig = AnatomyStudyCardFilters & {
   answerMode?: FlashcardAnswerMode
   count?: number
   seed?: string
+  promptIds?: string[]
 }
 
 export type FlashcardPromptFront = {
@@ -895,15 +896,23 @@ function promptsForCard(card: AnatomyStudyCard, context: BuildContext) {
 export function getAnatomyStudyPrompts(config: FlashcardDeckConfig = {}, options: AnatomyStudyBuildOptions = {}) {
   const promptTypes = new Set(normalizePromptTypes(config.promptTypes))
   if (promptTypes.size === 0) return []
+  const selectedPromptIds = config.promptIds?.length ? new Set(config.promptIds) : null
 
   const context = buildContext(ANATOMY_FOUNDATION_SEED, options)
 
   return getAnatomyStudyCards(config, options)
     .flatMap((card) => promptsForCard(card, context))
     .filter((prompt) => promptTypes.has(prompt.type))
+    .filter((prompt) => !selectedPromptIds || selectedPromptIds.has(prompt.id))
 }
 
 export function createFlashcardPromptDeck(config: FlashcardDeckConfig = {}, options: AnatomyStudyBuildOptions = {}) {
+  const prompts = createFlashcardPromptPool(config, options)
+
+  return typeof config.count === "number" ? prompts.slice(0, Math.max(0, config.count)) : prompts
+}
+
+export function createFlashcardPromptPool(config: FlashcardDeckConfig = {}, options: AnatomyStudyBuildOptions = {}) {
   const prompts = [...getAnatomyStudyPrompts(config, options)]
   const rng = config.seed ? seededRng(config.seed) : Math.random
 
@@ -914,7 +923,7 @@ export function createFlashcardPromptDeck(config: FlashcardDeckConfig = {}, opti
     prompts[swapIndex] = current
   }
 
-  return typeof config.count === "number" ? prompts.slice(0, Math.max(0, config.count)) : prompts
+  return prompts
 }
 
 export function getFlashcardPromptTypeCounts(config: Omit<FlashcardDeckConfig, "promptTypes"> = {}, options: AnatomyStudyBuildOptions = {}) {

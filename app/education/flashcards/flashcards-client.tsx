@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ExternalLink, Layers3, Lock, Play, RotateCcw, Save, Shuffle, Sparkles, Timer, XCircle } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -17,7 +18,6 @@ import type {
   FlashcardPromptType,
 } from "@/lib/anatomy-study"
 import {
-  FLASHCARD_STATIC_ANSWER_MODES,
   FLASHCARD_STATIC_CATEGORY_IDS,
   FLASHCARD_STATIC_PROMPT_TYPES,
   FLASHCARD_STATIC_REGION_IDS,
@@ -50,7 +50,57 @@ type PromptTypeCount = {
   promptCount: number
 }
 
+type PromptSummary = {
+  id: string
+  type: FlashcardPromptType
+  typeLabel: string
+  name: string
+  categoryLabel: string
+  regionLabels: string[]
+  difficulty: AnatomyStudyDifficulty
+}
+
 type ActiveDeckKind = "temporary" | "starter" | "community"
+
+type FlashcardProgressDashboard = {
+  trackedPromptCount: number
+  activePromptCount: number
+  masteredPromptCount: number
+  totalAttempts: number
+  totalCorrect: number
+  totalIncorrect: number
+  accuracyPercent: number
+  masteryThreshold: number
+  completedSessionCount: number
+  achievementCount: number
+  bestDurationMs: number | null
+}
+
+type FlashcardRecentProgress = {
+  promptId: string
+  promptType: string
+  entityType: string
+  entitySlug: string
+  status: string
+  score: number | null
+  attemptCount: number
+  correctCount: number
+  incorrectCount: number
+  masteryThreshold: number
+  masteredAt: string | null
+  lastSeenAt: string
+}
+
+type FlashcardAchievementSummary = {
+  key: string
+  earnedAt: string
+}
+
+type FlashcardProgressPayload = {
+  progress: FlashcardProgressDashboard
+  recentProgress: FlashcardRecentProgress[]
+  achievements: FlashcardAchievementSummary[]
+}
 
 type FlashcardsClientProps = {
   categories: Option[]
@@ -79,8 +129,37 @@ const activeDeckKindLabels: Record<ActiveDeckKind, string> = {
   community: "Community Deck",
 }
 
-const deckSizeOptions = [10, 20, 30, 50, 100]
 const draftStorageKey = "massagelab-flashcard-draft-config-v1"
+const allCategoryIds = [...FLASHCARD_STATIC_CATEGORY_IDS] as NormalizedFlashcardDeckConfig["categories"]
+const allRegionIds = [...FLASHCARD_STATIC_REGION_IDS] as NormalizedFlashcardDeckConfig["regions"]
+
+const categoryIconById: Record<string, LucideIcon> = {
+  bone: Bone,
+  bone_landmark: Landmark,
+  muscle: Dumbbell,
+  anatomy_structure: Boxes,
+  anatomy_concept: Brain,
+}
+
+const regionIconById: Record<string, LucideIcon> = {
+  head: Brain,
+  "upper-extremity": Dumbbell,
+  spine: Activity,
+  thorax: Boxes,
+  abdomen: CircleHelp,
+  pelvis: CircleHelp,
+  "lower-extremity": MapPin,
+}
+
+const promptTypeIconById: Record<FlashcardPromptType, LucideIcon> = {
+  identify_from_media: Image,
+  name_to_summary: BookOpen,
+  name_to_region: MapPin,
+  name_to_category: Boxes,
+  muscle_origin_insertion: Landmark,
+  muscle_action: Activity,
+  muscle_innervation: Brain,
+}
 
 function selectClassName() {
   return "h-10 rounded-md border border-border/80 bg-background/80 px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
@@ -131,6 +210,126 @@ function promptDeckPayload(value: unknown) {
   return promptRows(record.prompts)
 }
 
+function promptSummaryRows(value: unknown) {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  if (!Array.isArray(record.promptSummaries)) return []
+
+  return record.promptSummaries.map((item) => {
+    const row = item && typeof item === "object" && !Array.isArray(item)
+      ? item as Record<string, unknown>
+      : {}
+
+    return {
+      id: text(row.id),
+      type: text(row.type) as FlashcardPromptType,
+      typeLabel: text(row.typeLabel),
+      name: text(row.name),
+      categoryLabel: text(row.categoryLabel),
+      regionLabels: Array.isArray(row.regionLabels) ? row.regionLabels.map(String) : [],
+      difficulty: text(row.difficulty) as AnatomyStudyDifficulty,
+    }
+  }).filter((prompt): prompt is PromptSummary => (
+    Boolean(prompt.id && FLASHCARD_STATIC_PROMPT_TYPES.includes(prompt.type))
+  ))
+}
+
+function numeric(value: unknown, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function text(value: unknown) {
+  return typeof value === "string" ? value : ""
+}
+
+function nullableNumber(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function progressPayload(value: unknown): FlashcardProgressPayload | null {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+  const progress = record.progress && typeof record.progress === "object" && !Array.isArray(record.progress)
+    ? record.progress as Record<string, unknown>
+    : null
+
+  if (!progress) return null
+
+  const recentProgress = Array.isArray(record.recentProgress)
+    ? record.recentProgress.map((item) => {
+      const row = item && typeof item === "object" && !Array.isArray(item)
+        ? item as Record<string, unknown>
+        : {}
+
+      return {
+        promptId: text(row.promptId),
+        promptType: text(row.promptType),
+        entityType: text(row.entityType),
+        entitySlug: text(row.entitySlug),
+        status: text(row.status),
+        score: nullableNumber(row.score),
+        attemptCount: numeric(row.attemptCount),
+        correctCount: numeric(row.correctCount),
+        incorrectCount: numeric(row.incorrectCount),
+        masteryThreshold: numeric(row.masteryThreshold, 10),
+        masteredAt: text(row.masteredAt) || null,
+        lastSeenAt: text(row.lastSeenAt),
+      }
+    }).filter((item) => item.promptId)
+    : []
+  const achievements = Array.isArray(record.achievements)
+    ? record.achievements.map((item) => {
+      const row = item && typeof item === "object" && !Array.isArray(item)
+        ? item as Record<string, unknown>
+        : {}
+
+      return {
+        key: text(row.key),
+        earnedAt: text(row.earnedAt),
+      }
+    }).filter((item) => item.key)
+    : []
+
+  return {
+    progress: {
+      trackedPromptCount: numeric(progress.trackedPromptCount),
+      activePromptCount: numeric(progress.activePromptCount),
+      masteredPromptCount: numeric(progress.masteredPromptCount),
+      totalAttempts: numeric(progress.totalAttempts),
+      totalCorrect: numeric(progress.totalCorrect),
+      totalIncorrect: numeric(progress.totalIncorrect),
+      accuracyPercent: numeric(progress.accuracyPercent),
+      masteryThreshold: numeric(progress.masteryThreshold, 10),
+      completedSessionCount: numeric(progress.completedSessionCount),
+      achievementCount: numeric(progress.achievementCount),
+      bestDurationMs: nullableNumber(progress.bestDurationMs),
+    },
+    recentProgress,
+    achievements,
+  }
+}
+
+function formatDuration(durationMs: number | null) {
+  if (!durationMs) return "Not yet"
+  const totalSeconds = Math.max(1, Math.round(durationMs / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+}
+
+function titleFromSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
 async function localPromptDeck(config: NormalizedFlashcardDeckConfig) {
   const { createFlashcardPromptDeck } = await import("@/lib/anatomy-study")
 
@@ -143,32 +342,44 @@ async function localPromptTypeCounts(config: NormalizedFlashcardDeckConfig) {
   return getFlashcardPromptTypeCounts(config, { mediaUrlBySlug: new Map() })
 }
 
+async function localPromptSummaries(config: NormalizedFlashcardDeckConfig) {
+  const { getAnatomyStudyPrompts } = await import("@/lib/anatomy-study")
+
+  return getAnatomyStudyPrompts(config, { mediaUrlBySlug: new Map() }).map((prompt) => ({
+    id: prompt.id,
+    type: prompt.type,
+    typeLabel: prompt.typeLabel,
+    name: prompt.name,
+    categoryLabel: prompt.categoryLabel,
+    regionLabels: prompt.regionLabels,
+    difficulty: prompt.difficulty,
+  }))
+}
+
 function configFromState(state: {
-  category: string
-  region: string
+  categories: NormalizedFlashcardDeckConfig["categories"]
+  regions: NormalizedFlashcardDeckConfig["regions"]
   difficulty: AnatomyStudyDifficulty
   promptTypes: FlashcardPromptType[]
   answerMode: FlashcardAnswerMode
   deckSize: number
+  promptIds?: string[]
 }): NormalizedFlashcardDeckConfig {
   return {
-    categories: state.category === "all" ? [...FLASHCARD_STATIC_CATEGORY_IDS] : [state.category as NormalizedFlashcardDeckConfig["categories"][number]],
-    regions: state.region === "all" ? [...FLASHCARD_STATIC_REGION_IDS] : [state.region as NormalizedFlashcardDeckConfig["regions"][number]],
+    categories: state.categories.length > 0 ? state.categories : [...allCategoryIds],
+    regions: state.regions.length > 0 ? state.regions : [...allRegionIds],
     difficulty: state.difficulty,
     promptTypes: state.promptTypes,
     answerMode: state.answerMode,
-    count: state.deckSize,
+    count: Math.max(1, Math.trunc(state.deckSize)),
     seed: `browser-${Date.now().toString(36)}`,
+    ...(state.promptIds?.length ? { promptIds: state.promptIds } : {}),
   }
 }
 
 function accuracy(correct: number, answered: number) {
   if (answered === 0) return 0
   return Math.round((correct / answered) * 100)
-}
-
-function optionLabel(option: Option) {
-  return typeof option.termCount === "number" ? `${option.label} (${option.termCount})` : option.label
 }
 
 function PromptSourceLinks({ prompt }: { prompt: FlashcardPrompt }) {
@@ -266,6 +477,58 @@ function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: Promp
   )
 }
 
+function SelectionButton({
+  selected,
+  icon: Icon,
+  label,
+  detail,
+  onClick,
+  disabled = false,
+  className,
+}: {
+  selected: boolean
+  icon: LucideIcon
+  label: string
+  detail?: string
+  onClick: () => void
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex min-h-12 items-center gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-2 text-left text-sm transition",
+        selected && "border-primary/70 bg-primary/10 text-foreground shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]",
+        disabled ? "cursor-not-allowed opacity-55" : "hover:border-primary/60",
+        className,
+      )}
+    >
+      <span className={cn(
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+        selected && "border-primary/50 text-primary",
+      )}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0">
+        <span className="block break-words font-medium">{label}</span>
+        {detail ? <span className="block break-words text-xs text-muted-foreground">{detail}</span> : null}
+      </span>
+    </button>
+  )
+}
+
+function toggleRequiredSelection<T extends string>(current: T[], value: T) {
+  if (current.includes(value)) {
+    return current.length > 1 ? current.filter((item) => item !== value) : current
+  }
+
+  return [...current, value]
+}
+
 function FlashcardSurface({
   prompt,
   isFlipped,
@@ -318,12 +581,14 @@ function FlashcardSurface({
 export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
-  const [category, setCategory] = useState("all")
-  const [region, setRegion] = useState("all")
+  const [selectedCategories, setSelectedCategories] = useState<NormalizedFlashcardDeckConfig["categories"]>([...allCategoryIds])
+  const [selectedRegions, setSelectedRegions] = useState<NormalizedFlashcardDeckConfig["regions"]>([...allRegionIds])
   const [difficulty, setDifficulty] = useState<AnatomyStudyDifficulty>("medium")
   const [promptTypes, setPromptTypes] = useState<FlashcardPromptType[]>(["identify_from_media", "name_to_region", "name_to_category"])
   const [answerMode, setAnswerMode] = useState<FlashcardAnswerMode>("typed")
   const [deckSize, setDeckSize] = useState(20)
+  const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([])
+  const [expandedPromptType, setExpandedPromptType] = useState<FlashcardPromptType | null>(null)
   const [deckTitle, setDeckTitle] = useState("My flashcard deck")
   const [deckDescription, setDeckDescription] = useState("")
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
@@ -340,8 +605,33 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [results, setResults] = useState<PromptResult[]>([])
   const [saveMessage, setSaveMessage] = useState("")
   const [promptTypeCounts, setPromptTypeCounts] = useState(initialPromptTypeCounts)
+  const [promptSummaries, setPromptSummaries] = useState<PromptSummary[]>([])
   const [isLoadingPromptCounts, setIsLoadingPromptCounts] = useState(false)
   const [canPersistProgress, setCanPersistProgress] = useState(isSignedIn)
+  const [skipMasteredPrompts, setSkipMasteredPrompts] = useState(false)
+  const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
+  const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
+  const studyStartedAtRef = useRef<number | null>(null)
+
+  const refreshProgressDashboard = useCallback(async () => {
+    if (!canPersistProgress) {
+      setProgressDashboard(null)
+      return
+    }
+
+    setIsLoadingProgressDashboard(true)
+    try {
+      const response = await fetch("/api/education/flashcards/progress")
+      if (!response.ok) return
+
+      const payload = progressPayload(await response.json())
+      if (payload) setProgressDashboard(payload)
+    } catch (error) {
+      console.error("Failed to load flashcard progress", error)
+    } finally {
+      setIsLoadingProgressDashboard(false)
+    }
+  }, [canPersistProgress])
 
   useEffect(() => {
     const stored = window.localStorage.getItem(draftStorageKey)
@@ -349,12 +639,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
 
     try {
       const parsed = JSON.parse(stored) as Partial<NormalizedFlashcardDeckConfig>
-      if (parsed.categories?.length === 1) setCategory(parsed.categories[0])
-      if (parsed.regions?.length === 1) setRegion(parsed.regions[0])
+      if (parsed.categories?.length) setSelectedCategories(parsed.categories)
+      if (parsed.regions?.length) setSelectedRegions(parsed.regions)
       if (parsed.difficulty) setDifficulty(parsed.difficulty)
       if (parsed.promptTypes?.length) setPromptTypes(parsed.promptTypes)
       if (parsed.answerMode) setAnswerMode(parsed.answerMode)
       if (parsed.count) setDeckSize(parsed.count)
+      if (parsed.promptIds?.length) setSelectedPromptIds(parsed.promptIds)
     } catch {
       window.localStorage.removeItem(draftStorageKey)
     }
@@ -382,20 +673,42 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     }
   }, [])
 
+  useEffect(() => {
+    void refreshProgressDashboard()
+  }, [refreshProgressDashboard])
+
   const countConfig = useMemo(() => configFromState({
-    category,
-    region,
+    categories: selectedCategories,
+    regions: selectedRegions,
     difficulty,
     promptTypes: [...FLASHCARD_STATIC_PROMPT_TYPES],
     answerMode: "typed",
     deckSize: 20,
-  }), [category, difficulty, region])
-  const setupConfig = useMemo(() => configFromState({ category, region, difficulty, promptTypes, answerMode, deckSize }), [answerMode, category, deckSize, difficulty, promptTypes, region])
+  }), [difficulty, selectedCategories, selectedRegions])
+  const availablePromptIdSet = useMemo(() => new Set(promptSummaries.map((prompt) => prompt.id)), [promptSummaries])
+  const promptTypeByPromptId = useMemo(() => new Map(promptSummaries.map((prompt) => [prompt.id, prompt.type])), [promptSummaries])
+  const selectedUsablePromptIds = useMemo(() => (
+    selectedPromptIds.filter((promptId) => {
+      const promptType = promptTypeByPromptId.get(promptId)
+      return Boolean(promptType && promptTypes.includes(promptType))
+    })
+  ), [promptTypeByPromptId, promptTypes, selectedPromptIds])
+  const setupConfig = useMemo(() => configFromState({
+    categories: selectedCategories,
+    regions: selectedRegions,
+    difficulty,
+    promptTypes,
+    answerMode,
+    deckSize,
+    promptIds: selectedUsablePromptIds,
+  }), [answerMode, deckSize, difficulty, promptTypes, selectedCategories, selectedRegions, selectedUsablePromptIds])
   const eligiblePromptCount = useMemo(() => (
-    promptTypeCounts
+    selectedUsablePromptIds.length > 0
+      ? selectedUsablePromptIds.length
+      : promptTypeCounts
       .filter((type) => promptTypes.includes(type.id))
       .reduce((sum, type) => sum + type.promptCount, 0)
-  ), [promptTypeCounts, promptTypes])
+  ), [promptTypeCounts, promptTypes, selectedUsablePromptIds])
 
   useEffect(() => {
     let cancelled = false
@@ -406,12 +719,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         const response = await fetch("/api/education/flashcards/prompts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ config: countConfig }),
+          body: JSON.stringify({ config: countConfig, includePromptSummaries: true }),
         })
         const payload = response.ok ? await response.json() : null
 
         if (!cancelled && Array.isArray(payload?.promptTypeCounts)) {
           setPromptTypeCounts(payload.promptTypeCounts)
+          setPromptSummaries(promptSummaryRows(payload))
           return
         }
       } catch {
@@ -420,7 +734,11 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
 
       try {
         const counts = await localPromptTypeCounts(countConfig)
-        if (!cancelled) setPromptTypeCounts(counts)
+        const summaries = await localPromptSummaries(countConfig)
+        if (!cancelled) {
+          setPromptTypeCounts(counts)
+          setPromptSummaries(summaries)
+        }
       } catch (error) {
         console.error("Failed to calculate local flashcard prompt counts", error)
       }
@@ -435,11 +753,31 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     }
   }, [countConfig])
 
+  useEffect(() => {
+    if (selectedPromptIds.length === 0 || availablePromptIdSet.size === 0) return
+    setSelectedPromptIds((current) => {
+      const next = current.filter((promptId) => availablePromptIdSet.has(promptId))
+      return next.length === current.length ? current : next
+    })
+  }, [availablePromptIdSet, selectedPromptIds])
+
   const currentPrompt = activeDeck[currentIndex]
   const currentResult = currentPrompt ? results.find((result) => result.promptId === currentPrompt.id) ?? checkedResult : null
   const answeredCount = results.length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) ? 1 : 0)
   const correctCount = results.filter((result) => result.correct).length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) && checkedResult.correct ? 1 : 0)
   const progress = activeDeck.length > 0 ? ((currentIndex + 1) / activeDeck.length) * 100 : 0
+  const promptTypeLabelById = useMemo(() => new Map(promptTypeCounts.map((type) => [type.id, type.label])), [promptTypeCounts])
+  const allCategoriesSelected = selectedCategories.length === allCategoryIds.length
+  const allRegionsSelected = selectedRegions.length === allRegionIds.length
+  const selectedPromptIdSet = useMemo(() => new Set(selectedUsablePromptIds), [selectedUsablePromptIds])
+  const expandedPromptSummaries = useMemo(() => (
+    expandedPromptType
+      ? promptSummaries.filter((prompt) => prompt.type === expandedPromptType)
+      : []
+  ), [expandedPromptType, promptSummaries])
+  const exactPromptSelectionActive = selectedPromptIds.length > 0
+  const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
+  const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
 
   const togglePromptType = (type: FlashcardPromptType) => {
     setPromptTypes((current) => {
@@ -448,6 +786,38 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       }
 
       return [...current, type]
+    })
+  }
+
+  const toggleCategory = (id: NormalizedFlashcardDeckConfig["categories"][number]) => {
+    setSelectedPromptIds([])
+    setSelectedCategories((current) => toggleRequiredSelection(current, id))
+  }
+
+  const toggleRegion = (id: NormalizedFlashcardDeckConfig["regions"][number]) => {
+    setSelectedPromptIds([])
+    setSelectedRegions((current) => toggleRequiredSelection(current, id))
+  }
+
+  const activateExactPromptSelection = () => {
+    const ids = promptSummaries
+      .filter((prompt) => promptTypes.includes(prompt.type))
+      .map((prompt) => prompt.id)
+
+    setSelectedPromptIds(ids)
+  }
+
+  const togglePromptId = (promptId: string) => {
+    setSelectedPromptIds((current) => {
+      const base = current.length > 0
+        ? current
+        : promptSummaries.filter((prompt) => promptTypes.includes(prompt.type)).map((prompt) => prompt.id)
+
+      if (base.includes(promptId)) {
+        return base.length > 1 ? base.filter((id) => id !== promptId) : base
+      }
+
+      return [...base, promptId]
     })
   }
 
@@ -468,6 +838,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         setActiveDeck(nextDeck)
         setActiveDeckKind(nextDeckKind)
         setSessionId(nextSessionId)
+        studyStartedAtRef.current = Date.now()
         setCurrentIndex(0)
         setAnswers({})
         setIsCardFlipped(false)
@@ -514,17 +885,23 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         }
       }
 
-      if (canPersistProgress) {
+      if (canPersistProgress && config.answerMode === "typed") {
         let fallbackMessage = ""
 
         try {
           const response = await fetch("/api/education/flashcards/sessions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(deckSlug ? { deckSlug } : { config }),
+            body: JSON.stringify(deckSlug ? { deckSlug, skipMastered: skipMasteredPrompts } : { config, skipMastered: skipMasteredPrompts }),
           })
 
           if (!response.ok) {
+            const payload = await response.json().catch(() => null)
+            if (skipMasteredPrompts && response.status === 409) {
+              setSaveMessage(typeof payload?.error === "string" ? payload.error : "All selected prompts are already mastered.")
+              return
+            }
+
             fallbackMessage = "Studying temporarily; progress tracking could not be started."
             await startTemporaryDeck(fallbackMessage)
             return
@@ -548,7 +925,9 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         }
       }
 
-      await startTemporaryDeck()
+      await startTemporaryDeck(canPersistProgress && config.answerMode === "review"
+        ? "Reveal review is practice only. Use Typed Check to save progress and earn badges."
+        : "")
     } finally {
       setIsStartingDeck(false)
     }
@@ -558,12 +937,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     setDeckTitle(deck.title)
     setDeckDescription(deck.description)
     setVisibility(deck.visibility)
-    setCategory(deck.config.categories.length === 1 ? deck.config.categories[0] : "all")
-    setRegion(deck.config.regions.length === 1 ? deck.config.regions[0] : "all")
+    setSelectedCategories(deck.config.categories.length > 0 ? deck.config.categories : [...allCategoryIds])
+    setSelectedRegions(deck.config.regions.length > 0 ? deck.config.regions : [...allRegionIds])
     setDifficulty(deck.config.difficulty)
     setPromptTypes(deck.config.promptTypes)
     setAnswerMode(deck.config.answerMode)
     setDeckSize(deck.config.count)
+    setSelectedPromptIds(deck.config.promptIds ?? [])
     void startDeck(deck.config, deck.isStarter ? "" : deck.slug, deck.isStarter ? "starter" : "community")
   }
 
@@ -654,6 +1034,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     setCheckedResult(null)
     setAnswers({})
     setIsCardFlipped(false)
+    studyStartedAtRef.current = null
   }
 
   const completeStudy = async () => {
@@ -661,6 +1042,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     const finalResults = checkedResult && !results.some((result) => result.promptId === checkedResult.promptId)
       ? [...results, checkedResult]
       : results
+    if (activeConfig?.answerMode === "review") {
+      setSaveMessage("Practice completed. Use Typed Check to save progress and earn badges.")
+      return
+    }
 
     if (!canPersistProgress) {
       setSaveMessage("Sign in to save progress and achievements.")
@@ -675,7 +1060,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       const response = await fetch(`/api/education/flashcards/sessions/${sessionId}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results: finalResults }),
+        body: JSON.stringify({
+          results: finalResults,
+          durationMs: studyStartedAtRef.current ? Date.now() - studyStartedAtRef.current : undefined,
+        }),
       })
 
       if (!response.ok) {
@@ -684,6 +1072,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       }
 
       setSaveMessage("Progress saved.")
+      studyStartedAtRef.current = null
+      void refreshProgressDashboard()
     } catch (error) {
       console.error("Failed to complete flashcard study session", error)
       setSaveMessage("Progress could not be saved.")
@@ -888,32 +1278,110 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             <Badge variant="outline">{eligiblePromptCount} eligible</Badge>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="flashcard-category">Category</Label>
-              <select id="flashcard-category" value={category} onChange={(event) => setCategory(event.target.value)} className={cn(selectClassName(), "w-full")}>
-                <option value="all">All categories</option>
-                {categories.map((option) => <option key={option.id} value={option.id}>{optionLabel(option)}</option>)}
-              </select>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-medium">Category</h3>
+                <Badge variant="outline">{selectedCategories.length}/{categories.length}</Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <SelectionButton
+                  selected={allCategoriesSelected}
+                  icon={Layers3}
+                  label="All categories"
+                  detail={`${categories.length} groups`}
+                  onClick={() => {
+                    setSelectedCategories([...allCategoryIds])
+                    setSelectedPromptIds([])
+                  }}
+                />
+                {categories.map((option) => {
+                  const Icon = categoryIconById[option.id] ?? CircleHelp
+                  return (
+                    <SelectionButton
+                      key={option.id}
+                      selected={selectedCategories.includes(option.id as NormalizedFlashcardDeckConfig["categories"][number])}
+                      icon={Icon}
+                      label={option.label}
+                      detail={typeof option.termCount === "number" ? `${option.termCount} items` : undefined}
+                      onClick={() => toggleCategory(option.id as NormalizedFlashcardDeckConfig["categories"][number])}
+                    />
+                  )
+                })}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="flashcard-region">Region</Label>
-              <select id="flashcard-region" value={region} onChange={(event) => setRegion(event.target.value)} className={cn(selectClassName(), "w-full")}>
-                <option value="all">All regions</option>
-                {regions.map((option) => <option key={option.id} value={option.id}>{optionLabel(option)}</option>)}
-              </select>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-medium">Region</h3>
+                <Badge variant="outline">{selectedRegions.length}/{regions.length}</Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <SelectionButton
+                  selected={allRegionsSelected}
+                  icon={MapPin}
+                  label="All regions"
+                  detail={`${regions.length} regions`}
+                  onClick={() => {
+                    setSelectedRegions([...allRegionIds])
+                    setSelectedPromptIds([])
+                  }}
+                />
+                {regions.map((option) => {
+                  const Icon = regionIconById[option.id] ?? CircleHelp
+                  return (
+                    <SelectionButton
+                      key={option.id}
+                      selected={selectedRegions.includes(option.id as NormalizedFlashcardDeckConfig["regions"][number])}
+                      icon={Icon}
+                      label={option.label}
+                      detail={typeof option.termCount === "number" ? `${option.termCount} items` : undefined}
+                      onClick={() => toggleRegion(option.id as NormalizedFlashcardDeckConfig["regions"][number])}
+                    />
+                  )
+                })}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="flashcard-difficulty">Depth</Label>
-              <select id="flashcard-difficulty" value={difficulty} onChange={(event) => setDifficulty(event.target.value as AnatomyStudyDifficulty)} className={cn(selectClassName(), "w-full")}>
-                {Object.entries(difficultyLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-              </select>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">Depth</h3>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {Object.entries(difficultyLabels).map(([id, label]) => (
+                  <SelectionButton
+                    key={id}
+                    selected={difficulty === id}
+                    icon={id === "easy" ? Target : id === "medium" ? Layers3 : Trophy}
+                    label={label}
+                    onClick={() => {
+                      setDifficulty(id as AnatomyStudyDifficulty)
+                      setSelectedPromptIds([])
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="flashcard-deck-size">Deck Size</Label>
-              <select id="flashcard-deck-size" value={deckSize} onChange={(event) => setDeckSize(Number(event.target.value))} className={cn(selectClassName(), "w-full")}>
-                {deckSizeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
+              <div className="flex gap-2">
+                <Input
+                  id="flashcard-deck-size"
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  value={deckSize}
+                  onChange={(event) => {
+                    const nextCount = Number(event.target.value)
+                    setDeckSize(Number.isFinite(nextCount) ? Math.max(1, Math.trunc(nextCount)) : 1)
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={() => setDeckSize(Math.max(1, eligiblePromptCount))} disabled={eligiblePromptCount === 0}>
+                  All
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">{displayedDeckSize} will be used from {eligiblePromptCount} eligible prompts.</p>
             </div>
           </div>
 
@@ -921,29 +1389,126 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             {promptTypeCounts.map((type) => {
               const selected = promptTypes.includes(type.id)
               const disabled = !selected && type.promptCount === 0
+              const Icon = promptTypeIconById[type.id] ?? CircleHelp
+              const selectedInType = selectedUsablePromptIds.filter((promptId) => promptTypeByPromptId.get(promptId) === type.id).length
 
               return (
-                <label key={type.id} className={cn(
-                  "flex min-h-16 items-center justify-between gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-3 text-sm transition",
+                <div key={type.id} className={cn(
+                  "rounded-md border border-border/80 bg-card/60 p-3 transition",
                   selected && "border-primary/60 bg-primary/10",
-                  disabled ? "cursor-not-allowed opacity-55" : "cursor-pointer hover:border-primary/50",
+                  disabled && "opacity-55",
                 )}>
-                  <span className="flex min-w-0 items-center gap-3">
-                    <Checkbox checked={selected} onCheckedChange={() => togglePromptType(type.id)} disabled={disabled} />
-                    <span className="break-words">{type.label}</span>
-                  </span>
-                  <Badge variant="outline">{type.promptCount}</Badge>
-                </label>
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      disabled={disabled}
+                      onClick={() => togglePromptType(type.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
+                    >
+                      <span className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+                        selected && "border-primary/50 text-primary",
+                      )}>
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block break-words text-sm font-medium">{type.label}</span>
+                        {exactPromptSelectionActive && selected ? <span className="block text-xs text-muted-foreground">{selectedInType} selected</span> : null}
+                      </span>
+                    </button>
+                    <Badge variant="outline">{type.promptCount}</Badge>
+                  </div>
+                  {type.promptCount > 0 ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 w-full"
+                      onClick={() => setExpandedPromptType(expandedPromptType === type.id ? null : type.id)}
+                    >
+                      {expandedPromptType === type.id ? "Close items" : "Choose items"}
+                    </Button>
+                  ) : null}
+                </div>
               )
             })}
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto]">
+          {expandedPromptType ? (
+            <div className="mt-3 rounded-md border border-border/80 bg-card/60 p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">{promptTypeLabelById.get(expandedPromptType) ?? "Prompt items"}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {exactPromptSelectionActive
+                      ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
+                      : "All matching items are included"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
+                    Select exact items
+                  </Button>
+                  {exactPromptSelectionActive ? (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
+                      Use all eligible
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                {expandedPromptSummaries.map((prompt) => {
+                  const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
+                  return (
+                    <button
+                      key={prompt.id}
+                      type="button"
+                      aria-pressed={promptSelected}
+                      onClick={() => togglePromptId(prompt.id)}
+                      className={cn(
+                        "rounded-md border border-border/80 bg-background/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
+                        promptSelected && "border-primary/60 bg-primary/10",
+                      )}
+                    >
+                      <span className="block truncate font-medium">{prompt.name}</span>
+                      <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {canPersistProgress ? (
+            <label className="mt-4 flex items-start gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-3 text-sm">
+              <Checkbox checked={skipMasteredPrompts} onCheckedChange={(checked) => setSkipMasteredPrompts(checked === true)} />
+              <span className="space-y-1">
+                <span className="block font-medium">Skip mastered prompts</span>
+                <span className="block text-muted-foreground">Hide prompts after {progressDashboard?.progress.masteryThreshold ?? 10} correct answers so new cards stay in rotation.</span>
+              </span>
+            </label>
+          ) : null}
+
+          <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
             <div className="space-y-2">
-              <Label htmlFor="answer-mode">Answer Mode</Label>
-              <select id="answer-mode" value={answerMode} onChange={(event) => setAnswerMode(event.target.value as FlashcardAnswerMode)} className={cn(selectClassName(), "w-full")}>
-                {FLASHCARD_STATIC_ANSWER_MODES.map((mode) => <option key={mode} value={mode}>{answerModeLabels[mode]}</option>)}
-              </select>
+              <h3 className="text-sm font-medium">Answer Mode</h3>
+              <div className="grid gap-2 xl:grid-cols-2">
+                <SelectionButton
+                  selected={answerMode === "typed"}
+                  icon={Keyboard}
+                  label={answerModeLabels.typed}
+                  detail="Progress and badges"
+                  onClick={() => setAnswerMode("typed")}
+                />
+                <SelectionButton
+                  selected={answerMode === "review"}
+                  icon={Eye}
+                  label={answerModeLabels.review}
+                  detail="Practice only"
+                  onClick={() => setAnswerMode("review")}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="deck-title">Deck Title</Label>
@@ -952,7 +1517,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             <div className="flex items-end">
               <Button type="button" onClick={() => startDeck()} disabled={eligiblePromptCount === 0 || isStartingDeck} className="w-full md:w-auto">
                 <Shuffle className="mr-2 h-4 w-4" aria-hidden="true" />
-                {isStartingDeck ? "Starting..." : `Start ${Math.min(deckSize, eligiblePromptCount)}`}
+                {isStartingDeck ? "Starting..." : `Start ${displayedDeckSize}`}
               </Button>
             </div>
           </div>
@@ -988,7 +1553,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <div className="rounded-md border border-border/80 p-3">
             <Timer className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
             <div className="text-muted-foreground">Deck Size</div>
-            <div className="font-medium">{Math.min(deckSize, eligiblePromptCount)}</div>
+            <div className="font-medium">{displayedDeckSize}</div>
           </div>
           <div className="rounded-md border border-border/80 p-3">
             <Shuffle className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
@@ -998,14 +1563,76 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         </div>
         <Button type="button" variant="outline" className="w-full" onClick={() => {
           setPromptTypes([...FLASHCARD_STATIC_PROMPT_TYPES])
-          setCategory("all")
-          setRegion("all")
+          setSelectedCategories([...allCategoryIds])
+          setSelectedRegions([...allRegionIds])
           setDifficulty("hard")
-          setDeckSize(50)
+          setDeckSize(Math.max(1, eligiblePromptCount))
+          setSelectedPromptIds([])
         }}>
           <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
           Select All
         </Button>
+        {canPersistProgress ? (
+          <div className="space-y-3 rounded-md border border-border/80 bg-card/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" aria-hidden="true" />
+                <h3 className="text-sm font-medium">Your Progress</h3>
+              </div>
+              {isLoadingProgressDashboard ? <Badge variant="outline">Updating</Badge> : null}
+            </div>
+            {progressDashboard ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Mastered</div>
+                    <div className="font-semibold">{progressDashboard.progress.masteredPromptCount}</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Active</div>
+                    <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Accuracy</div>
+                    <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Best Time</div>
+                    <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
+                  <Badge variant="outline">{progressDashboard.progress.achievementCount} badges</Badge>
+                  <Badge variant="outline">{progressDashboard.progress.totalCorrect} correct</Badge>
+                </div>
+                {progressDashboard.recentProgress.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h4>
+                    {progressDashboard.recentProgress.slice(0, 3).map((item) => (
+                      <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
+                          {item.correctCount >= item.masteryThreshold ? (
+                            <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                          ) : null}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                          <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
+                          <span>{item.correctCount}/{item.masteryThreshold}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+            )}
+          </div>
+        ) : null}
         <div className="space-y-2">
           <h3 className="text-sm font-medium">Sources</h3>
           {sources.slice(0, 8).map((source) => (

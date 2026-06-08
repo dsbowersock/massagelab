@@ -6,6 +6,7 @@ import {
   checkFlashcardAnswer,
   createAnatomyStudyDeck,
   createFlashcardPromptDeck,
+  createFlashcardPromptPool,
   getAnatomyStudyPrompts,
   getAnatomyStudyCards,
   getAnatomyStudyCategories,
@@ -135,6 +136,29 @@ describe("Sourced anatomy study adapter", () => {
     assert.equal(firstDeck.length, 10)
     assert.deepEqual(firstDeck.map((prompt) => prompt.id), secondDeck.map((prompt) => prompt.id))
     assert.equal(firstDeck.every((prompt) => options.promptTypes.includes(prompt.type)), true)
+  })
+
+  it("keeps a deterministic full prompt pool available before deck sizing", () => {
+    const options = {
+      categories: ["muscle"],
+      regions: ["upper-extremity"],
+      difficulty: "medium",
+      promptTypes: ["name_to_region"],
+      count: 3,
+      seed: "skip-mastered",
+    }
+    const deck = createFlashcardPromptDeck(options)
+    const pool = createFlashcardPromptPool(options)
+    const masteredPromptIds = new Set(deck.map((prompt) => prompt.id))
+    const replacementDeck = pool
+      .filter((prompt) => !masteredPromptIds.has(prompt.id))
+      .slice(0, options.count)
+
+    assert.equal(deck.length, options.count)
+    assert.ok(pool.length > deck.length)
+    assert.deepEqual(deck.map((prompt) => prompt.id), pool.slice(0, options.count).map((prompt) => prompt.id))
+    assert.equal(replacementDeck.length, options.count)
+    assert.equal(replacementDeck.some((prompt) => masteredPromptIds.has(prompt.id)), false)
   })
 
   it("checks typed answers strictly while normalizing case and punctuation", () => {

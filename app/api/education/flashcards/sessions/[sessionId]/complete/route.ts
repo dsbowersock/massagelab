@@ -6,7 +6,12 @@ import {
   completionAchievementKeys,
   normalizeFlashcardDeckConfig,
 } from "@/lib/flashcard-community"
+import {
+  flashcardProgressTool,
+  nextFlashcardProgressUpdate,
+} from "@/lib/flashcard-progress"
 import { createFlashcardPromptDeck } from "@/lib/anatomy-study"
+import type { AnatomyStudyRegion } from "@/lib/anatomy-study"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
 import { prisma } from "@/lib/prisma"
 
@@ -35,42 +40,48 @@ function resultRows(body: unknown) {
     .filter((result): result is { promptId: string; correct: boolean; score: number } => Boolean(result))
 }
 
-async function updatePromptProgress(userId: string, result: {
+function durationMs(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null
+  const numeric = Number((body as { durationMs?: unknown }).durationMs)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+
+  return Math.min(24 * 60 * 60 * 1000, Math.trunc(numeric))
+}
+
+async function updatePromptProgress(tx: Prisma.TransactionClient, userId: string, result: {
   promptId: string
   promptType: string
   entityType: string
   entitySlug: string
+  regions: AnatomyStudyRegion[]
   correct: boolean
   score: number
 }) {
-  const tool = `${FLASHCARD_TOOL}:${result.promptId}`
-  const existing = await prisma.learningProgress.findFirst({
+  const now = new Date()
+  const tool = flashcardProgressTool(result.promptId)
+  const existing = await tx.learningProgress.findFirst({
     where: {
       userId,
       anatomyTermId: null,
       tool,
     },
-    select: { id: true },
+    select: { id: true, metadata: true },
   })
+  const update = nextFlashcardProgressUpdate(existing?.metadata, result)
   const data = {
-    status: result.correct ? "MASTERED" as const : "PRACTICING" as const,
-    score: result.score,
-    metadata: json({
-      promptId: result.promptId,
-      promptType: result.promptType,
-      entityType: result.entityType,
-      entitySlug: result.entitySlug,
-    }),
-    lastSeenAt: new Date(),
+    status: update.status,
+    score: update.score,
+    metadata: json(update.metadata),
+    lastSeenAt: now,
   }
 
   if (existing) {
-    await prisma.learningProgress.update({
+    await tx.learningProgress.update({
       where: { id: existing.id },
       data,
     })
   } else {
-    await prisma.learningProgress.create({
+    await tx.learningProgress.create({
       data: {
         userId,
         anatomyTermId: null,
@@ -98,6 +109,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
 
   const body = await request.json().catch(() => ({}))
   const submittedResults = resultRows(body)
+  const submittedDurationMs = durationMs(body)
   const config = normalizeFlashcardDeckConfig(studySession.deckConfig)
   const mediaOptions = await loadAnatomyStudyMediaUrlOptions()
   const promptById = new Map(createFlashcardPromptDeck(config, mediaOptions).map((prompt) => [prompt.id, prompt]))
@@ -129,24 +141,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
 
   const answeredCount = results.length
   const correctCount = results.filter((result) => result.correct).length
+  let didComplete = false
+  let responseAnsweredCount = studySession.answeredCount
+  let responseCorrectCount = studySession.correctCount
 
   await prisma.$transaction(async (tx) => {
-    const currentSession = await tx.flashcardStudySession.findUnique({
-      where: { id: studySession.id },
-      select: { status: true },
-    })
-
-    if (!currentSession || currentSession.status !== "STARTED") return
-
-    await tx.flashcardStudySession.update({
-      where: { id: studySession.id },
+    const completion = await tx.flashcardStudySession.updateMany({
+      where: { id: studySession.id, status: "STARTED" },
       data: {
         status: "COMPLETED",
         answeredCount,
         correctCount,
+        durationMs: submittedDurationMs,
         completedAt: new Date(),
       },
     })
+
+    if (completion.count !== 1) return
+
+    didComplete = true
+    responseAnsweredCount = answeredCount
+    responseCorrectCount = correctCount
 
     if (studySession.deckId) {
       await tx.flashcardDeck.update({
@@ -159,32 +174,40 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
         },
       })
     }
+    for (const result of results) {
+      await updatePromptProgress(tx, session.user.id, result)
+    }
+
+    for (const key of completionAchievementKeys(results, config)) {
+      await tx.achievement.upsert({
+        where: { userId_key_tool: { userId: session.user.id, key, tool: FLASHCARD_TOOL } },
+        create: {
+          userId: session.user.id,
+          key,
+          tool: FLASHCARD_TOOL,
+          metadata: json({ sessionId: studySession.id }),
+        },
+        update: {},
+      })
+    }
   })
 
-  for (const result of results) {
-    await updatePromptProgress(session.user.id, result)
-  }
-
-  for (const key of completionAchievementKeys(results, config)) {
-    await prisma.achievement.upsert({
-      where: { userId_key_tool: { userId: session.user.id, key, tool: FLASHCARD_TOOL } },
-      create: {
-        userId: session.user.id,
-        key,
-        tool: FLASHCARD_TOOL,
-        metadata: json({ sessionId: studySession.id }),
-      },
-      update: {},
+  if (!didComplete) {
+    const currentSession = await prisma.flashcardStudySession.findUnique({
+      where: { id: studySession.id },
+      select: { answeredCount: true, correctCount: true },
     })
+    responseAnsweredCount = currentSession?.answeredCount ?? responseAnsweredCount
+    responseCorrectCount = currentSession?.correctCount ?? responseCorrectCount
   }
 
   return NextResponse.json({
     session: {
       id: studySession.id,
       status: "COMPLETED",
-      answeredCount,
-      correctCount,
-      accuracyPercent: answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0,
+      answeredCount: responseAnsweredCount,
+      correctCount: responseCorrectCount,
+      accuracyPercent: responseAnsweredCount > 0 ? Math.round((responseCorrectCount / responseAnsweredCount) * 100) : 0,
     },
   })
 }

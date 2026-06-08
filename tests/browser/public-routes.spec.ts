@@ -65,6 +65,34 @@ function capturePageHealth(page: Page) {
   }
 }
 
+async function setPressedButton(page: Page, name: RegExp, selected: boolean) {
+  const button = page.getByRole("button", { name }).first()
+  await expect(button).toBeVisible()
+  const isPressed = (await button.getAttribute("aria-pressed")) === "true"
+  if (isPressed !== selected) await button.click()
+}
+
+async function setMuscleUpperExtremityFilters(page: Page) {
+  await setPressedButton(page, /^Muscles\b/i, true)
+  for (const category of [/^Bones\b/i, /^Bone Landmarks\b/i, /^Structures\b/i, /^Concepts\b/i]) {
+    await setPressedButton(page, category, false)
+  }
+
+  await setPressedButton(page, /^Upper Extremity\b/i, true)
+  for (const region of [/^Head\b/i, /^Spine\b/i, /^Thorax\b/i, /^Abdomen\b/i, /^Pelvis\b/i, /^Lower Extremity\b/i]) {
+    await setPressedButton(page, region, false)
+  }
+}
+
+async function waitForFilteredEligibleCount(page: Page) {
+  await expect.poll(async () => {
+    const text = await page.getByText(/^\d+ eligible$/).first().textContent().catch(() => "")
+    const count = Number(text?.match(/\d+/)?.[0] ?? 0)
+
+    return count > 0
+  }, { timeout: 20_000 }).toBe(true)
+}
+
 for (const route of publicRoutes) {
   test(`anonymous public route ${route.path} renders without browser regressions`, async ({ page }) => {
     const health = capturePageHealth(page)
@@ -95,21 +123,18 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
-  await page.getByLabel("Category", { exact: true }).selectOption("muscle")
-  await page.getByLabel("Region", { exact: true }).selectOption("upper-extremity")
+  await setMuscleUpperExtremityFilters(page)
   await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
-  const imagePromptRow = page.locator("label").filter({ hasText: "Identify From Image" })
-  const regionPromptRow = page.locator("label").filter({ hasText: "Name To Region" })
-  await expect(page.getByRole("checkbox", { name: /Identify From Image/i })).toBeEnabled()
-  await expect(imagePromptRow.getByText(/^\d+$/)).toBeVisible({ timeout: 15_000 })
-  await expect(regionPromptRow.getByText(/^[1-9]\d*$/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeEnabled()
+  await expect(page.getByRole("button", { name: /^Name To Region/i })).toBeEnabled()
+  await waitForFilteredEligibleCount(page)
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()
-  await expect(page.getByText(/eligible prompts/i)).not.toContainText(/^0 eligible prompts$/)
+  await expect(page.getByText(/^[1-9]\d* eligible prompts$/)).toBeVisible()
 
-  const selectedPromptCheckboxes = page.locator('[role="checkbox"][aria-checked="true"]')
-  await expect(selectedPromptCheckboxes.first()).toBeEnabled()
+  const selectedPromptButtons = page.getByRole("button", { pressed: true })
+  await expect(selectedPromptButtons.first()).toBeEnabled()
 
   await startButton.click()
   await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
@@ -137,14 +162,13 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
-  await page.getByLabel("Category", { exact: true }).selectOption("muscle")
-  await page.getByLabel("Region", { exact: true }).selectOption("upper-extremity")
-  await page.getByLabel("Deck Size", { exact: true }).selectOption("10")
-  await page.getByLabel("Answer Mode", { exact: true }).selectOption("review")
-  await page.getByRole("checkbox", { name: /Identify From Image/i }).click()
-  await page.getByRole("checkbox", { name: /Name To Region/i }).click()
-  await page.getByRole("checkbox", { name: /Name To Category/i }).click()
-  await page.getByRole("checkbox", { name: /Muscle Action/i }).click()
+  await setMuscleUpperExtremityFilters(page)
+  await page.getByLabel("Deck Size", { exact: true }).fill("10")
+  await setPressedButton(page, /^Reveal Review\b/i, true)
+  await setPressedButton(page, /^Identify From Image\b/i, false)
+  await setPressedButton(page, /^Name To Region\b/i, false)
+  await setPressedButton(page, /^Name To Category\b/i, false)
+  await setPressedButton(page, /^Muscle Action\b/i, true)
 
   const startButton = page.getByRole("button", { name: /Start 10/ })
   await expect(startButton).toBeEnabled()
@@ -169,6 +193,42 @@ test("signed-in flashcards fall back to temporary study when progress session fa
       body: JSON.stringify({ user: { id: "browser-test-user" } }),
     })
   })
+  await page.route("**/api/education/flashcards/progress", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        progress: {
+          trackedPromptCount: 2,
+          activePromptCount: 1,
+          masteredPromptCount: 1,
+          totalAttempts: 12,
+          totalCorrect: 10,
+          totalIncorrect: 2,
+          accuracyPercent: 83,
+          masteryThreshold: 10,
+          completedSessionCount: 1,
+          achievementCount: 1,
+          bestDurationMs: 45000,
+        },
+        recentProgress: [{
+          promptId: "name_to_region:muscle-biceps-brachii",
+          promptType: "name_to_region",
+          entityType: "muscle",
+          entitySlug: "biceps-brachii",
+          status: "MASTERED",
+          score: 100,
+          attemptCount: 10,
+          correctCount: 10,
+          incorrectCount: 0,
+          masteryThreshold: 10,
+          masteredAt: "2026-06-07T00:00:00.000Z",
+          lastSeenAt: "2026-06-07T00:00:00.000Z",
+        }],
+        achievements: [{ key: "flashcards:first-completion", earnedAt: "2026-06-07T00:00:00.000Z" }],
+      }),
+    })
+  })
   await page.route("**/api/education/flashcards/sessions", async (route) => {
     if (route.request().method() !== "POST") {
       await route.fallback()
@@ -176,6 +236,7 @@ test("signed-in flashcards fall back to temporary study when progress session fa
     }
 
     sessionStartRequests += 1
+    expect(JSON.parse(route.request().postData() ?? "{}").skipMastered).toBe(true)
     await route.fulfill({
       status: 503,
       contentType: "application/json",
@@ -186,6 +247,9 @@ test("signed-in flashcards fall back to temporary study when progress session fa
   await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
   await expect(page.getByRole("link", { name: /Sign in to save progress/i })).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "Your Progress" })).toBeVisible()
+  await expect(page.getByText("Biceps Brachii")).toBeVisible()
+  await page.getByLabel("Skip mastered prompts").click()
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()

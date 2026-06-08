@@ -781,6 +781,7 @@ model FlashcardStudySession {
   status        String         @default("STARTED")
   answeredCount Int            @default(0)
   correctCount  Int            @default(0)
+  durationMs    Int?
   startedAt     DateTime       @default(now())
   completedAt   DateTime?
   createdAt     DateTime       @default(now())
@@ -790,6 +791,7 @@ model FlashcardStudySession {
 
   @@index([userId, updatedAt])
   @@index([deckId, updatedAt])
+  @@index([userId, status, durationMs])
 }
 
 model AnatomyTerm {
