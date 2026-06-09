@@ -610,6 +610,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const communitySwipeStartXRef = useRef<number | null>(null)
   const communitySwipeDeltaXRef = useRef(0)
   const communitySlideTimeoutRef = useRef<number | null>(null)
+  const communityAutoAdvanceIntervalRef = useRef<number | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<NormalizedFlashcardDeckConfig["categories"]>([...allCategoryIds])
   const [selectedRegions, setSelectedRegions] = useState<NormalizedFlashcardDeckConfig["regions"]>([...allRegionIds])
   const [difficulty, setDifficulty] = useState<AnatomyStudyDifficulty>("medium")
@@ -642,6 +643,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
   const [communityDeckIndex, setCommunityDeckIndex] = useState(0)
   const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
+  const [activeDeckActivation, setActiveDeckActivation] = useState(0)
   const studyStartedAtRef = useRef<number | null>(null)
 
   const refreshProgressDashboard = useCallback(async () => {
@@ -822,8 +824,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     return [0, 1].map(deckAt)
   }, [communityDeckIndex, communitySlide, sortedCommunityDecks])
   const carouselPositionLabel = sortedCommunityDecks.length > 0
-    ? `${Math.min(communityDeckIndex + 1, sortedCommunityDecks.length)} of ${sortedCommunityDecks.length}`
-    : "0 of 0"
+    ? `Community deck carousel position ${Math.min(communityDeckIndex + 1, sortedCommunityDecks.length)}/${sortedCommunityDecks.length}`
+    : "Community deck carousel position 0/0"
 
   useEffect(() => {
     if (communitySlideTimeoutRef.current !== null) {
@@ -838,6 +840,9 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     return () => {
       if (communitySlideTimeoutRef.current !== null) {
         window.clearTimeout(communitySlideTimeoutRef.current)
+      }
+      if (communityAutoAdvanceIntervalRef.current !== null) {
+        window.clearInterval(communityAutoAdvanceIntervalRef.current)
       }
     }
   }, [])
@@ -890,8 +895,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   const moveCommunityCarousel = useCallback((direction: 1 | -1, userInitiated = true) => {
+    if (userInitiated) {
+      communityCarouselInteractedRef.current = true
+      if (communityAutoAdvanceIntervalRef.current !== null) {
+        window.clearInterval(communityAutoAdvanceIntervalRef.current)
+        communityAutoAdvanceIntervalRef.current = null
+      }
+    }
     if (sortedCommunityDecks.length <= 2 || communitySlide) return
-    if (userInitiated) communityCarouselInteractedRef.current = true
 
     const nextIndex = (communityDeckIndex + direction + sortedCommunityDecks.length) % sortedCommunityDecks.length
     const commitSlide = () => {
@@ -914,7 +925,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     if (communityCarouselInteractedRef.current || sortedCommunityDecks.length <= 2) return
 
     const intervalId = window.setInterval(() => moveCommunityCarousel(1, false), 7000)
-    return () => window.clearInterval(intervalId)
+    communityAutoAdvanceIntervalRef.current = intervalId
+
+    return () => {
+      window.clearInterval(intervalId)
+      if (communityAutoAdvanceIntervalRef.current === intervalId) communityAutoAdvanceIntervalRef.current = null
+    }
   }, [moveCommunityCarousel, sortedCommunityDecks.length])
 
   const startCommunitySwipe = (clientX: number) => {
@@ -980,6 +996,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         setActiveDeckKind(nextDeckKind)
         setSessionId(nextSessionId)
         studyStartedAtRef.current = Date.now()
+        setActiveDeckActivation((activation) => activation + 1)
         setCurrentIndex(0)
         setAnswers({})
         setIsCardFlipped(false)
@@ -1085,7 +1102,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }, [initialDeck?.slug])
 
   useEffect(() => {
-    if (activeDeck.length === 0) return
+    if (activeDeckActivation === 0) return
 
     const animationId = window.requestAnimationFrame(() => {
       runnerTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -1097,7 +1114,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     })
 
     return () => window.cancelAnimationFrame(animationId)
-  }, [activeDeck.length])
+  }, [activeDeckActivation])
 
   const persistDraftAndPromptSignIn = () => {
     window.localStorage.setItem(draftStorageKey, JSON.stringify(setupConfig))
