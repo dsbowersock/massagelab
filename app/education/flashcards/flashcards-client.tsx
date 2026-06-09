@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, ListFilter, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -61,7 +61,6 @@ type PromptSummary = {
 }
 
 type ActiveDeckKind = "temporary" | "starter" | "community"
-type DeckSort = "recommended" | "title" | "prompts" | "completions" | "accuracy"
 
 type FlashcardProgressDashboard = {
   trackedPromptCount: number
@@ -378,46 +377,27 @@ function configFromState(state: {
   }
 }
 
-function accuracy(correct: number, answered: number) {
-  if (answered === 0) return 0
-  return Math.round((correct / answered) * 100)
-}
-
 function promptFrontInstruction(prompt: FlashcardPrompt, isReviewMode: boolean) {
   const reviewInstructions: Record<FlashcardPromptType, string> = {
     identify_from_media: "Identify the anatomy item.",
-    name_to_summary: "Recall the key study summary.",
-    name_to_region: "Recall the study region.",
-    name_to_category: "Recall the anatomy category.",
+    name_to_summary: "Recall the key facts for this anatomy item.",
+    name_to_region: "Recall where this anatomy item is located.",
+    name_to_category: "Recall what kind of anatomy item this is.",
     muscle_origin_insertion: "Recall the origin and insertion.",
     muscle_action: "Recall the action.",
     muscle_innervation: "Recall the innervation.",
   }
   const typedInstructions: Record<FlashcardPromptType, string> = {
     identify_from_media: "Enter the anatomy item name.",
-    name_to_summary: "Enter the key study summary.",
-    name_to_region: "Enter the study region.",
-    name_to_category: "Enter the anatomy category.",
+    name_to_summary: "Enter the key facts for this anatomy item.",
+    name_to_region: "Enter where this anatomy item is located.",
+    name_to_category: "Enter what kind of anatomy item this is.",
     muscle_origin_insertion: "Enter the origin and insertion.",
     muscle_action: "Enter the muscle action.",
     muscle_innervation: "Enter the innervation.",
   }
 
   return isReviewMode ? reviewInstructions[prompt.type] : typedInstructions[prompt.type]
-}
-
-function sortCommunityDecks(decks: FlashcardDeckSummary[], sort: DeckSort) {
-  return [...decks].sort((left, right) => {
-    if (sort === "recommended") {
-      if (left.isStarter !== right.isStarter) return left.isStarter ? -1 : 1
-      return right.promptCount - left.promptCount || left.title.localeCompare(right.title)
-    }
-    if (sort === "title") return left.title.localeCompare(right.title)
-    if (sort === "prompts") return right.promptCount - left.promptCount || left.title.localeCompare(right.title)
-    if (sort === "completions") return right.completionCount - left.completionCount || left.title.localeCompare(right.title)
-
-    return right.accuracyPercent - left.accuracyPercent || left.title.localeCompare(right.title)
-  })
 }
 
 function PromptSourceLinks({ prompt }: { prompt: FlashcardPrompt }) {
@@ -448,8 +428,8 @@ function PromptBadges({ prompt }: { prompt: FlashcardPrompt }) {
 
 function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isReviewMode: boolean }) {
   return (
-    <div className="flex h-full flex-col gap-5 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] p-5 sm:p-7">
-      <div className="space-y-3">
+    <div className="flex h-full flex-col gap-3 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] p-4 sm:p-5">
+      <div className="shrink-0 space-y-2">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Front</span>
           <span className="rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
@@ -460,20 +440,20 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
       <div className="flex min-h-0 flex-1 items-center justify-center">
         {prompt.front.mode === "media" && prompt.front.media ? (
           <figure className="flex h-full w-full flex-col overflow-hidden rounded-md border border-border/80 bg-background/80 shadow-inner">
-            <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
+            <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- reviewed source media can come from multiple external hosts not configured for next/image. */}
-              <img src={prompt.front.media.url} alt="Reviewed anatomy study image" className="max-h-[19rem] w-full object-contain drop-shadow-sm sm:max-h-[25rem]" loading="lazy" referrerPolicy="no-referrer" />
+              <img src={prompt.front.media.url} alt="Reviewed anatomy study image" className="max-h-full max-w-full object-contain drop-shadow-sm" loading="lazy" referrerPolicy="no-referrer" />
             </div>
-            <figcaption className="border-t border-border/80 px-3 py-2 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
+            <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid w-full place-items-center rounded-md border border-border/80 bg-background/65 px-4 py-10 shadow-inner sm:px-8">
-            <h2 className="max-w-3xl break-words text-center text-3xl font-semibold tracking-normal sm:text-5xl">{prompt.front.title}</h2>
+          <div className="grid w-full place-items-center rounded-md border border-border/80 bg-background/65 px-4 py-8 shadow-inner sm:px-8">
+            <h2 className="max-w-3xl break-words text-center text-2xl font-semibold leading-tight tracking-normal sm:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
         <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
@@ -483,7 +463,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
 
 function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: PromptResult | null }) {
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-5 sm:p-7">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-4 sm:p-5">
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Sourced Answer</span>
@@ -509,7 +489,7 @@ function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: Promp
         ))}
       </div>
 
-      <div className="mt-auto space-y-3 border-t border-border/70 pt-4">
+      <div className="mt-auto space-y-2 border-t border-border/70 pt-3">
         <PromptBadges prompt={prompt} />
         <PromptSourceLinks prompt={prompt} />
       </div>
@@ -587,7 +567,7 @@ function FlashcardSurface({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="relative min-h-[31rem] sm:min-h-[34rem] [perspective:1800px]">
+      <div className="relative h-[clamp(17rem,calc(100dvh-15rem),32rem)] min-h-[17rem] [perspective:1800px]">
         <div
           role={canFlipCard ? "button" : undefined}
           tabIndex={canFlipCard ? 0 : undefined}
@@ -627,6 +607,9 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
   const runnerTopRef = useRef<HTMLDivElement | null>(null)
   const communityCarouselInteractedRef = useRef(false)
+  const communitySwipeStartXRef = useRef<number | null>(null)
+  const communitySwipeDeltaXRef = useRef(0)
+  const communitySlideTimeoutRef = useRef<number | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<NormalizedFlashcardDeckConfig["categories"]>([...allCategoryIds])
   const [selectedRegions, setSelectedRegions] = useState<NormalizedFlashcardDeckConfig["regions"]>([...allRegionIds])
   const [difficulty, setDifficulty] = useState<AnatomyStudyDifficulty>("medium")
@@ -657,8 +640,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [skipMasteredPrompts, setSkipMasteredPrompts] = useState(false)
   const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
   const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
-  const [deckSort, setDeckSort] = useState<DeckSort>("recommended")
   const [communityDeckIndex, setCommunityDeckIndex] = useState(0)
+  const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
   const studyStartedAtRef = useRef<number | null>(null)
 
   const refreshProgressDashboard = useCallback(async () => {
@@ -826,29 +809,38 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const exactPromptSelectionActive = selectedPromptIds.length > 0
   const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
-  const sortedCommunityDecks = useMemo(() => sortCommunityDecks(communityDecks, deckSort), [communityDecks, deckSort])
+  const sortedCommunityDecks = communityDecks
   const visibleCommunityDecks = useMemo(() => {
     if (sortedCommunityDecks.length <= 2) return sortedCommunityDecks
 
-    return [0, 1].map((offset) => sortedCommunityDecks[(communityDeckIndex + offset) % sortedCommunityDecks.length])
-  }, [communityDeckIndex, sortedCommunityDecks])
+    const deckAt = (offset: number) => sortedCommunityDecks[
+      (communityDeckIndex + offset + sortedCommunityDecks.length) % sortedCommunityDecks.length
+    ]
+
+    if (communitySlide?.direction === -1) return [-1, 0, 1].map(deckAt)
+    if (communitySlide?.direction === 1) return [0, 1, 2].map(deckAt)
+    return [0, 1].map(deckAt)
+  }, [communityDeckIndex, communitySlide, sortedCommunityDecks])
   const carouselPositionLabel = sortedCommunityDecks.length > 0
     ? `${Math.min(communityDeckIndex + 1, sortedCommunityDecks.length)} of ${sortedCommunityDecks.length}`
     : "0 of 0"
 
   useEffect(() => {
+    if (communitySlideTimeoutRef.current !== null) {
+      window.clearTimeout(communitySlideTimeoutRef.current)
+      communitySlideTimeoutRef.current = null
+    }
+    setCommunitySlide(null)
     setCommunityDeckIndex(0)
-  }, [deckSort, sortedCommunityDecks.length])
+  }, [sortedCommunityDecks.length])
 
   useEffect(() => {
-    if (communityCarouselInteractedRef.current || sortedCommunityDecks.length <= 2) return
-
-    const intervalId = window.setInterval(() => {
-      setCommunityDeckIndex((index) => (index + 1) % sortedCommunityDecks.length)
-    }, 7000)
-
-    return () => window.clearInterval(intervalId)
-  }, [sortedCommunityDecks.length])
+    return () => {
+      if (communitySlideTimeoutRef.current !== null) {
+        window.clearTimeout(communitySlideTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const togglePromptType = (type: FlashcardPromptType) => {
     setPromptTypes((current) => {
@@ -897,10 +889,51 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     target?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
-  const moveCommunityCarousel = (direction: 1 | -1) => {
-    if (sortedCommunityDecks.length <= 2) return
-    communityCarouselInteractedRef.current = true
-    setCommunityDeckIndex((index) => (index + direction + sortedCommunityDecks.length) % sortedCommunityDecks.length)
+  const moveCommunityCarousel = useCallback((direction: 1 | -1, userInitiated = true) => {
+    if (sortedCommunityDecks.length <= 2 || communitySlide) return
+    if (userInitiated) communityCarouselInteractedRef.current = true
+
+    const nextIndex = (communityDeckIndex + direction + sortedCommunityDecks.length) % sortedCommunityDecks.length
+    const commitSlide = () => {
+      setCommunityDeckIndex(nextIndex)
+      setCommunitySlide(null)
+      communitySlideTimeoutRef.current = null
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      commitSlide()
+      return
+    }
+
+    setCommunitySlide({ direction })
+    if (communitySlideTimeoutRef.current !== null) window.clearTimeout(communitySlideTimeoutRef.current)
+    communitySlideTimeoutRef.current = window.setTimeout(commitSlide, 360)
+  }, [communityDeckIndex, communitySlide, sortedCommunityDecks.length])
+
+  useEffect(() => {
+    if (communityCarouselInteractedRef.current || sortedCommunityDecks.length <= 2) return
+
+    const intervalId = window.setInterval(() => moveCommunityCarousel(1, false), 7000)
+    return () => window.clearInterval(intervalId)
+  }, [moveCommunityCarousel, sortedCommunityDecks.length])
+
+  const startCommunitySwipe = (clientX: number) => {
+    communitySwipeStartXRef.current = clientX
+    communitySwipeDeltaXRef.current = 0
+  }
+
+  const updateCommunitySwipe = (clientX: number) => {
+    if (communitySwipeStartXRef.current === null) return
+    communitySwipeDeltaXRef.current = clientX - communitySwipeStartXRef.current
+  }
+
+  const finishCommunitySwipe = () => {
+    const deltaX = communitySwipeDeltaXRef.current
+    communitySwipeStartXRef.current = null
+    communitySwipeDeltaXRef.current = 0
+
+    if (Math.abs(deltaX) < 44) return
+    moveCommunityCarousel(deltaX < 0 ? 1 : -1)
   }
 
   const applyDeckConfig = (deck: FlashcardDeckSummary) => {
@@ -1204,111 +1237,101 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         : "Temporary study"
 
     return (
-      <div ref={runnerTopRef} className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/80 bg-background/70 px-3 py-2">
-          <Button type="button" variant="outline" onClick={resetStudy}>
+      <div ref={runnerTopRef} className="-m-4 space-y-2">
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border/80 bg-background/70 px-2 py-2">
+          <Button type="button" variant="outline" size="sm" onClick={resetStudy} className="shrink-0">
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             Setup
           </Button>
-          <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground" aria-live="polite">
-            <Badge variant="outline">Card {currentIndex + 1} of {activeDeck.length}</Badge>
-            <Badge variant="outline">{accuracy(correctCount, answeredCount)}% correct</Badge>
-            <Badge variant="outline">{runnerStatusLabel}</Badge>
-            <Badge variant="outline">{activeDeckKindLabels[activeDeckKind]}</Badge>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs text-muted-foreground" aria-live="polite">
+            <span className="font-medium text-foreground">Card {currentIndex + 1} of {activeDeck.length}</span>
+            <span aria-hidden="true">/</span>
+            <span>{answeredCount > 0 ? `${correctCount}/${answeredCount} correct` : "0 correct"}</span>
+            <span aria-hidden="true">/</span>
+            <span>{runnerStatusLabel}</span>
+            <span aria-hidden="true">/</span>
+            <span>{activeDeckKindLabels[activeDeckKind]}</span>
+            {!canPersistProgress ? (
+              <Button asChild variant="link" className="h-auto p-0 text-xs text-muted-foreground hover:text-primary">
+                <Link href="/login?callbackUrl=/education/flashcards">
+                  <Lock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                  Sign in to save
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
 
-        <Progress value={progress} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
+        <Progress value={progress} className="h-1.5 bg-neutral-800 [&>div]:bg-primary" />
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="space-y-4">
-            <FlashcardSurface
-              prompt={currentPrompt}
-              isFlipped={isCurrentCardFlipped}
-              isReviewMode={isReviewMode}
-              onFlip={() => setIsCardFlipped((flipped) => !flipped)}
-              result={currentResult}
-            />
+        <section className="space-y-2">
+          <FlashcardSurface
+            prompt={currentPrompt}
+            isFlipped={isCurrentCardFlipped}
+            isReviewMode={isReviewMode}
+            onFlip={() => setIsCardFlipped((flipped) => !flipped)}
+            result={currentResult}
+          />
 
-            {!isReviewMode ? (
-              <div className="mx-auto grid w-full max-w-5xl gap-3 rounded-md border border-border/80 bg-background/70 p-4 md:grid-cols-2">
-                {currentPrompt.answerFields.map((field) => (
-                  <div key={field.id} className="space-y-2">
-                    <Label htmlFor={`answer-${field.id}`}>{field.label}</Label>
-                    <Input
-                      id={`answer-${field.id}`}
-                      value={answers[field.id] ?? ""}
-                      onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))}
-                      disabled={Boolean(currentResult)}
-                      autoComplete="off"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
+          {!isReviewMode ? (
+            <div className="mx-auto grid w-full max-w-4xl gap-3 rounded-md border border-border/80 bg-background/70 p-3 md:grid-cols-2">
+              {currentPrompt.answerFields.map((field) => (
+                <div key={field.id} className="space-y-1.5">
+                  <Label htmlFor={`answer-${field.id}`}>{field.label}</Label>
+                  <Input
+                    id={`answer-${field.id}`}
+                    value={answers[field.id] ?? ""}
+                    onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))}
+                    disabled={Boolean(currentResult)}
+                    autoComplete="off"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-            <div className="mx-auto grid w-full max-w-4xl gap-3 rounded-xl border border-border/80 bg-background/75 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
-                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-                Previous
-              </Button>
-              <div className="flex flex-wrap justify-center gap-2">
-                {isReviewMode ? (
-                  <>
-                    <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)}>
-                      {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
-                    </Button>
-                    {isCurrentCardFlipped && !currentResult ? (
-                      <>
-                        <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
-                        <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
-                      </>
-                    ) : null}
-                    {currentResult ? (
-                      <Badge variant="outline">{currentResult.correct ? "Marked correct" : "Marked missed"}</Badge>
-                    ) : null}
-                  </>
-                ) : (
-                  <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)}>
-                    {currentResult ? "Checked" : "Check Answer"}
+          <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-xl border border-border/80 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+            <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
+              <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+              Previous
+            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {isReviewMode ? (
+                <>
+                  <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)}>
+                    {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
                   </Button>
-                )}
-              </div>
-              {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
-                  {isReviewMode ? "Finish Practice" : "Save Results"}
-                </Button>
+                  {isCurrentCardFlipped && !currentResult ? (
+                    <>
+                      <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
+                      <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
+                    </>
+                  ) : null}
+                  {currentResult ? (
+                    <Badge variant="outline">{currentResult.correct ? "Marked correct" : "Marked missed"}</Badge>
+                  ) : null}
+                </>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
-                  Next
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)}>
+                  {currentResult ? "Checked" : "Check Answer"}
                 </Button>
               )}
             </div>
+            {currentIndex >= activeDeck.length - 1 ? (
+              <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
+                {isReviewMode ? "Finish Practice" : "Save Results"}
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              </Button>
+            )}
           </div>
-
-          <aside className="space-y-3 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
-            <h3 className="text-sm font-medium">Deck Stats</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-md border border-border/80 p-3"><div className="text-muted-foreground">Answered</div><div className="text-lg font-semibold">{answeredCount}</div></div>
-              <div className="rounded-md border border-border/80 p-3"><div className="text-muted-foreground">Correct</div><div className="text-lg font-semibold">{correctCount}</div></div>
-            </div>
-            <div className="rounded-md border border-border/80 p-3 text-sm">
-              <div className="text-muted-foreground">Mode</div>
-              <div className="font-medium">{answerModeLabels[activeConfig.answerMode]}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{runnerStatusLabel}</div>
-            </div>
-            {!canPersistProgress ? (
-              <div className="rounded-md border border-border/80 bg-card/70 p-3 text-sm text-muted-foreground">
-                <Lock className="mb-2 h-4 w-4" aria-hidden="true" />
-                Sign in to save progress and achievements.
-                <Button asChild variant="outline" className="mt-3 w-full">
-                  <Link href="/login?callbackUrl=/education/flashcards">Sign In</Link>
-                </Button>
-              </div>
-            ) : null}
+          <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>{answerModeLabels[activeConfig.answerMode]}</span>
             {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-          </aside>
+          </div>
         </section>
       </div>
     )
@@ -1317,6 +1340,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="space-y-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Layers3 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <h1 className="text-xl font-semibold">Flashcards</h1>
+            <Badge variant="outline" className="border-primary/50 text-primary">Public alpha</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">Sourced anatomy prompts for self-study.</p>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-md border border-primary/40 bg-primary/10 p-4">
             <div className="flex items-start gap-3">
@@ -1359,61 +1391,75 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
               <h2 className="text-lg font-semibold">Community Decks</h2>
             </Link>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{communityDecks.length} available</Badge>
-              <label className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-                <ListFilter className="h-4 w-4 text-primary" aria-hidden="true" />
-                <span className="sr-only">Sort community decks</span>
-                <select value={deckSort} onChange={(event) => setDeckSort(event.target.value as DeckSort)} className={cn(selectClassName(), "h-9 w-full min-w-40")}>
-                  <option value="recommended">Recommended</option>
-                  <option value="title">Title</option>
-                  <option value="prompts">Most prompts</option>
-                  <option value="completions">Most studied</option>
-                  <option value="accuracy">Highest accuracy</option>
-                </select>
-              </label>
-            </div>
+            <Badge variant="outline" className="w-fit">{communityDecks.length} available</Badge>
           </div>
           {sortedCommunityDecks.length > 0 ? (
-            <div className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-2">
+            <div
+              className="group/community-carousel relative"
+              onTouchStart={(event) => startCommunitySwipe(event.touches[0]?.clientX ?? 0)}
+              onTouchMove={(event) => updateCommunitySwipe(event.touches[0]?.clientX ?? 0)}
+              onTouchEnd={finishCommunitySwipe}
+              onTouchCancel={finishCommunitySwipe}
+            >
+              <div
+                className="ml-flashcard-carousel overflow-hidden"
+              >
+                <div
+                  data-slide={communitySlide?.direction === 1 ? "next" : communitySlide?.direction === -1 ? "previous" : undefined}
+                  className="ml-flashcard-carousel-track -mx-1.5 flex"
+                >
                 {visibleCommunityDecks.map((deck) => (
-                  <article key={deck.slug} className="rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="break-words font-medium">{deck.title}</h3>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{deck.description || deck.ownerName}</p>
+                  <div key={deck.slug} className="min-w-full px-1.5 md:min-w-[50%]">
+                    <article className="h-full rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="break-words font-medium">{deck.title}</h3>
+                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{deck.description || deck.ownerName}</p>
+                        </div>
+                        <Badge variant="outline">{deck.isStarter ? "Starter" : deck.visibility}</Badge>
                       </div>
-                      <Badge variant="outline">{deck.isStarter ? "Starter" : deck.visibility}</Badge>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{deck.promptCount} prompts</span>
-                      <span>{deck.completionCount} completions</span>
-                      <span>{deck.accuracyPercent}% accuracy</span>
-                    </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck}>
-                        <Play className="mr-2 h-4 w-4" aria-hidden="true" />
-                        {isStartingDeck ? "Starting..." : "Study"}
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)}>
-                        View
-                      </Button>
-                    </div>
-                  </article>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>{deck.promptCount} prompts</span>
+                        <span>{deck.completionCount} completions</span>
+                        <span>{deck.accuracyPercent}% accuracy</span>
+                      </div>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck}>
+                          <Play className="mr-2 h-4 w-4" aria-hidden="true" />
+                          {isStartingDeck ? "Starting..." : "Study"}
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)}>
+                          View
+                        </Button>
+                      </div>
+                    </article>
+                  </div>
                 ))}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => moveCommunityCarousel(-1)} disabled={sortedCommunityDecks.length <= 2} aria-label="Previous community decks">
-                  <ChevronLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Previous
-                </Button>
-                <span className="text-xs text-muted-foreground">{carouselPositionLabel}</span>
-                <Button type="button" variant="outline" size="sm" onClick={() => moveCommunityCarousel(1)} disabled={sortedCommunityDecks.length <= 2} aria-label="Next community decks">
-                  Next
-                  <ChevronRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => moveCommunityCarousel(-1)}
+                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                aria-label="Previous community decks"
+                className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-left-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => moveCommunityCarousel(1)}
+                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                aria-label="Next community decks"
+                className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-right-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+              >
+                <ChevronRight className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <span className="sr-only">{carouselPositionLabel}</span>
             </div>
           ) : (
             <div className="rounded-md border border-border/80 bg-card/60 p-4 text-sm text-muted-foreground">

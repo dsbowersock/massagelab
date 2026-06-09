@@ -130,7 +130,7 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await setMuscleUpperExtremityFilters(page)
   await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
   await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Name To Region/i })).toBeEnabled()
+  await expect(page.getByRole("button", { name: /^Identify Body Region/i })).toBeEnabled()
   await waitForFilteredEligibleCount(page)
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
@@ -170,8 +170,8 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   await page.getByLabel("Deck Size", { exact: true }).fill("10")
   await setPressedButton(page, /^Reveal Review\b/i, true)
   await setPressedButton(page, /^Identify From Image\b/i, false)
-  await setPressedButton(page, /^Name To Region\b/i, false)
-  await setPressedButton(page, /^Name To Category\b/i, false)
+  await setPressedButton(page, /^Identify Body Region\b/i, false)
+  await setPressedButton(page, /^Identify Structure Type\b/i, false)
   await setPressedButton(page, /^Muscle Action\b/i, true)
 
   const startButton = page.getByRole("button", { name: /Start 10/ })

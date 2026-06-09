@@ -448,6 +448,49 @@
   }
 }
 
+.ml-flashcard-carousel {
+  --ml-flashcard-carousel-step: 100%;
+}
+
+.ml-flashcard-carousel-track {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.ml-flashcard-carousel-track[data-slide="next"] {
+  animation: ml-flashcard-carousel-next 360ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ml-flashcard-carousel-track[data-slide="previous"] {
+  animation: ml-flashcard-carousel-previous 360ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .ml-flashcard-carousel {
+    --ml-flashcard-carousel-step: 50%;
+  }
+}
+
+@keyframes ml-flashcard-carousel-next {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(calc(-1 * var(--ml-flashcard-carousel-step)), 0, 0);
+  }
+}
+
+@keyframes ml-flashcard-carousel-previous {
+  from {
+    transform: translate3d(calc(-1 * var(--ml-flashcard-carousel-step)), 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @supports (view-transition-name: root) {
   html[data-theme-transition="toggle-light"]::view-transition-old(root),
   html[data-theme-transition="toggle-light"]::view-transition-new(root) {
@@ -526,6 +569,10 @@
   }
 
   .ml-route-wordmark img {
+    animation: none;
+  }
+
+  .ml-flashcard-carousel-track[data-slide] {
     animation: none;
   }
 

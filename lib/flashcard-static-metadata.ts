@@ -71,9 +71,9 @@ export const FLASHCARD_STATIC_REGIONS: FlashcardSetupOption[] = [
 
 export const FLASHCARD_STATIC_PROMPT_TYPE_COUNTS: FlashcardPromptTypeCount[] = [
   { id: "identify_from_media", label: "Identify From Image", promptCount: 216 },
-  { id: "name_to_summary", label: "Name To Summary", promptCount: 1218 },
-  { id: "name_to_region", label: "Name To Region", promptCount: 1218 },
-  { id: "name_to_category", label: "Name To Category", promptCount: 1218 },
+  { id: "name_to_summary", label: "Recall Key Facts", promptCount: 1218 },
+  { id: "name_to_region", label: "Identify Body Region", promptCount: 1218 },
+  { id: "name_to_category", label: "Identify Structure Type", promptCount: 1218 },
   { id: "muscle_origin_insertion", label: "Muscle Origin And Insertion", promptCount: 254 },
   { id: "muscle_action", label: "Muscle Action", promptCount: 219 },
   { id: "muscle_innervation", label: "Muscle Innervation", promptCount: 260 },

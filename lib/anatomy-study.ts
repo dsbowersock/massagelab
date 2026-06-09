@@ -72,9 +72,9 @@ export const FLASHCARD_PROMPT_TYPES = [
 
 export const FLASHCARD_PROMPT_TYPE_LABELS = {
   identify_from_media: "Identify From Image",
-  name_to_summary: "Name To Summary",
-  name_to_region: "Name To Region",
-  name_to_category: "Name To Category",
+  name_to_summary: "Recall Key Facts",
+  name_to_region: "Identify Body Region",
+  name_to_category: "Identify Structure Type",
   muscle_origin_insertion: "Muscle Origin And Insertion",
   muscle_action: "Muscle Action",
   muscle_innervation: "Muscle Innervation",
