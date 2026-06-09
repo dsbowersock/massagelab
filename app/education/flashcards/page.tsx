@@ -23,6 +23,8 @@ export default async function EducationFlashcardsPage() {
         description="Sourced anatomy prompts for self-study."
         icon={<Layers3 className="h-5 w-5" aria-hidden="true" />}
         badge="Public alpha"
+        headerClassName="p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+        contentClassName="p-4 pt-0 sm:p-4 sm:pt-0"
       >
         <FlashcardsClient
           categories={FLASHCARD_STATIC_CATEGORIES}

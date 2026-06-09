@@ -87,7 +87,7 @@ const TERMINOLOGY_ONLY_SOURCE_REFS = new Set(["fipat-ta2"])
 const PUBLIC_STUDY_SOURCE_REFS_EXCLUDED = new Set([
   "massagelab-authored-energetic-anatomy",
 ])
-const PUBLIC_DIRECT_IMAGE_SOURCE_REFS = new Set(["servier-medical-art"])
+const PUBLIC_FLASHCARD_IMAGE_SOURCE_REFS = new Set(["bodyparts3d"])
 const REUSABLE_SUMMARY_FACT_TYPES = new Set([
   "clinical_summary",
   "display_summary",
@@ -410,10 +410,10 @@ function publicMediaForEntity(entityType: AnatomyStudyCategory, entitySlug: stri
       if (asset.reviewStatus !== "reviewed") return null
       if (!COMMERCIAL_SAFE_SOURCE_SCOPES.has(asset.usageScope ?? "review_only")) return null
       if (!isPublicStudySource(context.sourceBySlug.get(asset.sourceRef))) return null
+      if (!PUBLIC_FLASHCARD_IMAGE_SOURCE_REFS.has(asset.sourceRef)) return null
 
       const uploadedUrl = context.mediaUrlBySlug.get(asset.slug)
-      const directSourceUrl = PUBLIC_DIRECT_IMAGE_SOURCE_REFS.has(asset.sourceRef) ? asset.sourceUrl : undefined
-      const url = asset.thumbnailUrl ?? uploadedUrl ?? asset.remoteUrl ?? directSourceUrl
+      const url = uploadedUrl ?? asset.thumbnailUrl
       if (!url || asset.mediaType === "model_3d") return null
 
       return {

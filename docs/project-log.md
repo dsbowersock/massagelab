@@ -99,6 +99,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Started `codex/flashcard-runner-polish` with a focused handoff plan for making the active study runner feel like a physical flashcard workflow without changing flashcard persistence, sourced anatomy facts, achievements, voice support, or 3D runtime scope.
 - Polished the flashcard runner card surface with clearer front/back treatment, review-mode card-click/keyboard reveal affordance, practice-only status labeling, tighter progress badges, and nearby controls for previous/next/check/finish actions.
 - Updated browser route coverage so review-mode fallback study verifies the card-surface flip interaction, sourced answer reveal, and Correct/Missed marking path on desktop and mobile.
+- Addressed flashcard annotation feedback by loading public deck views into setup before study, compacting the runner header, adding a two-card sortable community deck carousel, allowing review cards to flip back to the prompt side, scrolling started sessions to the card, and restricting flashcard image prompts to reviewed uploaded BodyParts3D media without answer-revealing front captions.
 
 ### 2026-06-07
 
