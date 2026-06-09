@@ -439,7 +439,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
 
       <div className="flex min-h-0 flex-1 items-center justify-center">
         {prompt.front.mode === "media" && prompt.front.media ? (
-          <figure className="flex h-full w-full flex-col overflow-hidden rounded-md border border-border/80 bg-background/80 shadow-inner">
+          <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
             <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- reviewed source media can come from multiple external hosts not configured for next/image. */}
               <img src={prompt.front.media.url} alt="Reviewed anatomy study image" className="max-h-full max-w-full object-contain drop-shadow-sm" loading="lazy" referrerPolicy="no-referrer" />
@@ -447,7 +447,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid w-full place-items-center rounded-md border border-border/80 bg-background/65 px-4 py-8 shadow-inner sm:px-8">
+          <div className="grid w-full place-items-center rounded-none border border-border/80 bg-background/65 px-4 py-8 shadow-inner sm:px-8">
             <h2 className="max-w-3xl break-words text-center text-2xl font-semibold leading-tight tracking-normal sm:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
@@ -482,7 +482,7 @@ function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: Promp
 
       <div className="grid gap-3">
         {prompt.answerFields.map((field) => (
-          <div key={field.id} className="rounded-md border border-border/80 bg-background/75 p-4 shadow-inner">
+          <div key={field.id} className="rounded-none border border-border/80 bg-background/75 p-4 shadow-inner">
             <div className="text-xs font-medium uppercase text-muted-foreground">{field.label}</div>
             <p className="mt-2 whitespace-pre-wrap break-words text-base leading-7 text-foreground">{field.answer}</p>
           </div>
@@ -567,7 +567,7 @@ function FlashcardSurface({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="relative h-[clamp(17rem,calc(100dvh-15rem),32rem)] min-h-[17rem] [perspective:1800px]">
+      <div className="relative h-[clamp(13rem,calc(100dvh-18rem),30rem)] min-h-[13rem] [perspective:1800px]">
         <div
           role={canFlipCard ? "button" : undefined}
           tabIndex={canFlipCard ? 0 : undefined}
@@ -585,15 +585,15 @@ function FlashcardSurface({
             }
           }}
           className={cn(
-            "absolute inset-0 rounded-xl transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
+            "absolute inset-0 rounded-none transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
             isFlipped && "[transform:rotateY(180deg)]",
             canFlipCard && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
         >
-          <article className="absolute inset-0 overflow-hidden rounded-xl border border-border/80 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--border))] ring-1 ring-white/5 [backface-visibility:hidden]">
+          <article className="absolute inset-0 overflow-hidden rounded-none border border-border/80 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--border))] ring-1 ring-white/5 [backface-visibility:hidden]">
             <PromptFront prompt={prompt} isReviewMode={isReviewMode} />
           </article>
-          <article aria-hidden={!isFlipped} className="absolute inset-0 overflow-hidden rounded-xl border border-primary/40 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--primary)/0.35)] ring-1 ring-primary/15 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <article aria-hidden={!isFlipped} className="absolute inset-0 overflow-hidden rounded-none border border-primary/40 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--primary)/0.35)] ring-1 ring-primary/15 [backface-visibility:hidden] [transform:rotateY(180deg)]">
             {shouldRenderBack ? <PromptBack prompt={prompt} result={result} /> : null}
           </article>
         </div>
@@ -1254,10 +1254,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         : "Temporary study"
 
     return (
-      <div ref={runnerTopRef} className="-m-4 space-y-2">
-        <div className="flex items-center justify-between gap-3 rounded-md border border-border/80 bg-background/70 px-2 py-2">
-          <Button type="button" variant="outline" size="sm" onClick={resetStudy} className="shrink-0">
-            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+      <div ref={runnerTopRef} className="-m-4">
+        <div className="flex items-center justify-between gap-3 rounded-none border border-border/80 bg-background/70 px-2 py-0.5">
+          <Button type="button" variant="outline" size="sm" onClick={resetStudy} className="h-5 shrink-0 rounded-none px-2 text-xs leading-none [&_svg]:size-3.5">
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Setup
           </Button>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs text-muted-foreground" aria-live="polite">
@@ -1291,60 +1291,73 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           />
 
           {!isReviewMode ? (
-            <div className="mx-auto grid w-full max-w-4xl gap-3 rounded-md border border-border/80 bg-background/70 p-3 md:grid-cols-2">
-              {currentPrompt.answerFields.map((field) => (
-                <div key={field.id} className="space-y-1.5">
-                  <Label htmlFor={`answer-${field.id}`}>{field.label}</Label>
-                  <Input
-                    id={`answer-${field.id}`}
-                    value={answers[field.id] ?? ""}
-                    onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))}
-                    disabled={Boolean(currentResult)}
-                    autoComplete="off"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-xl border border-border/80 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-            <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
-              <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-              Previous
-            </Button>
-            <div className="flex flex-wrap justify-center gap-2">
-              {isReviewMode ? (
-                <>
-                  <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)}>
-                    {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
-                  </Button>
-                  {isCurrentCardFlipped && !currentResult ? (
-                    <>
-                      <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
-                      <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
-                    </>
-                  ) : null}
-                  {currentResult ? (
-                    <Badge variant="outline">{currentResult.correct ? "Marked correct" : "Marked missed"}</Badge>
-                  ) : null}
-                </>
+            <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-none border border-border/80 bg-background/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full rounded-none md:w-auto">
+                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+                Previous
+              </Button>
+              <div className={cn("grid min-w-0 gap-2", currentPrompt.answerFields.length > 1 && "md:grid-cols-2")}>
+                {currentPrompt.answerFields.map((field) => (
+                  <div key={field.id} className="min-w-0">
+                    <Label htmlFor={`answer-${field.id}`} className="sr-only">{field.label}</Label>
+                    <Input
+                      id={`answer-${field.id}`}
+                      value={answers[field.id] ?? ""}
+                      onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))}
+                      disabled={Boolean(currentResult)}
+                      autoComplete="off"
+                      placeholder={field.label}
+                      className="rounded-none"
+                    />
+                  </div>
+                ))}
+              </div>
+              <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)} className="w-full rounded-none md:w-auto">
+                {currentResult ? "Checked" : "Check Answer"}
+              </Button>
+              {currentIndex >= activeDeck.length - 1 ? (
+                <Button type="button" variant="outline" onClick={completeStudy} className="w-full rounded-none md:w-auto">
+                  Save Results
+                </Button>
               ) : (
-                <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)}>
-                  {currentResult ? "Checked" : "Check Answer"}
+                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full rounded-none md:w-auto">
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>
-            {currentIndex >= activeDeck.length - 1 ? (
-              <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
-                {isReviewMode ? "Finish Practice" : "Save Results"}
+          ) : (
+            <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-none border border-border/80 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full rounded-none sm:w-auto">
+                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+                Previous
               </Button>
-            ) : (
-              <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
-                Next
-                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-          </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="rounded-none">
+                  {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
+                </Button>
+                {isCurrentCardFlipped && !currentResult ? (
+                  <>
+                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)} className="rounded-none">Missed</Button>
+                    <Button type="button" onClick={() => checkCurrentAnswer(true)} className="rounded-none">Correct</Button>
+                  </>
+                ) : null}
+                {currentResult ? (
+                  <Badge variant="outline">{currentResult.correct ? "Marked correct" : "Marked missed"}</Badge>
+                ) : null}
+              </div>
+              {currentIndex >= activeDeck.length - 1 ? (
+                <Button type="button" variant="outline" onClick={completeStudy} className="w-full rounded-none sm:w-auto">
+                  Finish Practice
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full rounded-none sm:w-auto">
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+          )}
           <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>{answerModeLabels[activeConfig.answerMode]}</span>
             {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
