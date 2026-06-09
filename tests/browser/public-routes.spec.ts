@@ -85,7 +85,7 @@ async function setMuscleUpperExtremityFilters(page: Page) {
 }
 
 async function waitForFilteredEligibleCount(page: Page) {
-  await expect(page.getByText(/^[1-9]\d* eligible prompts$/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole("button", { name: /Start [1-9]\d*/ })).toBeEnabled({ timeout: 30_000 })
 }
 
 for (const route of publicRoutes) {
@@ -123,6 +123,9 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
   await setMuscleUpperExtremityFilters(page)
+  await setPressedButton(page, /^Recall Key Facts\b/i, true)
+  await setPressedButton(page, /^Identify Body Region\b/i, true)
+  await setPressedButton(page, /^Identify Structure Type\b/i, true)
   await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
   await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeVisible()
   await expect(page.getByRole("button", { name: /^Identify Body Region/i })).toBeEnabled()
@@ -130,7 +133,6 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()
-  await expect(page.getByText(/^[1-9]\d* eligible prompts$/)).toBeVisible()
 
   const selectedPromptButtons = page.getByRole("button", { pressed: true })
   await expect(selectedPromptButtons.first()).toBeEnabled()
