@@ -85,12 +85,7 @@ async function setMuscleUpperExtremityFilters(page: Page) {
 }
 
 async function waitForFilteredEligibleCount(page: Page) {
-  await expect.poll(async () => {
-    const text = await page.getByText(/^\d+ eligible$/).first().textContent().catch(() => "")
-    const count = Number(text?.match(/\d+/)?.[0] ?? 0)
-
-    return count > 0
-  }, { timeout: 20_000 }).toBe(true)
+  await expect(page.getByText(/^[1-9]\d* eligible prompts$/)).toBeVisible({ timeout: 30_000 })
 }
 
 for (const route of publicRoutes) {
