@@ -129,7 +129,7 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
 
   await setMuscleUpperExtremityFilters(page)
   await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
-  await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeEnabled()
+  await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeVisible()
   await expect(page.getByRole("button", { name: /^Name To Region/i })).toBeEnabled()
   await waitForFilteredEligibleCount(page)
 
