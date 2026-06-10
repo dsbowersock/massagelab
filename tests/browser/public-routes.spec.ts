@@ -182,7 +182,7 @@ test("flashcards can start from local sourced prompts when the prompt API is una
 
   await setMuscleUpperExtremityFilters(page)
   await page.getByLabel("Deck Size", { exact: true }).fill("10")
-  await setPressedButton(page, /^(Flip & Self-Grade|Reveal Review)\b/i, true)
+  await setPressedButton(page, /^Flip & Self-Grade\b/i, true)
   await ensureSetupSectionOpen(page, /^Prompt Types\b/i, /^Identify From Image\b/i)
   await setPressedButton(page, /^Identify From Image\b/i, false)
   await setPressedButton(page, /^Identify Body Region\b/i, false)
