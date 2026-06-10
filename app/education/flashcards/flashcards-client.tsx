@@ -292,6 +292,10 @@ function nullableNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+/**
+ * Converts the progress API response into the dashboard model used by the
+ * flashcard client while tolerating partial or older response payloads.
+ */
 function progressPayload(value: unknown): FlashcardProgressPayload | null {
   const record = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -344,6 +348,9 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
       }
     }).filter((item) => item.key)
     : []
+  /**
+   * Parses prompt-type or region breakdown rows from the progress API.
+   */
   const breakdownRows = (value: unknown): FlashcardProgressBreakdownItem[] => (
     Array.isArray(value)
       ? value.map((item) => {
@@ -740,6 +747,10 @@ function FlashcardSurface({
   )
 }
 
+/**
+ * Renders the flashcard setup, community deck carousel, study runner, and
+ * signed-in mastery dashboard for the public education flashcards route.
+ */
 export function FlashcardsClient({ categories, regions, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
@@ -2083,7 +2094,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="rounded-md border border-border/80 p-2">
-                  <div className="text-muted-foreground">Not Mastered</div>
+                  <div className="text-muted-foreground">Remaining</div>
                   <div className="font-semibold">{progressRemainingCount}</div>
                 </div>
                 <div className="rounded-md border border-border/80 p-2">

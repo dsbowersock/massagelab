@@ -243,6 +243,9 @@ export function summarizeFlashcardProgress(metadataRows: unknown[]): FlashcardPr
   }
 }
 
+/**
+ * Creates a zeroed progress breakdown bucket before prompt progress is counted.
+ */
 function emptyBreakdownItem(key: string, label: string): FlashcardProgressBreakdownItem {
   return {
     key,
@@ -255,6 +258,9 @@ function emptyBreakdownItem(key: string, label: string): FlashcardProgressBreakd
   }
 }
 
+/**
+ * Computes derived completion fields and sorts unfinished breakdowns first.
+ */
 function finalizeBreakdownItems(items: Iterable<FlashcardProgressBreakdownItem>) {
   return [...items]
     .map((item) => ({
@@ -266,6 +272,10 @@ function finalizeBreakdownItems(items: Iterable<FlashcardProgressBreakdownItem>)
     .sort((a, b) => b.remainingCount - a.remainingCount || a.label.localeCompare(b.label))
 }
 
+/**
+ * Summarizes the current flashcard prompt set by prompt type and region,
+ * combining latest progress metadata with all eligible sourced prompts.
+ */
 export function summarizeFlashcardProgressBreakdowns(
   metadataRows: unknown[],
   prompts: FlashcardProgressBreakdownPrompt[],

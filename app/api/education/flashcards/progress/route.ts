@@ -111,6 +111,9 @@ type ProgressPageRow = {
   lastSeenAt: Date
 }
 
+/**
+ * Parses pagination query parameters and clamps them to the route's supported range.
+ */
 function boundedInteger(value: string | null, fallback: number, min: number, max: number) {
   if (value === null || value.trim() === "") return fallback
   const numeric = Number(value)
@@ -119,11 +122,18 @@ function boundedInteger(value: string | null, fallback: number, min: number, max
   return Math.max(min, Math.min(max, Math.trunc(numeric)))
 }
 
+/**
+ * Normalizes Postgres numeric aggregate values returned through Prisma raw queries.
+ */
 function numberFromDb(value: unknown) {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : 0
 }
 
+/**
+ * Returns the signed-in learner's flashcard progress dashboard, including
+ * current-round mastery totals, recent prompt progress, and study-area breakdowns.
+ */
 export async function GET(request: Request): Promise<NextResponse<FlashcardProgressResponse | { error: string }>> {
   const session = await getCurrentSession()
   if (!session?.user?.id) {
@@ -146,7 +156,6 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     : Prisma.sql`AND false`
 
   const [
-    progressRows,
     latestProgressRows,
     progressAggregateRows,
     completedSessionCount,
@@ -155,46 +164,6 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     completedRoundCount,
     achievements,
   ] = await Promise.all([
-    prisma.$queryRaw<ProgressPageRow[]>`
-      WITH latest_progress AS (
-        SELECT DISTINCT ON (prompt_id)
-          "id",
-          "tool",
-          "status",
-          "score",
-          "metadata",
-          "lastSeenAt",
-          prompt_id
-        FROM (
-          SELECT
-            "id",
-            "tool",
-            "status",
-            "score",
-            "metadata",
-            "lastSeenAt",
-            COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})) AS prompt_id
-          FROM "LearningProgress"
-          WHERE "userId" = ${session.user.id}
-            AND "anatomyTermId" IS NULL
-            AND "tool" LIKE ${flashcardToolLike}
-        ) scoped_progress
-        WHERE prompt_id <> ''
-          ${currentPromptFilter}
-        ORDER BY prompt_id, "lastSeenAt" DESC, "id" DESC
-      )
-      SELECT
-        "id",
-        "tool",
-        "status",
-        "score",
-        "metadata",
-        "lastSeenAt"
-      FROM latest_progress
-      ORDER BY "lastSeenAt" DESC, "id" DESC
-      OFFSET ${skip}
-      LIMIT ${pageSize}
-    `,
     prisma.$queryRaw<ProgressPageRow[]>`
       WITH latest_progress AS (
         SELECT DISTINCT ON (prompt_id)
@@ -311,6 +280,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       orderBy: { earnedAt: "desc" },
     }),
   ])
+  const progressRows = latestProgressRows.slice(skip, skip + pageSize)
 
   const latestMetadataRows = latestProgressRows.map((row) => {
     const metadata = normalizeFlashcardProgressMetadata(row.metadata)
