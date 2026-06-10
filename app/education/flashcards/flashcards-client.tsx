@@ -1376,7 +1376,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
       setSaveMessage(completedRound && nextRound
         ? `Round ${completedRound} complete. Round ${nextRound} is ready.`
         : "Next mastery round is ready.")
-      void refreshProgressDashboard()
+      await refreshProgressDashboard()
     } catch (error) {
       console.error("Failed to start next flashcard mastery round", error)
       setSaveMessage("Next mastery round could not be started.")
