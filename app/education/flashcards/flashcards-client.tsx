@@ -428,16 +428,16 @@ function PromptBadges({ prompt }: { prompt: FlashcardPrompt }) {
 
 function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isReviewMode: boolean }) {
   return (
-    <div className="flex h-full flex-col gap-3 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] p-4 sm:p-5">
-      <div className="shrink-0 space-y-2">
+    <div className="mx-0 flex h-full flex-col rounded-lg bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] px-3 py-2 sm:mx-2 sm:px-4 sm:py-3">
+      <div className="shrink-0 space-y-0">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Front</span>
           <span className="rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="text-sm text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
+        <p className="mt-0 text-sm text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div className="mt-2 flex min-h-0 flex-1 items-center justify-center">
         {prompt.front.mode === "media" && prompt.front.media ? (
           <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
             <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
@@ -453,7 +453,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
         )}
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+      <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-xs text-muted-foreground">
         <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
@@ -567,7 +567,7 @@ function FlashcardSurface({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="relative h-[clamp(13rem,calc(100dvh-18rem),30rem)] min-h-[13rem] [perspective:1800px]">
+      <div className="relative h-[clamp(10rem,calc(100dvh-20rem),30rem)] min-h-[10rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
         <div
           role={canFlipCard ? "button" : undefined}
           tabIndex={canFlipCard ? 0 : undefined}
@@ -579,6 +579,8 @@ function FlashcardSurface({
           } : undefined}
           onKeyDown={(event) => {
             if (!canFlipCard) return
+            const target = event.target instanceof HTMLElement ? event.target : null
+            if (target?.closest("a,button,input,select,textarea")) return
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault()
               onFlip()
@@ -590,10 +592,15 @@ function FlashcardSurface({
             canFlipCard && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
         >
-          <article className="absolute inset-0 overflow-hidden rounded-none border border-border/80 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--border))] ring-1 ring-white/5 [backface-visibility:hidden]">
+          <article className="absolute inset-0 overflow-hidden border-0 p-1 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--border))] ring-1 ring-white/5 [backface-visibility:hidden] sm:p-2">
             <PromptFront prompt={prompt} isReviewMode={isReviewMode} />
           </article>
-          <article aria-hidden={!isFlipped} className="absolute inset-0 overflow-hidden rounded-none border border-primary/40 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--primary)/0.35)] ring-1 ring-primary/15 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <article
+            aria-hidden={!isFlipped}
+            inert={!isFlipped ? true : undefined}
+            tabIndex={isFlipped ? undefined : -1}
+            className="absolute inset-0 overflow-hidden border-0 p-1 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--primary)/0.35)] ring-1 ring-primary/15 [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-2"
+          >
             {shouldRenderBack ? <PromptBack prompt={prompt} result={result} /> : null}
           </article>
         </div>
@@ -1291,12 +1298,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           />
 
           {!isReviewMode ? (
-            <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-none border border-border/80 bg-background/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full rounded-none md:w-auto">
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-lg border-0 bg-background/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="order-2 w-full sm:order-none sm:w-auto">
                 <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                 Previous
               </Button>
-              <div className={cn("grid min-w-0 gap-2", currentPrompt.answerFields.length > 1 && "md:grid-cols-2")}>
+              <div className={cn("order-1 col-span-2 grid min-w-0 gap-2 sm:order-none sm:col-span-1", currentPrompt.answerFields.length > 1 && "sm:grid-cols-2")}>
                 {currentPrompt.answerFields.map((field) => (
                   <div key={field.id} className="min-w-0">
                     <Label htmlFor={`answer-${field.id}`} className="sr-only">{field.label}</Label>
@@ -1307,39 +1314,38 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                       disabled={Boolean(currentResult)}
                       autoComplete="off"
                       placeholder={field.label}
-                      className="rounded-none"
                     />
                   </div>
                 ))}
               </div>
-              <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)} className="w-full rounded-none md:w-auto">
+              <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)} className="order-4 col-span-2 w-full sm:order-none sm:col-span-1 sm:w-auto">
                 {currentResult ? "Checked" : "Check Answer"}
               </Button>
               {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} className="w-full rounded-none md:w-auto">
+                <Button type="button" variant="outline" onClick={completeStudy} className="order-3 w-full sm:order-none sm:w-auto">
                   Save Results
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full rounded-none md:w-auto">
+                <Button type="button" variant="outline" onClick={nextPrompt} className="order-3 w-full sm:order-none sm:w-auto">
                   Next
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>
           ) : (
-            <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-none border border-border/80 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full rounded-none sm:w-auto">
+            <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
                 <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                 Previous
               </Button>
               <div className="flex flex-wrap justify-center gap-2">
-                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="rounded-none">
+                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)}>
                   {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
                 </Button>
                 {isCurrentCardFlipped && !currentResult ? (
                   <>
-                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)} className="rounded-none">Missed</Button>
-                    <Button type="button" onClick={() => checkCurrentAnswer(true)} className="rounded-none">Correct</Button>
+                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
+                    <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
                   </>
                 ) : null}
                 {currentResult ? (
@@ -1347,21 +1353,22 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 ) : null}
               </div>
               {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} className="w-full rounded-none sm:w-auto">
+                <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
                   Finish Practice
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full rounded-none sm:w-auto">
+                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
                   Next
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>
           )}
-          <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>{answerModeLabels[activeConfig.answerMode]}</span>
-            {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-          </div>
+          {saveMessage ? (
+            <div className="mx-auto flex w-full max-w-4xl justify-end text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">{saveMessage}</p>
+            </div>
+          ) : null}
         </section>
       </div>
     )
