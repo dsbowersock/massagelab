@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, Save, Shuffle, Sparkles, Target, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -29,14 +29,6 @@ type Option = {
   id: string
   label: string
   termCount?: number
-}
-
-type Source = {
-  id: string
-  label: string
-  url?: string
-  license?: string
-  attribution: string
 }
 
 type PromptResult = {
@@ -116,7 +108,6 @@ type FlashcardProgressPayload = {
 type FlashcardsClientProps = {
   categories: Option[]
   regions: Option[]
-  sources: Source[]
   initialDecks: FlashcardDeckSummary[]
   initialPromptTypeCounts: PromptTypeCount[]
   isSignedIn: boolean
@@ -130,8 +121,13 @@ const difficultyLabels: Record<AnatomyStudyDifficulty, string> = {
 }
 
 const answerModeLabels: Record<FlashcardAnswerMode, string> = {
-  typed: "Typed Check",
-  review: "Reveal Review",
+  typed: "Type Answers",
+  review: "Flip & Self-Grade",
+}
+
+const answerModeDescriptions: Record<FlashcardAnswerMode, string> = {
+  typed: "Spelling + progress",
+  review: "Practice only",
 }
 
 const activeDeckKindLabels: Record<ActiveDeckKind, string> = {
@@ -619,7 +615,18 @@ function SetupDisclosure({
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} aria-hidden="true" />
         </span>
       </button>
-      {expanded ? <div className="border-t border-border/80 p-3">{children}</div> : null}
+      <div
+        aria-hidden={!expanded}
+        inert={!expanded ? true : undefined}
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
+          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border/80 p-3">{children}</div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -692,7 +699,7 @@ function FlashcardSurface({
   )
 }
 
-export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
+export function FlashcardsClient({ categories, regions, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
   const runnerTopRef = useRef<HTMLDivElement | null>(null)
@@ -1530,7 +1537,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   return (
-    <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className={cn("grid min-w-0 gap-5", canPersistProgress && "xl:grid-cols-[minmax(0,1fr)_22rem]")}>
       <section className="min-w-0 space-y-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -1594,15 +1601,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               onTouchCancel={finishCommunitySwipe}
             >
               <div
-                className="ml-flashcard-carousel min-h-[14rem] overflow-hidden sm:min-h-[13rem]"
+                className="ml-flashcard-carousel h-[22rem] overflow-hidden sm:h-[15rem] md:h-[13.5rem]"
               >
                 <div
                   data-slide={communitySlide?.direction === 1 ? "next" : communitySlide?.direction === -1 ? "previous" : undefined}
-                  className="ml-flashcard-carousel-track -mx-1.5 flex min-h-[14rem] sm:min-h-[13rem]"
+                  className="ml-flashcard-carousel-track -mx-1.5 flex h-full"
                 >
                 {visibleCommunityDecks.map((deck) => (
-                  <div key={deck.slug} className="flex min-w-full px-1.5 md:min-w-[50%]">
-                    <article className="flex min-h-[13.5rem] w-full flex-col rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60 sm:min-h-[12.5rem]">
+                  <div key={deck.slug} className="flex h-full min-w-full px-1.5 md:min-w-[50%]">
+                    <article className="flex h-full w-full flex-col rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <h3 className="break-words font-medium">{deck.title}</h3>
@@ -1913,7 +1920,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   selected={answerMode === "typed"}
                   icon={Keyboard}
                   label={answerModeLabels.typed}
-                  detail="Progress and badges"
+                  detail={answerModeDescriptions.typed}
                   compact
                   onClick={() => setAnswerMode("typed")}
                 />
@@ -1921,7 +1928,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   selected={answerMode === "review"}
                   icon={Eye}
                   label={answerModeLabels.review}
-                  detail="Practice only"
+                  detail={answerModeDescriptions.review}
                   compact
                   onClick={() => setAnswerMode("review")}
                 />
@@ -1964,132 +1971,95 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         </div>
       </section>
 
-      <aside className="space-y-4 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
-        <h2 className="text-lg font-semibold">Current Deck</h2>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-md border border-border/80 p-3">
-            <Timer className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
-            <div className="text-muted-foreground">Cards selected</div>
-            <div className="font-medium">{displayedDeckSize}</div>
-          </div>
-          <div className="rounded-md border border-border/80 p-3">
-            <Shuffle className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
-            <div className="text-muted-foreground">Prompt types</div>
-            <div className="font-medium">{promptTypes.length} selected</div>
-          </div>
-        </div>
-        <Button type="button" variant="outline" className="w-full" onClick={() => {
-          setPromptTypes([...FLASHCARD_STATIC_PROMPT_TYPES])
-          setSelectedCategories([...allCategoryIds])
-          setSelectedRegions([...allRegionIds])
-          setDifficulty("hard")
-          setDeckSize(Math.max(1, eligiblePromptCount))
-          setSelectedPromptIds([])
-        }}>
-          <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
-          Select All
-        </Button>
-        {canPersistProgress ? (
-          <div className="space-y-3 rounded-md border border-border/80 bg-card/60 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" aria-hidden="true" />
-                <h3 className="text-sm font-medium">Your Progress</h3>
-              </div>
-              {isLoadingProgressDashboard ? <Badge variant="outline">Updating</Badge> : null}
+      {canPersistProgress ? (
+        <aside className="space-y-3 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" aria-hidden="true" />
+              <h2 className="text-lg font-semibold">Your Progress</h2>
             </div>
-            {progressDashboard ? (
-              <>
-                <div className="space-y-3 rounded-md border border-border/80 bg-background/60 p-3">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <div>
-                      <div className="font-medium">Round {progressDashboard.progress.currentRound}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {progressDashboard.progress.masteredPromptCount}/{progressRoundTarget} prompts mastered
+            {isLoadingProgressDashboard ? <Badge variant="outline">Updating</Badge> : null}
+          </div>
+          {progressDashboard ? (
+            <>
+              <div className="space-y-3 rounded-md border border-border/80 bg-card/60 p-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div>
+                    <div className="font-medium">Round {progressDashboard.progress.currentRound}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {progressDashboard.progress.masteredPromptCount}/{progressRoundTarget} prompts mastered
+                    </div>
+                  </div>
+                  <Badge variant={progressDashboard.progress.canStartNextRound ? "default" : "outline"}>
+                    {progressRoundPercent}%
+                  </Badge>
+                </div>
+                <Progress value={progressRoundPercent} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
+                {progressDashboard.progress.canStartNextRound ? (
+                  <Button type="button" className="w-full" onClick={startNextMasteryRound} disabled={isStartingNextRound}>
+                    <Trophy className="mr-2 h-4 w-4" aria-hidden="true" />
+                    {isStartingNextRound ? "Starting..." : "Claim round and start next"}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Master every sourced prompt in this round to earn a completion badge and begin a fresh round.
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Active</div>
+                  <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
+                </div>
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Accuracy</div>
+                  <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
+                </div>
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Lifetime Correct</div>
+                  <div className="font-semibold">{progressDashboard.progress.totalCorrect}</div>
+                </div>
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Best Time</div>
+                  <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
+                <Badge variant="outline">{progressDashboard.progress.completedRoundCount} round badges</Badge>
+                <Badge variant="outline">{progressDashboard.progress.achievementCount} total badges</Badge>
+              </div>
+              {progressDashboard.recentProgress.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h3>
+                  {progressDashboard.recentProgress.slice(0, 3).map((item) => (
+                    <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
+                        {item.correctCount >= item.masteryThreshold ? (
+                          <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                        ) : null}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                        <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
+                        <span>{item.correctCount}/{item.masteryThreshold}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                        <span>Round {item.masteryRound}</span>
+                        <span>{item.lifetimeCorrectCount} lifetime correct</span>
                       </div>
                     </div>
-                    <Badge variant={progressDashboard.progress.canStartNextRound ? "default" : "outline"}>
-                      {progressRoundPercent}%
-                    </Badge>
-                  </div>
-                  <Progress value={progressRoundPercent} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
-                  {progressDashboard.progress.canStartNextRound ? (
-                    <Button type="button" className="w-full" onClick={startNextMasteryRound} disabled={isStartingNextRound}>
-                      <Trophy className="mr-2 h-4 w-4" aria-hidden="true" />
-                      {isStartingNextRound ? "Starting..." : "Claim round and start next"}
-                    </Button>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Master every sourced prompt in this round to earn a completion badge and begin a fresh round.
-                    </p>
-                  )}
+                  ))}
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Active</div>
-                    <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
-                  </div>
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Accuracy</div>
-                    <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
-                  </div>
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Lifetime Correct</div>
-                    <div className="font-semibold">{progressDashboard.progress.totalCorrect}</div>
-                  </div>
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Best Time</div>
-                    <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
-                  <Badge variant="outline">{progressDashboard.progress.completedRoundCount} round badges</Badge>
-                  <Badge variant="outline">{progressDashboard.progress.achievementCount} total badges</Badge>
-                </div>
-                {progressDashboard.recentProgress.length > 0 ? (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h4>
-                    {progressDashboard.recentProgress.slice(0, 3).map((item) => (
-                      <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
-                          {item.correctCount >= item.masteryThreshold ? (
-                            <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                          ) : null}
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
-                          <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
-                          <span>{item.correctCount}/{item.masteryThreshold}</span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
-                          <span>Round {item.masteryRound}</span>
-                          <span>{item.lifetimeCorrectCount} lifetime correct</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
-            )}
-          </div>
-        ) : null}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Sources</h3>
-          {sources.slice(0, 8).map((source) => (
-            source.url ? (
-              <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-md border border-border/80 bg-card/70 px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/60 hover:text-foreground">
-                <span className="min-w-0 truncate">{source.label}</span>
-                <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-              </a>
-            ) : <div key={source.id} className="rounded-md border border-border/80 bg-card/70 px-3 py-2 text-sm text-muted-foreground">{source.label}</div>
-          ))}
-        </div>
-      </aside>
+              ) : (
+                <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+          )}
+        </aside>
+      ) : null}
     </div>
   )
 }
