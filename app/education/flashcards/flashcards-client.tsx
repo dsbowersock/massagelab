@@ -429,12 +429,12 @@ function PromptBadges({ prompt }: { prompt: FlashcardPrompt }) {
 function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isReviewMode: boolean }) {
   return (
     <div className="mx-0 flex h-full flex-col rounded-lg bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] px-3 py-2 sm:mx-2 sm:px-4 sm:py-3">
-      <div className="shrink-0 space-y-0">
+      <div className="grid shrink-0 gap-y-1">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Front</span>
           <span className="max-w-[62%] truncate rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="mt-0 text-sm leading-tight text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
+        <p className="text-sm leading-tight text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
       <div className="mt-2 flex min-h-0 flex-1 items-center justify-center">
@@ -447,8 +447,8 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid w-full place-items-center rounded-none border border-border/80 bg-background/65 px-3 py-4 shadow-inner sm:px-8 sm:py-8">
-            <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal sm:text-4xl">{prompt.front.title}</h2>
+          <div className="grid w-full place-items-center rounded-none border border-border/80 bg-background/65 px-3 py-4 shadow-inner md:px-8 md:py-8">
+            <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal md:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
       </div>
