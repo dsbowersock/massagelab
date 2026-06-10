@@ -181,6 +181,22 @@
     padding-bottom: var(--ml-page-bottom-safe);
   }
 
+  @supports selector(:has(*)) {
+    .ml-app-scroll:has(.ml-flashcards-page) {
+      scrollbar-gutter: auto;
+      scrollbar-width: none;
+    }
+
+    .ml-app-scroll:has(.ml-flashcards-page) .ml-app-content {
+      padding-bottom: var(--ml-safe-bottom);
+    }
+
+    .ml-app-scroll:has(.ml-flashcards-page)::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+  }
+
   .ml-route-wordmark {
     --ml-route-wordmark-scroll-opacity: 1;
     --ml-route-wordmark-scroll-y: 0rem;

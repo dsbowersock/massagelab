@@ -4,7 +4,6 @@ import {
   FLASHCARD_STATIC_CATEGORIES,
   FLASHCARD_STATIC_PROMPT_TYPE_COUNTS,
   FLASHCARD_STATIC_REGIONS,
-  FLASHCARD_STATIC_SOURCES,
   FLASHCARD_STATIC_STARTER_DECKS,
 } from "@/lib/flashcard-static-metadata"
 import { FlashcardsClient } from "./flashcards-client"
@@ -19,7 +18,7 @@ export default async function EducationFlashcardsPage() {
     <AppPageShell
       title="Flashcards"
       width="full"
-      className="p-0 sm:p-0 lg:p-0"
+      className="ml-flashcards-page min-h-0 overflow-x-hidden p-0 sm:p-0 lg:p-0"
       contentClassName="gap-0"
     >
       <AppSurface
@@ -29,7 +28,6 @@ export default async function EducationFlashcardsPage() {
         <FlashcardsClient
           categories={FLASHCARD_STATIC_CATEGORIES}
           regions={FLASHCARD_STATIC_REGIONS}
-          sources={FLASHCARD_STATIC_SOURCES}
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
           isSignedIn={isSignedIn}

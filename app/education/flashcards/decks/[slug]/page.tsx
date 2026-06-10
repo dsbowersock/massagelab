@@ -7,7 +7,6 @@ import {
   FLASHCARD_STATIC_CATEGORIES,
   FLASHCARD_STATIC_PROMPT_TYPE_COUNTS,
   FLASHCARD_STATIC_REGIONS,
-  FLASHCARD_STATIC_SOURCES,
   FLASHCARD_STATIC_STARTER_DECKS,
   getStaticStarterFlashcardDeck,
 } from "@/lib/flashcard-static-metadata"
@@ -81,7 +80,6 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
         <FlashcardsClient
           categories={FLASHCARD_STATIC_CATEGORIES}
           regions={FLASHCARD_STATIC_REGIONS}
-          sources={FLASHCARD_STATIC_SOURCES}
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
           isSignedIn={isSignedIn}

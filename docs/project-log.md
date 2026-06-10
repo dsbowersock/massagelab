@@ -7,7 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus includes the setup-first flashcards/community-deck layer, where anonymous users can browse public decks and study temporary decks while signed-in users can save deck templates, persist progress summaries, and earn aggregate achievements. The active flashcard runner polish pass is improving the study card itself so reveal-review works as practice-only front/back recall and typed-check remains the saved progress path. The local-first professional-record framework remains in place with one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and role-aware shell/navigation structure before broader portal expansion. Voice transcription and SOAP-assist are recorded as future member-supported goals only; no audio capture, transcription engine, LLM processing, or hosted PHI workflow is implemented.
+- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus includes the setup-first flashcards/community-deck layer, where anonymous users can browse public decks and study temporary decks while signed-in users can save deck templates, persist progress summaries, and earn aggregate achievements. The active flashcard mastery rounds pass is turning per-prompt 10-correct mastery into repeatable full-library completion rounds with snapshot badges and preserved lifetime totals. Reveal-review remains practice-only, and typed-check remains the saved progress path. The local-first professional-record framework remains in place with one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and role-aware shell/navigation structure before broader portal expansion. Voice transcription and SOAP-assist are recorded as future member-supported goals only; no audio capture, transcription engine, LLM processing, or hosted PHI workflow is implemented.
 - Current-state source of truth: [project-state.md](project-state.md).
 - Database status: Prisma schema validates; the configured Neon/Postgres database has 20 repo migrations after the flashcard deck/session storage migration.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, transcripts, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and ROM now use one encrypted browser vault that requires therapist passphrase unlock before viewing or saving documents. Privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
@@ -93,6 +93,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-06-10
+
+- Started `codex/flashcard-mastery-rounds` from refreshed `main` to make signed-in flashcard mastery repeatable across the full sourced prompt library.
+- Planned Flashcard Mastery Rounds V1: completion requires mastering every sourced prompt in the current round, awards a repeatable round snapshot badge, resets current-round prompt counts, and preserves lifetime attempt/correct/incorrect totals for long-term progress.
+- Implemented the mastery-round V1 mechanics with lifetime progress metadata, a signed-in next-round API action, round-aware progress dashboard copy, and focused progress/browser fixture coverage.
 
 ### 2026-06-08
 

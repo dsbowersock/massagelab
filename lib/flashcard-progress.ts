@@ -3,6 +3,7 @@ import type { AnatomyStudyCategory, AnatomyStudyRegion, FlashcardPromptType } fr
 import { FLASHCARD_TOOL } from "./flashcard-community.ts"
 
 export const FLASHCARD_MASTERY_THRESHOLD = 10
+export const FLASHCARD_MASTERY_ROUND_KEY_PREFIX = `${FLASHCARD_TOOL}:mastery-round:`
 
 export type FlashcardProgressMetadata = {
   promptId: string
@@ -13,9 +14,14 @@ export type FlashcardProgressMetadata = {
   attemptCount: number
   correctCount: number
   incorrectCount: number
+  lifetimeAttemptCount: number
+  lifetimeCorrectCount: number
+  lifetimeIncorrectCount: number
   currentCorrectStreak: number
   bestCorrectStreak: number
   masteryThreshold: number
+  masteryRound: number
+  roundStartedAt?: string
   masteredAt?: string
   lastAnsweredAt?: string
   latestScore?: number
@@ -53,6 +59,17 @@ export function flashcardProgressTool(promptId: string) {
   return `${FLASHCARD_TOOL}:${promptId}`
 }
 
+export function flashcardMasteryRoundAchievementKey(round: number) {
+  return `${FLASHCARD_MASTERY_ROUND_KEY_PREFIX}${Math.max(1, Math.trunc(round))}`
+}
+
+export function roundNumberFromAchievementKey(key: string) {
+  if (!key.startsWith(FLASHCARD_MASTERY_ROUND_KEY_PREFIX)) return 0
+  const round = Number(key.slice(FLASHCARD_MASTERY_ROUND_KEY_PREFIX.length))
+
+  return Number.isFinite(round) && round > 0 ? Math.trunc(round) : 0
+}
+
 function recordFrom(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -84,6 +101,9 @@ export function normalizeFlashcardProgressMetadata(value: unknown): FlashcardPro
   const correctCount = count(record.correctCount)
   const attemptCount = Math.max(count(record.attemptCount), correctCount + count(record.incorrectCount))
   const incorrectCount = Math.max(count(record.incorrectCount), attemptCount - correctCount)
+  const lifetimeCorrectCount = Math.max(count(record.lifetimeCorrectCount), correctCount)
+  const lifetimeIncorrectCount = Math.max(count(record.lifetimeIncorrectCount), incorrectCount)
+  const lifetimeAttemptCount = Math.max(count(record.lifetimeAttemptCount), lifetimeCorrectCount + lifetimeIncorrectCount)
   const currentCorrectStreak = Math.min(count(record.currentCorrectStreak), correctCount)
   const bestCorrectStreak = Math.max(count(record.bestCorrectStreak), currentCorrectStreak)
 
@@ -96,9 +116,14 @@ export function normalizeFlashcardProgressMetadata(value: unknown): FlashcardPro
     attemptCount,
     correctCount,
     incorrectCount,
+    lifetimeAttemptCount,
+    lifetimeCorrectCount,
+    lifetimeIncorrectCount,
     currentCorrectStreak,
     bestCorrectStreak,
     masteryThreshold: count(record.masteryThreshold) || FLASHCARD_MASTERY_THRESHOLD,
+    masteryRound: count(record.masteryRound) || 1,
+    roundStartedAt: text(record.roundStartedAt) || undefined,
     masteredAt: text(record.masteredAt) || undefined,
     lastAnsweredAt: text(record.lastAnsweredAt) || undefined,
     latestScore: boundedScore(record.latestScore),
@@ -121,6 +146,9 @@ export function nextFlashcardProgressUpdate(
   const correctCount = current.correctCount + (result.correct ? 1 : 0)
   const incorrectCount = current.incorrectCount + (result.correct ? 0 : 1)
   const attemptCount = correctCount + incorrectCount
+  const lifetimeCorrectCount = current.lifetimeCorrectCount + (result.correct ? 1 : 0)
+  const lifetimeIncorrectCount = current.lifetimeIncorrectCount + (result.correct ? 0 : 1)
+  const lifetimeAttemptCount = lifetimeCorrectCount + lifetimeIncorrectCount
   const currentCorrectStreak = result.correct ? current.currentCorrectStreak + 1 : 0
   const bestCorrectStreak = Math.max(current.bestCorrectStreak, currentCorrectStreak)
   const masteryThreshold = current.masteryThreshold || FLASHCARD_MASTERY_THRESHOLD
@@ -140,9 +168,14 @@ export function nextFlashcardProgressUpdate(
       attemptCount,
       correctCount,
       incorrectCount,
+      lifetimeAttemptCount,
+      lifetimeCorrectCount,
+      lifetimeIncorrectCount,
       currentCorrectStreak,
       bestCorrectStreak,
       masteryThreshold,
+      masteryRound: current.masteryRound,
+      roundStartedAt: current.roundStartedAt,
       masteredAt: mastered ? (current.masteredAt ?? answeredAtIso) : undefined,
       lastAnsweredAt: answeredAtIso,
       latestScore,
@@ -151,11 +184,29 @@ export function nextFlashcardProgressUpdate(
   }
 }
 
+export function nextFlashcardProgressRoundMetadata(existingMetadata: unknown, startedAt = new Date()): FlashcardProgressMetadata {
+  const current = normalizeFlashcardProgressMetadata(existingMetadata)
+
+  return {
+    ...current,
+    attemptCount: 0,
+    correctCount: 0,
+    incorrectCount: 0,
+    currentCorrectStreak: 0,
+    bestCorrectStreak: 0,
+    masteryRound: current.masteryRound + 1,
+    roundStartedAt: startedAt.toISOString(),
+    masteredAt: undefined,
+    lastAnsweredAt: undefined,
+    latestScore: undefined,
+  }
+}
+
 export function summarizeFlashcardProgress(metadataRows: unknown[]): FlashcardProgressSummary {
   const rows = metadataRows.map(normalizeFlashcardProgressMetadata).filter((row) => row.promptId)
-  const totalAttempts = rows.reduce((sum, row) => sum + row.attemptCount, 0)
-  const totalCorrect = rows.reduce((sum, row) => sum + row.correctCount, 0)
-  const totalIncorrect = rows.reduce((sum, row) => sum + row.incorrectCount, 0)
+  const totalAttempts = rows.reduce((sum, row) => sum + row.lifetimeAttemptCount, 0)
+  const totalCorrect = rows.reduce((sum, row) => sum + row.lifetimeCorrectCount, 0)
+  const totalIncorrect = rows.reduce((sum, row) => sum + row.lifetimeIncorrectCount, 0)
   const masteredPromptCount = rows.filter((row) => row.correctCount >= row.masteryThreshold).length
 
   return {

@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, Save, Shuffle, Sparkles, Target, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -30,14 +31,6 @@ type Option = {
   termCount?: number
 }
 
-type Source = {
-  id: string
-  label: string
-  url?: string
-  license?: string
-  attribution: string
-}
-
 type PromptResult = {
   promptId: string
   correct: boolean
@@ -61,6 +54,7 @@ type PromptSummary = {
 }
 
 type ActiveDeckKind = "temporary" | "starter" | "community"
+type BuilderSection = "category" | "region" | "promptTypes"
 
 type FlashcardProgressDashboard = {
   trackedPromptCount: number
@@ -74,6 +68,11 @@ type FlashcardProgressDashboard = {
   completedSessionCount: number
   achievementCount: number
   bestDurationMs: number | null
+  targetPromptCount: number
+  roundCompletionPercent: number
+  completedRoundCount: number
+  currentRound: number
+  canStartNextRound: boolean
 }
 
 type FlashcardRecentProgress = {
@@ -86,7 +85,11 @@ type FlashcardRecentProgress = {
   attemptCount: number
   correctCount: number
   incorrectCount: number
+  lifetimeAttemptCount: number
+  lifetimeCorrectCount: number
+  lifetimeIncorrectCount: number
   masteryThreshold: number
+  masteryRound: number
   masteredAt: string | null
   lastSeenAt: string
 }
@@ -105,7 +108,6 @@ type FlashcardProgressPayload = {
 type FlashcardsClientProps = {
   categories: Option[]
   regions: Option[]
-  sources: Source[]
   initialDecks: FlashcardDeckSummary[]
   initialPromptTypeCounts: PromptTypeCount[]
   isSignedIn: boolean
@@ -119,8 +121,13 @@ const difficultyLabels: Record<AnatomyStudyDifficulty, string> = {
 }
 
 const answerModeLabels: Record<FlashcardAnswerMode, string> = {
-  typed: "Typed Check",
-  review: "Reveal Review",
+  typed: "Type Answers",
+  review: "Flip & Self-Grade",
+}
+
+const answerModeDescriptions: Record<FlashcardAnswerMode, string> = {
+  typed: "Spelling + progress",
+  review: "Practice only",
 }
 
 const activeDeckKindLabels: Record<ActiveDeckKind, string> = {
@@ -210,6 +217,26 @@ function promptDeckPayload(value: unknown) {
   return promptRows(record.prompts)
 }
 
+function selectionSummary(selectedIds: readonly string[], options: readonly Option[], allLabel: string) {
+  if (selectedIds.length === options.length) return allLabel
+  if (selectedIds.length === 0) return "No selections"
+
+  const labelById = new Map(options.map((option) => [option.id, option.label]))
+  const labels = selectedIds.map((id) => labelById.get(id) ?? id)
+
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`
+}
+
+function promptTypeSelectionSummary(selectedTypes: readonly FlashcardPromptType[], promptTypeCounts: readonly PromptTypeCount[]) {
+  if (selectedTypes.length === promptTypeCounts.length) return "All prompt types"
+  if (selectedTypes.length === 0) return "No prompt types"
+
+  const labelById = new Map(promptTypeCounts.map((type) => [type.id, type.label]))
+  const labels = selectedTypes.map((id) => labelById.get(id) ?? id)
+
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`
+}
+
 function promptSummaryRows(value: unknown) {
   const record = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -275,7 +302,11 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
         attemptCount: numeric(row.attemptCount),
         correctCount: numeric(row.correctCount),
         incorrectCount: numeric(row.incorrectCount),
+        lifetimeAttemptCount: numeric(row.lifetimeAttemptCount, numeric(row.attemptCount)),
+        lifetimeCorrectCount: numeric(row.lifetimeCorrectCount, numeric(row.correctCount)),
+        lifetimeIncorrectCount: numeric(row.lifetimeIncorrectCount, numeric(row.incorrectCount)),
         masteryThreshold: numeric(row.masteryThreshold, 10),
+        masteryRound: numeric(row.masteryRound, 1),
         masteredAt: text(row.masteredAt) || null,
         lastSeenAt: text(row.lastSeenAt),
       }
@@ -307,6 +338,11 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
       completedSessionCount: numeric(progress.completedSessionCount),
       achievementCount: numeric(progress.achievementCount),
       bestDurationMs: nullableNumber(progress.bestDurationMs),
+      targetPromptCount: numeric(progress.targetPromptCount, numeric(progress.trackedPromptCount)),
+      roundCompletionPercent: numeric(progress.roundCompletionPercent),
+      completedRoundCount: numeric(progress.completedRoundCount),
+      currentRound: numeric(progress.currentRound, 1),
+      canStartNextRound: progress.canStartNextRound === true,
     },
     recentProgress,
     achievements,
@@ -434,10 +470,10 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
           <span>Front</span>
           <span className="max-w-[62%] truncate rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="text-xs leading-snug text-muted-foreground sm:text-sm">{promptFrontInstruction(prompt, isReviewMode)}</p>
+        <p className="line-clamp-2 text-xs leading-snug text-muted-foreground sm:text-sm">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
-      <div className="mt-2 flex min-h-0 items-center justify-center">
+      <div className="mt-1 flex min-h-0 items-center justify-center sm:mt-2">
         {prompt.front.mode === "media" && prompt.front.media ? (
           <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
             <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
@@ -447,13 +483,13 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid max-h-full min-h-0 w-full place-items-center overflow-hidden rounded-none border border-border/80 bg-background/65 px-3 py-3 shadow-inner md:px-8 md:py-8">
-            <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal md:text-4xl">{prompt.front.title}</h2>
+          <div className="grid max-h-full min-h-0 w-full place-items-center overflow-hidden rounded-none border border-border/80 bg-background/65 px-2 py-2 shadow-inner sm:px-3 sm:py-3 md:px-8 md:py-8">
+            <h2 className="max-w-3xl break-words text-center text-lg font-semibold leading-tight tracking-normal min-[360px]:text-xl md:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
       </div>
 
-      <div className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:mt-3 sm:text-xs">
+      <div className="mt-1 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:mt-3 sm:text-xs">
         <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
@@ -463,7 +499,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
 
 function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: PromptResult | null }) {
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-4 sm:p-5">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-4 sm:p-5">
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Sourced Answer</span>
@@ -505,6 +541,7 @@ function SelectionButton({
   onClick,
   disabled = false,
   className,
+  compact = false,
 }: {
   selected: boolean
   icon: LucideIcon
@@ -513,6 +550,7 @@ function SelectionButton({
   onClick: () => void
   disabled?: boolean
   className?: string
+  compact?: boolean
 }) {
   return (
     <button
@@ -521,23 +559,75 @@ function SelectionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex min-h-12 items-center gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-2 text-left text-sm transition",
+        "flex items-center rounded-md border border-border/80 bg-card/60 text-left text-sm transition",
+        compact ? "min-h-11 justify-center gap-1 px-1.5 py-2 text-xs min-[420px]:gap-2 min-[420px]:px-2 min-[420px]:text-sm" : "min-h-12 gap-3 px-3 py-2",
         selected && "border-primary/70 bg-primary/10 text-foreground shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]",
         disabled ? "cursor-not-allowed opacity-55" : "hover:border-primary/60",
         className,
       )}
     >
       <span className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+        "flex shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+        compact ? "h-6 w-6" : "h-8 w-8",
         selected && "border-primary/50 text-primary",
       )}>
-        <Icon className="h-4 w-4" aria-hidden="true" />
+        <Icon className={cn("h-4 w-4", compact && "h-3.5 w-3.5")} aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block break-words font-medium">{label}</span>
+        <span className="block break-words font-medium leading-tight">{label}</span>
         {detail ? <span className="block break-words text-xs text-muted-foreground">{detail}</span> : null}
       </span>
     </button>
+  )
+}
+
+function SetupDisclosure({
+  title,
+  summary,
+  badge,
+  expanded,
+  onToggle,
+  className,
+  children,
+}: {
+  title: string
+  summary: string
+  badge: string
+  expanded: boolean
+  onToggle: () => void
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn("overflow-hidden rounded-md border border-border/80 bg-card/55", className)}>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition hover:border-primary/60 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{title}</span>
+          <span className="block truncate text-xs text-muted-foreground">{summary}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <Badge variant="outline">{badge}</Badge>
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} aria-hidden="true" />
+        </span>
+      </button>
+      <div
+        aria-hidden={!expanded}
+        inert={!expanded ? true : undefined}
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
+          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border/80 p-3">{children}</div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -567,7 +657,7 @@ function FlashcardSurface({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="relative h-[clamp(13rem,calc(100dvh-16rem),30rem)] min-h-[13rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
+      <div className="relative h-[clamp(11.5rem,calc(100dvh-17.5rem),30rem)] min-h-[11.5rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
         <div
           role={canFlipCard ? "button" : undefined}
           tabIndex={canFlipCard ? 0 : undefined}
@@ -609,7 +699,7 @@ function FlashcardSurface({
   )
 }
 
-export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
+export function FlashcardsClient({ categories, regions, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
   const runnerTopRef = useRef<HTMLDivElement | null>(null)
@@ -626,6 +716,11 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [deckSize, setDeckSize] = useState(20)
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([])
   const [expandedPromptType, setExpandedPromptType] = useState<FlashcardPromptType | null>(null)
+  const [expandedBuilderSections, setExpandedBuilderSections] = useState<Record<BuilderSection, boolean>>({
+    category: false,
+    region: false,
+    promptTypes: false,
+  })
   const [deckTitle, setDeckTitle] = useState("My flashcard deck")
   const [deckDescription, setDeckDescription] = useState("")
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
@@ -648,10 +743,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [skipMasteredPrompts, setSkipMasteredPrompts] = useState(false)
   const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
   const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
+  const [isStartingNextRound, setIsStartingNextRound] = useState(false)
   const [communityDeckIndex, setCommunityDeckIndex] = useState(0)
   const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
   const [activeDeckActivation, setActiveDeckActivation] = useState(0)
   const studyStartedAtRef = useRef<number | null>(null)
+  const isStartingNextRoundRef = useRef(false)
 
   const refreshProgressDashboard = useCallback(async () => {
     if (!canPersistProgress) {
@@ -665,7 +762,17 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       if (!response.ok) return
 
       const payload = progressPayload(await response.json())
-      if (payload) setProgressDashboard(payload)
+      if (payload) {
+        setProgressDashboard(isStartingNextRoundRef.current && payload.progress.canStartNextRound
+          ? {
+            ...payload,
+            progress: {
+              ...payload.progress,
+              canStartNextRound: false,
+            },
+          }
+          : payload)
+      }
     } catch (error) {
       console.error("Failed to load flashcard progress", error)
     } finally {
@@ -809,15 +916,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const promptTypeLabelById = useMemo(() => new Map(promptTypeCounts.map((type) => [type.id, type.label])), [promptTypeCounts])
   const allCategoriesSelected = selectedCategories.length === allCategoryIds.length
   const allRegionsSelected = selectedRegions.length === allRegionIds.length
+  const categorySummary = selectionSummary(selectedCategories, categories, "All categories")
+  const regionSummary = selectionSummary(selectedRegions, regions, "All regions")
+  const promptTypesSummary = promptTypeSelectionSummary(promptTypes, promptTypeCounts)
   const selectedPromptIdSet = useMemo(() => new Set(selectedUsablePromptIds), [selectedUsablePromptIds])
-  const expandedPromptSummaries = useMemo(() => (
-    expandedPromptType
-      ? promptSummaries.filter((prompt) => prompt.type === expandedPromptType)
-      : []
-  ), [expandedPromptType, promptSummaries])
   const exactPromptSelectionActive = selectedPromptIds.length > 0
-  const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
+  const progressRoundTarget = progressDashboard ? Math.max(progressDashboard.progress.targetPromptCount, progressDashboard.progress.trackedPromptCount) : 0
+  const progressRoundPercent = progressDashboard ? Math.max(0, Math.min(100, progressDashboard.progress.roundCompletionPercent)) : 0
   const sortedCommunityDecks = communityDecks
   const visibleCommunityDecks = useMemo(() => {
     if (sortedCommunityDecks.length <= 2) return sortedCommunityDecks
@@ -833,6 +939,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const carouselPositionLabel = sortedCommunityDecks.length > 0
     ? `Community deck carousel position ${Math.min(communityDeckIndex + 1, sortedCommunityDecks.length)}/${sortedCommunityDecks.length}`
     : "Community deck carousel position 0/0"
+
+  const toggleBuilderSection = useCallback((section: BuilderSection) => {
+    if (section === "promptTypes" && expandedBuilderSections.promptTypes) setExpandedPromptType(null)
+
+    setExpandedBuilderSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }))
+  }, [expandedBuilderSections.promptTypes])
 
   useEffect(() => {
     if (communitySlideTimeoutRef.current !== null) {
@@ -1251,6 +1366,53 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     }
   }
 
+  const startNextMasteryRound = async () => {
+    if (
+      !canPersistProgress
+      || !progressDashboard?.progress.canStartNextRound
+      || isStartingNextRound
+      || isStartingNextRoundRef.current
+      || isLoadingProgressDashboard
+    ) return
+
+    isStartingNextRoundRef.current = true
+    setIsStartingNextRound(true)
+    setSaveMessage("")
+
+    try {
+      const response = await fetch("/api/education/flashcards/progress/round", { method: "POST" })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setSaveMessage(typeof payload?.error === "string" ? payload.error : "Next mastery round could not be started.")
+        return
+      }
+
+      const completedRound = numeric(payload?.round?.round)
+      const nextRound = numeric(payload?.round?.nextRound)
+      setSkipMasteredPrompts(false)
+      setSaveMessage(completedRound && nextRound
+        ? `Round ${completedRound} complete. Round ${nextRound} is ready.`
+        : "Next mastery round is ready.")
+      setProgressDashboard((current) => current
+        ? {
+          ...current,
+          progress: {
+            ...current.progress,
+            canStartNextRound: false,
+          },
+        }
+        : current)
+      await refreshProgressDashboard()
+    } catch (error) {
+      console.error("Failed to start next flashcard mastery round", error)
+      setSaveMessage("Next mastery round could not be started.")
+    } finally {
+      isStartingNextRoundRef.current = false
+      setIsStartingNextRound(false)
+    }
+  }
+
   if (activeDeck.length > 0 && currentPrompt && activeConfig) {
     const isReviewMode = activeConfig.answerMode === "review"
     const isCurrentCardFlipped = isReviewMode ? isCardFlipped : Boolean(currentResult) || isCardFlipped
@@ -1259,6 +1421,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       : canPersistProgress && sessionId
         ? "Progress tracked"
         : "Temporary study"
+    const showReviewMarkingActions = isReviewMode && isCurrentCardFlipped && !currentResult
 
     return (
       <div ref={runnerTopRef} className="-m-4">
@@ -1333,19 +1496,39 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               )}
             </div>
           ) : (
-            <div className="mx-auto grid w-full max-w-4xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] min-[360px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} aria-label="Previous card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+            <div className={cn(
+              "mx-auto grid w-full max-w-4xl items-center gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)]",
+              showReviewMarkingActions
+                ? "grid-cols-2 min-[560px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+                : "grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+            )}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={previousPrompt}
+                disabled={currentIndex === 0}
+                aria-label="Previous card"
+                className={cn(
+                  "w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm min-[560px]:w-auto",
+                  showReviewMarkingActions && "order-1 min-[560px]:order-none",
+                )}
+              >
                 <ArrowLeft className="h-4 w-4 min-[360px]:mr-2" aria-hidden="true" />
                 <span className="hidden min-[360px]:inline">Previous</span>
               </Button>
-              <div className="flex min-w-0 flex-wrap justify-center gap-2">
-                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="whitespace-nowrap px-3 text-sm sm:px-4">
+              <div className={cn(
+                "min-w-0 gap-2",
+                showReviewMarkingActions
+                  ? "order-3 col-span-2 grid grid-cols-3 min-[560px]:order-none min-[560px]:col-span-1 min-[560px]:flex min-[560px]:flex-wrap min-[560px]:justify-center"
+                  : "flex flex-wrap justify-center",
+              )}>
+                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="min-w-0 whitespace-normal px-2 text-xs min-[360px]:text-sm sm:px-4">
                   {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
                 </Button>
                 {isCurrentCardFlipped && !currentResult ? (
                   <>
-                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
-                    <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
+                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Missed</Button>
+                    <Button type="button" onClick={() => checkCurrentAnswer(true)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Correct</Button>
                   </>
                 ) : null}
                 {currentResult ? (
@@ -1353,12 +1536,18 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 ) : null}
               </div>
               {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} aria-label="Finish practice" className="w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm sm:w-auto">
+                <Button type="button" variant="outline" onClick={completeStudy} aria-label="Finish practice" className={cn(
+                  "w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm min-[560px]:w-auto",
+                  showReviewMarkingActions && "order-2 min-[560px]:order-none",
+                )}>
                   <CheckCircle2 className="h-4 w-4 min-[420px]:mr-2" aria-hidden="true" />
                   <span className="hidden min-[420px]:inline">Finish Practice</span>
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} aria-label="Next card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+                <Button type="button" variant="outline" onClick={nextPrompt} aria-label="Next card" className={cn(
+                  "w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm min-[560px]:w-auto",
+                  showReviewMarkingActions && "order-2 min-[560px]:order-none",
+                )}>
                   <span className="hidden min-[360px]:inline">Next</span>
                   <ArrowRight className="h-4 w-4 min-[360px]:ml-2" aria-hidden="true" />
                 </Button>
@@ -1376,8 +1565,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="space-y-5">
+    <div className={cn("grid min-w-0 gap-5", canPersistProgress && "xl:grid-cols-[minmax(0,1fr)_22rem]")}>
+      <section className="min-w-0 space-y-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Layers3 className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -1387,8 +1576,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <p className="text-sm text-muted-foreground">Sourced anatomy prompts for self-study.</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-md border border-primary/40 bg-primary/10 p-4">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+          <div className="min-w-0 overflow-hidden rounded-md border border-primary/40 bg-primary/10 p-4">
             <div className="flex items-start gap-3">
               <div className="rounded-md border border-primary/30 bg-background/70 p-2 text-primary">
                 <BookOpen className="h-5 w-5" aria-hidden="true" />
@@ -1399,14 +1588,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               </div>
             </div>
             {communityDecks.length > 0 ? (
-              <Button type="button" className="mt-4 w-full sm:w-auto" onClick={() => showSetupSection("community")}>
+              <Button type="button" className="mt-4 h-auto min-h-10 w-full min-w-0 whitespace-normal text-center sm:w-auto" onClick={() => showSetupSection("community")}>
                 <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
                 Browse Premade Decks
               </Button>
             ) : null}
           </div>
 
-          <div className="rounded-md border border-border/80 bg-background/70 p-4">
+          <div className="min-w-0 overflow-hidden rounded-md border border-border/80 bg-background/70 p-4">
             <div className="flex items-start gap-3">
               <div className="rounded-md border border-border/80 bg-card/70 p-2 text-primary">
                 <Layers3 className="h-5 w-5" aria-hidden="true" />
@@ -1416,14 +1605,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 <p className="text-sm text-muted-foreground">Choose the anatomy, prompt types, and review style before seeing cards.</p>
               </div>
             </div>
-            <Button type="button" variant="outline" className="mt-4 w-full sm:w-auto" onClick={() => showSetupSection("custom")}>
+            <Button type="button" variant="outline" className="mt-4 h-auto min-h-10 w-full min-w-0 whitespace-normal text-center sm:w-auto" onClick={() => showSetupSection("custom")}>
               <Layers3 className="mr-2 h-4 w-4" aria-hidden="true" />
               Configure Custom Deck
             </Button>
           </div>
         </div>
 
-        <div ref={communityDecksRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
+        <div ref={communityDecksRef} className="min-w-0 scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <Link href="/education/flashcards/decks" className="flex items-center gap-2 transition hover:text-primary">
               <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -1433,40 +1622,40 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           </div>
           {sortedCommunityDecks.length > 0 ? (
             <div
-              className="group/community-carousel relative"
+              className="group/community-carousel relative overflow-hidden"
               onTouchStart={(event) => startCommunitySwipe(event.touches[0]?.clientX ?? 0)}
               onTouchMove={(event) => updateCommunitySwipe(event.touches[0]?.clientX ?? 0)}
               onTouchEnd={finishCommunitySwipe}
               onTouchCancel={finishCommunitySwipe}
             >
               <div
-                className="ml-flashcard-carousel overflow-hidden"
+                className="ml-flashcard-carousel h-[17rem] overflow-hidden sm:h-[15rem] md:h-[13.5rem]"
               >
                 <div
                   data-slide={communitySlide?.direction === 1 ? "next" : communitySlide?.direction === -1 ? "previous" : undefined}
-                  className="ml-flashcard-carousel-track -mx-1.5 flex"
+                  className="ml-flashcard-carousel-track flex h-full sm:-mx-1.5"
                 >
                 {visibleCommunityDecks.map((deck) => (
-                  <div key={deck.slug} className="min-w-full px-1.5 md:min-w-[50%]">
-                    <article className="h-full rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
+                  <div key={deck.slug} className="flex h-full min-w-full sm:px-1.5 md:min-w-[50%]">
+                    <article className="flex h-full w-full flex-col rounded-md border border-border/80 bg-card/60 p-3 transition hover:border-primary/60 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="break-words font-medium">{deck.title}</h3>
+                          <h3 className="line-clamp-2 break-words font-medium">{deck.title}</h3>
                           <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{deck.description || deck.ownerName}</p>
                         </div>
                         <Badge variant="outline">{deck.isStarter ? "Starter" : deck.visibility}</Badge>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground sm:mt-3">
                         <span>{deck.promptCount} prompts</span>
                         <span>{deck.completionCount} completions</span>
                         <span>{deck.accuracyPercent}% accuracy</span>
                       </div>
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck}>
+                      <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:pt-4">
+                        <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck} className="min-w-0 whitespace-normal">
                           <Play className="mr-2 h-4 w-4" aria-hidden="true" />
                           {isStartingDeck ? "Starting..." : "Study"}
                         </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)} className="min-w-0 whitespace-normal">
                           View
                         </Button>
                       </div>
@@ -1475,28 +1664,32 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 ))}
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => moveCommunityCarousel(-1)}
-                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
-                aria-label="Previous community decks"
-                className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-left-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
-              >
-                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => moveCommunityCarousel(1)}
-                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
-                aria-label="Next community decks"
-                className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-right-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
-              >
-                <ChevronRight className="h-5 w-5" aria-hidden="true" />
-              </Button>
+              <div className="pointer-events-none absolute left-2 right-2 top-40 z-10 flex items-center justify-between md:-left-5 md:-right-5 md:top-1/2 md:-translate-y-1/2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => moveCommunityCarousel(-1)}
+                  disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                  aria-label="Previous community decks"
+                  className="pointer-events-auto h-10 w-10 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+                >
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => moveCommunityCarousel(1)}
+                  disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                  aria-label="Next community decks"
+                  className="pointer-events-auto h-10 w-10 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+                >
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </div>
               <span className="sr-only">{carouselPositionLabel}</span>
             </div>
           ) : (
@@ -1515,12 +1708,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             <Badge variant="outline">{eligiblePromptCount} eligible</Badge>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-2">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-medium">Category</h3>
-                <Badge variant="outline">{selectedCategories.length}/{categories.length}</Badge>
-              </div>
+          <div className="grid gap-3 xl:grid-cols-2">
+            <SetupDisclosure
+              title="Category"
+              summary={categorySummary}
+              badge={`${selectedCategories.length}/${categories.length}`}
+              expanded={expandedBuilderSections.category}
+              onToggle={() => toggleBuilderSection("category")}
+            >
               <div className="grid gap-2 sm:grid-cols-2">
                 <SelectionButton
                   selected={allCategoriesSelected}
@@ -1546,13 +1741,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   )
                 })}
               </div>
-            </div>
+            </SetupDisclosure>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-medium">Region</h3>
-                <Badge variant="outline">{selectedRegions.length}/{regions.length}</Badge>
-              </div>
+            <SetupDisclosure
+              title="Region"
+              summary={regionSummary}
+              badge={`${selectedRegions.length}/${regions.length}`}
+              expanded={expandedBuilderSections.region}
+              onToggle={() => toggleBuilderSection("region")}
+            >
               <div className="grid gap-2 sm:grid-cols-2">
                 <SelectionButton
                   selected={allRegionsSelected}
@@ -1578,19 +1775,20 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   )
                 })}
               </div>
-            </div>
+            </SetupDisclosure>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="space-y-3">
-              <h3 className="text-sm font-medium">Depth</h3>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <h3 className="text-sm font-medium">Study Detail</h3>
+              <div className="grid grid-cols-3 gap-2">
                 {Object.entries(difficultyLabels).map(([id, label]) => (
                   <SelectionButton
                     key={id}
                     selected={difficulty === id}
                     icon={id === "easy" ? Target : id === "medium" ? Layers3 : Trophy}
                     label={label}
+                    compact
                     onClick={() => {
                       setDifficulty(id as AnatomyStudyDifficulty)
                       setSelectedPromptIds([])
@@ -1622,100 +1820,119 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {promptTypeCounts.map((type) => {
-              const selected = promptTypes.includes(type.id)
-              const disabled = !selected && type.promptCount === 0
-              const Icon = promptTypeIconById[type.id] ?? CircleHelp
-              const selectedInType = selectedUsablePromptIds.filter((promptId) => promptTypeByPromptId.get(promptId) === type.id).length
+          <SetupDisclosure
+            title="Prompt Types"
+            summary={promptTypesSummary}
+            badge={`${promptTypes.length}/${promptTypeCounts.length}`}
+            expanded={expandedBuilderSections.promptTypes}
+            onToggle={() => toggleBuilderSection("promptTypes")}
+            className="mt-5"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              {promptTypeCounts.map((type) => {
+                const selected = promptTypes.includes(type.id)
+                const disabled = !selected && type.promptCount === 0
+                const Icon = promptTypeIconById[type.id] ?? CircleHelp
+                const selectedInType = selectedUsablePromptIds.filter((promptId) => promptTypeByPromptId.get(promptId) === type.id).length
+                const isExpanded = expandedPromptType === type.id
+                const expandedPromptSummaries = isExpanded
+                  ? promptSummaries.filter((prompt) => prompt.type === type.id)
+                  : []
+                const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
+                const unavailableText = type.id === "identify_from_media"
+                  ? "No uploaded images available for these filters"
+                  : "No eligible prompts for these filters"
 
-              return (
-                <div key={type.id} className={cn(
-                  "rounded-md border border-border/80 bg-card/60 p-3 transition",
-                  selected && "border-primary/60 bg-primary/10",
-                  disabled && "opacity-55",
-                )}>
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      aria-pressed={selected}
-                      disabled={disabled}
-                      onClick={() => togglePromptType(type.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
-                    >
-                      <span className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
-                        selected && "border-primary/50 text-primary",
-                      )}>
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block break-words text-sm font-medium">{type.label}</span>
-                        {exactPromptSelectionActive && selected ? <span className="block text-xs text-muted-foreground">{selectedInType} selected</span> : null}
-                      </span>
-                    </button>
-                    <Badge variant="outline">{type.promptCount}</Badge>
+                return (
+                  <div key={type.id} className={cn(
+                    "rounded-md border border-border/80 bg-card/60 p-3 transition",
+                    selected && "border-primary/60 bg-primary/10",
+                    disabled && "opacity-55",
+                  )}>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={disabled}
+                        onClick={() => togglePromptType(type.id)}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
+                      >
+                        <span className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+                          selected && "border-primary/50 text-primary",
+                        )}>
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block break-words text-sm font-medium">{type.label}</span>
+                          {exactPromptSelectionActive && selected ? <span className="block text-xs text-muted-foreground">{selectedInType} selected</span> : null}
+                          {type.promptCount === 0 ? <span className="block text-xs text-muted-foreground">{unavailableText}</span> : null}
+                        </span>
+                      </button>
+                      <Badge variant="outline">{type.promptCount}</Badge>
+                    </div>
+                    {type.promptCount > 0 ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        aria-expanded={isExpanded}
+                        onClick={() => setExpandedPromptType(isExpanded ? null : type.id)}
+                      >
+                        {isExpanded ? "Close items" : "Choose items"}
+                      </Button>
+                    ) : null}
+
+                    {isExpanded ? (
+                      <div className="mt-3 rounded-md border border-border/80 bg-background/70 p-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h3 className="text-sm font-medium">{type.label}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {exactPromptSelectionActive
+                                ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
+                                : "All matching items are included"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
+                              Select exact items
+                            </Button>
+                            {exactPromptSelectionActive ? (
+                              <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
+                                Use all eligible
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
+                          {expandedPromptSummaries.map((prompt) => {
+                            const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
+                            return (
+                              <button
+                                key={prompt.id}
+                                type="button"
+                                aria-pressed={promptSelected}
+                                onClick={() => togglePromptId(prompt.id)}
+                                className={cn(
+                                  "rounded-md border border-border/80 bg-card/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
+                                  promptSelected && "border-primary/60 bg-primary/10",
+                                )}
+                              >
+                                <span className="block truncate font-medium">{prompt.name}</span>
+                                <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                  {type.promptCount > 0 ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 w-full"
-                      onClick={() => setExpandedPromptType(expandedPromptType === type.id ? null : type.id)}
-                    >
-                      {expandedPromptType === type.id ? "Close items" : "Choose items"}
-                    </Button>
-                  ) : null}
-                </div>
-              )
-            })}
-          </div>
-
-          {expandedPromptType ? (
-            <div className="mt-3 rounded-md border border-border/80 bg-card/60 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-medium">{promptTypeLabelById.get(expandedPromptType) ?? "Prompt items"}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {exactPromptSelectionActive
-                      ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
-                      : "All matching items are included"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
-                    Select exact items
-                  </Button>
-                  {exactPromptSelectionActive ? (
-                    <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
-                      Use all eligible
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                {expandedPromptSummaries.map((prompt) => {
-                  const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
-                  return (
-                    <button
-                      key={prompt.id}
-                      type="button"
-                      aria-pressed={promptSelected}
-                      onClick={() => togglePromptId(prompt.id)}
-                      className={cn(
-                        "rounded-md border border-border/80 bg-background/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
-                        promptSelected && "border-primary/60 bg-primary/10",
-                      )}
-                    >
-                      <span className="block truncate font-medium">{prompt.name}</span>
-                      <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
-                    </button>
-                  )
-                })}
-              </div>
+                )
+              })}
             </div>
-          ) : null}
+          </SetupDisclosure>
 
           {canPersistProgress ? (
             <label className="mt-4 flex items-start gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-3 text-sm">
@@ -1730,19 +1947,21 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Answer Mode</h3>
-              <div className="grid gap-2 xl:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 <SelectionButton
                   selected={answerMode === "typed"}
                   icon={Keyboard}
                   label={answerModeLabels.typed}
-                  detail="Progress and badges"
+                  detail={answerModeDescriptions.typed}
+                  compact
                   onClick={() => setAnswerMode("typed")}
                 />
                 <SelectionButton
                   selected={answerMode === "review"}
                   icon={Eye}
                   label={answerModeLabels.review}
-                  detail="Practice only"
+                  detail={answerModeDescriptions.review}
+                  compact
                   onClick={() => setAnswerMode("review")}
                 />
               </div>
@@ -1784,104 +2003,95 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         </div>
       </section>
 
-      <aside className="space-y-4 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
-        <h2 className="text-lg font-semibold">Current Deck</h2>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-md border border-border/80 p-3">
-            <Timer className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
-            <div className="text-muted-foreground">Cards selected</div>
-            <div className="font-medium">{displayedDeckSize}</div>
-          </div>
-          <div className="rounded-md border border-border/80 p-3">
-            <Shuffle className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
-            <div className="text-muted-foreground">Prompt types</div>
-            <div className="font-medium">{promptTypes.length} selected</div>
-          </div>
-        </div>
-        <Button type="button" variant="outline" className="w-full" onClick={() => {
-          setPromptTypes([...FLASHCARD_STATIC_PROMPT_TYPES])
-          setSelectedCategories([...allCategoryIds])
-          setSelectedRegions([...allRegionIds])
-          setDifficulty("hard")
-          setDeckSize(Math.max(1, eligiblePromptCount))
-          setSelectedPromptIds([])
-        }}>
-          <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
-          Select All
-        </Button>
-        {canPersistProgress ? (
-          <div className="space-y-3 rounded-md border border-border/80 bg-card/60 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" aria-hidden="true" />
-                <h3 className="text-sm font-medium">Your Progress</h3>
-              </div>
-              {isLoadingProgressDashboard ? <Badge variant="outline">Updating</Badge> : null}
+      {canPersistProgress ? (
+        <aside className="space-y-3 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" aria-hidden="true" />
+              <h2 className="text-lg font-semibold">Your Progress</h2>
             </div>
-            {progressDashboard ? (
-              <>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Mastered</div>
-                    <div className="font-semibold">{progressDashboard.progress.masteredPromptCount}</div>
-                  </div>
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Active</div>
-                    <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
-                  </div>
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Accuracy</div>
-                    <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
-                  </div>
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Best Time</div>
-                    <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
-                  <Badge variant="outline">{progressDashboard.progress.achievementCount} badges</Badge>
-                  <Badge variant="outline">{progressDashboard.progress.totalCorrect} correct</Badge>
-                </div>
-                {progressDashboard.recentProgress.length > 0 ? (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h4>
-                    {progressDashboard.recentProgress.slice(0, 3).map((item) => (
-                      <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
-                          {item.correctCount >= item.masteryThreshold ? (
-                            <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                          ) : null}
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
-                          <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
-                          <span>{item.correctCount}/{item.masteryThreshold}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
-            )}
+            {isLoadingProgressDashboard ? <Badge variant="outline">Updating</Badge> : null}
           </div>
-        ) : null}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Sources</h3>
-          {sources.slice(0, 8).map((source) => (
-            source.url ? (
-              <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-md border border-border/80 bg-card/70 px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/60 hover:text-foreground">
-                <span className="min-w-0 truncate">{source.label}</span>
-                <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-              </a>
-            ) : <div key={source.id} className="rounded-md border border-border/80 bg-card/70 px-3 py-2 text-sm text-muted-foreground">{source.label}</div>
-          ))}
-        </div>
-      </aside>
+          {progressDashboard ? (
+            <>
+              <div className="space-y-3 rounded-md border border-border/80 bg-card/60 p-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <div>
+                    <div className="font-medium">Round {progressDashboard.progress.currentRound}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {progressDashboard.progress.masteredPromptCount}/{progressRoundTarget} prompts mastered
+                    </div>
+                  </div>
+                  <Badge variant={progressDashboard.progress.canStartNextRound ? "default" : "outline"}>
+                    {progressRoundPercent}%
+                  </Badge>
+                </div>
+                <Progress value={progressRoundPercent} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
+                {progressDashboard.progress.canStartNextRound || isStartingNextRound ? (
+                  <Button type="button" className="w-full" onClick={startNextMasteryRound} disabled={isStartingNextRound || isLoadingProgressDashboard}>
+                    <Trophy className="mr-2 h-4 w-4" aria-hidden="true" />
+                    {isStartingNextRound ? "Starting..." : "Claim round and start next"}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Master every sourced prompt in this round to earn a completion badge and begin a fresh round.
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Active</div>
+                  <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
+                </div>
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Accuracy</div>
+                  <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
+                </div>
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Lifetime Correct</div>
+                  <div className="font-semibold">{progressDashboard.progress.totalCorrect}</div>
+                </div>
+                <div className="rounded-md border border-border/80 p-2">
+                  <div className="text-muted-foreground">Best Time</div>
+                  <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
+                <Badge variant="outline">{progressDashboard.progress.completedRoundCount} round badges</Badge>
+                <Badge variant="outline">{progressDashboard.progress.achievementCount} total badges</Badge>
+              </div>
+              {progressDashboard.recentProgress.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h3>
+                  {progressDashboard.recentProgress.slice(0, 3).map((item) => (
+                    <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
+                        {item.correctCount >= item.masteryThreshold ? (
+                          <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                        ) : null}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                        <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
+                        <span>{item.correctCount}/{item.masteryThreshold}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                        <span>Round {item.masteryRound}</span>
+                        <span>{item.lifetimeCorrectCount} lifetime correct</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Complete a signed-in session to start tracking mastered prompts.</p>
+          )}
+        </aside>
+      ) : null}
     </div>
   )
 }

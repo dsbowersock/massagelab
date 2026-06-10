@@ -72,12 +72,28 @@ async function setPressedButton(page: Page, name: RegExp, selected: boolean) {
   if (isPressed !== selected) await button.click()
 }
 
+async function ensureSetupSectionOpen(page: Page, sectionName: RegExp, targetButtonName: RegExp) {
+  const targetButton = page.getByRole("button", { name: targetButtonName }).first()
+  if (await targetButton.isVisible().catch(() => false)) return
+
+  const sectionButton = page.getByRole("button", { name: sectionName }).first()
+  if (await sectionButton.count() > 0) {
+    await expect(sectionButton).toBeVisible()
+    const isExpanded = (await sectionButton.getAttribute("aria-expanded")) === "true"
+    if (!isExpanded) await sectionButton.click()
+  }
+
+  await expect(targetButton).toBeVisible()
+}
+
 async function setMuscleUpperExtremityFilters(page: Page) {
+  await ensureSetupSectionOpen(page, /^Category\b/i, /^Muscles\b/i)
   await setPressedButton(page, /^Muscles\b/i, true)
   for (const category of [/^Bones\b/i, /^Bone Landmarks\b/i, /^Structures\b/i, /^Concepts\b/i]) {
     await setPressedButton(page, category, false)
   }
 
+  await ensureSetupSectionOpen(page, /^Region\b/i, /^Upper Extremity\b/i)
   await setPressedButton(page, /^Upper Extremity\b/i, true)
   for (const region of [/^Head\b/i, /^Spine\b/i, /^Thorax\b/i, /^Abdomen\b/i, /^Pelvis\b/i, /^Lower Extremity\b/i]) {
     await setPressedButton(page, region, false)
@@ -123,6 +139,7 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
   await setMuscleUpperExtremityFilters(page)
+  await ensureSetupSectionOpen(page, /^Prompt Types\b/i, /^Recall Key Facts\b/i)
   await setPressedButton(page, /^Recall Key Facts\b/i, true)
   await setPressedButton(page, /^Identify Body Region\b/i, true)
   await setPressedButton(page, /^Identify Structure Type\b/i, true)
@@ -165,7 +182,8 @@ test("flashcards can start from local sourced prompts when the prompt API is una
 
   await setMuscleUpperExtremityFilters(page)
   await page.getByLabel("Deck Size", { exact: true }).fill("10")
-  await setPressedButton(page, /^Reveal Review\b/i, true)
+  await setPressedButton(page, /^Flip & Self-Grade\b/i, true)
+  await ensureSetupSectionOpen(page, /^Prompt Types\b/i, /^Identify From Image\b/i)
   await setPressedButton(page, /^Identify From Image\b/i, false)
   await setPressedButton(page, /^Identify Body Region\b/i, false)
   await setPressedButton(page, /^Identify Structure Type\b/i, false)
@@ -216,6 +234,11 @@ test("signed-in flashcards fall back to temporary study when progress session fa
           completedSessionCount: 1,
           achievementCount: 1,
           bestDurationMs: 45000,
+          targetPromptCount: 2,
+          roundCompletionPercent: 50,
+          completedRoundCount: 0,
+          currentRound: 1,
+          canStartNextRound: false,
         },
         recentProgress: [{
           promptId: "name_to_region:muscle-biceps-brachii",
@@ -227,7 +250,11 @@ test("signed-in flashcards fall back to temporary study when progress session fa
           attemptCount: 10,
           correctCount: 10,
           incorrectCount: 0,
+          lifetimeAttemptCount: 10,
+          lifetimeCorrectCount: 10,
+          lifetimeIncorrectCount: 0,
           masteryThreshold: 10,
+          masteryRound: 1,
           masteredAt: "2026-06-07T00:00:00.000Z",
           lastSeenAt: "2026-06-07T00:00:00.000Z",
         }],
@@ -264,4 +291,100 @@ test("signed-in flashcards fall back to temporary study when progress session fa
   await expect(page.getByText(/1 of \d+/)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/Studying temporarily; progress tracking could not be started\./i)).toBeVisible()
   expect(sessionStartRequests).toBeGreaterThan(0)
+})
+
+test("signed-in flashcards can claim a mastery round and refresh progress", async ({ page }) => {
+  let progressRequests = 0
+  let roundStartRequests = 0
+  let roundClaimed = false
+  let delayedRoundRefresh = false
+  let releaseProgressRefresh: (() => void) | undefined
+  const progressRefreshStarted = new Promise<void>((resolve) => {
+    releaseProgressRefresh = resolve
+  })
+
+  const progressPayload = () => ({
+    progress: {
+      trackedPromptCount: 2,
+      activePromptCount: roundClaimed ? 2 : 0,
+      masteredPromptCount: roundClaimed ? 0 : 2,
+      totalAttempts: 20,
+      totalCorrect: 20,
+      totalIncorrect: 0,
+      accuracyPercent: 100,
+      masteryThreshold: 10,
+      completedSessionCount: 4,
+      achievementCount: roundClaimed ? 2 : 1,
+      bestDurationMs: 45000,
+      targetPromptCount: 2,
+      roundCompletionPercent: roundClaimed ? 0 : 100,
+      completedRoundCount: roundClaimed ? 1 : 0,
+      currentRound: roundClaimed ? 2 : 1,
+      canStartNextRound: !roundClaimed,
+    },
+    recentProgress: [],
+    achievements: [{ key: "flashcards:first-completion", earnedAt: "2026-06-07T00:00:00.000Z" }],
+  })
+
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "browser-test-user" } }),
+    })
+  })
+  await page.route("**/api/education/flashcards/progress", async (route) => {
+    progressRequests += 1
+    if (roundClaimed && !delayedRoundRefresh) {
+      delayedRoundRefresh = true
+      await progressRefreshStarted
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(progressPayload()),
+    })
+  })
+  await page.route("**/api/education/flashcards/progress/round", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback()
+      return
+    }
+
+    roundStartRequests += 1
+    roundClaimed = true
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        round: {
+          round: 1,
+          nextRound: 2,
+          targetPromptCount: 2,
+          masteredPromptCount: 2,
+        },
+      }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Your Progress" })).toBeVisible()
+
+  const claimButton = page.getByRole("button", { name: "Claim round and start next" })
+  await expect(claimButton).toBeVisible()
+  await expect(claimButton).toBeEnabled()
+  await claimButton.click()
+
+  const pendingClaimButton = page
+    .getByRole("button", { name: "Starting..." })
+    .or(page.getByRole("button", { name: "Claim round and start next" }))
+    .first()
+  await expect(pendingClaimButton).toBeDisabled()
+  releaseProgressRefresh?.()
+
+  await expect(page.getByText("Round 1 complete. Round 2 is ready.")).toBeVisible()
+  await expect(page.getByText("Master every sourced prompt in this round to earn a completion badge and begin a fresh round.")).toBeVisible()
+  expect(roundStartRequests).toBe(1)
+  expect(progressRequests).toBeGreaterThan(1)
 })
