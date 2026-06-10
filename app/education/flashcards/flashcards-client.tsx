@@ -1594,35 +1594,35 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
           </div>
           {sortedCommunityDecks.length > 0 ? (
             <div
-              className="group/community-carousel relative"
+              className="group/community-carousel relative overflow-hidden"
               onTouchStart={(event) => startCommunitySwipe(event.touches[0]?.clientX ?? 0)}
               onTouchMove={(event) => updateCommunitySwipe(event.touches[0]?.clientX ?? 0)}
               onTouchEnd={finishCommunitySwipe}
               onTouchCancel={finishCommunitySwipe}
             >
               <div
-                className="ml-flashcard-carousel h-[22rem] overflow-hidden sm:h-[15rem] md:h-[13.5rem]"
+                className="ml-flashcard-carousel h-[17rem] overflow-hidden sm:h-[15rem] md:h-[13.5rem]"
               >
                 <div
                   data-slide={communitySlide?.direction === 1 ? "next" : communitySlide?.direction === -1 ? "previous" : undefined}
-                  className="ml-flashcard-carousel-track -mx-1.5 flex h-full"
+                  className="ml-flashcard-carousel-track flex h-full sm:-mx-1.5"
                 >
                 {visibleCommunityDecks.map((deck) => (
-                  <div key={deck.slug} className="flex h-full min-w-full px-1.5 md:min-w-[50%]">
-                    <article className="flex h-full w-full flex-col rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
+                  <div key={deck.slug} className="flex h-full min-w-full sm:px-1.5 md:min-w-[50%]">
+                    <article className="flex h-full w-full flex-col rounded-md border border-border/80 bg-card/60 p-3 transition hover:border-primary/60 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="break-words font-medium">{deck.title}</h3>
+                          <h3 className="line-clamp-2 break-words font-medium">{deck.title}</h3>
                           <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{deck.description || deck.ownerName}</p>
                         </div>
                         <Badge variant="outline">{deck.isStarter ? "Starter" : deck.visibility}</Badge>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground sm:mt-3">
                         <span>{deck.promptCount} prompts</span>
                         <span>{deck.completionCount} completions</span>
                         <span>{deck.accuracyPercent}% accuracy</span>
                       </div>
-                      <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-2">
+                      <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:pt-4">
                         <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck} className="min-w-0 whitespace-normal">
                           <Play className="mr-2 h-4 w-4" aria-hidden="true" />
                           {isStartingDeck ? "Starting..." : "Study"}
@@ -1640,6 +1640,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 type="button"
                 variant="outline"
                 size="icon"
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => moveCommunityCarousel(-1)}
                 disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
                 aria-label="Previous community decks"
@@ -1651,6 +1652,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 type="button"
                 variant="outline"
                 size="icon"
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => moveCommunityCarousel(1)}
                 disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
                 aria-label="Next community decks"

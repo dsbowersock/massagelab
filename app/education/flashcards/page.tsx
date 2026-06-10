@@ -18,7 +18,7 @@ export default async function EducationFlashcardsPage() {
     <AppPageShell
       title="Flashcards"
       width="full"
-      className="min-h-0 p-0 sm:p-0 lg:p-0"
+      className="ml-flashcards-page min-h-0 overflow-x-hidden p-0 sm:p-0 lg:p-0"
       contentClassName="gap-0"
     >
       <AppSurface
