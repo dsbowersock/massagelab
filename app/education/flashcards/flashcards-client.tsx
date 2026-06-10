@@ -452,10 +452,10 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
           <span>Front</span>
           <span className="max-w-[62%] truncate rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="text-xs leading-snug text-muted-foreground sm:text-sm">{promptFrontInstruction(prompt, isReviewMode)}</p>
+        <p className="line-clamp-2 text-xs leading-snug text-muted-foreground sm:text-sm">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
-      <div className="mt-2 flex min-h-0 items-center justify-center">
+      <div className="mt-1 flex min-h-0 items-center justify-center sm:mt-2">
         {prompt.front.mode === "media" && prompt.front.media ? (
           <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
             <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
@@ -465,13 +465,13 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid max-h-full min-h-0 w-full place-items-center overflow-hidden rounded-none border border-border/80 bg-background/65 px-3 py-3 shadow-inner md:px-8 md:py-8">
-            <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal md:text-4xl">{prompt.front.title}</h2>
+          <div className="grid max-h-full min-h-0 w-full place-items-center overflow-hidden rounded-none border border-border/80 bg-background/65 px-2 py-2 shadow-inner sm:px-3 sm:py-3 md:px-8 md:py-8">
+            <h2 className="max-w-3xl break-words text-center text-lg font-semibold leading-tight tracking-normal min-[360px]:text-xl md:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
       </div>
 
-      <div className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:mt-3 sm:text-xs">
+      <div className="mt-1 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:mt-3 sm:text-xs">
         <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
@@ -585,7 +585,7 @@ function FlashcardSurface({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="relative h-[clamp(13rem,calc(100dvh-16rem),30rem)] min-h-[13rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
+      <div className="relative h-[clamp(11.5rem,calc(100dvh-17.5rem),30rem)] min-h-[11.5rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
         <div
           role={canFlipCard ? "button" : undefined}
           tabIndex={canFlipCard ? 0 : undefined}
@@ -1310,6 +1310,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       : canPersistProgress && sessionId
         ? "Progress tracked"
         : "Temporary study"
+    const showReviewMarkingActions = isReviewMode && isCurrentCardFlipped && !currentResult
 
     return (
       <div ref={runnerTopRef} className="-m-4">
@@ -1384,19 +1385,39 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               )}
             </div>
           ) : (
-            <div className="mx-auto grid w-full max-w-4xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] min-[360px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} aria-label="Previous card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+            <div className={cn(
+              "mx-auto grid w-full max-w-4xl items-center gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)]",
+              showReviewMarkingActions
+                ? "grid-cols-2 min-[560px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+                : "grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+            )}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={previousPrompt}
+                disabled={currentIndex === 0}
+                aria-label="Previous card"
+                className={cn(
+                  "w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm min-[560px]:w-auto",
+                  showReviewMarkingActions && "order-1 min-[560px]:order-none",
+                )}
+              >
                 <ArrowLeft className="h-4 w-4 min-[360px]:mr-2" aria-hidden="true" />
                 <span className="hidden min-[360px]:inline">Previous</span>
               </Button>
-              <div className="flex min-w-0 flex-wrap justify-center gap-2">
-                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="whitespace-nowrap px-3 text-sm sm:px-4">
+              <div className={cn(
+                "min-w-0 gap-2",
+                showReviewMarkingActions
+                  ? "order-3 col-span-2 grid grid-cols-3 min-[560px]:order-none min-[560px]:col-span-1 min-[560px]:flex min-[560px]:flex-wrap min-[560px]:justify-center"
+                  : "flex flex-wrap justify-center",
+              )}>
+                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="min-w-0 whitespace-normal px-2 text-xs min-[360px]:text-sm sm:px-4">
                   {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
                 </Button>
                 {isCurrentCardFlipped && !currentResult ? (
                   <>
-                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
-                    <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
+                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Missed</Button>
+                    <Button type="button" onClick={() => checkCurrentAnswer(true)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Correct</Button>
                   </>
                 ) : null}
                 {currentResult ? (
@@ -1404,12 +1425,18 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 ) : null}
               </div>
               {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} aria-label="Finish practice" className="w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm sm:w-auto">
+                <Button type="button" variant="outline" onClick={completeStudy} aria-label="Finish practice" className={cn(
+                  "w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm min-[560px]:w-auto",
+                  showReviewMarkingActions && "order-2 min-[560px]:order-none",
+                )}>
                   <CheckCircle2 className="h-4 w-4 min-[420px]:mr-2" aria-hidden="true" />
                   <span className="hidden min-[420px]:inline">Finish Practice</span>
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} aria-label="Next card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+                <Button type="button" variant="outline" onClick={nextPrompt} aria-label="Next card" className={cn(
+                  "w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm min-[560px]:w-auto",
+                  showReviewMarkingActions && "order-2 min-[560px]:order-none",
+                )}>
                   <span className="hidden min-[360px]:inline">Next</span>
                   <ArrowRight className="h-4 w-4 min-[360px]:ml-2" aria-hidden="true" />
                 </Button>
@@ -1427,8 +1454,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <section className="space-y-5">
+    <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section className="min-w-0 space-y-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Layers3 className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -1438,8 +1465,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <p className="text-sm text-muted-foreground">Sourced anatomy prompts for self-study.</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-md border border-primary/40 bg-primary/10 p-4">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+          <div className="min-w-0 overflow-hidden rounded-md border border-primary/40 bg-primary/10 p-4">
             <div className="flex items-start gap-3">
               <div className="rounded-md border border-primary/30 bg-background/70 p-2 text-primary">
                 <BookOpen className="h-5 w-5" aria-hidden="true" />
@@ -1450,14 +1477,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               </div>
             </div>
             {communityDecks.length > 0 ? (
-              <Button type="button" className="mt-4 w-full sm:w-auto" onClick={() => showSetupSection("community")}>
+              <Button type="button" className="mt-4 h-auto min-h-10 w-full min-w-0 whitespace-normal text-center sm:w-auto" onClick={() => showSetupSection("community")}>
                 <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
                 Browse Premade Decks
               </Button>
             ) : null}
           </div>
 
-          <div className="rounded-md border border-border/80 bg-background/70 p-4">
+          <div className="min-w-0 overflow-hidden rounded-md border border-border/80 bg-background/70 p-4">
             <div className="flex items-start gap-3">
               <div className="rounded-md border border-border/80 bg-card/70 p-2 text-primary">
                 <Layers3 className="h-5 w-5" aria-hidden="true" />
@@ -1467,14 +1494,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 <p className="text-sm text-muted-foreground">Choose the anatomy, prompt types, and review style before seeing cards.</p>
               </div>
             </div>
-            <Button type="button" variant="outline" className="mt-4 w-full sm:w-auto" onClick={() => showSetupSection("custom")}>
+            <Button type="button" variant="outline" className="mt-4 h-auto min-h-10 w-full min-w-0 whitespace-normal text-center sm:w-auto" onClick={() => showSetupSection("custom")}>
               <Layers3 className="mr-2 h-4 w-4" aria-hidden="true" />
               Configure Custom Deck
             </Button>
           </div>
         </div>
 
-        <div ref={communityDecksRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
+        <div ref={communityDecksRef} className="min-w-0 scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <Link href="/education/flashcards/decks" className="flex items-center gap-2 transition hover:text-primary">
               <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -1491,15 +1518,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               onTouchCancel={finishCommunitySwipe}
             >
               <div
-                className="ml-flashcard-carousel overflow-hidden"
+                className="ml-flashcard-carousel min-h-[14rem] overflow-hidden sm:min-h-[13rem]"
               >
                 <div
                   data-slide={communitySlide?.direction === 1 ? "next" : communitySlide?.direction === -1 ? "previous" : undefined}
-                  className="ml-flashcard-carousel-track -mx-1.5 flex"
+                  className="ml-flashcard-carousel-track -mx-1.5 flex min-h-[14rem] sm:min-h-[13rem]"
                 >
                 {visibleCommunityDecks.map((deck) => (
-                  <div key={deck.slug} className="min-w-full px-1.5 md:min-w-[50%]">
-                    <article className="h-full rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
+                  <div key={deck.slug} className="flex min-w-full px-1.5 md:min-w-[50%]">
+                    <article className="flex min-h-[13.5rem] w-full flex-col rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60 sm:min-h-[12.5rem]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <h3 className="break-words font-medium">{deck.title}</h3>
@@ -1512,12 +1539,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                         <span>{deck.completionCount} completions</span>
                         <span>{deck.accuracyPercent}% accuracy</span>
                       </div>
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck}>
+                      <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-2">
+                        <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck} className="min-w-0 whitespace-normal">
                           <Play className="mr-2 h-4 w-4" aria-hidden="true" />
                           {isStartingDeck ? "Starting..." : "Study"}
                         </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)} className="min-w-0 whitespace-normal">
                           View
                         </Button>
                       </div>
