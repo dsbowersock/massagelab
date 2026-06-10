@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -377,9 +377,27 @@ function configFromState(state: {
   }
 }
 
-function accuracy(correct: number, answered: number) {
-  if (answered === 0) return 0
-  return Math.round((correct / answered) * 100)
+function promptFrontInstruction(prompt: FlashcardPrompt, isReviewMode: boolean) {
+  const reviewInstructions: Record<FlashcardPromptType, string> = {
+    identify_from_media: "Identify the anatomy item.",
+    name_to_summary: "Recall the key facts for this anatomy item.",
+    name_to_region: "Recall where this anatomy item is located.",
+    name_to_category: "Recall what kind of anatomy item this is.",
+    muscle_origin_insertion: "Recall the origin and insertion.",
+    muscle_action: "Recall the action.",
+    muscle_innervation: "Recall the innervation.",
+  }
+  const typedInstructions: Record<FlashcardPromptType, string> = {
+    identify_from_media: "Enter the anatomy item name.",
+    name_to_summary: "Enter the key facts for this anatomy item.",
+    name_to_region: "Enter where this anatomy item is located.",
+    name_to_category: "Enter what kind of anatomy item this is.",
+    muscle_origin_insertion: "Enter the origin and insertion.",
+    muscle_action: "Enter the muscle action.",
+    muscle_innervation: "Enter the innervation.",
+  }
+
+  return isReviewMode ? reviewInstructions[prompt.type] : typedInstructions[prompt.type]
 }
 
 function PromptSourceLinks({ prompt }: { prompt: FlashcardPrompt }) {
@@ -410,31 +428,33 @@ function PromptBadges({ prompt }: { prompt: FlashcardPrompt }) {
 
 function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isReviewMode: boolean }) {
   return (
-    <div className="flex h-full flex-col gap-5 p-5 sm:p-7">
-      <div className="space-y-3">
+    <div className="mx-0 grid h-full grid-rows-[auto_minmax(0,1fr)_auto] rounded-lg bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] px-3 py-2 sm:mx-2 sm:px-4 sm:py-3">
+      <div className="grid shrink-0 gap-y-1">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
-          <span>Question</span>
-          <span>{prompt.typeLabel}</span>
+          <span>Front</span>
+          <span className="max-w-[62%] truncate rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="text-sm text-muted-foreground">{prompt.front.instruction}</p>
+        <p className="text-xs leading-snug text-muted-foreground sm:text-sm">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div className="mt-2 flex min-h-0 items-center justify-center">
         {prompt.front.mode === "media" && prompt.front.media ? (
-          <figure className="flex h-full w-full flex-col overflow-hidden rounded-md border border-border/80 bg-background/70">
-            <div className="flex min-h-0 flex-1 items-center justify-center p-3">
+          <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
+            <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- reviewed source media can come from multiple external hosts not configured for next/image. */}
-              <img src={prompt.front.media.url} alt={prompt.front.media.title} className="max-h-[20rem] w-full object-contain sm:max-h-[26rem]" loading="lazy" referrerPolicy="no-referrer" />
+              <img src={prompt.front.media.url} alt="Reviewed anatomy study image" className="max-h-full max-w-full object-contain drop-shadow-sm" loading="lazy" referrerPolicy="no-referrer" />
             </div>
-            <figcaption className="border-t border-border/80 px-3 py-2 text-xs text-muted-foreground">{prompt.front.media.title}</figcaption>
+            <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <h2 className="max-w-3xl break-words text-center text-3xl font-semibold tracking-normal sm:text-5xl">{prompt.front.title}</h2>
+          <div className="grid max-h-full min-h-0 w-full place-items-center overflow-hidden rounded-none border border-border/80 bg-background/65 px-3 py-3 shadow-inner md:px-8 md:py-8">
+            <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal md:text-4xl">{prompt.front.title}</h2>
+          </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
-        <span>{isReviewMode ? "Reveal when ready, then mark your recall." : "Type your answer below, then check it."}</span>
+      <div className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:mt-3 sm:text-xs">
+        <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
     </div>
@@ -443,7 +463,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
 
 function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: PromptResult | null }) {
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto p-5 sm:p-7">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-4 sm:p-5">
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Sourced Answer</span>
@@ -462,14 +482,14 @@ function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: Promp
 
       <div className="grid gap-3">
         {prompt.answerFields.map((field) => (
-          <div key={field.id} className="rounded-md border border-border/80 bg-background/70 p-4">
+          <div key={field.id} className="rounded-none border border-border/80 bg-background/75 p-4 shadow-inner">
             <div className="text-xs font-medium uppercase text-muted-foreground">{field.label}</div>
             <p className="mt-2 whitespace-pre-wrap break-words text-base leading-7 text-foreground">{field.answer}</p>
           </div>
         ))}
       </div>
 
-      <div className="mt-auto space-y-3 border-t border-border/70 pt-4">
+      <div className="mt-auto space-y-2 border-t border-border/70 pt-3">
         <PromptBadges prompt={prompt} />
         <PromptSourceLinks prompt={prompt} />
       </div>
@@ -533,43 +553,54 @@ function FlashcardSurface({
   prompt,
   isFlipped,
   isReviewMode,
-  onReveal,
+  onFlip,
   result,
 }: {
   prompt: FlashcardPrompt
   isFlipped: boolean
   isReviewMode: boolean
-  onReveal: () => void
+  onFlip: () => void
   result: PromptResult | null
 }) {
-  const canRevealFromCard = isReviewMode && !isFlipped && !result
+  const canFlipCard = isReviewMode
   const shouldRenderBack = isFlipped || Boolean(result)
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <div className="relative min-h-[30rem] sm:min-h-[34rem] [perspective:1600px]">
+    <div className="mx-auto w-full max-w-4xl">
+      <div className="relative h-[clamp(13rem,calc(100dvh-16rem),30rem)] min-h-[13rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
         <div
-          role={canRevealFromCard ? "button" : undefined}
-          tabIndex={canRevealFromCard ? 0 : undefined}
-          aria-label={canRevealFromCard ? "Flip flashcard" : undefined}
-          onClick={canRevealFromCard ? onReveal : undefined}
+          role={canFlipCard ? "button" : undefined}
+          tabIndex={canFlipCard ? 0 : undefined}
+          aria-label={canFlipCard ? (isFlipped ? "Flip flashcard to prompt" : "Flip flashcard to answer") : undefined}
+          onClick={canFlipCard ? (event) => {
+            const target = event.target instanceof HTMLElement ? event.target : null
+            if (target?.closest("a,button,input,select,textarea")) return
+            onFlip()
+          } : undefined}
           onKeyDown={(event) => {
-            if (!canRevealFromCard) return
+            if (!canFlipCard) return
+            const target = event.target instanceof HTMLElement ? event.target : null
+            if (target?.closest("a,button,input,select,textarea")) return
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault()
-              onReveal()
+              onFlip()
             }
           }}
           className={cn(
-            "absolute inset-0 rounded-lg transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
+            "absolute inset-0 rounded-none transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none",
             isFlipped && "[transform:rotateY(180deg)]",
-            canRevealFromCard && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            canFlipCard && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
         >
-          <article className="absolute inset-0 overflow-hidden rounded-lg border border-border/80 bg-[linear-gradient(135deg,hsl(var(--card)),hsl(var(--background)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden]">
+          <article className="absolute inset-0 overflow-hidden border-0 p-1 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--border))] ring-1 ring-white/5 [backface-visibility:hidden] sm:p-2">
             <PromptFront prompt={prompt} isReviewMode={isReviewMode} />
           </article>
-          <article aria-hidden={!shouldRenderBack} className="absolute inset-0 overflow-hidden rounded-lg border border-primary/40 bg-[linear-gradient(135deg,hsl(var(--background)),hsl(var(--card)))] shadow-[0_24px_70px_rgba(0,0,0,0.28)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <article
+            aria-hidden={!isFlipped}
+            inert={!isFlipped ? true : undefined}
+            tabIndex={isFlipped ? undefined : -1}
+            className="absolute inset-0 overflow-hidden border-0 p-1 shadow-[0_28px_90px_rgba(0,0,0,0.34),0_2px_0_hsl(var(--primary)/0.35)] ring-1 ring-primary/15 [backface-visibility:hidden] [transform:rotateY(180deg)] sm:p-2"
+          >
             {shouldRenderBack ? <PromptBack prompt={prompt} result={result} /> : null}
           </article>
         </div>
@@ -581,6 +612,12 @@ function FlashcardSurface({
 export function FlashcardsClient({ categories, regions, sources, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
+  const runnerTopRef = useRef<HTMLDivElement | null>(null)
+  const communityCarouselInteractedRef = useRef(false)
+  const communitySwipeStartXRef = useRef<number | null>(null)
+  const communitySwipeDeltaXRef = useRef(0)
+  const communitySlideTimeoutRef = useRef<number | null>(null)
+  const communityAutoAdvanceIntervalRef = useRef<number | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<NormalizedFlashcardDeckConfig["categories"]>([...allCategoryIds])
   const [selectedRegions, setSelectedRegions] = useState<NormalizedFlashcardDeckConfig["regions"]>([...allRegionIds])
   const [difficulty, setDifficulty] = useState<AnatomyStudyDifficulty>("medium")
@@ -611,6 +648,9 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [skipMasteredPrompts, setSkipMasteredPrompts] = useState(false)
   const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
   const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
+  const [communityDeckIndex, setCommunityDeckIndex] = useState(0)
+  const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
+  const [activeDeckActivation, setActiveDeckActivation] = useState(0)
   const studyStartedAtRef = useRef<number | null>(null)
 
   const refreshProgressDashboard = useCallback(async () => {
@@ -778,6 +818,41 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const exactPromptSelectionActive = selectedPromptIds.length > 0
   const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
+  const sortedCommunityDecks = communityDecks
+  const visibleCommunityDecks = useMemo(() => {
+    if (sortedCommunityDecks.length <= 2) return sortedCommunityDecks
+
+    const deckAt = (offset: number) => sortedCommunityDecks[
+      (communityDeckIndex + offset + sortedCommunityDecks.length) % sortedCommunityDecks.length
+    ]
+
+    if (communitySlide?.direction === -1) return [-1, 0, 1].map(deckAt)
+    if (communitySlide?.direction === 1) return [0, 1, 2].map(deckAt)
+    return [0, 1].map(deckAt)
+  }, [communityDeckIndex, communitySlide, sortedCommunityDecks])
+  const carouselPositionLabel = sortedCommunityDecks.length > 0
+    ? `Community deck carousel position ${Math.min(communityDeckIndex + 1, sortedCommunityDecks.length)}/${sortedCommunityDecks.length}`
+    : "Community deck carousel position 0/0"
+
+  useEffect(() => {
+    if (communitySlideTimeoutRef.current !== null) {
+      window.clearTimeout(communitySlideTimeoutRef.current)
+      communitySlideTimeoutRef.current = null
+    }
+    setCommunitySlide(null)
+    setCommunityDeckIndex(0)
+  }, [sortedCommunityDecks.length])
+
+  useEffect(() => {
+    return () => {
+      if (communitySlideTimeoutRef.current !== null) {
+        window.clearTimeout(communitySlideTimeoutRef.current)
+      }
+      if (communityAutoAdvanceIntervalRef.current !== null) {
+        window.clearInterval(communityAutoAdvanceIntervalRef.current)
+      }
+    }
+  }, [])
 
   const togglePromptType = (type: FlashcardPromptType) => {
     setPromptTypes((current) => {
@@ -826,6 +901,95 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     target?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
+  const moveCommunityCarousel = useCallback((direction: 1 | -1, userInitiated = true) => {
+    if (userInitiated) {
+      communityCarouselInteractedRef.current = true
+      if (communityAutoAdvanceIntervalRef.current !== null) {
+        window.clearInterval(communityAutoAdvanceIntervalRef.current)
+        communityAutoAdvanceIntervalRef.current = null
+      }
+    }
+    if (sortedCommunityDecks.length <= 2 || communitySlide) return
+
+    const nextIndex = (communityDeckIndex + direction + sortedCommunityDecks.length) % sortedCommunityDecks.length
+    const commitSlide = () => {
+      setCommunityDeckIndex(nextIndex)
+      setCommunitySlide(null)
+      communitySlideTimeoutRef.current = null
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      commitSlide()
+      return
+    }
+
+    setCommunitySlide({ direction })
+    if (communitySlideTimeoutRef.current !== null) window.clearTimeout(communitySlideTimeoutRef.current)
+    communitySlideTimeoutRef.current = window.setTimeout(commitSlide, 360)
+  }, [communityDeckIndex, communitySlide, sortedCommunityDecks.length])
+
+  useEffect(() => {
+    if (communityCarouselInteractedRef.current || sortedCommunityDecks.length <= 2) return
+
+    const intervalId = window.setInterval(() => moveCommunityCarousel(1, false), 7000)
+    communityAutoAdvanceIntervalRef.current = intervalId
+
+    return () => {
+      window.clearInterval(intervalId)
+      if (communityAutoAdvanceIntervalRef.current === intervalId) communityAutoAdvanceIntervalRef.current = null
+    }
+  }, [moveCommunityCarousel, sortedCommunityDecks.length])
+
+  const startCommunitySwipe = (clientX: number) => {
+    communitySwipeStartXRef.current = clientX
+    communitySwipeDeltaXRef.current = 0
+  }
+
+  const updateCommunitySwipe = (clientX: number) => {
+    if (communitySwipeStartXRef.current === null) return
+    communitySwipeDeltaXRef.current = clientX - communitySwipeStartXRef.current
+  }
+
+  const finishCommunitySwipe = () => {
+    const deltaX = communitySwipeDeltaXRef.current
+    communitySwipeStartXRef.current = null
+    communitySwipeDeltaXRef.current = 0
+
+    if (Math.abs(deltaX) < 44) return
+    moveCommunityCarousel(deltaX < 0 ? 1 : -1)
+  }
+
+  const applyDeckConfig = (deck: FlashcardDeckSummary) => {
+    setDeckTitle(deck.title)
+    setDeckDescription(deck.description)
+    setVisibility(deck.visibility)
+    setSelectedCategories(deck.config.categories.length > 0 ? deck.config.categories : [...allCategoryIds])
+    setSelectedRegions(deck.config.regions.length > 0 ? deck.config.regions : [...allRegionIds])
+    setDifficulty(deck.config.difficulty)
+    setPromptTypes(deck.config.promptTypes)
+    setAnswerMode(deck.config.answerMode)
+    setDeckSize(deck.config.count)
+    setSelectedPromptIds(deck.config.promptIds ?? [])
+  }
+
+  const viewDeckSetup = (deck: FlashcardDeckSummary, message = "Deck options loaded. Adjust or start when ready.") => {
+    applyDeckConfig(deck)
+    setActiveDeck([])
+    setActiveConfig(null)
+    setActiveDeckKind(deck.isStarter ? "starter" : "community")
+    setSessionId("")
+    setCurrentIndex(0)
+    setAnswers({})
+    setIsCardFlipped(false)
+    setCheckedResult(null)
+    setResults([])
+    setSaveMessage(message)
+    studyStartedAtRef.current = null
+    window.requestAnimationFrame(() => {
+      customDeckBuilderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
+
   const startDeck = async (config = setupConfig, deckSlug = "", deckKind: ActiveDeckKind = deckSlug ? "community" : "temporary") => {
     if (isStartingDeck) return
 
@@ -839,6 +1003,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         setActiveDeckKind(nextDeckKind)
         setSessionId(nextSessionId)
         studyStartedAtRef.current = Date.now()
+        setActiveDeckActivation((activation) => activation + 1)
         setCurrentIndex(0)
         setAnswers({})
         setIsCardFlipped(false)
@@ -934,23 +1099,29 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   }
 
   const startFromDeck = (deck: FlashcardDeckSummary) => {
-    setDeckTitle(deck.title)
-    setDeckDescription(deck.description)
-    setVisibility(deck.visibility)
-    setSelectedCategories(deck.config.categories.length > 0 ? deck.config.categories : [...allCategoryIds])
-    setSelectedRegions(deck.config.regions.length > 0 ? deck.config.regions : [...allRegionIds])
-    setDifficulty(deck.config.difficulty)
-    setPromptTypes(deck.config.promptTypes)
-    setAnswerMode(deck.config.answerMode)
-    setDeckSize(deck.config.count)
-    setSelectedPromptIds(deck.config.promptIds ?? [])
+    applyDeckConfig(deck)
     void startDeck(deck.config, deck.isStarter ? "" : deck.slug, deck.isStarter ? "starter" : "community")
   }
 
   useEffect(() => {
-    if (initialDeck) startFromDeck(initialDeck)
+    if (initialDeck) viewDeckSetup(initialDeck, "")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDeck?.slug])
+
+  useEffect(() => {
+    if (activeDeckActivation === 0) return
+
+    const animationId = window.requestAnimationFrame(() => {
+      runnerTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      const scrollParent = runnerTopRef.current?.closest(".ml-app-scroll")
+      if (scrollParent instanceof HTMLElement) {
+        scrollParent.scrollTo({ top: 0, behavior: "smooth" })
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    })
+
+    return () => window.cancelAnimationFrame(animationId)
+  }, [activeDeckActivation])
 
   const persistDraftAndPromptSignIn = () => {
     window.localStorage.setItem(draftStorageKey, JSON.stringify(setupConfig))
@@ -1082,112 +1253,123 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
 
   if (activeDeck.length > 0 && currentPrompt && activeConfig) {
     const isReviewMode = activeConfig.answerMode === "review"
-    const isCurrentCardFlipped = Boolean(currentResult) || isCardFlipped
+    const isCurrentCardFlipped = isReviewMode ? isCardFlipped : Boolean(currentResult) || isCardFlipped
+    const runnerStatusLabel = isReviewMode
+      ? "Practice only"
+      : canPersistProgress && sessionId
+        ? "Progress tracked"
+        : "Temporary study"
 
     return (
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button type="button" variant="outline" onClick={resetStudy}>
-            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+      <div ref={runnerTopRef} className="-m-4">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 rounded-none border border-border/80 bg-background/70 px-2 py-1 sm:flex sm:justify-between">
+          <Button type="button" variant="outline" size="sm" onClick={resetStudy} className="h-8 shrink-0 rounded-lg px-2 text-xs leading-none [&_svg]:size-3.5">
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Setup
           </Button>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{currentIndex + 1} of {activeDeck.length}</span>
-            <span>{accuracy(correctCount, answeredCount)}% correct</span>
-            <Badge variant="outline">{activeDeckKindLabels[activeDeckKind]}</Badge>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-[11px] leading-tight text-muted-foreground sm:gap-x-2 sm:text-xs" aria-live="polite">
+            <span className="font-medium text-foreground">Card {currentIndex + 1} of {activeDeck.length}</span>
+            <span aria-hidden="true">/</span>
+            <span>{answeredCount > 0 ? `${correctCount}/${answeredCount} correct` : "0 correct"}</span>
+            <span aria-hidden="true">/</span>
+            <span>{runnerStatusLabel}</span>
+            <span aria-hidden="true">/</span>
+            <span>{activeDeckKindLabels[activeDeckKind]}</span>
+            {!canPersistProgress ? (
+              <Button asChild variant="link" className="h-auto p-0 text-xs text-muted-foreground hover:text-primary">
+                <Link href="/login?callbackUrl=/education/flashcards">
+                  <Lock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                  Sign in to save
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
 
-        <Progress value={progress} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
+        <Progress value={progress} className="h-1.5 bg-neutral-800 [&>div]:bg-primary" />
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="space-y-4">
-            <FlashcardSurface
-              prompt={currentPrompt}
-              isFlipped={isCurrentCardFlipped}
-              isReviewMode={isReviewMode}
-              onReveal={() => setIsCardFlipped(true)}
-              result={currentResult}
-            />
+        <section className="space-y-2">
+          <FlashcardSurface
+            prompt={currentPrompt}
+            isFlipped={isCurrentCardFlipped}
+            isReviewMode={isReviewMode}
+            onFlip={() => setIsCardFlipped((flipped) => !flipped)}
+            result={currentResult}
+          />
 
-            {!isReviewMode ? (
-              <div className="mx-auto grid w-full max-w-5xl gap-3 rounded-md border border-border/80 bg-background/70 p-4 md:grid-cols-2">
+          {!isReviewMode ? (
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-lg border-0 bg-background/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="order-2 w-full sm:order-none sm:w-auto">
+                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+                Previous
+              </Button>
+              <div className={cn("order-1 col-span-2 grid min-w-0 gap-2 sm:order-none sm:col-span-1", currentPrompt.answerFields.length > 1 && "sm:grid-cols-2")}>
                 {currentPrompt.answerFields.map((field) => (
-                  <div key={field.id} className="space-y-2">
-                    <Label htmlFor={`answer-${field.id}`}>{field.label}</Label>
+                  <div key={field.id} className="min-w-0">
+                    <Label htmlFor={`answer-${field.id}`} className="sr-only">{field.label}</Label>
                     <Input
                       id={`answer-${field.id}`}
                       value={answers[field.id] ?? ""}
                       onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))}
                       disabled={Boolean(currentResult)}
                       autoComplete="off"
+                      placeholder={field.label}
                     />
                   </div>
                 ))}
               </div>
-            ) : null}
-
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 rounded-md border border-border/80 bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
-                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-                Previous
+              <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)} className="order-4 col-span-2 w-full sm:order-none sm:col-span-1 sm:w-auto">
+                {currentResult ? "Checked" : "Check Answer"}
               </Button>
-              <div className="flex flex-wrap justify-center gap-2">
-                {isReviewMode ? (
-                  <>
-                    {!isCurrentCardFlipped ? (
-                      <Button type="button" onClick={() => setIsCardFlipped(true)}>
-                        Reveal Answer
-                      </Button>
-                    ) : !currentResult ? (
-                      <>
-                        <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
-                        <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
-                      </>
-                    ) : (
-                      <Badge variant="outline">{currentResult.correct ? "Marked correct" : "Marked missed"}</Badge>
-                    )}
-                  </>
-                ) : (
-                  <Button type="button" onClick={() => checkCurrentAnswer()} disabled={Boolean(currentResult)}>
-                    {currentResult ? "Checked" : "Check Answer"}
-                  </Button>
-                )}
-              </div>
               {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
+                <Button type="button" variant="outline" onClick={completeStudy} className="order-3 w-full sm:order-none sm:w-auto">
                   Save Results
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
+                <Button type="button" variant="outline" onClick={nextPrompt} className="order-3 w-full sm:order-none sm:w-auto">
                   Next
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             </div>
-          </div>
-
-          <aside className="space-y-3 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
-            <h3 className="text-sm font-medium">Deck Stats</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-md border border-border/80 p-3"><div className="text-muted-foreground">Answered</div><div className="text-lg font-semibold">{answeredCount}</div></div>
-              <div className="rounded-md border border-border/80 p-3"><div className="text-muted-foreground">Correct</div><div className="text-lg font-semibold">{correctCount}</div></div>
-            </div>
-            <div className="rounded-md border border-border/80 p-3 text-sm">
-              <div className="text-muted-foreground">Mode</div>
-              <div className="font-medium">{answerModeLabels[activeConfig.answerMode]}</div>
-            </div>
-            {!canPersistProgress ? (
-              <div className="rounded-md border border-border/80 bg-card/70 p-3 text-sm text-muted-foreground">
-                <Lock className="mb-2 h-4 w-4" aria-hidden="true" />
-                Sign in to save progress and achievements.
-                <Button asChild variant="outline" className="mt-3 w-full">
-                  <Link href="/login?callbackUrl=/education/flashcards">Sign In</Link>
+          ) : (
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] min-[360px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} aria-label="Previous card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+                <ArrowLeft className="h-4 w-4 min-[360px]:mr-2" aria-hidden="true" />
+                <span className="hidden min-[360px]:inline">Previous</span>
+              </Button>
+              <div className="flex min-w-0 flex-wrap justify-center gap-2">
+                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="whitespace-nowrap px-3 text-sm sm:px-4">
+                  {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
                 </Button>
+                {isCurrentCardFlipped && !currentResult ? (
+                  <>
+                    <Button type="button" variant="outline" onClick={() => checkCurrentAnswer(false)}>Missed</Button>
+                    <Button type="button" onClick={() => checkCurrentAnswer(true)}>Correct</Button>
+                  </>
+                ) : null}
+                {currentResult ? (
+                  <Badge variant="outline">{currentResult.correct ? "Marked correct" : "Marked missed"}</Badge>
+                ) : null}
               </div>
-            ) : null}
-            {saveMessage ? <p className="text-sm text-muted-foreground">{saveMessage}</p> : null}
-          </aside>
+              {currentIndex >= activeDeck.length - 1 ? (
+                <Button type="button" variant="outline" onClick={completeStudy} aria-label="Finish practice" className="w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm sm:w-auto">
+                  <CheckCircle2 className="h-4 w-4 min-[420px]:mr-2" aria-hidden="true" />
+                  <span className="hidden min-[420px]:inline">Finish Practice</span>
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={nextPrompt} aria-label="Next card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+                  <span className="hidden min-[360px]:inline">Next</span>
+                  <ArrowRight className="h-4 w-4 min-[360px]:ml-2" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+          )}
+          {saveMessage ? (
+            <div className="mx-auto flex w-full max-w-4xl justify-end text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">{saveMessage}</p>
+            </div>
+          ) : null}
         </section>
       </div>
     )
@@ -1196,6 +1378,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="space-y-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Layers3 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <h1 className="text-xl font-semibold">Flashcards</h1>
+            <Badge variant="outline" className="border-primary/50 text-primary">Public alpha</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">Sourced anatomy prompts for self-study.</p>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-md border border-primary/40 bg-primary/10 p-4">
             <div className="flex items-start gap-3">
@@ -1233,40 +1424,86 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
         </div>
 
         <div ref={communityDecksRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <Link href="/education/flashcards/decks" className="flex items-center gap-2 transition hover:text-primary">
               <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
               <h2 className="text-lg font-semibold">Community Decks</h2>
-            </div>
-            <Badge variant="outline">{communityDecks.length} available</Badge>
+            </Link>
+            <Badge variant="outline" className="w-fit">{communityDecks.length} available</Badge>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {communityDecks.map((deck) => (
-              <article key={deck.slug} className="rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="break-words font-medium">{deck.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{deck.description || deck.ownerName}</p>
+          {sortedCommunityDecks.length > 0 ? (
+            <div
+              className="group/community-carousel relative"
+              onTouchStart={(event) => startCommunitySwipe(event.touches[0]?.clientX ?? 0)}
+              onTouchMove={(event) => updateCommunitySwipe(event.touches[0]?.clientX ?? 0)}
+              onTouchEnd={finishCommunitySwipe}
+              onTouchCancel={finishCommunitySwipe}
+            >
+              <div
+                className="ml-flashcard-carousel overflow-hidden"
+              >
+                <div
+                  data-slide={communitySlide?.direction === 1 ? "next" : communitySlide?.direction === -1 ? "previous" : undefined}
+                  className="ml-flashcard-carousel-track -mx-1.5 flex"
+                >
+                {visibleCommunityDecks.map((deck) => (
+                  <div key={deck.slug} className="min-w-full px-1.5 md:min-w-[50%]">
+                    <article className="h-full rounded-md border border-border/80 bg-card/60 p-4 transition hover:border-primary/60">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="break-words font-medium">{deck.title}</h3>
+                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{deck.description || deck.ownerName}</p>
+                        </div>
+                        <Badge variant="outline">{deck.isStarter ? "Starter" : deck.visibility}</Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>{deck.promptCount} prompts</span>
+                        <span>{deck.completionCount} completions</span>
+                        <span>{deck.accuracyPercent}% accuracy</span>
+                      </div>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck}>
+                          <Play className="mr-2 h-4 w-4" aria-hidden="true" />
+                          {isStartingDeck ? "Starting..." : "Study"}
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)}>
+                          View
+                        </Button>
+                      </div>
+                    </article>
                   </div>
-                  <Badge variant="outline">{deck.isStarter ? "Starter" : deck.visibility}</Badge>
+                ))}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span>{deck.promptCount} prompts</span>
-                  <span>{deck.completionCount} completions</span>
-                  <span>{deck.accuracyPercent}% accuracy</span>
-                </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  <Button type="button" size="sm" onClick={() => startFromDeck(deck)} disabled={isStartingDeck}>
-                    <Play className="mr-2 h-4 w-4" aria-hidden="true" />
-                    {isStartingDeck ? "Starting..." : "Study"}
-                  </Button>
-                  <Button asChild type="button" size="sm" variant="outline">
-                    <Link href={`/education/flashcards/decks/${deck.slug}`}>View</Link>
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => moveCommunityCarousel(-1)}
+                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                aria-label="Previous community decks"
+                className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-left-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => moveCommunityCarousel(1)}
+                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                aria-label="Next community decks"
+                className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-right-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+              >
+                <ChevronRight className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <span className="sr-only">{carouselPositionLabel}</span>
+            </div>
+          ) : (
+            <div className="rounded-md border border-border/80 bg-card/60 p-4 text-sm text-muted-foreground">
+              No public decks are available yet.
+            </div>
+          )}
         </div>
 
         <div ref={customDeckBuilderRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
@@ -1548,17 +1785,17 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
       </section>
 
       <aside className="space-y-4 rounded-md border border-border/80 bg-background/70 p-4 xl:sticky xl:top-4 xl:self-start">
-        <h2 className="text-lg font-semibold">Study Setup</h2>
+        <h2 className="text-lg font-semibold">Current Deck</h2>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-md border border-border/80 p-3">
             <Timer className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
-            <div className="text-muted-foreground">Deck Size</div>
+            <div className="text-muted-foreground">Cards selected</div>
             <div className="font-medium">{displayedDeckSize}</div>
           </div>
           <div className="rounded-md border border-border/80 p-3">
             <Shuffle className="mb-2 h-4 w-4 text-primary" aria-hidden="true" />
-            <div className="text-muted-foreground">Modes</div>
-            <div className="font-medium">{promptTypes.length}</div>
+            <div className="text-muted-foreground">Prompt types</div>
+            <div className="font-medium">{promptTypes.length} selected</div>
           </div>
         </div>
         <Button type="button" variant="outline" className="w-full" onClick={() => {

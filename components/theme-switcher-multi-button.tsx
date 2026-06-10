@@ -138,7 +138,7 @@ export function ThemeSwitcherMultiButton({
       role="group"
       aria-label="Theme"
       className={cn(
-        "relative isolate inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.05),0_1px_8px_hsl(var(--background)/0.24)] backdrop-blur",
+        "group relative isolate inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.05),0_1px_8px_hsl(var(--background)/0.24)] backdrop-blur",
         className,
       )}
       {...props}
@@ -156,6 +156,7 @@ export function ThemeSwitcherMultiButton({
       >
         {themes.map(({ value, icon: Icon, label, shortLabel }) => {
           const isActive = mounted && settings.themeMode === value
+          const isSelected = settings.themeMode === value
 
           return (
             <ToggleGroupItem
@@ -168,6 +169,7 @@ export function ThemeSwitcherMultiButton({
               onPointerDown={rememberTransitionOrigin}
               className={cn(
                 "relative size-8 min-w-0 rounded-full p-0 text-muted-foreground transition-[background-color,color,box-shadow,transform] hover:bg-transparent hover:text-foreground active:translate-y-px data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--brand-orange-glow)/0.34)]",
+                !isSelected && "max-sm:hidden max-sm:group-focus-within:inline-flex max-sm:group-hover:inline-flex",
                 !mounted && "pointer-events-none animate-pulse bg-muted/70",
               )}
             >

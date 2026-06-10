@@ -24,6 +24,8 @@ const safeSourceIds = new Set([
   "openstax-human-biology",
   "servier-medical-art",
 ])
+const bodyParts3dBicepsImageUrl = "https://media.massagelab.test/anatomy/bodyparts3d/anatomograms/biceps-brachii.png"
+const bodyParts3dMediaUrlBySlug = new Map([["bodyparts3d-biceps-brachii-anatomogram", bodyParts3dBicepsImageUrl]])
 
 describe("Sourced anatomy study adapter", () => {
   it("builds public study cards only from reviewed reusable study sources", () => {
@@ -83,33 +85,36 @@ describe("Sourced anatomy study adapter", () => {
   })
 
   it("selects reviewed reusable media when available", () => {
-    const mediaCards = getAnatomyStudyCards().filter((card) => card.media.length > 0)
+    const mediaCards = getAnatomyStudyCards({}, { mediaUrlBySlug: bodyParts3dMediaUrlBySlug }).filter((card) => card.media.length > 0)
 
     assert.ok(mediaCards.length > 0)
     assert.equal(mediaCards.every((card) => card.media.every((asset) => asset.url && safeSourceIds.has(asset.sourceRef))), true)
+    assert.equal(mediaCards.every((card) => card.media.every((asset) => asset.sourceRef === "bodyparts3d")), true)
+    assert.equal(mediaCards.every((card) => card.media.every((asset) => asset.sourceRef !== "servier-medical-art")), true)
     assert.equal(mediaCards.every((card) => card.media.every((asset) => !asset.url.includes("lifesciencedb.jp/bp3d/API"))), true)
   })
 
   it("promotes uploaded R2 media URLs without exposing unstable source API images", () => {
-    const uploadedUrl = "https://media.massagelab.test/anatomy/bodyparts3d/anatomograms/biceps-brachii.png"
     const prompts = getAnatomyStudyPrompts({
       categories: ["muscle"],
       promptTypes: ["identify_from_media"],
       difficulty: "hard",
     }, {
-      mediaUrlBySlug: new Map([["bodyparts3d-biceps-brachii-anatomogram", uploadedUrl]]),
+      mediaUrlBySlug: bodyParts3dMediaUrlBySlug,
     })
 
     const uploadedPrompt = prompts.find((prompt) => prompt.front.media?.id === "bodyparts3d-biceps-brachii-anatomogram")
 
     assert.ok(uploadedPrompt)
-    assert.equal(uploadedPrompt.front.media?.url, uploadedUrl)
+    assert.equal(uploadedPrompt.front.media?.url, bodyParts3dBicepsImageUrl)
+    assert.equal(uploadedPrompt.front.media?.sourceRef, "bodyparts3d")
+    assert.equal(prompts.every((prompt) => prompt.front.media?.sourceRef !== "servier-medical-art"), true)
     assert.equal(prompts.every((prompt) => !prompt.front.media?.url.includes("lifesciencedb.jp/bp3d/API")), true)
   })
 
   it("generates sourced prompt modes with eligibility counts", () => {
     const prompts = getAnatomyStudyPrompts({ categories: ["muscle"], difficulty: "hard" })
-    const allPrompts = getAnatomyStudyPrompts()
+    const allPrompts = getAnatomyStudyPrompts({}, { mediaUrlBySlug: bodyParts3dMediaUrlBySlug })
     const counts = getFlashcardPromptTypeCounts({ categories: ["muscle"], difficulty: "hard" })
 
     assert.equal(FLASHCARD_PROMPT_TYPES.every((type) => counts.some((count) => count.id === type)), true)
@@ -162,7 +167,7 @@ describe("Sourced anatomy study adapter", () => {
   })
 
   it("checks typed answers strictly while normalizing case and punctuation", () => {
-    const prompt = getAnatomyStudyPrompts({ promptTypes: ["identify_from_media"] })
+    const prompt = getAnatomyStudyPrompts({ promptTypes: ["identify_from_media"] }, { mediaUrlBySlug: bodyParts3dMediaUrlBySlug })
       .find((candidate) => candidate.answerFields[0]?.acceptedAnswers.length > 1)
 
     assert.ok(prompt)

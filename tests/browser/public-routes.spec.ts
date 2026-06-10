@@ -85,12 +85,7 @@ async function setMuscleUpperExtremityFilters(page: Page) {
 }
 
 async function waitForFilteredEligibleCount(page: Page) {
-  await expect.poll(async () => {
-    const text = await page.getByText(/^\d+ eligible$/).first().textContent().catch(() => "")
-    const count = Number(text?.match(/\d+/)?.[0] ?? 0)
-
-    return count > 0
-  }, { timeout: 20_000 }).toBe(true)
+  await expect(page.getByRole("button", { name: /Start [1-9]\d*/ })).toBeEnabled({ timeout: 30_000 })
 }
 
 for (const route of publicRoutes) {
@@ -118,20 +113,26 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await page.getByRole("button", { name: "Browse Premade Decks" }).click()
   await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Community Decks" })).toBeVisible()
+  await page.getByRole("button", { name: "View" }).first().click()
+  await expect(page.getByText(/Deck options loaded\. Adjust or start when ready\./)).toBeVisible()
+  await expect(page.getByLabel("Deck Title")).not.toHaveValue("My flashcard deck")
+  await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
 
   await page.getByRole("button", { name: "Configure Custom Deck" }).click()
   await expect(page.getByText(/1 of \d+/)).toHaveCount(0)
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
   await setMuscleUpperExtremityFilters(page)
+  await setPressedButton(page, /^Recall Key Facts\b/i, true)
+  await setPressedButton(page, /^Identify Body Region\b/i, true)
+  await setPressedButton(page, /^Identify Structure Type\b/i, true)
   await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
-  await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeEnabled()
-  await expect(page.getByRole("button", { name: /^Name To Region/i })).toBeEnabled()
+  await expect(page.getByRole("button", { name: /^Identify From Image/i })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Identify Body Region/i })).toBeEnabled()
   await waitForFilteredEligibleCount(page)
 
   const startButton = page.getByRole("button", { name: /Start [1-9]/ })
   await expect(startButton).toBeEnabled()
-  await expect(page.getByText(/^[1-9]\d* eligible prompts$/)).toBeVisible()
 
   const selectedPromptButtons = page.getByRole("button", { pressed: true })
   await expect(selectedPromptButtons.first()).toBeEnabled()
@@ -166,8 +167,8 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   await page.getByLabel("Deck Size", { exact: true }).fill("10")
   await setPressedButton(page, /^Reveal Review\b/i, true)
   await setPressedButton(page, /^Identify From Image\b/i, false)
-  await setPressedButton(page, /^Name To Region\b/i, false)
-  await setPressedButton(page, /^Name To Category\b/i, false)
+  await setPressedButton(page, /^Identify Body Region\b/i, false)
+  await setPressedButton(page, /^Identify Structure Type\b/i, false)
   await setPressedButton(page, /^Muscle Action\b/i, true)
 
   const startButton = page.getByRole("button", { name: /Start 10/ })
@@ -175,7 +176,12 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   await startButton.click()
 
   await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText("Practice only").first()).toBeVisible()
   await expect(page.getByRole("button", { name: "Reveal Answer" })).toBeVisible()
+  await expect(page.getByText("Sourced Answer")).toHaveCount(0)
+  await page.getByRole("button", { name: "Flip flashcard to answer" }).click()
+  await expect(page.getByText("Sourced Answer")).toBeVisible()
+  await page.getByRole("button", { name: "Show Prompt" }).click()
   await expect(page.getByText("Sourced Answer")).toHaveCount(0)
   await page.getByRole("button", { name: "Reveal Answer" }).click()
   await expect(page.getByText("Sourced Answer")).toBeVisible()

@@ -13,6 +13,11 @@ import {
   slugifyFlashcardDeckTitle,
 } from "../lib/flashcard-community.js"
 
+const bodyParts3dBicepsImageUrl = "https://media.massagelab.test/anatomy/bodyparts3d/anatomograms/biceps-brachii.png"
+const bodyParts3dMediaOptions = {
+  mediaUrlBySlug: new Map([["bodyparts3d-biceps-brachii-anatomogram", bodyParts3dBicepsImageUrl]]),
+}
+
 describe("Flashcard community deck policy", () => {
   it("normalizes user deck configs to sourced prompt options", () => {
     const config = normalizeFlashcardDeckConfig({
@@ -46,29 +51,24 @@ describe("Flashcard community deck policy", () => {
   it("ships public starter decks that resolve to eligible sourced prompts", () => {
     assert.ok(FLASHCARD_STARTER_DECKS.length >= 3)
 
-    for (const deck of FLASHCARD_STARTER_DECKS) {
+    for (const deck of getFlashcardStarterDecks(bodyParts3dMediaOptions)) {
       assert.equal(deck.visibility, "PUBLIC")
       assert.equal(deck.isStarter, true)
       assert.ok(deck.promptCount > 0)
-      assert.ok(promptCountForConfig(deck.config) >= deck.promptCount)
-      assert.ok(deckPromptIds(deck.config).length > 0)
+      assert.ok(promptCountForConfig(deck.config, bodyParts3dMediaOptions) >= deck.promptCount)
+      assert.ok(deckPromptIds(deck.config, bodyParts3dMediaOptions).length > 0)
     }
   })
 
   it("counts uploaded media prompts when building starter deck summaries", () => {
-    const uploadedUrl = "https://media.massagelab.test/anatomy/bodyparts3d/anatomograms/biceps-brachii.png"
-    const hydratedDecks = getFlashcardStarterDecks({
-      mediaUrlBySlug: new Map([["bodyparts3d-biceps-brachii-anatomogram", uploadedUrl]]),
-    })
+    const hydratedDecks = getFlashcardStarterDecks(bodyParts3dMediaOptions)
     const staticIdentificationDeck = FLASHCARD_STARTER_DECKS.find((deck) => deck.slug === "starter-all-body-identification")
     const hydratedIdentificationDeck = hydratedDecks.find((deck) => deck.slug === "starter-all-body-identification")
 
     assert.ok(staticIdentificationDeck)
     assert.ok(hydratedIdentificationDeck)
     assert.ok(hydratedIdentificationDeck.promptCount > staticIdentificationDeck.promptCount)
-    assert.ok(promptCountForConfig(hydratedIdentificationDeck.config, {
-      mediaUrlBySlug: new Map([["bodyparts3d-biceps-brachii-anatomogram", uploadedUrl]]),
-    }) >= hydratedIdentificationDeck.promptCount)
+    assert.ok(promptCountForConfig(hydratedIdentificationDeck.config, bodyParts3dMediaOptions) >= hydratedIdentificationDeck.promptCount)
   })
 
   it("summarizes aggregate accuracy without exposing attempt details", () => {

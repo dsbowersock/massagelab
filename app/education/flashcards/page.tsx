@@ -1,4 +1,3 @@
-import { Layers3 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import {
@@ -17,12 +16,15 @@ export default async function EducationFlashcardsPage() {
   const isSignedIn = Boolean(session?.user?.id)
 
   return (
-    <AppPageShell title="Flashcards" width="full" contentClassName="gap-6">
+    <AppPageShell
+      title="Flashcards"
+      width="full"
+      className="p-0 sm:p-0 lg:p-0"
+      contentClassName="gap-0"
+    >
       <AppSurface
-        title="Flashcards"
-        description="Sourced anatomy prompts for self-study."
-        icon={<Layers3 className="h-5 w-5" aria-hidden="true" />}
-        badge="Public alpha"
+        className="rounded-none"
+        contentClassName="p-4 sm:p-4"
       >
         <FlashcardsClient
           categories={FLASHCARD_STATIC_CATEGORIES}

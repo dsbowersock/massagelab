@@ -72,9 +72,9 @@ export const FLASHCARD_PROMPT_TYPES = [
 
 export const FLASHCARD_PROMPT_TYPE_LABELS = {
   identify_from_media: "Identify From Image",
-  name_to_summary: "Name To Summary",
-  name_to_region: "Name To Region",
-  name_to_category: "Name To Category",
+  name_to_summary: "Recall Key Facts",
+  name_to_region: "Identify Body Region",
+  name_to_category: "Identify Structure Type",
   muscle_origin_insertion: "Muscle Origin And Insertion",
   muscle_action: "Muscle Action",
   muscle_innervation: "Muscle Innervation",
@@ -87,7 +87,7 @@ const TERMINOLOGY_ONLY_SOURCE_REFS = new Set(["fipat-ta2"])
 const PUBLIC_STUDY_SOURCE_REFS_EXCLUDED = new Set([
   "massagelab-authored-energetic-anatomy",
 ])
-const PUBLIC_DIRECT_IMAGE_SOURCE_REFS = new Set(["servier-medical-art"])
+const PUBLIC_FLASHCARD_IMAGE_SOURCE_REFS = new Set(["bodyparts3d"])
 const REUSABLE_SUMMARY_FACT_TYPES = new Set([
   "clinical_summary",
   "display_summary",
@@ -410,10 +410,10 @@ function publicMediaForEntity(entityType: AnatomyStudyCategory, entitySlug: stri
       if (asset.reviewStatus !== "reviewed") return null
       if (!COMMERCIAL_SAFE_SOURCE_SCOPES.has(asset.usageScope ?? "review_only")) return null
       if (!isPublicStudySource(context.sourceBySlug.get(asset.sourceRef))) return null
+      if (!PUBLIC_FLASHCARD_IMAGE_SOURCE_REFS.has(asset.sourceRef)) return null
 
       const uploadedUrl = context.mediaUrlBySlug.get(asset.slug)
-      const directSourceUrl = PUBLIC_DIRECT_IMAGE_SOURCE_REFS.has(asset.sourceRef) ? asset.sourceUrl : undefined
-      const url = asset.thumbnailUrl ?? uploadedUrl ?? asset.remoteUrl ?? directSourceUrl
+      const url = uploadedUrl ?? asset.thumbnailUrl
       if (!url || asset.mediaType === "model_3d") return null
 
       return {
