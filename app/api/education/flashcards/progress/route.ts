@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { FLASHCARD_TOOL } from "@/lib/flashcard-community"
 import {
-  allFlashcardPromptIds,
+  allFlashcardPrompts,
   flashcardPromptIdFromTool,
   optionalFlashcardMediaOptions,
 } from "@/lib/flashcard-progress-helpers"
@@ -11,6 +11,7 @@ import {
   FLASHCARD_MASTERY_ROUND_KEY_PREFIX,
   FLASHCARD_MASTERY_THRESHOLD,
   normalizeFlashcardProgressMetadata,
+  summarizeFlashcardProgressBreakdowns,
 } from "@/lib/flashcard-progress"
 import { prisma } from "@/lib/prisma"
 
@@ -36,8 +37,12 @@ type FlashcardProgressResponse = {
   recentProgress: Array<{
     promptId: string
     promptType: string
+    promptTypeLabel: string
     entityType: string
     entitySlug: string
+    name: string
+    categoryLabel: string
+    regionLabels: string[]
     status: string
     score: number | null
     attemptCount: number
@@ -54,6 +59,24 @@ type FlashcardProgressResponse = {
   achievements: Array<{
     key: string
     earnedAt: string
+  }>
+  promptTypeProgress: Array<{
+    key: string
+    label: string
+    totalCount: number
+    trackedCount: number
+    masteredCount: number
+    remainingCount: number
+    completionPercent: number
+  }>
+  regionProgress: Array<{
+    key: string
+    label: string
+    totalCount: number
+    trackedCount: number
+    masteredCount: number
+    remainingCount: number
+    completionPercent: number
   }>
   pagination: {
     page: number
@@ -114,7 +137,9 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const flashcardToolLike = `${FLASHCARD_TOOL}:%`
   const promptIdStart = `${FLASHCARD_TOOL}:`.length + 1
   const mediaOptions = await optionalFlashcardMediaOptions()
-  const currentPromptIds = [...allFlashcardPromptIds(mediaOptions)]
+  const currentPrompts = allFlashcardPrompts(mediaOptions)
+  const currentPromptIds = currentPrompts.map((prompt) => prompt.id)
+  const promptById = new Map(currentPrompts.map((prompt) => [prompt.id, prompt]))
   const targetPromptCount = currentPromptIds.length
   const currentPromptFilter = currentPromptIds.length > 0
     ? Prisma.sql`AND prompt_id IN (${Prisma.join(currentPromptIds)})`
@@ -122,6 +147,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
 
   const [
     progressRows,
+    latestProgressRows,
     progressAggregateRows,
     completedSessionCount,
     bestSession,
@@ -168,6 +194,44 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       ORDER BY "lastSeenAt" DESC, "id" DESC
       OFFSET ${skip}
       LIMIT ${pageSize}
+    `,
+    prisma.$queryRaw<ProgressPageRow[]>`
+      WITH latest_progress AS (
+        SELECT DISTINCT ON (prompt_id)
+          "id",
+          "tool",
+          "status",
+          "score",
+          "metadata",
+          "lastSeenAt",
+          prompt_id
+        FROM (
+          SELECT
+            "id",
+            "tool",
+            "status",
+            "score",
+            "metadata",
+            "lastSeenAt",
+            COALESCE(NULLIF("metadata"->>'promptId', ''), substring("tool" from ${promptIdStart})) AS prompt_id
+          FROM "LearningProgress"
+          WHERE "userId" = ${session.user.id}
+            AND "anatomyTermId" IS NULL
+            AND "tool" LIKE ${flashcardToolLike}
+        ) scoped_progress
+        WHERE prompt_id <> ''
+          ${currentPromptFilter}
+        ORDER BY prompt_id, "lastSeenAt" DESC, "id" DESC
+      )
+      SELECT
+        "id",
+        "tool",
+        "status",
+        "score",
+        "metadata",
+        "lastSeenAt"
+      FROM latest_progress
+      ORDER BY "lastSeenAt" DESC, "id" DESC
     `,
     prisma.$queryRaw<ProgressAggregateRow[]>`
       WITH latest_progress AS (
@@ -248,6 +312,21 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     }),
   ])
 
+  const latestMetadataRows = latestProgressRows.map((row) => {
+    const metadata = normalizeFlashcardProgressMetadata(row.metadata)
+    const promptId = metadata.promptId || flashcardPromptIdFromTool(row.tool)
+
+    return { ...metadata, promptId }
+  })
+  const progressBreakdowns = summarizeFlashcardProgressBreakdowns(
+    latestMetadataRows,
+    currentPrompts.map((prompt) => ({
+      id: prompt.id,
+      promptType: prompt.type,
+      promptTypeLabel: prompt.typeLabel,
+      regionLabels: prompt.regionLabels,
+    })),
+  )
   const progressByPromptId = new Map<string, FlashcardProgressRecord>()
 
   for (const row of progressRows) {
@@ -296,8 +375,12 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     recentProgress: progressRecords.map((record) => ({
       promptId: record.metadata.promptId,
       promptType: record.metadata.promptType,
+      promptTypeLabel: promptById.get(record.metadata.promptId)?.typeLabel ?? String(record.metadata.promptType),
       entityType: record.metadata.entityType,
       entitySlug: record.metadata.entitySlug,
+      name: promptById.get(record.metadata.promptId)?.name ?? record.metadata.entitySlug,
+      categoryLabel: promptById.get(record.metadata.promptId)?.categoryLabel ?? String(record.metadata.entityType),
+      regionLabels: promptById.get(record.metadata.promptId)?.regionLabels ?? record.metadata.regions,
       status: record.status,
       score: record.score,
       attemptCount: record.metadata.attemptCount,
@@ -315,6 +398,8 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       key: achievement.key,
       earnedAt: achievement.earnedAt.toISOString(),
     })),
+    promptTypeProgress: progressBreakdowns.promptTypes,
+    regionProgress: progressBreakdowns.regions,
     pagination: {
       page,
       pageSize,

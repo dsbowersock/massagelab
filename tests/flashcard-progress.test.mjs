@@ -9,6 +9,7 @@ import {
   nextFlashcardProgressRoundMetadata,
   normalizeFlashcardProgressMetadata,
   roundNumberFromAchievementKey,
+  summarizeFlashcardProgressBreakdowns,
   summarizeFlashcardProgress,
 } from "../lib/flashcard-progress.js"
 
@@ -116,5 +117,61 @@ describe("Flashcard progress mastery metadata", () => {
       accuracyPercent: 81,
       masteryThreshold: 10,
     })
+  })
+
+  it("summarizes current-round coverage by prompt type and region", () => {
+    const prompts = [
+      { id: "prompt-region-head", promptType: "name_to_region", promptTypeLabel: "Identify Body Region", regionLabels: ["Head"] },
+      { id: "prompt-region-spine", promptType: "name_to_region", promptTypeLabel: "Identify Body Region", regionLabels: ["Spine"] },
+      { id: "prompt-category-head", promptType: "name_to_category", promptTypeLabel: "Identify Structure Type", regionLabels: ["Head"] },
+    ]
+    const metadata = [
+      { promptId: "prompt-region-head", correctCount: 10, attemptCount: 10, masteryThreshold: 10 },
+      { promptId: "prompt-category-head", correctCount: 3, attemptCount: 4, masteryThreshold: 10 },
+      { promptId: "retired-prompt", correctCount: 10, attemptCount: 10, masteryThreshold: 10 },
+    ]
+
+    const breakdowns = summarizeFlashcardProgressBreakdowns(metadata, prompts)
+
+    assert.deepEqual(breakdowns.promptTypes, [
+      {
+        key: "name_to_region",
+        label: "Identify Body Region",
+        totalCount: 2,
+        trackedCount: 1,
+        masteredCount: 1,
+        remainingCount: 1,
+        completionPercent: 50,
+      },
+      {
+        key: "name_to_category",
+        label: "Identify Structure Type",
+        totalCount: 1,
+        trackedCount: 1,
+        masteredCount: 0,
+        remainingCount: 1,
+        completionPercent: 0,
+      },
+    ])
+    assert.deepEqual(breakdowns.regions, [
+      {
+        key: "head",
+        label: "Head",
+        totalCount: 2,
+        trackedCount: 2,
+        masteredCount: 1,
+        remainingCount: 1,
+        completionPercent: 50,
+      },
+      {
+        key: "spine",
+        label: "Spine",
+        totalCount: 1,
+        trackedCount: 0,
+        masteredCount: 0,
+        remainingCount: 1,
+        completionPercent: 0,
+      },
+    ])
   })
 })

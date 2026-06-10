@@ -324,6 +324,28 @@ test("signed-in flashcards can claim a mastery round and refresh progress", asyn
     },
     recentProgress: [],
     achievements: [{ key: "flashcards:first-completion", earnedAt: "2026-06-07T00:00:00.000Z" }],
+    promptTypeProgress: [
+      {
+        key: "name_to_region",
+        label: "Identify Body Region",
+        totalCount: 2,
+        trackedCount: roundClaimed ? 0 : 2,
+        masteredCount: roundClaimed ? 0 : 2,
+        remainingCount: roundClaimed ? 2 : 0,
+        completionPercent: roundClaimed ? 0 : 100,
+      },
+    ],
+    regionProgress: [
+      {
+        key: "upper-extremity",
+        label: "Upper Extremity",
+        totalCount: 2,
+        trackedCount: roundClaimed ? 0 : 2,
+        masteredCount: roundClaimed ? 0 : 2,
+        remainingCount: roundClaimed ? 2 : 0,
+        completionPercent: roundClaimed ? 0 : 100,
+      },
+    ],
   })
 
   await page.route("**/api/auth/session", async (route) => {
@@ -384,7 +406,7 @@ test("signed-in flashcards can claim a mastery round and refresh progress", asyn
   releaseProgressRefresh?.()
 
   await expect(page.getByText("Round 1 complete. Round 2 is ready.")).toBeVisible()
-  await expect(page.getByText("Master every sourced prompt in this round to earn a completion badge and begin a fresh round.")).toBeVisible()
+  await expect(page.getByText("2 prompts remain before your next completion badge.")).toBeVisible()
   expect(roundStartRequests).toBe(1)
   expect(progressRequests).toBeGreaterThan(1)
 })

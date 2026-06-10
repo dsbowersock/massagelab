@@ -55,6 +55,28 @@ export type FlashcardProgressSummary = {
   masteryThreshold: number
 }
 
+export type FlashcardProgressBreakdownPrompt = {
+  id: string
+  promptType: FlashcardPromptType | string
+  promptTypeLabel: string
+  regionLabels: string[]
+}
+
+export type FlashcardProgressBreakdownItem = {
+  key: string
+  label: string
+  totalCount: number
+  trackedCount: number
+  masteredCount: number
+  remainingCount: number
+  completionPercent: number
+}
+
+export type FlashcardProgressBreakdowns = {
+  promptTypes: FlashcardProgressBreakdownItem[]
+  regions: FlashcardProgressBreakdownItem[]
+}
+
 export function flashcardProgressTool(promptId: string) {
   return `${FLASHCARD_TOOL}:${promptId}`
 }
@@ -218,5 +240,76 @@ export function summarizeFlashcardProgress(metadataRows: unknown[]): FlashcardPr
     totalIncorrect,
     accuracyPercent: totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0,
     masteryThreshold: FLASHCARD_MASTERY_THRESHOLD,
+  }
+}
+
+function emptyBreakdownItem(key: string, label: string): FlashcardProgressBreakdownItem {
+  return {
+    key,
+    label,
+    totalCount: 0,
+    trackedCount: 0,
+    masteredCount: 0,
+    remainingCount: 0,
+    completionPercent: 0,
+  }
+}
+
+function finalizeBreakdownItems(items: Iterable<FlashcardProgressBreakdownItem>) {
+  return [...items]
+    .map((item) => ({
+      ...item,
+      remainingCount: Math.max(0, item.totalCount - item.masteredCount),
+      completionPercent: item.totalCount > 0 ? Math.round((item.masteredCount / item.totalCount) * 100) : 0,
+    }))
+    .filter((item) => item.totalCount > 0)
+    .sort((a, b) => b.remainingCount - a.remainingCount || a.label.localeCompare(b.label))
+}
+
+export function summarizeFlashcardProgressBreakdowns(
+  metadataRows: unknown[],
+  prompts: FlashcardProgressBreakdownPrompt[],
+): FlashcardProgressBreakdowns {
+  const progressByPromptId = new Map<string, FlashcardProgressMetadata>()
+
+  for (const row of metadataRows) {
+    const metadata = normalizeFlashcardProgressMetadata(row)
+    if (!metadata.promptId || progressByPromptId.has(metadata.promptId)) continue
+
+    progressByPromptId.set(metadata.promptId, metadata)
+  }
+
+  const promptTypeItems = new Map<string, FlashcardProgressBreakdownItem>()
+  const regionItems = new Map<string, FlashcardProgressBreakdownItem>()
+
+  for (const prompt of prompts) {
+    if (!prompt.id) continue
+
+    const promptTypeKey = String(prompt.promptType)
+    const promptTypeLabel = prompt.promptTypeLabel || promptTypeKey
+    const promptTypeItem = promptTypeItems.get(promptTypeKey) ?? emptyBreakdownItem(promptTypeKey, promptTypeLabel)
+    const progress = progressByPromptId.get(prompt.id)
+    const mastered = progress ? progress.correctCount >= progress.masteryThreshold : false
+
+    promptTypeItem.totalCount += 1
+    if (progress) promptTypeItem.trackedCount += 1
+    if (mastered) promptTypeItem.masteredCount += 1
+    promptTypeItems.set(promptTypeKey, promptTypeItem)
+
+    const labels = prompt.regionLabels.length > 0 ? prompt.regionLabels : ["Unassigned"]
+    for (const label of labels) {
+      const regionKey = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "unassigned"
+      const regionItem = regionItems.get(regionKey) ?? emptyBreakdownItem(regionKey, label)
+
+      regionItem.totalCount += 1
+      if (progress) regionItem.trackedCount += 1
+      if (mastered) regionItem.masteredCount += 1
+      regionItems.set(regionKey, regionItem)
+    }
+  }
+
+  return {
+    promptTypes: finalizeBreakdownItems(promptTypeItems.values()),
+    regions: finalizeBreakdownItems(regionItems.values()),
   }
 }
