@@ -78,8 +78,12 @@ type FlashcardProgressDashboard = {
 type FlashcardRecentProgress = {
   promptId: string
   promptType: string
+  promptTypeLabel: string
   entityType: string
   entitySlug: string
+  name: string
+  categoryLabel: string
+  regionLabels: string[]
   status: string
   score: number | null
   attemptCount: number
@@ -99,10 +103,22 @@ type FlashcardAchievementSummary = {
   earnedAt: string
 }
 
+type FlashcardProgressBreakdownItem = {
+  key: string
+  label: string
+  totalCount: number
+  trackedCount: number
+  masteredCount: number
+  remainingCount: number
+  completionPercent: number
+}
+
 type FlashcardProgressPayload = {
   progress: FlashcardProgressDashboard
   recentProgress: FlashcardRecentProgress[]
   achievements: FlashcardAchievementSummary[]
+  promptTypeProgress: FlashcardProgressBreakdownItem[]
+  regionProgress: FlashcardProgressBreakdownItem[]
 }
 
 type FlashcardsClientProps = {
@@ -276,6 +292,10 @@ function nullableNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+/**
+ * Converts the progress API response into the dashboard model used by the
+ * flashcard client while tolerating partial or older response payloads.
+ */
 function progressPayload(value: unknown): FlashcardProgressPayload | null {
   const record = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -295,8 +315,12 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
       return {
         promptId: text(row.promptId),
         promptType: text(row.promptType),
+        promptTypeLabel: text(row.promptTypeLabel),
         entityType: text(row.entityType),
         entitySlug: text(row.entitySlug),
+        name: text(row.name),
+        categoryLabel: text(row.categoryLabel),
+        regionLabels: Array.isArray(row.regionLabels) ? row.regionLabels.map(String).filter(Boolean) : [],
         status: text(row.status),
         score: nullableNumber(row.score),
         attemptCount: numeric(row.attemptCount),
@@ -324,6 +348,28 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
       }
     }).filter((item) => item.key)
     : []
+  /**
+   * Parses prompt-type or region breakdown rows from the progress API.
+   */
+  const breakdownRows = (value: unknown): FlashcardProgressBreakdownItem[] => (
+    Array.isArray(value)
+      ? value.map((item) => {
+        const row = item && typeof item === "object" && !Array.isArray(item)
+          ? item as Record<string, unknown>
+          : {}
+
+        return {
+          key: text(row.key),
+          label: text(row.label),
+          totalCount: numeric(row.totalCount),
+          trackedCount: numeric(row.trackedCount),
+          masteredCount: numeric(row.masteredCount),
+          remainingCount: numeric(row.remainingCount),
+          completionPercent: numeric(row.completionPercent),
+        }
+      }).filter((item) => item.key && item.totalCount > 0)
+      : []
+  )
 
   return {
     progress: {
@@ -346,6 +392,8 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
     },
     recentProgress,
     achievements,
+    promptTypeProgress: breakdownRows(record.promptTypeProgress),
+    regionProgress: breakdownRows(record.regionProgress),
   }
 }
 
@@ -699,6 +747,10 @@ function FlashcardSurface({
   )
 }
 
+/**
+ * Renders the flashcard setup, community deck carousel, study runner, and
+ * signed-in mastery dashboard for the public education flashcards route.
+ */
 export function FlashcardsClient({ categories, regions, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
@@ -913,7 +965,6 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
   const answeredCount = results.length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) ? 1 : 0)
   const correctCount = results.filter((result) => result.correct).length + (checkedResult && !results.some((result) => result.promptId === checkedResult.promptId) && checkedResult.correct ? 1 : 0)
   const progress = activeDeck.length > 0 ? ((currentIndex + 1) / activeDeck.length) * 100 : 0
-  const promptTypeLabelById = useMemo(() => new Map(promptTypeCounts.map((type) => [type.id, type.label])), [promptTypeCounts])
   const allCategoriesSelected = selectedCategories.length === allCategoryIds.length
   const allRegionsSelected = selectedRegions.length === allRegionIds.length
   const categorySummary = selectionSummary(selectedCategories, categories, "All categories")
@@ -924,6 +975,9 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
   const progressRoundTarget = progressDashboard ? Math.max(progressDashboard.progress.targetPromptCount, progressDashboard.progress.trackedPromptCount) : 0
   const progressRoundPercent = progressDashboard ? Math.max(0, Math.min(100, progressDashboard.progress.roundCompletionPercent)) : 0
+  const progressRemainingCount = progressDashboard ? Math.max(0, progressRoundTarget - progressDashboard.progress.masteredPromptCount) : 0
+  const promptTypeDashboardRows = progressDashboard?.promptTypeProgress.slice(0, 5) ?? []
+  const regionDashboardRows = progressDashboard?.regionProgress.slice(0, 5) ?? []
   const sortedCommunityDecks = communityDecks
   const visibleCommunityDecks = useMemo(() => {
     if (sortedCommunityDecks.length <= 2) return sortedCommunityDecks
@@ -2019,7 +2073,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                   <div>
                     <div className="font-medium">Round {progressDashboard.progress.currentRound}</div>
                     <div className="text-xs text-muted-foreground">
-                      {progressDashboard.progress.masteredPromptCount}/{progressRoundTarget} prompts mastered
+                      {progressDashboard.progress.masteredPromptCount}/{progressRoundTarget} current prompts mastered
                     </div>
                   </div>
                   <Badge variant={progressDashboard.progress.canStartNextRound ? "default" : "outline"}>
@@ -2034,17 +2088,17 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                   </Button>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Master every sourced prompt in this round to earn a completion badge and begin a fresh round.
+                    {progressRemainingCount} prompts remain before your next completion badge.
                   </p>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="rounded-md border border-border/80 p-2">
-                  <div className="text-muted-foreground">Active</div>
-                  <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
+                  <div className="text-muted-foreground">Remaining</div>
+                  <div className="font-semibold">{progressRemainingCount}</div>
                 </div>
                 <div className="rounded-md border border-border/80 p-2">
-                  <div className="text-muted-foreground">Accuracy</div>
+                  <div className="text-muted-foreground">Strict Accuracy</div>
                   <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
                 </div>
                 <div className="rounded-md border border-border/80 p-2">
@@ -2061,19 +2115,47 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 <Badge variant="outline">{progressDashboard.progress.completedRoundCount} round badges</Badge>
                 <Badge variant="outline">{progressDashboard.progress.achievementCount} total badges</Badge>
               </div>
+              {promptTypeDashboardRows.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase text-muted-foreground">Prompt Type Progress</h3>
+                  {promptTypeDashboardRows.map((item) => (
+                    <div key={item.key} className="space-y-1 rounded-md border border-border/80 px-2 py-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate font-medium">{item.label}</span>
+                        <span className="shrink-0 text-muted-foreground">{item.masteredCount}/{item.totalCount}</span>
+                      </div>
+                      <Progress value={item.completionPercent} className="h-1.5 bg-neutral-800 [&>div]:bg-primary" />
+                      <div className="text-muted-foreground">{item.remainingCount} remaining</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {regionDashboardRows.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-medium uppercase text-muted-foreground">Regions To Finish</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {regionDashboardRows.map((item) => (
+                      <Badge key={item.key} variant="outline" className="justify-between gap-2">
+                        <span>{item.label}</span>
+                        <span>{item.masteredCount}/{item.totalCount}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {progressDashboard.recentProgress.length > 0 ? (
                 <div className="space-y-2">
                   <h3 className="text-xs font-medium uppercase text-muted-foreground">Recent prompts</h3>
                   {progressDashboard.recentProgress.slice(0, 3).map((item) => (
                     <div key={item.promptId} className="rounded-md border border-border/80 px-2 py-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 truncate font-medium">{titleFromSlug(item.entitySlug)}</span>
+                        <span className="min-w-0 truncate font-medium">{item.name || titleFromSlug(item.entitySlug)}</span>
                         {item.correctCount >= item.masteryThreshold ? (
                           <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
                         ) : null}
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
-                        <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
+                        <span className="truncate">{item.promptTypeLabel || item.promptType}</span>
                         <span>{item.correctCount}/{item.masteryThreshold}</span>
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">

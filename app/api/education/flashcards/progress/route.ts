@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { FLASHCARD_TOOL } from "@/lib/flashcard-community"
 import {
-  allFlashcardPromptIds,
+  allFlashcardPrompts,
   flashcardPromptIdFromTool,
   optionalFlashcardMediaOptions,
 } from "@/lib/flashcard-progress-helpers"
@@ -11,6 +11,7 @@ import {
   FLASHCARD_MASTERY_ROUND_KEY_PREFIX,
   FLASHCARD_MASTERY_THRESHOLD,
   normalizeFlashcardProgressMetadata,
+  summarizeFlashcardProgressBreakdowns,
 } from "@/lib/flashcard-progress"
 import { prisma } from "@/lib/prisma"
 
@@ -36,8 +37,12 @@ type FlashcardProgressResponse = {
   recentProgress: Array<{
     promptId: string
     promptType: string
+    promptTypeLabel: string
     entityType: string
     entitySlug: string
+    name: string
+    categoryLabel: string
+    regionLabels: string[]
     status: string
     score: number | null
     attemptCount: number
@@ -54,6 +59,24 @@ type FlashcardProgressResponse = {
   achievements: Array<{
     key: string
     earnedAt: string
+  }>
+  promptTypeProgress: Array<{
+    key: string
+    label: string
+    totalCount: number
+    trackedCount: number
+    masteredCount: number
+    remainingCount: number
+    completionPercent: number
+  }>
+  regionProgress: Array<{
+    key: string
+    label: string
+    totalCount: number
+    trackedCount: number
+    masteredCount: number
+    remainingCount: number
+    completionPercent: number
   }>
   pagination: {
     page: number
@@ -88,6 +111,9 @@ type ProgressPageRow = {
   lastSeenAt: Date
 }
 
+/**
+ * Parses pagination query parameters and clamps them to the route's supported range.
+ */
 function boundedInteger(value: string | null, fallback: number, min: number, max: number) {
   if (value === null || value.trim() === "") return fallback
   const numeric = Number(value)
@@ -96,11 +122,18 @@ function boundedInteger(value: string | null, fallback: number, min: number, max
   return Math.max(min, Math.min(max, Math.trunc(numeric)))
 }
 
+/**
+ * Normalizes Postgres numeric aggregate values returned through Prisma raw queries.
+ */
 function numberFromDb(value: unknown) {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : 0
 }
 
+/**
+ * Returns the signed-in learner's flashcard progress dashboard, including
+ * current-round mastery totals, recent prompt progress, and study-area breakdowns.
+ */
 export async function GET(request: Request): Promise<NextResponse<FlashcardProgressResponse | { error: string }>> {
   const session = await getCurrentSession()
   if (!session?.user?.id) {
@@ -114,14 +147,16 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const flashcardToolLike = `${FLASHCARD_TOOL}:%`
   const promptIdStart = `${FLASHCARD_TOOL}:`.length + 1
   const mediaOptions = await optionalFlashcardMediaOptions()
-  const currentPromptIds = [...allFlashcardPromptIds(mediaOptions)]
+  const currentPrompts = allFlashcardPrompts(mediaOptions)
+  const currentPromptIds = currentPrompts.map((prompt) => prompt.id)
+  const promptById = new Map(currentPrompts.map((prompt) => [prompt.id, prompt]))
   const targetPromptCount = currentPromptIds.length
   const currentPromptFilter = currentPromptIds.length > 0
     ? Prisma.sql`AND prompt_id IN (${Prisma.join(currentPromptIds)})`
     : Prisma.sql`AND false`
 
   const [
-    progressRows,
+    latestProgressRows,
     progressAggregateRows,
     completedSessionCount,
     bestSession,
@@ -166,8 +201,6 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
         "lastSeenAt"
       FROM latest_progress
       ORDER BY "lastSeenAt" DESC, "id" DESC
-      OFFSET ${skip}
-      LIMIT ${pageSize}
     `,
     prisma.$queryRaw<ProgressAggregateRow[]>`
       WITH latest_progress AS (
@@ -247,7 +280,23 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       orderBy: { earnedAt: "desc" },
     }),
   ])
+  const progressRows = latestProgressRows.slice(skip, skip + pageSize)
 
+  const latestMetadataRows = latestProgressRows.map((row) => {
+    const metadata = normalizeFlashcardProgressMetadata(row.metadata)
+    const promptId = metadata.promptId || flashcardPromptIdFromTool(row.tool)
+
+    return { ...metadata, promptId }
+  })
+  const progressBreakdowns = summarizeFlashcardProgressBreakdowns(
+    latestMetadataRows,
+    currentPrompts.map((prompt) => ({
+      id: prompt.id,
+      promptType: prompt.type,
+      promptTypeLabel: prompt.typeLabel,
+      regionLabels: prompt.regionLabels,
+    })),
+  )
   const progressByPromptId = new Map<string, FlashcardProgressRecord>()
 
   for (const row of progressRows) {
@@ -296,8 +345,12 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     recentProgress: progressRecords.map((record) => ({
       promptId: record.metadata.promptId,
       promptType: record.metadata.promptType,
+      promptTypeLabel: promptById.get(record.metadata.promptId)?.typeLabel ?? String(record.metadata.promptType),
       entityType: record.metadata.entityType,
       entitySlug: record.metadata.entitySlug,
+      name: promptById.get(record.metadata.promptId)?.name ?? record.metadata.entitySlug,
+      categoryLabel: promptById.get(record.metadata.promptId)?.categoryLabel ?? String(record.metadata.entityType),
+      regionLabels: promptById.get(record.metadata.promptId)?.regionLabels ?? record.metadata.regions,
       status: record.status,
       score: record.score,
       attemptCount: record.metadata.attemptCount,
@@ -315,6 +368,8 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       key: achievement.key,
       earnedAt: achievement.earnedAt.toISOString(),
     })),
+    promptTypeProgress: progressBreakdowns.promptTypes,
+    regionProgress: progressBreakdowns.regions,
     pagination: {
       page,
       pageSize,
