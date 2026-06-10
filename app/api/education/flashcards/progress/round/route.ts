@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
-import {
-  ANATOMY_STUDY_CATEGORIES,
-  ANATOMY_STUDY_REGION_ORDER,
-  FLASHCARD_PROMPT_TYPES,
-  getAnatomyStudyPrompts,
-} from "@/lib/anatomy-study"
 import { FLASHCARD_TOOL } from "@/lib/flashcard-community"
+import {
+  allFlashcardPromptIds,
+  flashcardPromptIdFromTool,
+  optionalFlashcardMediaOptions,
+} from "@/lib/flashcard-progress-helpers"
 import {
   FLASHCARD_MASTERY_ROUND_KEY_PREFIX,
   flashcardMasteryRoundAchievementKey,
@@ -15,8 +14,6 @@ import {
   nextFlashcardProgressRoundMetadata,
 } from "@/lib/flashcard-progress"
 import { prisma } from "@/lib/prisma"
-
-const emptyMediaOptions = { mediaUrlBySlug: new Map<string, string>() }
 
 type ProgressRow = {
   id: string
@@ -29,36 +26,8 @@ function json(value: unknown) {
   return value as Prisma.InputJsonValue
 }
 
-function promptIdFromTool(tool: string) {
-  const prefix = `${FLASHCARD_TOOL}:`
-  return tool.startsWith(prefix) ? tool.slice(prefix.length) : ""
-}
-
-async function optionalMediaOptions() {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined
-
-  try {
-    const { loadAnatomyStudyMediaUrlOptions } = await import("@/lib/anatomy-study-media")
-
-    return await Promise.race([
-      loadAnatomyStudyMediaUrlOptions(),
-      new Promise<typeof emptyMediaOptions>((resolve) => {
-        timeoutId = setTimeout(() => resolve(emptyMediaOptions), 1500)
-      }),
-    ])
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId)
-  }
-}
-
-function allPromptCount(options: typeof emptyMediaOptions) {
-  return getAnatomyStudyPrompts({
-    categories: [...ANATOMY_STUDY_CATEGORIES],
-    regions: [...ANATOMY_STUDY_REGION_ORDER],
-    difficulty: "hard",
-    promptTypes: [...FLASHCARD_PROMPT_TYPES],
-    answerMode: "typed",
-  }, options).length
+function isUniqueConstraintError(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "P2002")
 }
 
 function latestProgressByPromptId(rows: ProgressRow[]) {
@@ -66,13 +35,13 @@ function latestProgressByPromptId(rows: ProgressRow[]) {
 
   for (const row of rows) {
     const metadata = normalizeFlashcardProgressMetadata(row.metadata)
-    const promptId = metadata.promptId || promptIdFromTool(row.tool)
+    const promptId = metadata.promptId || flashcardPromptIdFromTool(row.tool)
     if (!promptId || progressByPromptId.has(promptId)) continue
 
     progressByPromptId.set(promptId, { ...metadata, promptId })
   }
 
-  return [...progressByPromptId.values()]
+  return progressByPromptId
 }
 
 export async function POST() {
@@ -81,8 +50,9 @@ export async function POST() {
     return NextResponse.json({ error: "Sign in to manage flashcard mastery rounds." }, { status: 401 })
   }
 
-  const mediaOptions = await optionalMediaOptions()
-  const targetPromptCount = allPromptCount(mediaOptions)
+  const mediaOptions = await optionalFlashcardMediaOptions()
+  const currentPromptIds = allFlashcardPromptIds(mediaOptions)
+  const targetPromptCount = currentPromptIds.size
   const flashcardToolPrefix = `${FLASHCARD_TOOL}:`
   const now = new Date()
 
@@ -100,12 +70,15 @@ export async function POST() {
     },
     orderBy: [{ lastSeenAt: "desc" }, { id: "desc" }],
   })
-  const progressRecords = latestProgressByPromptId(progressRows)
-  const masteredPromptCount = progressRecords.filter((record) => record.correctCount >= record.masteryThreshold).length
-  const trackedPromptCount = progressRecords.length
-  const totalAttempts = progressRecords.reduce((sum, record) => sum + record.lifetimeAttemptCount, 0)
-  const totalCorrect = progressRecords.reduce((sum, record) => sum + record.lifetimeCorrectCount, 0)
-  const totalIncorrect = progressRecords.reduce((sum, record) => sum + record.lifetimeIncorrectCount, 0)
+  const progressByPromptId = latestProgressByPromptId(progressRows)
+  const currentProgressRecords = [...currentPromptIds]
+    .map((promptId) => progressByPromptId.get(promptId))
+    .filter((record): record is ReturnType<typeof normalizeFlashcardProgressMetadata> => Boolean(record))
+  const masteredPromptCount = currentProgressRecords.filter((record) => record.correctCount >= record.masteryThreshold).length
+  const trackedPromptCount = currentProgressRecords.length
+  const totalAttempts = currentProgressRecords.reduce((sum, record) => sum + record.lifetimeAttemptCount, 0)
+  const totalCorrect = currentProgressRecords.reduce((sum, record) => sum + record.lifetimeCorrectCount, 0)
+  const totalIncorrect = currentProgressRecords.reduce((sum, record) => sum + record.lifetimeIncorrectCount, 0)
   const accuracyPercent = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0
 
   if (targetPromptCount <= 0 || masteredPromptCount < targetPromptCount) {
@@ -120,15 +93,6 @@ export async function POST() {
     }, { status: 409 })
   }
 
-  const completedRoundCount = await prisma.achievement.count({
-    where: {
-      userId: session.user.id,
-      tool: FLASHCARD_TOOL,
-      key: { startsWith: FLASHCARD_MASTERY_ROUND_KEY_PREFIX },
-    },
-  })
-  const completedRound = completedRoundCount + 1
-  const achievementKey = flashcardMasteryRoundAchievementKey(completedRound)
   const bestSession = await prisma.flashcardStudySession.findFirst({
     where: {
       userId: session.user.id,
@@ -138,55 +102,85 @@ export async function POST() {
     select: { durationMs: true },
     orderBy: { durationMs: "asc" },
   })
-  const snapshot = {
-    round: completedRound,
-    targetPromptCount,
-    trackedPromptCount,
-    masteredPromptCount,
-    totalAttempts,
-    totalCorrect,
-    totalIncorrect,
-    accuracyPercent,
-    bestDurationMs: bestSession?.durationMs ?? null,
-    completedAt: now.toISOString(),
-  }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.achievement.upsert({
-      where: { userId_key_tool: { userId: session.user.id, key: achievementKey, tool: FLASHCARD_TOOL } },
-      create: {
-        userId: session.user.id,
-        key: achievementKey,
-        tool: FLASHCARD_TOOL,
-        metadata: json(snapshot),
-      },
-      update: {
-        metadata: json(snapshot),
-      },
-    })
-
-    for (const row of progressRows) {
-      const nextMetadata = nextFlashcardProgressRoundMetadata(row.metadata, now)
-      await tx.learningProgress.update({
-        where: { id: row.id },
-        data: {
-          status: "STARTED",
-          score: null,
-          metadata: json(nextMetadata),
-          lastSeenAt: now,
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const completedRoundCount = await tx.achievement.count({
+        where: {
+          userId: session.user.id,
+          tool: FLASHCARD_TOOL,
+          key: { startsWith: FLASHCARD_MASTERY_ROUND_KEY_PREFIX },
         },
       })
-    }
-  })
+      const completedRound = completedRoundCount + 1
+      const achievementKey = flashcardMasteryRoundAchievementKey(completedRound)
+      const existingAchievement = await tx.achievement.findUnique({
+        where: { userId_key_tool: { userId: session.user.id, key: achievementKey, tool: FLASHCARD_TOOL } },
+      })
 
-  return NextResponse.json({
-    round: {
-      ...snapshot,
-      nextRound: completedRound + 1,
-    },
-    achievement: {
-      key: achievementKey,
-      earnedAt: now.toISOString(),
-    },
-  })
+      if (existingAchievement) return { status: "conflict" as const }
+
+      const snapshot = {
+        round: completedRound,
+        targetPromptCount,
+        trackedPromptCount,
+        masteredPromptCount,
+        totalAttempts,
+        totalCorrect,
+        totalIncorrect,
+        accuracyPercent,
+        bestDurationMs: bestSession?.durationMs ?? null,
+        completedAt: now.toISOString(),
+      }
+      const achievement = await tx.achievement.create({
+        data: {
+          userId: session.user.id,
+          key: achievementKey,
+          tool: FLASHCARD_TOOL,
+          metadata: json(snapshot),
+        },
+      })
+
+      for (const row of progressRows) {
+        const nextMetadata = nextFlashcardProgressRoundMetadata(row.metadata, now)
+        await tx.learningProgress.update({
+          where: { id: row.id },
+          data: {
+            status: "STARTED",
+            score: null,
+            metadata: json(nextMetadata),
+            lastSeenAt: now,
+          },
+        })
+      }
+
+      return {
+        status: "created" as const,
+        achievementKey,
+        earnedAt: achievement.earnedAt,
+        snapshot,
+      }
+    })
+
+    if (result.status === "conflict") {
+      return NextResponse.json({ error: "This flashcard mastery round has already been claimed." }, { status: 409 })
+    }
+
+    return NextResponse.json({
+      round: {
+        ...result.snapshot,
+        nextRound: result.snapshot.round + 1,
+      },
+      achievement: {
+        key: result.achievementKey,
+        earnedAt: result.earnedAt.toISOString(),
+      },
+    })
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return NextResponse.json({ error: "This flashcard mastery round has already been claimed." }, { status: 409 })
+    }
+
+    throw error
+  }
 }

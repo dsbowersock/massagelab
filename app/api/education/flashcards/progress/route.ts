@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
-import {
-  ANATOMY_STUDY_CATEGORIES,
-  ANATOMY_STUDY_REGION_ORDER,
-  FLASHCARD_PROMPT_TYPES,
-  getAnatomyStudyPrompts,
-} from "@/lib/anatomy-study"
 import { FLASHCARD_TOOL } from "@/lib/flashcard-community"
+import {
+  allFlashcardPromptIds,
+  flashcardPromptIdFromTool,
+  optionalFlashcardMediaOptions,
+} from "@/lib/flashcard-progress-helpers"
 import {
   FLASHCARD_MASTERY_ROUND_KEY_PREFIX,
   FLASHCARD_MASTERY_THRESHOLD,
-  roundNumberFromAchievementKey,
   normalizeFlashcardProgressMetadata,
 } from "@/lib/flashcard-progress"
 import { prisma } from "@/lib/prisma"
-
-const emptyMediaOptions = { mediaUrlBySlug: new Map<string, string>() }
 
 type FlashcardProgressResponse = {
   progress: {
@@ -91,11 +88,6 @@ type ProgressPageRow = {
   lastSeenAt: Date
 }
 
-function promptIdFromTool(tool: string) {
-  const prefix = `${FLASHCARD_TOOL}:`
-  return tool.startsWith(prefix) ? tool.slice(prefix.length) : ""
-}
-
 function boundedInteger(value: string | null, fallback: number, min: number, max: number) {
   if (value === null || value.trim() === "") return fallback
   const numeric = Number(value)
@@ -107,33 +99,6 @@ function boundedInteger(value: string | null, fallback: number, min: number, max
 function numberFromDb(value: unknown) {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : 0
-}
-
-async function optionalMediaOptions() {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined
-
-  try {
-    const { loadAnatomyStudyMediaUrlOptions } = await import("@/lib/anatomy-study-media")
-
-    return await Promise.race([
-      loadAnatomyStudyMediaUrlOptions(),
-      new Promise<typeof emptyMediaOptions>((resolve) => {
-        timeoutId = setTimeout(() => resolve(emptyMediaOptions), 1500)
-      }),
-    ])
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId)
-  }
-}
-
-function allPromptCount(options: typeof emptyMediaOptions) {
-  return getAnatomyStudyPrompts({
-    categories: [...ANATOMY_STUDY_CATEGORIES],
-    regions: [...ANATOMY_STUDY_REGION_ORDER],
-    difficulty: "hard",
-    promptTypes: [...FLASHCARD_PROMPT_TYPES],
-    answerMode: "typed",
-  }, options).length
 }
 
 export async function GET(request: Request): Promise<NextResponse<FlashcardProgressResponse | { error: string }>> {
@@ -148,8 +113,12 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const skip = (page - 1) * pageSize
   const flashcardToolLike = `${FLASHCARD_TOOL}:%`
   const promptIdStart = `${FLASHCARD_TOOL}:`.length + 1
-  const mediaOptions = await optionalMediaOptions()
-  const targetPromptCount = allPromptCount(mediaOptions)
+  const mediaOptions = await optionalFlashcardMediaOptions()
+  const currentPromptIds = [...allFlashcardPromptIds(mediaOptions)]
+  const targetPromptCount = currentPromptIds.length
+  const currentPromptFilter = currentPromptIds.length > 0
+    ? Prisma.sql`AND prompt_id IN (${Prisma.join(currentPromptIds)})`
+    : Prisma.sql`AND false`
 
   const [
     progressRows,
@@ -185,6 +154,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
             AND "tool" LIKE ${flashcardToolLike}
         ) scoped_progress
         WHERE prompt_id <> ''
+          ${currentPromptFilter}
         ORDER BY prompt_id, "lastSeenAt" DESC, "id" DESC
       )
       SELECT
@@ -224,6 +194,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
             AND "tool" LIKE ${flashcardToolLike}
         ) scoped_progress
         WHERE prompt_id <> ''
+          ${currentPromptFilter}
         ORDER BY prompt_id, "lastSeenAt" DESC, "id" DESC
       )
       SELECT
@@ -281,7 +252,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
 
   for (const row of progressRows) {
     const metadata = normalizeFlashcardProgressMetadata(row.metadata)
-    const promptId = metadata.promptId || promptIdFromTool(row.tool)
+    const promptId = metadata.promptId || flashcardPromptIdFromTool(row.tool)
     if (!promptId || progressByPromptId.has(promptId)) continue
 
     progressByPromptId.set(promptId, {
@@ -300,10 +271,6 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const totalCorrect = numberFromDb(progressAggregate?.totalCorrect)
   const totalIncorrect = numberFromDb(progressAggregate?.totalIncorrect)
   const currentRound = Math.max(1, numberFromDb(progressAggregate?.maxMasteryRound))
-  const displayedCompletedRoundCount = achievements
-    .map((achievement) => roundNumberFromAchievementKey(achievement.key))
-    .filter((round) => round > 0)
-    .length
   const roundCompletionPercent = targetPromptCount > 0
     ? Math.min(100, Math.round((masteredPromptCount / targetPromptCount) * 100))
     : 0
@@ -322,7 +289,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       bestDurationMs: bestSession?.durationMs ?? null,
       targetPromptCount,
       roundCompletionPercent,
-      completedRoundCount: Math.max(completedRoundCount, displayedCompletedRoundCount),
+      completedRoundCount,
       currentRound,
       canStartNextRound: targetPromptCount > 0 && masteredPromptCount >= targetPromptCount,
     },
