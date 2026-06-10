@@ -432,9 +432,9 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
       <div className="shrink-0 space-y-0">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Front</span>
-          <span className="rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
+          <span className="max-w-[62%] truncate rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="mt-0 text-sm text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
+        <p className="mt-0 text-sm leading-tight text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
       <div className="mt-2 flex min-h-0 flex-1 items-center justify-center">
@@ -447,13 +447,13 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid w-full place-items-center rounded-none border border-border/80 bg-background/65 px-4 py-8 shadow-inner sm:px-8">
-            <h2 className="max-w-3xl break-words text-center text-2xl font-semibold leading-tight tracking-normal sm:text-4xl">{prompt.front.title}</h2>
+          <div className="grid w-full place-items-center rounded-none border border-border/80 bg-background/65 px-3 py-4 shadow-inner sm:px-8 sm:py-8">
+            <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal sm:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
       </div>
 
-      <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-xs text-muted-foreground">
+      <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:text-xs">
         <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
@@ -1262,12 +1262,12 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
 
     return (
       <div ref={runnerTopRef} className="-m-4">
-        <div className="flex items-center justify-between gap-3 rounded-none border border-border/80 bg-background/70 px-2 py-0.5">
-          <Button type="button" variant="outline" size="sm" onClick={resetStudy} className="h-5 shrink-0 rounded-none px-2 text-xs leading-none [&_svg]:size-3.5">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 rounded-none border border-border/80 bg-background/70 px-2 py-1 sm:flex sm:justify-between">
+          <Button type="button" variant="outline" size="sm" onClick={resetStudy} className="h-8 shrink-0 rounded-lg px-2 text-xs leading-none [&_svg]:size-3.5">
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Setup
           </Button>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs text-muted-foreground" aria-live="polite">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-[11px] leading-tight text-muted-foreground sm:gap-x-2 sm:text-xs" aria-live="polite">
             <span className="font-medium text-foreground">Card {currentIndex + 1} of {activeDeck.length}</span>
             <span aria-hidden="true">/</span>
             <span>{answeredCount > 0 ? `${correctCount}/${answeredCount} correct` : "0 correct"}</span>

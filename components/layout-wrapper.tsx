@@ -21,6 +21,7 @@ export function LayoutWrapper({
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
+  const isFlashcardsRoute = pathname === "/education/flashcards"
   const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
 
   const shell = (
@@ -49,6 +50,7 @@ export function LayoutWrapper({
             "ml-app-content mx-auto w-full",
             isCalendarOperatorRoute || isPublicBookingRoute ? "max-w-none" : "max-w-screen-2xl",
             isCalendarWorkspaceRoute && "h-full min-h-0 pb-0",
+            isFlashcardsRoute && "pb-0",
           )}
         >
           {children}
