@@ -428,16 +428,16 @@ function PromptBadges({ prompt }: { prompt: FlashcardPrompt }) {
 
 function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isReviewMode: boolean }) {
   return (
-    <div className="mx-0 flex h-full flex-col rounded-lg bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] px-3 py-2 sm:mx-2 sm:px-4 sm:py-3">
+    <div className="mx-0 grid h-full grid-rows-[auto_minmax(0,1fr)_auto] rounded-lg bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))] px-3 py-2 sm:mx-2 sm:px-4 sm:py-3">
       <div className="grid shrink-0 gap-y-1">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Front</span>
           <span className="max-w-[62%] truncate rounded-full border border-border/80 bg-background/70 px-2 py-1 normal-case text-foreground">{prompt.typeLabel}</span>
         </div>
-        <p className="text-sm leading-tight text-muted-foreground">{promptFrontInstruction(prompt, isReviewMode)}</p>
+        <p className="text-xs leading-snug text-muted-foreground sm:text-sm">{promptFrontInstruction(prompt, isReviewMode)}</p>
       </div>
 
-      <div className="mt-2 flex min-h-0 flex-1 items-center justify-center">
+      <div className="mt-2 flex min-h-0 items-center justify-center">
         {prompt.front.mode === "media" && prompt.front.media ? (
           <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
             <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
@@ -447,13 +447,13 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
         ) : (
-          <div className="grid w-full place-items-center rounded-none border border-border/80 bg-background/65 px-3 py-4 shadow-inner md:px-8 md:py-8">
+          <div className="grid max-h-full min-h-0 w-full place-items-center overflow-hidden rounded-none border border-border/80 bg-background/65 px-3 py-3 shadow-inner md:px-8 md:py-8">
             <h2 className="max-w-3xl break-words text-center text-xl font-semibold leading-tight tracking-normal md:text-4xl">{prompt.front.title}</h2>
           </div>
         )}
       </div>
 
-      <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:text-xs">
+      <div className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-border/70 pt-1 text-[11px] leading-tight text-muted-foreground sm:mt-3 sm:text-xs">
         <span>{isReviewMode ? "Tap the card or use Reveal Answer." : "Typed Check counts toward saved progress."}</span>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </div>
@@ -567,7 +567,7 @@ function FlashcardSurface({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="relative h-[clamp(10rem,calc(100dvh-20rem),30rem)] min-h-[10rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
+      <div className="relative h-[clamp(13rem,calc(100dvh-16rem),30rem)] min-h-[13rem] [perspective:1800px] sm:h-[clamp(13rem,calc(100dvh-18rem),30rem)] sm:min-h-[13rem]">
         <div
           role={canFlipCard ? "button" : undefined}
           tabIndex={canFlipCard ? 0 : undefined}
@@ -1333,13 +1333,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               )}
             </div>
           ) : (
-            <div className="mx-auto grid w-full max-w-4xl gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} className="w-full sm:w-auto">
-                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-                Previous
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 rounded-lg border-0 bg-background/75 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] min-[360px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+              <Button type="button" variant="outline" onClick={previousPrompt} disabled={currentIndex === 0} aria-label="Previous card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+                <ArrowLeft className="h-4 w-4 min-[360px]:mr-2" aria-hidden="true" />
+                <span className="hidden min-[360px]:inline">Previous</span>
               </Button>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)}>
+              <div className="flex min-w-0 flex-wrap justify-center gap-2">
+                <Button type="button" onClick={() => setIsCardFlipped((flipped) => !flipped)} className="whitespace-nowrap px-3 text-sm sm:px-4">
                   {isCurrentCardFlipped ? "Show Prompt" : "Reveal Answer"}
                 </Button>
                 {isCurrentCardFlipped && !currentResult ? (
@@ -1353,13 +1353,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                 ) : null}
               </div>
               {currentIndex >= activeDeck.length - 1 ? (
-                <Button type="button" variant="outline" onClick={completeStudy} className="w-full sm:w-auto">
-                  Finish Practice
+                <Button type="button" variant="outline" onClick={completeStudy} aria-label="Finish practice" className="w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm sm:w-auto">
+                  <CheckCircle2 className="h-4 w-4 min-[420px]:mr-2" aria-hidden="true" />
+                  <span className="hidden min-[420px]:inline">Finish Practice</span>
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={nextPrompt} className="w-full sm:w-auto">
-                  Next
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                <Button type="button" variant="outline" onClick={nextPrompt} aria-label="Next card" className="w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm sm:w-auto">
+                  <span className="hidden min-[360px]:inline">Next</span>
+                  <ArrowRight className="h-4 w-4 min-[360px]:ml-2" aria-hidden="true" />
                 </Button>
               )}
             </div>
