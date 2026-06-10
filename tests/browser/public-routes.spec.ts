@@ -72,12 +72,28 @@ async function setPressedButton(page: Page, name: RegExp, selected: boolean) {
   if (isPressed !== selected) await button.click()
 }
 
+async function ensureSetupSectionOpen(page: Page, sectionName: RegExp, targetButtonName: RegExp) {
+  const targetButton = page.getByRole("button", { name: targetButtonName }).first()
+  if (await targetButton.isVisible().catch(() => false)) return
+
+  const sectionButton = page.getByRole("button", { name: sectionName }).first()
+  if (await sectionButton.count() > 0) {
+    await expect(sectionButton).toBeVisible()
+    const isExpanded = (await sectionButton.getAttribute("aria-expanded")) === "true"
+    if (!isExpanded) await sectionButton.click()
+  }
+
+  await expect(targetButton).toBeVisible()
+}
+
 async function setMuscleUpperExtremityFilters(page: Page) {
+  await ensureSetupSectionOpen(page, /^Category\b/i, /^Muscles\b/i)
   await setPressedButton(page, /^Muscles\b/i, true)
   for (const category of [/^Bones\b/i, /^Bone Landmarks\b/i, /^Structures\b/i, /^Concepts\b/i]) {
     await setPressedButton(page, category, false)
   }
 
+  await ensureSetupSectionOpen(page, /^Region\b/i, /^Upper Extremity\b/i)
   await setPressedButton(page, /^Upper Extremity\b/i, true)
   for (const region of [/^Head\b/i, /^Spine\b/i, /^Thorax\b/i, /^Abdomen\b/i, /^Pelvis\b/i, /^Lower Extremity\b/i]) {
     await setPressedButton(page, region, false)
@@ -123,6 +139,7 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
 
   await setMuscleUpperExtremityFilters(page)
+  await ensureSetupSectionOpen(page, /^Prompt Types\b/i, /^Recall Key Facts\b/i)
   await setPressedButton(page, /^Recall Key Facts\b/i, true)
   await setPressedButton(page, /^Identify Body Region\b/i, true)
   await setPressedButton(page, /^Identify Structure Type\b/i, true)
@@ -165,7 +182,8 @@ test("flashcards can start from local sourced prompts when the prompt API is una
 
   await setMuscleUpperExtremityFilters(page)
   await page.getByLabel("Deck Size", { exact: true }).fill("10")
-  await setPressedButton(page, /^Reveal Review\b/i, true)
+  await setPressedButton(page, /^(Flip & Self-Grade|Reveal Review)\b/i, true)
+  await ensureSetupSectionOpen(page, /^Prompt Types\b/i, /^Identify From Image\b/i)
   await setPressedButton(page, /^Identify From Image\b/i, false)
   await setPressedButton(page, /^Identify Body Region\b/i, false)
   await setPressedButton(page, /^Identify Structure Type\b/i, false)
