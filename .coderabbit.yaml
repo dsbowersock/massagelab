@@ -1,6 +1,0 @@
-# MassageLab is a TypeScript/Next.js app, so this generic coverage gate creates
-# noisy PR warnings instead of useful docstring feedback.
-reviews:
-  pre_merge_checks:
-    docstrings:
-      mode: off

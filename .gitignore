@@ -13,7 +13,12 @@
 # testing
 /coverage
 /.playwright-mcp/
+/test-results/
 /anatomy-table-top-scrollbar.png
+
+# local Codex workspace artifacts
+/.codex-dev-server.*
+/.codex-remote-attachments/
 
 # next.js
 /.next/
