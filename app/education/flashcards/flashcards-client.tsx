@@ -1636,30 +1636,32 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 ))}
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => moveCommunityCarousel(-1)}
-                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
-                aria-label="Previous community decks"
-                className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-left-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
-              >
-                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => moveCommunityCarousel(1)}
-                disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
-                aria-label="Next community decks"
-                className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:-right-5 md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
-              >
-                <ChevronRight className="h-5 w-5" aria-hidden="true" />
-              </Button>
+              <div className="pointer-events-none absolute left-2 right-2 top-40 z-10 flex items-center justify-between md:-left-5 md:-right-5 md:top-1/2 md:-translate-y-1/2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => moveCommunityCarousel(-1)}
+                  disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                  aria-label="Previous community decks"
+                  className="pointer-events-auto h-10 w-10 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+                >
+                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => moveCommunityCarousel(1)}
+                  disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
+                  aria-label="Next community decks"
+                  className="pointer-events-auto h-10 w-10 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+                >
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              </div>
               <span className="sr-only">{carouselPositionLabel}</span>
             </div>
           ) : (
