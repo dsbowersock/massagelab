@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, RotateCcw, Save, Shuffle, Sparkles, Target, Timer, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -61,6 +62,7 @@ type PromptSummary = {
 }
 
 type ActiveDeckKind = "temporary" | "starter" | "community"
+type BuilderSection = "category" | "region" | "promptTypes"
 
 type FlashcardProgressDashboard = {
   trackedPromptCount: number
@@ -217,6 +219,26 @@ function promptDeckPayload(value: unknown) {
     : {}
 
   return promptRows(record.prompts)
+}
+
+function selectionSummary(selectedIds: readonly string[], options: readonly Option[], allLabel: string) {
+  if (selectedIds.length === options.length) return allLabel
+  if (selectedIds.length === 0) return "No selections"
+
+  const labelById = new Map(options.map((option) => [option.id, option.label]))
+  const labels = selectedIds.map((id) => labelById.get(id) ?? id)
+
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`
+}
+
+function promptTypeSelectionSummary(selectedTypes: readonly FlashcardPromptType[], promptTypeCounts: readonly PromptTypeCount[]) {
+  if (selectedTypes.length === promptTypeCounts.length) return "All prompt types"
+  if (selectedTypes.length === 0) return "No prompt types"
+
+  const labelById = new Map(promptTypeCounts.map((type) => [type.id, type.label]))
+  const labels = selectedTypes.map((id) => labelById.get(id) ?? id)
+
+  return labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`
 }
 
 function promptSummaryRows(value: unknown) {
@@ -481,7 +503,7 @@ function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt; isRevi
 
 function PromptBack({ prompt, result }: { prompt: FlashcardPrompt; result: PromptResult | null }) {
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-4 sm:p-5">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg bg-[radial-gradient(circle_at_bottom_right,hsl(var(--primary)/0.10),transparent_38%),linear-gradient(145deg,hsl(var(--background)),hsl(var(--card)))] p-4 sm:p-5">
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-medium uppercase text-muted-foreground">
           <span>Sourced Answer</span>
@@ -523,6 +545,7 @@ function SelectionButton({
   onClick,
   disabled = false,
   className,
+  compact = false,
 }: {
   selected: boolean
   icon: LucideIcon
@@ -531,6 +554,7 @@ function SelectionButton({
   onClick: () => void
   disabled?: boolean
   className?: string
+  compact?: boolean
 }) {
   return (
     <button
@@ -539,23 +563,64 @@ function SelectionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex min-h-12 items-center gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-2 text-left text-sm transition",
+        "flex items-center rounded-md border border-border/80 bg-card/60 text-left text-sm transition",
+        compact ? "min-h-11 justify-center gap-1 px-1.5 py-2 text-xs min-[420px]:gap-2 min-[420px]:px-2 min-[420px]:text-sm" : "min-h-12 gap-3 px-3 py-2",
         selected && "border-primary/70 bg-primary/10 text-foreground shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]",
         disabled ? "cursor-not-allowed opacity-55" : "hover:border-primary/60",
         className,
       )}
     >
       <span className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+        "flex shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+        compact ? "h-6 w-6" : "h-8 w-8",
         selected && "border-primary/50 text-primary",
       )}>
-        <Icon className="h-4 w-4" aria-hidden="true" />
+        <Icon className={cn("h-4 w-4", compact && "h-3.5 w-3.5")} aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block break-words font-medium">{label}</span>
+        <span className="block break-words font-medium leading-tight">{label}</span>
         {detail ? <span className="block break-words text-xs text-muted-foreground">{detail}</span> : null}
       </span>
     </button>
+  )
+}
+
+function SetupDisclosure({
+  title,
+  summary,
+  badge,
+  expanded,
+  onToggle,
+  className,
+  children,
+}: {
+  title: string
+  summary: string
+  badge: string
+  expanded: boolean
+  onToggle: () => void
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn("overflow-hidden rounded-md border border-border/80 bg-card/55", className)}>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition hover:border-primary/60 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{title}</span>
+          <span className="block truncate text-xs text-muted-foreground">{summary}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <Badge variant="outline">{badge}</Badge>
+          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")} aria-hidden="true" />
+        </span>
+      </button>
+      {expanded ? <div className="border-t border-border/80 p-3">{children}</div> : null}
+    </div>
   )
 }
 
@@ -644,6 +709,11 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [deckSize, setDeckSize] = useState(20)
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([])
   const [expandedPromptType, setExpandedPromptType] = useState<FlashcardPromptType | null>(null)
+  const [expandedBuilderSections, setExpandedBuilderSections] = useState<Record<BuilderSection, boolean>>({
+    category: false,
+    region: false,
+    promptTypes: false,
+  })
   const [deckTitle, setDeckTitle] = useState("My flashcard deck")
   const [deckDescription, setDeckDescription] = useState("")
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
@@ -828,6 +898,9 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const promptTypeLabelById = useMemo(() => new Map(promptTypeCounts.map((type) => [type.id, type.label])), [promptTypeCounts])
   const allCategoriesSelected = selectedCategories.length === allCategoryIds.length
   const allRegionsSelected = selectedRegions.length === allRegionIds.length
+  const categorySummary = selectionSummary(selectedCategories, categories, "All categories")
+  const regionSummary = selectionSummary(selectedRegions, regions, "All regions")
+  const promptTypesSummary = promptTypeSelectionSummary(promptTypes, promptTypeCounts)
   const selectedPromptIdSet = useMemo(() => new Set(selectedUsablePromptIds), [selectedUsablePromptIds])
   const exactPromptSelectionActive = selectedPromptIds.length > 0
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
@@ -848,6 +921,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const carouselPositionLabel = sortedCommunityDecks.length > 0
     ? `Community deck carousel position ${Math.min(communityDeckIndex + 1, sortedCommunityDecks.length)}/${sortedCommunityDecks.length}`
     : "Community deck carousel position 0/0"
+
+  const toggleBuilderSection = useCallback((section: BuilderSection) => {
+    if (section === "promptTypes" && expandedBuilderSections.promptTypes) setExpandedPromptType(null)
+
+    setExpandedBuilderSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }))
+  }, [expandedBuilderSections.promptTypes])
 
   useEffect(() => {
     if (communitySlideTimeoutRef.current !== null) {
@@ -1587,12 +1669,14 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             <Badge variant="outline">{eligiblePromptCount} eligible</Badge>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-2">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-medium">Category</h3>
-                <Badge variant="outline">{selectedCategories.length}/{categories.length}</Badge>
-              </div>
+          <div className="grid gap-3 xl:grid-cols-2">
+            <SetupDisclosure
+              title="Category"
+              summary={categorySummary}
+              badge={`${selectedCategories.length}/${categories.length}`}
+              expanded={expandedBuilderSections.category}
+              onToggle={() => toggleBuilderSection("category")}
+            >
               <div className="grid gap-2 sm:grid-cols-2">
                 <SelectionButton
                   selected={allCategoriesSelected}
@@ -1618,13 +1702,15 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   )
                 })}
               </div>
-            </div>
+            </SetupDisclosure>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-medium">Region</h3>
-                <Badge variant="outline">{selectedRegions.length}/{regions.length}</Badge>
-              </div>
+            <SetupDisclosure
+              title="Region"
+              summary={regionSummary}
+              badge={`${selectedRegions.length}/${regions.length}`}
+              expanded={expandedBuilderSections.region}
+              onToggle={() => toggleBuilderSection("region")}
+            >
               <div className="grid gap-2 sm:grid-cols-2">
                 <SelectionButton
                   selected={allRegionsSelected}
@@ -1650,19 +1736,20 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   )
                 })}
               </div>
-            </div>
+            </SetupDisclosure>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="space-y-3">
-              <h3 className="text-sm font-medium">Depth</h3>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <h3 className="text-sm font-medium">Study Detail</h3>
+              <div className="grid grid-cols-3 gap-2">
                 {Object.entries(difficultyLabels).map(([id, label]) => (
                   <SelectionButton
                     key={id}
                     selected={difficulty === id}
                     icon={id === "easy" ? Target : id === "medium" ? Layers3 : Trophy}
                     label={label}
+                    compact
                     onClick={() => {
                       setDifficulty(id as AnatomyStudyDifficulty)
                       setSelectedPromptIds([])
@@ -1694,106 +1781,119 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {promptTypeCounts.map((type) => {
-              const selected = promptTypes.includes(type.id)
-              const disabled = !selected && type.promptCount === 0
-              const Icon = promptTypeIconById[type.id] ?? CircleHelp
-              const selectedInType = selectedUsablePromptIds.filter((promptId) => promptTypeByPromptId.get(promptId) === type.id).length
-              const isExpanded = expandedPromptType === type.id
-              const expandedPromptSummaries = isExpanded
-                ? promptSummaries.filter((prompt) => prompt.type === type.id)
-                : []
-              const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
+          <SetupDisclosure
+            title="Prompt Types"
+            summary={promptTypesSummary}
+            badge={`${promptTypes.length}/${promptTypeCounts.length}`}
+            expanded={expandedBuilderSections.promptTypes}
+            onToggle={() => toggleBuilderSection("promptTypes")}
+            className="mt-5"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              {promptTypeCounts.map((type) => {
+                const selected = promptTypes.includes(type.id)
+                const disabled = !selected && type.promptCount === 0
+                const Icon = promptTypeIconById[type.id] ?? CircleHelp
+                const selectedInType = selectedUsablePromptIds.filter((promptId) => promptTypeByPromptId.get(promptId) === type.id).length
+                const isExpanded = expandedPromptType === type.id
+                const expandedPromptSummaries = isExpanded
+                  ? promptSummaries.filter((prompt) => prompt.type === type.id)
+                  : []
+                const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
+                const unavailableText = type.id === "identify_from_media"
+                  ? "No uploaded images available for these filters"
+                  : "No eligible prompts for these filters"
 
-              return (
-                <div key={type.id} className={cn(
-                  "rounded-md border border-border/80 bg-card/60 p-3 transition",
-                  selected && "border-primary/60 bg-primary/10",
-                  disabled && "opacity-55",
-                )}>
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      aria-pressed={selected}
-                      disabled={disabled}
-                      onClick={() => togglePromptType(type.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
-                    >
-                      <span className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
-                        selected && "border-primary/50 text-primary",
-                      )}>
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block break-words text-sm font-medium">{type.label}</span>
-                        {exactPromptSelectionActive && selected ? <span className="block text-xs text-muted-foreground">{selectedInType} selected</span> : null}
-                      </span>
-                    </button>
-                    <Badge variant="outline">{type.promptCount}</Badge>
-                  </div>
-                  {type.promptCount > 0 ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="mt-3 w-full"
-                      aria-expanded={isExpanded}
-                      onClick={() => setExpandedPromptType(isExpanded ? null : type.id)}
-                    >
-                      {isExpanded ? "Close items" : "Choose items"}
-                    </Button>
-                  ) : null}
-
-                  {isExpanded ? (
-                    <div className="mt-3 rounded-md border border-border/80 bg-background/70 p-3">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h3 className="text-sm font-medium">{type.label}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {exactPromptSelectionActive
-                              ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
-                              : "All matching items are included"}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
-                            Select exact items
-                          </Button>
-                          {exactPromptSelectionActive ? (
-                            <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
-                              Use all eligible
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
-                        {expandedPromptSummaries.map((prompt) => {
-                          const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
-                          return (
-                            <button
-                              key={prompt.id}
-                              type="button"
-                              aria-pressed={promptSelected}
-                              onClick={() => togglePromptId(prompt.id)}
-                              className={cn(
-                                "rounded-md border border-border/80 bg-card/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
-                                promptSelected && "border-primary/60 bg-primary/10",
-                              )}
-                            >
-                              <span className="block truncate font-medium">{prompt.name}</span>
-                              <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
+                return (
+                  <div key={type.id} className={cn(
+                    "rounded-md border border-border/80 bg-card/60 p-3 transition",
+                    selected && "border-primary/60 bg-primary/10",
+                    disabled && "opacity-55",
+                  )}>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={disabled}
+                        onClick={() => togglePromptType(type.id)}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed"
+                      >
+                        <span className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/80 bg-background/70 text-muted-foreground",
+                          selected && "border-primary/50 text-primary",
+                        )}>
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block break-words text-sm font-medium">{type.label}</span>
+                          {exactPromptSelectionActive && selected ? <span className="block text-xs text-muted-foreground">{selectedInType} selected</span> : null}
+                          {type.promptCount === 0 ? <span className="block text-xs text-muted-foreground">{unavailableText}</span> : null}
+                        </span>
+                      </button>
+                      <Badge variant="outline">{type.promptCount}</Badge>
                     </div>
-                  ) : null}
-                </div>
-              )
-            })}
-          </div>
+                    {type.promptCount > 0 ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        aria-expanded={isExpanded}
+                        onClick={() => setExpandedPromptType(isExpanded ? null : type.id)}
+                      >
+                        {isExpanded ? "Close items" : "Choose items"}
+                      </Button>
+                    ) : null}
+
+                    {isExpanded ? (
+                      <div className="mt-3 rounded-md border border-border/80 bg-background/70 p-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h3 className="text-sm font-medium">{type.label}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {exactPromptSelectionActive
+                                ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
+                                : "All matching items are included"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
+                              Select exact items
+                            </Button>
+                            {exactPromptSelectionActive ? (
+                              <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
+                                Use all eligible
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
+                          {expandedPromptSummaries.map((prompt) => {
+                            const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
+                            return (
+                              <button
+                                key={prompt.id}
+                                type="button"
+                                aria-pressed={promptSelected}
+                                onClick={() => togglePromptId(prompt.id)}
+                                className={cn(
+                                  "rounded-md border border-border/80 bg-card/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
+                                  promptSelected && "border-primary/60 bg-primary/10",
+                                )}
+                              >
+                                <span className="block truncate font-medium">{prompt.name}</span>
+                                <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          </SetupDisclosure>
 
           {canPersistProgress ? (
             <label className="mt-4 flex items-start gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-3 text-sm">
@@ -1808,12 +1908,13 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
           <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]">
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Answer Mode</h3>
-              <div className="grid gap-2 xl:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 <SelectionButton
                   selected={answerMode === "typed"}
                   icon={Keyboard}
                   label={answerModeLabels.typed}
                   detail="Progress and badges"
+                  compact
                   onClick={() => setAnswerMode("typed")}
                 />
                 <SelectionButton
@@ -1821,6 +1922,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                   icon={Eye}
                   label={answerModeLabels.review}
                   detail="Practice only"
+                  compact
                   onClick={() => setAnswerMode("review")}
                 />
               </div>
