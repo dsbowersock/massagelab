@@ -2,10 +2,13 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   FLASHCARD_MASTERY_THRESHOLD,
+  flashcardMasteryRoundAchievementKey,
   flashcardProgressTool,
   isFlashcardProgressMastered,
   nextFlashcardProgressUpdate,
+  nextFlashcardProgressRoundMetadata,
   normalizeFlashcardProgressMetadata,
+  roundNumberFromAchievementKey,
   summarizeFlashcardProgress,
 } from "../lib/flashcard-progress.js"
 
@@ -57,6 +60,34 @@ describe("Flashcard progress mastery metadata", () => {
     assert.equal(missed.metadata.attemptCount, 2)
     assert.equal(missed.metadata.currentCorrectStreak, 0)
     assert.equal(missed.metadata.bestCorrectStreak, 1)
+    assert.equal(missed.metadata.lifetimeCorrectCount, 1)
+    assert.equal(missed.metadata.lifetimeIncorrectCount, 1)
+    assert.equal(missed.metadata.lifetimeAttemptCount, 2)
+  })
+
+  it("resets current round progress while preserving lifetime totals", () => {
+    const first = nextFlashcardProgressUpdate({}, result(), new Date("2026-06-07T00:00:00.000Z"))
+    const second = nextFlashcardProgressUpdate(first.metadata, result({ correct: false, score: 0 }), new Date("2026-06-07T00:00:01.000Z"))
+    const nextRound = nextFlashcardProgressRoundMetadata(second.metadata, new Date("2026-06-08T00:00:00.000Z"))
+
+    assert.equal(nextRound.attemptCount, 0)
+    assert.equal(nextRound.correctCount, 0)
+    assert.equal(nextRound.incorrectCount, 0)
+    assert.equal(nextRound.lifetimeAttemptCount, 2)
+    assert.equal(nextRound.lifetimeCorrectCount, 1)
+    assert.equal(nextRound.lifetimeIncorrectCount, 1)
+    assert.equal(nextRound.masteryRound, 2)
+    assert.equal(nextRound.roundStartedAt, "2026-06-08T00:00:00.000Z")
+    assert.equal(nextRound.masteredAt, undefined)
+    assert.equal(isFlashcardProgressMastered(nextRound), false)
+  })
+
+  it("uses repeatable mastery round achievement keys", () => {
+    const key = flashcardMasteryRoundAchievementKey(3)
+
+    assert.equal(key, "flashcards:mastery-round:3")
+    assert.equal(roundNumberFromAchievementKey(key), 3)
+    assert.equal(roundNumberFromAchievementKey("flashcards:first-completion"), 0)
   })
 
   it("summarizes tracked and mastered prompt progress", () => {

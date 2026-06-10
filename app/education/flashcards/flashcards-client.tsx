@@ -74,6 +74,11 @@ type FlashcardProgressDashboard = {
   completedSessionCount: number
   achievementCount: number
   bestDurationMs: number | null
+  targetPromptCount: number
+  roundCompletionPercent: number
+  completedRoundCount: number
+  currentRound: number
+  canStartNextRound: boolean
 }
 
 type FlashcardRecentProgress = {
@@ -86,7 +91,11 @@ type FlashcardRecentProgress = {
   attemptCount: number
   correctCount: number
   incorrectCount: number
+  lifetimeAttemptCount: number
+  lifetimeCorrectCount: number
+  lifetimeIncorrectCount: number
   masteryThreshold: number
+  masteryRound: number
   masteredAt: string | null
   lastSeenAt: string
 }
@@ -275,7 +284,11 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
         attemptCount: numeric(row.attemptCount),
         correctCount: numeric(row.correctCount),
         incorrectCount: numeric(row.incorrectCount),
+        lifetimeAttemptCount: numeric(row.lifetimeAttemptCount, numeric(row.attemptCount)),
+        lifetimeCorrectCount: numeric(row.lifetimeCorrectCount, numeric(row.correctCount)),
+        lifetimeIncorrectCount: numeric(row.lifetimeIncorrectCount, numeric(row.incorrectCount)),
         masteryThreshold: numeric(row.masteryThreshold, 10),
+        masteryRound: numeric(row.masteryRound, 1),
         masteredAt: text(row.masteredAt) || null,
         lastSeenAt: text(row.lastSeenAt),
       }
@@ -307,6 +320,11 @@ function progressPayload(value: unknown): FlashcardProgressPayload | null {
       completedSessionCount: numeric(progress.completedSessionCount),
       achievementCount: numeric(progress.achievementCount),
       bestDurationMs: nullableNumber(progress.bestDurationMs),
+      targetPromptCount: numeric(progress.targetPromptCount, numeric(progress.trackedPromptCount)),
+      roundCompletionPercent: numeric(progress.roundCompletionPercent),
+      completedRoundCount: numeric(progress.completedRoundCount),
+      currentRound: numeric(progress.currentRound, 1),
+      canStartNextRound: progress.canStartNextRound === true,
     },
     recentProgress,
     achievements,
@@ -648,6 +666,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const [skipMasteredPrompts, setSkipMasteredPrompts] = useState(false)
   const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
   const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
+  const [isStartingNextRound, setIsStartingNextRound] = useState(false)
   const [communityDeckIndex, setCommunityDeckIndex] = useState(0)
   const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
   const [activeDeckActivation, setActiveDeckActivation] = useState(0)
@@ -818,6 +837,8 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const exactPromptSelectionActive = selectedPromptIds.length > 0
   const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
+  const progressRoundTarget = progressDashboard ? Math.max(progressDashboard.progress.targetPromptCount, progressDashboard.progress.trackedPromptCount) : 0
+  const progressRoundPercent = progressDashboard ? Math.max(0, Math.min(100, progressDashboard.progress.roundCompletionPercent)) : 0
   const sortedCommunityDecks = communityDecks
   const visibleCommunityDecks = useMemo(() => {
     if (sortedCommunityDecks.length <= 2) return sortedCommunityDecks
@@ -1248,6 +1269,36 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
     } catch (error) {
       console.error("Failed to complete flashcard study session", error)
       setSaveMessage("Progress could not be saved.")
+    }
+  }
+
+  const startNextMasteryRound = async () => {
+    if (!canPersistProgress || !progressDashboard?.progress.canStartNextRound || isStartingNextRound) return
+
+    setIsStartingNextRound(true)
+    setSaveMessage("")
+
+    try {
+      const response = await fetch("/api/education/flashcards/progress/round", { method: "POST" })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setSaveMessage(typeof payload?.error === "string" ? payload.error : "Next mastery round could not be started.")
+        return
+      }
+
+      const completedRound = numeric(payload?.round?.round)
+      const nextRound = numeric(payload?.round?.nextRound)
+      setSkipMasteredPrompts(false)
+      setSaveMessage(completedRound && nextRound
+        ? `Round ${completedRound} complete. Round ${nextRound} is ready.`
+        : "Next mastery round is ready.")
+      void refreshProgressDashboard()
+    } catch (error) {
+      console.error("Failed to start next flashcard mastery round", error)
+      setSaveMessage("Next mastery round could not be started.")
+    } finally {
+      setIsStartingNextRound(false)
     }
   }
 
@@ -1820,11 +1871,31 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
             </div>
             {progressDashboard ? (
               <>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-md border border-border/80 p-2">
-                    <div className="text-muted-foreground">Mastered</div>
-                    <div className="font-semibold">{progressDashboard.progress.masteredPromptCount}</div>
+                <div className="space-y-3 rounded-md border border-border/80 bg-background/60 p-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <div>
+                      <div className="font-medium">Round {progressDashboard.progress.currentRound}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {progressDashboard.progress.masteredPromptCount}/{progressRoundTarget} prompts mastered
+                      </div>
+                    </div>
+                    <Badge variant={progressDashboard.progress.canStartNextRound ? "default" : "outline"}>
+                      {progressRoundPercent}%
+                    </Badge>
                   </div>
+                  <Progress value={progressRoundPercent} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
+                  {progressDashboard.progress.canStartNextRound ? (
+                    <Button type="button" className="w-full" onClick={startNextMasteryRound} disabled={isStartingNextRound}>
+                      <Trophy className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {isStartingNextRound ? "Starting..." : "Claim round and start next"}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Master every sourced prompt in this round to earn a completion badge and begin a fresh round.
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="rounded-md border border-border/80 p-2">
                     <div className="text-muted-foreground">Active</div>
                     <div className="font-semibold">{progressDashboard.progress.activePromptCount}</div>
@@ -1834,14 +1905,18 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                     <div className="font-semibold">{progressDashboard.progress.accuracyPercent}%</div>
                   </div>
                   <div className="rounded-md border border-border/80 p-2">
+                    <div className="text-muted-foreground">Lifetime Correct</div>
+                    <div className="font-semibold">{progressDashboard.progress.totalCorrect}</div>
+                  </div>
+                  <div className="rounded-md border border-border/80 p-2">
                     <div className="text-muted-foreground">Best Time</div>
                     <div className="font-semibold">{formatDuration(progressDashboard.progress.bestDurationMs)}</div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline">{progressDashboard.progress.completedSessionCount} sessions</Badge>
-                  <Badge variant="outline">{progressDashboard.progress.achievementCount} badges</Badge>
-                  <Badge variant="outline">{progressDashboard.progress.totalCorrect} correct</Badge>
+                  <Badge variant="outline">{progressDashboard.progress.completedRoundCount} round badges</Badge>
+                  <Badge variant="outline">{progressDashboard.progress.achievementCount} total badges</Badge>
                 </div>
                 {progressDashboard.recentProgress.length > 0 ? (
                   <div className="space-y-2">
@@ -1857,6 +1932,10 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                         <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
                           <span className="truncate">{promptTypeLabelById.get(item.promptType as FlashcardPromptType) ?? item.promptType}</span>
                           <span>{item.correctCount}/{item.masteryThreshold}</span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-muted-foreground">
+                          <span>Round {item.masteryRound}</span>
+                          <span>{item.lifetimeCorrectCount} lifetime correct</span>
                         </div>
                       </div>
                     ))}

@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
+import {
+  ANATOMY_STUDY_CATEGORIES,
+  ANATOMY_STUDY_REGION_ORDER,
+  FLASHCARD_PROMPT_TYPES,
+  getAnatomyStudyPrompts,
+} from "@/lib/anatomy-study"
 import { FLASHCARD_TOOL } from "@/lib/flashcard-community"
 import {
+  FLASHCARD_MASTERY_ROUND_KEY_PREFIX,
   FLASHCARD_MASTERY_THRESHOLD,
+  roundNumberFromAchievementKey,
   normalizeFlashcardProgressMetadata,
 } from "@/lib/flashcard-progress"
 import { prisma } from "@/lib/prisma"
+
+const emptyMediaOptions = { mediaUrlBySlug: new Map<string, string>() }
 
 type FlashcardProgressResponse = {
   progress: {
@@ -20,6 +30,11 @@ type FlashcardProgressResponse = {
     completedSessionCount: number
     achievementCount: number
     bestDurationMs: number | null
+    targetPromptCount: number
+    roundCompletionPercent: number
+    completedRoundCount: number
+    currentRound: number
+    canStartNextRound: boolean
   }
   recentProgress: Array<{
     promptId: string
@@ -31,7 +46,11 @@ type FlashcardProgressResponse = {
     attemptCount: number
     correctCount: number
     incorrectCount: number
+    lifetimeAttemptCount: number
+    lifetimeCorrectCount: number
+    lifetimeIncorrectCount: number
     masteryThreshold: number
+    masteryRound: number
     masteredAt: string | null
     lastSeenAt: string
   }>
@@ -60,6 +79,7 @@ type ProgressAggregateRow = {
   totalAttempts: number
   totalCorrect: number
   totalIncorrect: number
+  maxMasteryRound: number
 }
 
 type ProgressPageRow = {
@@ -89,6 +109,33 @@ function numberFromDb(value: unknown) {
   return Number.isFinite(numeric) ? numeric : 0
 }
 
+async function optionalMediaOptions() {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    const { loadAnatomyStudyMediaUrlOptions } = await import("@/lib/anatomy-study-media")
+
+    return await Promise.race([
+      loadAnatomyStudyMediaUrlOptions(),
+      new Promise<typeof emptyMediaOptions>((resolve) => {
+        timeoutId = setTimeout(() => resolve(emptyMediaOptions), 1500)
+      }),
+    ])
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
+  }
+}
+
+function allPromptCount(options: typeof emptyMediaOptions) {
+  return getAnatomyStudyPrompts({
+    categories: [...ANATOMY_STUDY_CATEGORIES],
+    regions: [...ANATOMY_STUDY_REGION_ORDER],
+    difficulty: "hard",
+    promptTypes: [...FLASHCARD_PROMPT_TYPES],
+    answerMode: "typed",
+  }, options).length
+}
+
 export async function GET(request: Request): Promise<NextResponse<FlashcardProgressResponse | { error: string }>> {
   const session = await getCurrentSession()
   if (!session?.user?.id) {
@@ -101,6 +148,8 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const skip = (page - 1) * pageSize
   const flashcardToolLike = `${FLASHCARD_TOOL}:%`
   const promptIdStart = `${FLASHCARD_TOOL}:`.length + 1
+  const mediaOptions = await optionalMediaOptions()
+  const targetPromptCount = allPromptCount(mediaOptions)
 
   const [
     progressRows,
@@ -108,6 +157,7 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
     completedSessionCount,
     bestSession,
     achievementCount,
+    completedRoundCount,
     achievements,
   ] = await Promise.all([
     prisma.$queryRaw<ProgressPageRow[]>`
@@ -157,7 +207,11 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
           CASE WHEN "metadata"->>'attemptCount' ~ '^[0-9]+$' THEN ("metadata"->>'attemptCount')::int ELSE 0 END AS attempt_count,
           CASE WHEN "metadata"->>'correctCount' ~ '^[0-9]+$' THEN ("metadata"->>'correctCount')::int ELSE 0 END AS correct_count,
           CASE WHEN "metadata"->>'incorrectCount' ~ '^[0-9]+$' THEN ("metadata"->>'incorrectCount')::int ELSE 0 END AS incorrect_count,
-          CASE WHEN "metadata"->>'masteryThreshold' ~ '^[0-9]+$' THEN ("metadata"->>'masteryThreshold')::int ELSE ${FLASHCARD_MASTERY_THRESHOLD} END AS mastery_threshold
+          CASE WHEN "metadata"->>'lifetimeAttemptCount' ~ '^[0-9]+$' THEN ("metadata"->>'lifetimeAttemptCount')::int ELSE CASE WHEN "metadata"->>'attemptCount' ~ '^[0-9]+$' THEN ("metadata"->>'attemptCount')::int ELSE 0 END END AS lifetime_attempt_count,
+          CASE WHEN "metadata"->>'lifetimeCorrectCount' ~ '^[0-9]+$' THEN ("metadata"->>'lifetimeCorrectCount')::int ELSE CASE WHEN "metadata"->>'correctCount' ~ '^[0-9]+$' THEN ("metadata"->>'correctCount')::int ELSE 0 END END AS lifetime_correct_count,
+          CASE WHEN "metadata"->>'lifetimeIncorrectCount' ~ '^[0-9]+$' THEN ("metadata"->>'lifetimeIncorrectCount')::int ELSE CASE WHEN "metadata"->>'incorrectCount' ~ '^[0-9]+$' THEN ("metadata"->>'incorrectCount')::int ELSE 0 END END AS lifetime_incorrect_count,
+          CASE WHEN "metadata"->>'masteryThreshold' ~ '^[0-9]+$' THEN ("metadata"->>'masteryThreshold')::int ELSE ${FLASHCARD_MASTERY_THRESHOLD} END AS mastery_threshold,
+          CASE WHEN "metadata"->>'masteryRound' ~ '^[0-9]+$' THEN ("metadata"->>'masteryRound')::int ELSE 1 END AS mastery_round
         FROM (
           SELECT
             "id",
@@ -175,9 +229,10 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       SELECT
         COUNT(*)::int AS "trackedPromptCount",
         COALESCE(SUM(CASE WHEN correct_count >= mastery_threshold THEN 1 ELSE 0 END), 0)::int AS "masteredPromptCount",
-        COALESCE(SUM(attempt_count), 0)::int AS "totalAttempts",
-        COALESCE(SUM(correct_count), 0)::int AS "totalCorrect",
-        COALESCE(SUM(incorrect_count), 0)::int AS "totalIncorrect"
+        COALESCE(SUM(lifetime_attempt_count), 0)::int AS "totalAttempts",
+        COALESCE(SUM(lifetime_correct_count), 0)::int AS "totalCorrect",
+        COALESCE(SUM(lifetime_incorrect_count), 0)::int AS "totalIncorrect",
+        COALESCE(MAX(mastery_round), 1)::int AS "maxMasteryRound"
       FROM latest_progress
     `,
     prisma.flashcardStudySession.count({
@@ -199,6 +254,13 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       where: {
         userId: session.user.id,
         tool: FLASHCARD_TOOL,
+      },
+    }),
+    prisma.achievement.count({
+      where: {
+        userId: session.user.id,
+        tool: FLASHCARD_TOOL,
+        key: { startsWith: FLASHCARD_MASTERY_ROUND_KEY_PREFIX },
       },
     }),
     prisma.achievement.findMany({
@@ -237,6 +299,14 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const totalAttempts = numberFromDb(progressAggregate?.totalAttempts)
   const totalCorrect = numberFromDb(progressAggregate?.totalCorrect)
   const totalIncorrect = numberFromDb(progressAggregate?.totalIncorrect)
+  const currentRound = Math.max(1, numberFromDb(progressAggregate?.maxMasteryRound))
+  const displayedCompletedRoundCount = achievements
+    .map((achievement) => roundNumberFromAchievementKey(achievement.key))
+    .filter((round) => round > 0)
+    .length
+  const roundCompletionPercent = targetPromptCount > 0
+    ? Math.min(100, Math.round((masteredPromptCount / targetPromptCount) * 100))
+    : 0
   const response: FlashcardProgressResponse = {
     progress: {
       trackedPromptCount,
@@ -250,6 +320,11 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       completedSessionCount,
       achievementCount,
       bestDurationMs: bestSession?.durationMs ?? null,
+      targetPromptCount,
+      roundCompletionPercent,
+      completedRoundCount: Math.max(completedRoundCount, displayedCompletedRoundCount),
+      currentRound,
+      canStartNextRound: targetPromptCount > 0 && masteredPromptCount >= targetPromptCount,
     },
     recentProgress: progressRecords.map((record) => ({
       promptId: record.metadata.promptId,
@@ -261,7 +336,11 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
       attemptCount: record.metadata.attemptCount,
       correctCount: record.metadata.correctCount,
       incorrectCount: record.metadata.incorrectCount,
+      lifetimeAttemptCount: record.metadata.lifetimeAttemptCount,
+      lifetimeCorrectCount: record.metadata.lifetimeCorrectCount,
+      lifetimeIncorrectCount: record.metadata.lifetimeIncorrectCount,
       masteryThreshold: record.metadata.masteryThreshold,
+      masteryRound: record.metadata.masteryRound,
       masteredAt: record.metadata.masteredAt ?? null,
       lastSeenAt: record.lastSeenAt.toISOString(),
     })),
