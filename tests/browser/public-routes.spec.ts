@@ -297,6 +297,11 @@ test("signed-in flashcards can claim a mastery round and refresh progress", asyn
   let progressRequests = 0
   let roundStartRequests = 0
   let roundClaimed = false
+  let delayedRoundRefresh = false
+  let releaseProgressRefresh: (() => void) | undefined
+  const progressRefreshStarted = new Promise<void>((resolve) => {
+    releaseProgressRefresh = resolve
+  })
 
   const progressPayload = () => ({
     progress: {
@@ -330,6 +335,11 @@ test("signed-in flashcards can claim a mastery round and refresh progress", asyn
   })
   await page.route("**/api/education/flashcards/progress", async (route) => {
     progressRequests += 1
+    if (roundClaimed && !delayedRoundRefresh) {
+      delayedRoundRefresh = true
+      await progressRefreshStarted
+    }
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -363,7 +373,15 @@ test("signed-in flashcards can claim a mastery round and refresh progress", asyn
 
   const claimButton = page.getByRole("button", { name: "Claim round and start next" })
   await expect(claimButton).toBeVisible()
+  await expect(claimButton).toBeEnabled()
   await claimButton.click()
+
+  const pendingClaimButton = page
+    .getByRole("button", { name: "Starting..." })
+    .or(page.getByRole("button", { name: "Claim round and start next" }))
+    .first()
+  await expect(pendingClaimButton).toBeDisabled()
+  releaseProgressRefresh?.()
 
   await expect(page.getByText("Round 1 complete. Round 2 is ready.")).toBeVisible()
   await expect(page.getByText("Master every sourced prompt in this round to earn a completion badge and begin a fresh round.")).toBeVisible()

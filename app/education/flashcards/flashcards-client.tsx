@@ -748,6 +748,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
   const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
   const [activeDeckActivation, setActiveDeckActivation] = useState(0)
   const studyStartedAtRef = useRef<number | null>(null)
+  const isStartingNextRoundRef = useRef(false)
 
   const refreshProgressDashboard = useCallback(async () => {
     if (!canPersistProgress) {
@@ -761,7 +762,17 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
       if (!response.ok) return
 
       const payload = progressPayload(await response.json())
-      if (payload) setProgressDashboard(payload)
+      if (payload) {
+        setProgressDashboard(isStartingNextRoundRef.current && payload.progress.canStartNextRound
+          ? {
+            ...payload,
+            progress: {
+              ...payload.progress,
+              canStartNextRound: false,
+            },
+          }
+          : payload)
+      }
     } catch (error) {
       console.error("Failed to load flashcard progress", error)
     } finally {
@@ -1356,8 +1367,15 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
   }
 
   const startNextMasteryRound = async () => {
-    if (!canPersistProgress || !progressDashboard?.progress.canStartNextRound || isStartingNextRound) return
+    if (
+      !canPersistProgress
+      || !progressDashboard?.progress.canStartNextRound
+      || isStartingNextRound
+      || isStartingNextRoundRef.current
+      || isLoadingProgressDashboard
+    ) return
 
+    isStartingNextRoundRef.current = true
     setIsStartingNextRound(true)
     setSaveMessage("")
 
@@ -1376,11 +1394,21 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
       setSaveMessage(completedRound && nextRound
         ? `Round ${completedRound} complete. Round ${nextRound} is ready.`
         : "Next mastery round is ready.")
+      setProgressDashboard((current) => current
+        ? {
+          ...current,
+          progress: {
+            ...current.progress,
+            canStartNextRound: false,
+          },
+        }
+        : current)
       await refreshProgressDashboard()
     } catch (error) {
       console.error("Failed to start next flashcard mastery round", error)
       setSaveMessage("Next mastery round could not be started.")
     } finally {
+      isStartingNextRoundRef.current = false
       setIsStartingNextRound(false)
     }
   }
@@ -1999,8 +2027,8 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                   </Badge>
                 </div>
                 <Progress value={progressRoundPercent} className="h-2 bg-neutral-800 [&>div]:bg-primary" />
-                {progressDashboard.progress.canStartNextRound ? (
-                  <Button type="button" className="w-full" onClick={startNextMasteryRound} disabled={isStartingNextRound}>
+                {progressDashboard.progress.canStartNextRound || isStartingNextRound ? (
+                  <Button type="button" className="w-full" onClick={startNextMasteryRound} disabled={isStartingNextRound || isLoadingProgressDashboard}>
                     <Trophy className="mr-2 h-4 w-4" aria-hidden="true" />
                     {isStartingNextRound ? "Starting..." : "Claim round and start next"}
                   </Button>
