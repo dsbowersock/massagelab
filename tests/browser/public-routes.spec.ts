@@ -292,3 +292,81 @@ test("signed-in flashcards fall back to temporary study when progress session fa
   await expect(page.getByText(/Studying temporarily; progress tracking could not be started\./i)).toBeVisible()
   expect(sessionStartRequests).toBeGreaterThan(0)
 })
+
+test("signed-in flashcards can claim a mastery round and refresh progress", async ({ page }) => {
+  let progressRequests = 0
+  let roundStartRequests = 0
+  let roundClaimed = false
+
+  const progressPayload = () => ({
+    progress: {
+      trackedPromptCount: 2,
+      activePromptCount: roundClaimed ? 2 : 0,
+      masteredPromptCount: roundClaimed ? 0 : 2,
+      totalAttempts: 20,
+      totalCorrect: 20,
+      totalIncorrect: 0,
+      accuracyPercent: 100,
+      masteryThreshold: 10,
+      completedSessionCount: 4,
+      achievementCount: roundClaimed ? 2 : 1,
+      bestDurationMs: 45000,
+      targetPromptCount: 2,
+      roundCompletionPercent: roundClaimed ? 0 : 100,
+      completedRoundCount: roundClaimed ? 1 : 0,
+      currentRound: roundClaimed ? 2 : 1,
+      canStartNextRound: !roundClaimed,
+    },
+    recentProgress: [],
+    achievements: [{ key: "flashcards:first-completion", earnedAt: "2026-06-07T00:00:00.000Z" }],
+  })
+
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: { id: "browser-test-user" } }),
+    })
+  })
+  await page.route("**/api/education/flashcards/progress", async (route) => {
+    progressRequests += 1
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(progressPayload()),
+    })
+  })
+  await page.route("**/api/education/flashcards/progress/round", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback()
+      return
+    }
+
+    roundStartRequests += 1
+    roundClaimed = true
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        round: {
+          round: 1,
+          nextRound: 2,
+          targetPromptCount: 2,
+          masteredPromptCount: 2,
+        },
+      }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Your Progress" })).toBeVisible()
+
+  const claimButton = page.getByRole("button", { name: "Claim round and start next" })
+  await expect(claimButton).toBeVisible()
+  await claimButton.click()
+
+  await expect(page.getByText("Round 1 complete. Round 2 is ready.")).toBeVisible()
+  await expect(page.getByText("Master every sourced prompt in this round to earn a completion badge and begin a fresh round.")).toBeVisible()
+  expect(roundStartRequests).toBe(1)
+  expect(progressRequests).toBeGreaterThan(1)
+})
