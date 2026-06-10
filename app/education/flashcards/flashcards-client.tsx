@@ -829,13 +829,7 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
   const allCategoriesSelected = selectedCategories.length === allCategoryIds.length
   const allRegionsSelected = selectedRegions.length === allRegionIds.length
   const selectedPromptIdSet = useMemo(() => new Set(selectedUsablePromptIds), [selectedUsablePromptIds])
-  const expandedPromptSummaries = useMemo(() => (
-    expandedPromptType
-      ? promptSummaries.filter((prompt) => prompt.type === expandedPromptType)
-      : []
-  ), [expandedPromptType, promptSummaries])
   const exactPromptSelectionActive = selectedPromptIds.length > 0
-  const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
   const progressRoundTarget = progressDashboard ? Math.max(progressDashboard.progress.targetPromptCount, progressDashboard.progress.trackedPromptCount) : 0
   const progressRoundPercent = progressDashboard ? Math.max(0, Math.min(100, progressDashboard.progress.roundCompletionPercent)) : 0
@@ -1706,6 +1700,11 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
               const disabled = !selected && type.promptCount === 0
               const Icon = promptTypeIconById[type.id] ?? CircleHelp
               const selectedInType = selectedUsablePromptIds.filter((promptId) => promptTypeByPromptId.get(promptId) === type.id).length
+              const isExpanded = expandedPromptType === type.id
+              const expandedPromptSummaries = isExpanded
+                ? promptSummaries.filter((prompt) => prompt.type === type.id)
+                : []
+              const selectedExpandedPromptCount = expandedPromptSummaries.filter((prompt) => selectedPromptIdSet.has(prompt.id)).length
 
               return (
                 <div key={type.id} className={cn(
@@ -1740,60 +1739,61 @@ export function FlashcardsClient({ categories, regions, sources, initialDecks, i
                       size="sm"
                       variant="outline"
                       className="mt-3 w-full"
-                      onClick={() => setExpandedPromptType(expandedPromptType === type.id ? null : type.id)}
+                      aria-expanded={isExpanded}
+                      onClick={() => setExpandedPromptType(isExpanded ? null : type.id)}
                     >
-                      {expandedPromptType === type.id ? "Close items" : "Choose items"}
+                      {isExpanded ? "Close items" : "Choose items"}
                     </Button>
+                  ) : null}
+
+                  {isExpanded ? (
+                    <div className="mt-3 rounded-md border border-border/80 bg-background/70 p-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium">{type.label}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {exactPromptSelectionActive
+                              ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
+                              : "All matching items are included"}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
+                            Select exact items
+                          </Button>
+                          {exactPromptSelectionActive ? (
+                            <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
+                              Use all eligible
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
+                        {expandedPromptSummaries.map((prompt) => {
+                          const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
+                          return (
+                            <button
+                              key={prompt.id}
+                              type="button"
+                              aria-pressed={promptSelected}
+                              onClick={() => togglePromptId(prompt.id)}
+                              className={cn(
+                                "rounded-md border border-border/80 bg-card/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
+                                promptSelected && "border-primary/60 bg-primary/10",
+                              )}
+                            >
+                              <span className="block truncate font-medium">{prompt.name}</span>
+                              <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               )
             })}
           </div>
-
-          {expandedPromptType ? (
-            <div className="mt-3 rounded-md border border-border/80 bg-card/60 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-medium">{promptTypeLabelById.get(expandedPromptType) ?? "Prompt items"}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {exactPromptSelectionActive
-                      ? `${selectedExpandedPromptCount}/${expandedPromptSummaries.length} selected in this group`
-                      : "All matching items are included"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={activateExactPromptSelection} disabled={promptSummaries.length === 0}>
-                    Select exact items
-                  </Button>
-                  {exactPromptSelectionActive ? (
-                    <Button type="button" size="sm" variant="outline" onClick={() => setSelectedPromptIds([])}>
-                      Use all eligible
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                {expandedPromptSummaries.map((prompt) => {
-                  const promptSelected = !exactPromptSelectionActive || selectedPromptIdSet.has(prompt.id)
-                  return (
-                    <button
-                      key={prompt.id}
-                      type="button"
-                      aria-pressed={promptSelected}
-                      onClick={() => togglePromptId(prompt.id)}
-                      className={cn(
-                        "rounded-md border border-border/80 bg-background/70 px-3 py-2 text-left text-sm transition hover:border-primary/60",
-                        promptSelected && "border-primary/60 bg-primary/10",
-                      )}
-                    >
-                      <span className="block truncate font-medium">{prompt.name}</span>
-                      <span className="mt-1 block truncate text-xs text-muted-foreground">{prompt.categoryLabel} - {prompt.regionLabels.join(", ")} - {difficultyLabels[prompt.difficulty]}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
 
           {canPersistProgress ? (
             <label className="mt-4 flex items-start gap-3 rounded-md border border-border/80 bg-card/60 px-3 py-3 text-sm">
