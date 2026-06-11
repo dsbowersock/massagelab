@@ -105,6 +105,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Applied the pending flashcard and anatomy media review migrations to the configured Neon/Postgres database, then applied the follow-up `20260611143000_anatomy_media_review_default_needs_review` migration so new item-image links default to needs review; `npx prisma migrate status` reports the schema is up to date.
 - Addressed PR review findings for BodyParts3D URL override sanitization, tree-aware asset identity, transactional import writes, role-specific media review rows, optional R2 public delivery URLs, flashcard flag inventory cleanup, and media override rebuild behavior.
 - Added and applied the follow-up `20260611153000_anatomy_media_review_backfill_needs_review` migration so item-image links populated by the earlier approved default are moved into the review queue.
+- Addressed mobile anatomy-browser annotations by removing redundant mobile framing, compacting the sticky search toolbar, moving citations and external IDs to collapsed bottom evidence sections, and clarifying link review, existing-image linking, and BodyParts3D import language.
 - Updated focused tests for BodyParts3D URL normalization, link-level prompt filtering, admin media review UI, study media overrides, and flashcard image flagging.
 
 ### 2026-06-10

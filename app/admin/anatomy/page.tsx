@@ -34,7 +34,7 @@ import {
 } from "@/app/admin/anatomy/actions"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -266,35 +266,33 @@ function AnatomyDatabaseBrowser({
 }) {
   return (
     <Card className={appSurfaceClassName}>
-      <CardHeader>
-        <CardTitle>Anatomy browser</CardTitle>
-        <CardDescription>
-          Whole-body V1 anatomy foundation data with citation-ready review status.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="p-1 sm:p-6">
         <AnatomyBrowserStickyFrame
           toolbar={(
             <>
-              <form action="/admin/anatomy" className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <form action="/admin/anatomy" className="grid gap-2 sm:gap-3 md:grid-cols-[1fr_auto]">
                 <input type="hidden" name="view" value={selectedView === "maintenance" ? "muscles" : selectedView} />
                 <div className="space-y-2">
-                  <Label htmlFor="anatomy-search">Search normalized anatomy</Label>
+                  <Label htmlFor="anatomy-search" data-anatomy-search-label>
+                    Search normalized anatomy
+                  </Label>
                   <Input
                     id="anatomy-search"
                     name="q"
                     defaultValue={searchQuery}
                     placeholder="Search upper trap, shoulder blade, rotator cuff, base of skull..."
+                    data-anatomy-compact-control
+                    className="h-10 transition-[height]"
                   />
                 </div>
                 <div className="flex items-end">
-                  <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow md:w-auto">
+                  <Button type="submit" data-anatomy-compact-control className="h-10 w-full bg-primary transition-[height] hover:bg-brand-orange-glow md:w-auto">
                     Search database
                   </Button>
                 </div>
               </form>
 
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div data-anatomy-view-tabs className="flex gap-2 overflow-x-auto pb-1">
                 {BROWSER_VIEWS.map((view) => (
                   <Button key={view.key} asChild variant={selectedView === view.key ? "default" : "outline"} size="sm" className="shrink-0">
                     <Link href={browserViewHref(view.key)}>{view.label}</Link>
@@ -1076,17 +1074,6 @@ function EntityDetailPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className={`${appInsetClassName} p-3`}>
-          <p className="mb-2 text-sm font-medium">Citations</p>
-          <CitationList rows={citationRows} />
-        </div>
-        <div className={`${appInsetClassName} p-3`}>
-          <p className="mb-2 text-sm font-medium">External IDs</p>
-          <ExternalIdentifierList rows={identifierRows} />
-        </div>
-      </div>
-
       <MediaReviewPanel
         data={data}
         selectedEntity={selectedEntity}
@@ -1192,6 +1179,15 @@ function EntityDetailPanel({
         </div>
         <Button type="submit" variant="outline">Add</Button>
       </form>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <CollapsedEvidenceSection title="Citations" count={citationRows.length}>
+          <CitationList rows={citationRows} />
+        </CollapsedEvidenceSection>
+        <CollapsedEvidenceSection title="External IDs" count={identifierRows.length}>
+          <ExternalIdentifierList rows={identifierRows} />
+        </CollapsedEvidenceSection>
+      </div>
     </section>
   )
 }
@@ -1223,6 +1219,9 @@ function MediaReviewPanel({
         </div>
         <span className="w-fit rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{reviewRows.length} linked</span>
       </div>
+      <p className="rounded-md border border-border/80 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+        Replacement flow: mark a bad image as Needs Review or Rejected, then import a better BodyParts3D view or link an existing image below. The replacement appears in this review list after saving.
+      </p>
 
       {reviewRows.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/80 bg-background/70 p-4 text-sm text-muted-foreground">
@@ -1255,7 +1254,7 @@ function MediaReviewPanel({
                         {[formatLabel(recordText(asset, "mediaType")), formatLabel(recordText(asset, "usageScope")), sourceLabel(asset)].filter(Boolean).join(" / ")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {[`Role: ${formatLabel(recordText(link, "role") || "REFERENCE")}`, `Status: ${formatLabel(reviewStatus)}`, `Priority: ${priority}`].join(" / ")}
+                        {[`Role: ${formatLabel(recordText(link, "role") || "REFERENCE")}`, `Status: ${formatLabel(reviewStatus)}`, `Order: ${priority}`].join(" / ")}
                       </p>
                       {reviewReason ? <p className="text-xs text-muted-foreground">Reason: {formatLabel(reviewReason)}</p> : null}
                       {mediaMetadataLine(asset) ? <p className="text-xs text-muted-foreground">{mediaMetadataLine(asset)}</p> : null}
@@ -1275,24 +1274,36 @@ function MediaReviewPanel({
                             </select>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor={`review-reason-${linkId}`}>Reason</Label>
+                            <Label htmlFor={`review-reason-${linkId}`}>Reason when flagged</Label>
                             <select id={`review-reason-${linkId}`} name="review_reason" defaultValue={reviewReason} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                              <option value="">No reason</option>
+                              <option value="">No reason for approved</option>
                               {MEDIA_REVIEW_REASONS.map((reason) => (
                                 <option key={reason} value={reason}>{formatLabel(reason)}</option>
                               ))}
                             </select>
                           </div>
-                          <TextField id={`display-priority-${linkId}`} name="display_priority" label="Priority" defaultValue={String(priority)} />
+                          <TextField
+                            id={`display-priority-${linkId}`}
+                            name="display_priority"
+                            label="Sort order"
+                            defaultValue={String(priority)}
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={999}
+                            hint="Lower numbers show earlier; 100 is the default."
+                          />
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label htmlFor={`review-note-${linkId}`}>Review note</Label>
                             <Textarea id={`review-note-${linkId}`} name="review_note" defaultValue={recordText(link, "reviewNote")} rows={2} />
+                            <p className="text-xs text-muted-foreground">Why this image is approved, needs review, or rejected.</p>
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor={`link-notes-${linkId}`}>Link note</Label>
                             <Textarea id={`link-notes-${linkId}`} name="notes" defaultValue={recordText(link, "notes")} rows={2} />
+                            <p className="text-xs text-muted-foreground">Context for why this image belongs to this item.</p>
                           </div>
                         </div>
                         <Button type="submit" size="sm" className="w-fit">Save Review</Button>
@@ -1315,8 +1326,8 @@ function MediaReviewPanel({
           <input type="hidden" name="entity_type" value={selectedEntity.entityType} />
           <input type="hidden" name="entity_slug" value={selectedEntity.entitySlug} />
           <div>
-            <p className="text-sm font-medium">Approve Existing Candidate</p>
-            <p className="text-xs text-muted-foreground">Pick from reviewed reusable image assets already in the database.</p>
+            <p className="text-sm font-medium">Link Existing Image</p>
+            <p className="text-xs text-muted-foreground">Use when the right image is already in the database. Roles are not exclusive, so multiple images can share the same role.</p>
           </div>
           {candidateRows.length > 0 ? (
             <>
@@ -1331,18 +1342,35 @@ function MediaReviewPanel({
                 </select>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <SelectField id="candidate-role" name="role" label="Role" values={MEDIA_ROLES} defaultValue="PRIMARY" />
-                <TextField id="candidate-display-priority" name="display_priority" label="Priority" defaultValue="100" />
+                <SelectField
+                  id="candidate-role"
+                  name="role"
+                  label="Role to add"
+                  values={MEDIA_ROLES}
+                  defaultValue="PRIMARY"
+                  hint="Link another image with the same role when both should be used."
+                />
+                <TextField
+                  id="candidate-display-priority"
+                  name="display_priority"
+                  label="Sort order"
+                  defaultValue="100"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={999}
+                  hint="Lower numbers show earlier; 100 is the default."
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="candidate-notes">Note</Label>
-                <Textarea id="candidate-notes" name="notes" rows={2} placeholder="Why this image works for this item" />
+                <Textarea id="candidate-notes" name="notes" rows={2} placeholder="Why this existing image belongs to this item" />
               </div>
-              <Button type="submit" size="sm">Approve For This Item</Button>
+              <Button type="submit" size="sm">Link Existing Image</Button>
             </>
           ) : (
             <p className="rounded-md border border-dashed border-border/80 p-3 text-sm text-muted-foreground">
-              No reviewed image candidates with an available role are in the current admin result window.
+              No reviewed image candidates with an available role are in the current admin result window. Import a BodyParts3D view below when a better view is not already available.
             </p>
           )}
         </form>
@@ -1352,18 +1380,35 @@ function MediaReviewPanel({
           <input type="hidden" name="entity_slug" value={selectedEntity.entitySlug} />
           <div>
             <p className="text-sm font-medium">Import BodyParts3D View</p>
-            <p className="text-xs text-muted-foreground">Generate a still image, upload it to R2, and approve it for this item.</p>
+            <p className="text-xs text-muted-foreground">Create a new BodyParts3D still from presets or a pasted BodyParts3D API image URL, upload it, and link it to this item.</p>
           </div>
           <BodyParts3dImportFields key={`${selectedEntity.entityType}:${selectedEntity.entitySlug}`} initialPartIds={suggestedPartIds.join(", ")} />
           <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField id="bodyparts3d-role" name="role" label="Role" values={MEDIA_ROLES} defaultValue="PRIMARY" />
-            <TextField id="bodyparts3d-display-priority" name="display_priority" label="Priority" defaultValue="100" />
+            <SelectField
+              id="bodyparts3d-role"
+              name="role"
+              label="Role to add"
+              values={MEDIA_ROLES}
+              defaultValue="PRIMARY"
+              hint="Roles are not exclusive; use the same image for multiple game or reference roles when needed."
+            />
+            <TextField
+              id="bodyparts3d-display-priority"
+              name="display_priority"
+              label="Sort order"
+              defaultValue="100"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={999}
+              hint="Lower numbers show earlier; 100 is the default."
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="bodyparts3d-notes">Note</Label>
-            <Textarea id="bodyparts3d-notes" name="notes" rows={2} placeholder="Why this view is the right study image" />
+            <Textarea id="bodyparts3d-notes" name="notes" rows={2} placeholder="Why this generated BodyParts3D view is useful" />
           </div>
-          <Button type="submit" size="sm">Import BodyParts3D View</Button>
+          <Button type="submit" size="sm">Import and Link View</Button>
         </form>
       </div>
     </section>
@@ -1476,6 +1521,30 @@ function CompactList({ items, empty = "-" }: { items: string[]; empty?: string }
   }
 
   return <span>{values.join("; ")}</span>
+}
+
+function CollapsedEvidenceSection({
+  title,
+  count,
+  children,
+}: {
+  title: string
+  count: number
+  children: React.ReactNode
+}) {
+  return (
+    <details className={`${appInsetClassName} group overflow-hidden`}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+        <span className="rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">
+          {count}
+        </span>
+      </summary>
+      <div className="max-h-72 overflow-y-auto border-t border-border/80 p-3 pr-2">
+        {children}
+      </div>
+    </details>
+  )
 }
 
 function CitationList({ rows }: { rows: Record<string, unknown>[] }) {
@@ -2095,8 +2164,8 @@ function selectedEntityMovementVisualizations(
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   return (
-    <AppPageShell title="Anatomy Admin">
-        {children}
+    <AppPageShell title="Anatomy Admin" className="p-0 sm:p-6 lg:p-8" contentClassName="gap-0 sm:gap-6">
+      {children}
     </AppPageShell>
   )
 }
@@ -2108,6 +2177,11 @@ function TextField({
   defaultValue,
   placeholder,
   required,
+  type,
+  inputMode,
+  min,
+  max,
+  hint,
 }: {
   id: string
   name?: string
@@ -2115,11 +2189,27 @@ function TextField({
   defaultValue?: string
   placeholder?: string
   required?: boolean
+  type?: React.HTMLInputTypeAttribute
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
+  min?: number
+  max?: number
+  hint?: string
 }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} name={name ?? id} defaultValue={defaultValue} placeholder={placeholder} required={required} />
+      <Input
+        id={id}
+        name={name ?? id}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        required={required}
+        type={type}
+        inputMode={inputMode}
+        min={min}
+        max={max}
+      />
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }
@@ -2130,12 +2220,14 @@ function SelectField({
   label,
   values,
   defaultValue,
+  hint,
 }: {
   id: string
   name?: string
   label: string
   values: string[]
   defaultValue?: string
+  hint?: string
 }) {
   return (
     <div className="space-y-2">
@@ -2148,10 +2240,11 @@ function SelectField({
       >
         {values.map((value) => (
           <option key={value} value={value}>
-            {value}
+            {formatLabel(value)}
           </option>
         ))}
       </select>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }

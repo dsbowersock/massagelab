@@ -19,6 +19,7 @@ Implemented on 2026-06-11.
 - Kept this branch to still images and provenance review. 3D runtime tooling remains deferred.
 - Addressed PR review findings on 2026-06-11: BodyParts3D URL overrides are strictly parsed before preview/import, imported asset identity includes tree name and canonical part IDs, post-upload database writes are transactional, linked media renders per item-role link, R2 public delivery URL configuration is optional, new media links default to needs review, and flashcard flagging removes rejected prompts from the setup inventory.
 - Added a follow-up migration backfill so existing item-image links created under the earlier approved default enter needs-review status instead of bypassing the review queue.
+- Addressed mobile anatomy-browser annotations by removing redundant mobile page framing, compacting the sticky search controls, moving citations/external IDs to collapsed bottom evidence sections, and clarifying the reject-or-replace BodyParts3D import flow.
 
 ## Scope
 

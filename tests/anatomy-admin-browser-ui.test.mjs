@@ -17,6 +17,7 @@ describe("Anatomy admin browser table UI", () => {
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
     const scrollSource = await readFile(new URL("../app/admin/anatomy/synced-horizontal-scroll.tsx", import.meta.url), "utf8")
     const stickyFrameSource = await readFile(new URL("../app/admin/anatomy/anatomy-browser-sticky-frame.tsx", import.meta.url), "utf8")
+    const globalsSource = await readFile(new URL("../app/globals.css", import.meta.url), "utf8")
     const browserStart = pageSource.indexOf("function AnatomyDatabaseBrowser")
     const maintenanceStart = pageSource.indexOf("function MaintenanceView")
     const browserBody = pageSource.slice(browserStart, maintenanceStart)
@@ -24,7 +25,15 @@ describe("Anatomy admin browser table UI", () => {
 
     assert.match(pageSource, /<AnatomyBrowserStickyFrame/)
     assert.match(stickyFrameSource, /data-anatomy-browser-toolbar/)
+    assert.match(stickyFrameSource, /data-compact/)
+    assert.match(stickyFrameSource, /closest\("\.ml-app-scroll"\)/)
     assert.match(stickyFrameSource, /sticky top-0/)
+    assert.match(pageSource, /data-anatomy-search-label/)
+    assert.match(pageSource, /data-anatomy-compact-control/)
+    assert.match(pageSource, /data-anatomy-view-tabs/)
+    assert.match(globalsSource, /\[data-anatomy-browser-toolbar\]\[data-compact="true"\]/)
+    assert.match(pageSource, /className="p-0 sm:p-6 lg:p-8"/)
+    assert.match(pageSource, /contentClassName="gap-0 sm:gap-6"/)
     assert.match(pageSource, /data-anatomy-table-header/)
     assert.match(pageSource, /data-anatomy-table-header-cell/)
     assert.match(scrollSource, /--anatomy-browser-sticky-offset/)
@@ -40,6 +49,9 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(pageSource, /prisma\.externalAnatomyIdentifier\.findMany\({[\s\S]*take: ANATOMY_DETAIL_LOOKUP_TAKE/)
     assert.match(pageSource, /function externalIdentifierHref/)
     assert.match(pageSource, /function citationHref/)
+    assert.match(pageSource, /function CollapsedEvidenceSection/)
+    assert.match(pageSource, /<CollapsedEvidenceSection title="Citations"/)
+    assert.match(pageSource, /<CollapsedEvidenceSection title="External IDs"/)
     assert.match(pageSource, /target="_blank"/)
   })
 
@@ -65,6 +77,9 @@ describe("Anatomy admin browser table UI", () => {
 
     assert.match(pageSource, /function MediaReviewPanel/)
     assert.match(pageSource, /<img src=\{previewUrl\}/)
+    assert.match(pageSource, /Replacement flow/)
+    assert.match(pageSource, /Link Existing Image/)
+    assert.match(pageSource, /Sort order/)
     assert.match(pageSource, /updateAnatomyMediaReviewAction/)
     assert.match(pageSource, /linkAnatomyMediaAssetAction/)
     assert.match(pageSource, /importBodyParts3dMediaAction/)
@@ -78,7 +93,8 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(actionsSource, /reviewStatus: "APPROVED"/)
     assert.match(importFieldsSource, /bodyParts3dImageUrl/)
     assert.match(importFieldsSource, /safeBodyParts3dImageUrl/)
-    assert.match(importFieldsSource, /BodyParts3D URL Override/)
+    assert.match(importFieldsSource, /Custom BodyParts3D image URL/)
+    assert.match(importFieldsSource, /Open BodyParts3D/)
   })
 
   it("shows complete anatomy source metadata fields in the admin source form", async () => {

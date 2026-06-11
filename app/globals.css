@@ -575,6 +575,28 @@
   }
 }
 
+@media (max-width: 639px) {
+  [data-anatomy-browser-toolbar][data-compact="true"] [data-anatomy-search-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  [data-anatomy-browser-toolbar][data-compact="true"] [data-anatomy-compact-control] {
+    height: 2.25rem;
+  }
+
+  [data-anatomy-browser-toolbar][data-compact="true"] [data-anatomy-view-tabs] {
+    padding-bottom: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .massagelab-background-fallback {
     animation: none;

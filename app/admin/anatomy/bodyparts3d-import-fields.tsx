@@ -13,6 +13,8 @@ import {
   type BodyParts3dViewSlug,
 } from "@/lib/anatomy-media-review"
 
+const BODYPARTS3D_BROWSER_URL = "https://lifesciencedb.jp/bp3d/?lng=en"
+
 export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartIds?: string }) {
   const [partIds, setPartIds] = useState(initialPartIds)
   const [treeName, setTreeName] = useState<BodyParts3dTreeName>("isa")
@@ -31,7 +33,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="bodyparts3d-part-ids">Part IDs</Label>
+        <Label htmlFor="bodyparts3d-part-ids">BodyParts3D/FMA IDs</Label>
         <Input
           id="bodyparts3d-part-ids"
           name="part_ids"
@@ -40,13 +42,15 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
           placeholder="FMA37670, FMA37671"
         />
         <p className="text-xs text-muted-foreground">
-          {normalizedPartIds.length > 0 ? normalizedPartIds.join(", ") : "Enter one or more BodyParts3D/FMA IDs."}
+          {normalizedPartIds.length > 0
+            ? `Will request: ${normalizedPartIds.join(", ")}`
+            : "Use one or more BodyParts3D/FMA IDs for the anatomy item."}
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="bodyparts3d-tree-name">Tree</Label>
+          <Label htmlFor="bodyparts3d-tree-name">BodyParts3D tree</Label>
           <select
             id="bodyparts3d-tree-name"
             name="tree_name"
@@ -57,9 +61,10 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
             <option value="isa">Is-a</option>
             <option value="partof">Part-of</option>
           </select>
+          <p className="text-xs text-muted-foreground">Use Is-a for the specific structure; use Part-of when the surrounding region helps.</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="bodyparts3d-view">View</Label>
+          <Label htmlFor="bodyparts3d-view">Preset view</Label>
           <select
             id="bodyparts3d-view"
             name="view"
@@ -71,21 +76,30 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
               <option key={viewOption.slug} value={viewOption.slug}>{viewOption.title}</option>
             ))}
           </select>
+          <p className="text-xs text-muted-foreground">For custom angles such as superior, inferior, transverse, or zoomed-out views, paste an API image URL below.</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="bodyparts3d-source-url">BodyParts3D URL Override</Label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor="bodyparts3d-source-url">Custom BodyParts3D image URL</Label>
+          <a href={BODYPARTS3D_BROWSER_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline">
+            Open BodyParts3D
+            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+          </a>
+        </div>
         <Input
           id="bodyparts3d-source-url"
           name="source_url"
           value={sourceUrl}
           onChange={(event) => setSourceUrl(event.target.value)}
-          placeholder="Optional API/image URL"
+          placeholder="https://lifesciencedb.jp/bp3d/API/image?..."
         />
         {invalidOverrideUrl ? (
           <p className="text-xs text-destructive">Override must be a BodyParts3D HTTPS API/image URL.</p>
-        ) : null}
+        ) : (
+          <p className="text-xs text-muted-foreground">Paste the BodyParts3D API image URL after composing the exact view you want.</p>
+        )}
       </div>
 
       {previewUrl ? (
@@ -101,6 +115,9 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
             {/* eslint-disable-next-line @next/next/no-img-element -- BodyParts3D API preview is generated before upload. */}
             <img src={previewUrl} alt="BodyParts3D preview" className="max-h-full max-w-full object-contain" referrerPolicy="no-referrer" />
           </div>
+          <p className="border-t border-border/80 px-3 py-2 text-xs text-muted-foreground">
+            This preview is the image that will be uploaded and linked when you import.
+          </p>
         </div>
       ) : null}
     </>
