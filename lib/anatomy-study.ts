@@ -21,6 +21,7 @@ import type {
   MuscleInnervation,
   AnatomyStructure,
 } from "./anatomy-foundation.ts"
+import { anatomyMediaReviewKey } from "./anatomy-media-review.js"
 
 export const ANATOMY_STUDY_CATEGORIES = [
   "bone",
@@ -280,6 +281,8 @@ type BuildContext = {
 
 export type AnatomyStudyBuildOptions = {
   mediaUrlBySlug?: Map<string, string> | Record<string, string>
+  mediaAssets?: AnatomyMediaAsset[]
+  mediaEntityLinks?: AnatomyMediaEntityLink[]
 }
 
 function entityKey(entityType: AnatomyEntityType, entitySlug: string) {
@@ -404,6 +407,15 @@ function publicMediaForEntity(entityType: AnatomyStudyCategory, entitySlug: stri
   const links = context.mediaLinksByEntity.get(entityKey(entityType, entitySlug)) ?? []
 
   return links
+    .filter((link) => (link.reviewStatus ?? "approved") === "approved")
+    .sort((left, right) => {
+      const leftPriority = Number.isFinite(left.displayPriority) ? left.displayPriority as number : 100
+      const rightPriority = Number.isFinite(right.displayPriority) ? right.displayPriority as number : 100
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority
+
+      const rolePriority = (role: string) => role === "primary" ? 0 : role === "game_prompt" ? 1 : 2
+      return rolePriority(left.role) - rolePriority(right.role)
+    })
     .map((link): AnatomyStudyMedia | null => {
       const asset = context.mediaBySlug.get(link.assetSlug)
       if (!asset) return null
@@ -413,7 +425,7 @@ function publicMediaForEntity(entityType: AnatomyStudyCategory, entitySlug: stri
       if (!PUBLIC_FLASHCARD_IMAGE_SOURCE_REFS.has(asset.sourceRef)) return null
 
       const uploadedUrl = context.mediaUrlBySlug.get(asset.slug)
-      const url = uploadedUrl ?? asset.thumbnailUrl
+      const url = uploadedUrl ?? asset.remoteUrl ?? asset.thumbnailUrl
       if (!url || asset.mediaType === "model_3d") return null
 
       return {
@@ -428,7 +440,6 @@ function publicMediaForEntity(entityType: AnatomyStudyCategory, entitySlug: stri
       }
     })
     .filter((asset): asset is AnatomyStudyMedia => Boolean(asset))
-    .slice(0, 2)
 }
 
 function publicSources(sourceRefs: Iterable<string>, context: BuildContext): AnatomyStudySource[] {
@@ -452,12 +463,51 @@ function mediaUrlMap(mediaUrlBySlug: AnatomyStudyBuildOptions["mediaUrlBySlug"])
   return new Map(Object.entries(mediaUrlBySlug).filter(([, url]) => url.trim().length > 0))
 }
 
+function hasAnatomyStudyMediaOverrides(options: AnatomyStudyBuildOptions) {
+  return Boolean(
+    options.mediaUrlBySlug ||
+    (options.mediaAssets && options.mediaAssets.length > 0) ||
+    (options.mediaEntityLinks && options.mediaEntityLinks.length > 0),
+  )
+}
+
+function mergedMediaAssets(seed: AnatomyFoundationSeed, mediaAssets: AnatomyStudyBuildOptions["mediaAssets"]) {
+  const bySlug = new Map(seed.mediaAssets.map((asset) => [asset.slug, asset]))
+
+  for (const asset of mediaAssets ?? []) {
+    bySlug.set(asset.slug, asset)
+  }
+
+  return [...bySlug.values()]
+}
+
+function mediaLinkKey(link: AnatomyMediaEntityLink) {
+  return anatomyMediaReviewKey({
+    assetSlug: link.assetSlug,
+    entityType: link.entityType,
+    entitySlug: link.entitySlug,
+    role: link.role,
+  })
+}
+
+function mergedMediaEntityLinks(seed: AnatomyFoundationSeed, mediaEntityLinks: AnatomyStudyBuildOptions["mediaEntityLinks"]) {
+  const byKey = new Map(seed.mediaEntityLinks.map((link) => [mediaLinkKey(link), link]))
+
+  for (const link of mediaEntityLinks ?? []) {
+    byKey.set(mediaLinkKey(link), link)
+  }
+
+  return [...byKey.values()]
+}
+
 function buildContext(seed: AnatomyFoundationSeed, options: AnatomyStudyBuildOptions = {}): BuildContext {
   const sourceBySlug = new Map(seed.sources.map((source) => [source.slug, source]))
   const safeSourceSlugs = new Set(seed.sources.filter(isSafeSource).map((source) => source.slug))
   const termsByEntity = new Map<string, AnatomyEntityTerm[]>()
   const citationsByEntity = new Map<string, AnatomyCitation[]>()
   const mediaLinksByEntity = new Map<string, AnatomyMediaEntityLink[]>()
+  const mediaAssets = mergedMediaAssets(seed, options.mediaAssets)
+  const mediaEntityLinks = mergedMediaEntityLinks(seed, options.mediaEntityLinks)
 
   seed.entityTerms.forEach((term) => {
     const key = entityKey(term.anatomyEntityType, term.anatomyEntitySlug)
@@ -467,7 +517,7 @@ function buildContext(seed: AnatomyFoundationSeed, options: AnatomyStudyBuildOpt
     const key = entityKey(citation.entityType, citation.entitySlug)
     citationsByEntity.set(key, [...(citationsByEntity.get(key) ?? []), citation])
   })
-  seed.mediaEntityLinks.forEach((link) => {
+  mediaEntityLinks.forEach((link) => {
     const key = entityKey(link.entityType, link.entitySlug)
     mediaLinksByEntity.set(key, [...(mediaLinksByEntity.get(key) ?? []), link])
   })
@@ -479,7 +529,7 @@ function buildContext(seed: AnatomyFoundationSeed, options: AnatomyStudyBuildOpt
     termsByEntity,
     citationsByEntity,
     mediaLinksByEntity,
-    mediaBySlug: new Map(seed.mediaAssets.map((asset) => [asset.slug, asset])),
+    mediaBySlug: new Map(mediaAssets.map((asset) => [asset.slug, asset])),
     mediaUrlBySlug: mediaUrlMap(options.mediaUrlBySlug),
   }
 }
@@ -578,7 +628,7 @@ function filterStudyCards(cards: AnatomyStudyCard[], filters: AnatomyStudyCardFi
 }
 
 export function getAnatomyStudyCards(filters: AnatomyStudyCardFilters = {}, options: AnatomyStudyBuildOptions = {}) {
-  const cards = options.mediaUrlBySlug ? buildStudyCards(ANATOMY_FOUNDATION_SEED, options) : studyCards
+  const cards = hasAnatomyStudyMediaOverrides(options) ? buildStudyCards(ANATOMY_FOUNDATION_SEED, options) : studyCards
 
   return filterStudyCards(cards, filters)
 }

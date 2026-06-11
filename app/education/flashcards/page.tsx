@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic"
 export default async function EducationFlashcardsPage() {
   const session = await getCurrentSession()
   const isSignedIn = Boolean(session?.user?.id)
+  const canManageAnatomyContent = Boolean(session?.user?.capabilities?.canManageAnatomyContent)
 
   return (
     <AppPageShell
@@ -31,6 +32,7 @@ export default async function EducationFlashcardsPage() {
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
           isSignedIn={isSignedIn}
+          canManageAnatomyContent={canManageAnatomyContent}
         />
       </AppSurface>
     </AppPageShell>

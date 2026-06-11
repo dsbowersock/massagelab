@@ -112,6 +112,104 @@ describe("Sourced anatomy study adapter", () => {
     assert.equal(prompts.every((prompt) => !prompt.front.media?.url.includes("lifesciencedb.jp/bp3d/API")), true)
   })
 
+  it("uses link-level review state to reject bad media and approve replacement views", () => {
+    const replacementSlug = "bodyparts3d-admin-muscle-biceps-brachii-anterior-fma37670-anatomogram"
+    const replacementUrl = "https://media.massagelab.test/anatomy/bodyparts3d/admin/muscle/biceps-brachii/anterior/biceps.png"
+    const prompts = getAnatomyStudyPrompts({
+      categories: ["muscle"],
+      promptTypes: ["identify_from_media"],
+      difficulty: "hard",
+    }, {
+      mediaUrlBySlug: new Map([
+        ["bodyparts3d-biceps-brachii-anatomogram", bodyParts3dBicepsImageUrl],
+        [replacementSlug, replacementUrl],
+      ]),
+      mediaAssets: [{
+        id: "media-bodyparts3d-admin-biceps-anterior",
+        slug: replacementSlug,
+        title: "BodyParts3D Biceps Brachii Anterior View",
+        mediaType: "image",
+        sourceRef: "bodyparts3d",
+        sourceUrl: "https://lifesciencedb.jp/bp3d/API/image?test",
+        remoteUrl: replacementUrl,
+        license: "CC BY 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+        attribution: "BodyParts3D",
+        usageScope: "open_reuse",
+        reviewStatus: "reviewed",
+        width: 700,
+        height: 700,
+        format: "png",
+      }],
+      mediaEntityLinks: [
+        {
+          id: "link-reject-seeded-biceps-media",
+          assetSlug: "bodyparts3d-biceps-brachii-anatomogram",
+          entityType: "muscle",
+          entitySlug: "biceps-brachii",
+          role: "primary",
+          reviewStatus: "rejected",
+          reviewReason: "bad_view",
+          displayPriority: 100,
+        },
+        {
+          id: "link-approve-admin-biceps-media",
+          assetSlug: replacementSlug,
+          entityType: "muscle",
+          entitySlug: "biceps-brachii",
+          role: "primary",
+          reviewStatus: "approved",
+          displayPriority: 10,
+        },
+      ],
+    })
+    const bicepsPrompts = prompts.filter((prompt) => prompt.entitySlug === "biceps-brachii")
+
+    assert.equal(bicepsPrompts.some((prompt) => prompt.front.media?.id === "bodyparts3d-biceps-brachii-anatomogram"), false)
+    assert.ok(bicepsPrompts.some((prompt) => prompt.front.media?.id === replacementSlug))
+    assert.equal(bicepsPrompts.find((prompt) => prompt.front.media?.id === replacementSlug)?.front.media?.url, replacementUrl)
+  })
+
+  it("rebuilds cards when media assets and links are provided without a URL map", () => {
+    const replacementSlug = "bodyparts3d-admin-muscle-biceps-brachii-isa-anterior-fma37670-anatomogram"
+    const replacementUrl = "https://media.massagelab.test/anatomy/bodyparts3d/admin/muscle/biceps-brachii/isa/anterior/biceps.png"
+    const cards = getAnatomyStudyCards({
+      categories: ["muscle"],
+      difficulty: "hard",
+    }, {
+      mediaAssets: [{
+        id: "media-bodyparts3d-admin-biceps-isa-anterior",
+        slug: replacementSlug,
+        title: "BodyParts3D Biceps Brachii Anterior View",
+        mediaType: "image",
+        sourceRef: "bodyparts3d",
+        sourceUrl: "https://lifesciencedb.jp/bp3d/API/image?test",
+        remoteUrl: replacementUrl,
+        license: "CC BY 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+        attribution: "BodyParts3D",
+        usageScope: "open_reuse",
+        reviewStatus: "reviewed",
+        width: 700,
+        height: 700,
+        format: "png",
+      }],
+      mediaEntityLinks: [{
+        id: "link-approve-admin-biceps-media-without-map",
+        assetSlug: replacementSlug,
+        entityType: "muscle",
+        entitySlug: "biceps-brachii",
+        role: "primary",
+        reviewStatus: "approved",
+        displayPriority: 10,
+      }],
+    })
+    const bicepsCard = cards.find((card) => card.id === "muscle-biceps-brachii")
+
+    assert.ok(bicepsCard)
+    assert.equal(bicepsCard.media.some((asset) => asset.id === replacementSlug && asset.url === replacementUrl), true)
+  })
+
   it("generates sourced prompt modes with eligibility counts", () => {
     const prompts = getAnatomyStudyPrompts({ categories: ["muscle"], difficulty: "hard" })
     const allPrompts = getAnatomyStudyPrompts({}, { mediaUrlBySlug: bodyParts3dMediaUrlBySlug })

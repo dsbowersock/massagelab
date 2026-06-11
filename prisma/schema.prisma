@@ -168,6 +168,12 @@ enum AnatomyMediaRole {
   CLIENT_EDUCATION
 }
 
+enum AnatomyMediaReviewStatus {
+  APPROVED
+  NEEDS_REVIEW
+  REJECTED
+}
+
 enum ProgressStatus {
   STARTED
   PRACTICING
@@ -968,17 +974,24 @@ model AnatomyMediaAsset {
 }
 
 model AnatomyMediaEntity {
-  id         String            @id @default(cuid())
-  assetId    String
-  entityType AnatomyEntityType
-  entitySlug String
-  role       AnatomyMediaRole  @default(REFERENCE)
-  notes      String?
-  createdAt  DateTime          @default(now())
-  asset      AnatomyMediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  id              String                   @id @default(cuid())
+  assetId         String
+  entityType      AnatomyEntityType
+  entitySlug      String
+  role            AnatomyMediaRole         @default(REFERENCE)
+  notes           String?
+  reviewStatus    AnatomyMediaReviewStatus @default(NEEDS_REVIEW)
+  reviewReason    String?
+  reviewNote      String?
+  displayPriority Int                      @default(100)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  asset           AnatomyMediaAsset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@unique([assetId, entityType, entitySlug, role])
   @@index([entityType, entitySlug])
+  @@index([reviewStatus, displayPriority])
 }
 
 model AnatomySpatialModel {

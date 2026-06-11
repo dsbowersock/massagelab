@@ -56,6 +56,7 @@ export type AnatomySourceUsageScope = "open_reuse" | "internal_reference" | "com
 export type AnatomyFactReviewStatus = "starter" | "needs_review" | "reviewed"
 export type AnatomyMediaType = "image" | "diagram" | "model_3d" | "embed" | "source_link"
 export type AnatomyMediaRole = "primary" | "reference" | "region_context" | "game_prompt" | "client_education"
+export type AnatomyMediaReviewStatus = "approved" | "needs_review" | "rejected"
 export type AnatomySpatialMappingPrecision = "exact" | "composite" | "broad_context" | "region_context" | "landmark" | "needs_review"
 export type AnatomyTermType =
   | "preferred"
@@ -349,6 +350,10 @@ export type AnatomyMediaEntityLink = {
   entitySlug: string
   role: AnatomyMediaRole
   notes?: string
+  reviewStatus?: AnatomyMediaReviewStatus
+  reviewReason?: string
+  reviewNote?: string
+  displayPriority?: number
 }
 
 export type AnatomySpatialModel = {

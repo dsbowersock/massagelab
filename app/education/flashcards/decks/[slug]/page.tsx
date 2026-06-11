@@ -64,6 +64,7 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
   const [{ slug }, session] = await Promise.all([params, getCurrentSession()])
   const viewerUserId = session?.user?.id
   const isSignedIn = Boolean(viewerUserId)
+  const canManageAnatomyContent = Boolean(session?.user?.capabilities?.canManageAnatomyContent)
   const deck = getStaticStarterFlashcardDeck(slug) ?? await loadPersistedDeck(slug, viewerUserId)
   if (!deck) notFound()
 
@@ -83,6 +84,7 @@ export default async function FlashcardDeckPage({ params }: { params: Promise<{ 
           initialDecks={FLASHCARD_STATIC_STARTER_DECKS}
           initialPromptTypeCounts={FLASHCARD_STATIC_PROMPT_TYPE_COUNTS}
           isSignedIn={isSignedIn}
+          canManageAnatomyContent={canManageAnatomyContent}
           initialDeck={deck}
         />
       </AppSurface>

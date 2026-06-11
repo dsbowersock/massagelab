@@ -34,4 +34,6 @@ export type AnatomyDifficulty = "EASY" | "MEDIUM" | "HARD"
 
 export type AnatomyStatus = "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED"
 
+export type AnatomyMediaReviewStatus = "APPROVED" | "NEEDS_REVIEW" | "REJECTED"
+
 export type CorrectionFlagStatus = "OPEN" | "RESOLVED" | "REJECTED"

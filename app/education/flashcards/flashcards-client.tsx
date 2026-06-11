@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import Link from "next/link"
 import type { LucideIcon } from "lucide-react"
-import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, Save, Shuffle, Sparkles, Target, Trophy, XCircle } from "lucide-react"
+import { Activity, ArrowLeft, ArrowRight, Bone, BookOpen, Boxes, Brain, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Dumbbell, ExternalLink, Eye, Flag, Image, Keyboard, Landmark, Layers3, Lock, MapPin, Play, Save, Shuffle, Sparkles, Target, Trophy, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -127,6 +127,7 @@ type FlashcardsClientProps = {
   initialDecks: FlashcardDeckSummary[]
   initialPromptTypeCounts: PromptTypeCount[]
   isSignedIn: boolean
+  canManageAnatomyContent: boolean
   initialDeck?: FlashcardDeckSummary | null
 }
 
@@ -751,7 +752,7 @@ function FlashcardSurface({
  * Renders the flashcard setup, community deck carousel, study runner, and
  * signed-in mastery dashboard for the public education flashcards route.
  */
-export function FlashcardsClient({ categories, regions, initialDecks, initialPromptTypeCounts, isSignedIn, initialDeck }: FlashcardsClientProps) {
+export function FlashcardsClient({ categories, regions, initialDecks, initialPromptTypeCounts, isSignedIn, canManageAnatomyContent, initialDeck }: FlashcardsClientProps) {
   const communityDecksRef = useRef<HTMLDivElement | null>(null)
   const customDeckBuilderRef = useRef<HTMLDivElement | null>(null)
   const runnerTopRef = useRef<HTMLDivElement | null>(null)
@@ -796,6 +797,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
   const [progressDashboard, setProgressDashboard] = useState<FlashcardProgressPayload | null>(null)
   const [isLoadingProgressDashboard, setIsLoadingProgressDashboard] = useState(false)
   const [isStartingNextRound, setIsStartingNextRound] = useState(false)
+  const [isFlaggingMedia, setIsFlaggingMedia] = useState(false)
   const [communityDeckIndex, setCommunityDeckIndex] = useState(0)
   const [communitySlide, setCommunitySlide] = useState<{ direction: 1 | -1 } | null>(null)
   const [activeDeckActivation, setActiveDeckActivation] = useState(0)
@@ -1374,6 +1376,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
     setCheckedResult(null)
     setAnswers({})
     setIsCardFlipped(false)
+    setSaveMessage("")
     studyStartedAtRef.current = null
   }
 
@@ -1417,6 +1420,59 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
     } catch (error) {
       console.error("Failed to complete flashcard study session", error)
       setSaveMessage("Progress could not be saved.")
+    }
+  }
+
+  const flagCurrentMedia = async (reason: "bad_match" | "bad_view") => {
+    if (!currentPrompt?.front.media || isFlaggingMedia) return
+
+    const promptId = currentPrompt.id
+    const promptType = currentPrompt.type
+    const media = currentPrompt.front.media
+    setIsFlaggingMedia(true)
+    setSaveMessage("")
+
+    try {
+      const response = await fetch("/api/admin/anatomy/media-flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityType: currentPrompt.entityType,
+          entitySlug: currentPrompt.entitySlug,
+          mediaSlug: media.id,
+          role: media.role,
+          reason,
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setSaveMessage(typeof payload?.error === "string" ? payload.error : "Image could not be flagged.")
+        return
+      }
+
+      setActiveDeck((current) => {
+        const next = current.filter((prompt) => prompt.id !== promptId)
+        setCurrentIndex((index) => next.length === 0 ? 0 : Math.min(index, next.length - 1))
+        return next
+      })
+      setResults((current) => current.filter((result) => result.promptId !== promptId))
+      setPromptSummaries((current) => current.filter((prompt) => prompt.id !== promptId))
+      setSelectedPromptIds((current) => current.filter((selectedPromptId) => selectedPromptId !== promptId))
+      setPromptTypeCounts((current) => current.map((type) => (
+        type.id === promptType
+          ? { ...type, promptCount: Math.max(0, type.promptCount - 1) }
+          : type
+      )))
+      setCheckedResult(null)
+      setAnswers({})
+      setIsCardFlipped(false)
+      setSaveMessage("Image flagged and removed from this study run.")
+    } catch (error) {
+      console.error("Failed to flag flashcard media", error)
+      setSaveMessage("Image could not be flagged.")
+    } finally {
+      setIsFlaggingMedia(false)
     }
   }
 
@@ -1513,6 +1569,28 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
             onFlip={() => setIsCardFlipped((flipped) => !flipped)}
             result={currentResult}
           />
+
+          {canManageAnatomyContent && currentPrompt.front.mode === "media" && currentPrompt.front.media ? (
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded-md border border-border/80 bg-background/70 p-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-2">
+                <Flag className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span className="break-words">Admin image review</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => flagCurrentMedia("bad_match")} disabled={isFlaggingMedia}>
+                  Bad match
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => flagCurrentMedia("bad_view")} disabled={isFlaggingMedia}>
+                  Bad view
+                </Button>
+                <Button asChild variant="link" size="sm" className="h-9 px-1">
+                  <Link href={`/admin/anatomy?entityType=${encodeURIComponent(currentPrompt.entityType)}&entitySlug=${encodeURIComponent(currentPrompt.entitySlug)}`}>
+                    Review item
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           {!isReviewMode ? (
             <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-lg border-0 bg-background/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center">

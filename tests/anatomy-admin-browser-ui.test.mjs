@@ -58,6 +58,29 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(pageSource, /anatomyMovementVisualization\.findMany/)
   })
 
+  it("surfaces visual media review, candidate approval, and BodyParts3D import controls", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+    const actionsSource = await readFile(new URL("../app/admin/anatomy/actions.ts", import.meta.url), "utf8")
+    const importFieldsSource = await readFile(new URL("../app/admin/anatomy/bodyparts3d-import-fields.tsx", import.meta.url), "utf8")
+
+    assert.match(pageSource, /function MediaReviewPanel/)
+    assert.match(pageSource, /<img src=\{previewUrl\}/)
+    assert.match(pageSource, /updateAnatomyMediaReviewAction/)
+    assert.match(pageSource, /linkAnatomyMediaAssetAction/)
+    assert.match(pageSource, /importBodyParts3dMediaAction/)
+    assert.match(pageSource, /function mediaReviewRows/)
+    assert.match(pageSource, /function mediaRoleKey/)
+    assert.match(pageSource, /take: 500/)
+    assert.match(actionsSource, /uploadAnatomyMediaToR2/)
+    assert.match(actionsSource, /prisma\.\$transaction/)
+    assert.match(actionsSource, /safeBodyParts3dImageUrl/)
+    assert.match(actionsSource, /treeName/)
+    assert.match(actionsSource, /reviewStatus: "APPROVED"/)
+    assert.match(importFieldsSource, /bodyParts3dImageUrl/)
+    assert.match(importFieldsSource, /safeBodyParts3dImageUrl/)
+    assert.match(importFieldsSource, /BodyParts3D URL Override/)
+  })
+
   it("shows complete anatomy source metadata fields in the admin source form", async () => {
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
     const actionsSource = await readFile(new URL("../app/admin/anatomy/actions.ts", import.meta.url), "utf8")
