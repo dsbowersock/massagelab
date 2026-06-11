@@ -349,6 +349,10 @@ export type AnatomyMediaEntityLink = {
   entitySlug: string
   role: AnatomyMediaRole
   notes?: string
+  reviewStatus?: "approved" | "needs_review" | "rejected"
+  reviewReason?: string
+  reviewNote?: string
+  displayPriority?: number
 }
 
 export type AnatomySpatialModel = {

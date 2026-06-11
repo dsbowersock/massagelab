@@ -13,6 +13,11 @@ import {
   type AnatomyQuickQueryKey,
   type AnatomySearchResult,
 } from "@/lib/anatomy-queries"
+import {
+  ANATOMY_MEDIA_REVIEW_REASONS,
+  ANATOMY_MEDIA_REVIEW_STATUSES,
+  normalizeBodyParts3dPartIds,
+} from "@/lib/anatomy-media-review"
 import type { AccountRole } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 import {
@@ -21,7 +26,10 @@ import {
   createAnatomyRelationshipAction,
   createAnatomySourceAction,
   createAnatomyTermAction,
+  importBodyParts3dMediaAction,
+  linkAnatomyMediaAssetAction,
   updateAnatomyTermAction,
+  updateAnatomyMediaReviewAction,
   updateCorrectionFlagAction,
 } from "@/app/admin/anatomy/actions"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
@@ -31,6 +39,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AnatomyBrowserStickyFrame } from "./anatomy-browser-sticky-frame"
+import { BodyParts3dImportFields } from "./bodyparts3d-import-fields"
 import { SyncedHorizontalScroll } from "./synced-horizontal-scroll"
 
 type AnatomyTermRow = {
@@ -60,6 +69,9 @@ const TERM_KINDS = ["SYSTEM", "ORGAN", "TISSUE", "BONE", "MUSCLE", "JOINT", "NER
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"]
 const STATUSES = ["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]
 const FLAG_STATUSES = ["OPEN", "RESOLVED", "REJECTED"]
+const MEDIA_REVIEW_STATUSES = [...ANATOMY_MEDIA_REVIEW_STATUSES]
+const MEDIA_REVIEW_REASONS = [...ANATOMY_MEDIA_REVIEW_REASONS]
+const MEDIA_ROLES = ["PRIMARY", "REFERENCE", "REGION_CONTEXT", "GAME_PROMPT", "CLIENT_EDUCATION"]
 const ANATOMY_DETAIL_LOOKUP_TAKE = 2000
 
 type AnatomyAdminPageProps = {
@@ -1064,7 +1076,7 @@ function EntityDetailPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-2">
         <div className={`${appInsetClassName} p-3`}>
           <p className="mb-2 text-sm font-medium">Citations</p>
           <CitationList rows={citationRows} />
@@ -1073,18 +1085,15 @@ function EntityDetailPanel({
           <p className="mb-2 text-sm font-medium">External IDs</p>
           <ExternalIdentifierList rows={identifierRows} />
         </div>
-        <div className={`${appInsetClassName} p-3`}>
-          <p className="mb-2 text-sm font-medium">Media</p>
-          <CompactList
-            items={mediaRows.map((asset) => [
-              recordText(asset, "title"),
-              formatLabel(recordText(asset, "mediaType")),
-              formatLabel(recordText(asset, "usageScope")),
-            ].filter(Boolean).join(" / "))}
-            empty="No media assets found yet."
-          />
-        </div>
       </div>
+
+      <MediaReviewPanel
+        data={data}
+        selectedEntity={selectedEntity}
+        entityLabel={detail.label}
+        mediaRows={mediaRows}
+        identifierRows={identifierRows}
+      />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className={`${appInsetClassName} p-3`}>
@@ -1183,6 +1192,180 @@ function EntityDetailPanel({
         </div>
         <Button type="submit" variant="outline">Add</Button>
       </form>
+    </section>
+  )
+}
+
+function MediaReviewPanel({
+  data,
+  selectedEntity,
+  entityLabel,
+  mediaRows,
+  identifierRows,
+}: {
+  data: AnatomyBrowserData
+  selectedEntity: AnatomyEntitySelection
+  entityLabel: string
+  mediaRows: Record<string, unknown>[]
+  identifierRows: Record<string, unknown>[]
+}) {
+  const linkedAssetIds = new Set(mediaRows.map((asset) => recordText(asset, "id")).filter(Boolean))
+  const candidateRows = mediaCandidateRows(data, linkedAssetIds)
+  const suggestedPartIds = suggestedBodyParts3dPartIds(mediaRows, identifierRows)
+
+  return (
+    <section className={`${appInsetClassName} space-y-4 p-3`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">Media Review</p>
+          <p className="text-xs text-muted-foreground">Review images linked to {entityLabel} and pick better views when needed.</p>
+        </div>
+        <span className="w-fit rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{mediaRows.length} linked</span>
+      </div>
+
+      {mediaRows.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border/80 bg-background/70 p-4 text-sm text-muted-foreground">
+          No media assets are linked to this item yet.
+        </div>
+      ) : (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {mediaRows.map((asset) => {
+            const link = selectedMediaEntityLink(asset, selectedEntity)
+            const linkId = recordText(link, "id")
+            const previewUrl = mediaPreviewUrl(asset)
+            const reviewStatus = recordText(link, "reviewStatus") || "APPROVED"
+            const reviewReason = recordText(link, "reviewReason")
+            const priority = recordNumber(link, "displayPriority", 100)
+
+            return (
+              <article key={`${recordText(asset, "id")}-${linkId || selectedEntity.entitySlug}`} className="overflow-hidden rounded-md border border-border/80 bg-background/70">
+                <div className="grid gap-3 p-3 md:grid-cols-[13rem_minmax(0,1fr)]">
+                  <div className="overflow-hidden rounded-md border border-border/80 bg-white">
+                    {previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- anatomy media is already reviewed remote/source content.
+                      <img src={previewUrl} alt={recordText(asset, "title") || "Anatomy media preview"} className="aspect-square h-full w-full object-contain p-2" referrerPolicy="no-referrer" loading="lazy" />
+                    ) : (
+                      <div className="grid aspect-square place-items-center p-3 text-center text-sm text-muted-foreground">No preview URL</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 space-y-3">
+                    <div className="space-y-1">
+                      <h4 className="break-words text-sm font-semibold">{recordText(asset, "title") || recordText(asset, "slug")}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {[formatLabel(recordText(asset, "mediaType")), formatLabel(recordText(asset, "usageScope")), sourceLabel(asset)].filter(Boolean).join(" / ")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {[`Role: ${formatLabel(recordText(link, "role") || "REFERENCE")}`, `Status: ${formatLabel(reviewStatus)}`, `Priority: ${priority}`].join(" / ")}
+                      </p>
+                      {reviewReason ? <p className="text-xs text-muted-foreground">Reason: {formatLabel(reviewReason)}</p> : null}
+                      {mediaMetadataLine(asset) ? <p className="text-xs text-muted-foreground">{mediaMetadataLine(asset)}</p> : null}
+                      {previewUrl ? <ExternalTextLink href={previewUrl}>Open preview</ExternalTextLink> : null}
+                    </div>
+
+                    {linkId ? (
+                      <form action={updateAnatomyMediaReviewAction} className="grid gap-3">
+                        <input type="hidden" name="id" value={linkId} />
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label htmlFor={`review-status-${linkId}`}>Review</Label>
+                            <select id={`review-status-${linkId}`} name="review_status" defaultValue={reviewStatus} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                              {MEDIA_REVIEW_STATUSES.map((status) => (
+                                <option key={status} value={status}>{formatLabel(status)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`review-reason-${linkId}`}>Reason</Label>
+                            <select id={`review-reason-${linkId}`} name="review_reason" defaultValue={reviewReason} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                              <option value="">No reason</option>
+                              {MEDIA_REVIEW_REASONS.map((reason) => (
+                                <option key={reason} value={reason}>{formatLabel(reason)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <TextField id={`display-priority-${linkId}`} name="display_priority" label="Priority" defaultValue={String(priority)} />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`review-note-${linkId}`}>Review note</Label>
+                            <Textarea id={`review-note-${linkId}`} name="review_note" defaultValue={recordText(link, "reviewNote")} rows={2} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`link-notes-${linkId}`}>Link note</Label>
+                            <Textarea id={`link-notes-${linkId}`} name="notes" defaultValue={recordText(link, "notes")} rows={2} />
+                          </div>
+                        </div>
+                        <Button type="submit" size="sm" className="w-fit">Save Review</Button>
+                      </form>
+                    ) : (
+                      <p className="rounded-md border border-border/80 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                        This asset appears in the detail query but does not include a matching entity link.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="grid gap-3 xl:grid-cols-2">
+        <form action={linkAnatomyMediaAssetAction} className="space-y-3 rounded-md border border-border/80 bg-background/70 p-3">
+          <input type="hidden" name="entity_type" value={selectedEntity.entityType} />
+          <input type="hidden" name="entity_slug" value={selectedEntity.entitySlug} />
+          <div>
+            <p className="text-sm font-medium">Approve Existing Candidate</p>
+            <p className="text-xs text-muted-foreground">Pick from reviewed reusable image assets already in the database.</p>
+          </div>
+          {candidateRows.length > 0 ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="candidate-asset-id">Image</Label>
+                <select id="candidate-asset-id" name="asset_id" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  {candidateRows.map((asset) => (
+                    <option key={recordText(asset, "id")} value={recordText(asset, "id")}>
+                      {recordText(asset, "title") || recordText(asset, "slug")} ({sourceLabel(asset) || formatLabel(recordText(asset, "usageScope"))})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SelectField id="candidate-role" name="role" label="Role" values={MEDIA_ROLES} defaultValue="PRIMARY" />
+                <TextField id="candidate-display-priority" name="display_priority" label="Priority" defaultValue="100" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="candidate-notes">Note</Label>
+                <Textarea id="candidate-notes" name="notes" rows={2} placeholder="Why this image works for this item" />
+              </div>
+              <Button type="submit" size="sm">Approve For This Item</Button>
+            </>
+          ) : (
+            <p className="rounded-md border border-dashed border-border/80 p-3 text-sm text-muted-foreground">
+              No unlinked reviewed image candidates are available in the current admin result window.
+            </p>
+          )}
+        </form>
+
+        <form action={importBodyParts3dMediaAction} className="space-y-3 rounded-md border border-border/80 bg-background/70 p-3">
+          <input type="hidden" name="entity_type" value={selectedEntity.entityType} />
+          <input type="hidden" name="entity_slug" value={selectedEntity.entitySlug} />
+          <div>
+            <p className="text-sm font-medium">Import BodyParts3D View</p>
+            <p className="text-xs text-muted-foreground">Generate a still image, upload it to R2, and approve it for this item.</p>
+          </div>
+          <BodyParts3dImportFields initialPartIds={suggestedPartIds.join(", ")} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SelectField id="bodyparts3d-role" name="role" label="Role" values={MEDIA_ROLES} defaultValue="PRIMARY" />
+            <TextField id="bodyparts3d-display-priority" name="display_priority" label="Priority" defaultValue="100" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bodyparts3d-notes">Note</Label>
+            <Textarea id="bodyparts3d-notes" name="notes" rows={2} placeholder="Why this view is the right study image" />
+          </div>
+          <Button type="submit" size="sm">Import BodyParts3D View</Button>
+        </form>
+      </div>
     </section>
   )
 }
@@ -1808,6 +1991,54 @@ function selectedEntityMediaAssets(
   ))
 }
 
+function selectedMediaEntityLink(asset: Record<string, unknown>, selectedEntity: AnatomyEntitySelection) {
+  return recordArray(asset, "entityLinks").find((link) => (
+    recordText(link, "entityType") === selectedEntity.entityType &&
+    recordText(link, "entitySlug") === selectedEntity.entitySlug
+  ))
+}
+
+function mediaPreviewUrl(asset: Record<string, unknown>) {
+  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || recordText(asset, "sourceUrl")
+}
+
+function sourceLabel(asset: Record<string, unknown>) {
+  return relationText(asset, "source", "label") || relationText(asset, "source", "slug")
+}
+
+function mediaCandidateRows(data: AnatomyBrowserData, linkedAssetIds: Set<string>) {
+  return data.mediaAssets
+    .filter((asset) => {
+      const id = recordText(asset, "id")
+      if (!id || linkedAssetIds.has(id)) return false
+      if (!["IMAGE", "DIAGRAM"].includes(recordText(asset, "mediaType"))) return false
+      if (!mediaPreviewUrl(asset)) return false
+
+      return recordText(asset, "usageScope") === "OPEN_REUSE" && recordText(asset, "reviewStatus") === "REVIEWED"
+    })
+    .slice(0, 160)
+}
+
+function mediaMetadataLine(asset: Record<string, unknown>) {
+  const metadata = recordObject(asset, "metadata")
+  const view = recordText(metadata, "bodyparts3dViewTitle") || formatLabel(recordText(metadata, "bodyparts3dView"))
+  const partIds = recordStringArray(metadata, "bodyparts3dPartIds")
+
+  return [
+    view ? `View: ${view}` : "",
+    partIds.length > 0 ? `Parts: ${partIds.join(", ")}` : "",
+  ].filter(Boolean).join(" / ")
+}
+
+function suggestedBodyParts3dPartIds(mediaRows: Record<string, unknown>[], identifierRows: Record<string, unknown>[]) {
+  const mediaPartIds = mediaRows.flatMap((asset) => recordStringArray(recordObject(asset, "metadata"), "bodyparts3dPartIds"))
+  const identifierPartIds = identifierRows
+    .filter((identifier) => recordText(identifier, "provider").toUpperCase() === "FMA")
+    .map((identifier) => recordText(identifier, "identifier"))
+
+  return normalizeBodyParts3dPartIds([...mediaPartIds, ...identifierPartIds])
+}
+
 function selectedEntitySpatialMappings(
   data: AnatomyBrowserData,
   selectedEntity: AnatomyEntitySelection,
@@ -2200,7 +2431,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     prisma.anatomyMediaAsset.findMany({
       include: { source: true, entityLinks: true },
       orderBy: [{ usageScope: "asc" }, { title: "asc" }],
-      take: 80,
+      take: 500,
     }),
     prisma.anatomySpatialModel.findMany({
       include: { source: true, mediaAsset: true },
@@ -2514,6 +2745,16 @@ function recordText(row: unknown, key: string) {
 
 function relationText(row: unknown, relationKey: string, valueKey: string) {
   return recordText(asRecord(row)[relationKey], valueKey)
+}
+
+function recordNumber(row: unknown, key: string, fallback = 0) {
+  const parsed = Number(asRecord(row)[key])
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function recordObject(row: unknown, key: string) {
+  const value = asRecord(row)[key]
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
 function externalIdentifierHref(identifier: unknown) {

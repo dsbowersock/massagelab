@@ -7,9 +7,9 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## Current Snapshot
 
 - Status: private alpha.
-- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus includes the setup-first flashcards/community-deck layer, where anonymous users can browse public decks and study temporary decks while signed-in users can save deck templates, persist progress summaries, and earn aggregate achievements. The active flashcard mastery rounds pass is turning per-prompt 10-correct mastery into repeatable full-library completion rounds with snapshot badges and preserved lifetime totals. Reveal-review remains practice-only, and typed-check remains the saved progress path. The local-first professional-record framework remains in place with one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and role-aware shell/navigation structure before broader portal expansion. Voice transcription and SOAP-assist are recorded as future member-supported goals only; no audio capture, transcription engine, LLM processing, or hosted PHI workflow is implemented.
+- Current focus: anatomy data is sufficient for the alpha baseline; 3D/spatial runtime tooling is deferred. Current focus includes the setup-first flashcards/community-deck layer, where anonymous users can browse public decks and study temporary decks while signed-in users can save deck templates, persist progress summaries, earn aggregate achievements, and complete repeatable full-library mastery rounds. Anatomy admins can now visually review the images linked to an item, approve or reject item-image links, attach existing candidates, import curated still BodyParts3D views into R2, and flag bad flashcard images from image prompts. Public flashcards only use reviewed reusable media whose item-image link is approved. Reveal-review remains practice-only, and typed-check remains the saved progress path. The local-first professional-record framework remains in place with one encrypted browser vault for SOAP, intake, journal, and ROM records, tablet intake workflow continuity, user-controlled encrypted vault transfer, and role-aware shell/navigation structure before broader portal expansion. Voice transcription and SOAP-assist are recorded as future member-supported goals only; no audio capture, transcription engine, LLM processing, or hosted PHI workflow is implemented.
 - Current-state source of truth: [project-state.md](project-state.md).
-- Database status: Prisma schema validates; the configured Neon/Postgres database has 20 repo migrations after the flashcard deck/session storage migration.
+- Database status: Prisma schema validates; the repo has 22 migrations, and `npx prisma migrate deploy` applied `20260604170000_flashcard_decks`, `20260607090000_flashcard_mastery_progress`, and `20260611120000_anatomy_media_review` to the configured Neon/Postgres database.
 - Product posture: clinical notes, intake forms, journals, ROM sessions, transcripts, and other PHI-bearing workflows remain local-first unless hosted clinical storage passes the documented compliance gates. Therapist note-taking tools are visible but creating or viewing professional-record content requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. SOAP, intake, journal, and ROM now use one encrypted browser vault that requires therapist passphrase unlock before viewing or saving documents. Privacy architecture separates account/contact/booking data, future client-owned wellness data, therapist professional records, and a future consent-based sharing bridge.
 - Public `/roadmap` route: product-facing app copy only. Internal operating state lives in [project-state.md](project-state.md) and this log.
 
@@ -61,6 +61,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Date | Decision | Notes |
 | --- | --- | --- |
+| 2026-06-11 | Store anatomy media accuracy on the item-image link. | `AnatomyMediaEntity` carries approval/rejection state so an image can be valid for one anatomy item and rejected for another without deleting the media asset or its provenance. |
 | 2026-06-03 | Split initial intake and follow-up intake before SOAP handoff. | Initial intake should remain a fuller first-visit form. Follow-up intake should start from an existing local client, avoid re-asking stable profile basics, focus on medical changes/current symptoms/today's goals, and roll into therapist-reviewed SOAP drafting inside the encrypted local vault. |
 | 2026-06-03 | Treat voice transcription and SOAP-assist as member-supported roadmap goals. | Membership copy may explain that paid support helps fund local transcription experiments, legal/security work, BAAs where required, audit controls, and future managed sync planning, but it must not imply that hosted transcription, cloud SOAP drafting, or HIPAA-ready sync is available now. |
 | 2026-06-03 | Defer transcription feasibility in favor of more visible product work next. | The next branch should not be voice transcription, server transcription, or hosted PHI work. Prefer a more functional/visual site or tool surface, with anatomy flashcards/study UI as the strongest current candidate if the user wants a concrete next build. |
@@ -93,6 +94,16 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-06-11
+
+- Started `codex/anatomy-media-review` from `main` to turn the anatomy admin item detail view into a practical visual review surface for flashcard image accuracy.
+- Added link-level media review state to `AnatomyMediaEntity`: approved/needs-review/rejected status, reason, note, display priority, and reviewer metadata.
+- Updated sourced flashcard media loading so rejected or needs-review item-image links are hidden from public prompts, while approved replacement views can produce additional media-identification prompts.
+- Added an anatomy admin media review panel with image previews, linked-image review controls, existing candidate approval, and BodyParts3D still-image import to R2 with source/license citation rows.
+- Added an admin-only flashcard image flag flow so bad match or bad view flags reject the current item-image link and remove that prompt from the active study run.
+- Applied the pending flashcard and anatomy media review migrations to the configured Neon/Postgres database; `npx prisma migrate status` reports the schema is up to date.
+- Updated focused tests for BodyParts3D URL normalization, link-level prompt filtering, admin media review UI, and flashcard image flagging.
 
 ### 2026-06-10
 
