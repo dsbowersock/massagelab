@@ -44,6 +44,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 - P2: Plan Stripe Connect marketplace payments before booking payment collection.
 - P2: Plan Payload CMS integration before adding it as a dependency.
 - P2: Spike generative music behind a hidden proof-of-concept route before product UI planning.
+- P3: Plan a repo-wide docstring pass for shared helpers, domain rules, server actions, data adapters, and non-obvious UI components so code is easier to understand in-place.
 - P3: Revisit anatomy 3D/spatial runtime tooling after the core local-first practice tools are more useful.
 - P3: Revisit voice notes, intake conversation transcription, and SOAP-assist later, after a separate feasibility branch proves local/on-device options and any hosted path passes legal, BAA, security, consent, audit, and retention review.
 - P3: Prepare the public SEO launch checklist before changing private-alpha `noindex`.

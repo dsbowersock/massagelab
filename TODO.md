@@ -36,6 +36,7 @@ Current project state now lives in [docs/project-state.md](docs/project-state.md
 - [ ] Anatomy content expansion and review workflow.
 - [x] Education/flashcards design using shared anatomy data.
 - [x] Setup-first flashcards with sourced prompt modes, anonymous temporary decks, public deck browsing, signed-in saved templates, and progress/achievement tracking.
+- [ ] Repo-wide docstring pass: add useful JSDoc/docstrings to shared helpers, domain rules, server actions, data adapters, and non-obvious UI components so future code reading has better inline context.
 
 ## Payload CMS Planning
 
