@@ -980,7 +980,7 @@ model AnatomyMediaEntity {
   entitySlug      String
   role            AnatomyMediaRole         @default(REFERENCE)
   notes           String?
-  reviewStatus    AnatomyMediaReviewStatus @default(APPROVED)
+  reviewStatus    AnatomyMediaReviewStatus @default(NEEDS_REVIEW)
   reviewReason    String?
   reviewNote      String?
   displayPriority Int                      @default(100)

@@ -2,10 +2,13 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   anatomyMediaReviewKey,
+  bodyParts3dAdminAssetSlug,
+  bodyParts3dAdminStoragePath,
   bodyParts3dImageUrl,
   bodyParts3dView,
   normalizeAnatomyMediaRole,
   normalizeBodyParts3dPartIds,
+  safeBodyParts3dImageUrl,
 } from "../lib/anatomy-media-review.js"
 
 describe("Anatomy media review helpers", () => {
@@ -34,6 +37,53 @@ describe("Anatomy media review helpers", () => {
         role: "PRIMARY",
       }),
       "bodyparts3d-biceps|muscle|biceps-brachii|primary",
+    )
+  })
+
+  it("only accepts safe BodyParts3D image API URLs for overrides", () => {
+    const safeUrl = bodyParts3dImageUrl({ partIds: ["FMA37670"], view: "anterior", treeName: "isa" })
+
+    assert.equal(safeBodyParts3dImageUrl(` ${safeUrl} `), safeUrl)
+    assert.equal(safeBodyParts3dImageUrl("javascript:alert(1)"), "")
+    assert.equal(safeBodyParts3dImageUrl("https://example.com/bp3d/API/image?test"), "")
+    assert.equal(safeBodyParts3dImageUrl("https://lifesciencedb.jp/bp3d/API/image"), "")
+  })
+
+  it("keeps BodyParts3D admin asset identity stable by tree and canonical part ids", () => {
+    const partofSlug = bodyParts3dAdminAssetSlug({
+      entityType: "muscle",
+      entitySlug: "biceps-brachii",
+      treeName: "partof",
+      viewSlug: "anterior",
+      partIds: ["FMA37671", "37670"],
+    })
+    const reorderedPartofSlug = bodyParts3dAdminAssetSlug({
+      entityType: "muscle",
+      entitySlug: "biceps-brachii",
+      treeName: "partof",
+      viewSlug: "anterior",
+      partIds: ["FMA37670", "FMA37671"],
+    })
+    const isaSlug = bodyParts3dAdminAssetSlug({
+      entityType: "muscle",
+      entitySlug: "biceps-brachii",
+      treeName: "isa",
+      viewSlug: "anterior",
+      partIds: ["FMA37670", "FMA37671"],
+    })
+
+    assert.equal(partofSlug, reorderedPartofSlug)
+    assert.notEqual(partofSlug, isaSlug)
+    assert.match(partofSlug, /partof-anterior-fma37670-fma37671/)
+    assert.equal(
+      bodyParts3dAdminStoragePath({
+        entityType: "muscle",
+        entitySlug: "biceps-brachii",
+        treeName: "partof",
+        viewSlug: "anterior",
+        assetSlug: partofSlug,
+      }),
+      `anatomy/bodyparts3d/admin/muscle/biceps-brachii/partof/anterior/${partofSlug}.png`,
     )
   })
 })

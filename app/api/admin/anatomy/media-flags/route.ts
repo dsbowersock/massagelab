@@ -47,14 +47,14 @@ export async function POST(request: Request) {
     ? payload as Record<string, unknown>
     : {}
   const selectedEntity = parseAnatomyEntitySelection(text(record.entityType), text(record.entitySlug))
-  const mediaId = text(record.mediaId)
+  const mediaSlug = text(record.mediaSlug) || text(record.mediaId)
 
-  if (!selectedEntity || !mediaId) {
-    return NextResponse.json({ error: "Entity and media id are required." }, { status: 400 })
+  if (!selectedEntity || !mediaSlug) {
+    return NextResponse.json({ error: "Entity and media slug are required." }, { status: 400 })
   }
 
   const asset = await prisma.anatomyMediaAsset.findUnique({
-    where: { slug: mediaId },
+    where: { slug: mediaSlug },
     select: { id: true },
   })
   if (!asset) {

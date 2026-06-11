@@ -1,0 +1,1 @@
+ALTER TABLE "AnatomyMediaEntity" ALTER COLUMN "reviewStatus" SET DEFAULT 'NEEDS_REVIEW';

@@ -15,9 +15,9 @@ This is the read-first source of truth for MassageLab's current project state. U
 ## Database State
 
 - Database stack: Prisma with Neon/Postgres.
-- Last verified checks: `npm run prisma:validate` passed, `npx prisma migrate deploy` applied `20260604170000_flashcard_decks`, `20260607090000_flashcard_mastery_progress`, and `20260611120000_anatomy_media_review`, and `npx prisma migrate status` reported the configured database schema is up to date.
-- Migration count at last verification: 22 migrations.
-- Latest migration area: anatomy media entity review status, reason, priority, and reviewer metadata for item-image curation.
+- Last verified checks: `npm run prisma:validate` passed, `npx prisma migrate deploy` applied `20260604170000_flashcard_decks`, `20260607090000_flashcard_mastery_progress`, `20260611120000_anatomy_media_review`, and `20260611143000_anatomy_media_review_default_needs_review`, and `npx prisma migrate status` reported the configured database schema is up to date.
+- Migration count at last verification: 23 migrations.
+- Latest migration area: anatomy media entity review status, reason, priority, reviewer metadata, and needs-review default for item-image curation.
 - No hosted clinical database work is planned for the next forms branch; intake and note content should remain browser-local unless the documented compliance gates are met. Future client-owned wellness storage must remain separate from therapist professional records and therapist remote access until the consent/sharing bridge is reviewed and intentionally enabled.
 - Do not document database rows, secrets, connection strings, or `.env.local` values in project docs.
 

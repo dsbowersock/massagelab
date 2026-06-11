@@ -8,6 +8,7 @@ import {
   BODYPARTS3D_VIEWS,
   bodyParts3dImageUrl,
   normalizeBodyParts3dPartIds,
+  safeBodyParts3dImageUrl,
   type BodyParts3dTreeName,
   type BodyParts3dViewSlug,
 } from "@/lib/anatomy-media-review"
@@ -23,7 +24,9 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
       ? bodyParts3dImageUrl({ partIds: normalizedPartIds, treeName, view })
       : ""
   ), [normalizedPartIds, treeName, view])
-  const previewUrl = sourceUrl.trim() || generatedPreviewUrl
+  const safeOverrideUrl = useMemo(() => safeBodyParts3dImageUrl(sourceUrl), [sourceUrl])
+  const invalidOverrideUrl = sourceUrl.trim().length > 0 && !safeOverrideUrl
+  const previewUrl = safeOverrideUrl || generatedPreviewUrl
 
   return (
     <>
@@ -80,6 +83,9 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
           onChange={(event) => setSourceUrl(event.target.value)}
           placeholder="Optional API/image URL"
         />
+        {invalidOverrideUrl ? (
+          <p className="text-xs text-destructive">Override must be a BodyParts3D HTTPS API/image URL.</p>
+        ) : null}
       </div>
 
       {previewUrl ? (

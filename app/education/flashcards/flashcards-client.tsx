@@ -1427,6 +1427,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
     if (!currentPrompt?.front.media || isFlaggingMedia) return
 
     const promptId = currentPrompt.id
+    const promptType = currentPrompt.type
     const media = currentPrompt.front.media
     setIsFlaggingMedia(true)
     setSaveMessage("")
@@ -1438,7 +1439,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
         body: JSON.stringify({
           entityType: currentPrompt.entityType,
           entitySlug: currentPrompt.entitySlug,
-          mediaId: media.id,
+          mediaSlug: media.id,
           role: media.role,
           reason,
         }),
@@ -1456,6 +1457,13 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
         return next
       })
       setResults((current) => current.filter((result) => result.promptId !== promptId))
+      setPromptSummaries((current) => current.filter((prompt) => prompt.id !== promptId))
+      setSelectedPromptIds((current) => current.filter((selectedPromptId) => selectedPromptId !== promptId))
+      setPromptTypeCounts((current) => current.map((type) => (
+        type.id === promptType
+          ? { ...type, promptCount: Math.max(0, type.promptCount - 1) }
+          : type
+      )))
       setCheckedResult(null)
       setAnswers({})
       setIsCardFlipped(false)

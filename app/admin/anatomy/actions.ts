@@ -20,6 +20,7 @@ import {
   bodyParts3dView,
   normalizeAnatomyMediaRole,
   normalizeBodyParts3dPartIds,
+  safeBodyParts3dImageUrl,
   type BodyParts3dTreeName,
 } from "@/lib/anatomy-media-review"
 import { uploadAnatomyMediaToR2 } from "@/lib/anatomy-media-review-server"
@@ -70,7 +71,10 @@ function enumValue<T extends string>(value: string, validValues: Set<string>, fa
 }
 
 function formNumber(formData: FormData, key: string, fallback: number) {
-  const value = Number(formString(formData, key))
+  const rawValue = formString(formData, key)
+  if (!rawValue) return fallback
+
+  const value = Number(rawValue)
   return Number.isFinite(value) ? value : fallback
 }
 
@@ -101,10 +105,8 @@ function titleFromSlug(value: string) {
 }
 
 function bodyParts3dSourceUrl(formData: FormData, partIds: string[], viewSlug: string, treeName: BodyParts3dTreeName) {
-  const overrideUrl = formString(formData, "source_url")
-  if (overrideUrl.startsWith("https://lifesciencedb.jp/bp3d/API/image?")) {
-    return overrideUrl
-  }
+  const overrideUrl = safeBodyParts3dImageUrl(formString(formData, "source_url"))
+  if (overrideUrl) return overrideUrl
 
   return bodyParts3dImageUrl({
     partIds,
@@ -256,6 +258,7 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
   const assetSlug = bodyParts3dAdminAssetSlug({
     entityType: selectedEntity.entityType,
     entitySlug: selectedEntity.entitySlug,
+    treeName,
     viewSlug: view.slug,
     partIds,
   })
@@ -263,148 +266,139 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
   const storagePath = bodyParts3dAdminStoragePath({
     entityType: selectedEntity.entityType,
     entitySlug: selectedEntity.entitySlug,
+    treeName,
     viewSlug: view.slug,
     assetSlug,
   })
   const upload = await uploadAnatomyMediaToR2({ sourceUrl, storagePath })
   const entityLabel = titleFromSlug(selectedEntity.entitySlug)
-  const asset = await prisma.anatomyMediaAsset.upsert({
-    where: { slug: assetSlug },
-    create: {
-      slug: assetSlug,
-      title: `BodyParts3D ${entityLabel} ${view.title}`,
-      mediaType: "IMAGE",
-      description: `Curated BodyParts3D ${view.title.toLowerCase()} for ${entityLabel}.`,
-      sourceId: source.id,
-      sourceUrl,
-      remoteUrl: upload.remoteUrl,
-      storagePath: upload.storagePath,
-      license: BODYPARTS3D_LICENSE,
-      licenseUrl: BODYPARTS3D_LICENSE_URL,
-      attribution: BODYPARTS3D_ATTRIBUTION,
-      usageScope: "OPEN_REUSE",
-      reviewStatus: "REVIEWED",
-      width: 700,
-      height: 700,
-      format: "png",
-      metadata: {
-        sourceKind: "bodyparts3d-admin-curated-image",
-        bodyparts3dPartIds: partIds,
-        bodyparts3dTreeName: treeName,
-        bodyparts3dView: view.slug,
-        bodyparts3dViewTitle: view.title,
-        bodyparts3dCameraMode: view.cameraMode,
-        visualStyle: "3d-anatomogram-render",
-        anatomogramVersion: "4.1",
-        r2Upload: true,
-        ingestionStatus: "uploaded_to_r2",
-        uploadedById: user.id,
-        uploadedAt: new Date().toISOString(),
-        uploadedBytes: upload.bytes,
-        uploadedContentType: upload.contentType,
-      } satisfies Prisma.JsonObject,
-    },
-    update: {
-      title: `BodyParts3D ${entityLabel} ${view.title}`,
-      description: `Curated BodyParts3D ${view.title.toLowerCase()} for ${entityLabel}.`,
-      sourceId: source.id,
-      sourceUrl,
-      remoteUrl: upload.remoteUrl,
-      storagePath: upload.storagePath,
-      license: BODYPARTS3D_LICENSE,
-      licenseUrl: BODYPARTS3D_LICENSE_URL,
-      attribution: BODYPARTS3D_ATTRIBUTION,
-      usageScope: "OPEN_REUSE",
-      reviewStatus: "REVIEWED",
-      width: 700,
-      height: 700,
-      format: "png",
-      metadata: {
-        sourceKind: "bodyparts3d-admin-curated-image",
-        bodyparts3dPartIds: partIds,
-        bodyparts3dTreeName: treeName,
-        bodyparts3dView: view.slug,
-        bodyparts3dViewTitle: view.title,
-        bodyparts3dCameraMode: view.cameraMode,
-        visualStyle: "3d-anatomogram-render",
-        anatomogramVersion: "4.1",
-        r2Upload: true,
-        ingestionStatus: "uploaded_to_r2",
-        uploadedById: user.id,
-        uploadedAt: new Date().toISOString(),
-        uploadedBytes: upload.bytes,
-        uploadedContentType: upload.contentType,
-      } satisfies Prisma.JsonObject,
-    },
-  })
+  const uploadedAt = new Date()
+  const mediaMetadata = {
+    sourceKind: "bodyparts3d-admin-curated-image",
+    bodyparts3dPartIds: partIds,
+    bodyparts3dTreeName: treeName,
+    bodyparts3dView: view.slug,
+    bodyparts3dViewTitle: view.title,
+    bodyparts3dCameraMode: view.cameraMode,
+    visualStyle: "3d-anatomogram-render",
+    anatomogramVersion: "4.1",
+    r2Upload: true,
+    ingestionStatus: "uploaded_to_r2",
+    uploadedById: user.id,
+    uploadedAt: uploadedAt.toISOString(),
+    uploadedBytes: upload.bytes,
+    uploadedContentType: upload.contentType,
+  } satisfies Prisma.JsonObject
 
-  await prisma.anatomyMediaEntity.upsert({
-    where: {
-      assetId_entityType_entitySlug_role: {
+  await prisma.$transaction(async (tx) => {
+    const asset = await tx.anatomyMediaAsset.upsert({
+      where: { slug: assetSlug },
+      create: {
+        slug: assetSlug,
+        title: `BodyParts3D ${entityLabel} ${view.title}`,
+        mediaType: "IMAGE",
+        description: `Curated BodyParts3D ${view.title.toLowerCase()} for ${entityLabel}.`,
+        sourceId: source.id,
+        sourceUrl,
+        remoteUrl: upload.remoteUrl ?? null,
+        storagePath: upload.storagePath,
+        license: BODYPARTS3D_LICENSE,
+        licenseUrl: BODYPARTS3D_LICENSE_URL,
+        attribution: BODYPARTS3D_ATTRIBUTION,
+        usageScope: "OPEN_REUSE",
+        reviewStatus: "REVIEWED",
+        width: 700,
+        height: 700,
+        format: "png",
+        metadata: mediaMetadata,
+      },
+      update: {
+        title: `BodyParts3D ${entityLabel} ${view.title}`,
+        description: `Curated BodyParts3D ${view.title.toLowerCase()} for ${entityLabel}.`,
+        sourceId: source.id,
+        sourceUrl,
+        ...(upload.remoteUrl ? { remoteUrl: upload.remoteUrl } : {}),
+        storagePath: upload.storagePath,
+        license: BODYPARTS3D_LICENSE,
+        licenseUrl: BODYPARTS3D_LICENSE_URL,
+        attribution: BODYPARTS3D_ATTRIBUTION,
+        usageScope: "OPEN_REUSE",
+        reviewStatus: "REVIEWED",
+        width: 700,
+        height: 700,
+        format: "png",
+        metadata: mediaMetadata,
+      },
+    })
+
+    await tx.anatomyMediaEntity.upsert({
+      where: {
+        assetId_entityType_entitySlug_role: {
+          assetId: asset.id,
+          entityType: selectedEntity.entityType as AnatomyEntityType,
+          entitySlug: selectedEntity.entitySlug,
+          role,
+        },
+      },
+      create: {
         assetId: asset.id,
         entityType: selectedEntity.entityType as AnatomyEntityType,
         entitySlug: selectedEntity.entitySlug,
         role,
+        notes: formString(formData, "notes") || null,
+        reviewStatus: "APPROVED",
+        displayPriority: displayPriorityValue(formData),
+        reviewedById: user.id,
+        reviewedAt: uploadedAt,
       },
-    },
-    create: {
-      assetId: asset.id,
-      entityType: selectedEntity.entityType as AnatomyEntityType,
-      entitySlug: selectedEntity.entitySlug,
-      role,
-      notes: formString(formData, "notes") || null,
-      reviewStatus: "APPROVED",
-      displayPriority: displayPriorityValue(formData),
-      reviewedById: user.id,
-      reviewedAt: new Date(),
-    },
-    update: {
-      notes: formString(formData, "notes") || null,
-      reviewStatus: "APPROVED",
-      reviewReason: null,
-      displayPriority: displayPriorityValue(formData),
-      reviewedById: user.id,
-      reviewedAt: new Date(),
-    },
-  })
+      update: {
+        notes: formString(formData, "notes") || null,
+        reviewStatus: "APPROVED",
+        reviewReason: null,
+        displayPriority: displayPriorityValue(formData),
+        reviewedById: user.id,
+        reviewedAt: uploadedAt,
+      },
+    })
 
-  await prisma.anatomyCitation.upsert({
-    where: { slug: `citation-${assetSlug}-media-source` },
-    create: {
-      slug: `citation-${assetSlug}-media-source`,
-      entityType: selectedEntity.entityType as AnatomyEntityType,
-      entitySlug: selectedEntity.entitySlug,
-      factType: "media_source",
-      factSlug: assetSlug,
-      sourceId: source.id,
-      sourceLocator: sourceUrl,
-      citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
-      reviewStatus: "REVIEWED",
-    },
-    update: {
-      sourceLocator: sourceUrl,
-      citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
-      reviewStatus: "REVIEWED",
-    },
-  })
-  await prisma.anatomyCitation.upsert({
-    where: { slug: `citation-${assetSlug}-media-license` },
-    create: {
-      slug: `citation-${assetSlug}-media-license`,
-      entityType: selectedEntity.entityType as AnatomyEntityType,
-      entitySlug: selectedEntity.entitySlug,
-      factType: "media_license",
-      factSlug: assetSlug,
-      sourceId: source.id,
-      sourceLocator: BODYPARTS3D_LICENSE_PAGE,
-      citationNote: "BodyParts3D image license reviewed as CC BY 4.0 for public study media.",
-      reviewStatus: "REVIEWED",
-    },
-    update: {
-      sourceLocator: BODYPARTS3D_LICENSE_PAGE,
-      citationNote: "BodyParts3D image license reviewed as CC BY 4.0 for public study media.",
-      reviewStatus: "REVIEWED",
-    },
+    await tx.anatomyCitation.upsert({
+      where: { slug: `citation-${assetSlug}-media-source` },
+      create: {
+        slug: `citation-${assetSlug}-media-source`,
+        entityType: selectedEntity.entityType as AnatomyEntityType,
+        entitySlug: selectedEntity.entitySlug,
+        factType: "media_source",
+        factSlug: assetSlug,
+        sourceId: source.id,
+        sourceLocator: sourceUrl,
+        citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
+        reviewStatus: "REVIEWED",
+      },
+      update: {
+        sourceLocator: sourceUrl,
+        citationNote: "BodyParts3D image imported through anatomy admin media review workflow.",
+        reviewStatus: "REVIEWED",
+      },
+    })
+    await tx.anatomyCitation.upsert({
+      where: { slug: `citation-${assetSlug}-media-license` },
+      create: {
+        slug: `citation-${assetSlug}-media-license`,
+        entityType: selectedEntity.entityType as AnatomyEntityType,
+        entitySlug: selectedEntity.entitySlug,
+        factType: "media_license",
+        factSlug: assetSlug,
+        sourceId: source.id,
+        sourceLocator: BODYPARTS3D_LICENSE_PAGE,
+        citationNote: "BodyParts3D image license reviewed as CC BY 4.0 for public study media.",
+        reviewStatus: "REVIEWED",
+      },
+      update: {
+        sourceLocator: BODYPARTS3D_LICENSE_PAGE,
+        citationNote: "BodyParts3D image license reviewed as CC BY 4.0 for public study media.",
+        reviewStatus: "REVIEWED",
+      },
+    })
   })
 
   revalidatePath("/admin/anatomy")

@@ -1209,8 +1209,9 @@ function MediaReviewPanel({
   mediaRows: Record<string, unknown>[]
   identifierRows: Record<string, unknown>[]
 }) {
-  const linkedAssetIds = new Set(mediaRows.map((asset) => recordText(asset, "id")).filter(Boolean))
-  const candidateRows = mediaCandidateRows(data, linkedAssetIds)
+  const reviewRows = mediaReviewRows(mediaRows, selectedEntity)
+  const linkedRoleKeys = new Set(reviewRows.map((row) => mediaRoleKey(recordText(row.asset, "id"), recordText(row.link, "role"))))
+  const candidateRows = mediaCandidateRows(data, linkedRoleKeys)
   const suggestedPartIds = suggestedBodyParts3dPartIds(mediaRows, identifierRows)
 
   return (
@@ -1220,17 +1221,16 @@ function MediaReviewPanel({
           <p className="text-sm font-medium">Media Review</p>
           <p className="text-xs text-muted-foreground">Review images linked to {entityLabel} and pick better views when needed.</p>
         </div>
-        <span className="w-fit rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{mediaRows.length} linked</span>
+        <span className="w-fit rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{reviewRows.length} linked</span>
       </div>
 
-      {mediaRows.length === 0 ? (
+      {reviewRows.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/80 bg-background/70 p-4 text-sm text-muted-foreground">
           No media assets are linked to this item yet.
         </div>
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
-          {mediaRows.map((asset) => {
-            const link = selectedMediaEntityLink(asset, selectedEntity)
+          {reviewRows.map(({ asset, link }) => {
             const linkId = recordText(link, "id")
             const previewUrl = mediaPreviewUrl(asset)
             const reviewStatus = recordText(link, "reviewStatus") || "APPROVED"
@@ -1238,7 +1238,7 @@ function MediaReviewPanel({
             const priority = recordNumber(link, "displayPriority", 100)
 
             return (
-              <article key={`${recordText(asset, "id")}-${linkId || selectedEntity.entitySlug}`} className="overflow-hidden rounded-md border border-border/80 bg-background/70">
+              <article key={`${recordText(asset, "id")}-${recordText(link, "role")}-${linkId || selectedEntity.entitySlug}`} className="overflow-hidden rounded-md border border-border/80 bg-background/70">
                 <div className="grid gap-3 p-3 md:grid-cols-[13rem_minmax(0,1fr)]">
                   <div className="overflow-hidden rounded-md border border-border/80 bg-white">
                     {previewUrl ? (
@@ -1342,7 +1342,7 @@ function MediaReviewPanel({
             </>
           ) : (
             <p className="rounded-md border border-dashed border-border/80 p-3 text-sm text-muted-foreground">
-              No unlinked reviewed image candidates are available in the current admin result window.
+              No reviewed image candidates with an available role are in the current admin result window.
             </p>
           )}
         </form>
@@ -1354,7 +1354,7 @@ function MediaReviewPanel({
             <p className="text-sm font-medium">Import BodyParts3D View</p>
             <p className="text-xs text-muted-foreground">Generate a still image, upload it to R2, and approve it for this item.</p>
           </div>
-          <BodyParts3dImportFields initialPartIds={suggestedPartIds.join(", ")} />
+          <BodyParts3dImportFields key={`${selectedEntity.entityType}:${selectedEntity.entitySlug}`} initialPartIds={suggestedPartIds.join(", ")} />
           <div className="grid gap-3 sm:grid-cols-2">
             <SelectField id="bodyparts3d-role" name="role" label="Role" values={MEDIA_ROLES} defaultValue="PRIMARY" />
             <TextField id="bodyparts3d-display-priority" name="display_priority" label="Priority" defaultValue="100" />
@@ -1991,10 +1991,19 @@ function selectedEntityMediaAssets(
   ))
 }
 
-function selectedMediaEntityLink(asset: Record<string, unknown>, selectedEntity: AnatomyEntitySelection) {
-  return recordArray(asset, "entityLinks").find((link) => (
-    recordText(link, "entityType") === selectedEntity.entityType &&
-    recordText(link, "entitySlug") === selectedEntity.entitySlug
+type MediaReviewRow = {
+  asset: Record<string, unknown>
+  link: Record<string, unknown>
+}
+
+function mediaReviewRows(mediaRows: Record<string, unknown>[], selectedEntity: AnatomyEntitySelection): MediaReviewRow[] {
+  return mediaRows.flatMap((asset) => (
+    recordArray(asset, "entityLinks")
+      .filter((link) => (
+        recordText(link, "entityType") === selectedEntity.entityType &&
+        recordText(link, "entitySlug") === selectedEntity.entitySlug
+      ))
+      .map((link) => ({ asset, link: asRecord(link) }))
   ))
 }
 
@@ -2006,11 +2015,20 @@ function sourceLabel(asset: Record<string, unknown>) {
   return relationText(asset, "source", "label") || relationText(asset, "source", "slug")
 }
 
-function mediaCandidateRows(data: AnatomyBrowserData, linkedAssetIds: Set<string>) {
+function mediaRoleKey(assetId: string, role: string) {
+  return `${assetId}:${(role || "REFERENCE").toUpperCase()}`
+}
+
+function hasAvailableMediaRole(asset: Record<string, unknown>, linkedRoleKeys: Set<string>) {
+  const id = recordText(asset, "id")
+  return Boolean(id) && MEDIA_ROLES.some((role) => !linkedRoleKeys.has(mediaRoleKey(id, role)))
+}
+
+function mediaCandidateRows(data: AnatomyBrowserData, linkedRoleKeys: Set<string>) {
   return data.mediaAssets
     .filter((asset) => {
       const id = recordText(asset, "id")
-      if (!id || linkedAssetIds.has(id)) return false
+      if (!id || !hasAvailableMediaRole(asset, linkedRoleKeys)) return false
       if (!["IMAGE", "DIAGRAM"].includes(recordText(asset, "mediaType"))) return false
       if (!mediaPreviewUrl(asset)) return false
 

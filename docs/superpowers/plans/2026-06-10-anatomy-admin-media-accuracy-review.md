@@ -17,6 +17,7 @@ Implemented on 2026-06-11.
 - Replaced the anatomy admin detail media list with a visual media review panel that previews linked images, saves review outcomes, approves existing candidates, and imports still BodyParts3D views into R2.
 - Added an admin-only flashcard flag control for image prompts. Bad match or bad view flags reject the item-image link and remove the prompt from the current study run.
 - Kept this branch to still images and provenance review. 3D runtime tooling remains deferred.
+- Addressed PR review findings on 2026-06-11: BodyParts3D URL overrides are strictly parsed before preview/import, imported asset identity includes tree name and canonical part IDs, post-upload database writes are transactional, linked media renders per item-role link, R2 public delivery URL configuration is optional, new media links default to needs review, and flashcard flagging removes rejected prompts from the setup inventory.
 
 ## Scope
 

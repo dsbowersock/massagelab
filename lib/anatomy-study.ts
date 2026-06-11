@@ -425,7 +425,7 @@ function publicMediaForEntity(entityType: AnatomyStudyCategory, entitySlug: stri
       if (!PUBLIC_FLASHCARD_IMAGE_SOURCE_REFS.has(asset.sourceRef)) return null
 
       const uploadedUrl = context.mediaUrlBySlug.get(asset.slug)
-      const url = uploadedUrl ?? asset.thumbnailUrl
+      const url = uploadedUrl ?? asset.remoteUrl ?? asset.thumbnailUrl
       if (!url || asset.mediaType === "model_3d") return null
 
       return {
@@ -461,6 +461,14 @@ function mediaUrlMap(mediaUrlBySlug: AnatomyStudyBuildOptions["mediaUrlBySlug"])
   if (mediaUrlBySlug instanceof Map) return mediaUrlBySlug
 
   return new Map(Object.entries(mediaUrlBySlug).filter(([, url]) => url.trim().length > 0))
+}
+
+function hasAnatomyStudyMediaOverrides(options: AnatomyStudyBuildOptions) {
+  return Boolean(
+    options.mediaUrlBySlug ||
+    (options.mediaAssets && options.mediaAssets.length > 0) ||
+    (options.mediaEntityLinks && options.mediaEntityLinks.length > 0),
+  )
 }
 
 function mergedMediaAssets(seed: AnatomyFoundationSeed, mediaAssets: AnatomyStudyBuildOptions["mediaAssets"]) {
@@ -620,7 +628,7 @@ function filterStudyCards(cards: AnatomyStudyCard[], filters: AnatomyStudyCardFi
 }
 
 export function getAnatomyStudyCards(filters: AnatomyStudyCardFilters = {}, options: AnatomyStudyBuildOptions = {}) {
-  const cards = options.mediaUrlBySlug ? buildStudyCards(ANATOMY_FOUNDATION_SEED, options) : studyCards
+  const cards = hasAnatomyStudyMediaOverrides(options) ? buildStudyCards(ANATOMY_FOUNDATION_SEED, options) : studyCards
 
   return filterStudyCards(cards, filters)
 }

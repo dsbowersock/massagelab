@@ -11,7 +11,7 @@ type R2Env = {
 }
 
 export type UploadedAnatomyMedia = {
-  remoteUrl: string
+  remoteUrl?: string
   storagePath: string
   bytes: number
   contentType: string
@@ -47,7 +47,6 @@ function requireUploadEnv(env: R2Env) {
     ["R2_ACCESS_KEY_ID", env.accessKeyId],
     ["R2_SECRET_ACCESS_KEY", env.secretAccessKey],
     ["MASSAGELAB_R2_BUCKET", env.bucket],
-    ["MASSAGELAB_R2_PUBLIC_BASE_URL", env.publicBaseUrl],
   ].filter(([, value]) => !value).map(([name]) => name)
 
   if (missing.length > 0) {
@@ -66,7 +65,7 @@ function encodeStoragePath(path: string) {
 }
 
 function publicUrlForPath(env: R2Env, storagePath: string) {
-  if (!env.publicBaseUrl) throw new Error("MASSAGELAB_R2_PUBLIC_BASE_URL is required for public anatomy media.")
+  if (!env.publicBaseUrl) return undefined
   return `${env.publicBaseUrl}/${encodeStoragePath(storagePath)}`
 }
 

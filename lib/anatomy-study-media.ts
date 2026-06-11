@@ -17,6 +17,10 @@ function lowerEnum<T extends string>(value: string) {
   return value.toLowerCase() as T
 }
 
+function lowerEnumIfPresent<T extends string>(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? lowerEnum<T>(value) : undefined
+}
+
 function metadataRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -60,18 +64,22 @@ export async function loadAnatomyStudyMediaUrlOptions(): Promise<AnatomyStudyMed
         ...(row.format ? { format: row.format } : {}),
         ...(metadataRecord(row.metadata) ? { metadata: metadataRecord(row.metadata) } : {}),
       })),
-      mediaEntityLinks: rows.flatMap((row) => row.entityLinks.map((link): AnatomyMediaEntityLink => ({
-        id: link.id,
-        assetSlug: row.slug,
-        entityType: lowerEnum<AnatomyMediaEntityLink["entityType"]>(link.entityType),
-        entitySlug: link.entitySlug,
-        role: lowerEnum<AnatomyMediaEntityLink["role"]>(link.role),
-        ...(link.notes ? { notes: link.notes } : {}),
-        reviewStatus: lowerEnum<NonNullable<AnatomyMediaEntityLink["reviewStatus"]>>(link.reviewStatus),
-        ...(link.reviewReason ? { reviewReason: link.reviewReason } : {}),
-        ...(link.reviewNote ? { reviewNote: link.reviewNote } : {}),
-        displayPriority: link.displayPriority,
-      }))),
+      mediaEntityLinks: rows.flatMap((row) => row.entityLinks.map((link): AnatomyMediaEntityLink => {
+        const reviewStatus = lowerEnumIfPresent<NonNullable<AnatomyMediaEntityLink["reviewStatus"]>>(link.reviewStatus)
+
+        return {
+          id: link.id,
+          assetSlug: row.slug,
+          entityType: lowerEnum<AnatomyMediaEntityLink["entityType"]>(link.entityType),
+          entitySlug: link.entitySlug,
+          role: lowerEnum<AnatomyMediaEntityLink["role"]>(link.role),
+          ...(link.notes ? { notes: link.notes } : {}),
+          ...(reviewStatus ? { reviewStatus } : {}),
+          ...(link.reviewReason ? { reviewReason: link.reviewReason } : {}),
+          ...(link.reviewNote ? { reviewNote: link.reviewNote } : {}),
+          displayPriority: link.displayPriority,
+        }
+      })),
     }
   } catch {
     return emptyMediaOptions
