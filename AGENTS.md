@@ -16,7 +16,7 @@ Read these files first, in order:
 - Use feature-key entitlement checks such as `chimer_custom_colors`; do not branch product behavior on displayed plan names.
 - Prefer targeted, branch-sized changes over broad cleanup.
 - Add detailed implementation plans under `docs/superpowers/plans/` when a task spans multiple subsystems or needs future agent handoff.
-- Add useful docstrings or comments when writing new or changed non-obvious code, especially shared helpers, domain rules, server actions, data adapters, and scripts. Keep them focused on intent, inputs, outputs, and constraints; avoid noisy comments that restate self-explanatory code.
+- For every branch, add useful docstrings/JSDoc or focused comments when writing new or changed non-obvious code, especially shared helpers, domain rules, server actions, data adapters, and scripts. Treat this as current branch work, not something to defer entirely to the later repo-wide docstring cleanup. Keep documentation focused on intent, inputs, outputs, and constraints; avoid noisy comments that restate self-explanatory code.
 
 ## Local Shell Reliability
 
