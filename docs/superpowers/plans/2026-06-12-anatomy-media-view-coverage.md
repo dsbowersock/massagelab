@@ -1,40 +1,39 @@
 # Anatomy Media View Coverage Branch
 
-## Recommended Branch
+## Branch
 
 `codex/anatomy-media-view-coverage`
 
 ## Goal
 
-Use the anatomy media review tooling from `codex/anatomy-media-review` to improve BodyParts3D view coverage and framing quality without automatically promoting unreviewed images into public flashcards.
-
-## Problem
-
-The current reviewed media set has two separate issues:
-
-- Some anatomy items need additional superior, inferior, and occasional transverse-style review views.
-- Some existing anterior, posterior, and lateral images are framed too tightly, with the highlighted item touching or nearly touching the image edge. These should be replaced with wider views that show enough surrounding anatomy to orient the learner.
+Improve BodyParts3D image coverage and framing review without automatically promoting unreviewed images into public flashcards.
 
 ## Scope
 
-- Generate or import superior and inferior BodyParts3D candidate views where those views add useful anatomy-learning value.
-- Identify existing anterior, posterior, left-lateral, and right-lateral BodyParts3D renders whose framing is too tight.
-- Replace or supplement tight renders with wider contextual views that keep the target item visible while showing neighboring structures.
-- Default new or replacement item-image links to `NEEDS_REVIEW` until manually approved.
-- Preserve the current rule that public flashcards only use reviewed reusable media whose item-image link is approved.
-- Keep role assignment intentional: use `REFERENCE` by default, and promote to `PRIMARY` or `GAME_PROMPT` only after the image is clearly useful for that task.
+- Add an idempotent superior/inferior coverage import path for all eligible anatomy items that already have stable BodyParts3D part IDs.
+- Add a structured desired-view request queue so transverse/custom views and too-tight anterior/posterior/lateral images can be described in plain language and processed manually or by later automation.
+- Default new generated or custom-imported item-image links to `NEEDS_REVIEW`; public flashcards continue to require reviewed reusable media with an approved item-image link.
+- Add a `too_tight` review reason for images that need more context around the target item.
+- Add docstrings/comments to new non-obvious helper, action, and script code, and update `AGENTS.md` so future branches keep doing this without a reminder.
 
 ## Out Of Scope
 
 - Do not add 3D runtime mesh/spatial tooling.
 - Do not bulk-approve generated media.
-- Do not force superior/inferior coverage for item types where the view does not add value.
+- Do not force superior/inferior coverage for rows that do not have usable BodyParts3D part IDs.
 - Do not treat BodyParts3D top orientation as a true transverse cross-section unless a custom source view clearly supports that educational use.
+- Do not perform the repo-wide docstring pass in this branch.
 
 ## Acceptance Criteria
 
-- Admins can review a candidate item's existing views and see which views are missing or tightly framed.
-- Replacement BodyParts3D imports preserve source provenance, part IDs, tree name, and camera/source metadata.
-- New superior/inferior candidates and wider contextual replacements enter the review queue before public use.
-- Flashcard image prompts avoid rejected, needs-review, or poor-framing links.
-- The branch leaves a documented method for continuing coverage in small batches rather than attempting the full anatomy library in one risky pass.
+- Admins can review an item's existing views and see approved, needs-review, rejected, and missing view coverage.
+- Admins can create desired-view requests with requested view, reason, note, and optional BodyParts3D URL.
+- Pasted BodyParts3D URLs can import as needs-review candidates while preserving provenance, part IDs, tree name, camera/source metadata, and R2 upload metadata.
+- A report command lists open desired-view requests for later daily/hourly automation.
+- The coverage import command can audit missing superior/inferior candidates, and the import mode has created the eligible candidate links as needs-review.
+- Flashcard image prompts avoid rejected, needs-review, and poor-framing links.
+
+## Implementation Notes
+
+- `npm run prisma:migrate:deploy` applied `20260612110000_anatomy_media_view_requests` to the configured database after `prisma migrate dev` correctly refused to proceed because older migration drift would require a destructive reset.
+- `npm run anatomy:media:coverage:import` completed the eligible superior/inferior BodyParts3D import, and `npm run anatomy:media:coverage` reports no missing eligible superior/inferior candidate links.

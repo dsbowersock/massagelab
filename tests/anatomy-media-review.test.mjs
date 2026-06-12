@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  ANATOMY_MEDIA_REVIEW_REASONS,
+  ANATOMY_MEDIA_VIEW_REQUEST_REASONS,
+  ANATOMY_MEDIA_VIEW_REQUEST_VIEWS,
+  anatomyMediaCoverageForLinks,
   anatomyMediaReviewKey,
   bodyParts3dAdminAssetSlug,
   bodyParts3dAdminStoragePath,
@@ -15,6 +19,35 @@ import {
 } from "../lib/anatomy-media-review.js"
 
 describe("Anatomy media review helpers", () => {
+  it("defines review and request options for image coverage work", () => {
+    assert.ok(ANATOMY_MEDIA_REVIEW_REASONS.includes("too_tight"))
+    assert.ok(ANATOMY_MEDIA_VIEW_REQUEST_REASONS.includes("too_tight"))
+    assert.ok(ANATOMY_MEDIA_VIEW_REQUEST_VIEWS.includes("transverse"))
+    assert.ok(ANATOMY_MEDIA_VIEW_REQUEST_VIEWS.includes("custom"))
+  })
+
+  it("summarizes BodyParts3D view coverage from item-image links", () => {
+    const coverage = anatomyMediaCoverageForLinks([
+      {
+        link: { reviewStatus: "APPROVED" },
+        asset: { metadata: { bodyparts3dView: "anterior" } },
+      },
+      {
+        link: { reviewStatus: "NEEDS_REVIEW" },
+        asset: { metadata: { bodyparts3dView: "superior" } },
+      },
+      {
+        link: { reviewStatus: "REJECTED" },
+        asset: { metadata: { bodyparts3dView: "inferior" } },
+      },
+    ])
+
+    assert.equal(coverage.find((row) => row.viewSlug === "anterior")?.status, "APPROVED")
+    assert.equal(coverage.find((row) => row.viewSlug === "superior")?.status, "NEEDS_REVIEW")
+    assert.equal(coverage.find((row) => row.viewSlug === "inferior")?.status, "REJECTED")
+    assert.equal(coverage.find((row) => row.viewSlug === "transverse")?.status, "MISSING")
+  })
+
   it("normalizes BodyParts3D part identifiers and generated view URLs", () => {
     const partIds = normalizeBodyParts3dPartIds("37670, FMA37671 fma37670 bad")
     const url = bodyParts3dImageUrl({ partIds, view: "posterior", treeName: "partof", size: 900 })

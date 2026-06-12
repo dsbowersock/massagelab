@@ -16,6 +16,10 @@ import {
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
   ANATOMY_MEDIA_REVIEW_STATUSES,
+  ANATOMY_MEDIA_VIEW_REQUEST_REASONS,
+  ANATOMY_MEDIA_VIEW_REQUEST_STATUSES,
+  ANATOMY_MEDIA_VIEW_REQUEST_VIEWS,
+  anatomyMediaCoverageForLinks,
   bodyParts3dComposerUrl,
   normalizeBodyParts3dPartIds,
   safeBodyParts3dImageUrl,
@@ -28,10 +32,12 @@ import {
   createAnatomyRelationshipAction,
   createAnatomySourceAction,
   createAnatomyTermAction,
+  createAnatomyMediaViewRequestAction,
   importBodyParts3dMediaAction,
   linkAnatomyMediaAssetAction,
   updateAnatomyTermAction,
   updateAnatomyMediaReviewAction,
+  updateAnatomyMediaViewRequestAction,
   updateCorrectionFlagAction,
 } from "@/app/admin/anatomy/actions"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
@@ -73,6 +79,9 @@ const STATUSES = ["DRAFT", "REVIEW", "PUBLISHED", "ARCHIVED"]
 const FLAG_STATUSES = ["OPEN", "RESOLVED", "REJECTED"]
 const MEDIA_REVIEW_STATUSES = [...ANATOMY_MEDIA_REVIEW_STATUSES]
 const MEDIA_REVIEW_REASONS = [...ANATOMY_MEDIA_REVIEW_REASONS]
+const MEDIA_VIEW_REQUEST_VIEWS = [...ANATOMY_MEDIA_VIEW_REQUEST_VIEWS]
+const MEDIA_VIEW_REQUEST_REASONS = [...ANATOMY_MEDIA_VIEW_REQUEST_REASONS]
+const MEDIA_VIEW_REQUEST_STATUSES = [...ANATOMY_MEDIA_VIEW_REQUEST_STATUSES]
 const MEDIA_ROLES = ["PRIMARY", "REFERENCE", "REGION_CONTEXT", "GAME_PROMPT", "CLIENT_EDUCATION"]
 const ANATOMY_DETAIL_LOOKUP_TAKE = 2000
 
@@ -136,6 +145,7 @@ type AnatomyBrowserData = {
   citations: Record<string, unknown>[]
   externalIdentifiers: Record<string, unknown>[]
   mediaAssets: Record<string, unknown>[]
+  mediaViewRequests: Record<string, unknown>[]
   spatialModels: Record<string, unknown>[]
   spatialEntityMaps: Record<string, unknown>[]
   movementVisualizations: Record<string, unknown>[]
@@ -1025,6 +1035,7 @@ function EntityDetailPanel({
   const citationRows = selectedEntityCitations(data, selectedEntity, selectedEntityDetail)
   const identifierRows = selectedEntityExternalIdentifiers(data, selectedEntity, selectedEntityDetail)
   const mediaRows = selectedEntityMediaAssets(data, selectedEntity, selectedEntityDetail)
+  const mediaViewRequestRows = selectedEntityMediaViewRequests(data, selectedEntity, selectedEntityDetail)
   const spatialMappingRows = selectedEntitySpatialMappings(data, selectedEntity, selectedEntityDetail)
   const movementVisualizationRows = selectedEntityMovementVisualizations(data, selectedEntity, selectedEntityDetail)
 
@@ -1082,6 +1093,7 @@ function EntityDetailPanel({
         entityLabel={detail.label}
         mediaRows={mediaRows}
         identifierRows={identifierRows}
+        mediaViewRequestRows={mediaViewRequestRows}
       />
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -1200,17 +1212,20 @@ function MediaReviewPanel({
   entityLabel,
   mediaRows,
   identifierRows,
+  mediaViewRequestRows,
 }: {
   data: AnatomyBrowserData
   selectedEntity: AnatomyEntitySelection
   entityLabel: string
   mediaRows: Record<string, unknown>[]
   identifierRows: Record<string, unknown>[]
+  mediaViewRequestRows: Record<string, unknown>[]
 }) {
   const reviewRows = mediaReviewRows(mediaRows, selectedEntity)
   const linkedRoleKeys = new Set(reviewRows.map((row) => mediaRoleKey(recordText(row.asset, "id"), recordText(row.link, "role"))))
   const candidateRows = mediaCandidateRows(data, linkedRoleKeys)
   const suggestedPartIds = suggestedBodyParts3dPartIds(mediaRows, identifierRows)
+  const coverageRows = anatomyMediaCoverageForLinks(reviewRows)
 
   return (
     <section className={`${appInsetClassName} space-y-4 p-3`}>
@@ -1224,6 +1239,8 @@ function MediaReviewPanel({
       <p className="rounded-md border border-border/80 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
         Replacement flow: mark a bad image as Needs Review or Rejected, then import a better BodyParts3D view or link an existing image below. The replacement appears in this review list after saving.
       </p>
+      <MediaViewCoverageChips rows={coverageRows} />
+      <MediaViewRequestList rows={mediaViewRequestRows} />
 
       {reviewRows.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/80 bg-background/70 p-4 text-sm text-muted-foreground">
@@ -1284,7 +1301,7 @@ function MediaReviewPanel({
                           <div className="space-y-2">
                             <Label htmlFor={`review-reason-${linkId}`}>Reason when flagged</Label>
                             <select id={`review-reason-${linkId}`} name="review_reason" defaultValue={reviewReason} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                              <option value="">No reason for approved</option>
+                              <option value="">Only needed when flagged</option>
                               {MEDIA_REVIEW_REASONS.map((reason) => (
                                 <option key={reason} value={reason}>{formatLabel(reason)}</option>
                               ))}
@@ -1306,7 +1323,7 @@ function MediaReviewPanel({
                           <div className="space-y-2">
                             <Label htmlFor={`review-note-${linkId}`}>Review note</Label>
                             <Textarea id={`review-note-${linkId}`} name="review_note" defaultValue={recordText(link, "reviewNote")} rows={2} />
-                            <p className="text-xs text-muted-foreground">Why this image is approved, needs review, or rejected.</p>
+                            <p className="text-xs text-muted-foreground">For rejected or needs-review images, describe what better view you need.</p>
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor={`link-notes-${linkId}`}>Link note</Label>
@@ -1388,7 +1405,7 @@ function MediaReviewPanel({
           <input type="hidden" name="entity_slug" value={selectedEntity.entitySlug} />
           <div>
             <p className="text-sm font-medium">Import BodyParts3D View</p>
-            <p className="text-xs text-muted-foreground">Create a new BodyParts3D still from presets or a pasted BodyParts3D API image URL, upload it, and link it to this item.</p>
+            <p className="text-xs text-muted-foreground">Create a BodyParts3D still, upload it, and link it as Needs Review until you approve it.</p>
           </div>
           <BodyParts3dImportFields key={`${selectedEntity.entityType}:${selectedEntity.entitySlug}`} initialPartIds={suggestedPartIds.join(", ")} />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -1416,11 +1433,121 @@ function MediaReviewPanel({
             <Label htmlFor="bodyparts3d-notes">Note</Label>
             <Textarea id="bodyparts3d-notes" name="notes" rows={2} placeholder="Why this generated BodyParts3D view is useful" />
           </div>
-          <Button type="submit" size="sm">Import and Link View</Button>
+          <Button type="submit" size="sm">Import as Needs Review</Button>
         </form>
       </div>
+      <MediaViewRequestForm
+        selectedEntity={selectedEntity}
+        suggestedPartIds={suggestedPartIds}
+      />
     </section>
   )
+}
+
+function MediaViewCoverageChips({ rows }: { rows: ReturnType<typeof anatomyMediaCoverageForLinks> }) {
+  return (
+    <div className="rounded-md border border-border/80 bg-background/70 p-3">
+      <p className="mb-2 text-sm font-medium">View coverage</p>
+      <div className="flex flex-wrap gap-2">
+        {rows.map((row) => (
+          <span key={row.viewSlug} className={`rounded-md border px-2 py-1 text-xs ${mediaCoverageStatusClassName(row.status)}`}>
+            {row.title}: {formatLabel(row.status)}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MediaViewRequestList({ rows }: { rows: Record<string, unknown>[] }) {
+  const openRows = rows.filter((row) => recordText(row, "status") === "OPEN")
+
+  return (
+    <div className="rounded-md border border-border/80 bg-background/70 p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">Open media view requests</p>
+        <span className="rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{openRows.length} open</span>
+      </div>
+      {openRows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No desired-view notes have been created for this item yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {openRows.map((row) => (
+            <form key={recordText(row, "id")} action={updateAnatomyMediaViewRequestAction} className="grid gap-2 rounded-md border border-border/80 bg-muted/20 p-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-end">
+              <input type="hidden" name="id" value={recordText(row, "id")} />
+              <div className="min-w-0 text-sm">
+                <p className="font-medium">{formatLabel(recordText(row, "requestedView"))} / {formatLabel(recordText(row, "reason"))}</p>
+                <p className="break-words text-xs text-muted-foreground">{recordText(row, "requestNote") || "No note supplied."}</p>
+                {recordText(row, "sourceUrl") ? <p className="break-all text-xs text-muted-foreground">{recordText(row, "sourceUrl")}</p> : null}
+              </div>
+              <SelectField id={`view-request-status-${recordText(row, "id")}`} name="status" label="Status" values={MEDIA_VIEW_REQUEST_STATUSES} defaultValue={recordText(row, "status") || "OPEN"} />
+              <Button type="submit" size="sm" variant="outline">Update</Button>
+            </form>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MediaViewRequestForm({
+  selectedEntity,
+  suggestedPartIds,
+}: {
+  selectedEntity: AnatomyEntitySelection
+  suggestedPartIds: string[]
+}) {
+  return (
+    <form action={createAnatomyMediaViewRequestAction} className="space-y-3 rounded-md border border-border/80 bg-background/70 p-3">
+      <input type="hidden" name="entity_type" value={selectedEntity.entityType} />
+      <input type="hidden" name="entity_slug" value={selectedEntity.entitySlug} />
+      <input type="hidden" name="part_ids" value={suggestedPartIds.join(", ")} />
+      <div>
+        <p className="text-sm font-medium">Request better view</p>
+        <p className="text-xs text-muted-foreground">Describe the view you want. A pasted BodyParts3D composer or image URL imports immediately as a needs-review candidate; otherwise it stays open for automation.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SelectField id="view-request-view" name="requested_view" label="View needed" values={MEDIA_VIEW_REQUEST_VIEWS} defaultValue="transverse" />
+        <SelectField id="view-request-reason" name="reason" label="Reason" values={MEDIA_VIEW_REQUEST_REASONS} defaultValue="missing_view" />
+        <SelectField id="view-request-role" name="role" label="Candidate role" values={MEDIA_ROLES} defaultValue="REFERENCE" />
+        <TextField
+          id="view-request-display-priority"
+          name="display_priority"
+          label="Sort order"
+          defaultValue="100"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={999}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="view-request-note">Desired view note</Label>
+        <Textarea id="view-request-note" name="request_note" rows={3} placeholder="Example: wider lateral view with the whole foot visible and the target muscle not touching the image edge." />
+      </div>
+      <TextField
+        id="view-request-source-url"
+        name="source_url"
+        label="Optional BodyParts3D URL"
+        placeholder="Paste adjusted BodyParts3D composer/API URL when you already have the view"
+        hint={suggestedPartIds.length > 0 ? `Known BodyParts3D IDs for this item: ${suggestedPartIds.join(", ")}` : "Leave blank to create an open request for later import."}
+      />
+      <Button type="submit" size="sm">Save View Request</Button>
+    </form>
+  )
+}
+
+function mediaCoverageStatusClassName(status: string) {
+  switch (status) {
+    case "APPROVED":
+      return "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    case "NEEDS_REVIEW":
+      return "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    case "REJECTED":
+      return "border-destructive/40 bg-destructive/10 text-destructive"
+    default:
+      return "border-border/80 bg-muted/30 text-muted-foreground"
+  }
 }
 
 function InfoBlock({ label, value }: { label: string; value: string }) {
@@ -2068,6 +2195,21 @@ function selectedEntityMediaAssets(
   ))
 }
 
+function selectedEntityMediaViewRequests(
+  data: AnatomyBrowserData,
+  selectedEntity: AnatomyEntitySelection,
+  authoritativeDetail?: AnatomyEntityDetailPayload,
+) {
+  if (authoritativeDetail) {
+    return authoritativeDetail.mediaViewRequests as Record<string, unknown>[]
+  }
+
+  return data.mediaViewRequests.filter((request) => (
+    recordText(request, "entityType") === selectedEntity.entityType &&
+    recordText(request, "entitySlug") === selectedEntity.entitySlug
+  ))
+}
+
 type MediaReviewRow = {
   asset: Record<string, unknown>
   link: Record<string, unknown>
@@ -2319,6 +2461,7 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     citations,
     externalIdentifiers,
     mediaAssets,
+    mediaViewRequests,
     spatialModels,
     spatialEntityMaps,
     movementVisualizations,
@@ -2342,6 +2485,7 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     prisma.anatomyCitation.count(),
     prisma.externalAnatomyIdentifier.count(),
     prisma.anatomyMediaAsset.count(),
+    prisma.anatomyMediaViewRequest.count(),
     prisma.anatomySpatialModel.count(),
     prisma.anatomySpatialEntityMap.count(),
     prisma.anatomyMovementVisualization.count(),
@@ -2367,6 +2511,7 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     { label: "Citations", value: citations },
     { label: "External IDs", value: externalIdentifiers },
     { label: "Media assets", value: mediaAssets },
+    { label: "Media requests", value: mediaViewRequests },
     { label: "Spatial models", value: spatialModels },
     { label: "Spatial maps", value: spatialEntityMaps },
     { label: "Movement visuals", value: movementVisualizations },
@@ -2395,6 +2540,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     citations,
     externalIdentifiers,
     mediaAssets,
+    mediaViewRequests,
     spatialModels,
     spatialEntityMaps,
     movementVisualizations,
@@ -2574,6 +2720,10 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       orderBy: [{ usageScope: "asc" }, { title: "asc" }],
       take: 500,
     }),
+    prisma.anatomyMediaViewRequest.findMany({
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      take: 500,
+    }),
     prisma.anatomySpatialModel.findMany({
       include: { source: true, mediaAsset: true },
       orderBy: [{ reviewStatus: "asc" }, { name: "asc" }],
@@ -2652,6 +2802,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     citations: citations as Record<string, unknown>[],
     externalIdentifiers: externalIdentifiers as Record<string, unknown>[],
     mediaAssets: mediaAssets as Record<string, unknown>[],
+    mediaViewRequests: mediaViewRequests as Record<string, unknown>[],
     spatialModels: spatialModels as Record<string, unknown>[],
     spatialEntityMaps: spatialEntityMaps as Record<string, unknown>[],
     movementVisualizations: movementVisualizations as Record<string, unknown>[],

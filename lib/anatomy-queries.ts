@@ -83,6 +83,7 @@ type AnatomyQueryClient = {
   anatomyConcept?: QueryDelegate
   anatomyEntityTerm?: QueryDelegate
   anatomyMediaAsset?: QueryDelegate
+  anatomyMediaViewRequest?: QueryDelegate
   anatomyRegion?: QueryDelegate
   anatomyStructure?: QueryDelegate
   anatomyRelationship?: QueryDelegate
@@ -561,7 +562,7 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
           ...(entityType === "JOINT_MOVEMENT" ? [{ movement: { slug: entitySlug } }] : []),
         ],
       }
-      const [entity, outgoingRelationships, incomingRelationships, citations, mediaAssets, externalIdentifiers, spatialMappings, movementVisualizations] = await Promise.all([
+      const [entity, outgoingRelationships, incomingRelationships, citations, mediaAssets, mediaViewRequests, externalIdentifiers, spatialMappings, movementVisualizations] = await Promise.all([
         delegate.findFirst({ where: { slug: entitySlug } }),
         requireDelegate(client, "anatomyRelationship").findMany({
           where: { sourceEntityType: entityType, sourceEntitySlug: entitySlug },
@@ -582,6 +583,10 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
           where: { entityLinks: { some: { entityType, entitySlug } } },
           include: { source: true, entityLinks: true },
           orderBy: [{ reviewStatus: "asc" }, { title: "asc" }],
+        }),
+        optionalFindMany(client, "anatomyMediaViewRequest", {
+          where: { entityType, entitySlug },
+          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         }),
         requireDelegate(client, "externalAnatomyIdentifier").findMany({
           where: { entityType, entitySlug },
@@ -618,6 +623,7 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
         },
         citations,
         mediaAssets,
+        mediaViewRequests,
         externalIdentifiers,
         spatialMappings,
         movementVisualizations,
