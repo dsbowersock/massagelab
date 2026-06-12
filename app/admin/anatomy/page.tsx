@@ -20,7 +20,7 @@ import {
   anatomyMediaCoverageForLinks,
   bodyParts3dComposerUrl,
   normalizeBodyParts3dPartIds,
-  safeBodyParts3dImageUrl,
+  safeBodyParts3dRenderableImageUrl,
 } from "@/lib/anatomy-media-review"
 import { prisma } from "@/lib/prisma"
 import {
@@ -2210,15 +2210,31 @@ function mediaReviewRows(mediaRows: Record<string, unknown>[], selectedEntity: A
 }
 
 function mediaPreviewUrl(asset: Record<string, unknown>) {
-  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || recordText(asset, "sourceUrl")
+  if (!isImagePreviewAsset(asset)) return ""
+
+  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || mediaBodyParts3dSourceUrl(asset)
 }
 
 function mediaBodyParts3dSourceUrl(asset: Record<string, unknown>) {
-  const sourceUrl = safeBodyParts3dImageUrl(recordText(asset, "sourceUrl"))
-  if (sourceUrl) return sourceUrl
-
   const metadata = recordObject(asset, "metadata")
-  return safeBodyParts3dImageUrl(recordText(metadata, "bodyparts3dSourceUrl") || recordText(metadata, "sourceUrl"))
+  const candidates = [
+    recordText(asset, "sourceUrl"),
+    recordText(metadata, "bodyparts3dSourceUrl"),
+    recordText(metadata, "sourceUrl"),
+    recordText(metadata, "sourceAssetUrl"),
+  ]
+
+  for (const candidate of candidates) {
+    const sourceUrl = safeBodyParts3dRenderableImageUrl(candidate)
+    if (sourceUrl) return sourceUrl
+  }
+
+  return ""
+}
+
+function isImagePreviewAsset(asset: Record<string, unknown>) {
+  const mediaType = recordText(asset, "mediaType")
+  return mediaType === "IMAGE" || mediaType === "DIAGRAM"
 }
 
 function mediaBodyParts3dComposerUrl(asset: Record<string, unknown>) {

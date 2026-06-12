@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import type { AnatomyMediaReviewStatus, Prisma } from "@prisma/client"
+import type { AnatomyEntityType, AnatomyMediaReviewStatus, AnatomyMediaType, Prisma } from "@prisma/client"
 import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
@@ -9,10 +9,11 @@ import {
   bodyParts3dComposerUrl,
   normalizeAnatomyMediaViewRequestView,
   normalizeBodyParts3dPartIds,
-  safeBodyParts3dImageUrl,
+  safeBodyParts3dRenderableImageUrl,
 } from "@/lib/anatomy-media-review"
 import { prisma } from "@/lib/prisma"
 import { reviewAnatomyMediaQueueDecisionAction } from "@/app/admin/anatomy/actions"
+import { ReviewImagePreview } from "@/app/admin/anatomy/media-review/review-image-preview"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -45,6 +46,16 @@ type MediaQueueRow = {
   reviewNote: string | null
   displayPriority: number
   asset: Record<string, unknown>
+  linkedImages: LinkedImageSummary[]
+}
+
+type LinkedImageSummary = {
+  id: string
+  role: string
+  reviewStatus: string
+  reviewReason: string | null
+  displayPriority: number
+  asset: Record<string, unknown>
 }
 
 type QueueData = {
@@ -65,6 +76,7 @@ const QUEUE_STATUS_OPTIONS: QueueStatusOption[] = [
 ]
 
 const QUEUE_TAKE = 6
+const IMAGE_REVIEW_MEDIA_TYPES = ["IMAGE", "DIAGRAM"] as const satisfies AnatomyMediaType[]
 
 export default async function AnatomyMediaReviewQueuePage({ searchParams }: AnatomyMediaReviewQueuePageProps) {
   await requireAnatomyAdminUser()
@@ -114,9 +126,13 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
 }
 
 async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset: number): Promise<QueueData> {
-  const where: Prisma.AnatomyMediaEntityWhereInput = selectedStatus.reviewStatus
-    ? { reviewStatus: selectedStatus.reviewStatus }
-    : {}
+  const where: Prisma.AnatomyMediaEntityWhereInput = {
+    asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
+    ...(selectedStatus.reviewStatus ? { reviewStatus: selectedStatus.reviewStatus } : {}),
+  }
+  const imageReviewWhere: Prisma.AnatomyMediaEntityWhereInput = {
+    asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
+  }
 
   const [
     rows,
@@ -145,15 +161,20 @@ async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset
       take: QUEUE_TAKE,
     }),
     prisma.anatomyMediaEntity.count({ where }),
-    prisma.anatomyMediaEntity.count(),
-    prisma.anatomyMediaEntity.count({ where: { reviewStatus: "NEEDS_REVIEW" } }),
-    prisma.anatomyMediaEntity.count({ where: { reviewStatus: "REJECTED" } }),
-    prisma.anatomyMediaEntity.count({ where: { reviewStatus: "APPROVED" } }),
+    prisma.anatomyMediaEntity.count({ where: imageReviewWhere }),
+    prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "NEEDS_REVIEW" } }),
+    prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "REJECTED" } }),
+    prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "APPROVED" } }),
     prisma.anatomyMediaViewRequest.count({ where: { status: "OPEN" } }),
   ])
 
+  const linkedImagesByEntity = await linkedImageSummariesForRows(rows)
+
   return {
-    rows: rows as unknown as MediaQueueRow[],
+    rows: rows.map((row) => ({
+      ...row,
+      linkedImages: linkedImagesByEntity.get(entityKey(row.entityType, row.entitySlug)) ?? [],
+    })) as unknown as MediaQueueRow[],
     total,
     allCount,
     needsReviewCount,
@@ -161,6 +182,64 @@ async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset
     approvedCount,
     openRequestCount,
   }
+}
+
+/**
+ * Collects the real image/diagram links for each queued anatomy item so the
+ * one-card review flow still shows whether sibling views already exist.
+ */
+async function linkedImageSummariesForRows(rows: Array<{ entityType: AnatomyEntityType; entitySlug: string }>) {
+  const entityFilters: Prisma.AnatomyMediaEntityWhereInput[] = [...new Map(rows.map((row) => [entityKey(row.entityType, row.entitySlug), {
+    entityType: row.entityType,
+    entitySlug: row.entitySlug,
+  }])).values()]
+
+  if (entityFilters.length === 0) {
+    return new Map<string, LinkedImageSummary[]>()
+  }
+
+  const links = await prisma.anatomyMediaEntity.findMany({
+    where: {
+      OR: entityFilters,
+      asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
+    },
+    select: {
+      id: true,
+      entityType: true,
+      entitySlug: true,
+      role: true,
+      reviewStatus: true,
+      reviewReason: true,
+      displayPriority: true,
+      asset: {
+        include: {
+          source: true,
+        },
+      },
+    },
+    orderBy: [
+      { role: "asc" },
+      { displayPriority: "asc" },
+      { createdAt: "asc" },
+    ],
+  })
+  const grouped = new Map<string, LinkedImageSummary[]>()
+
+  for (const link of links) {
+    const key = entityKey(link.entityType, link.entitySlug)
+    const current = grouped.get(key) ?? []
+    current.push({
+      id: link.id,
+      role: link.role,
+      reviewStatus: link.reviewStatus,
+      reviewReason: link.reviewReason,
+      displayPriority: link.displayPriority,
+      asset: link.asset as unknown as Record<string, unknown>,
+    })
+    grouped.set(key, current)
+  }
+
+  return grouped
 }
 
 function QueueStatusTabs({ selectedStatus, data }: { selectedStatus: QueueStatusOption; data: QueueData }) {
@@ -228,6 +307,7 @@ function ImageReviewCard({
   const asset = row.asset
   const previewUrl = mediaPreviewUrl(asset)
   const sourceUrl = mediaBodyParts3dSourceUrl(asset)
+  const fallbackUrl = sourceUrl && sourceUrl !== previewUrl ? sourceUrl : ""
   const composerUrl = mediaBodyParts3dComposerUrl(asset)
   const metadataLine = mediaMetadataLine(asset)
   const currentView = mediaViewFromAsset(asset)
@@ -240,8 +320,12 @@ function ImageReviewCard({
         <div className="space-y-3">
           <div className="overflow-hidden rounded-md border border-border/80 bg-white">
             {previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- anatomy media previews may come from R2 or reviewed external source URLs.
-              <img src={previewUrl} alt={recordText(asset, "title") || "Anatomy media preview"} className="h-auto max-h-[68vh] min-h-[18rem] w-full object-contain p-2" referrerPolicy="no-referrer" />
+              <ReviewImagePreview
+                key={row.id}
+                primaryUrl={previewUrl}
+                fallbackUrl={fallbackUrl}
+                alt={recordText(asset, "title") || "Anatomy media preview"}
+              />
             ) : (
               <div className="grid min-h-[18rem] place-items-center p-4 text-center text-sm text-muted-foreground">No preview URL</div>
             )}
@@ -272,6 +356,7 @@ function ImageReviewCard({
             {row.reviewNote ? <p className="rounded-md border border-border/80 bg-muted/30 p-2 text-sm text-muted-foreground">{row.reviewNote}</p> : null}
           </div>
 
+          <LinkedImageSummaryPanel row={row} />
           <QuickApproveForm row={row} selectedStatus={selectedStatus} offset={offset} />
           <NeedsBetterViewForm row={row} selectedStatus={selectedStatus} offset={offset} currentView={currentView} />
           <RejectImageForm row={row} selectedStatus={selectedStatus} offset={offset} />
@@ -292,6 +377,41 @@ function ImageReviewCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function LinkedImageSummaryPanel({ row }: { row: MediaQueueRow }) {
+  const linkedImages = row.linkedImages
+  if (linkedImages.length === 0) return null
+
+  return (
+    <section className={`${appInsetClassName} space-y-2 p-3`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">Images linked to this item</p>
+        <span className="rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{linkedImages.length} total</span>
+      </div>
+      <p className="text-xs text-muted-foreground">This queue reviews one linked image at a time; other views for the same item appear as their own cards.</p>
+      <div className="grid gap-2">
+        {linkedImages.slice(0, 8).map((link) => {
+          const metadataLine = mediaMetadataLine(link.asset)
+          const isCurrent = link.id === row.id
+
+          return (
+            <div key={link.id} className={`rounded-md border p-2 text-xs ${isCurrent ? "border-primary/70 bg-primary/10" : "border-border/70 bg-background/60"}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{mediaViewLabel(link.asset)}</span>
+                {isCurrent ? <span className="rounded-sm bg-primary px-1.5 py-0.5 text-[0.7rem] font-medium text-primary-foreground">Current</span> : null}
+              </div>
+              <p className="mt-1 text-muted-foreground">
+                {[formatLabel(link.role), formatLabel(link.reviewStatus), link.reviewReason ? formatLabel(link.reviewReason) : ""].filter(Boolean).join(" / ")}
+              </p>
+              {metadataLine ? <p className="mt-1 text-muted-foreground">{metadataLine}</p> : null}
+            </div>
+          )
+        })}
+      </div>
+      {linkedImages.length > 8 ? <p className="text-xs text-muted-foreground">{linkedImages.length - 8} more linked images are available from the anatomy browser.</p> : null}
+    </section>
   )
 }
 
@@ -323,14 +443,14 @@ function NeedsBetterViewForm({
         <SelectField
           id={`better-view-reason-${row.id}`}
           name="review_reason"
-          label="Flag reason"
+          label="Why flag this image?"
           values={ANATOMY_MEDIA_REVIEW_REASONS}
           defaultValue={row.reviewReason || "too_tight"}
         />
         <SelectField
           id={`better-view-request-${row.id}`}
           name="requested_view"
-          label="View needed"
+          label="Replacement view"
           values={ANATOMY_MEDIA_VIEW_REQUEST_VIEWS}
           defaultValue={currentView}
         />
@@ -338,7 +458,7 @@ function NeedsBetterViewForm({
       <SelectField
         id={`better-view-request-reason-${row.id}`}
         name="request_reason"
-        label="Request type"
+        label="What should change?"
         values={ANATOMY_MEDIA_VIEW_REQUEST_REASONS}
         defaultValue="too_tight"
       />
@@ -349,7 +469,7 @@ function NeedsBetterViewForm({
           name="review_note"
           rows={3}
           defaultValue={row.reviewNote ?? ""}
-          placeholder="Example: wider lateral view with the whole foot visible and the target muscle not touching the edge."
+          placeholder="Example: wider lateral view with the whole structure visible and the target not touching the edge."
         />
       </div>
       <input type="hidden" name="request_note" value="" />
@@ -493,15 +613,26 @@ function anatomyBrowserHref(entityType: string, entitySlug: string) {
 }
 
 function mediaPreviewUrl(asset: Record<string, unknown>) {
-  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || recordText(asset, "sourceUrl")
+  if (!isImageReviewAsset(asset)) return ""
+
+  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || mediaBodyParts3dSourceUrl(asset)
 }
 
 function mediaBodyParts3dSourceUrl(asset: Record<string, unknown>) {
-  const sourceUrl = safeBodyParts3dImageUrl(recordText(asset, "sourceUrl"))
-  if (sourceUrl) return sourceUrl
-
   const metadata = recordObject(asset, "metadata")
-  return safeBodyParts3dImageUrl(recordText(metadata, "bodyparts3dSourceUrl") || recordText(metadata, "sourceUrl"))
+  const candidates = [
+    recordText(asset, "sourceUrl"),
+    recordText(metadata, "bodyparts3dSourceUrl"),
+    recordText(metadata, "sourceUrl"),
+    recordText(metadata, "sourceAssetUrl"),
+  ]
+
+  for (const candidate of candidates) {
+    const sourceUrl = safeBodyParts3dRenderableImageUrl(candidate)
+    if (sourceUrl) return sourceUrl
+  }
+
+  return ""
 }
 
 function mediaBodyParts3dComposerUrl(asset: Record<string, unknown>) {
@@ -529,6 +660,15 @@ function mediaMetadataLine(asset: Record<string, unknown>) {
   ].filter(Boolean).join(" / ")
 }
 
+function mediaViewLabel(asset: Record<string, unknown>) {
+  return recordText(asset, "title") || mediaMetadataLine(asset) || recordText(asset, "slug") || "Linked image"
+}
+
+function isImageReviewAsset(asset: Record<string, unknown>) {
+  const mediaType = recordText(asset, "mediaType")
+  return mediaType === "IMAGE" || mediaType === "DIAGRAM"
+}
+
 function mediaViewFromAsset(asset: Record<string, unknown>) {
   const metadata = recordObject(asset, "metadata")
   return normalizeAnatomyMediaViewRequestView(recordText(metadata, "bodyparts3dView"))
@@ -544,6 +684,10 @@ function formatLabel(value: string | null | undefined) {
 
 function titleFromSlug(value: string) {
   return formatLabel(value)
+}
+
+function entityKey(entityType: string, entitySlug: string) {
+  return `${entityType}:${entitySlug}`
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
