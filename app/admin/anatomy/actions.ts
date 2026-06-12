@@ -519,6 +519,7 @@ export async function updateAnatomyMediaReviewAction(formData: FormData) {
     },
   })
 
+  revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
 }
 
@@ -574,6 +575,7 @@ export async function reviewAnatomyMediaQueueDecisionAction(formData: FormData) 
     })
   }
 
+  revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
   revalidatePath("/admin/anatomy/media-review")
   redirect(mediaReviewQueueRedirectPath(formData))
@@ -619,6 +621,7 @@ export async function linkAnatomyMediaAssetAction(formData: FormData) {
     },
   })
 
+  revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
 }
 
@@ -653,6 +656,7 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
     },
   })
 
+  revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
 }
 
@@ -727,6 +731,7 @@ export async function createAnatomyMediaViewRequestAction(formData: FormData) {
     }
   }
 
+  revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
 }
 
@@ -747,6 +752,7 @@ export async function updateAnatomyMediaViewRequestAction(formData: FormData) {
     },
   })
 
+  revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
 }
 

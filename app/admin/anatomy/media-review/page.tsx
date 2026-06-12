@@ -93,10 +93,10 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href="/admin/anatomy">Dashboard</Link>
+              <Link href="/admin">Dashboard</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/admin/anatomy?view=maintenance">Browser</Link>
+              <Link href="/admin/anatomy">Browser</Link>
             </Button>
           </div>
         </div>
@@ -457,7 +457,7 @@ function EmptyQueue({ selectedStatus }: { selectedStatus: QueueStatusOption }) {
         <p className="mt-2 text-sm text-muted-foreground">There are no {selectedStatus.label.toLowerCase()} item-image links to review right now.</p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <Button asChild>
-            <Link href="/admin/anatomy">Back to anatomy admin</Link>
+            <Link href="/admin">Back to dashboard</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href={mediaReviewQueueHref("all")}>Browse all images</Link>

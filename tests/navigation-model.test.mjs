@@ -256,9 +256,11 @@ describe("Navigation IA model", () => {
     })
 
     assert.equal(primaryGroupIds(anatomyAdminNavigation).includes("admin"), true)
+    assert.equal(primaryHrefs(anatomyAdminNavigation).includes("/admin"), true)
     assert.equal(primaryHrefs(anatomyAdminNavigation).includes("/admin/anatomy"), true)
     assert.equal(primaryHrefs(anatomyAdminNavigation).includes("/admin/anatomy/media-review"), true)
     assert.equal(primaryGroupIds(adminNavigation).includes("admin"), true)
+    assert.equal(primaryHrefs(adminNavigation).includes("/admin"), true)
     assert.equal(primaryHrefs(adminNavigation).includes("/admin/anatomy"), true)
     assert.equal(primaryHrefs(adminNavigation).includes("/admin/anatomy/media-review"), true)
     assert.equal(primaryGroupIds(pendingAdminNavigation).includes("admin"), false)
