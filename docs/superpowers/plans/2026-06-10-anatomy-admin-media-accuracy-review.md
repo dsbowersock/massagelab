@@ -24,6 +24,7 @@ Implemented on 2026-06-11.
 ## Scope
 
 - Shipped in V1: entity-detail media preview, link review status, candidate approval, BodyParts3D still import, flashcard image flagging, and prompt filtering by link status.
+- Deferred: broader view-coverage work, including superior/inferior candidate views and wider replacements for anterior/posterior/lateral renders that are too tightly framed. See [Anatomy Media View Coverage Branch](2026-06-12-anatomy-media-view-coverage.md).
 - Deferred: a global media review queue with filter tabs, bulk triage, and broader BodyParts3D search/discovery.
 - Deferred: 3D/spatial runtime tooling.
 
