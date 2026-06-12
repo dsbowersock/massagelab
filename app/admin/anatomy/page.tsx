@@ -1,7 +1,5 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
-import { getCurrentSession } from "@/auth"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
+import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
 import { SOURCE_USAGE_SCOPES } from "@/lib/anatomy-admin-source-input"
 import {
   ANATOMY_ADMIN_QUICK_QUERIES,
@@ -24,7 +22,6 @@ import {
   normalizeBodyParts3dPartIds,
   safeBodyParts3dImageUrl,
 } from "@/lib/anatomy-media-review"
-import type { AccountRole } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 import {
   createAnatomyAliasAction,
@@ -174,21 +171,7 @@ const BROWSER_VIEWS: Array<{ key: AnatomyBrowserView; label: string }> = [
 ]
 
 export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPageProps) {
-  const session = await getCurrentSession()
-
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
-
-  const roles = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    select: { role: true },
-  })
-  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
-
-  if (!canManageAnatomyContent(roleValues)) {
-    redirect("/account")
-  }
+  await requireAnatomyAdminUser()
 
   const params = await searchParams
   const searchQuery = normalizeAnatomySearchQuery(params?.q ?? "")
