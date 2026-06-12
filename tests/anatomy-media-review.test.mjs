@@ -16,17 +16,22 @@ describe("Anatomy media review helpers", () => {
     const partIds = normalizeBodyParts3dPartIds("37670, FMA37671 fma37670 bad")
     const url = bodyParts3dImageUrl({ partIds, view: "posterior", treeName: "partof", size: 900 })
     const config = JSON.parse(decodeURIComponent(url.split("?")[1]))
+    const superiorUrl = bodyParts3dImageUrl({ partIds: ["FMA37670"], view: "superior", treeName: "isa" })
+    const superiorConfig = JSON.parse(decodeURIComponent(superiorUrl.split("?")[1]))
 
     assert.deepEqual(partIds, ["FMA37670", "FMA37671"])
     assert.equal(url.startsWith("https://lifesciencedb.jp/bp3d/API/image?"), true)
     assert.equal(config.Common.TreeName, "partof")
     assert.equal(config.Camera.CameraMode, "back")
+    assert.equal(superiorConfig.Camera.CameraMode, "top")
     assert.equal(config.Window.ImageWidth, 900)
     assert.equal(config.Part.some((part) => part.PartID === "FMA37670" && part.PartColor === "D83A3A"), true)
   })
 
   it("keeps review keys and form roles stable across casing", () => {
     assert.equal(bodyParts3dView("left-lateral").cameraMode, "left")
+    assert.equal(bodyParts3dView("inferior").cameraMode, "bottom")
+    assert.equal(bodyParts3dView("transverse").cameraMode, "top")
     assert.equal(normalizeAnatomyMediaRole("PRIMARY"), "primary")
     assert.equal(normalizeAnatomyMediaRole("not-a-role"), "reference")
     assert.equal(

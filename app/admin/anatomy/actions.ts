@@ -280,6 +280,7 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
     bodyparts3dView: view.slug,
     bodyparts3dViewTitle: view.title,
     bodyparts3dCameraMode: view.cameraMode,
+    bodyparts3dSourceUrl: sourceUrl,
     visualStyle: "3d-anatomogram-render",
     anatomogramVersion: "4.1",
     r2Upload: true,

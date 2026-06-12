@@ -1,13 +1,13 @@
 import type { AnatomyEntityType, AnatomyMediaRole } from "./anatomy-foundation"
 import type { AnatomyMediaReviewStatus } from "./domain-types"
 
-export type BodyParts3dViewSlug = "anterior" | "posterior" | "left-lateral" | "right-lateral"
+export type BodyParts3dViewSlug = "anterior" | "posterior" | "left-lateral" | "right-lateral" | "superior" | "inferior" | "transverse"
 export type BodyParts3dTreeName = "isa" | "partof"
 
 export type BodyParts3dView = {
   slug: BodyParts3dViewSlug
   title: string
-  cameraMode: "front" | "back" | "left" | "right"
+  cameraMode: "front" | "back" | "left" | "right" | "top" | "bottom"
 }
 
 export const ANATOMY_MEDIA_REVIEW_STATUSES: AnatomyMediaReviewStatus[] = ["APPROVED", "NEEDS_REVIEW", "REJECTED"]
@@ -34,6 +34,9 @@ export const BODYPARTS3D_VIEWS: BodyParts3dView[] = [
   { slug: "posterior", title: "Posterior View", cameraMode: "back" },
   { slug: "left-lateral", title: "Left Lateral View", cameraMode: "left" },
   { slug: "right-lateral", title: "Right Lateral View", cameraMode: "right" },
+  { slug: "superior", title: "Superior View", cameraMode: "top" },
+  { slug: "inferior", title: "Inferior View", cameraMode: "bottom" },
+  { slug: "transverse", title: "Transverse View", cameraMode: "top" },
 ]
 
 const BODY_PARTS_3D_VIEW_BY_SLUG = new Map(BODYPARTS3D_VIEWS.map((view) => [view.slug, view]))

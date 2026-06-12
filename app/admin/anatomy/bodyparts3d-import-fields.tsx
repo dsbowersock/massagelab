@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ExternalLink } from "lucide-react"
+import { Check, Copy, ExternalLink } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -14,12 +15,22 @@ import {
 } from "@/lib/anatomy-media-review"
 
 const BODYPARTS3D_BROWSER_URL = "https://lifesciencedb.jp/bp3d/?lng=en"
+const VIEW_SHORTCUT_LABELS: Record<BodyParts3dViewSlug, string> = {
+  anterior: "Anterior",
+  posterior: "Posterior",
+  "left-lateral": "Left",
+  "right-lateral": "Right",
+  superior: "Superior",
+  inferior: "Inferior",
+  transverse: "Transverse",
+}
 
 export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartIds?: string }) {
   const [partIds, setPartIds] = useState(initialPartIds)
   const [treeName, setTreeName] = useState<BodyParts3dTreeName>("isa")
   const [view, setView] = useState<BodyParts3dViewSlug>("anterior")
   const [sourceUrl, setSourceUrl] = useState("")
+  const [copied, setCopied] = useState(false)
   const normalizedPartIds = useMemo(() => normalizeBodyParts3dPartIds(partIds), [partIds])
   const generatedPreviewUrl = useMemo(() => (
     normalizedPartIds.length > 0
@@ -29,9 +40,28 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
   const safeOverrideUrl = useMemo(() => safeBodyParts3dImageUrl(sourceUrl), [sourceUrl])
   const invalidOverrideUrl = sourceUrl.trim().length > 0 && !safeOverrideUrl
   const previewUrl = safeOverrideUrl || generatedPreviewUrl
+  const selectedViewTitle = BODYPARTS3D_VIEWS.find((viewOption) => viewOption.slug === view)?.title ?? "selected view"
+
+  async function copyPreviewUrl() {
+    if (!previewUrl || typeof navigator === "undefined" || !navigator.clipboard) return
+
+    try {
+      await navigator.clipboard.writeText(previewUrl)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
 
   return (
     <>
+      <div className="rounded-md border border-border/80 bg-muted/30 p-3 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">Fast path</p>
+        <p>Select a view shortcut and check the preview. If it is the image you want, leave the custom URL blank and click Import and Link View.</p>
+        <p className="mt-2">Use the custom URL only after opening a source view in BodyParts3D and changing the angle, zoom, or framing there.</p>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="bodyparts3d-part-ids">BodyParts3D/FMA IDs</Label>
         <Input
@@ -44,7 +74,27 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
         <p className="text-xs text-muted-foreground">
           {normalizedPartIds.length > 0
             ? `Will request: ${normalizedPartIds.join(", ")}`
-            : "Use one or more BodyParts3D/FMA IDs for the anatomy item."}
+            : "Use one or more BodyParts3D/FMA IDs for the anatomy item. Existing BodyParts3D images and FMA IDs fill this in when available."}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>View shortcuts</Label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {BODYPARTS3D_VIEWS.map((viewOption) => (
+            <Button
+              key={viewOption.slug}
+              type="button"
+              variant={view === viewOption.slug ? "default" : "outline"}
+              className="justify-start"
+              onClick={() => setView(viewOption.slug)}
+            >
+              {VIEW_SHORTCUT_LABELS[viewOption.slug]}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Superior, inferior, and transverse are starting views for top, bottom, and cross-section-like review. Paste a custom URL when BodyParts3D gives you a better exact angle.
         </p>
       </div>
 
@@ -76,15 +126,33 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
               <option key={viewOption.slug} value={viewOption.slug}>{viewOption.title}</option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">For custom angles such as superior, inferior, transverse, or zoomed-out views, paste an API image URL below.</p>
+          <p className="text-xs text-muted-foreground">The shortcuts above and this preset menu use the same BodyParts3D/FMA IDs.</p>
         </div>
       </div>
+
+      {previewUrl ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/80 bg-background/70 p-2">
+          <Button asChild type="button" variant="outline" size="sm">
+            <a href={previewUrl} target="_blank" rel="noreferrer">
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              Open selected view
+            </a>
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={copyPreviewUrl}>
+            {copied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
+            {copied ? "Copied URL" : "Copy selected URL"}
+          </Button>
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            This is the URL the importer will use for {selectedViewTitle}.
+          </p>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label htmlFor="bodyparts3d-source-url">Custom BodyParts3D image URL</Label>
           <a href={BODYPARTS3D_BROWSER_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline">
-            Open BodyParts3D
+            Open BodyParts3D home
             <ExternalLink className="h-3 w-3" aria-hidden="true" />
           </a>
         </div>
@@ -98,7 +166,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
         {invalidOverrideUrl ? (
           <p className="text-xs text-destructive">Override must be a BodyParts3D HTTPS API/image URL.</p>
         ) : (
-          <p className="text-xs text-muted-foreground">Paste the BodyParts3D API image URL after composing the exact view you want.</p>
+          <p className="text-xs text-muted-foreground">Leave blank when a preset preview looks right. Paste a BodyParts3D API image URL only after composing an adjusted view.</p>
         )}
       </div>
 
@@ -107,7 +175,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
           <div className="flex items-center justify-between gap-3 border-b border-border/80 px-3 py-2 text-xs text-muted-foreground">
             <span>Preview</span>
             <a href={previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-              Open source
+              Open exact source
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           </div>
