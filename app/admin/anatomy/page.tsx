@@ -16,6 +16,7 @@ import {
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
   ANATOMY_MEDIA_REVIEW_STATUSES,
+  bodyParts3dComposerUrl,
   normalizeBodyParts3dPartIds,
   safeBodyParts3dImageUrl,
 } from "@/lib/anatomy-media-review"
@@ -1234,6 +1235,7 @@ function MediaReviewPanel({
             const linkId = recordText(link, "id")
             const previewUrl = mediaPreviewUrl(asset)
             const bodyParts3dSourceUrl = mediaBodyParts3dSourceUrl(asset)
+            const bodyParts3dComposerHref = mediaBodyParts3dComposerUrl(asset)
             const reviewStatus = recordText(link, "reviewStatus") || "APPROVED"
             const reviewReason = recordText(link, "reviewReason")
             const priority = recordNumber(link, "displayPriority", 100)
@@ -1261,7 +1263,8 @@ function MediaReviewPanel({
                       {reviewReason ? <p className="text-xs text-muted-foreground">Reason: {formatLabel(reviewReason)}</p> : null}
                       {mediaMetadataLine(asset) ? <p className="text-xs text-muted-foreground">{mediaMetadataLine(asset)}</p> : null}
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                        {bodyParts3dSourceUrl ? <ExternalTextLink href={bodyParts3dSourceUrl}>Open BodyParts3D source view</ExternalTextLink> : null}
+                        {bodyParts3dComposerHref ? <ExternalTextLink href={bodyParts3dComposerHref}>Open BodyParts3D composer</ExternalTextLink> : null}
+                        {bodyParts3dSourceUrl ? <ExternalTextLink href={bodyParts3dSourceUrl}>Open generated image</ExternalTextLink> : null}
                         {previewUrl && previewUrl !== bodyParts3dSourceUrl ? <ExternalTextLink href={previewUrl}>{bodyParts3dSourceUrl ? "Open stored image" : "Open preview"}</ExternalTextLink> : null}
                       </div>
                     </div>
@@ -2091,6 +2094,20 @@ function mediaBodyParts3dSourceUrl(asset: Record<string, unknown>) {
 
   const metadata = recordObject(asset, "metadata")
   return safeBodyParts3dImageUrl(recordText(metadata, "bodyparts3dSourceUrl") || recordText(metadata, "sourceUrl"))
+}
+
+function mediaBodyParts3dComposerUrl(asset: Record<string, unknown>) {
+  const metadata = recordObject(asset, "metadata")
+  const partIds = normalizeBodyParts3dPartIds(recordStringArray(metadata, "bodyparts3dPartIds"))
+
+  if (partIds.length === 0) {
+    return ""
+  }
+
+  return bodyParts3dComposerUrl({
+    partIds,
+    treeName: recordText(metadata, "bodyparts3dTreeName") === "partof" ? "partof" : "isa",
+  })
 }
 
 function sourceLabel(asset: Record<string, unknown>) {

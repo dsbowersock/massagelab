@@ -4,11 +4,13 @@ import {
   anatomyMediaReviewKey,
   bodyParts3dAdminAssetSlug,
   bodyParts3dAdminStoragePath,
+  bodyParts3dComposerUrl,
   bodyParts3dImageUrl,
   bodyParts3dView,
   normalizeAnatomyMediaRole,
   normalizeBodyParts3dPartIds,
   safeBodyParts3dImageUrl,
+  safeBodyParts3dRenderableImageUrl,
 } from "../lib/anatomy-media-review.js"
 
 describe("Anatomy media review helpers", () => {
@@ -49,9 +51,28 @@ describe("Anatomy media review helpers", () => {
     const safeUrl = bodyParts3dImageUrl({ partIds: ["FMA37670"], view: "anterior", treeName: "isa" })
 
     assert.equal(safeBodyParts3dImageUrl(` ${safeUrl} `), safeUrl)
+    assert.equal(safeBodyParts3dRenderableImageUrl(` ${safeUrl} `), safeUrl)
     assert.equal(safeBodyParts3dImageUrl("javascript:alert(1)"), "")
     assert.equal(safeBodyParts3dImageUrl("https://example.com/bp3d/API/image?test"), "")
     assert.equal(safeBodyParts3dImageUrl("https://lifesciencedb.jp/bp3d/API/image"), "")
+    assert.equal(safeBodyParts3dRenderableImageUrl("https://example.com/bp3d/?tp_ap=oid001%3DFMA37670"), "")
+  })
+
+  it("builds BodyParts3D composer URLs and converts pasted composer maps into image URLs", () => {
+    const composerUrl = bodyParts3dComposerUrl({ partIds: ["FMA37451"], treeName: "isa", size: 700 })
+    const composer = new URL(composerUrl)
+    const mapConfig = composer.searchParams.get("tp_ap") ?? ""
+    const convertedUrl = safeBodyParts3dRenderableImageUrl(composerUrl)
+    const convertedConfig = JSON.parse(decodeURIComponent(convertedUrl.split("?")[1]))
+
+    assert.equal(composer.origin, "https://lifesciencedb.jp")
+    assert.equal(composer.pathname, "/bp3d/")
+    assert.equal(composer.searchParams.get("lng"), "en")
+    assert.match(mapConfig, /oid001=FMA37451/)
+    assert.equal(convertedUrl.startsWith("https://lifesciencedb.jp/bp3d/API/image?"), true)
+    assert.equal(convertedConfig.Common.TreeName, "isa")
+    assert.equal(convertedConfig.Window.ImageWidth, 700)
+    assert.equal(convertedConfig.Part.some((part) => part.PartID === "FMA37451" && part.PartColor === "D83A3A"), true)
   })
 
   it("keeps BodyParts3D admin asset identity stable by tree and canonical part ids", () => {

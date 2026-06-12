@@ -27,6 +27,7 @@ export const BODYPARTS3D_LICENSE_URL = "https://creativecommons.org/licenses/by/
 export const BODYPARTS3D_LICENSE_PAGE = "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
 export const BODYPARTS3D_ATTRIBUTION = "BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International."
 export const BODYPARTS3D_SKELETON_BACKGROUND_ID = "FMA5018"
+export const BODYPARTS3D_COMPOSER_URL = "https://lifesciencedb.jp/bp3d/"
 export const BODYPARTS3D_IMAGE_API_URL = "https://lifesciencedb.jp/bp3d/API/image"
 
 export const BODYPARTS3D_VIEWS: BodyParts3dView[] = [
@@ -72,6 +73,51 @@ export function safeBodyParts3dImageUrl(value: string | null | undefined) {
   }
 }
 
+export function safeBodyParts3dRenderableImageUrl(value: string | null | undefined) {
+  const imageUrl = safeBodyParts3dImageUrl(value)
+  if (imageUrl) return imageUrl
+
+  return bodyParts3dImageUrlFromComposerUrl(value)
+}
+
+export function bodyParts3dComposerUrl({
+  partIds,
+  treeName = "isa",
+  size = 700,
+}: {
+  partIds: readonly string[]
+  treeName?: BodyParts3dTreeName
+  size?: number
+}) {
+  const normalizedPartIds = normalizeBodyParts3dPartIds(partIds)
+  const imageSize = bodyParts3dImageSize(size)
+  const mapParams = new URLSearchParams({
+    av: "09051901",
+    model: "bp3d",
+    bv: "4.1",
+    tn: treeName,
+    iw: String(imageSize),
+    ih: String(imageSize),
+    bcl: "FFFFFF",
+    bga: "100",
+  })
+
+  normalizedPartIds.forEach((partId, index) => {
+    const suffix = String(index + 1).padStart(3, "0")
+    mapParams.set(`oid${suffix}`, partId)
+    mapParams.set(`ocl${suffix}`, "D83A3A")
+    mapParams.set(`oop${suffix}`, "1")
+    mapParams.set(`orp${suffix}`, "surface")
+    mapParams.set(`osz${suffix}`, "Z")
+  })
+
+  const composerUrl = new URL(BODYPARTS3D_COMPOSER_URL)
+  composerUrl.searchParams.set("lng", "en")
+  composerUrl.searchParams.set("tp_ap", mapParams.toString())
+
+  return composerUrl.toString()
+}
+
 export function bodyParts3dImageUrl({
   partIds,
   view,
@@ -85,7 +131,7 @@ export function bodyParts3dImageUrl({
 }) {
   const selectedView = typeof view === "string" ? bodyParts3dView(view) : view
   const normalizedPartIds = normalizeBodyParts3dPartIds(partIds)
-  const imageSize = Math.min(Math.max(Math.trunc(size), 300), 1200)
+  const imageSize = bodyParts3dImageSize(size)
   const config = {
     Common: {
       Version: "4.1",
@@ -113,6 +159,129 @@ export function bodyParts3dImageUrl({
   }
 
   return `${BODYPARTS3D_IMAGE_API_URL}?${encodeURIComponent(JSON.stringify(config))}`
+}
+
+function bodyParts3dImageUrlFromComposerUrl(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  if (!trimmed) return ""
+
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== "https:") return ""
+    if (url.hostname !== "lifesciencedb.jp") return ""
+    if (!["/bp3d", "/bp3d/", "/bp3d/index.html", "/bp3d/location.html"].includes(url.pathname)) return ""
+
+    const mapConfig = url.searchParams.get("tp_ap")
+    if (!mapConfig) return ""
+
+    const config = bodyParts3dImageConfigFromMapParams(new URLSearchParams(mapConfig))
+    if (!config) return ""
+
+    return `${BODYPARTS3D_IMAGE_API_URL}?${encodeURIComponent(JSON.stringify(config))}`
+  } catch {
+    return ""
+  }
+}
+
+function bodyParts3dImageConfigFromMapParams(mapParams: URLSearchParams) {
+  const parts = bodyParts3dPartsFromMapParams(mapParams)
+  if (parts.length === 0) return null
+
+  const camera = bodyParts3dCameraFromMapParams(mapParams)
+  const config: Record<string, unknown> = {
+    Common: {
+      Version: mapParams.get("bv") || "4.1",
+      TreeName: mapParams.get("tn") === "partof" ? "partof" : "isa",
+    },
+    Window: {
+      ImageWidth: bodyParts3dImageSize(mapParams.get("iw")),
+      ImageHeight: bodyParts3dImageSize(mapParams.get("ih")),
+    },
+    Part: parts,
+  }
+
+  if (camera) {
+    config.Camera = camera
+  }
+
+  return config
+}
+
+function bodyParts3dPartsFromMapParams(mapParams: URLSearchParams) {
+  const parts: Array<Record<string, unknown>> = []
+
+  for (let index = 1; index <= 999; index += 1) {
+    const suffix = String(index).padStart(3, "0")
+    const partId = normalizeBodyParts3dPartIds(mapParams.get(`oid${suffix}`) ?? "")[0]
+    const partName = mapParams.get(`onm${suffix}`)?.trim()
+
+    if (!partId && !partName) continue
+
+    const part: Record<string, unknown> = partId ? { PartID: partId } : { PartName: partName }
+    const color = normalizedBodyParts3dColor(mapParams.get(`ocl${suffix}`))
+    const opacity = bodyParts3dNumber(mapParams.get(`oop${suffix}`))
+    const representation = mapParams.get(`orp${suffix}`)?.trim()
+    const visibility = mapParams.get(`osz${suffix}`)
+
+    if (color) part.PartColor = color
+    if (Number.isFinite(opacity)) part.PartOpacity = opacity
+    if (representation) part.PartRepresentation = representation
+    if (visibility === "Z") part.UseForBoundingBoxFlag = true
+    if (visibility === "H") part.PartDeleteFlag = true
+
+    parts.push(part)
+  }
+
+  return parts
+}
+
+function bodyParts3dCameraFromMapParams(mapParams: URLSearchParams) {
+  const cameraEntries = [
+    ["cx", "CameraX"],
+    ["cy", "CameraY"],
+    ["cz", "CameraZ"],
+    ["tx", "TargetX"],
+    ["ty", "TargetY"],
+    ["tz", "TargetZ"],
+    ["ux", "CameraUpVectorX"],
+    ["uy", "CameraUpVectorY"],
+    ["uz", "CameraUpVectorZ"],
+  ] as const
+  const camera: Record<string, number> = {}
+
+  for (const [mapKey, cameraKey] of cameraEntries) {
+    const value = bodyParts3dNumber(mapParams.get(mapKey))
+    if (Number.isFinite(value)) {
+      camera[cameraKey] = value
+    }
+  }
+
+  const zoom = bodyParts3dNumber(mapParams.get("zm"))
+  if (Number.isFinite(zoom)) {
+    camera.Zoom = zoom * 5
+  }
+
+  return Object.keys(camera).length > 0 ? camera : null
+}
+
+function bodyParts3dImageSize(value: string | number | null | undefined) {
+  const numericValue = Number(value)
+  const size = Number.isFinite(numericValue) ? numericValue : 700
+
+  return Math.min(Math.max(Math.trunc(size), 300), 1200)
+}
+
+function bodyParts3dNumber(value: string | null | undefined) {
+  if (!value) return Number.NaN
+
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue : Number.NaN
+}
+
+function normalizedBodyParts3dColor(value: string | null | undefined) {
+  const color = value?.trim().replace(/^#/, "").toUpperCase()
+
+  return color && /^[0-9A-F]{6}$/.test(color) ? color : ""
 }
 
 export function anatomyMediaReviewKey({

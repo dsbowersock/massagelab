@@ -20,7 +20,7 @@ import {
   bodyParts3dView,
   normalizeAnatomyMediaRole,
   normalizeBodyParts3dPartIds,
-  safeBodyParts3dImageUrl,
+  safeBodyParts3dRenderableImageUrl,
   type BodyParts3dTreeName,
 } from "@/lib/anatomy-media-review"
 import { uploadAnatomyMediaToR2 } from "@/lib/anatomy-media-review-server"
@@ -105,7 +105,7 @@ function titleFromSlug(value: string) {
 }
 
 function bodyParts3dSourceUrl(formData: FormData, partIds: string[], viewSlug: string, treeName: BodyParts3dTreeName) {
-  const overrideUrl = safeBodyParts3dImageUrl(formString(formData, "source_url"))
+  const overrideUrl = safeBodyParts3dRenderableImageUrl(formString(formData, "source_url"))
   if (overrideUrl) return overrideUrl
 
   return bodyParts3dImageUrl({

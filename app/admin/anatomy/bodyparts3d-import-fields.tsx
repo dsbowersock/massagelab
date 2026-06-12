@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   BODYPARTS3D_VIEWS,
+  bodyParts3dComposerUrl,
   bodyParts3dImageUrl,
   normalizeBodyParts3dPartIds,
-  safeBodyParts3dImageUrl,
+  safeBodyParts3dRenderableImageUrl,
   type BodyParts3dTreeName,
   type BodyParts3dViewSlug,
 } from "@/lib/anatomy-media-review"
@@ -37,7 +38,12 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
       ? bodyParts3dImageUrl({ partIds: normalizedPartIds, treeName, view })
       : ""
   ), [normalizedPartIds, treeName, view])
-  const safeOverrideUrl = useMemo(() => safeBodyParts3dImageUrl(sourceUrl), [sourceUrl])
+  const composerUrl = useMemo(() => (
+    normalizedPartIds.length > 0
+      ? bodyParts3dComposerUrl({ partIds: normalizedPartIds, treeName })
+      : ""
+  ), [normalizedPartIds, treeName])
+  const safeOverrideUrl = useMemo(() => safeBodyParts3dRenderableImageUrl(sourceUrl), [sourceUrl])
   const invalidOverrideUrl = sourceUrl.trim().length > 0 && !safeOverrideUrl
   const previewUrl = safeOverrideUrl || generatedPreviewUrl
   const selectedViewTitle = BODYPARTS3D_VIEWS.find((viewOption) => viewOption.slug === view)?.title ?? "selected view"
@@ -59,7 +65,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
       <div className="rounded-md border border-border/80 bg-muted/30 p-3 text-xs text-muted-foreground">
         <p className="font-medium text-foreground">Fast path</p>
         <p>Select a view shortcut and check the preview. If it is the image you want, leave the custom URL blank and click Import and Link View.</p>
-        <p className="mt-2">Use the custom URL only after opening a source view in BodyParts3D and changing the angle, zoom, or framing there.</p>
+        <p className="mt-2">Open the BodyParts3D composer when you need to change angle, zoom, or framing. Paste the composer URL here and MassageLab will convert it into the image URL used for import.</p>
       </div>
 
       <div className="space-y-2">
@@ -132,25 +138,33 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
 
       {previewUrl ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/80 bg-background/70 p-2">
+          {composerUrl ? (
+            <Button asChild type="button" variant="outline" size="sm">
+              <a href={composerUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Open BodyParts3D composer
+              </a>
+            </Button>
+          ) : null}
           <Button asChild type="button" variant="outline" size="sm">
             <a href={previewUrl} target="_blank" rel="noreferrer">
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              Open selected view
+              Open generated image
             </a>
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={copyPreviewUrl}>
             {copied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
-            {copied ? "Copied URL" : "Copy selected URL"}
+            {copied ? "Copied URL" : "Copy generated image URL"}
           </Button>
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            This is the URL the importer will use for {selectedViewTitle}.
+            The composer opens the item parts for editing. The generated image is what imports now for {selectedViewTitle}.
           </p>
         </div>
       ) : null}
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor="bodyparts3d-source-url">Custom BodyParts3D image URL</Label>
+          <Label htmlFor="bodyparts3d-source-url">Custom BodyParts3D URL</Label>
           <a href={BODYPARTS3D_BROWSER_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline">
             Open BodyParts3D home
             <ExternalLink className="h-3 w-3" aria-hidden="true" />
@@ -161,12 +175,12 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
           name="source_url"
           value={sourceUrl}
           onChange={(event) => setSourceUrl(event.target.value)}
-          placeholder="https://lifesciencedb.jp/bp3d/API/image?..."
+          placeholder="https://lifesciencedb.jp/bp3d/?tp_ap=..."
         />
         {invalidOverrideUrl ? (
-          <p className="text-xs text-destructive">Override must be a BodyParts3D HTTPS API/image URL.</p>
+          <p className="text-xs text-destructive">Use a BodyParts3D composer/map URL or HTTPS API image URL.</p>
         ) : (
-          <p className="text-xs text-muted-foreground">Leave blank when a preset preview looks right. Paste a BodyParts3D API image URL only after composing an adjusted view.</p>
+          <p className="text-xs text-muted-foreground">Leave blank when a preset preview looks right. Paste a BodyParts3D composer URL after you adjust a view.</p>
         )}
       </div>
 
@@ -175,7 +189,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
           <div className="flex items-center justify-between gap-3 border-b border-border/80 px-3 py-2 text-xs text-muted-foreground">
             <span>Preview</span>
             <a href={previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-              Open exact source
+              Open generated image
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           </div>
