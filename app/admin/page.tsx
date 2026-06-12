@@ -1,8 +1,5 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
-import { getCurrentSession } from "@/auth"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
-import type { AccountRole } from "@/lib/domain-types"
+import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -17,7 +14,7 @@ type AdminDashboardMetrics = {
 }
 
 export default async function AdminDashboardPage() {
-  await requireAdminDashboardAccess()
+  await requireAnatomyAdminUser()
   const metrics = await getAdminDashboardMetrics()
 
   return (
@@ -78,24 +75,6 @@ export default async function AdminDashboardPage() {
       </Card>
     </AppPageShell>
   )
-}
-
-async function requireAdminDashboardAccess() {
-  const session = await getCurrentSession()
-
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
-
-  const roles = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    select: { role: true },
-  })
-  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
-
-  if (!canManageAnatomyContent(roleValues)) {
-    redirect("/account")
-  }
 }
 
 async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {

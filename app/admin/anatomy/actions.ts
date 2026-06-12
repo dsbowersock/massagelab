@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { AnatomyEntityType, AnatomyMediaReviewStatus, AnatomyMediaRole, AnatomyMediaViewRequestStatus, Prisma } from "@prisma/client"
-import { getCurrentSession } from "@/auth"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
+import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
 import { parseAnatomyAdminSourceInput } from "@/lib/anatomy-admin-source-input"
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
@@ -32,7 +31,7 @@ import {
   type BodyParts3dView,
 } from "@/lib/anatomy-media-review"
 import { uploadAnatomyMediaToR2 } from "@/lib/anatomy-media-review-server"
-import type { AccountRole, AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
+import type { AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
 import { parseAnatomyEntitySelection } from "@/lib/anatomy-queries"
 import { prisma } from "@/lib/prisma"
 
@@ -445,23 +444,7 @@ async function importBodyParts3dMediaForEntity({
 }
 
 async function requireEditor() {
-  const session = await getCurrentSession()
-
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
-
-  const roles = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    select: { role: true },
-  })
-  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
-
-  if (!canManageAnatomyContent(roleValues)) {
-    redirect("/account")
-  }
-
-  return session.user
+  return requireAnatomyAdminUser()
 }
 
 export async function createAnatomyTermAction(formData: FormData) {

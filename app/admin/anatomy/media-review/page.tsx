@@ -1,8 +1,7 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import type { AnatomyMediaReviewStatus, Prisma } from "@prisma/client"
-import { getCurrentSession } from "@/auth"
-import { canManageAnatomyContent } from "@/lib/account-permissions"
+import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
 import {
   ANATOMY_MEDIA_REVIEW_REASONS,
   ANATOMY_MEDIA_VIEW_REQUEST_REASONS,
@@ -12,7 +11,6 @@ import {
   normalizeBodyParts3dPartIds,
   safeBodyParts3dImageUrl,
 } from "@/lib/anatomy-media-review"
-import type { AccountRole } from "@/lib/domain-types"
 import { prisma } from "@/lib/prisma"
 import { reviewAnatomyMediaQueueDecisionAction } from "@/app/admin/anatomy/actions"
 import { AppPageShell, appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
@@ -69,7 +67,7 @@ const QUEUE_STATUS_OPTIONS: QueueStatusOption[] = [
 const QUEUE_TAKE = 6
 
 export default async function AnatomyMediaReviewQueuePage({ searchParams }: AnatomyMediaReviewQueuePageProps) {
-  await requireAnatomyAdminAccess()
+  await requireAnatomyAdminUser()
 
   const params = await searchParams
   const selectedStatus = queueStatusFromParam(params?.status)
@@ -113,24 +111,6 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
       </main>
     </AppPageShell>
   )
-}
-
-async function requireAnatomyAdminAccess() {
-  const session = await getCurrentSession()
-
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
-
-  const roles = await prisma.userRole.findMany({
-    where: { userId: session.user.id },
-    select: { role: true },
-  })
-  const roleValues = (roles as Array<{ role: AccountRole }>).map((roleRow) => roleRow.role)
-
-  if (!canManageAnatomyContent(roleValues)) {
-    redirect("/account")
-  }
 }
 
 async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset: number): Promise<QueueData> {
