@@ -1468,11 +1468,11 @@ function MediaViewRequestList({ rows }: { rows: Record<string, unknown>[] }) {
         <p className="text-sm font-medium">Open media view requests</p>
         <span className="rounded-md border border-border/80 px-2 py-1 text-xs text-muted-foreground">{openRows.length} open</span>
       </div>
-      {rows.length === 0 ? (
+      {openRows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No desired-view notes have been created for this item yet.</p>
       ) : (
         <div className="space-y-2">
-          {rows.map((row) => (
+          {openRows.map((row) => (
             <form key={recordText(row, "id")} action={updateAnatomyMediaViewRequestAction} className="grid gap-2 rounded-md border border-border/80 bg-muted/20 p-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-end">
               <input type="hidden" name="id" value={recordText(row, "id")} />
               <div className="min-w-0 text-sm">

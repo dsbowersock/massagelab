@@ -123,6 +123,12 @@ async function existingCoverageLink(item: EligibleBodyParts3dItem, viewSlug: Bod
   })
 }
 
+/**
+ * Imports one generated BodyParts3D coverage candidate. The R2 upload happens
+ * before the DB transaction, then the transaction upserts the asset, item link,
+ * and citations; retries are idempotent but failed DB writes can leave an
+ * orphaned R2 object for later cleanup.
+ */
 async function importCoverageCandidate(item: EligibleBodyParts3dItem, viewSlug: BodyParts3dViewSlug) {
   const view = bodyParts3dView(viewSlug)
   const sourceUrl = bodyParts3dImageUrl({ partIds: item.partIds, treeName: item.treeName, view })

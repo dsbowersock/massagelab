@@ -127,12 +127,12 @@ export function anatomyMediaCoverageForLinks(rows: Array<{ asset: unknown; link:
   )
 
   for (const row of rows) {
-    const metadata = anatomyMediaRecord(anatomyMediaRecord(row.asset).metadata)
-    const viewValue = anatomyMediaText(metadata.bodyparts3dView)
+    const metadata = bodyParts3dRecord(bodyParts3dRecord(row.asset).metadata)
+    const viewValue = bodyParts3dString(metadata.bodyparts3dView)
     if (!viewValue) continue
 
     const view = normalizeAnatomyMediaViewRequestView(viewValue)
-    const status = anatomyMediaCoverageStatus(anatomyMediaText(anatomyMediaRecord(row.link).reviewStatus))
+    const status = anatomyMediaCoverageStatus(bodyParts3dString(bodyParts3dRecord(row.link).reviewStatus))
     const existing = coverage.get(view) ?? "MISSING"
 
     if (anatomyMediaCoverageRank(status) < anatomyMediaCoverageRank(existing)) {
@@ -564,14 +564,6 @@ function anatomyMediaCoverageRank(status: AnatomyMediaCoverageStatus) {
     default:
       return 3
   }
-}
-
-function anatomyMediaRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
-}
-
-function anatomyMediaText(value: unknown) {
-  return value === null || value === undefined ? "" : String(value)
 }
 
 function slugify(value: string) {

@@ -184,6 +184,38 @@ function bodyParts3dImportSource(formData: FormData, partIds: string[], view: Bo
   }
 }
 
+function bodyParts3dRequestImportDescriptor(formData: FormData, requestedView: BodyParts3dStoredViewSlug): BodyParts3dSourceDescriptor | null {
+  const sourceUrlInput = formString(formData, "source_url")
+  if (!sourceUrlInput) {
+    return null
+  }
+
+  const descriptor = bodyParts3dSourceDescriptor(sourceUrlInput)
+  if (!descriptor) {
+    throw new Error("View request import URL must be a parsable BodyParts3D image or composer URL.")
+  }
+
+  const expectedPartIds = normalizeBodyParts3dPartIds(formString(formData, "part_ids"))
+  if (expectedPartIds.length === 0 || !sameBodyParts3dPartIds(descriptor.partIds, expectedPartIds)) {
+    throw new Error("View request import URL parts must match the known BodyParts3D IDs for this item.")
+  }
+
+  if (requestedView === "custom") {
+    if (!descriptor.cameraMode && !descriptor.cameraParameters) {
+      throw new Error("Custom view request import URL must include camera details from BodyParts3D.")
+    }
+
+    return descriptor
+  }
+
+  const expectedCameraMode = bodyParts3dView(requestedView).cameraMode
+  if (descriptor.cameraMode !== expectedCameraMode) {
+    throw new Error("View request import URL camera orientation must match the requested view.")
+  }
+
+  return descriptor
+}
+
 function sameBodyParts3dPartIds(left: readonly string[], right: readonly string[]) {
   const leftKey = normalizeBodyParts3dPartIds(left).sort().join("|")
   const rightKey = normalizeBodyParts3dPartIds(right).sort().join("|")
@@ -556,16 +588,12 @@ export async function createAnatomyMediaViewRequestAction(formData: FormData) {
   const requestedView = mediaViewRequestViewValue(formString(formData, "requested_view"))
   const reason = mediaViewRequestReasonValue(formString(formData, "reason"))
   const requestNote = formString(formData, "request_note")
-  const sourceUrlInput = formString(formData, "source_url")
 
   if (!selectedEntity) {
     return
   }
 
-  const sourceDescriptor = sourceUrlInput ? bodyParts3dSourceDescriptor(sourceUrlInput) : null
-  if (sourceUrlInput && !sourceDescriptor) {
-    throw new Error("View request import URL must be a parsable BodyParts3D image or composer URL.")
-  }
+  const sourceDescriptor = bodyParts3dRequestImportDescriptor(formData, requestedView)
 
   const request = await prisma.anatomyMediaViewRequest.create({
     data: {
@@ -574,7 +602,7 @@ export async function createAnatomyMediaViewRequestAction(formData: FormData) {
       requestedView,
       reason,
       requestNote: requestNote || null,
-      sourceUrl: sourceDescriptor?.sourceUrl ?? (sourceUrlInput || null),
+      sourceUrl: sourceDescriptor?.sourceUrl ?? (formString(formData, "source_url") || null),
       status: "OPEN",
       createdById: user.id,
     },
@@ -582,42 +610,47 @@ export async function createAnatomyMediaViewRequestAction(formData: FormData) {
 
   if (sourceDescriptor) {
     const viewTitle = bodyParts3dStoredViewTitle(requestedView)
-    const importResult = await importBodyParts3dMediaForEntity({
-      userId: user.id,
-      selectedEntity,
-      partIds: sourceDescriptor.partIds,
-      treeName: sourceDescriptor.treeName,
-      viewSlug: requestedView,
-      viewTitle,
-      role: mediaRoleValue(formString(formData, "role")),
-      notes: requestNote || `Requested ${viewTitle.toLowerCase()} candidate: ${reason}`,
-      displayPriority: displayPriorityValue(formData),
-      importSource: {
-        sourceUrl: sourceDescriptor.sourceUrl,
-        sourceKey: sourceDescriptor.sourceKey,
-        imageWidth: sourceDescriptor.imageWidth,
-        imageHeight: sourceDescriptor.imageHeight,
-        cameraMode: sourceDescriptor.cameraMode,
-        cameraParameters: sourceDescriptor.cameraParameters,
-      },
-      linkReviewStatus: "NEEDS_REVIEW",
-      sourceKind: "bodyparts3d-admin-requested-image",
-      extraMetadata: {
-        candidateReason: reason,
-        mediaViewRequestId: request.id,
-      },
-    })
+    try {
+      const importResult = await importBodyParts3dMediaForEntity({
+        userId: user.id,
+        selectedEntity,
+        partIds: sourceDescriptor.partIds,
+        treeName: sourceDescriptor.treeName,
+        viewSlug: requestedView,
+        viewTitle,
+        role: mediaRoleValue(formString(formData, "role")),
+        notes: requestNote || `Requested ${viewTitle.toLowerCase()} candidate: ${reason}`,
+        displayPriority: displayPriorityValue(formData),
+        importSource: {
+          sourceUrl: sourceDescriptor.sourceUrl,
+          sourceKey: sourceDescriptor.sourceKey,
+          imageWidth: sourceDescriptor.imageWidth,
+          imageHeight: sourceDescriptor.imageHeight,
+          cameraMode: sourceDescriptor.cameraMode,
+          cameraParameters: sourceDescriptor.cameraParameters,
+        },
+        linkReviewStatus: "NEEDS_REVIEW",
+        sourceKind: "bodyparts3d-admin-requested-image",
+        extraMetadata: {
+          candidateReason: reason,
+          mediaViewRequestId: request.id,
+        },
+      })
 
-    await prisma.anatomyMediaViewRequest.update({
-      where: { id: request.id },
-      data: {
-        status: "IMPORTED",
-        importedAssetId: importResult.assetId,
-        importedLinkId: importResult.linkId,
-        resolvedById: user.id,
-        resolvedAt: new Date(),
-      },
-    })
+      await prisma.anatomyMediaViewRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "IMPORTED",
+          importedAssetId: importResult.assetId,
+          importedLinkId: importResult.linkId,
+          resolvedById: user.id,
+          resolvedAt: new Date(),
+        },
+      })
+    } catch (error) {
+      await prisma.anatomyMediaViewRequest.delete({ where: { id: request.id } }).catch(() => null)
+      throw error
+    }
   }
 
   revalidatePath("/admin/anatomy")
