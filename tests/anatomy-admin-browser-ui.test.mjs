@@ -120,6 +120,12 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(importFieldsSource, /Leave blank when a preset preview looks right/)
     assert.match(importFieldsSource, /Custom BodyParts3D URL/)
     assert.match(importFieldsSource, /Open BodyParts3D home/)
+    assert.match(pageSource, /function MediaViewCoverageChips/)
+    assert.match(pageSource, /Request better view/)
+    assert.match(pageSource, /createAnatomyMediaViewRequestAction/)
+    assert.match(pageSource, /Open media view requests/)
+    assert.match(actionsSource, /createAnatomyMediaViewRequestAction/)
+    assert.match(actionsSource, /linkReviewStatus: "NEEDS_REVIEW"/)
   })
 
   it("shows complete anatomy source metadata fields in the admin source form", async () => {

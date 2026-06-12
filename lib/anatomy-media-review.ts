@@ -2,6 +2,7 @@ import type { AnatomyEntityType, AnatomyMediaRole } from "./anatomy-foundation"
 import type { AnatomyMediaReviewStatus } from "./domain-types"
 
 export type BodyParts3dViewSlug = "anterior" | "posterior" | "left-lateral" | "right-lateral" | "superior" | "inferior" | "transverse"
+export type BodyParts3dStoredViewSlug = BodyParts3dViewSlug | "custom"
 export type BodyParts3dTreeName = "isa" | "partof"
 export type BodyParts3dCameraMode = "front" | "back" | "left" | "right" | "top" | "bottom"
 
@@ -22,16 +23,47 @@ export type BodyParts3dSourceDescriptor = {
   sourceKey: string
 }
 
+export type AnatomyMediaCoverageStatus = "APPROVED" | "NEEDS_REVIEW" | "REJECTED" | "MISSING"
+
+export type AnatomyMediaCoverageRow = {
+  viewSlug: BodyParts3dStoredViewSlug
+  title: string
+  status: AnatomyMediaCoverageStatus
+}
+
 export const ANATOMY_MEDIA_REVIEW_STATUSES: AnatomyMediaReviewStatus[] = ["APPROVED", "NEEDS_REVIEW", "REJECTED"]
 
 export const ANATOMY_MEDIA_REVIEW_REASONS = [
   "bad_match",
   "bad_view",
+  "too_tight",
   "too_broad",
   "too_unclear",
   "duplicate",
   "other",
 ] as const
+
+export const ANATOMY_MEDIA_VIEW_REQUEST_VIEWS: BodyParts3dStoredViewSlug[] = [
+  "anterior",
+  "posterior",
+  "left-lateral",
+  "right-lateral",
+  "superior",
+  "inferior",
+  "transverse",
+  "custom",
+]
+
+export const ANATOMY_MEDIA_VIEW_REQUEST_REASONS = [
+  "missing_view",
+  "too_tight",
+  "bad_match",
+  "bad_view",
+  "custom_angle",
+  "other",
+] as const
+
+export const ANATOMY_MEDIA_VIEW_REQUEST_STATUSES = ["OPEN", "IMPORTED", "DISMISSED"] as const
 
 export const BODYPARTS3D_SOURCE_SLUG = "bodyparts3d"
 export const BODYPARTS3D_LICENSE = "CC BY 4.0"
@@ -53,10 +85,65 @@ export const BODYPARTS3D_VIEWS: BodyParts3dView[] = [
   { slug: "transverse", title: "Transverse View", cameraMode: "top" },
 ]
 
+export const ANATOMY_MEDIA_COVERAGE_VIEWS: AnatomyMediaCoverageRow[] = [
+  ...BODYPARTS3D_VIEWS.map((view) => ({
+    viewSlug: view.slug,
+    title: view.title,
+    status: "MISSING" as const,
+  })),
+  { viewSlug: "custom", title: "Custom View", status: "MISSING" },
+]
+
 const BODY_PARTS_3D_VIEW_BY_SLUG = new Map(BODYPARTS3D_VIEWS.map((view) => [view.slug, view]))
 
 export function bodyParts3dView(value: string | null | undefined): BodyParts3dView {
   return BODY_PARTS_3D_VIEW_BY_SLUG.get(value as BodyParts3dViewSlug) ?? BODYPARTS3D_VIEWS[0]
+}
+
+export function normalizeAnatomyMediaViewRequestView(value: string | null | undefined): BodyParts3dStoredViewSlug {
+  const normalized = value?.trim().toLowerCase()
+
+  return normalized && ANATOMY_MEDIA_VIEW_REQUEST_VIEWS.includes(normalized as BodyParts3dStoredViewSlug)
+    ? normalized as BodyParts3dStoredViewSlug
+    : "custom"
+}
+
+export function normalizeAnatomyMediaViewRequestReason(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase()
+
+  return normalized && ANATOMY_MEDIA_VIEW_REQUEST_REASONS.includes(normalized as typeof ANATOMY_MEDIA_VIEW_REQUEST_REASONS[number])
+    ? normalized
+    : "other"
+}
+
+/**
+ * Computes the per-view review status shown in the anatomy admin media panel.
+ * Link status wins over asset status because one image can be approved for one item
+ * and rejected for another.
+ */
+export function anatomyMediaCoverageForLinks(rows: Array<{ asset: unknown; link: unknown }>): AnatomyMediaCoverageRow[] {
+  const coverage = new Map<BodyParts3dStoredViewSlug, AnatomyMediaCoverageStatus>(
+    ANATOMY_MEDIA_COVERAGE_VIEWS.map((row) => [row.viewSlug, row.status]),
+  )
+
+  for (const row of rows) {
+    const metadata = anatomyMediaRecord(anatomyMediaRecord(row.asset).metadata)
+    const viewValue = anatomyMediaText(metadata.bodyparts3dView)
+    if (!viewValue) continue
+
+    const view = normalizeAnatomyMediaViewRequestView(viewValue)
+    const status = anatomyMediaCoverageStatus(anatomyMediaText(anatomyMediaRecord(row.link).reviewStatus))
+    const existing = coverage.get(view) ?? "MISSING"
+
+    if (anatomyMediaCoverageRank(status) < anatomyMediaCoverageRank(existing)) {
+      coverage.set(view, status)
+    }
+  }
+
+  return ANATOMY_MEDIA_COVERAGE_VIEWS.map((row) => ({
+    ...row,
+    status: coverage.get(row.viewSlug) ?? "MISSING",
+  }))
 }
 
 export function normalizeBodyParts3dPartIds(value: string | readonly string[] | null | undefined) {
@@ -455,6 +542,38 @@ export function anatomyMediaReviewKey({
   ].join("|")
 }
 
+function anatomyMediaCoverageStatus(value: string): AnatomyMediaCoverageStatus {
+  const normalized = value.trim().toUpperCase()
+
+  if (normalized === "APPROVED" || normalized === "NEEDS_REVIEW" || normalized === "REJECTED") {
+    return normalized
+  }
+
+  return "MISSING"
+}
+
+function anatomyMediaCoverageRank(status: AnatomyMediaCoverageStatus) {
+  switch (status) {
+    case "APPROVED":
+      return 0
+    case "NEEDS_REVIEW":
+      return 1
+    case "REJECTED":
+      return 2
+    case "MISSING":
+    default:
+      return 3
+  }
+}
+
+function anatomyMediaRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function anatomyMediaText(value: unknown) {
+  return value === null || value === undefined ? "" : String(value)
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -473,7 +592,7 @@ export function bodyParts3dAdminAssetSlug({
   entityType: AnatomyEntityType | string
   entitySlug: string
   treeName: BodyParts3dTreeName
-  viewSlug: BodyParts3dViewSlug
+  viewSlug: BodyParts3dStoredViewSlug | string
   partIds: readonly string[]
   sourceKey?: string
 }) {
@@ -493,7 +612,7 @@ export function bodyParts3dAdminStoragePath({
   entityType: AnatomyEntityType | string
   entitySlug: string
   treeName: BodyParts3dTreeName
-  viewSlug: BodyParts3dViewSlug
+  viewSlug: BodyParts3dStoredViewSlug | string
   assetSlug: string
 }) {
   return `anatomy/bodyparts3d/admin/${slugify(entityType)}/${slugify(entitySlug)}/${slugify(treeName)}/${slugify(viewSlug)}/${assetSlug}.png`
