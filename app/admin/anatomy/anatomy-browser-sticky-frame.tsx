@@ -10,6 +10,7 @@ type AnatomyBrowserStickyFrameProps = {
 export function AnatomyBrowserStickyFrame({ toolbar, children }: AnatomyBrowserStickyFrameProps) {
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [toolbarHeight, setToolbarHeight] = useState(0)
+  const [isCompact, setIsCompact] = useState(false)
 
   useEffect(() => {
     const updateToolbarHeight = () => {
@@ -30,6 +31,27 @@ export function AnatomyBrowserStickyFrame({ toolbar, children }: AnatomyBrowserS
     }
   }, [])
 
+  useEffect(() => {
+    const toolbarElement = toolbarRef.current
+    const scrollRoot = toolbarElement?.closest(".ml-app-scroll")
+    const scrollElement = scrollRoot instanceof HTMLElement ? scrollRoot : null
+    const compactOffset = 96
+    const updateCompactState = () => {
+      const scrollTop = scrollElement ? scrollElement.scrollTop : window.scrollY
+      setIsCompact(scrollTop > compactOffset)
+    }
+
+    updateCompactState()
+
+    if (scrollElement) {
+      scrollElement.addEventListener("scroll", updateCompactState, { passive: true })
+      return () => scrollElement.removeEventListener("scroll", updateCompactState)
+    }
+
+    window.addEventListener("scroll", updateCompactState, { passive: true })
+    return () => window.removeEventListener("scroll", updateCompactState)
+  }, [])
+
   return (
     <div
       data-anatomy-browser-frame
@@ -39,7 +61,8 @@ export function AnatomyBrowserStickyFrame({ toolbar, children }: AnatomyBrowserS
       <div
         ref={toolbarRef}
         data-anatomy-browser-toolbar
-        className="sticky top-0 z-40 -mx-1 space-y-4 rounded-md border border-border/80 bg-card p-3 shadow-lg shadow-black/25"
+        data-compact={isCompact}
+        className="group/anatomy-toolbar sticky top-0 z-40 mx-0 space-y-2 rounded-md border border-border/80 bg-card p-1 shadow-lg shadow-black/25 transition-all sm:-mx-1 sm:space-y-4 sm:p-3"
       >
         {toolbar}
       </div>
