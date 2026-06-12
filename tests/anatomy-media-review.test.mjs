@@ -6,6 +6,7 @@ import {
   bodyParts3dAdminStoragePath,
   bodyParts3dComposerUrl,
   bodyParts3dImageUrl,
+  bodyParts3dSourceDescriptor,
   bodyParts3dView,
   normalizeAnatomyMediaRole,
   normalizeBodyParts3dPartIds,
@@ -64,6 +65,7 @@ describe("Anatomy media review helpers", () => {
     const mapConfig = composer.searchParams.get("tp_ap") ?? ""
     const convertedUrl = safeBodyParts3dRenderableImageUrl(composerUrl)
     const convertedConfig = JSON.parse(decodeURIComponent(convertedUrl.split("?")[1]))
+    const descriptor = bodyParts3dSourceDescriptor(composerUrl)
 
     assert.equal(composer.origin, "https://lifesciencedb.jp")
     assert.equal(composer.pathname, "/bp3d/")
@@ -73,6 +75,43 @@ describe("Anatomy media review helpers", () => {
     assert.equal(convertedConfig.Common.TreeName, "isa")
     assert.equal(convertedConfig.Window.ImageWidth, 700)
     assert.equal(convertedConfig.Part.some((part) => part.PartID === "FMA37451" && part.PartColor === "D83A3A"), true)
+    assert.deepEqual(descriptor?.partIds, ["FMA37451"])
+    assert.equal(descriptor?.treeName, "isa")
+    assert.equal(descriptor?.cameraMode, null)
+    assert.equal(descriptor?.cameraParameters, null)
+    assert.equal(descriptor?.sourceUrl, convertedUrl)
+    assert.match(descriptor?.sourceKey ?? "", /^src-/)
+  })
+
+  it("parses BodyParts3D image source descriptors for import identity checks", () => {
+    const url = bodyParts3dImageUrl({ partIds: ["FMA37670"], view: "posterior", treeName: "partof" })
+    const descriptor = bodyParts3dSourceDescriptor(url)
+    const customComposerUrl = new URL(bodyParts3dComposerUrl({ partIds: ["FMA37670"], treeName: "partof" }))
+    const customMapConfig = new URLSearchParams(customComposerUrl.searchParams.get("tp_ap") ?? "")
+    customMapConfig.set("cx", "1")
+    customMapConfig.set("cy", "2")
+    customMapConfig.set("cz", "3")
+    customMapConfig.set("tx", "4")
+    customMapConfig.set("ty", "5")
+    customMapConfig.set("tz", "6")
+    customComposerUrl.searchParams.set("tp_ap", customMapConfig.toString())
+    const customDescriptor = bodyParts3dSourceDescriptor(customComposerUrl.toString())
+
+    assert.deepEqual(descriptor?.partIds, ["FMA37670"])
+    assert.equal(descriptor?.treeName, "partof")
+    assert.equal(descriptor?.cameraMode, "back")
+    assert.equal(descriptor?.cameraParameters, null)
+    assert.deepEqual(customDescriptor?.partIds, ["FMA37670"])
+    assert.equal(customDescriptor?.treeName, "partof")
+    assert.equal(customDescriptor?.cameraMode, null)
+    assert.deepEqual(customDescriptor?.cameraParameters, {
+      CameraX: 1,
+      CameraY: 2,
+      CameraZ: 3,
+      TargetX: 4,
+      TargetY: 5,
+      TargetZ: 6,
+    })
   })
 
   it("keeps BodyParts3D admin asset identity stable by tree and canonical part ids", () => {
@@ -110,6 +149,17 @@ describe("Anatomy media review helpers", () => {
         assetSlug: partofSlug,
       }),
       `anatomy/bodyparts3d/admin/muscle/biceps-brachii/partof/anterior/${partofSlug}.png`,
+    )
+    assert.match(
+      bodyParts3dAdminAssetSlug({
+        entityType: "muscle",
+        entitySlug: "biceps-brachii",
+        treeName: "partof",
+        viewSlug: "anterior",
+        partIds: ["FMA37670", "FMA37671"],
+        sourceKey: "src-custom",
+      }),
+      /src-custom-anatomogram$/,
     )
   })
 })

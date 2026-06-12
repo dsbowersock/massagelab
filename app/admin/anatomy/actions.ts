@@ -17,11 +17,13 @@ import {
   bodyParts3dAdminAssetSlug,
   bodyParts3dAdminStoragePath,
   bodyParts3dImageUrl,
+  bodyParts3dSourceDescriptor,
   bodyParts3dView,
   normalizeAnatomyMediaRole,
   normalizeBodyParts3dPartIds,
-  safeBodyParts3dRenderableImageUrl,
+  type BodyParts3dSourceDescriptor,
   type BodyParts3dTreeName,
+  type BodyParts3dView,
 } from "@/lib/anatomy-media-review"
 import { uploadAnatomyMediaToR2 } from "@/lib/anatomy-media-review-server"
 import type { AccountRole, AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
@@ -104,15 +106,51 @@ function titleFromSlug(value: string) {
     .join(" ")
 }
 
-function bodyParts3dSourceUrl(formData: FormData, partIds: string[], viewSlug: string, treeName: BodyParts3dTreeName) {
-  const overrideUrl = safeBodyParts3dRenderableImageUrl(formString(formData, "source_url"))
-  if (overrideUrl) return overrideUrl
+type BodyParts3dImportSource = {
+  sourceUrl: string
+  sourceKey?: string
+  cameraMode: BodyParts3dSourceDescriptor["cameraMode"]
+  cameraParameters: BodyParts3dSourceDescriptor["cameraParameters"]
+}
 
-  return bodyParts3dImageUrl({
-    partIds,
-    view: bodyParts3dView(viewSlug),
-    treeName,
-  })
+function bodyParts3dImportSource(formData: FormData, partIds: string[], view: BodyParts3dView, treeName: BodyParts3dTreeName): BodyParts3dImportSource {
+  const defaultSourceUrl = bodyParts3dImageUrl({ partIds, view, treeName })
+  const overrideInput = formString(formData, "source_url")
+  if (!overrideInput) {
+    return {
+      sourceUrl: defaultSourceUrl,
+      cameraMode: view.cameraMode,
+      cameraParameters: null,
+    }
+  }
+
+  const override = bodyParts3dSourceDescriptor(overrideInput)
+  if (!override) {
+    throw new Error("Custom BodyParts3D URL must be a parsable BodyParts3D image or composer URL.")
+  }
+  if (!sameBodyParts3dPartIds(override.partIds, partIds) || override.treeName !== treeName) {
+    throw new Error("Custom BodyParts3D URL parts and tree must match the selected import fields.")
+  }
+  if (override.cameraMode && override.cameraMode !== view.cameraMode) {
+    throw new Error("Custom BodyParts3D URL camera orientation must match the selected preset view.")
+  }
+  if (!override.cameraMode && !override.cameraParameters) {
+    throw new Error("Custom BodyParts3D URL must include camera details. Use the generated image URL or paste an adjusted composer URL.")
+  }
+
+  return {
+    sourceUrl: override.sourceUrl,
+    sourceKey: override.sourceUrl === defaultSourceUrl ? undefined : override.sourceKey,
+    cameraMode: override.cameraMode,
+    cameraParameters: override.cameraParameters,
+  }
+}
+
+function sameBodyParts3dPartIds(left: readonly string[], right: readonly string[]) {
+  const leftKey = normalizeBodyParts3dPartIds(left).sort().join("|")
+  const rightKey = normalizeBodyParts3dPartIds(right).sort().join("|")
+
+  return leftKey === rightKey
 }
 
 async function requireEditor() {
@@ -255,14 +293,16 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
     throw new Error("BodyParts3D source row is required before importing media.")
   }
 
+  const importSource = bodyParts3dImportSource(formData, partIds, view, treeName)
   const assetSlug = bodyParts3dAdminAssetSlug({
     entityType: selectedEntity.entityType,
     entitySlug: selectedEntity.entitySlug,
     treeName,
     viewSlug: view.slug,
     partIds,
+    sourceKey: importSource.sourceKey,
   })
-  const sourceUrl = bodyParts3dSourceUrl(formData, partIds, view.slug, treeName)
+  const sourceUrl = importSource.sourceUrl
   const storagePath = bodyParts3dAdminStoragePath({
     entityType: selectedEntity.entityType,
     entitySlug: selectedEntity.entitySlug,
@@ -279,7 +319,9 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
     bodyparts3dTreeName: treeName,
     bodyparts3dView: view.slug,
     bodyparts3dViewTitle: view.title,
-    bodyparts3dCameraMode: view.cameraMode,
+    bodyparts3dCameraMode: importSource.cameraMode ?? "custom",
+    ...(importSource.cameraParameters ? { bodyparts3dCameraParameters: importSource.cameraParameters } : {}),
+    ...(importSource.sourceKey ? { bodyparts3dSourceKey: importSource.sourceKey } : {}),
     bodyparts3dSourceUrl: sourceUrl,
     visualStyle: "3d-anatomogram-render",
     anatomogramVersion: "4.1",

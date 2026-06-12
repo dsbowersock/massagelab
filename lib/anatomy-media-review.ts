@@ -3,11 +3,21 @@ import type { AnatomyMediaReviewStatus } from "./domain-types"
 
 export type BodyParts3dViewSlug = "anterior" | "posterior" | "left-lateral" | "right-lateral" | "superior" | "inferior" | "transverse"
 export type BodyParts3dTreeName = "isa" | "partof"
+export type BodyParts3dCameraMode = "front" | "back" | "left" | "right" | "top" | "bottom"
 
 export type BodyParts3dView = {
   slug: BodyParts3dViewSlug
   title: string
-  cameraMode: "front" | "back" | "left" | "right" | "top" | "bottom"
+  cameraMode: BodyParts3dCameraMode
+}
+
+export type BodyParts3dSourceDescriptor = {
+  sourceUrl: string
+  partIds: string[]
+  treeName: BodyParts3dTreeName
+  cameraMode: BodyParts3dCameraMode | null
+  cameraParameters: Record<string, number> | null
+  sourceKey: string
 }
 
 export const ANATOMY_MEDIA_REVIEW_STATUSES: AnatomyMediaReviewStatus[] = ["APPROVED", "NEEDS_REVIEW", "REJECTED"]
@@ -79,6 +89,20 @@ export function safeBodyParts3dRenderableImageUrl(value: string | null | undefin
   if (imageUrl) return imageUrl
 
   return bodyParts3dImageUrlFromComposerUrl(value)
+}
+
+export function bodyParts3dSourceDescriptor(value: string | null | undefined): BodyParts3dSourceDescriptor | null {
+  const imageUrl = safeBodyParts3dImageUrl(value)
+  if (imageUrl) {
+    const imageConfig = bodyParts3dImageConfigFromApiUrl(imageUrl)
+    return imageConfig ? bodyParts3dSourceDescriptorFromConfig(imageUrl, imageConfig) : null
+  }
+
+  const composerConfig = bodyParts3dImageConfigFromComposerUrl(value)
+  if (!composerConfig) return null
+
+  const sourceUrl = bodyParts3dImageUrlFromConfig(composerConfig)
+  return bodyParts3dSourceDescriptorFromConfig(sourceUrl, composerConfig)
 }
 
 export function bodyParts3dComposerUrl({
@@ -163,25 +187,46 @@ export function bodyParts3dImageUrl({
 }
 
 function bodyParts3dImageUrlFromComposerUrl(value: string | null | undefined) {
+  const config = bodyParts3dImageConfigFromComposerUrl(value)
+
+  return config ? bodyParts3dImageUrlFromConfig(config) : ""
+}
+
+function bodyParts3dImageConfigFromApiUrl(value: string | null | undefined) {
+  try {
+    const imageUrl = safeBodyParts3dImageUrl(value)
+    if (!imageUrl) return null
+
+    const url = new URL(imageUrl)
+    const config = JSON.parse(decodeURIComponent(url.search.slice(1)))
+
+    return bodyParts3dRecord(config)
+  } catch {
+    return null
+  }
+}
+
+function bodyParts3dImageConfigFromComposerUrl(value: string | null | undefined) {
   const trimmed = value?.trim()
-  if (!trimmed) return ""
+  if (!trimmed) return null
 
   try {
     const url = new URL(trimmed)
-    if (url.protocol !== "https:") return ""
-    if (url.hostname !== "lifesciencedb.jp") return ""
-    if (!["/bp3d", "/bp3d/", "/bp3d/index.html", "/bp3d/location.html"].includes(url.pathname)) return ""
+    if (url.protocol !== "https:") return null
+    if (url.hostname !== "lifesciencedb.jp") return null
+    if (!["/bp3d", "/bp3d/", "/bp3d/index.html", "/bp3d/location.html"].includes(url.pathname)) return null
 
     const mapConfig = url.searchParams.get("tp_ap")
-    if (!mapConfig) return ""
+    if (!mapConfig) return null
 
-    const config = bodyParts3dImageConfigFromMapParams(new URLSearchParams(mapConfig))
-    if (!config) return ""
-
-    return `${BODYPARTS3D_IMAGE_API_URL}?${encodeURIComponent(JSON.stringify(config))}`
+    return bodyParts3dImageConfigFromMapParams(new URLSearchParams(mapConfig))
   } catch {
-    return ""
+    return null
   }
+}
+
+function bodyParts3dImageUrlFromConfig(config: Record<string, unknown>) {
+  return `${BODYPARTS3D_IMAGE_API_URL}?${encodeURIComponent(JSON.stringify(config))}`
 }
 
 function bodyParts3dImageConfigFromMapParams(mapParams: URLSearchParams) {
@@ -265,6 +310,91 @@ function bodyParts3dCameraFromMapParams(mapParams: URLSearchParams) {
   return Object.keys(camera).length > 0 ? camera : null
 }
 
+function bodyParts3dSourceDescriptorFromConfig(sourceUrl: string, config: Record<string, unknown>): BodyParts3dSourceDescriptor | null {
+  const common = bodyParts3dRecord(config.Common)
+  const camera = bodyParts3dRecord(config.Camera)
+  const partRows = Array.isArray(config.Part) ? config.Part.map((part) => bodyParts3dRecord(part)) : []
+  const partIds = normalizeBodyParts3dPartIds(partRows.map((part) => bodyParts3dString(part.PartID)))
+    .filter((partId) => partId !== BODYPARTS3D_SKELETON_BACKGROUND_ID)
+  const treeName = common.TreeName === "partof" ? "partof" : "isa"
+  const cameraMode = bodyParts3dCameraMode(camera.CameraMode)
+  const cameraParameters = bodyParts3dCameraParameters(camera)
+
+  if (partIds.length === 0) return null
+
+  return {
+    sourceUrl,
+    partIds,
+    treeName,
+    cameraMode,
+    cameraParameters,
+    sourceKey: bodyParts3dSourceKey({ partIds, treeName, cameraMode, cameraParameters }),
+  }
+}
+
+function bodyParts3dSourceKey({
+  partIds,
+  treeName,
+  cameraMode,
+  cameraParameters,
+}: {
+  partIds: readonly string[]
+  treeName: BodyParts3dTreeName
+  cameraMode: BodyParts3dCameraMode | null
+  cameraParameters: Record<string, number> | null
+}) {
+  const payload = JSON.stringify({
+    partIds: [...partIds].sort(),
+    treeName,
+    cameraMode,
+    cameraParameters,
+  })
+  let hash = 2166136261
+
+  for (let index = 0; index < payload.length; index += 1) {
+    hash ^= payload.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return `src-${(hash >>> 0).toString(36)}`
+}
+
+function bodyParts3dCameraMode(value: unknown): BodyParts3dCameraMode | null {
+  return value === "front" ||
+    value === "back" ||
+    value === "left" ||
+    value === "right" ||
+    value === "top" ||
+    value === "bottom"
+    ? value
+    : null
+}
+
+function bodyParts3dCameraParameters(camera: Record<string, unknown>) {
+  const parameterKeys = [
+    "CameraX",
+    "CameraY",
+    "CameraZ",
+    "TargetX",
+    "TargetY",
+    "TargetZ",
+    "CameraUpVectorX",
+    "CameraUpVectorY",
+    "CameraUpVectorZ",
+    "Zoom",
+  ]
+  const parameters: Record<string, number> = {}
+
+  for (const key of parameterKeys) {
+    const value = bodyParts3dNumber(bodyParts3dString(camera[key]))
+    if (Number.isFinite(value)) {
+      parameters[key] = value
+    }
+  }
+
+  return Object.keys(parameters).length > 0 ? parameters : null
+}
+
 function bodyParts3dImageSize(value: string | number | null | undefined) {
   const numericValue = Number(value)
   const size = Number.isFinite(numericValue) ? numericValue : 700
@@ -283,6 +413,14 @@ function normalizedBodyParts3dColor(value: string | null | undefined) {
   const color = value?.trim().replace(/^#/, "").toUpperCase()
 
   return color && /^[0-9A-F]{6}$/.test(color) ? color : ""
+}
+
+function bodyParts3dRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function bodyParts3dString(value: unknown) {
+  return value === null || value === undefined ? "" : String(value)
 }
 
 export function anatomyMediaReviewKey({
@@ -317,16 +455,19 @@ export function bodyParts3dAdminAssetSlug({
   treeName,
   viewSlug,
   partIds,
+  sourceKey,
 }: {
   entityType: AnatomyEntityType | string
   entitySlug: string
   treeName: BodyParts3dTreeName
   viewSlug: BodyParts3dViewSlug
   partIds: readonly string[]
+  sourceKey?: string
 }) {
   const partKey = normalizeBodyParts3dPartIds(partIds).sort().join("-").toLowerCase()
+  const sourceKeySuffix = sourceKey ? `-${slugify(sourceKey)}` : ""
 
-  return slugify(`bodyparts3d-admin-${entityType}-${entitySlug}-${treeName}-${viewSlug}-${partKey}-anatomogram`)
+  return slugify(`bodyparts3d-admin-${entityType}-${entitySlug}-${treeName}-${viewSlug}-${partKey}${sourceKeySuffix}-anatomogram`)
 }
 
 export function bodyParts3dAdminStoragePath({

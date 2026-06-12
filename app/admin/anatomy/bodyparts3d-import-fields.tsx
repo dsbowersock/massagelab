@@ -39,6 +39,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
       ? bodyParts3dImageUrl({ partIds: normalizedPartIds, treeName, view })
       : ""
   ), [normalizedPartIds, treeName, view])
+  // Composer map URLs seed the item parts/tree; the generated image URL carries the selected preset camera.
   const composerUrl = useMemo(() => (
     normalizedPartIds.length > 0
       ? bodyParts3dComposerUrl({ partIds: normalizedPartIds, treeName })
@@ -47,7 +48,6 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
   const safeOverrideUrl = useMemo(() => safeBodyParts3dRenderableImageUrl(sourceUrl), [sourceUrl])
   const invalidOverrideUrl = sourceUrl.trim().length > 0 && !safeOverrideUrl
   const previewUrl = safeOverrideUrl || generatedPreviewUrl
-  const selectedViewTitle = BODYPARTS3D_VIEWS.find((viewOption) => viewOption.slug === view)?.title ?? "selected view"
 
   useEffect(() => {
     return () => {
@@ -176,7 +176,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
             {copied ? "Copied URL" : "Copy generated image URL"}
           </Button>
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            The composer opens the item parts for editing. The generated image is what imports now for {selectedViewTitle}.
+            The composer opens the item parts for editing. The generated image is the current preset preview.
           </p>
         </div>
       ) : null}
