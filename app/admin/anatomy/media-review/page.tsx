@@ -318,7 +318,7 @@ function ImageReviewCard({
 function QuickApproveForm({ row, selectedStatus, offset }: { row: MediaQueueRow; selectedStatus: QueueStatusOption; offset: number }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction}>
-      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={selectedStatus.key === "all" ? offset + 1 : offset} reviewStatus="APPROVED" />
+      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={queueOffsetAfterDecision(selectedStatus, offset, "APPROVED")} reviewStatus="APPROVED" />
       <Button type="submit" className="h-12 w-full text-base">Approve image</Button>
     </form>
   )
@@ -337,7 +337,7 @@ function NeedsBetterViewForm({
 }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction} className={`${appInsetClassName} space-y-3 p-3`}>
-      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={offset + 1} reviewStatus="NEEDS_REVIEW" />
+      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={queueOffsetAfterDecision(selectedStatus, offset, "NEEDS_REVIEW")} reviewStatus="NEEDS_REVIEW" />
       <input type="hidden" name="create_view_request" value="1" />
       <div className="grid gap-3 sm:grid-cols-2">
         <SelectField
@@ -381,7 +381,7 @@ function NeedsBetterViewForm({
 function RejectImageForm({ row, selectedStatus, offset }: { row: MediaQueueRow; selectedStatus: QueueStatusOption; offset: number }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction} className={`${appInsetClassName} space-y-3 p-3`}>
-      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={selectedStatus.key === "all" ? offset + 1 : offset} reviewStatus="REJECTED" />
+      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={queueOffsetAfterDecision(selectedStatus, offset, "REJECTED")} reviewStatus="REJECTED" />
       <SelectField
         id={`reject-reason-${row.id}`}
         name="review_reason"
@@ -396,6 +396,16 @@ function RejectImageForm({ row, selectedStatus, offset }: { row: MediaQueueRow; 
       <Button type="submit" variant="destructive" className="h-12 w-full text-base">Reject image</Button>
     </form>
   )
+}
+
+/**
+ * Advances after a decision only when the reviewed row remains visible in the
+ * active queue; otherwise the next row shifts into the current offset.
+ */
+function queueOffsetAfterDecision(selectedStatus: QueueStatusOption, offset: number, nextReviewStatus: AnatomyMediaReviewStatus) {
+  const rowRemainsInCurrentQueue = selectedStatus.key === "all" || selectedStatus.reviewStatus === nextReviewStatus
+
+  return rowRemainsInCurrentQueue ? offset + 1 : offset
 }
 
 function BaseDecisionFields({
