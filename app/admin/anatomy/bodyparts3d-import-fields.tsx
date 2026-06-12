@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Check, Copy, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +32,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
   const [view, setView] = useState<BodyParts3dViewSlug>("anterior")
   const [sourceUrl, setSourceUrl] = useState("")
   const [copied, setCopied] = useState(false)
+  const copyResetTimeoutRef = useRef<number | null>(null)
   const normalizedPartIds = useMemo(() => normalizeBodyParts3dPartIds(partIds), [partIds])
   const generatedPreviewUrl = useMemo(() => (
     normalizedPartIds.length > 0
@@ -48,14 +49,32 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
   const previewUrl = safeOverrideUrl || generatedPreviewUrl
   const selectedViewTitle = BODYPARTS3D_VIEWS.find((viewOption) => viewOption.slug === view)?.title ?? "selected view"
 
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current)
+      }
+    }
+  }, [])
+
   async function copyPreviewUrl() {
     if (!previewUrl || typeof navigator === "undefined" || !navigator.clipboard) return
 
     try {
       await navigator.clipboard.writeText(previewUrl)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current)
+      }
+      copyResetTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false)
+        copyResetTimeoutRef.current = null
+      }, 1500)
     } catch {
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current)
+        copyResetTimeoutRef.current = null
+      }
       setCopied(false)
     }
   }
@@ -100,7 +119,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          Superior, inferior, and transverse are starting views for top, bottom, and cross-section-like review. Paste a custom URL when BodyParts3D gives you a better exact angle.
+          Superior and inferior use top and bottom orientations. Transverse is an approximation using the top orientation; paste a custom URL when BodyParts3D gives you a better exact angle.
         </p>
       </div>
 

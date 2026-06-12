@@ -37,6 +37,7 @@ export const BODYPARTS3D_VIEWS: BodyParts3dView[] = [
   { slug: "right-lateral", title: "Right Lateral View", cameraMode: "right" },
   { slug: "superior", title: "Superior View", cameraMode: "top" },
   { slug: "inferior", title: "Inferior View", cameraMode: "bottom" },
+  // BodyParts3D has no native transverse slice preset; top is the closest starting orientation.
   { slug: "transverse", title: "Transverse View", cameraMode: "top" },
 ]
 
