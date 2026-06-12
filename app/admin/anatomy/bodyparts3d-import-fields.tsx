@@ -39,7 +39,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
       ? bodyParts3dImageUrl({ partIds: normalizedPartIds, treeName, view })
       : ""
   ), [normalizedPartIds, treeName, view])
-  // Composer map URLs seed the item parts/tree; the generated image URL carries the selected preset camera.
+  // BodyParts3D composer map URLs seed the item parts/tree. The generated image URL carries the selected preset camera.
   const composerUrl = useMemo(() => (
     normalizedPartIds.length > 0
       ? bodyParts3dComposerUrl({ partIds: normalizedPartIds, treeName })
@@ -84,7 +84,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
       <div className="rounded-md border border-border/80 bg-muted/30 p-3 text-xs text-muted-foreground">
         <p className="font-medium text-foreground">Fast path</p>
         <p>Select a view shortcut and check the preview. If it is the image you want, leave the custom URL blank and click Import and Link View.</p>
-        <p className="mt-2">Open the BodyParts3D composer when you need to change angle, zoom, or framing. Paste the composer URL here and MassageLab will convert it into the image URL used for import.</p>
+        <p className="mt-2">Open the BodyParts3D parts composer when you need custom angle, zoom, or framing. It starts from the item parts and tree; rotate or zoom there, then paste the composer URL here.</p>
       </div>
 
       <div className="space-y-2">
@@ -161,7 +161,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
             <Button asChild type="button" variant="outline" size="sm">
               <a href={composerUrl} target="_blank" rel="noreferrer">
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                Open BodyParts3D composer
+                Open BodyParts3D parts composer
               </a>
             </Button>
           ) : null}
@@ -176,7 +176,7 @@ export function BodyParts3dImportFields({ initialPartIds = "" }: { initialPartId
             {copied ? "Copied URL" : "Copy generated image URL"}
           </Button>
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            The composer opens the item parts for editing. The generated image is the current preset preview.
+            The composer opens the item parts and tree for editing. The generated image is the current preset preview.
           </p>
         </div>
       ) : null}

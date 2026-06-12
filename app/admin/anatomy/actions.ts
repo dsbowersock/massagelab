@@ -109,16 +109,21 @@ function titleFromSlug(value: string) {
 type BodyParts3dImportSource = {
   sourceUrl: string
   sourceKey?: string
+  imageWidth: number
+  imageHeight: number
   cameraMode: BodyParts3dSourceDescriptor["cameraMode"]
   cameraParameters: BodyParts3dSourceDescriptor["cameraParameters"]
 }
 
 function bodyParts3dImportSource(formData: FormData, partIds: string[], view: BodyParts3dView, treeName: BodyParts3dTreeName): BodyParts3dImportSource {
   const defaultSourceUrl = bodyParts3dImageUrl({ partIds, view, treeName })
+  const defaultSource = bodyParts3dSourceDescriptor(defaultSourceUrl)
   const overrideInput = formString(formData, "source_url")
   if (!overrideInput) {
     return {
       sourceUrl: defaultSourceUrl,
+      imageWidth: defaultSource?.imageWidth ?? 700,
+      imageHeight: defaultSource?.imageHeight ?? 700,
       cameraMode: view.cameraMode,
       cameraParameters: null,
     }
@@ -141,6 +146,8 @@ function bodyParts3dImportSource(formData: FormData, partIds: string[], view: Bo
   return {
     sourceUrl: override.sourceUrl,
     sourceKey: override.sourceUrl === defaultSourceUrl ? undefined : override.sourceKey,
+    imageWidth: override.imageWidth,
+    imageHeight: override.imageHeight,
     cameraMode: override.cameraMode,
     cameraParameters: override.cameraParameters,
   }
@@ -319,6 +326,8 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
     bodyparts3dTreeName: treeName,
     bodyparts3dView: view.slug,
     bodyparts3dViewTitle: view.title,
+    bodyparts3dImageWidth: importSource.imageWidth,
+    bodyparts3dImageHeight: importSource.imageHeight,
     bodyparts3dCameraMode: importSource.cameraMode ?? "custom",
     ...(importSource.cameraParameters ? { bodyparts3dCameraParameters: importSource.cameraParameters } : {}),
     ...(importSource.sourceKey ? { bodyparts3dSourceKey: importSource.sourceKey } : {}),
@@ -350,8 +359,8 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
         attribution: BODYPARTS3D_ATTRIBUTION,
         usageScope: "OPEN_REUSE",
         reviewStatus: "REVIEWED",
-        width: 700,
-        height: 700,
+        width: importSource.imageWidth,
+        height: importSource.imageHeight,
         format: "png",
         metadata: mediaMetadata,
       },
@@ -367,8 +376,8 @@ export async function importBodyParts3dMediaAction(formData: FormData) {
         attribution: BODYPARTS3D_ATTRIBUTION,
         usageScope: "OPEN_REUSE",
         reviewStatus: "REVIEWED",
-        width: 700,
-        height: 700,
+        width: importSource.imageWidth,
+        height: importSource.imageHeight,
         format: "png",
         metadata: mediaMetadata,
       },

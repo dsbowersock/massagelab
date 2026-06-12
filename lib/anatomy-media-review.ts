@@ -15,6 +15,8 @@ export type BodyParts3dSourceDescriptor = {
   sourceUrl: string
   partIds: string[]
   treeName: BodyParts3dTreeName
+  imageWidth: number
+  imageHeight: number
   cameraMode: BodyParts3dCameraMode | null
   cameraParameters: Record<string, number> | null
   sourceKey: string
@@ -240,8 +242,8 @@ function bodyParts3dImageConfigFromMapParams(mapParams: URLSearchParams) {
       TreeName: mapParams.get("tn") === "partof" ? "partof" : "isa",
     },
     Window: {
-      ImageWidth: bodyParts3dImageSize(mapParams.get("iw")),
-      ImageHeight: bodyParts3dImageSize(mapParams.get("ih")),
+      ImageWidth: bodyParts3dImageSize(mapParams.get("iw"), 500),
+      ImageHeight: bodyParts3dImageSize(mapParams.get("ih"), 500),
     },
     Part: parts,
   }
@@ -312,11 +314,14 @@ function bodyParts3dCameraFromMapParams(mapParams: URLSearchParams) {
 
 function bodyParts3dSourceDescriptorFromConfig(sourceUrl: string, config: Record<string, unknown>): BodyParts3dSourceDescriptor | null {
   const common = bodyParts3dRecord(config.Common)
+  const windowConfig = bodyParts3dRecord(config.Window)
   const camera = bodyParts3dRecord(config.Camera)
   const partRows = Array.isArray(config.Part) ? config.Part.map((part) => bodyParts3dRecord(part)) : []
   const partIds = normalizeBodyParts3dPartIds(partRows.map((part) => bodyParts3dString(part.PartID)))
     .filter((partId) => partId !== BODYPARTS3D_SKELETON_BACKGROUND_ID)
   const treeName = common.TreeName === "partof" ? "partof" : "isa"
+  const imageWidth = bodyParts3dImageSize(bodyParts3dString(windowConfig.ImageWidth), 500)
+  const imageHeight = bodyParts3dImageSize(bodyParts3dString(windowConfig.ImageHeight), 500)
   const cameraMode = bodyParts3dCameraMode(camera.CameraMode)
   const cameraParameters = bodyParts3dCameraParameters(camera)
 
@@ -326,26 +331,34 @@ function bodyParts3dSourceDescriptorFromConfig(sourceUrl: string, config: Record
     sourceUrl,
     partIds,
     treeName,
+    imageWidth,
+    imageHeight,
     cameraMode,
     cameraParameters,
-    sourceKey: bodyParts3dSourceKey({ partIds, treeName, cameraMode, cameraParameters }),
+    sourceKey: bodyParts3dSourceKey({ partIds, treeName, imageWidth, imageHeight, cameraMode, cameraParameters }),
   }
 }
 
 function bodyParts3dSourceKey({
   partIds,
   treeName,
+  imageWidth,
+  imageHeight,
   cameraMode,
   cameraParameters,
 }: {
   partIds: readonly string[]
   treeName: BodyParts3dTreeName
+  imageWidth: number
+  imageHeight: number
   cameraMode: BodyParts3dCameraMode | null
   cameraParameters: Record<string, number> | null
 }) {
   const payload = JSON.stringify({
     partIds: [...partIds].sort(),
     treeName,
+    imageWidth,
+    imageHeight,
     cameraMode,
     cameraParameters,
   })
@@ -395,9 +408,9 @@ function bodyParts3dCameraParameters(camera: Record<string, unknown>) {
   return Object.keys(parameters).length > 0 ? parameters : null
 }
 
-function bodyParts3dImageSize(value: string | number | null | undefined) {
+function bodyParts3dImageSize(value: string | number | null | undefined, fallback = 700) {
   const numericValue = Number(value)
-  const size = Number.isFinite(numericValue) ? numericValue : 700
+  const size = Number.isFinite(numericValue) ? numericValue : fallback
 
   return Math.min(Math.max(Math.trunc(size), 300), 1200)
 }
