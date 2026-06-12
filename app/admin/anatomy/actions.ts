@@ -47,6 +47,7 @@ const VALID_MEDIA_VIEW_REQUEST_STATUSES = new Set<string>(ANATOMY_MEDIA_VIEW_REQ
 const VALID_MEDIA_VIEW_REQUEST_VIEWS = new Set<string>(ANATOMY_MEDIA_VIEW_REQUEST_VIEWS)
 const VALID_MEDIA_ROLES = new Set(["PRIMARY", "REFERENCE", "REGION_CONTEXT", "GAME_PROMPT", "CLIENT_EDUCATION"])
 const VALID_BODYPARTS3D_TREES = new Set(["isa", "partof"])
+const MEDIA_REVIEW_QUEUE_STATUSES = new Set(["needs-review", "rejected", "approved", "all"])
 const VALID_ENTITY_RELATIONSHIP_TYPES = new Set([
   "deep_to",
   "superficial_to",
@@ -91,6 +92,22 @@ function formNumber(formData: FormData, key: string, fallback: number) {
 
 function displayPriorityValue(formData: FormData) {
   return Math.max(0, Math.min(999, Math.trunc(formNumber(formData, "display_priority", 100))))
+}
+
+function mediaReviewQueueRedirectPath(formData: FormData) {
+  const status = formString(formData, "queue_status")
+  const offset = Math.max(0, Math.trunc(formNumber(formData, "queue_offset", 0)))
+  const params = new URLSearchParams()
+
+  if (MEDIA_REVIEW_QUEUE_STATUSES.has(status)) {
+    params.set("status", status)
+  }
+  if (offset > 0) {
+    params.set("offset", String(offset))
+  }
+
+  const query = params.toString()
+  return query ? `/admin/anatomy/media-review?${query}` : "/admin/anatomy/media-review"
 }
 
 function mediaRoleValue(value: string) {
@@ -503,6 +520,63 @@ export async function updateAnatomyMediaReviewAction(formData: FormData) {
   })
 
   revalidatePath("/admin/anatomy")
+}
+
+/**
+ * Handles the fast image-review queue decision path.
+ * The image approval state stays on AnatomyMediaEntity; optional replacement
+ * needs are recorded as AnatomyMediaViewRequest rows for the existing import flow.
+ */
+export async function reviewAnatomyMediaQueueDecisionAction(formData: FormData) {
+  const user = await requireEditor()
+  const id = formString(formData, "id")
+
+  if (!id) {
+    redirect(mediaReviewQueueRedirectPath(formData))
+  }
+
+  const reviewStatus = enumValue<AnatomyMediaReviewStatus>(
+    formString(formData, "review_status"),
+    VALID_MEDIA_REVIEW_STATUSES,
+    "NEEDS_REVIEW",
+  )
+  const reviewReason = reviewStatus === "APPROVED" ? null : mediaReviewReasonValue(formString(formData, "review_reason"))
+
+  const link = await prisma.anatomyMediaEntity.update({
+    where: { id },
+    data: {
+      reviewStatus,
+      reviewReason,
+      reviewNote: formString(formData, "review_note") || null,
+      notes: formString(formData, "notes") || null,
+      displayPriority: displayPriorityValue(formData),
+      reviewedById: user.id,
+      reviewedAt: new Date(),
+    },
+    select: {
+      entityType: true,
+      entitySlug: true,
+    },
+  })
+
+  if (reviewStatus !== "APPROVED" && formString(formData, "create_view_request") === "1") {
+    await prisma.anatomyMediaViewRequest.create({
+      data: {
+        entityType: link.entityType,
+        entitySlug: link.entitySlug,
+        requestedView: mediaViewRequestViewValue(formString(formData, "requested_view")),
+        reason: mediaViewRequestReasonValue(formString(formData, "request_reason")),
+        requestNote: formString(formData, "request_note") || formString(formData, "review_note") || null,
+        sourceUrl: null,
+        status: "OPEN",
+        createdById: user.id,
+      },
+    })
+  }
+
+  revalidatePath("/admin/anatomy")
+  revalidatePath("/admin/anatomy/media-review")
+  redirect(mediaReviewQueueRedirectPath(formData))
 }
 
 export async function linkAnatomyMediaAssetAction(formData: FormData) {

@@ -100,6 +100,14 @@ type AnatomyFoundationCount = {
   value: number
 }
 
+type AnatomyAdminDashboardMetrics = {
+  mediaLinksNeedingReview: number
+  rejectedMediaLinks: number
+  approvedMediaLinks: number
+  openMediaViewRequests: number
+  reviewedReusableAssets: number
+}
+
 type AnatomyQuickResult = {
   title: string
   description: string
@@ -196,7 +204,7 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
   const selectedView = browserViewFromParam(params?.view, quickQueryKey, searchQuery)
   const selectedEntity = parseAnatomyEntitySelection(params?.entityType, params?.entitySlug)
 
-  const [termRows, flagRows, foundationCounts, browserData, searchResults, quickResult, selectedEntityDetail] = await Promise.all([
+  const [termRows, flagRows, foundationCounts, dashboardMetrics, browserData, searchResults, quickResult, selectedEntityDetail] = await Promise.all([
     prisma.anatomyTerm.findMany({
       select: {
         id: true,
@@ -222,6 +230,7 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
       take: 20,
     }),
     getAnatomyFoundationCounts(),
+    getAnatomyAdminDashboardMetrics(),
     getAnatomyBrowserData(),
     searchQuery ? anatomyQueries.searchAnatomyEntities(searchQuery, 18) : Promise.resolve([]),
     getAnatomyQuickResult(quickQueryKey),
@@ -234,6 +243,7 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
 
   return (
     <AdminShell>
+      <AnatomyAdminDashboard metrics={dashboardMetrics} />
       <AnatomyDatabaseBrowser
         counts={foundationCounts}
         searchQuery={searchQuery}
@@ -248,6 +258,45 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
         flags={flags}
       />
     </AdminShell>
+  )
+}
+
+function AnatomyAdminDashboard({ metrics }: { metrics: AnatomyAdminDashboardMetrics }) {
+  return (
+    <Card className={appSurfaceClassName}>
+      <CardContent className="space-y-4 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Anatomy admin dashboard</h2>
+            <p className="text-sm text-muted-foreground">Start with the high-speed image queue, then use the browser below for detailed data edits.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/admin/anatomy/media-review">Review images</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/admin/anatomy?view=maintenance">Maintenance</Link>
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <DashboardMetric label="Needs review" value={metrics.mediaLinksNeedingReview} href="/admin/anatomy/media-review?status=needs-review" />
+          <DashboardMetric label="Rejected" value={metrics.rejectedMediaLinks} href="/admin/anatomy/media-review?status=rejected" />
+          <DashboardMetric label="Approved" value={metrics.approvedMediaLinks} href="/admin/anatomy/media-review?status=approved" />
+          <DashboardMetric label="Open requests" value={metrics.openMediaViewRequests} href="/admin/anatomy?view=maintenance" />
+          <DashboardMetric label="Reusable assets" value={metrics.reviewedReusableAssets} href="/admin/anatomy?view=queries&quick=has-open-media" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DashboardMetric({ label, value, href }: { label: string; value: number; href: string }) {
+  return (
+    <Link href={href} className={`${appInsetClassName} block p-3 transition hover:border-primary/60 hover:bg-accent`}>
+      <p className="text-xs uppercase tracking-normal text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold">{value.toLocaleString()}</p>
+    </Link>
   )
 }
 
@@ -2516,6 +2565,30 @@ async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
     { label: "Spatial maps", value: spatialEntityMaps },
     { label: "Movement visuals", value: movementVisualizations },
   ]
+}
+
+async function getAnatomyAdminDashboardMetrics(): Promise<AnatomyAdminDashboardMetrics> {
+  const [
+    mediaLinksNeedingReview,
+    rejectedMediaLinks,
+    approvedMediaLinks,
+    openMediaViewRequests,
+    reviewedReusableAssets,
+  ] = await Promise.all([
+    prisma.anatomyMediaEntity.count({ where: { reviewStatus: "NEEDS_REVIEW" } }),
+    prisma.anatomyMediaEntity.count({ where: { reviewStatus: "REJECTED" } }),
+    prisma.anatomyMediaEntity.count({ where: { reviewStatus: "APPROVED" } }),
+    prisma.anatomyMediaViewRequest.count({ where: { status: "OPEN" } }),
+    prisma.anatomyMediaAsset.count({ where: { usageScope: "OPEN_REUSE", reviewStatus: "REVIEWED" } }),
+  ])
+
+  return {
+    mediaLinksNeedingReview,
+    rejectedMediaLinks,
+    approvedMediaLinks,
+    openMediaViewRequests,
+    reviewedReusableAssets,
+  }
 }
 
 async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
