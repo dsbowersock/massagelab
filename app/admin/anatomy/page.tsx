@@ -2414,6 +2414,16 @@ function tissueTypeConfigForView(view: TissueTypeBrowserView) {
   return TISSUE_TYPE_CONFIGS.find((config) => config.view === view) ?? TISSUE_TYPE_CONFIGS[0]
 }
 
+/**
+ * Resolves browser row keys for a selected taxonomy bucket.
+ *
+ * bodySystemEntityKeys and tissueTypeEntityKeys pass their selected concept
+ * slugs plus the membership relationship they own. The returned Set contains
+ * entity keys that should remain in the current browser tab. Body-system tabs
+ * can also include direct concept-to-structure relationships so structure rows
+ * remain visible when connected through includes_structure instead of a
+ * membership row.
+ */
 function taxonomyEntityKeys(data: AnatomyBrowserData, conceptSlugs: readonly string[], membershipRelationshipType: "belongs_to_system" | "belongs_to_tissue_type", includeStructureRelationships = false) {
   const targetSlugs = new Set<string>(conceptSlugs)
   const keys = new Set<string>()
@@ -2875,7 +2885,7 @@ function mediaReviewRows(mediaRows: Record<string, unknown>[], selectedEntity: A
 function mediaPreviewUrl(asset: Record<string, unknown>) {
   if (!isImagePreviewAsset(asset)) return ""
 
-  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || mediaBodyParts3dSourceUrl(asset)
+  return mediaBodyParts3dSourceUrl(asset) || recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl")
 }
 
 function mediaBodyParts3dSourceUrl(asset: Record<string, unknown>) {
@@ -3364,9 +3374,12 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       include: { source: true },
       where: {
         sourceEntityType: { not: null },
+        relationshipType: {
+          notIn: ["belongs_to_system", "belongs_to_tissue_type", "includes_structure", "subsystem_of"],
+        },
       },
       orderBy: [{ sourceEntityType: "asc" }, { sourceEntitySlug: "asc" }, { relationshipType: "asc" }],
-      take: 160,
+      take: ANATOMY_DETAIL_LOOKUP_TAKE,
     }),
     prisma.anatomyRelationship.findMany({
       include: { source: true },

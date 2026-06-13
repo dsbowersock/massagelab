@@ -4308,6 +4308,7 @@ const TISSUE_TYPE_CONCEPT_SLUGS = [
   "muscle-tissue",
   "nervous-tissue",
 ] as const
+const TISSUE_TYPE_CONCEPT_SLUG_SET = new Set<string>(TISSUE_TYPE_CONCEPT_SLUGS)
 
 /**
  * Cross-system rows that should remain explicit because their names are not
@@ -4337,7 +4338,7 @@ function bodySystemConceptSlugsForValue(value: string | null | undefined) {
 }
 
 function addBodySystemMembership(
-  seed: AnatomyFoundationSeed,
+  validConceptSlugs: ReadonlySet<string>,
   relationships: AnatomyRelationship[],
   relationshipNaturalKeys: Set<string>,
   sourceEntityType: AnatomyEntityType,
@@ -4348,7 +4349,7 @@ function addBodySystemMembership(
 ) {
   for (const systemConceptSlug of uniqueStrings([...systemConceptSlugs])) {
     if (sourceEntityType === "anatomy_concept" && sourceEntitySlug === systemConceptSlug) continue
-    if (!entityExists(seed, "anatomy_concept", systemConceptSlug)) continue
+    if (!validConceptSlugs.has(systemConceptSlug)) continue
 
     addEnrichmentRelationship(
       relationships,
@@ -4365,7 +4366,7 @@ function addBodySystemMembership(
 }
 
 function addTissueTypeMembership(
-  seed: AnatomyFoundationSeed,
+  validConceptSlugs: ReadonlySet<string>,
   relationships: AnatomyRelationship[],
   relationshipNaturalKeys: Set<string>,
   sourceEntityType: AnatomyEntityType,
@@ -4375,9 +4376,9 @@ function addTissueTypeMembership(
   details?: Record<string, unknown>,
 ) {
   for (const tissueTypeConceptSlug of uniqueStrings([...tissueTypeConceptSlugs])) {
-    if (!TISSUE_TYPE_CONCEPT_SLUGS.includes(tissueTypeConceptSlug as (typeof TISSUE_TYPE_CONCEPT_SLUGS)[number])) continue
+    if (!TISSUE_TYPE_CONCEPT_SLUG_SET.has(tissueTypeConceptSlug)) continue
     if (sourceEntityType === "anatomy_concept" && sourceEntitySlug === tissueTypeConceptSlug) continue
-    if (!entityExists(seed, "anatomy_concept", tissueTypeConceptSlug)) continue
+    if (!validConceptSlugs.has(tissueTypeConceptSlug)) continue
 
     addEnrichmentRelationship(
       relationships,
@@ -4393,6 +4394,10 @@ function addTissueTypeMembership(
   }
 }
 
+/**
+ * Infers textbook body-system membership for structure rows whose seed source
+ * does not provide an explicit system relationship.
+ */
 function inferredStructureSystemConceptSlugs(structure: AnatomyStructure) {
   const structureType = normalizeText(structure.structureType)
   const name = normalizeText(structure.name)
@@ -4415,6 +4420,10 @@ function inferredStructureSystemConceptSlugs(structure: AnatomyStructure) {
   return []
 }
 
+/**
+ * Infers tissue-type memberships for anatomy structures from normalized type
+ * and name tokens, returning only the tissue concept slugs to attach.
+ */
 function inferredStructureTissueTypeConceptSlugs(structure: AnatomyStructure) {
   const structureType = normalizeText(structure.structureType)
   const name = normalizeText(structure.name)
@@ -4440,8 +4449,12 @@ function inferredStructureTissueTypeConceptSlugs(structure: AnatomyStructure) {
   return tissueTypes
 }
 
+/**
+ * Infers tissue-type memberships for non-tissue concepts so taxonomy browsing
+ * can group clinical concepts under their relevant tissue categories.
+ */
 function inferredConceptTissueTypeConceptSlugs(concept: AnatomyConcept) {
-  if (TISSUE_TYPE_CONCEPT_SLUGS.includes(concept.slug as (typeof TISSUE_TYPE_CONCEPT_SLUGS)[number])) return []
+  if (TISSUE_TYPE_CONCEPT_SLUG_SET.has(concept.slug)) return []
 
   const conceptType = normalizeText(concept.conceptType)
   const bodySystem = normalizeText(concept.bodySystem ?? "")
@@ -4480,6 +4493,7 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
   const relationshipEntityKeys = new Set<string>()
   const relationshipNaturalKeys = new Set(relationships.map(relationshipNaturalKey))
   const rangeMovementSlugs = new Set(rangesOfMotion.map((range) => range.movement))
+  const validConceptSlugs = new Set(seed.concepts.map((concept) => concept.slug))
 
   for (const relationship of relationships) {
     relationshipEntityKeys.add(`${relationship.sourceEntityType}:${relationship.sourceEntitySlug}`)
@@ -4670,7 +4684,7 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
 
   for (const concept of seed.concepts) {
     addBodySystemMembership(
-      seed,
+      validConceptSlugs,
       relationships,
       relationshipNaturalKeys,
       "anatomy_concept",
@@ -4680,7 +4694,7 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
       { source: "concept-body-system" },
     )
     addTissueTypeMembership(
-      seed,
+      validConceptSlugs,
       relationships,
       relationshipNaturalKeys,
       "anatomy_concept",
@@ -4692,7 +4706,7 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
   }
   for (const structure of seed.structures) {
     addBodySystemMembership(
-      seed,
+      validConceptSlugs,
       relationships,
       relationshipNaturalKeys,
       "anatomy_structure",
@@ -4706,7 +4720,7 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
       { source: "structure-system-inference", structureType: structure.structureType },
     )
     addTissueTypeMembership(
-      seed,
+      validConceptSlugs,
       relationships,
       relationshipNaturalKeys,
       "anatomy_structure",
@@ -4717,50 +4731,50 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
     )
   }
   for (const bone of seed.bones) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "bone", bone.slug, bone.sourceRef, ["skeletal-system"])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "bone", bone.slug, bone.sourceRef, ["connective-tissue"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "bone", bone.slug, bone.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "bone", bone.slug, bone.sourceRef, ["connective-tissue"])
   }
   for (const landmark of seed.boneLandmarks) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "bone_landmark", landmark.slug, landmark.sourceRef, ["skeletal-system"])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "bone_landmark", landmark.slug, landmark.sourceRef, ["connective-tissue"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "bone_landmark", landmark.slug, landmark.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "bone_landmark", landmark.slug, landmark.sourceRef, ["connective-tissue"])
   }
   for (const joint of seed.joints) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "joint", joint.slug, joint.sourceRef, ["skeletal-system"])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "joint", joint.slug, joint.sourceRef, ["connective-tissue"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "joint", joint.slug, joint.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "joint", joint.slug, joint.sourceRef, ["connective-tissue"])
   }
   for (const movement of seed.jointMovements) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "joint_movement", movement.slug, movement.sourceRef, ["skeletal-system"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "joint_movement", movement.slug, movement.sourceRef, ["skeletal-system"])
   }
   for (const rom of rangesOfMotion) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "range_of_motion", rom.slug, rom.sourceRef, ["skeletal-system"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "range_of_motion", rom.slug, rom.sourceRef, ["skeletal-system"])
   }
   for (const ligament of seed.ligaments) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "ligament", ligament.slug, ligament.sourceRef, ["skeletal-system"])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "ligament", ligament.slug, ligament.sourceRef, ["connective-tissue"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "ligament", ligament.slug, ligament.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "ligament", ligament.slug, ligament.sourceRef, ["connective-tissue"])
   }
   for (const muscle of seed.muscles) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle", muscle.slug, muscle.sourceRef, [
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "muscle", muscle.slug, muscle.sourceRef, [
       "muscular-system",
       ...(ADDITIONAL_MUSCLE_SYSTEM_CONCEPT_SLUGS[muscle.slug] ?? []),
     ])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "muscle", muscle.slug, muscle.sourceRef, ["muscle-tissue"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "muscle", muscle.slug, muscle.sourceRef, ["muscle-tissue"])
   }
   for (const attachment of seed.muscleAttachments) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle_attachment", attachment.id, attachment.sourceRef, ["muscular-system"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "muscle_attachment", attachment.id, attachment.sourceRef, ["muscular-system"])
   }
   for (const action of seed.muscleActions) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle_action", action.id, action.sourceRef, ["muscular-system"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "muscle_action", action.id, action.sourceRef, ["muscular-system"])
   }
   for (const nerve of seed.nerves) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "nerve", nerve.slug, nerve.sourceRef, ["nervous-system"])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "nerve", nerve.slug, nerve.sourceRef, ["nervous-tissue"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "nerve", nerve.slug, nerve.sourceRef, ["nervous-system"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "nerve", nerve.slug, nerve.sourceRef, ["nervous-tissue"])
   }
   for (const innervation of seed.muscleInnervations) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle_innervation", innervation.id, innervation.sourceRef, ["nervous-system", "muscular-system"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "muscle_innervation", innervation.id, innervation.sourceRef, ["nervous-system", "muscular-system"])
   }
   for (const vessel of seed.bloodSupply) {
-    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "blood_supply", vessel.slug, vessel.sourceRef, ["cardiovascular-system"])
-    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "blood_supply", vessel.slug, vessel.sourceRef, ["connective-tissue"])
+    addBodySystemMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "blood_supply", vessel.slug, vessel.sourceRef, ["cardiovascular-system"])
+    addTissueTypeMembership(validConceptSlugs, relationships, relationshipNaturalKeys, "blood_supply", vessel.slug, vessel.sourceRef, ["connective-tissue"])
   }
 
   return {

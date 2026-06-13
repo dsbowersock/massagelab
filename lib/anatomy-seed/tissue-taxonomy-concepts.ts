@@ -292,6 +292,14 @@ function conceptCitation(concept: ConceptSpec): AnatomyCitation {
   }
 }
 
+/**
+ * Builds concept-to-tissue membership rows for each declared tissue type slug.
+ *
+ * The tissue type slugs are curated in this seed file and expected to be valid
+ * tissue concepts. This helper maps them into stable AnatomyRelationship ids
+ * with details/sourceRef metadata and leaves deduplication to the seed assembly
+ * layer.
+ */
 function tissueTypeRelationships(concept: ConceptSpec): AnatomyRelationship[] {
   return concept.tissueTypeSlugs.map((tissueTypeSlug) => ({
     id: `relationship-tissue-taxonomy-${concept.slug}-belongs-to-${tissueTypeSlug}`,
