@@ -287,6 +287,16 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     return () => window.clearInterval(timer)
   }, [session?.phaseEndsAt])
 
+  useEffect(() => {
+    if (!lookupCode || !session?.phaseEndsAt) return
+    const delay = Math.max(500, new Date(session.phaseEndsAt).getTime() - Date.now() + 300)
+    const timer = window.setTimeout(() => {
+      void refreshSession()
+    }, delay)
+
+    return () => window.clearTimeout(timer)
+  }, [lookupCode, refreshSession, session?.phaseEndsAt])
+
   const joinGame = async () => {
     if (!lookupCode) {
       setLookupCode(code.trim().toUpperCase())
