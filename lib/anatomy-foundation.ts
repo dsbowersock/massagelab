@@ -2182,37 +2182,37 @@ const REQUIRED_GROSS_ANATOMY_SYSTEM_STRUCTURES = [
   {
     systemSlug: "cardiovascular",
     systemConceptSlug: "cardiovascular-system",
-    structureSlugs: ["heart", "pericardium", "myocardium", "endocardium", "heart-valve", "blood-vessel", "artery", "vein", "capillary"],
+    structureSlugs: ["heart", "pericardium", "myocardium", "endocardium", "heart-valve", "right-atrium", "right-ventricle", "left-atrium", "left-ventricle", "blood", "blood-vessel", "artery", "vein", "capillary"],
   },
   {
     systemSlug: "respiratory",
     systemConceptSlug: "respiratory-system",
-    structureSlugs: ["nasal-cavity", "pharynx", "larynx", "trachea", "bronchus", "lung", "alveolus", "pleura"],
+    structureSlugs: ["nasal-cavity", "pharynx", "larynx", "trachea", "bronchus", "bronchiole", "lung", "alveolus", "pleura"],
   },
   {
     systemSlug: "digestive",
     systemConceptSlug: "digestive-system",
-    structureSlugs: ["oral-cavity", "salivary-gland", "esophagus", "stomach", "small-intestine", "large-intestine", "liver", "gallbladder", "pancreas", "rectum", "anus"],
+    structureSlugs: ["oral-cavity", "salivary-gland", "esophagus", "stomach", "small-intestine", "duodenum", "jejunum", "ileum", "large-intestine", "cecum", "colon", "appendix", "liver", "gallbladder", "pancreas", "rectum", "anus"],
   },
   {
     systemSlug: "endocrine",
     systemConceptSlug: "endocrine-system",
-    structureSlugs: ["endocrine-gland", "pituitary-gland", "thyroid-gland", "parathyroid-gland", "adrenal-gland", "pancreatic-islet"],
+    structureSlugs: ["endocrine-gland", "hypothalamus", "pituitary-gland", "pineal-gland", "thyroid-gland", "parathyroid-gland", "adrenal-gland", "pancreatic-islet"],
   },
   {
-    systemSlug: "lymphatic-immune",
+    systemSlug: "lymphatic",
     systemConceptSlug: "lymphatic-system",
     structureSlugs: ["lymphatic-vessel", "lymphatic-capillary", "lymphatic-duct", "lymph-node", "spleen", "thymus", "tonsil", "bone-marrow"],
   },
   {
     systemSlug: "urinary",
     systemConceptSlug: "urinary-system",
-    structureSlugs: ["kidney", "renal-cortex", "renal-medulla", "nephron", "ureter", "urinary-bladder", "urethra"],
+    structureSlugs: ["kidney", "renal-cortex", "renal-medulla", "nephron", "glomerulus", "renal-tubule", "renal-pelvis", "ureter", "urinary-bladder", "urethra"],
   },
   {
     systemSlug: "reproduction",
     systemConceptSlug: "reproductive-system",
-    structureSlugs: ["ovary", "uterine-tube", "uterus", "vagina", "testis", "epididymis", "vas-deferens", "prostate-gland", "penis", "mammary-gland"],
+    structureSlugs: ["ovary", "uterine-tube", "uterus", "cervix", "vagina", "vulva", "clitoris", "testis", "epididymis", "vas-deferens", "seminal-vesicle", "bulbourethral-gland", "prostate-gland", "penis", "scrotum", "mammary-gland"],
   },
   {
     systemSlug: "nervous",
@@ -2220,14 +2220,19 @@ const REQUIRED_GROSS_ANATOMY_SYSTEM_STRUCTURES = [
     structureSlugs: ["brain", "cerebrum", "cerebellum", "brainstem", "spinal-cord", "peripheral-nerve", "ganglion"],
   },
   {
-    systemSlug: "sensory",
-    systemConceptSlug: "sensory-system",
+    systemSlug: "nervous",
+    systemConceptSlug: "nervous-system",
     structureSlugs: ["eye", "retina", "ear", "cochlea", "vestibular-apparatus"],
   },
   {
-    systemSlug: "musculoskeletal",
-    systemConceptSlug: "musculoskeletal-system",
-    structureSlugs: ["superficial-fascia", "deep-fascia", "joint-capsule", "synovial-membrane", "articular-cartilage", "bursa"],
+    systemSlug: "skeletal",
+    systemConceptSlug: "skeletal-system",
+    structureSlugs: ["joint-capsule", "synovial-membrane", "articular-cartilage", "bursa"],
+  },
+  {
+    systemSlug: "muscular",
+    systemConceptSlug: "muscular-system",
+    structureSlugs: ["superficial-fascia", "deep-fascia"],
   },
 ] as const
 
@@ -4275,6 +4280,194 @@ function addEnrichmentRelationship(
   }
 }
 
+const BODY_SYSTEM_CONCEPT_TARGETS: Record<string, string[]> = {
+  cardiovascular: ["cardiovascular-system"],
+  cardiorespiratory: ["cardiovascular-system", "respiratory-system"],
+  digestive: ["digestive-system"],
+  "digestive-endocrine": ["digestive-system", "endocrine-system"],
+  endocrine: ["endocrine-system"],
+  integumentary: ["integumentary-system"],
+  "integumentary-sensory": ["integumentary-system", "nervous-system"],
+  lymphatic: ["lymphatic-system"],
+  "lymphatic-immune": ["lymphatic-system"],
+  muscular: ["muscular-system"],
+  musculoskeletal: ["skeletal-system", "muscular-system"],
+  nervous: ["nervous-system"],
+  reproduction: ["reproductive-system"],
+  reproductive: ["reproductive-system"],
+  "reproductive-endocrine": ["reproductive-system", "endocrine-system"],
+  respiratory: ["respiratory-system"],
+  sensory: ["nervous-system"],
+  skeletal: ["skeletal-system"],
+  urinary: ["urinary-system"],
+}
+
+const TISSUE_TYPE_CONCEPT_SLUGS = [
+  "epithelial-tissue",
+  "connective-tissue",
+  "muscle-tissue",
+  "nervous-tissue",
+] as const
+
+/**
+ * Cross-system rows that should remain explicit because their names are not
+ * enough to infer every textbook membership without creating noisy broad regexes.
+ */
+const ADDITIONAL_STRUCTURE_SYSTEM_CONCEPT_SLUGS: Record<string, string[]> = {
+  hypothalamus: ["nervous-system"],
+  ovary: ["endocrine-system"],
+  pancreas: ["endocrine-system"],
+  pharynx: ["digestive-system"],
+  testis: ["endocrine-system"],
+}
+
+const ADDITIONAL_MUSCLE_SYSTEM_CONCEPT_SLUGS: Record<string, string[]> = {
+  diaphragm: ["respiratory-system"],
+  "external-intercostals": ["respiratory-system"],
+  "internal-intercostals": ["respiratory-system"],
+  "innermost-intercostals": ["respiratory-system"],
+}
+
+/**
+ * Converts textbook body-system labels in seed rows into concept slugs so every
+ * item can use the same AnatomyRelationship path for system membership.
+ */
+function bodySystemConceptSlugsForValue(value: string | null | undefined) {
+  return value ? BODY_SYSTEM_CONCEPT_TARGETS[normalizeText(value)] ?? [] : []
+}
+
+function addBodySystemMembership(
+  seed: AnatomyFoundationSeed,
+  relationships: AnatomyRelationship[],
+  relationshipNaturalKeys: Set<string>,
+  sourceEntityType: AnatomyEntityType,
+  sourceEntitySlug: string,
+  sourceRef: string,
+  systemConceptSlugs: readonly string[],
+  details?: Record<string, unknown>,
+) {
+  for (const systemConceptSlug of uniqueStrings([...systemConceptSlugs])) {
+    if (sourceEntityType === "anatomy_concept" && sourceEntitySlug === systemConceptSlug) continue
+    if (!entityExists(seed, "anatomy_concept", systemConceptSlug)) continue
+
+    addEnrichmentRelationship(
+      relationships,
+      relationshipNaturalKeys,
+      sourceEntityType,
+      sourceEntitySlug,
+      "belongs_to_system",
+      "anatomy_concept",
+      systemConceptSlug,
+      sourceRef,
+      details,
+    )
+  }
+}
+
+function addTissueTypeMembership(
+  seed: AnatomyFoundationSeed,
+  relationships: AnatomyRelationship[],
+  relationshipNaturalKeys: Set<string>,
+  sourceEntityType: AnatomyEntityType,
+  sourceEntitySlug: string,
+  sourceRef: string,
+  tissueTypeConceptSlugs: readonly string[],
+  details?: Record<string, unknown>,
+) {
+  for (const tissueTypeConceptSlug of uniqueStrings([...tissueTypeConceptSlugs])) {
+    if (!TISSUE_TYPE_CONCEPT_SLUGS.includes(tissueTypeConceptSlug as (typeof TISSUE_TYPE_CONCEPT_SLUGS)[number])) continue
+    if (sourceEntityType === "anatomy_concept" && sourceEntitySlug === tissueTypeConceptSlug) continue
+    if (!entityExists(seed, "anatomy_concept", tissueTypeConceptSlug)) continue
+
+    addEnrichmentRelationship(
+      relationships,
+      relationshipNaturalKeys,
+      sourceEntityType,
+      sourceEntitySlug,
+      "belongs_to_tissue_type",
+      "anatomy_concept",
+      tissueTypeConceptSlug,
+      sourceRef,
+      details,
+    )
+  }
+}
+
+function inferredStructureSystemConceptSlugs(structure: AnatomyStructure) {
+  const structureType = normalizeText(structure.structureType)
+  const name = normalizeText(structure.name)
+  const combined = `${structureType}-${name}`
+
+  if (/(dermatome|myotome)/.test(combined)) return ["nervous-system"]
+  if (/(lymph|spleen|thymus|tonsil|marrow|immune)/.test(combined)) return ["lymphatic-system"]
+  if (!/lymph/.test(combined) && /(artery|vein|venous|blood-vessel|microvessel|capillary|cardiac|heart|atrium|ventricle|pericardium|myocardium|endocardium|blood)/.test(combined)) return ["cardiovascular-system"]
+  if (/(airway|respiratory|lung|bronchus|bronchiole|trachea|larynx|pharynx|alveol|pleura|nasal|vocal-fold|intercostal-space)/.test(combined)) return ["respiratory-system"]
+  if (/(digestive|stomach|intestine|liver|gallbladder|pancreas|rectum|anus|(^|-)oral($|-)|salivary|esophagus|tooth|teeth|dental|tongue|glossal|duodenum|jejunum|ileum|cecum|colon|appendix)/.test(combined)) return ["digestive-system"]
+  if (/(endocrine|thyroid-gland|parathyroid-gland|adrenal|pituitary|pineal|hypothalamus|islet|hormone)/.test(combined)) return ["endocrine-system"]
+  if (/(skin|hair|nail|sweat|sebaceous|epidermis|dermis|hypodermis|cutaneous)/.test(combined)) return ["integumentary-system"]
+  if (/(kidney|renal|urinary|ureter|bladder|urethra|nephron|glomerulus)/.test(combined)) return ["urinary-system"]
+  if (/(reproductive|uter|ovary|testis|epididymis|prostate|penis|vagina|vulva|clitoris|scrotum|seminal|bulbourethral|mammary|vas-deferens|perineal)/.test(combined)) return ["reproductive-system"]
+  if (/(brain|spinal-cord|nerve|ganglion|neural|nervous)/.test(combined)) return ["nervous-system"]
+  if (/(eye|ear|retina|cochlea|vestibular|sensory)/.test(combined)) return ["nervous-system"]
+  if (/(muscle|myofascial|fascia|tendon|retinaculum|aponeurosis|compartment|sheath)/.test(combined)) return ["muscular-system"]
+  if (/(cartilage|bursa|joint|synovial|capsule|ligament|bone|articular|disc|labrum|triangle|space|fossa|snuffbox|modiolus|raphe|rib|skull|vertebral)/.test(combined)) return ["skeletal-system"]
+
+  return []
+}
+
+function inferredStructureTissueTypeConceptSlugs(structure: AnatomyStructure) {
+  const structureType = normalizeText(structure.structureType)
+  const name = normalizeText(structure.name)
+  const combined = `${structureType}-${name}`
+  const tissueTypes: string[] = []
+
+  if (/(epithelial|epithelium|epidermis|endothelium|mesothelium|mucosa|mucous|serous|cutaneous-membrane)/.test(combined)) {
+    tissueTypes.push("epithelial-tissue")
+  }
+
+  if (/(connective|fascia|fascial|tendon|retinaculum|aponeurosis|ligament|cartilage|bone|marrow|adipose|bursa|synovial|capsule|dermis|hypodermis|blood|lymph|spleen|thymus|tonsil|joint|disc|labrum|intervertebral|membrane|pericardium|pleura|peritoneum)/.test(combined)) {
+    tissueTypes.push("connective-tissue")
+  }
+
+  if (/(muscle|myocardium|smooth-muscle|cardiac-muscle|skeletal-muscle|contractile)/.test(combined)) {
+    tissueTypes.push("muscle-tissue")
+  }
+
+  if (/(nervous|nerve|neural|neuron|glial|brain|spinal-cord|ganglion|receptor|retina|cochlea|vestibular|sensory)/.test(combined)) {
+    tissueTypes.push("nervous-tissue")
+  }
+
+  return tissueTypes
+}
+
+function inferredConceptTissueTypeConceptSlugs(concept: AnatomyConcept) {
+  if (TISSUE_TYPE_CONCEPT_SLUGS.includes(concept.slug as (typeof TISSUE_TYPE_CONCEPT_SLUGS)[number])) return []
+
+  const conceptType = normalizeText(concept.conceptType)
+  const bodySystem = normalizeText(concept.bodySystem ?? "")
+  const name = normalizeText(concept.name)
+  const combined = `${concept.slug}-${conceptType}-${bodySystem}-${name}`
+  const tissueTypes: string[] = []
+
+  if (/(epithelial|epithelium|epidermis|endothelium|mucosa|cutaneous-membrane)/.test(combined)) {
+    tissueTypes.push("epithelial-tissue")
+  }
+
+  if (/(connective|fascia|fascial|tendon|ligament|cartilage|bone|marrow|adipose|blood|lymph|scar|granulation|extracellular-matrix|collagen|tissue-repair|tissue-load|tissue-irritability)/.test(combined)) {
+    tissueTypes.push("connective-tissue")
+  }
+
+  if (/(muscle|muscular|myofascial|sarcomere|motor-unit|neuromuscular|contraction|contractile)/.test(combined)) {
+    tissueTypes.push("muscle-tissue")
+  }
+
+  if (/(nervous|nerve|neural|neuron|glial|sensory|nociception|proprioception|spindle|receptor)/.test(combined)) {
+    tissueTypes.push("nervous-tissue")
+  }
+
+  return tissueTypes
+}
+
 function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoundationSeed {
   const entityTerms = [...seed.entityTerms]
   const externalIdentifiers = [...seed.externalIdentifiers]
@@ -4460,6 +4653,114 @@ function withAtlasEnrichmentGapClosure(seed: AnatomyFoundationSeed): AnatomyFoun
         surface: painMapRegion.surface ?? "unspecified",
       })
     }
+  }
+
+  const structureSystemConceptSlugs = new Map<string, Set<string>>()
+  for (const relationship of relationships) {
+    if (
+      relationship.sourceEntityType === "anatomy_concept" &&
+      relationship.relationshipType === "includes_structure" &&
+      relationship.targetEntityType === "anatomy_structure"
+    ) {
+      const systemSlugs = structureSystemConceptSlugs.get(relationship.targetEntitySlug) ?? new Set<string>()
+      systemSlugs.add(relationship.sourceEntitySlug)
+      structureSystemConceptSlugs.set(relationship.targetEntitySlug, systemSlugs)
+    }
+  }
+
+  for (const concept of seed.concepts) {
+    addBodySystemMembership(
+      seed,
+      relationships,
+      relationshipNaturalKeys,
+      "anatomy_concept",
+      concept.slug,
+      concept.sourceRef,
+      bodySystemConceptSlugsForValue(concept.bodySystem),
+      { source: "concept-body-system" },
+    )
+    addTissueTypeMembership(
+      seed,
+      relationships,
+      relationshipNaturalKeys,
+      "anatomy_concept",
+      concept.slug,
+      concept.sourceRef,
+      inferredConceptTissueTypeConceptSlugs(concept),
+      { source: "concept-tissue-type", conceptType: concept.conceptType },
+    )
+  }
+  for (const structure of seed.structures) {
+    addBodySystemMembership(
+      seed,
+      relationships,
+      relationshipNaturalKeys,
+      "anatomy_structure",
+      structure.slug,
+      structure.sourceRef,
+      [
+        ...Array.from(structureSystemConceptSlugs.get(structure.slug) ?? []),
+        ...(ADDITIONAL_STRUCTURE_SYSTEM_CONCEPT_SLUGS[structure.slug] ?? []),
+        ...inferredStructureSystemConceptSlugs(structure),
+      ],
+      { source: "structure-system-inference", structureType: structure.structureType },
+    )
+    addTissueTypeMembership(
+      seed,
+      relationships,
+      relationshipNaturalKeys,
+      "anatomy_structure",
+      structure.slug,
+      structure.sourceRef,
+      inferredStructureTissueTypeConceptSlugs(structure),
+      { source: "structure-tissue-type-inference", structureType: structure.structureType },
+    )
+  }
+  for (const bone of seed.bones) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "bone", bone.slug, bone.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "bone", bone.slug, bone.sourceRef, ["connective-tissue"])
+  }
+  for (const landmark of seed.boneLandmarks) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "bone_landmark", landmark.slug, landmark.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "bone_landmark", landmark.slug, landmark.sourceRef, ["connective-tissue"])
+  }
+  for (const joint of seed.joints) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "joint", joint.slug, joint.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "joint", joint.slug, joint.sourceRef, ["connective-tissue"])
+  }
+  for (const movement of seed.jointMovements) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "joint_movement", movement.slug, movement.sourceRef, ["skeletal-system"])
+  }
+  for (const rom of rangesOfMotion) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "range_of_motion", rom.slug, rom.sourceRef, ["skeletal-system"])
+  }
+  for (const ligament of seed.ligaments) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "ligament", ligament.slug, ligament.sourceRef, ["skeletal-system"])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "ligament", ligament.slug, ligament.sourceRef, ["connective-tissue"])
+  }
+  for (const muscle of seed.muscles) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle", muscle.slug, muscle.sourceRef, [
+      "muscular-system",
+      ...(ADDITIONAL_MUSCLE_SYSTEM_CONCEPT_SLUGS[muscle.slug] ?? []),
+    ])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "muscle", muscle.slug, muscle.sourceRef, ["muscle-tissue"])
+  }
+  for (const attachment of seed.muscleAttachments) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle_attachment", attachment.id, attachment.sourceRef, ["muscular-system"])
+  }
+  for (const action of seed.muscleActions) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle_action", action.id, action.sourceRef, ["muscular-system"])
+  }
+  for (const nerve of seed.nerves) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "nerve", nerve.slug, nerve.sourceRef, ["nervous-system"])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "nerve", nerve.slug, nerve.sourceRef, ["nervous-tissue"])
+  }
+  for (const innervation of seed.muscleInnervations) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "muscle_innervation", innervation.id, innervation.sourceRef, ["nervous-system", "muscular-system"])
+  }
+  for (const vessel of seed.bloodSupply) {
+    addBodySystemMembership(seed, relationships, relationshipNaturalKeys, "blood_supply", vessel.slug, vessel.sourceRef, ["cardiovascular-system"])
+    addTissueTypeMembership(seed, relationships, relationshipNaturalKeys, "blood_supply", vessel.slug, vessel.sourceRef, ["connective-tissue"])
   }
 
   return {

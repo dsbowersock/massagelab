@@ -41,6 +41,81 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(maintenanceBody, /counts\.map/)
   })
 
+  it("separates anatomy browser tabs and exposes body-system views", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+    const entityViewsStart = pageSource.indexOf("const ENTITY_BROWSER_VIEWS")
+    const hiddenEntityViewsStart = pageSource.indexOf("const SYSTEM_REDUNDANT_ENTITY_BROWSER_VIEWS")
+    const bodySystemConfigsStart = pageSource.indexOf("const BODY_SYSTEM_CONFIGS")
+    const tissueTypeConfigsStart = pageSource.indexOf("const TISSUE_TYPE_CONFIGS")
+    const entityViewsSource = pageSource.slice(entityViewsStart, hiddenEntityViewsStart)
+    const hiddenEntityViewsSource = pageSource.slice(hiddenEntityViewsStart, pageSource.indexOf("const BODY_SYSTEM_BROWSER_VIEWS"))
+    const bodySystemConfigsSource = pageSource.slice(bodySystemConfigsStart, tissueTypeConfigsStart)
+    const tissueTypeConfigsSource = pageSource.slice(tissueTypeConfigsStart, pageSource.indexOf("type TissueTypeBrowserView"))
+
+    for (const label of [
+      "Joints",
+      "ROM",
+      "Terms",
+      "Pain",
+    ]) {
+      assert.match(entityViewsSource, new RegExp(`label: "${label.replace("/", "\\/")}"`))
+    }
+
+    for (const label of [
+      "Muscles",
+      "Ligaments",
+      "Nerves",
+      "Vessels",
+    ]) {
+      assert.doesNotMatch(entityViewsSource, new RegExp(`label: "${label}"`))
+      assert.match(hiddenEntityViewsSource, new RegExp(`label: "${label}"`))
+    }
+
+    for (const label of [
+      "Integumentary",
+      "Skeletal",
+      "Muscular",
+      "Nervous",
+      "Cardiovascular",
+      "Lymphatic",
+      "Respiratory",
+      "Digestive",
+      "Endocrine",
+      "Urinary",
+      "Reproductive",
+    ]) {
+      assert.match(bodySystemConfigsSource, new RegExp(`label: "${label}"`))
+    }
+
+    for (const label of [
+      "Musculoskeletal",
+      "Lymphatic/immune",
+      "Sensory",
+    ]) {
+      assert.doesNotMatch(bodySystemConfigsSource, new RegExp(`label: "${label.replace("/", "\\/")}"`))
+    }
+
+    for (const label of [
+      "Epithelial",
+      "Connective",
+      "Muscle tissue",
+      "Nervous tissue",
+    ]) {
+      assert.match(tissueTypeConfigsSource, new RegExp(`label: "${label}"`))
+    }
+
+    assert.doesNotMatch(pageSource, /Joints & ROM/)
+    assert.doesNotMatch(pageSource, /Nerves & vessels/)
+    assert.doesNotMatch(pageSource, /Terms & pain/)
+    assert.match(pageSource, /function BodySystemTables/)
+    assert.match(pageSource, /function TissueTypeTables/)
+    assert.match(pageSource, /ariaLabel="Tissue type views"/)
+    assert.match(pageSource, /relationshipType: "belongs_to_system"/)
+    assert.match(pageSource, /relationshipType: "belongs_to_tissue_type"/)
+    assert.match(pageSource, /relationshipType: "includes_structure"/)
+    assert.match(pageSource, /LEGACY_BROWSER_VIEW_REDIRECTS/)
+  })
+
   it("surfaces full citation backlog and clickable external identifier detail", async () => {
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
 

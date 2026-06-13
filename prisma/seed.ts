@@ -2339,6 +2339,35 @@ async function cleanupObsoleteFoundationSources(seed: AnatomyFoundationSeed) {
     .filter((citation) => citation.slug.startsWith("citation-source-ref-"))
     .map((citation) => citation.slug)
 
+  // These are still useful browsing concepts, but they are no longer canonical
+  // body-system taxonomy targets now that the browser follows textbook systems.
+  await prisma.anatomyRelationship.deleteMany({
+    where: {
+      relationshipType: "belongs_to_system",
+      targetEntityType: "ANATOMY_CONCEPT",
+      targetEntitySlug: { in: ["musculoskeletal-system", "sensory-system"] },
+    },
+  })
+
+  // Remove taxonomy rows created by earlier broad name inference so rerunning
+  // the seed converges when the relationship rules get stricter.
+  await prisma.anatomyRelationship.deleteMany({
+    where: {
+      relationshipType: "belongs_to_system",
+      sourceEntityType: "ANATOMY_STRUCTURE",
+      targetEntityType: "ANATOMY_CONCEPT",
+      OR: [
+        { sourceEntitySlug: "thyroid-cartilage", targetEntitySlug: "endocrine-system" },
+        { sourceEntitySlug: "lymphatic-vessel", targetEntitySlug: "cardiovascular-system" },
+        { sourceEntitySlug: "lymphatic-capillary", targetEntitySlug: "cardiovascular-system" },
+        { sourceEntitySlug: "lymphatic-duct", targetEntitySlug: "cardiovascular-system" },
+        { sourceEntitySlug: "clavipectoral-fascia", targetEntitySlug: "digestive-system" },
+        { sourceEntitySlug: "pectoral-axillary-lymph-nodes", targetEntitySlug: "digestive-system" },
+        { sourceEntitySlug: "bronchomediastinal-lymphatic-trunk", targetEntitySlug: "respiratory-system" },
+      ],
+    },
+  })
+
   await prisma.anatomyCitation.deleteMany({
     where: {
       slug: {
