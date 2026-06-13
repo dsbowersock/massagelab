@@ -21,6 +21,20 @@ export function anatomimeRealtimeChannel(code: string) {
   return `anatomime:${code.trim().toUpperCase()}`
 }
 
+async function signAblyTokenRequest(signText: string, signingKey: string) {
+  const encoder = new TextEncoder()
+  const cryptoKey = await crypto.webcrypto.subtle.importKey(
+    "raw",
+    encoder.encode(signingKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  )
+  const signature = await crypto.webcrypto.subtle.sign("HMAC", cryptoKey, encoder.encode(signText))
+
+  return Buffer.from(signature).toString("base64")
+}
+
 /**
  * Publishes a compact change event. Database state remains authoritative; the
  * event only tells connected clients to refresh the current session summary.
@@ -63,7 +77,7 @@ export async function publishAnatomimeRealtimeEvent(code: string, eventName: str
  * Builds an Ably TokenRequest without the Ably SDK so the app can keep realtime
  * credentials server-only and avoid adding client package weight to local play.
  */
-export function createAnatomimeRealtimeTokenRequest(code: string, clientId: string) {
+export async function createAnatomimeRealtimeTokenRequest(code: string, clientId: string) {
   const key = ablyKeyParts()
   if (!key) return null
 
@@ -75,8 +89,7 @@ export function createAnatomimeRealtimeTokenRequest(code: string, clientId: stri
   const timestamp = Date.now()
   const nonce = crypto.randomBytes(16).toString("hex")
   const signText = [key.keyName, ttl, capability, clientId, timestamp, nonce].join("\n")
-  // lgtm[js/insufficient-password-hash] Ably TokenRequest uses HMAC-SHA256 signing; no password is stored or verified here.
-  const mac = crypto.createHmac("sha256", key.keySecret).update(signText).digest("base64")
+  const mac = await signAblyTokenRequest(signText, key.keySecret)
 
   return {
     keyName: key.keyName,

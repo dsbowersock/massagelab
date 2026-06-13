@@ -13,7 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const clientId = typeof body.clientId === "string" && body.clientId.trim()
     ? body.clientId.trim().slice(0, 120)
     : "anatomime-player"
-  const tokenRequest = createAnatomimeRealtimeTokenRequest(code, clientId)
+  const tokenRequest = await createAnatomimeRealtimeTokenRequest(code, clientId)
 
   if (!tokenRequest) {
     return NextResponse.json({ error: "Realtime is not configured for this environment." }, { status: 503 })
