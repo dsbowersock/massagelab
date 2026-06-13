@@ -83,6 +83,7 @@ const kindOptions = setupOptions.categories as Array<{ id: AnatomyKind; label: s
 const anatomyRegions = setupOptions.regions
 const anatomySources = setupOptions.sources
 const defaultCategories = kindOptions.map((option) => option.id)
+const defaultRegions = anatomyRegions.map((region) => region.id)
 
 const difficultyLabels: Record<AnatomyDifficulty, string> = {
   easy: "Easy",
@@ -157,7 +158,7 @@ export default function AnatomimePage() {
   const [scores, setScores] = useState([0, 0])
   const [currentTeam, setCurrentTeam] = useState(0)
   const [selectedKinds, setSelectedKinds] = useState<AnatomyKind[]>(defaultCategories)
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
+  const [selectedRegions, setSelectedRegions] = useState<string[]>(defaultRegions)
   const [difficulty, setDifficulty] = useState<AnatomyDifficulty>("easy")
   const [termCount, setTermCount] = useState(TERM_COUNT)
   const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("typed")
@@ -173,6 +174,7 @@ export default function AnatomimePage() {
   const [sharedSession, setSharedSession] = useState<any | null>(null)
   const [hostCredentials, setHostCredentials] = useState<{ playerId: string; token: string } | null>(null)
   const [creatingSharedGame, setCreatingSharedGame] = useState(false)
+  const [startingSharedGame, setStartingSharedGame] = useState(false)
   const sharedRefreshInFlightRef = useRef(false)
   const sharedRefreshRequestIdRef = useRef(0)
 
@@ -397,7 +399,7 @@ export default function AnatomimePage() {
     setScores([0, 0])
     setCurrentTeam(0)
     setSelectedKinds(defaultCategories)
-    setSelectedRegions([])
+    setSelectedRegions(defaultRegions)
     setDifficulty("easy")
     setTermCount(TERM_COUNT)
     setAnswerMode("typed")
@@ -411,6 +413,7 @@ export default function AnatomimePage() {
     setTurnHistory([])
     setSharedSession(null)
     setHostCredentials(null)
+    setStartingSharedGame(false)
     setMessage("")
   }
 
@@ -513,6 +516,9 @@ export default function AnatomimePage() {
   const startSharedGame = async () => {
     if (!sharedSession || !hostCredentials) return
 
+    setStartingSharedGame(true)
+    setMessage("Starting shared game...")
+
     try {
       const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}/start`, {
         method: "POST",
@@ -532,6 +538,8 @@ export default function AnatomimePage() {
       setMessage("")
     } catch {
       setMessage("Could not start shared game.")
+    } finally {
+      setStartingSharedGame(false)
     }
   }
 
@@ -752,7 +760,7 @@ export default function AnatomimePage() {
               <button
                 type="button"
                 className="anatomime-secondary-button"
-                onClick={() => setSelectedRegions(allRegionsSelected ? [] : anatomyRegions.map((region) => region.id))}
+                onClick={() => setSelectedRegions(allRegionsSelected ? [] : defaultRegions)}
               >
                 {allRegionsSelected ? "Clear All" : "Select All"}
               </button>
@@ -894,9 +902,9 @@ export default function AnatomimePage() {
                 Refresh
               </button>
               {sharedSession.status === "LOBBY" ? (
-                <button type="button" className="anatomime-primary-button" onClick={startSharedGame}>
+                <button type="button" className="anatomime-primary-button" onClick={startSharedGame} disabled={startingSharedGame}>
                   <Play className="h-4 w-4" />
-                  Start Shared Game
+                  {startingSharedGame ? "Starting..." : "Start Shared Game"}
                 </button>
               ) : null}
             </div>

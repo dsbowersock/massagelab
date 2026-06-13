@@ -165,6 +165,103 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("anatomime shared game starts from the default setup", async ({ page }) => {
+  const health = capturePageHealth(page)
+  let createPayload: { config?: { regions?: string[] } } | null = null
+  const teams = [
+    { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
+    { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
+  ]
+  const host = { playerId: "host-player", token: "host-token" }
+  const baseSession = {
+    id: "session-1",
+    code: "TEST01",
+    config: {},
+    realtime: null,
+    activeCardIndex: 0,
+    activeTeamOrder: 0,
+    phaseEndsAt: null,
+    startedAt: null,
+    completedAt: null,
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    teams,
+    players: [{ id: host.playerId, teamId: null, displayName: "Host", role: "HOST", signedIn: false }],
+    viewer: { isHost: true, playerId: host.playerId, teamId: null },
+    activeTeam: teams[0],
+    recentGuesses: [],
+    deck: [],
+  }
+  const activeItem = {
+    index: 0,
+    total: 4,
+    prompt: {
+      id: "muscle-biceps-brachii",
+      name: "Biceps Brachii",
+      kind: "muscle",
+      category: "muscle",
+      categoryLabel: "Muscles",
+      regions: ["upper-extremity"],
+      regionLabels: ["Upper Extremity"],
+      difficulty: "easy",
+      aliases: ["biceps"],
+      definition: "Anterior arm muscle used here as a shared-session prompt.",
+      sourceRefs: ["test-source"],
+    },
+    choices: [],
+  }
+
+  await page.route("**/api/anatomime/sessions/TEST01/start", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        session: {
+          ...baseSession,
+          status: "PLAYING",
+          phase: "ACTIVE",
+          startedAt: new Date().toISOString(),
+          phaseEndsAt: new Date(Date.now() + 30_000).toISOString(),
+          activeItem,
+        },
+      }),
+    })
+  })
+  await page.route("**/api/anatomime/sessions/TEST01", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ session: { ...baseSession, status: "LOBBY", phase: "LOBBY", activeItem } }),
+    })
+  })
+  await page.route("**/api/anatomime/sessions", async (route) => {
+    createPayload = route.request().postDataJSON()
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ session: { ...baseSession, status: "LOBBY", phase: "LOBBY", activeItem }, host }),
+    })
+  })
+
+  await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
+  await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
+  await expect(page.getByRole("button", { name: /Clear All/i })).toBeVisible()
+  await page.getByRole("button", { name: /Create Shared Game/i }).click()
+
+  const postedCreatePayload = createPayload as { config?: { regions?: string[] } } | null
+  expect(postedCreatePayload?.config?.regions?.length ?? 0).toBeGreaterThan(0)
+  await expect(page.getByRole("button", { name: /Start Shared Game/i })).toBeVisible()
+
+  await page.getByRole("button", { name: /Start Shared Game/i }).click()
+  await expect(page.getByText("PLAYING")).toBeVisible()
+  await expect(page.getByText("ACTIVE")).toBeVisible()
+  await expect(page.getByRole("button", { name: /Start Shared Game/i })).toHaveCount(0)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("flashcards can start from local sourced prompts when the prompt API is unavailable", async ({ page }) => {
   let promptApiRequests = 0
 
