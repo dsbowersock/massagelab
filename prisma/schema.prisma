@@ -382,6 +382,9 @@ model User {
   achievements          Achievement[]
   flashcardDecks        FlashcardDeck[]
   flashcardStudySessions FlashcardStudySession[]
+  hostedAnatomimeGameSessions AnatomimeGameSession[] @relation("AnatomimeGameHost")
+  anatomimeGamePlayers  AnatomimeGamePlayer[]
+  anatomimeGameGuesses  AnatomimeGameGuess[]
   noteTemplates         NoteTemplate[]
   formTemplates         FormTemplate[]
   documentationPreference DocumentationPreference?
@@ -806,6 +809,92 @@ model FlashcardStudySession {
   @@index([userId, updatedAt])
   @@index([deckId, updatedAt])
   @@index([userId, status, durationMs])
+}
+
+model AnatomimeGameSession {
+  id              String                 @id @default(cuid())
+  code            String                 @unique
+  hostUserId      String?
+  status          String                 @default("LOBBY")
+  phase           String                 @default("LOBBY")
+  config          Json                   @default("{}")
+  deckCardIds     String[]               @default([])
+  activeCardIndex Int                    @default(0)
+  activeTeamOrder Int                    @default(0)
+  phaseEndsAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  expiresAt       DateTime
+  metadata        Json                   @default("{}")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  host            User?                  @relation("AnatomimeGameHost", fields: [hostUserId], references: [id], onDelete: SetNull)
+  teams           AnatomimeGameTeam[]
+  players         AnatomimeGamePlayer[]
+  guesses         AnatomimeGameGuess[]
+
+  @@index([status, expiresAt])
+  @@index([hostUserId, updatedAt])
+}
+
+model AnatomimeGameTeam {
+  id        String                 @id @default(cuid())
+  sessionId String
+  name      String
+  sortOrder Int
+  score     Int                    @default(0)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  session   AnatomimeGameSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  players   AnatomimeGamePlayer[]
+  guesses   AnatomimeGameGuess[]
+
+  @@unique([sessionId, sortOrder])
+  @@index([sessionId])
+}
+
+model AnatomimeGamePlayer {
+  id             String                 @id @default(cuid())
+  sessionId      String
+  teamId         String?
+  userId         String?
+  displayName    String
+  guestTokenHash String?
+  role           String                 @default("PLAYER")
+  lastSeenAt     DateTime               @default(now())
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  session        AnatomimeGameSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team           AnatomimeGameTeam?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user           User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guesses        AnatomimeGameGuess[]
+
+  @@unique([sessionId, guestTokenHash])
+  @@index([sessionId, teamId])
+  @@index([userId, updatedAt])
+}
+
+model AnatomimeGameGuess {
+  id           String                @id @default(cuid())
+  sessionId    String
+  teamId       String
+  playerId     String?
+  userId       String?
+  cardId       String
+  answerMode   String
+  phase        String
+  correct      Boolean               @default(false)
+  scoreAwarded Int                   @default(0)
+  metadata     Json                  @default("{}")
+  submittedAt  DateTime              @default(now())
+  session      AnatomimeGameSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team         AnatomimeGameTeam     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player       AnatomimeGamePlayer?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, cardId, submittedAt])
+  @@index([playerId, cardId])
+  @@index([userId, submittedAt])
 }
 
 model AnatomyTerm {

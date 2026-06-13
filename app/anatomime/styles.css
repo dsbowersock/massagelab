@@ -454,6 +454,97 @@
   color: hsl(var(--brand-orange-soft));
 }
 
+.anatomime-learning-review {
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+}
+
+.anatomime-review-list,
+.anatomime-recap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.75rem;
+}
+
+.anatomime-review-card,
+.anatomime-recap-card {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(10, 10, 12, 0.72);
+  padding: 0.9rem;
+}
+
+.anatomime-review-card[data-outcome="correct"] {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+.anatomime-review-card[data-outcome="missed"] {
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.anatomime-review-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.anatomime-review-card-header strong,
+.anatomime-recap-card strong {
+  color: white;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.anatomime-outcome-pill {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(247, 247, 247, 0.78);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.anatomime-outcome-pill[data-outcome="correct"] {
+  border-color: rgba(34, 197, 94, 0.48);
+  background: rgba(34, 197, 94, 0.14);
+  color: #bbf7d0;
+}
+
+.anatomime-outcome-pill[data-outcome="missed"] {
+  border-color: rgba(248, 113, 113, 0.52);
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+}
+
+.anatomime-review-meta,
+.anatomime-review-definition,
+.anatomime-review-aliases,
+.anatomime-recap-card span,
+.anatomime-recap-card p {
+  margin: 0;
+  color: rgba(247, 247, 247, 0.7);
+}
+
+.anatomime-review-meta,
+.anatomime-review-aliases,
+.anatomime-recap-card span {
+  font-size: 0.86rem;
+}
+
+.anatomime-review-definition,
+.anatomime-recap-card p {
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .anatomime-final {
   justify-items: center;
   text-align: center;

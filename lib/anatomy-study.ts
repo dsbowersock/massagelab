@@ -62,6 +62,7 @@ export const ANATOMY_STUDY_REGION_LABELS = {
 } as const
 
 export const FLASHCARD_PROMPT_TYPES = [
+  "anatomime_name_recall",
   "identify_from_media",
   "name_to_summary",
   "name_to_region",
@@ -72,6 +73,7 @@ export const FLASHCARD_PROMPT_TYPES = [
 ] as const
 
 export const FLASHCARD_PROMPT_TYPE_LABELS = {
+  anatomime_name_recall: "Anatomime Name Recall",
   identify_from_media: "Identify From Image",
   name_to_summary: "Recall Key Facts",
   name_to_region: "Identify Body Region",
@@ -818,6 +820,21 @@ function categoryPromptForCard(card: AnatomyStudyCard, context: BuildContext) {
   )
 }
 
+function anatomimeNameRecallPromptForCard(card: AnatomyStudyCard, context: BuildContext) {
+  return basePrompt(
+    card,
+    "anatomime_name_recall",
+    {
+      mode: "text",
+      title: card.summary,
+      instruction: "Type the anatomy item name that matches this sourced summary.",
+    },
+    [answerField("name", "Name", card.name, [card.formalName ?? "", ...card.aliases])],
+    card.citations,
+    context,
+  )
+}
+
 function attachmentTarget(attachment: MuscleAttachment, context: BuildContext) {
   const landmark = attachment.landmark
     ? context.seed.boneLandmarks.find((item) => item.slug === attachment.landmark)?.name
@@ -933,6 +950,7 @@ function innervationPromptForCard(card: AnatomyStudyCard, context: BuildContext)
 
 function promptsForCard(card: AnatomyStudyCard, context: BuildContext) {
   return [
+    anatomimeNameRecallPromptForCard(card, context),
     ...mediaPromptsForCard(card, context),
     summaryPromptForCard(card, context),
     regionPromptForCard(card, context),

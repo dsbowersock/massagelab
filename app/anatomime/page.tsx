@@ -1,20 +1,28 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowDown, ArrowUp, CheckCircle2, Play, RotateCcw, SkipForward, Trophy, X } from "lucide-react"
+import { ArrowDown, ArrowUp, CheckCircle2, Copy, Play, RefreshCw, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import {
-  ANATOMY_DIFFICULTIES,
-  createAnatomimeDeck,
-  getAnatomyRegions,
-  getAnatomySources,
-  getAnatomyTerms,
-} from "@/lib/anatomy"
+  ANATOMY_STUDY_DIFFICULTIES,
+  type AnatomyStudyCategory,
+  type AnatomyStudyDifficulty,
+} from "@/lib/anatomy-study"
 import {
+  anatomimeTermFromCard,
+  createAnatomimeSessionDeck,
+  getAnatomimeCandidateCards,
+  getAnatomimeSetupOptions,
+  normalizeAnatomimeSessionConfig,
+  type AnatomimeAnswerMode,
+} from "@/lib/anatomime-shared"
+import {
+  buildTurnReview,
   canEndGameAfterCurrentTurn,
+  getGameLearningRecap,
   getNextTeamIndex,
   getNextTurnState,
   getPromptVisibility,
@@ -23,34 +31,58 @@ import {
   isScheduledGameComplete,
   normalizeTeamNames,
   normalizeRoundLimit,
+  summarizeTurnReview,
   updateScore,
 } from "@/lib/anatomime-game"
 import "./styles.css"
 
-type AnatomyKind = "bone" | "muscle"
-type AnatomyDifficulty = "easy" | "medium" | "hard"
+type AnatomyKind = AnatomyStudyCategory
+type AnatomyDifficulty = AnatomyStudyDifficulty
 
 type AnatomyTerm = {
   id: string
   name: string
   kind: AnatomyKind
+  category: AnatomyKind
+  categoryLabel: string
   regions: string[]
+  regionLabels: string[]
   difficulty: AnatomyDifficulty
   aliases: string[]
   definition?: string
   sourceRefs: string[]
 }
 
-type GamePhase = "onboarding" | "selection" | "setup" | "playing" | "roundEnd" | "end"
+type GamePhase = "onboarding" | "selection" | "setup" | "playing" | "roundEnd" | "end" | "sharedHost"
+type TermOutcome = "correct" | "missed" | "skipped"
+type TurnReviewItem = {
+  term: AnatomyTerm
+  outcome: TermOutcome
+}
+type TurnReviewSummary = Record<TermOutcome, number>
+type TurnHistoryEntry = {
+  id: string
+  teamName: string
+  roundLabel: string
+  review: TurnReviewItem[]
+  summary: TurnReviewSummary
+}
+type LearningRecapItem = {
+  term: AnatomyTerm
+  correct: number
+  missed: number
+  skipped: number
+}
 
 const TERM_COUNT = 4
 const ROUND_SECONDS = 30
 const TEAM_OPTIONS = [2, 3, 4]
 
-const kindOptions: Array<{ id: AnatomyKind; label: string }> = [
-  { id: "bone", label: "Bones" },
-  { id: "muscle", label: "Muscles" },
-]
+const setupOptions = getAnatomimeSetupOptions()
+const kindOptions = setupOptions.categories as Array<{ id: AnatomyKind; label: string; termCount: number }>
+const anatomyRegions = setupOptions.regions
+const anatomySources = setupOptions.sources
+const defaultCategories = kindOptions.map((option) => option.id)
 
 const difficultyLabels: Record<AnatomyDifficulty, string> = {
   easy: "Easy",
@@ -58,8 +90,10 @@ const difficultyLabels: Record<AnatomyDifficulty, string> = {
   hard: "Hard",
 }
 
-const anatomyRegions = getAnatomyRegions()
-const anatomySources = getAnatomySources()
+const answerModeLabels: Record<AnatomimeAnswerMode, string> = {
+  typed: "Typed",
+  "multiple-choice": "Multiple Choice",
+}
 
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
@@ -72,11 +106,45 @@ function formatTime(seconds: number) {
 }
 
 function formatTermKind(kind: AnatomyKind) {
-  return kind === "bone" ? "Bone" : "Muscle"
+  return kindOptions.find((option) => option.id === kind)?.label ?? kind
 }
 
 function regionLabel(regionId: string) {
   return anatomyRegions.find((region) => region.id === regionId)?.label ?? regionId
+}
+
+function outcomeLabel(outcome: TermOutcome) {
+  if (outcome === "correct") return "Got it"
+  if (outcome === "missed") return "Missed"
+  return "Skipped"
+}
+
+function formatAliases(term: AnatomyTerm) {
+  return term.aliases.filter((alias) => alias.toLowerCase() !== term.name.toLowerCase()).slice(0, 3)
+}
+
+function LearningReviewList({ review }: { review: TurnReviewItem[] }) {
+  return (
+    <div className="anatomime-review-list">
+      {review.map(({ term, outcome }) => {
+        const aliases = formatAliases(term)
+
+        return (
+          <article key={term.id} className="anatomime-review-card" data-outcome={outcome}>
+            <div className="anatomime-review-card-header">
+              <span className="anatomime-outcome-pill" data-outcome={outcome}>{outcomeLabel(outcome)}</span>
+              <strong>{term.name}</strong>
+            </div>
+            <p className="anatomime-review-meta">
+              {formatTermKind(term.kind)} · {term.regions.map(regionLabel).join(", ")} · {difficultyLabels[term.difficulty]}
+            </p>
+            {term.definition ? <p className="anatomime-review-definition">{term.definition}</p> : null}
+            {aliases.length > 0 ? <p className="anatomime-review-aliases">Also: {aliases.join(", ")}</p> : null}
+          </article>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function AnatomimePage() {
@@ -88,15 +156,23 @@ export default function AnatomimePage() {
   const [currentRound, setCurrentRound] = useState(1)
   const [scores, setScores] = useState([0, 0])
   const [currentTeam, setCurrentTeam] = useState(0)
-  const [selectedKinds, setSelectedKinds] = useState<AnatomyKind[]>(["bone", "muscle"])
+  const [selectedKinds, setSelectedKinds] = useState<AnatomyKind[]>(defaultCategories)
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const [difficulty, setDifficulty] = useState<AnatomyDifficulty>("easy")
+  const [termCount, setTermCount] = useState(TERM_COUNT)
+  const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("typed")
   const [currentDeck, setCurrentDeck] = useState<AnatomyTerm[]>([])
   const [selectedTermIds, setSelectedTermIds] = useState<string[]>([])
   const [currentTermIndex, setCurrentTermIndex] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(ROUND_SECONDS)
   const [bonusTime, setBonusTime] = useState(0)
   const [message, setMessage] = useState("")
+  const [termOutcomes, setTermOutcomes] = useState<Record<string, TermOutcome>>({})
+  const [lastTurnReview, setLastTurnReview] = useState<TurnHistoryEntry | null>(null)
+  const [turnHistory, setTurnHistory] = useState<TurnHistoryEntry[]>([])
+  const [sharedSession, setSharedSession] = useState<any | null>(null)
+  const [hostCredentials, setHostCredentials] = useState<{ playerId: string; token: string } | null>(null)
+  const [creatingSharedGame, setCreatingSharedGame] = useState(false)
 
   useEffect(() => {
     setTeamNames((current) => normalizeTeamNames(current, teamCount))
@@ -104,12 +180,13 @@ export default function AnatomimePage() {
   }, [teamCount])
 
   const matchingTerms = useMemo(() => (
-    getAnatomyTerms({
-      kinds: selectedKinds,
+    getAnatomimeCandidateCards(normalizeAnatomimeSessionConfig({
+      categories: selectedKinds,
       regions: selectedRegions,
       difficulty,
-    }) as AnatomyTerm[]
-  ), [difficulty, selectedKinds, selectedRegions])
+      termCount,
+    })).map(anatomimeTermFromCard) as AnatomyTerm[]
+  ), [difficulty, selectedKinds, selectedRegions, termCount])
 
   const orderedTerms = useMemo(() => (
     selectedTermIds
@@ -120,7 +197,7 @@ export default function AnatomimePage() {
   const currentTerm = orderedTerms[currentTermIndex]
   const currentTeamName = teamNames[currentTeam] ?? `Team ${currentTeam + 1}`
   const winnerNames = getWinnerNames(scores, teamNames)
-  const canEndGame = canEndGameAfterCurrentTurn(scores, currentTeam, TERM_COUNT)
+  const canEndGame = canEndGameAfterCurrentTurn(scores, currentTeam, termCount)
   const isFinalScheduledTurn = isScheduledGameComplete({
     hardcoreMode,
     currentTeam,
@@ -131,23 +208,27 @@ export default function AnatomimePage() {
   const showManualEndGame = hardcoreMode || canEndGame || isFinalScheduledTurn
   const promptVisibility = getPromptVisibility(difficulty)
   const roundLabel = getRoundLabel({ hardcoreMode, currentRound, roundLimit })
+  const learningRecap = useMemo(() => getGameLearningRecap(turnHistory) as LearningRecapItem[], [turnHistory])
 
   const buildTurnDeck = useCallback(() => {
-    const deck = createAnatomimeDeck({
-      kinds: selectedKinds,
+    const deck = createAnatomimeSessionDeck({
+      categories: selectedKinds,
       regions: selectedRegions,
       difficulty,
-      count: TERM_COUNT,
-    }) as AnatomyTerm[]
+      termCount,
+      seed: `local-${Date.now().toString(36)}`,
+    }).map(anatomimeTermFromCard) as AnatomyTerm[]
 
     setCurrentDeck(deck)
     setSelectedTermIds([])
     setCurrentTermIndex(0)
     setTimeRemaining(ROUND_SECONDS)
     setBonusTime(0)
+    setTermOutcomes({})
+    setLastTurnReview(null)
     setMessage("")
     setGamePhase("setup")
-  }, [difficulty, selectedKinds, selectedRegions])
+  }, [difficulty, selectedKinds, selectedRegions, termCount])
 
   const startGameSetup = () => {
     const trimmedNames = teamNames.slice(0, teamCount).map((name) => name.trim())
@@ -166,15 +247,15 @@ export default function AnatomimePage() {
 
   const continueToSetup = () => {
     if (selectedKinds.length === 0) {
-      setMessage("Choose bones, muscles, or both.")
+      setMessage("Choose at least one anatomy category.")
       return
     }
     if (selectedRegions.length === 0) {
       setMessage("Choose at least one body region.")
       return
     }
-    if (matchingTerms.length < TERM_COUNT) {
-      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${TERM_COUNT} terms by adding regions, categories, or difficulty.`)
+    if (matchingTerms.length < termCount) {
+      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${termCount} terms by adding regions, categories, or difficulty.`)
       return
     }
 
@@ -183,7 +264,7 @@ export default function AnatomimePage() {
 
   const addTerm = (termId: string) => {
     setSelectedTermIds((current) => {
-      if (current.includes(termId) || current.length >= TERM_COUNT) return current
+      if (current.includes(termId) || current.length >= termCount) return current
       return [...current, termId]
     })
     setMessage("")
@@ -207,36 +288,56 @@ export default function AnatomimePage() {
   }
 
   const startTurn = () => {
-    if (selectedTermIds.length !== TERM_COUNT) {
-      setMessage(`Select all ${TERM_COUNT} terms in the order this team wants to present them.`)
+    if (selectedTermIds.length !== termCount) {
+      setMessage(`Select all ${termCount} terms in the order this team wants to present them.`)
       return
     }
 
     setCurrentTermIndex(0)
     setTimeRemaining(ROUND_SECONDS)
     setBonusTime(0)
+    setTermOutcomes({})
     setMessage("")
     setGamePhase("playing")
   }
 
-  const endTurn = useCallback(() => {
+  const completeTurn = useCallback((resolvedOutcomes: Record<string, TermOutcome> = termOutcomes) => {
+    const review = buildTurnReview(orderedTerms, resolvedOutcomes) as TurnReviewItem[]
+    const summary = summarizeTurnReview(review) as TurnReviewSummary
+    const entry: TurnHistoryEntry = {
+      id: `round-${currentRound}-team-${currentTeam}`,
+      teamName: currentTeamName,
+      roundLabel,
+      review,
+      summary,
+    }
+
+    setLastTurnReview(entry)
+    setTurnHistory((current) => [...current, entry])
+    setTermOutcomes({})
     setGamePhase("roundEnd")
     setTimeRemaining(ROUND_SECONDS)
     setBonusTime(0)
-  }, [])
+  }, [currentRound, currentTeam, currentTeamName, orderedTerms, roundLabel, termOutcomes])
 
   const handleTimeExpired = useCallback(() => {
     if (gamePhase !== "playing") return
 
+    const missedTerm = orderedTerms[currentTermIndex]
+    const nextOutcomes = missedTerm
+      ? { ...termOutcomes, [missedTerm.id]: "missed" as const }
+      : termOutcomes
+
     if (currentTermIndex < orderedTerms.length - 1) {
+      setTermOutcomes(nextOutcomes)
       setCurrentTermIndex((current) => current + 1)
       setTimeRemaining(ROUND_SECONDS)
       setBonusTime(0)
       return
     }
 
-    endTurn()
-  }, [currentTermIndex, endTurn, gamePhase, orderedTerms.length])
+    completeTurn(nextOutcomes)
+  }, [completeTurn, currentTermIndex, gamePhase, orderedTerms, termOutcomes])
 
   useEffect(() => {
     if (gamePhase !== "playing") return
@@ -254,17 +355,22 @@ export default function AnatomimePage() {
   }, [gamePhase, handleTimeExpired, timeRemaining])
 
   const handleCorrectAnswer = () => {
+    if (!currentTerm) return
+
     const earnedBonus = timeRemaining
+    const nextOutcomes = { ...termOutcomes, [currentTerm.id]: "correct" as const }
+
     setScores((current) => updateScore(current, currentTeam))
     setBonusTime(earnedBonus)
 
     if (currentTermIndex < orderedTerms.length - 1) {
+      setTermOutcomes(nextOutcomes)
       setCurrentTermIndex((current) => current + 1)
       setTimeRemaining(ROUND_SECONDS + earnedBonus)
       return
     }
 
-    endTurn()
+    completeTurn(nextOutcomes)
   }
 
   const continueToNextTeam = () => {
@@ -288,15 +394,117 @@ export default function AnatomimePage() {
     setCurrentRound(1)
     setScores([0, 0])
     setCurrentTeam(0)
-    setSelectedKinds(["bone", "muscle"])
+    setSelectedKinds(defaultCategories)
     setSelectedRegions([])
     setDifficulty("easy")
+    setTermCount(TERM_COUNT)
+    setAnswerMode("typed")
     setCurrentDeck([])
     setSelectedTermIds([])
     setCurrentTermIndex(0)
     setTimeRemaining(ROUND_SECONDS)
     setBonusTime(0)
+    setTermOutcomes({})
+    setLastTurnReview(null)
+    setTurnHistory([])
+    setSharedSession(null)
+    setHostCredentials(null)
     setMessage("")
+  }
+
+  const sharedViewerQuery = useMemo(() => (
+    sharedSession && hostCredentials
+      ? `?playerId=${encodeURIComponent(hostCredentials.playerId)}&playerToken=${encodeURIComponent(hostCredentials.token)}`
+      : ""
+  ), [hostCredentials, sharedSession])
+
+  const refreshSharedSession = useCallback(async () => {
+    if (!sharedSession) return
+    const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}${sharedViewerQuery}`, { cache: "no-store" })
+    const payload = await response.json().catch(() => ({}))
+    if (response.ok) setSharedSession(payload.session)
+  }, [sharedSession, sharedViewerQuery])
+
+  useEffect(() => {
+    if (gamePhase !== "sharedHost" || !sharedSession) return
+    const timer = window.setInterval(() => {
+      void refreshSharedSession()
+    }, 1500)
+
+    return () => window.clearInterval(timer)
+  }, [gamePhase, refreshSharedSession, sharedSession])
+
+  const createSharedGame = async () => {
+    const trimmedNames = teamNames.slice(0, teamCount).map((name) => name.trim())
+    if (trimmedNames.some((name) => !name)) {
+      setMessage("Enter names for all teams before creating a shared game.")
+      return
+    }
+    if (selectedKinds.length === 0 || selectedRegions.length === 0) {
+      setMessage("Choose at least one category and one region before creating a shared game.")
+      return
+    }
+
+    setCreatingSharedGame(true)
+    setMessage("")
+
+    const response = await fetch("/api/anatomime/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        config: {
+          categories: selectedKinds,
+          regions: selectedRegions,
+          difficulty,
+          answerMode,
+          termCount,
+          roundSeconds: ROUND_SECONDS,
+          stealSeconds: 8,
+          teamNames: trimmedNames,
+        },
+      }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    setCreatingSharedGame(false)
+
+    if (!response.ok) {
+      setMessage(payload.error ?? "Could not create shared game.")
+      return
+    }
+
+    setTeamNames(trimmedNames)
+    setSharedSession(payload.session)
+    setHostCredentials({ playerId: payload.host.playerId, token: payload.host.token })
+    window.localStorage.setItem(`massagelab-anatomime-host:${payload.session.code}`, JSON.stringify(payload.host))
+    setGamePhase("sharedHost")
+  }
+
+  const startSharedGame = async () => {
+    if (!sharedSession || !hostCredentials) return
+
+    const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playerId: hostCredentials.playerId,
+        playerToken: hostCredentials.token,
+      }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setMessage(payload.error ?? "Could not start shared game.")
+      return
+    }
+
+    setSharedSession(payload.session)
+    setMessage("")
+  }
+
+  const copyJoinLink = async () => {
+    if (!sharedSession) return
+    const href = `${window.location.origin}/anatomime/play/${sharedSession.code}`
+    await window.navigator.clipboard?.writeText(href)
+    setMessage("Join link copied.")
   }
 
   const allRegionsSelected = selectedRegions.length === anatomyRegions.length
@@ -309,12 +517,13 @@ export default function AnatomimePage() {
           <div>
             <PageHeading>Anatomime</PageHeading>
             <p className="anatomime-subtitle">
-              Classroom anatomy practice for teams. Choose bones, muscles, regions, and difficulty, then race the timer.
+              Classroom anatomy practice for teams. Choose anatomy categories, regions, and difficulty, then race the timer.
             </p>
           </div>
           <div className="anatomime-status">
             <span>{roundLabel}</span>
             <span>{matchingTerms.length} matching terms</span>
+            <span>{termCount} per game</span>
             <span>{difficultyLabels[difficulty]}</span>
           </div>
         </header>
@@ -422,8 +631,8 @@ export default function AnatomimePage() {
 
             <div className="anatomime-grid-2">
               <div className="anatomime-control-group">
-                <Label>Term types</Label>
-                <div className="anatomime-segmented" role="group" aria-label="Term types">
+                <Label>Categories</Label>
+                <div className="anatomime-segmented" role="group" aria-label="Categories">
                   {kindOptions.map((option) => (
                     <button
                       key={option.id}
@@ -442,7 +651,7 @@ export default function AnatomimePage() {
               <div className="anatomime-control-group">
                 <Label>Difficulty</Label>
                 <div className="anatomime-segmented" role="group" aria-label="Difficulty">
-                  {ANATOMY_DIFFICULTIES.map((option) => (
+                  {ANATOMY_STUDY_DIFFICULTIES.map((option) => (
                     <button
                       key={option}
                       type="button"
@@ -452,6 +661,42 @@ export default function AnatomimePage() {
                       onClick={() => setDifficulty(option)}
                     >
                       {difficultyLabels[option]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="anatomime-grid-2">
+              <div className="anatomime-control-group">
+                <Label htmlFor="term-count">Deck size</Label>
+                <div className="anatomime-round-control">
+                  <output className="anatomime-round-dial" htmlFor="term-count">{termCount}</output>
+                  <input
+                    id="term-count"
+                    type="range"
+                    min="4"
+                    max="24"
+                    value={termCount}
+                    onChange={(event) => setTermCount(Number(event.target.value))}
+                    className="anatomime-round-slider"
+                  />
+                </div>
+              </div>
+
+              <div className="anatomime-control-group">
+                <Label>Shared answer mode</Label>
+                <div className="anatomime-segmented" role="group" aria-label="Shared answer mode">
+                  {(["typed", "multiple-choice"] as AnatomimeAnswerMode[]).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className="anatomime-choice-button"
+                      data-selected={answerMode === option}
+                      aria-pressed={answerMode === option}
+                      onClick={() => setAnswerMode(option)}
+                    >
+                      {answerModeLabels[option]}
                     </button>
                   ))}
                 </div>
@@ -492,6 +737,10 @@ export default function AnatomimePage() {
               <button type="button" className="anatomime-primary-button" onClick={continueToSetup}>
                 Continue
               </button>
+              <button type="button" className="anatomime-secondary-button" onClick={createSharedGame} disabled={creatingSharedGame}>
+                <Users className="h-4 w-4" />
+                {creatingSharedGame ? "Creating..." : "Create Shared Game"}
+              </button>
             </div>
           </section>
         ) : null}
@@ -501,7 +750,7 @@ export default function AnatomimePage() {
             <div className="anatomime-section-heading">
               <div>
                 <h2>{currentTeamName}&apos;s terms</h2>
-                <p>{roundLabel}. Select the {TERM_COUNT} terms in presentation order.</p>
+                <p>{roundLabel}. Select the {termCount} terms in presentation order.</p>
               </div>
               <button type="button" className="anatomime-secondary-button" onClick={buildTurnDeck}>
                 <RotateCcw className="h-4 w-4" />
@@ -565,12 +814,97 @@ export default function AnatomimePage() {
                 type="button" 
                 className="anatomime-primary-button" 
                 onClick={startTurn}
-                disabled={selectedTermIds.length !== TERM_COUNT}
+                disabled={selectedTermIds.length !== termCount}
               >
                 <Play className="h-4 w-4" />
                 Start Turn
               </button>
             </div>
+          </section>
+        ) : null}
+
+        {gamePhase === "sharedHost" && sharedSession ? (
+          <section className="anatomime-panel">
+            <div className="anatomime-section-heading">
+              <div>
+                <h2>Shared game {sharedSession.code}</h2>
+                <p>Players join at /anatomime/play/{sharedSession.code} and pick a team from their own device.</p>
+              </div>
+              <div className="anatomime-status">
+                <span>{sharedSession.status}</span>
+                <span>{sharedSession.phase}</span>
+                <span>{sharedSession.players.filter((player: any) => player.role === "PLAYER").length} players</span>
+              </div>
+            </div>
+
+            <div className="anatomime-actions">
+              <a className="anatomime-secondary-button" href={`/anatomime/play/${sharedSession.code}`}>
+                Join Page
+              </a>
+              <button type="button" className="anatomime-secondary-button" onClick={copyJoinLink}>
+                <Copy className="h-4 w-4" />
+                Copy Link
+              </button>
+              <button type="button" className="anatomime-secondary-button" onClick={() => refreshSharedSession()}>
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+              {sharedSession.status === "LOBBY" ? (
+                <button type="button" className="anatomime-primary-button" onClick={startSharedGame}>
+                  <Play className="h-4 w-4" />
+                  Start Shared Game
+                </button>
+              ) : null}
+            </div>
+
+            <div className="anatomime-score-grid">
+              {sharedSession.teams.map((team: any) => (
+                <div key={team.id} className="anatomime-score" data-active={sharedSession.activeTeam?.id === team.id}>
+                  <span>{team.name}</span>
+                  <strong>{team.score}</strong>
+                </div>
+              ))}
+            </div>
+
+            {sharedSession.status === "LOBBY" ? (
+              <div className="anatomime-setup-grid">
+                {sharedSession.teams.map((team: any) => (
+                  <div key={team.id} className="anatomime-list-column">
+                    <h3>{team.name}</h3>
+                    <div className="anatomime-review-list">
+                      {sharedSession.players
+                        .filter((player: any) => player.role === "PLAYER" && player.teamId === team.id)
+                        .map((player: any) => (
+                          <article key={player.id} className="anatomime-review-card">
+                            <strong>{player.displayName}</strong>
+                            <p className="anatomime-review-meta">{player.signedIn ? "Signed in" : "Guest"}</p>
+                          </article>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {sharedSession.status === "PLAYING" && sharedSession.activeItem ? (
+              <div className="anatomime-current-term">
+                <span>
+                  {sharedSession.activeItem.index + 1} of {sharedSession.activeItem.total} · {sharedSession.activeTeam?.name}
+                </span>
+                <h2>{sharedSession.activeItem.prompt.name}</h2>
+                <p>
+                  {sharedSession.activeItem.prompt.categoryLabel} · {sharedSession.activeItem.prompt.regionLabels?.join(", ")} · {sharedSession.activeItem.prompt.difficulty}
+                </p>
+                {sharedSession.activeItem.prompt.definition ? <small>{sharedSession.activeItem.prompt.definition}</small> : null}
+              </div>
+            ) : null}
+
+            {sharedSession.status === "COMPLETED" ? (
+              <div className="anatomime-current-term">
+                <h2>Game complete</h2>
+                <p>Final scores are ready. Signed-in correct guesses have been counted toward learning progress.</p>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -604,7 +938,7 @@ export default function AnatomimePage() {
                 <CheckCircle2 className="h-4 w-4" />
                 Got It
               </button>
-              <button type="button" className="anatomime-secondary-button" onClick={endTurn}>
+              <button type="button" className="anatomime-secondary-button" onClick={() => completeTurn()}>
                 <SkipForward className="h-4 w-4" />
                 Next Team
               </button>
@@ -632,6 +966,21 @@ export default function AnatomimePage() {
                 </div>
               ))}
             </div>
+
+            {lastTurnReview ? (
+              <div className="anatomime-learning-review">
+                <div className="anatomime-section-heading compact">
+                  <div>
+                    <h3>Turn review</h3>
+                    <p>
+                      {lastTurnReview.teamName}: {lastTurnReview.summary.correct} got,{" "}
+                      {lastTurnReview.summary.missed} missed, {lastTurnReview.summary.skipped} skipped.
+                    </p>
+                  </div>
+                </div>
+                <LearningReviewList review={lastTurnReview.review} />
+              </div>
+            ) : null}
 
             <div className="anatomime-actions">
               {!isFinalScheduledTurn && showManualEndGame ? (
@@ -666,6 +1015,27 @@ export default function AnatomimePage() {
                 </div>
               ))}
             </div>
+            {learningRecap.length > 0 ? (
+              <div className="anatomime-learning-review">
+                <div className="anatomime-section-heading compact centered">
+                  <div>
+                    <h3>Learning recap</h3>
+                    <p>Review the terms with misses or skips before the next game.</p>
+                  </div>
+                </div>
+                <div className="anatomime-recap-grid">
+                  {learningRecap.slice(0, 6).map((entry) => (
+                    <article key={entry.term.id} className="anatomime-recap-card">
+                      <strong>{entry.term.name}</strong>
+                      <span>
+                        {entry.correct} got · {entry.missed} missed · {entry.skipped} skipped
+                      </span>
+                      {entry.term.definition ? <p>{entry.term.definition}</p> : null}
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <button type="button" className="anatomime-primary-button" onClick={startNewGame}>
               Play Again
             </button>
