@@ -4,9 +4,9 @@ import {
   loadAnatomimeSession,
   summarizeAnatomimeSession,
 } from "@/lib/anatomime-session-server"
-import { anatomimeViewerFromRequest } from "@/lib/anatomime-api"
+import { anatomimeViewerFromRequest, apiErrorMapper } from "@/lib/anatomime-api"
 
-export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
+export const GET = apiErrorMapper(async (request: Request, { params }: { params: Promise<{ code: string }> }) => {
   const session = await getCurrentSession()
   const { code } = await params
   const gameSession = await loadAnatomimeSession(code)
@@ -18,4 +18,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   return NextResponse.json({
     session: summarizeAnatomimeSession(gameSession, anatomimeViewerFromRequest(request, session?.user?.id)),
   })
-}
+}, "Could not load Anatomime game.")

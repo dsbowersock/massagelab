@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server"
 import { createAnatomimeRealtimeTokenRequest } from "@/lib/anatomime-realtime"
+import { loadAnatomimeSession } from "@/lib/anatomime-session-server"
+import { apiErrorMapper, objectBody } from "@/lib/anatomime-api"
 
-function objectBody(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
-
-export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
+export const POST = apiErrorMapper(async (request: Request, { params }: { params: Promise<{ code: string }> }) => {
   const { code } = await params
   const body = objectBody(await request.json().catch(() => ({})))
   const clientId = typeof body.clientId === "string" && body.clientId.trim()
     ? body.clientId.trim().slice(0, 120)
     : "anatomime-player"
+  const gameSession = await loadAnatomimeSession(code)
+
+  if (!gameSession) {
+    return NextResponse.json({ error: "Game not found." }, { status: 404 })
+  }
+
   const tokenRequest = await createAnatomimeRealtimeTokenRequest(code, clientId)
 
   if (!tokenRequest) {
@@ -20,4 +22,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   }
 
   return NextResponse.json(tokenRequest)
-}
+}, "Could not create Anatomime realtime token.")

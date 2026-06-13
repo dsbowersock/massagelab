@@ -31,3 +31,20 @@ export function anatomimeErrorResponse(error: unknown, logContext: string) {
   console.error(logContext, error)
   return NextResponse.json({ error: "Internal server error" }, { status: 500 })
 }
+
+/**
+ * Maps thrown shared-session route errors into the same JSON shape used by
+ * Anatomime mutation handlers.
+ */
+export function apiErrorMapper<TContext>(
+  handler: (request: Request, context: TContext) => Promise<Response>,
+  logContext = "Anatomime API request failed.",
+) {
+  return async (request: Request, context: TContext) => {
+    try {
+      return await handler(request, context)
+    } catch (error) {
+      return anatomimeErrorResponse(error, logContext)
+    }
+  }
+}
