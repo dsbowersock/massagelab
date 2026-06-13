@@ -188,6 +188,7 @@ describe("Anatomy data foundation", () => {
       "body-system-concepts",
       "cardiorespiratory-lymphatic-concepts",
       "remaining-body-system-concepts",
+      "tissue-taxonomy-concepts",
       "nervous-system-concepts",
       "movement-tissue-concepts",
       "gross-body-system-structures",
@@ -743,6 +744,116 @@ describe("Anatomy data foundation", () => {
     assert.ok(searchAnatomyFoundation("urinary bladder").some((result) => result.slug === "urinary-bladder"))
     assert.ok(searchAnatomyFoundation("pituitary gland").some((result) => result.slug === "pituitary-gland"))
     assert.ok(searchAnatomyFoundation("spinal cord").some((result) => result.slug === "spinal-cord"))
+  })
+
+  it("assigns modeled anatomy items to textbook body systems", () => {
+    const systemMemberships = ANATOMY_FOUNDATION_SEED.relationships.filter((relationship) => (
+      relationship.relationshipType === "belongs_to_system" &&
+      relationship.targetEntityType === "anatomy_concept"
+    ))
+    const membershipKey = (entityType, entitySlug, systemSlug) => `${entityType}:${entitySlug}->${systemSlug}`
+    const membershipKeys = new Set(systemMemberships.map((relationship) => (
+      membershipKey(relationship.sourceEntityType, relationship.sourceEntitySlug, relationship.targetEntitySlug)
+    )))
+    const hasMembership = (entityType, entitySlug) => systemMemberships.some((relationship) => (
+      relationship.sourceEntityType === entityType &&
+      relationship.sourceEntitySlug === entitySlug
+    ))
+    const requiredRows = [
+      ...ANATOMY_FOUNDATION_SEED.bones.map((row) => ["bone", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.boneLandmarks.map((row) => ["bone_landmark", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.joints.map((row) => ["joint", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.jointMovements.map((row) => ["joint_movement", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.rangesOfMotion.map((row) => ["range_of_motion", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.muscles.map((row) => ["muscle", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.muscleAttachments.map((row) => ["muscle_attachment", row.id]),
+      ...ANATOMY_FOUNDATION_SEED.muscleActions.map((row) => ["muscle_action", row.id]),
+      ...ANATOMY_FOUNDATION_SEED.nerves.map((row) => ["nerve", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.muscleInnervations.map((row) => ["muscle_innervation", row.id]),
+      ...ANATOMY_FOUNDATION_SEED.ligaments.map((row) => ["ligament", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.bloodSupply.map((row) => ["blood_supply", row.slug]),
+      ...ANATOMY_FOUNDATION_SEED.structures.map((row) => ["anatomy_structure", row.slug]),
+    ]
+    const missingMemberships = requiredRows
+      .filter(([entityType, entitySlug]) => !hasMembership(entityType, entitySlug))
+      .map(([entityType, entitySlug]) => `${entityType}:${entitySlug}`)
+
+    assert.deepEqual(missingMemberships, [])
+    assert.ok(ANATOMY_FOUNDATION_SEED.concepts.some((concept) => concept.slug === "skeletal-system"))
+    assert.ok(ANATOMY_FOUNDATION_SEED.concepts.some((concept) => concept.slug === "muscular-system"))
+    assert.ok(ANATOMY_FOUNDATION_SEED.concepts.some((concept) => concept.slug === "lymphatic-system"))
+    assert.ok(membershipKeys.has(membershipKey("muscle", "upper-trapezius", "muscular-system")))
+    assert.ok(membershipKeys.has(membershipKey("bone", "scapula", "skeletal-system")))
+    assert.ok(membershipKeys.has(membershipKey("nerve", "brachial-plexus", "nervous-system")))
+    assert.ok(membershipKeys.has(membershipKey("blood_supply", "transverse-cervical-artery", "cardiovascular-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "lung", "respiratory-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "eye", "nervous-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "joint-capsule", "skeletal-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "deep-fascia", "muscular-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "spleen", "lymphatic-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "pancreas", "endocrine-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "pharynx", "digestive-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "hypothalamus", "nervous-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "ovary", "endocrine-system")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "testis", "endocrine-system")))
+    assert.ok(membershipKeys.has(membershipKey("muscle", "diaphragm", "respiratory-system")))
+    assert.ok(membershipKeys.has(membershipKey("muscle", "external-intercostals", "respiratory-system")))
+    assert.equal(membershipKeys.has(membershipKey("anatomy_structure", "thyroid-cartilage", "endocrine-system")), false)
+    assert.equal(membershipKeys.has(membershipKey("anatomy_structure", "lymphatic-vessel", "cardiovascular-system")), false)
+    assert.equal(membershipKeys.has(membershipKey("anatomy_structure", "clavipectoral-fascia", "digestive-system")), false)
+    assert.equal(systemMemberships.some((relationship) => relationship.targetEntitySlug === "sensory-system"), false)
+    assert.equal(systemMemberships.some((relationship) => relationship.targetEntitySlug === "musculoskeletal-system"), false)
+  })
+
+  it("assigns modeled anatomy items to textbook tissue types separately from body systems", () => {
+    const tissueMemberships = ANATOMY_FOUNDATION_SEED.relationships.filter((relationship) => (
+      relationship.relationshipType === "belongs_to_tissue_type" &&
+      relationship.targetEntityType === "anatomy_concept"
+    ))
+    const membershipKey = (entityType, entitySlug, tissueSlug) => `${entityType}:${entitySlug}->${tissueSlug}`
+    const membershipKeys = new Set(tissueMemberships.map((relationship) => (
+      membershipKey(relationship.sourceEntityType, relationship.sourceEntitySlug, relationship.targetEntitySlug)
+    )))
+
+    for (const conceptSlug of [
+      "epithelial-tissue",
+      "connective-tissue",
+      "muscle-tissue",
+      "nervous-tissue",
+    ]) {
+      const concept = ANATOMY_FOUNDATION_SEED.concepts.find((entry) => entry.slug === conceptSlug)
+
+      assert.ok(concept, `${conceptSlug} should be a seeded tissue-type concept`)
+      assert.equal(concept?.conceptType, "tissue_type")
+      assert.equal(concept?.sourceRef, "openstax-anatomy-physiology")
+    }
+
+    for (const [conceptSlug, tissueSlug] of [
+      ["epithelium", "epithelial-tissue"],
+      ["mucous-membrane", "epithelial-tissue"],
+      ["serous-membrane", "connective-tissue"],
+      ["loose-connective-tissue", "connective-tissue"],
+      ["dense-connective-tissue", "connective-tissue"],
+      ["adipose-tissue", "connective-tissue"],
+      ["cartilage", "connective-tissue"],
+      ["blood", "connective-tissue"],
+      ["skeletal-muscle-tissue", "muscle-tissue"],
+      ["cardiac-muscle-tissue", "muscle-tissue"],
+      ["smooth-muscle-tissue", "muscle-tissue"],
+    ]) {
+      assert.ok(membershipKeys.has(membershipKey("anatomy_concept", conceptSlug, tissueSlug)), `${conceptSlug} should belong to ${tissueSlug}`)
+    }
+
+    assert.ok(membershipKeys.has(membershipKey("muscle", "upper-trapezius", "muscle-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("bone", "scapula", "connective-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("ligament", "acromioclavicular-ligament", "connective-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("nerve", "brachial-plexus", "nervous-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("blood_supply", "transverse-cervical-artery", "connective-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "epidermis", "epithelial-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "blood", "connective-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "thoracolumbar-fascia", "connective-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "myocardium", "muscle-tissue")))
+    assert.ok(membershipKeys.has(membershipKey("anatomy_structure", "retina", "nervous-tissue")))
   })
 
   it("connects every modeled anatomy structure to at least one browseable relationship", () => {
@@ -2596,7 +2707,11 @@ describe("Anatomy data foundation", () => {
       .filter((citation) => citation.factType === "seed_source_reference" && citation.reviewStatus === "reviewed")
       .map((citation) => `${citation.entityType}:${citation.entitySlug}:${citation.factSlug}`))
 
-    for (const relationship of ANATOMY_FOUNDATION_SEED.relationships.filter((entry) => entry.sourceEntityType === "ligament")) {
+    for (const relationship of ANATOMY_FOUNDATION_SEED.relationships.filter((entry) => (
+      entry.sourceEntityType === "ligament" &&
+      entry.relationshipType !== "belongs_to_system" &&
+      entry.relationshipType !== "belongs_to_tissue_type"
+    ))) {
       assert.ok(
         relationshipCitationKeys.has(`ligament:${relationship.sourceEntitySlug}:${relationship.id}`),
         `${relationship.id} needs a reviewed ligament relationship citation`,

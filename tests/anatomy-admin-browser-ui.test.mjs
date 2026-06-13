@@ -41,6 +41,81 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(maintenanceBody, /counts\.map/)
   })
 
+  it("separates anatomy browser tabs and exposes body-system views", async () => {
+    const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
+    const entityViewsStart = pageSource.indexOf("const ENTITY_BROWSER_VIEWS")
+    const hiddenEntityViewsStart = pageSource.indexOf("const SYSTEM_REDUNDANT_ENTITY_BROWSER_VIEWS")
+    const bodySystemConfigsStart = pageSource.indexOf("const BODY_SYSTEM_CONFIGS")
+    const tissueTypeConfigsStart = pageSource.indexOf("const TISSUE_TYPE_CONFIGS")
+    const entityViewsSource = pageSource.slice(entityViewsStart, hiddenEntityViewsStart)
+    const hiddenEntityViewsSource = pageSource.slice(hiddenEntityViewsStart, pageSource.indexOf("const BODY_SYSTEM_BROWSER_VIEWS"))
+    const bodySystemConfigsSource = pageSource.slice(bodySystemConfigsStart, tissueTypeConfigsStart)
+    const tissueTypeConfigsSource = pageSource.slice(tissueTypeConfigsStart, pageSource.indexOf("type TissueTypeBrowserView"))
+
+    for (const label of [
+      "Joints",
+      "ROM",
+      "Terms",
+      "Pain",
+    ]) {
+      assert.match(entityViewsSource, new RegExp(`label: "${label.replace("/", "\\/")}"`))
+    }
+
+    for (const label of [
+      "Muscles",
+      "Ligaments",
+      "Nerves",
+      "Vessels",
+    ]) {
+      assert.doesNotMatch(entityViewsSource, new RegExp(`label: "${label}"`))
+      assert.match(hiddenEntityViewsSource, new RegExp(`label: "${label}"`))
+    }
+
+    for (const label of [
+      "Integumentary",
+      "Skeletal",
+      "Muscular",
+      "Nervous",
+      "Cardiovascular",
+      "Lymphatic",
+      "Respiratory",
+      "Digestive",
+      "Endocrine",
+      "Urinary",
+      "Reproductive",
+    ]) {
+      assert.match(bodySystemConfigsSource, new RegExp(`label: "${label}"`))
+    }
+
+    for (const label of [
+      "Musculoskeletal",
+      "Lymphatic/immune",
+      "Sensory",
+    ]) {
+      assert.doesNotMatch(bodySystemConfigsSource, new RegExp(`label: "${label.replace("/", "\\/")}"`))
+    }
+
+    for (const label of [
+      "Epithelial",
+      "Connective",
+      "Muscle tissue",
+      "Nervous tissue",
+    ]) {
+      assert.match(tissueTypeConfigsSource, new RegExp(`label: "${label}"`))
+    }
+
+    assert.doesNotMatch(pageSource, /Joints & ROM/)
+    assert.doesNotMatch(pageSource, /Nerves & vessels/)
+    assert.doesNotMatch(pageSource, /Terms & pain/)
+    assert.match(pageSource, /function BodySystemTables/)
+    assert.match(pageSource, /function TissueTypeTables/)
+    assert.match(pageSource, /ariaLabel="Tissue type views"/)
+    assert.match(pageSource, /relationshipType: "belongs_to_system"/)
+    assert.match(pageSource, /relationshipType: "belongs_to_tissue_type"/)
+    assert.match(pageSource, /relationshipType: "includes_structure"/)
+    assert.match(pageSource, /LEGACY_BROWSER_VIEW_REDIRECTS/)
+  })
+
   it("surfaces full citation backlog and clickable external identifier detail", async () => {
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
 
@@ -138,6 +213,7 @@ describe("Anatomy admin browser table UI", () => {
     const adminSource = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8")
     const pageSource = await readFile(new URL("../app/admin/anatomy/page.tsx", import.meta.url), "utf8")
     const queueSource = await readFile(new URL("../app/admin/anatomy/media-review/page.tsx", import.meta.url), "utf8")
+    const queueImageSource = await readFile(new URL("../app/admin/anatomy/media-review/review-image-preview.tsx", import.meta.url), "utf8")
     const actionsSource = await readFile(new URL("../app/admin/anatomy/actions.ts", import.meta.url), "utf8")
     const accessSource = await readFile(new URL("../lib/anatomy-admin-access.ts", import.meta.url), "utf8")
     const navigationSource = await readFile(new URL("../lib/navigation.js", import.meta.url), "utf8")
@@ -159,6 +235,21 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(queueSource, /Approve image/)
     assert.match(queueSource, /Needs better view/)
     assert.match(queueSource, /Reject image/)
+    assert.match(queueSource, /IMAGE_REVIEW_MEDIA_TYPES/)
+    assert.match(queueSource, /mediaType: \{ in: IMAGE_REVIEW_MEDIA_TYPES \}/)
+    assert.match(queueSource, /function linkedImageSummariesForRows/)
+    assert.match(queueSource, /Images linked to this item/)
+    assert.match(queueSource, /This queue reviews one linked image at a time/)
+    assert.match(queueSource, /Why flag this image\?/)
+    assert.match(queueSource, /Replacement view/)
+    assert.match(queueSource, /What should change\?/)
+    assert.match(queueSource, /safeBodyParts3dRenderableImageUrl/)
+    assert.match(queueSource, /isImageReviewAsset/)
+    assert.match(queueSource, /<ReviewImagePreview/)
+    assert.match(queueImageSource, /export function ReviewImagePreview/)
+    assert.match(queueImageSource, /fallbackUrl/)
+    assert.match(queueImageSource, /onError/)
+    assert.match(queueImageSource, /This image URL could not be loaded/)
     assert.match(queueSource, /reviewAnatomyMediaQueueDecisionAction/)
     assert.match(queueSource, /function queueOffsetAfterDecision/)
     assert.match(queueSource, /rowRemainsInCurrentQueue/)

@@ -41,6 +41,7 @@ import { SOFT_TISSUE_ATLAS_SECTION } from "./soft-tissue-atlas.ts"
 import { SOURCES_SEED_SECTION } from "./sources.ts"
 import { SPATIAL_BODY_MAP_FOUNDATION_SECTION } from "./spatial-body-map-foundation.ts"
 import { STRUCTURE_RELATIONSHIP_COMPLETENESS_ATLAS_SECTION } from "./structure-relationship-completeness-atlas.ts"
+import { TISSUE_TAXONOMY_CONCEPTS_SECTION } from "./tissue-taxonomy-concepts.ts"
 import { TRUNK_SPINE_PELVIS_SECTION } from "./trunk-spine-pelvis.ts"
 import { UPPER_LIMB_SECTION } from "./upper-limb.ts"
 import { VASCULAR_LYMPHATIC_ATLAS_CLOSURE_SECTION } from "./vascular-lymphatic-atlas-closure.ts"
@@ -57,6 +58,7 @@ export const ANATOMY_SEED_SECTION_NAMES = [
   "body-system-concepts",
   "cardiorespiratory-lymphatic-concepts",
   "remaining-body-system-concepts",
+  "tissue-taxonomy-concepts",
   "nervous-system-concepts",
   "movement-tissue-concepts",
   "gross-body-system-structures",
@@ -107,6 +109,7 @@ export const ANATOMY_SEED_SECTIONS: AnatomySeedSection[] = [
   BODY_SYSTEM_CONCEPTS_SECTION,
   CARDIORESPIRATORY_LYMPHATIC_CONCEPTS_SECTION,
   REMAINING_BODY_SYSTEM_CONCEPTS_SECTION,
+  TISSUE_TAXONOMY_CONCEPTS_SECTION,
   NERVOUS_SYSTEM_CONCEPTS_SECTION,
   MOVEMENT_TISSUE_CONCEPTS_SECTION,
   GROSS_BODY_SYSTEM_STRUCTURES_SECTION,

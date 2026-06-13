@@ -20,7 +20,7 @@ import {
   anatomyMediaCoverageForLinks,
   bodyParts3dComposerUrl,
   normalizeBodyParts3dPartIds,
-  safeBodyParts3dImageUrl,
+  safeBodyParts3dRenderableImageUrl,
 } from "@/lib/anatomy-media-review"
 import { prisma } from "@/lib/prisma"
 import {
@@ -114,12 +114,125 @@ type AnatomyBrowserView =
   | "muscles"
   | "structures"
   | "concepts"
-  | "movement"
-  | "neurovascular"
-  | "language"
+  | "joints"
+  | "rom"
+  | "ligaments"
+  | "nerves"
+  | "vessels"
+  | "terms"
+  | "pain"
   | "queries"
   | "sources"
   | "maintenance"
+  | BodySystemBrowserView
+  | TissueTypeBrowserView
+
+type BodySystemEntitySection = "muscles" | "bones" | "joints" | "ligaments" | "nerves" | "vessels"
+
+const BODY_SYSTEM_CONFIGS = [
+  {
+    view: "system-integumentary",
+    label: "Integumentary",
+    systemConceptSlugs: ["integumentary-system"],
+    entitySections: [],
+  },
+  {
+    view: "system-skeletal",
+    label: "Skeletal",
+    systemConceptSlugs: ["skeletal-system"],
+    entitySections: ["bones", "joints", "ligaments"],
+  },
+  {
+    view: "system-muscular",
+    label: "Muscular",
+    systemConceptSlugs: ["muscular-system"],
+    entitySections: ["muscles"],
+  },
+  {
+    view: "system-nervous",
+    label: "Nervous",
+    systemConceptSlugs: ["nervous-system"],
+    entitySections: ["nerves"],
+  },
+  {
+    view: "system-cardiovascular",
+    label: "Cardiovascular",
+    systemConceptSlugs: ["cardiovascular-system"],
+    entitySections: ["vessels"],
+  },
+  {
+    view: "system-lymphatic",
+    label: "Lymphatic",
+    systemConceptSlugs: ["lymphatic-system"],
+    entitySections: [],
+  },
+  {
+    view: "system-respiratory",
+    label: "Respiratory",
+    systemConceptSlugs: ["respiratory-system"],
+    entitySections: [],
+  },
+  {
+    view: "system-digestive",
+    label: "Digestive",
+    systemConceptSlugs: ["digestive-system"],
+    entitySections: [],
+  },
+  {
+    view: "system-endocrine",
+    label: "Endocrine",
+    systemConceptSlugs: ["endocrine-system"],
+    entitySections: [],
+  },
+  {
+    view: "system-urinary",
+    label: "Urinary",
+    systemConceptSlugs: ["urinary-system"],
+    entitySections: [],
+  },
+  {
+    view: "system-reproductive",
+    label: "Reproductive",
+    systemConceptSlugs: ["reproductive-system"],
+    entitySections: [],
+  },
+] as const satisfies ReadonlyArray<{
+  view: string
+  label: string
+  systemConceptSlugs: readonly string[]
+  entitySections: readonly BodySystemEntitySection[]
+}>
+
+type BodySystemBrowserView = (typeof BODY_SYSTEM_CONFIGS)[number]["view"]
+
+const TISSUE_TYPE_CONFIGS = [
+  {
+    view: "tissue-epithelial",
+    label: "Epithelial",
+    tissueTypeConceptSlugs: ["epithelial-tissue"],
+  },
+  {
+    view: "tissue-connective",
+    label: "Connective",
+    tissueTypeConceptSlugs: ["connective-tissue"],
+  },
+  {
+    view: "tissue-muscle",
+    label: "Muscle tissue",
+    tissueTypeConceptSlugs: ["muscle-tissue"],
+  },
+  {
+    view: "tissue-nervous",
+    label: "Nervous tissue",
+    tissueTypeConceptSlugs: ["nervous-tissue"],
+  },
+] as const satisfies ReadonlyArray<{
+  view: string
+  label: string
+  tissueTypeConceptSlugs: readonly string[]
+}>
+
+type TissueTypeBrowserView = (typeof TISSUE_TYPE_CONFIGS)[number]["view"]
 
 type AnatomyBrowserData = {
   regions: Record<string, unknown>[]
@@ -139,6 +252,7 @@ type AnatomyBrowserData = {
   entityTerms: Record<string, unknown>[]
   sources: Record<string, unknown>[]
   relationships: Record<string, unknown>[]
+  systemRelationships: Record<string, unknown>[]
   citations: Record<string, unknown>[]
   externalIdentifiers: Record<string, unknown>[]
   mediaAssets: Record<string, unknown>[]
@@ -158,17 +272,58 @@ type DataTableColumn<T> = {
   render: (row: T) => React.ReactNode
 }
 
-const BROWSER_VIEWS: Array<{ key: AnatomyBrowserView; label: string }> = [
-  { key: "muscles", label: "Muscles" },
+type BrowserViewOption = { key: AnatomyBrowserView; label: string }
+
+const ENTITY_BROWSER_VIEWS: BrowserViewOption[] = [
   { key: "structures", label: "Structures" },
   { key: "concepts", label: "Concepts" },
-  { key: "movement", label: "Joints & ROM" },
-  { key: "neurovascular", label: "Nerves & vessels" },
-  { key: "language", label: "Terms & pain" },
+  { key: "joints", label: "Joints" },
+  { key: "rom", label: "ROM" },
+  { key: "terms", label: "Terms" },
+  { key: "pain", label: "Pain" },
+]
+
+const SYSTEM_REDUNDANT_ENTITY_BROWSER_VIEWS: BrowserViewOption[] = [
+  { key: "muscles", label: "Muscles" },
+  { key: "ligaments", label: "Ligaments" },
+  { key: "nerves", label: "Nerves" },
+  { key: "vessels", label: "Vessels" },
+]
+
+const BODY_SYSTEM_BROWSER_VIEWS: BrowserViewOption[] = BODY_SYSTEM_CONFIGS.map((config) => ({
+  key: config.view,
+  label: config.label,
+}))
+
+const TISSUE_TYPE_BROWSER_VIEWS: BrowserViewOption[] = TISSUE_TYPE_CONFIGS.map((config) => ({
+  key: config.view,
+  label: config.label,
+}))
+
+const ADMIN_BROWSER_VIEWS: BrowserViewOption[] = [
   { key: "queries", label: "Queries" },
   { key: "sources", label: "Sources" },
   { key: "maintenance", label: "Maintenance" },
 ]
+
+const BROWSER_VIEWS: BrowserViewOption[] = [
+  ...ENTITY_BROWSER_VIEWS,
+  ...SYSTEM_REDUNDANT_ENTITY_BROWSER_VIEWS,
+  ...BODY_SYSTEM_BROWSER_VIEWS,
+  ...TISSUE_TYPE_BROWSER_VIEWS,
+  ...ADMIN_BROWSER_VIEWS,
+]
+
+const DEFAULT_BROWSER_VIEW: AnatomyBrowserView = "system-muscular"
+
+const LEGACY_BROWSER_VIEW_REDIRECTS = new Map<string, AnatomyBrowserView>([
+  ["movement", "joints"],
+  ["neurovascular", "nerves"],
+  ["language", "terms"],
+  ["system-lymphatic-immune", "system-lymphatic"],
+  ["system-musculoskeletal", "system-muscular"],
+  ["system-sensory", "system-nervous"],
+])
 
 export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPageProps) {
   await requireAnatomyAdminUser()
@@ -266,7 +421,7 @@ function AnatomyDatabaseBrowser({
           toolbar={(
             <>
               <form action="/admin/anatomy" className="grid gap-2 sm:gap-3 md:grid-cols-[1fr_auto]">
-                <input type="hidden" name="view" value={selectedView === "maintenance" ? "muscles" : selectedView} />
+                <input type="hidden" name="view" value={selectedView === "maintenance" ? DEFAULT_BROWSER_VIEW : selectedView} />
                 <div className="space-y-2">
                   <Label htmlFor="anatomy-search" data-anatomy-search-label>
                     Search normalized anatomy
@@ -287,12 +442,11 @@ function AnatomyDatabaseBrowser({
                 </div>
               </form>
 
-              <div data-anatomy-view-tabs className="flex gap-2 overflow-x-auto pb-1">
-                {BROWSER_VIEWS.map((view) => (
-                  <Button key={view.key} asChild variant={selectedView === view.key ? "default" : "outline"} size="sm" className="shrink-0">
-                    <Link href={browserViewHref(view.key)}>{view.label}</Link>
-                  </Button>
-                ))}
+              <div data-anatomy-view-tabs className="space-y-2">
+                <BrowserViewTabRow ariaLabel="General anatomy views" selectedView={selectedView} views={ENTITY_BROWSER_VIEWS} />
+                <BrowserViewTabRow ariaLabel="Body system views" selectedView={selectedView} views={BODY_SYSTEM_BROWSER_VIEWS} />
+                <BrowserViewTabRow ariaLabel="Tissue type views" selectedView={selectedView} views={TISSUE_TYPE_BROWSER_VIEWS} />
+                <BrowserViewTabRow ariaLabel="Anatomy admin views" selectedView={selectedView} views={ADMIN_BROWSER_VIEWS} />
               </div>
             </>
           )}
@@ -311,9 +465,15 @@ function AnatomyDatabaseBrowser({
           {selectedView === "muscles" ? <MusclesTable data={browserData} searchQuery={searchQuery} /> : null}
           {selectedView === "structures" ? <StructuresTables data={browserData} searchQuery={searchQuery} /> : null}
           {selectedView === "concepts" ? <ConceptsTable data={browserData} searchQuery={searchQuery} /> : null}
-          {selectedView === "movement" ? <MovementTables data={browserData} searchQuery={searchQuery} /> : null}
-          {selectedView === "neurovascular" ? <NeurovascularTables data={browserData} searchQuery={searchQuery} /> : null}
-          {selectedView === "language" ? <LanguageTables data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "joints" ? <JointsTable data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "rom" ? <RangeOfMotionTable data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "ligaments" ? <LigamentsTable data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "nerves" ? <NervesTable data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "vessels" ? <VesselsTable data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "terms" ? <TermsTable data={browserData} searchQuery={searchQuery} /> : null}
+          {selectedView === "pain" ? <PainRegionsTable data={browserData} searchQuery={searchQuery} /> : null}
+          {isBodySystemBrowserView(selectedView) ? <BodySystemTables data={browserData} searchQuery={searchQuery} view={selectedView} /> : null}
+          {isTissueTypeBrowserView(selectedView) ? <TissueTypeTables data={browserData} searchQuery={searchQuery} view={selectedView} /> : null}
           {selectedView === "sources" ? <SourcesTable data={browserData} /> : null}
           {selectedView === "maintenance" ? <MaintenanceView counts={counts} terms={terms} flags={flags} /> : null}
 
@@ -369,6 +529,18 @@ function QuickResultPanel({ quickResult }: { quickResult: AnatomyQuickResult | n
           ]}
         />
       )}
+    </div>
+  )
+}
+
+function BrowserViewTabRow({ ariaLabel, selectedView, views }: { ariaLabel: string; selectedView: AnatomyBrowserView; views: BrowserViewOption[] }) {
+  return (
+    <div aria-label={ariaLabel} className="flex gap-2 overflow-x-auto pb-1">
+      {views.map((view) => (
+        <Button key={view.key} asChild variant={selectedView === view.key ? "default" : "outline"} size="sm" className="shrink-0">
+          <Link href={browserViewHref(view.key)}>{view.label}</Link>
+        </Button>
+      ))}
     </div>
   )
 }
@@ -603,47 +775,112 @@ function ConceptsTable({ data, searchQuery }: { data: AnatomyBrowserData; search
   )
 }
 
-function MovementTables({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+function JointsTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
   return (
-    <div className="space-y-4">
-      <SectionPanel title="Joints, movements, ROM, and ligaments">
-        <DataTable
-          rows={data.joints}
-          rowKey={(joint) => recordText(joint, "slug")}
-          columns={[
-            {
-              header: "Joint",
-              render: (joint) => (
-                <NameCell
-                  title={recordText(joint, "name")}
-                  subtitle={recordText(joint, "jointType")}
-                  meta={relationText(joint, "region", "name")}
-                  href={entityHref("JOINT", recordText(joint, "slug"), "movement", searchQuery)}
-                />
-              ),
-            },
-            {
-              header: "Movements",
-              render: (joint) => <CompactList items={recordArray(joint, "movements").map((movement) => movementLine(movement))} />,
-            },
-            {
-              header: "ROM",
-              render: (joint) => <CompactList items={recordArray(joint, "rangesOfMotion").map((rom) => romLine(rom))} />,
-            },
-            {
-              header: "Ligaments",
-              render: (joint) => <CompactList items={recordArray(joint, "ligaments").map((ligament) => recordText(ligament, "name"))} />,
-            },
-          ]}
-        />
-      </SectionPanel>
-    </div>
+    <SectionPanel title="Joints and movements">
+      <DataTable
+        rows={data.joints}
+        rowKey={(joint) => recordText(joint, "slug")}
+        columns={[
+          {
+            header: "Joint",
+            render: (joint) => (
+              <NameCell
+                title={recordText(joint, "name")}
+                subtitle={recordText(joint, "jointType")}
+                meta={relationText(joint, "region", "name")}
+                href={entityHref("JOINT", recordText(joint, "slug"), "joints", searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Movements",
+            render: (joint) => <CompactList items={recordArray(joint, "movements").map((movement) => movementLine(movement))} />,
+          },
+          {
+            header: "ROM",
+            render: (joint) => <CompactList items={recordArray(joint, "rangesOfMotion").map((rom) => romLine(rom))} />,
+          },
+          {
+            header: "Ligaments",
+            render: (joint) => <CompactList items={recordArray(joint, "ligaments").map((ligament) => recordText(ligament, "name"))} />,
+          },
+        ]}
+      />
+    </SectionPanel>
   )
 }
 
-function NeurovascularTables({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+function RangeOfMotionTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <SectionPanel title="Range of motion">
+      <DataTable
+        rows={data.rangesOfMotion}
+        rowKey={(rom) => recordText(rom, "slug")}
+        columns={[
+          {
+            header: "Movement",
+            render: (rom) => (
+              <NameCell
+                title={relationText(rom, "movement", "movementName") || recordText(rom, "slug")}
+                subtitle={relationText(rom, "joint", "name")}
+                meta={romLine(rom)}
+                href={entityHref("RANGE_OF_MOTION", recordText(rom, "slug"), "rom", searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Position",
+            className: "min-w-[280px]",
+            render: (rom) => recordText(rom, "measurementPosition") || "-",
+          },
+          {
+            header: "Notes",
+            className: "min-w-[280px]",
+            render: (rom) => recordText(rom, "notes") || "-",
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function LigamentsTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+  return (
+    <SectionPanel title="Ligaments">
+      <DataTable
+        rows={data.ligaments}
+        rowKey={(ligament) => recordText(ligament, "slug")}
+        columns={[
+          {
+            header: "Ligament",
+            render: (ligament) => (
+              <NameCell
+                title={recordText(ligament, "name")}
+                subtitle={relationText(ligament, "joint", "name")}
+                meta={relationText(ligament, "region", "name")}
+                href={entityHref("LIGAMENT", recordText(ligament, "slug"), "ligaments", searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Description",
+            className: "min-w-[320px]",
+            render: (ligament) => recordText(ligament, "description") || "-",
+          },
+          {
+            header: "Source",
+            render: (ligament) => relationText(ligament, "source", "label") || "-",
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function NervesTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+  return (
+    <div className="space-y-4">
       <SectionPanel title="Nerves">
         <DataTable
           rows={data.nerves}
@@ -656,7 +893,7 @@ function NeurovascularTables({ data, searchQuery }: { data: AnatomyBrowserData; 
                   title={recordText(nerve, "name")}
                   subtitle={recordStringArray(nerve, "nerveRoots").join(", ")}
                   meta={relationText(nerve, "region", "name")}
-                  href={entityHref("NERVE", recordText(nerve, "slug"), "neurovascular", searchQuery)}
+                  href={entityHref("NERVE", recordText(nerve, "slug"), "nerves", searchQuery)}
                 />
               ),
             },
@@ -690,7 +927,13 @@ function NeurovascularTables({ data, searchQuery }: { data: AnatomyBrowserData; 
           ]}
         />
       </SectionPanel>
+    </div>
+  )
+}
 
+function VesselsTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+  return (
+    <div className="space-y-4">
       <SectionPanel title="Vessels">
         <DataTable
           rows={data.bloodSupply}
@@ -703,7 +946,7 @@ function NeurovascularTables({ data, searchQuery }: { data: AnatomyBrowserData; 
                   title={recordText(vessel, "name")}
                   subtitle={formatLabel(recordText(vessel, "kind"))}
                   meta={relationText(vessel, "region", "name")}
-                  href={entityHref("BLOOD_SUPPLY", recordText(vessel, "slug"), "neurovascular", searchQuery)}
+                  href={entityHref("BLOOD_SUPPLY", recordText(vessel, "slug"), "vessels", searchQuery)}
                 />
               ),
             },
@@ -728,7 +971,7 @@ function NeurovascularTables({ data, searchQuery }: { data: AnatomyBrowserData; 
   )
 }
 
-function LanguageTables({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+function TermsTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
   return (
     <div className="space-y-4">
       <SectionPanel title="Formal, common, and alternate terms">
@@ -763,7 +1006,7 @@ function LanguageTables({ data, searchQuery }: { data: AnatomyBrowserData; searc
                 <NameCell
                   title={recordText(term, "term")}
                   subtitle={formatLabel(recordText(term, "confidence"))}
-                  href={entityHref("CLIENT_TERM", recordText(term, "slug"), "language", searchQuery)}
+                  href={entityHref("CLIENT_TERM", recordText(term, "slug"), "terms", searchQuery)}
                 />
               ),
             },
@@ -787,7 +1030,13 @@ function LanguageTables({ data, searchQuery }: { data: AnatomyBrowserData; searc
           ]}
         />
       </SectionPanel>
+    </div>
+  )
+}
 
+function PainRegionsTable({ data, searchQuery }: { data: AnatomyBrowserData; searchQuery: string }) {
+  return (
+    <div className="space-y-4">
       <SectionPanel title="Pain regions">
         <DataTable
           rows={data.painRegions}
@@ -800,7 +1049,7 @@ function LanguageTables({ data, searchQuery }: { data: AnatomyBrowserData; searc
                   title={recordText(region, "name")}
                   subtitle={recordText(region, "plainLanguageDescription")}
                   meta={relationText(region, "region", "name")}
-                  href={entityHref("PAIN_MAP_REGION", recordText(region, "slug"), "language", searchQuery)}
+                  href={entityHref("PAIN_MAP_REGION", recordText(region, "slug"), "pain", searchQuery)}
                 />
               ),
             },
@@ -826,6 +1075,363 @@ function LanguageTables({ data, searchQuery }: { data: AnatomyBrowserData; searc
         />
       </SectionPanel>
     </div>
+  )
+}
+
+function BodySystemTables({ data, searchQuery, view }: { data: AnatomyBrowserData; searchQuery: string; view: BodySystemBrowserView }) {
+  const config = bodySystemConfigForView(view)
+  const entityKeys = bodySystemEntityKeys(data, config)
+  const systemConceptSlugs = new Set<string>(config.systemConceptSlugs)
+  const concepts = data.concepts.filter((concept) => {
+    const slug = recordText(concept, "slug")
+
+    return systemConceptSlugs.has(slug) || entityKeys.has(entityKey("ANATOMY_CONCEPT", slug))
+  })
+  const structures = bodySystemRows(data.structures, "ANATOMY_STRUCTURE", entityKeys)
+  const muscles = bodySystemRows(data.muscles, "MUSCLE", entityKeys)
+  const bones = bodySystemRows(data.bones, "BONE", entityKeys)
+  const joints = bodySystemRows(data.joints, "JOINT", entityKeys)
+  const ligaments = bodySystemRows(data.ligaments, "LIGAMENT", entityKeys)
+  const nerves = bodySystemRows(data.nerves, "NERVE", entityKeys)
+  const vessels = bodySystemRows(data.bloodSupply, "BLOOD_SUPPLY", entityKeys)
+  const hasRows = [concepts, structures, muscles, bones, joints, ligaments, nerves, vessels].some((rows) => rows.length > 0)
+
+  return (
+    <div className="space-y-4">
+      {concepts.length > 0 ? (
+        <SectionPanel title={`${config.label} concepts`}>
+          <DataTable
+            rows={concepts}
+            rowKey={(concept) => recordText(concept, "slug")}
+            columns={[
+              {
+                header: "Concept",
+                render: (concept) => (
+                  <NameCell
+                    title={recordText(concept, "name")}
+                    subtitle={formatLabel(recordText(concept, "conceptType"))}
+                    meta={formatLabel(recordText(concept, "bodySystem"))}
+                    href={entityHref("ANATOMY_CONCEPT", recordText(concept, "slug"), view, searchQuery)}
+                  />
+                ),
+              },
+              {
+                header: "Description",
+                className: "min-w-[320px]",
+                render: (concept) => recordText(concept, "description") || "-",
+              },
+            ]}
+          />
+        </SectionPanel>
+      ) : null}
+
+      {structures.length > 0 ? (
+        <SectionPanel title={`${config.label} structures`}>
+          <DataTable
+            rows={structures}
+            rowKey={(structure) => recordText(structure, "slug")}
+            columns={[
+              {
+                header: "Structure",
+                render: (structure) => (
+                  <NameCell
+                    title={recordText(structure, "name")}
+                    subtitle={formatLabel(recordText(structure, "structureType"))}
+                    meta={relationText(structure, "region", "name")}
+                    href={entityHref("ANATOMY_STRUCTURE", recordText(structure, "slug"), view, searchQuery)}
+                  />
+                ),
+              },
+              {
+                header: "Description",
+                className: "min-w-[320px]",
+                render: (structure) => recordText(structure, "description") || "-",
+              },
+            ]}
+          />
+        </SectionPanel>
+      ) : null}
+
+      {muscles.length > 0 ? <SystemMusclesSection data={data} rows={muscles} searchQuery={searchQuery} view={view} /> : null}
+      {bones.length > 0 ? <SystemBonesSection rows={bones} searchQuery={searchQuery} view={view} /> : null}
+      {joints.length > 0 ? <SystemJointsSection rows={joints} searchQuery={searchQuery} view={view} /> : null}
+      {ligaments.length > 0 ? <SystemLigamentsSection rows={ligaments} searchQuery={searchQuery} view={view} /> : null}
+      {nerves.length > 0 ? <SystemNervesSection rows={nerves} searchQuery={searchQuery} view={view} /> : null}
+      {vessels.length > 0 ? <SystemVesselsSection rows={vessels} searchQuery={searchQuery} view={view} /> : null}
+
+      {!hasRows ? (
+        <div className={`${appInsetClassName} p-4`}>
+          <p className="text-sm text-muted-foreground">No anatomy rows are assigned to this system yet.</p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function TissueTypeTables({ data, searchQuery, view }: { data: AnatomyBrowserData; searchQuery: string; view: TissueTypeBrowserView }) {
+  const config = tissueTypeConfigForView(view)
+  const entityKeys = tissueTypeEntityKeys(data, config)
+  const tissueConceptSlugs = new Set<string>(config.tissueTypeConceptSlugs)
+  const concepts = data.concepts.filter((concept) => {
+    const slug = recordText(concept, "slug")
+
+    return tissueConceptSlugs.has(slug) || entityKeys.has(entityKey("ANATOMY_CONCEPT", slug))
+  })
+  const structures = bodySystemRows(data.structures, "ANATOMY_STRUCTURE", entityKeys)
+  const muscles = bodySystemRows(data.muscles, "MUSCLE", entityKeys)
+  const bones = bodySystemRows(data.bones, "BONE", entityKeys)
+  const joints = bodySystemRows(data.joints, "JOINT", entityKeys)
+  const ligaments = bodySystemRows(data.ligaments, "LIGAMENT", entityKeys)
+  const nerves = bodySystemRows(data.nerves, "NERVE", entityKeys)
+  const vessels = bodySystemRows(data.bloodSupply, "BLOOD_SUPPLY", entityKeys)
+  const hasRows = [concepts, structures, muscles, bones, joints, ligaments, nerves, vessels].some((rows) => rows.length > 0)
+
+  return (
+    <div className="space-y-4">
+      {concepts.length > 0 ? (
+        <SectionPanel title={`${config.label} concepts`}>
+          <DataTable
+            rows={concepts}
+            rowKey={(concept) => recordText(concept, "slug")}
+            columns={[
+              {
+                header: "Concept",
+                render: (concept) => (
+                  <NameCell
+                    title={recordText(concept, "name")}
+                    subtitle={formatLabel(recordText(concept, "conceptType"))}
+                    meta={formatLabel(recordText(concept, "bodySystem"))}
+                    href={entityHref("ANATOMY_CONCEPT", recordText(concept, "slug"), view, searchQuery)}
+                  />
+                ),
+              },
+              {
+                header: "Description",
+                className: "min-w-[320px]",
+                render: (concept) => recordText(concept, "description") || "-",
+              },
+            ]}
+          />
+        </SectionPanel>
+      ) : null}
+
+      {structures.length > 0 ? (
+        <SectionPanel title={`${config.label} structures`}>
+          <DataTable
+            rows={structures}
+            rowKey={(structure) => recordText(structure, "slug")}
+            columns={[
+              {
+                header: "Structure",
+                render: (structure) => (
+                  <NameCell
+                    title={recordText(structure, "name")}
+                    subtitle={formatLabel(recordText(structure, "structureType"))}
+                    meta={relationText(structure, "region", "name")}
+                    href={entityHref("ANATOMY_STRUCTURE", recordText(structure, "slug"), view, searchQuery)}
+                  />
+                ),
+              },
+              {
+                header: "Description",
+                className: "min-w-[320px]",
+                render: (structure) => recordText(structure, "description") || "-",
+              },
+            ]}
+          />
+        </SectionPanel>
+      ) : null}
+
+      {muscles.length > 0 ? <SystemMusclesSection data={data} rows={muscles} searchQuery={searchQuery} view={view} /> : null}
+      {bones.length > 0 ? <SystemBonesSection rows={bones} searchQuery={searchQuery} view={view} /> : null}
+      {joints.length > 0 ? <SystemJointsSection rows={joints} searchQuery={searchQuery} view={view} /> : null}
+      {ligaments.length > 0 ? <SystemLigamentsSection rows={ligaments} searchQuery={searchQuery} view={view} /> : null}
+      {nerves.length > 0 ? <SystemNervesSection rows={nerves} searchQuery={searchQuery} view={view} /> : null}
+      {vessels.length > 0 ? <SystemVesselsSection rows={vessels} searchQuery={searchQuery} view={view} /> : null}
+
+      {!hasRows ? (
+        <div className={`${appInsetClassName} p-4`}>
+          <p className="text-sm text-muted-foreground">No anatomy rows are assigned to this tissue type yet.</p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function SystemMusclesSection({ data, rows, searchQuery, view }: { data: AnatomyBrowserData; rows: Record<string, unknown>[]; searchQuery: string; view: AnatomyBrowserView }) {
+  return (
+    <SectionPanel title="Muscles">
+      <DataTable
+        rows={rows}
+        rowKey={(muscle) => recordText(muscle, "slug")}
+        columns={[
+          {
+            header: "Muscle",
+            render: (muscle) => (
+              <NameCell
+                title={recordText(muscle, "name")}
+                subtitle={recordText(muscle, "formalName")}
+                meta={`${formatLabel(recordText(muscle, "relativeDepth"))} / ${relationText(muscle, "region", "name")}`}
+                href={entityHref("MUSCLE", recordText(muscle, "slug"), view, searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Terms",
+            render: (muscle) => (
+              <CompactList
+                items={[
+                  ...recordStringArray(muscle, "alternateNames"),
+                  ...entityTermLabels(data, "MUSCLE", recordText(muscle, "slug")),
+                ]}
+              />
+            ),
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function SystemBonesSection({ rows, searchQuery, view }: { rows: Record<string, unknown>[]; searchQuery: string; view: AnatomyBrowserView }) {
+  return (
+    <SectionPanel title="Bones">
+      <DataTable
+        rows={rows}
+        rowKey={(bone) => recordText(bone, "slug")}
+        columns={[
+          {
+            header: "Bone",
+            render: (bone) => (
+              <NameCell
+                title={recordText(bone, "name")}
+                subtitle={recordText(bone, "formalName")}
+                meta={relationText(bone, "region", "name")}
+                href={entityHref("BONE", recordText(bone, "slug"), view, searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Landmarks",
+            render: (bone) => <CompactList items={recordArray(bone, "landmarks").map((landmark) => recordText(landmark, "name"))} />,
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function SystemJointsSection({ rows, searchQuery, view }: { rows: Record<string, unknown>[]; searchQuery: string; view: AnatomyBrowserView }) {
+  return (
+    <SectionPanel title="Joints">
+      <DataTable
+        rows={rows}
+        rowKey={(joint) => recordText(joint, "slug")}
+        columns={[
+          {
+            header: "Joint",
+            render: (joint) => (
+              <NameCell
+                title={recordText(joint, "name")}
+                subtitle={recordText(joint, "jointType")}
+                meta={relationText(joint, "region", "name")}
+                href={entityHref("JOINT", recordText(joint, "slug"), view, searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Movements",
+            render: (joint) => <CompactList items={recordArray(joint, "movements").map((movement) => movementLine(movement))} />,
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function SystemLigamentsSection({ rows, searchQuery, view }: { rows: Record<string, unknown>[]; searchQuery: string; view: AnatomyBrowserView }) {
+  return (
+    <SectionPanel title="Ligaments">
+      <DataTable
+        rows={rows}
+        rowKey={(ligament) => recordText(ligament, "slug")}
+        columns={[
+          {
+            header: "Ligament",
+            render: (ligament) => (
+              <NameCell
+                title={recordText(ligament, "name")}
+                subtitle={relationText(ligament, "joint", "name")}
+                meta={relationText(ligament, "region", "name")}
+                href={entityHref("LIGAMENT", recordText(ligament, "slug"), view, searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Description",
+            className: "min-w-[320px]",
+            render: (ligament) => recordText(ligament, "description") || "-",
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function SystemNervesSection({ rows, searchQuery, view }: { rows: Record<string, unknown>[]; searchQuery: string; view: AnatomyBrowserView }) {
+  return (
+    <SectionPanel title="Nerves">
+      <DataTable
+        rows={rows}
+        rowKey={(nerve) => recordText(nerve, "slug")}
+        columns={[
+          {
+            header: "Nerve",
+            render: (nerve) => (
+              <NameCell
+                title={recordText(nerve, "name")}
+                subtitle={recordStringArray(nerve, "nerveRoots").join(", ")}
+                meta={relationText(nerve, "region", "name")}
+                href={entityHref("NERVE", recordText(nerve, "slug"), view, searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Innervates",
+            render: (nerve) => <CompactList items={recordArray(nerve, "innervations").map((row) => relationText(row, "muscle", "name"))} />,
+          },
+        ]}
+      />
+    </SectionPanel>
+  )
+}
+
+function SystemVesselsSection({ rows, searchQuery, view }: { rows: Record<string, unknown>[]; searchQuery: string; view: AnatomyBrowserView }) {
+  return (
+    <SectionPanel title="Vessels">
+      <DataTable
+        rows={rows}
+        rowKey={(vessel) => recordText(vessel, "slug")}
+        columns={[
+          {
+            header: "Vessel",
+            render: (vessel) => (
+              <NameCell
+                title={recordText(vessel, "name")}
+                subtitle={formatLabel(recordText(vessel, "kind"))}
+                meta={relationText(vessel, "region", "name")}
+                href={entityHref("BLOOD_SUPPLY", recordText(vessel, "slug"), view, searchQuery)}
+              />
+            ),
+          },
+          {
+            header: "Description",
+            className: "min-w-[320px]",
+            render: (vessel) => recordText(vessel, "description") || "-",
+          },
+        ]}
+      />
+    </SectionPanel>
   )
 }
 
@@ -1146,7 +1752,7 @@ function EntityDetailPanel({
         <div className="space-y-2">
           <Label htmlFor="relationship_type">Add relationship</Label>
           <select id="relationship_type" name="relationship_type" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-            {["related_to", "deep_to", "superficial_to", "supplies", "includes_branch", "may_affect_region", "overlaps_region"].map((value) => (
+            {["related_to", "belongs_to_system", "belongs_to_tissue_type", "subsystem_of", "deep_to", "superficial_to", "supplies", "includes_branch", "includes_structure", "may_affect_region", "overlaps_region"].map((value) => (
               <option key={value} value={value}>{formatLabel(value)}</option>
             ))}
           </select>
@@ -1733,7 +2339,7 @@ function ExternalTextLink({ href, children }: { href: string; children: React.Re
 }
 
 function browserViewHref(view: AnatomyBrowserView) {
-  return view === "muscles" ? "/admin/anatomy" : `/admin/anatomy?view=${view}`
+  return view === DEFAULT_BROWSER_VIEW ? "/admin/anatomy" : `/admin/anatomy?view=${view}`
 }
 
 function entityHref(entityType: string, entitySlug: string, view: AnatomyBrowserView, searchQuery = "") {
@@ -1755,24 +2361,30 @@ function viewForEntityType(entityType: string): AnatomyBrowserView {
       return "structures"
     case "JOINT":
     case "JOINT_MOVEMENT":
+      return "joints"
     case "RANGE_OF_MOTION":
+      return "rom"
     case "LIGAMENT":
-      return "movement"
+      return "ligaments"
     case "NERVE":
+      return "nerves"
     case "BLOOD_SUPPLY":
-      return "neurovascular"
+      return "vessels"
     case "PAIN_MAP_REGION":
+      return "pain"
     case "CLIENT_TERM":
-      return "language"
+      return "terms"
     case "MUSCLE":
     default:
-      return "muscles"
+      return DEFAULT_BROWSER_VIEW
   }
 }
 
 function browserViewFromParam(value: string | undefined, quickQueryKey?: AnatomyQuickQueryKey, searchQuery?: string): AnatomyBrowserView {
-  if (BROWSER_VIEWS.some((view) => view.key === value)) {
-    return value as AnatomyBrowserView
+  const normalizedValue = value ? LEGACY_BROWSER_VIEW_REDIRECTS.get(value) ?? value : value
+
+  if (BROWSER_VIEWS.some((view) => view.key === normalizedValue)) {
+    return normalizedValue as AnatomyBrowserView
   }
 
   if (quickQueryKey) {
@@ -1780,10 +2392,71 @@ function browserViewFromParam(value: string | undefined, quickQueryKey?: Anatomy
   }
 
   if (searchQuery) {
-    return "muscles"
+    return DEFAULT_BROWSER_VIEW
   }
 
-  return "muscles"
+  return DEFAULT_BROWSER_VIEW
+}
+
+function isBodySystemBrowserView(view: AnatomyBrowserView): view is BodySystemBrowserView {
+  return BODY_SYSTEM_CONFIGS.some((config) => config.view === view)
+}
+
+function isTissueTypeBrowserView(view: AnatomyBrowserView): view is TissueTypeBrowserView {
+  return TISSUE_TYPE_CONFIGS.some((config) => config.view === view)
+}
+
+function bodySystemConfigForView(view: BodySystemBrowserView) {
+  return BODY_SYSTEM_CONFIGS.find((config) => config.view === view) ?? BODY_SYSTEM_CONFIGS[0]
+}
+
+function tissueTypeConfigForView(view: TissueTypeBrowserView) {
+  return TISSUE_TYPE_CONFIGS.find((config) => config.view === view) ?? TISSUE_TYPE_CONFIGS[0]
+}
+
+/**
+ * Resolves browser row keys for a selected taxonomy bucket.
+ *
+ * bodySystemEntityKeys and tissueTypeEntityKeys pass their selected concept
+ * slugs plus the membership relationship they own. The returned Set contains
+ * entity keys that should remain in the current browser tab. Body-system tabs
+ * can also include direct concept-to-structure relationships so structure rows
+ * remain visible when connected through includes_structure instead of a
+ * membership row.
+ */
+function taxonomyEntityKeys(data: AnatomyBrowserData, conceptSlugs: readonly string[], membershipRelationshipType: "belongs_to_system" | "belongs_to_tissue_type", includeStructureRelationships = false) {
+  const targetSlugs = new Set<string>(conceptSlugs)
+  const keys = new Set<string>()
+
+  for (const relationship of data.systemRelationships) {
+    const relationshipType = recordText(relationship, "relationshipType")
+    const sourceType = recordText(relationship, "sourceEntityType")
+    const sourceSlug = recordText(relationship, "sourceEntitySlug")
+    const targetType = recordText(relationship, "targetEntityType")
+    const targetSlug = recordText(relationship, "targetEntitySlug")
+
+    if (relationshipType === membershipRelationshipType && targetType === "ANATOMY_CONCEPT" && targetSlugs.has(targetSlug)) {
+      keys.add(entityKey(sourceType, sourceSlug))
+    }
+
+    if (includeStructureRelationships && relationshipType === "includes_structure" && sourceType === "ANATOMY_CONCEPT" && targetSlugs.has(sourceSlug)) {
+      keys.add(entityKey(targetType, targetSlug))
+    }
+  }
+
+  return keys
+}
+
+function bodySystemEntityKeys(data: AnatomyBrowserData, config: ReturnType<typeof bodySystemConfigForView>) {
+  return taxonomyEntityKeys(data, config.systemConceptSlugs, "belongs_to_system", true)
+}
+
+function tissueTypeEntityKeys(data: AnatomyBrowserData, config: ReturnType<typeof tissueTypeConfigForView>) {
+  return taxonomyEntityKeys(data, config.tissueTypeConceptSlugs, "belongs_to_tissue_type")
+}
+
+function bodySystemRows(rows: Record<string, unknown>[], entityType: string, keys: Set<string>) {
+  return rows.filter((row) => keys.has(entityKey(entityType, recordText(row, "slug"))))
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -2210,15 +2883,31 @@ function mediaReviewRows(mediaRows: Record<string, unknown>[], selectedEntity: A
 }
 
 function mediaPreviewUrl(asset: Record<string, unknown>) {
-  return recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl") || recordText(asset, "sourceUrl")
+  if (!isImagePreviewAsset(asset)) return ""
+
+  return mediaBodyParts3dSourceUrl(asset) || recordText(asset, "remoteUrl") || recordText(asset, "thumbnailUrl")
 }
 
 function mediaBodyParts3dSourceUrl(asset: Record<string, unknown>) {
-  const sourceUrl = safeBodyParts3dImageUrl(recordText(asset, "sourceUrl"))
-  if (sourceUrl) return sourceUrl
-
   const metadata = recordObject(asset, "metadata")
-  return safeBodyParts3dImageUrl(recordText(metadata, "bodyparts3dSourceUrl") || recordText(metadata, "sourceUrl"))
+  const candidates = [
+    recordText(asset, "sourceUrl"),
+    recordText(metadata, "bodyparts3dSourceUrl"),
+    recordText(metadata, "sourceUrl"),
+    recordText(metadata, "sourceAssetUrl"),
+  ]
+
+  for (const candidate of candidates) {
+    const sourceUrl = safeBodyParts3dRenderableImageUrl(candidate)
+    if (sourceUrl) return sourceUrl
+  }
+
+  return ""
+}
+
+function isImagePreviewAsset(asset: Record<string, unknown>) {
+  const mediaType = recordText(asset, "mediaType")
+  return mediaType === "IMAGE" || mediaType === "DIAGRAM"
 }
 
 function mediaBodyParts3dComposerUrl(asset: Record<string, unknown>) {
@@ -2520,6 +3209,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     entityTerms,
     sources,
     relationships,
+    systemRelationships,
     citations,
     externalIdentifiers,
     mediaAssets,
@@ -2569,7 +3259,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
         source: true,
       },
       orderBy: { name: "asc" },
-      take: 120,
+      take: 240,
     }),
     prisma.bone.findMany({
       include: {
@@ -2684,9 +3374,27 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
       include: { source: true },
       where: {
         sourceEntityType: { not: null },
+        relationshipType: {
+          notIn: ["belongs_to_system", "belongs_to_tissue_type", "includes_structure", "subsystem_of"],
+        },
       },
       orderBy: [{ sourceEntityType: "asc" }, { sourceEntitySlug: "asc" }, { relationshipType: "asc" }],
-      take: 160,
+      take: ANATOMY_DETAIL_LOOKUP_TAKE,
+    }),
+    prisma.anatomyRelationship.findMany({
+      include: { source: true },
+      where: {
+        OR: [
+          { relationshipType: "belongs_to_system" },
+          { relationshipType: "belongs_to_tissue_type" },
+          {
+            sourceEntityType: "ANATOMY_CONCEPT",
+            relationshipType: "includes_structure",
+          },
+        ],
+      },
+      orderBy: [{ targetEntityType: "asc" }, { targetEntitySlug: "asc" }, { sourceEntitySlug: "asc" }],
+      take: 5000,
     }),
     prisma.anatomyCitation.findMany({
       include: { source: true },
@@ -2782,6 +3490,7 @@ async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
     entityTerms: entityTerms as Record<string, unknown>[],
     sources: sources as Record<string, unknown>[],
     relationships: relationships as Record<string, unknown>[],
+    systemRelationships: systemRelationships as Record<string, unknown>[],
     citations: citations as Record<string, unknown>[],
     externalIdentifiers: externalIdentifiers as Record<string, unknown>[],
     mediaAssets: mediaAssets as Record<string, unknown>[],

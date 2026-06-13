@@ -21,6 +21,7 @@ const safeSourceIds = new Set([
   "applied-human-anatomy",
   "bodyparts3d",
   "human-bio-media",
+  "openstax-anatomy-physiology",
   "openstax-human-biology",
   "servier-medical-art",
 ])

@@ -52,8 +52,12 @@ const VALID_ENTITY_RELATIONSHIP_TYPES = new Set([
   "superficial_to",
   "supplies",
   "includes_branch",
+  "includes_structure",
   "may_affect_region",
   "overlaps_region",
+  "belongs_to_system",
+  "belongs_to_tissue_type",
+  "subsystem_of",
   "related_to",
 ])
 
