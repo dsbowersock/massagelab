@@ -4,35 +4,21 @@ import {
   startAnatomimeGameSession,
   summarizeAnatomimeSession,
 } from "@/lib/anatomime-session-server"
-
-function objectBody(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
+import { anatomimeErrorResponse, anatomimeViewerFromRequest, objectBody } from "@/lib/anatomime-api"
 
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const authSession = await getCurrentSession()
   const { code } = await params
   const body = objectBody(await request.json().catch(() => ({})))
+  const viewer = anatomimeViewerFromRequest(request, authSession?.user?.id, body)
 
   try {
-    const gameSession = await startAnatomimeGameSession(code, {
-      userId: authSession?.user?.id,
-      playerId: typeof body.playerId === "string" ? body.playerId : undefined,
-      playerToken: typeof body.playerToken === "string" ? body.playerToken : undefined,
-    })
+    const gameSession = await startAnatomimeGameSession(code, viewer)
 
     return NextResponse.json({
-      session: summarizeAnatomimeSession(gameSession, {
-        userId: authSession?.user?.id,
-        playerId: typeof body.playerId === "string" ? body.playerId : undefined,
-        playerToken: typeof body.playerToken === "string" ? body.playerToken : undefined,
-      }),
+      session: summarizeAnatomimeSession(gameSession, viewer),
     })
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Could not start Anatomime game.",
-    }, { status: 400 })
+    return anatomimeErrorResponse(error, "Could not start Anatomime game.")
   }
 }

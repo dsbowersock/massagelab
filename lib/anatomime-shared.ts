@@ -15,6 +15,7 @@ import {
   type AnatomyStudyCategory,
   type AnatomyStudyDifficulty,
   type AnatomyStudyRegion,
+  type FlashcardPrompt,
 } from "./anatomy-study.ts"
 import { flashcardProgressTool, type FlashcardProgressResult } from "./flashcard-progress.ts"
 
@@ -76,6 +77,7 @@ const categorySet = new Set<string>(ANATOMY_STUDY_CATEGORIES)
 const regionSet = new Set<string>(ANATOMY_STUDY_REGION_ORDER)
 const difficultySet = new Set<string>(ANATOMY_STUDY_DIFFICULTIES)
 const answerModeSet = new Set<string>(["typed", "multiple-choice"])
+let nameRecallPromptByCardId: Map<string, FlashcardPrompt> | null = null
 
 function recordFrom(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -87,6 +89,7 @@ function stringArray(value: unknown) {
   return Array.isArray(value) ? value.map(String) : []
 }
 
+/** Bounds untrusted numeric setup values while preserving integer semantics. */
 function boundedInteger(value: unknown, fallback: number, min: number, max: number) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return fallback
@@ -94,11 +97,13 @@ function boundedInteger(value: unknown, fallback: number, min: number, max: numb
   return Math.max(min, Math.min(max, Math.trunc(numeric)))
 }
 
+/** Keeps deterministic deck seeds short and non-empty for storage and replay. */
 function sanitizeSeed(value: unknown) {
   const seed = typeof value === "string" ? value.trim() : ""
   return seed.length > 0 ? seed.slice(0, 80) : `anatomime-${Date.now().toString(36)}`
 }
 
+/** Normalizes blank team labels to stable one-based classroom defaults. */
 function normalizeTeamName(value: unknown, index: number) {
   const name = typeof value === "string" ? value.trim() : ""
   return name || `Team ${index + 1}`
@@ -135,6 +140,13 @@ function shuffle<T>(items: T[], seed: string) {
   return shuffled
 }
 
+/**
+ * Converts raw host setup input into an AnatomimeSessionConfig. Invalid or
+ * empty category/region filters fall back to the full sourced study library;
+ * difficulty defaults to medium, answerMode defaults to typed, timers and deck
+ * size are bounded, seeds are sanitized, selected card ids are deduped/capped,
+ * and team names default to two teams with a four-team maximum.
+ */
 export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessionConfig {
   const record = recordFrom(input)
   const categories = stringArray(record.categories ?? record.kinds)
@@ -240,14 +252,22 @@ export function anatomimeFlashcardProgressTool(cardId: string) {
   return flashcardProgressTool(anatomimeNameRecallPromptId(cardId))
 }
 
-export function getAnatomimeNameRecallPrompt(cardId: string) {
-  return getAnatomyStudyPrompts({
+function getNameRecallPromptIndex() {
+  if (nameRecallPromptByCardId) return nameRecallPromptByCardId
+
+  const prompts = getAnatomyStudyPrompts({
     categories: [...ANATOMY_STUDY_CATEGORIES],
     regions: [...ANATOMY_STUDY_REGION_ORDER],
     difficulty: "hard",
     promptTypes: [ANATOMIME_NAME_RECALL_PROMPT_TYPE],
-    promptIds: [anatomimeNameRecallPromptId(cardId)],
-  })[0] ?? null
+  })
+  nameRecallPromptByCardId = new Map(prompts.map((prompt) => [prompt.cardId, prompt]))
+
+  return nameRecallPromptByCardId
+}
+
+export function getAnatomimeNameRecallPrompt(cardId: string) {
+  return getNameRecallPromptIndex().get(cardId) ?? null
 }
 
 export function checkAnatomimeAnswer(card: AnatomyStudyCard, answer: string) {
@@ -281,6 +301,7 @@ export function buildAnatomimeMultipleChoiceOptions(card: AnatomyStudyCard, pool
   }))
 }
 
+/** Returns true only when the current phase/team combination may score now. */
 export function canAwardImmediateScore(phase: AnatomimeSessionPhase, activeTeamId: string, guessTeamId: string, correct: boolean) {
   if (!correct) return false
   if (phase === "ACTIVE") return guessTeamId === activeTeamId
@@ -289,6 +310,7 @@ export function canAwardImmediateScore(phase: AnatomimeSessionPhase, activeTeamI
   return false
 }
 
+/** Selects the earliest correct non-active-team guess waiting for a steal. */
 export function selectQueuedStealGuess(activeTeamId: string, guesses: AnatomimeScoringGuess[]) {
   return guesses
     .filter((guess) => guess.correct && guess.scoreAwarded === 0 && guess.teamId !== activeTeamId)

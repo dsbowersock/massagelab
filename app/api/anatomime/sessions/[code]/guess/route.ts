@@ -5,22 +5,13 @@ import {
   recordAnatomimeGuess,
   summarizeAnatomimeSession,
 } from "@/lib/anatomime-session-server"
-
-function objectBody(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
+import { anatomimeErrorResponse, anatomimeViewerFromRequest, objectBody } from "@/lib/anatomime-api"
 
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const authSession = await getCurrentSession()
   const { code } = await params
   const body = objectBody(await request.json().catch(() => ({})))
-  const viewer = {
-    userId: authSession?.user?.id,
-    playerId: typeof body.playerId === "string" ? body.playerId : undefined,
-    playerToken: typeof body.playerToken === "string" ? body.playerToken : undefined,
-  }
+  const viewer = anatomimeViewerFromRequest(request, authSession?.user?.id, body)
 
   try {
     const result = await recordAnatomimeGuess(code, body, viewer)
@@ -34,8 +25,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       session: gameSession ? summarizeAnatomimeSession(gameSession, viewer) : null,
     })
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Could not submit Anatomime guess.",
-    }, { status: 400 })
+    return anatomimeErrorResponse(error, "Could not submit Anatomime guess.")
   }
 }

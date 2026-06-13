@@ -4,12 +4,7 @@ import {
   createAnatomimeGameSession,
   summarizeAnatomimeSession,
 } from "@/lib/anatomime-session-server"
-
-function objectBody(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
+import { anatomimeErrorResponse, objectBody } from "@/lib/anatomime-api"
 
 export async function POST(request: Request) {
   const session = await getCurrentSession()
@@ -28,8 +23,6 @@ export async function POST(request: Request) {
       host: created.host,
     }, { status: 201 })
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Anatomime game could not be created.",
-    }, { status: 400 })
+    return anatomimeErrorResponse(error, "Anatomime game could not be created.")
   }
 }

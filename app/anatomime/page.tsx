@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, CheckCircle2, Copy, Play, RefreshCw, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -173,6 +173,8 @@ export default function AnatomimePage() {
   const [sharedSession, setSharedSession] = useState<any | null>(null)
   const [hostCredentials, setHostCredentials] = useState<{ playerId: string; token: string } | null>(null)
   const [creatingSharedGame, setCreatingSharedGame] = useState(false)
+  const sharedRefreshInFlightRef = useRef(false)
+  const sharedRefreshRequestIdRef = useRef(0)
 
   useEffect(() => {
     setTeamNames((current) => normalizeTeamNames(current, teamCount))
@@ -412,18 +414,42 @@ export default function AnatomimePage() {
     setMessage("")
   }
 
-  const sharedViewerQuery = useMemo(() => (
-    sharedSession && hostCredentials
-      ? `?playerId=${encodeURIComponent(hostCredentials.playerId)}&playerToken=${encodeURIComponent(hostCredentials.token)}`
-      : ""
-  ), [hostCredentials, sharedSession])
+  const sharedViewerHeaders = useMemo(() => (
+    hostCredentials
+      ? {
+        "x-anatomime-player-id": hostCredentials.playerId,
+        "x-anatomime-player-token": hostCredentials.token,
+      }
+      : undefined
+  ), [hostCredentials])
 
   const refreshSharedSession = useCallback(async () => {
-    if (!sharedSession) return
-    const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}${sharedViewerQuery}`, { cache: "no-store" })
-    const payload = await response.json().catch(() => ({}))
-    if (response.ok) setSharedSession(payload.session)
-  }, [sharedSession, sharedViewerQuery])
+    if (!sharedSession || sharedRefreshInFlightRef.current) return
+
+    const requestId = sharedRefreshRequestIdRef.current + 1
+    sharedRefreshRequestIdRef.current = requestId
+    sharedRefreshInFlightRef.current = true
+
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}`, {
+        cache: "no-store",
+        headers: sharedViewerHeaders,
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (requestId !== sharedRefreshRequestIdRef.current) return
+      if (response.ok) {
+        setSharedSession(payload.session)
+      } else {
+        setMessage(payload.error ?? "Could not refresh shared game.")
+      }
+    } catch {
+      if (requestId === sharedRefreshRequestIdRef.current) {
+        setMessage("Could not refresh shared game.")
+      }
+    } finally {
+      sharedRefreshInFlightRef.current = false
+    }
+  }, [sharedSession, sharedViewerHeaders])
 
   useEffect(() => {
     if (gamePhase !== "sharedHost" || !sharedSession) return
@@ -448,63 +474,81 @@ export default function AnatomimePage() {
     setCreatingSharedGame(true)
     setMessage("")
 
-    const response = await fetch("/api/anatomime/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        config: {
-          categories: selectedKinds,
-          regions: selectedRegions,
-          difficulty,
-          answerMode,
-          termCount,
-          roundSeconds: ROUND_SECONDS,
-          stealSeconds: 8,
-          teamNames: trimmedNames,
-        },
-      }),
-    })
-    const payload = await response.json().catch(() => ({}))
-    setCreatingSharedGame(false)
+    try {
+      const response = await fetch("/api/anatomime/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          config: {
+            categories: selectedKinds,
+            regions: selectedRegions,
+            difficulty,
+            answerMode,
+            termCount,
+            roundSeconds: ROUND_SECONDS,
+            stealSeconds: 8,
+            teamNames: trimmedNames,
+          },
+        }),
+      })
+      const payload = await response.json().catch(() => ({}))
 
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not create shared game.")
-      return
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not create shared game.")
+        return
+      }
+
+      setTeamNames(trimmedNames)
+      setSharedSession(payload.session)
+      setHostCredentials({ playerId: payload.host.playerId, token: payload.host.token })
+      window.localStorage.setItem(`massagelab-anatomime-host:${payload.session.code}`, JSON.stringify(payload.host))
+      setGamePhase("sharedHost")
+    } catch {
+      setMessage("Could not create shared game.")
+    } finally {
+      setCreatingSharedGame(false)
     }
-
-    setTeamNames(trimmedNames)
-    setSharedSession(payload.session)
-    setHostCredentials({ playerId: payload.host.playerId, token: payload.host.token })
-    window.localStorage.setItem(`massagelab-anatomime-host:${payload.session.code}`, JSON.stringify(payload.host))
-    setGamePhase("sharedHost")
   }
 
   const startSharedGame = async () => {
     if (!sharedSession || !hostCredentials) return
 
-    const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playerId: hostCredentials.playerId,
-        playerToken: hostCredentials.token,
-      }),
-    })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not start shared game.")
-      return
-    }
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}/start`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-anatomime-player-id": hostCredentials.playerId,
+          "x-anatomime-player-token": hostCredentials.token,
+        },
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not start shared game.")
+        return
+      }
 
-    setSharedSession(payload.session)
-    setMessage("")
+      setSharedSession(payload.session)
+      setMessage("")
+    } catch {
+      setMessage("Could not start shared game.")
+    }
   }
 
   const copyJoinLink = async () => {
     if (!sharedSession) return
     const href = `${window.location.origin}/anatomime/play/${sharedSession.code}`
-    await window.navigator.clipboard?.writeText(href)
-    setMessage("Join link copied.")
+    if (!window.navigator.clipboard) {
+      setMessage("Failed to copy join link.")
+      return
+    }
+
+    try {
+      await window.navigator.clipboard.writeText(href)
+      setMessage("Join link copied.")
+    } catch {
+      setMessage("Failed to copy join link.")
+    }
   }
 
   const allRegionsSelected = selectedRegions.length === anatomyRegions.length

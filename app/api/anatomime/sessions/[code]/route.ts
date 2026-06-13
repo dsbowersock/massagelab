@@ -4,16 +4,7 @@ import {
   loadAnatomimeSession,
   summarizeAnatomimeSession,
 } from "@/lib/anatomime-session-server"
-
-function viewerFromRequest(request: Request, userId?: string) {
-  const url = new URL(request.url)
-
-  return {
-    userId,
-    playerId: url.searchParams.get("playerId") ?? request.headers.get("x-anatomime-player-id") ?? undefined,
-    playerToken: url.searchParams.get("playerToken") ?? request.headers.get("x-anatomime-player-token") ?? undefined,
-  }
-}
+import { anatomimeViewerFromRequest } from "@/lib/anatomime-api"
 
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const session = await getCurrentSession()
@@ -25,6 +16,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   }
 
   return NextResponse.json({
-    session: summarizeAnatomimeSession(gameSession, viewerFromRequest(request, session?.user?.id)),
+    session: summarizeAnatomimeSession(gameSession, anatomimeViewerFromRequest(request, session?.user?.id)),
   })
 }

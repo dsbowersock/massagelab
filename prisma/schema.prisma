@@ -870,6 +870,7 @@ model AnatomimeGamePlayer {
   guesses        AnatomimeGameGuess[]
 
   @@unique([sessionId, guestTokenHash])
+  @@unique([sessionId, userId, role])
   @@index([sessionId, teamId])
   @@index([userId, updatedAt])
 }

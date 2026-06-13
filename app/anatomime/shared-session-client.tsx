@@ -128,6 +128,14 @@ function secondsLeft(value: string | null) {
   return Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 1000))
 }
 
+/**
+ * Loads the browser Ably SDK once for shared-session updates. It takes no
+ * arguments and returns a Promise that resolves after the script loads or
+ * rejects on failure; callers should fall back to polling when it rejects. The
+ * loader checks `window.Ably`, reuses `script[data-anatomime-ably]`, records
+ * `data-anatomime-ably-status`, and appends a new script to `document.head`
+ * only in the browser.
+ */
 function ablyScript() {
   return new Promise<void>((resolve, reject) => {
     if (window.Ably) {
@@ -137,17 +145,32 @@ function ablyScript() {
 
     const existing = document.querySelector<HTMLScriptElement>("script[data-anatomime-ably]")
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true })
-      existing.addEventListener("error", reject, { once: true })
-      return
+      const status = existing.getAttribute("data-anatomime-ably-status")
+      if (status === "loaded") {
+        resolve()
+        return
+      }
+      if (status === "error") {
+        existing.remove()
+      } else {
+        existing.addEventListener("load", () => resolve(), { once: true })
+        existing.addEventListener("error", reject, { once: true })
+        return
+      }
     }
 
     const script = document.createElement("script")
     script.src = "https://cdn.ably.com/lib/ably.min-2.js"
     script.async = true
     script.dataset.anatomimeAbly = "true"
-    script.onload = () => resolve()
-    script.onerror = reject
+    script.onload = () => {
+      script.setAttribute("data-anatomime-ably-status", "loaded")
+      resolve()
+    }
+    script.onerror = (event) => {
+      script.setAttribute("data-anatomime-ably-status", "error")
+      reject(event)
+    }
     document.head.appendChild(script)
   })
 }
@@ -171,27 +194,42 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
   const playerQuery = useMemo(() => {
     if (!storedPlayer) return ""
-    return `?playerId=${encodeURIComponent(storedPlayer.playerId)}&playerToken=${encodeURIComponent(storedPlayer.playerToken)}`
+    return `?playerId=${encodeURIComponent(storedPlayer.playerId)}`
   }, [storedPlayer])
+
+  const playerHeaders = useMemo(() => (
+    storedPlayer
+      ? {
+        "x-anatomime-player-id": storedPlayer.playerId,
+        "x-anatomime-player-token": storedPlayer.playerToken,
+      }
+      : undefined
+  ), [storedPlayer])
 
   const refreshSession = useCallback(async () => {
     if (!lookupCode) return
 
-    const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}${playerQuery}`, {
-      cache: "no-store",
-    })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(payload.error ?? "Game not found.")
-      setSession(null)
-      return
-    }
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}${playerQuery}`, {
+        cache: "no-store",
+        headers: playerHeaders,
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Game not found.")
+        setSession(null)
+        return
+      }
 
-    setSession(payload.session)
-    setSelectedTeamId((current) => current || payload.session?.teams?.[0]?.id || "")
-    setTimeLeft(secondsLeft(payload.session?.phaseEndsAt ?? null))
-    setMessage("")
-  }, [lookupCode, playerQuery])
+      setSession(payload.session)
+      setSelectedTeamId((current) => current || payload.session?.teams?.[0]?.id || "")
+      setTimeLeft(secondsLeft(payload.session?.phaseEndsAt ?? null))
+      setMessage("")
+    } catch {
+      setMessage("Could not refresh game.")
+      setSession(null)
+    }
+  }, [lookupCode, playerHeaders, playerQuery])
 
   useEffect(() => {
     void refreshSession()
@@ -259,56 +297,67 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       return
     }
 
-    const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        displayName,
-        teamId: selectedTeamId || session?.teams[0]?.id,
-      }),
-    })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not join game.")
-      return
-    }
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName,
+          teamId: selectedTeamId || session?.teams[0]?.id,
+        }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not join game.")
+        return
+      }
 
-    const player = {
-      playerId: payload.player.id,
-      playerToken: payload.player.token,
-      teamId: payload.player.teamId,
-    }
+      const player = {
+        playerId: payload.player.id,
+        playerToken: payload.player.token,
+        teamId: payload.player.teamId,
+      }
 
-    writeStoredPlayer(lookupCode, player)
-    setStoredPlayer(player)
-    setSession(payload.session)
-    setMessage("")
+      writeStoredPlayer(lookupCode, player)
+      setStoredPlayer(player)
+      setSession(payload.session)
+      setMessage("")
+    } catch {
+      setMessage("Could not join game.")
+    }
   }
 
   const submitGuess = async (choiceId?: string) => {
     if (!storedPlayer || !session?.activeItem) return
 
-    const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/guess`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playerId: storedPlayer.playerId,
-        playerToken: storedPlayer.playerToken,
-        answer,
-        choiceId,
-      }),
-    })
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(payload.error ?? "Could not submit guess.")
-      return
-    }
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/guess`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-anatomime-player-id": storedPlayer.playerId,
+          "x-anatomime-player-token": storedPlayer.playerToken,
+        },
+        body: JSON.stringify({
+          playerId: storedPlayer.playerId,
+          answer,
+          choiceId,
+        }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not submit guess.")
+        return
+      }
 
-    setSession(payload.session)
-    setAnswer("")
-    setMessage(payload.result.correct
-      ? payload.result.scoreAwarded > 0 ? "Correct. Point awarded." : "Correct. Saved for steal if needed."
-      : "Not quite.")
+      setSession(payload.session)
+      setAnswer("")
+      setMessage(payload.result.correct
+        ? payload.result.scoreAwarded > 0 ? "Correct. Point awarded." : "Correct. Saved for steal if needed."
+        : "Not quite.")
+    } catch {
+      setMessage("Could not submit guess.")
+    }
   }
 
   const joined = Boolean(storedPlayer && session?.viewer.playerId)

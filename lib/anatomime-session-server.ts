@@ -30,10 +30,37 @@ type SessionWithRelations = Prisma.AnatomimeGameSessionGetPayload<{
   include: typeof sessionInclude
 }>
 
-type ViewerContext = {
+export type ViewerContext = {
   userId?: string | null
   playerId?: string
   playerToken?: string
+}
+
+export class AnatomimeSessionError extends Error {
+  status: number
+  code: string
+
+  constructor(status: number, code: string, message: string) {
+    super(message)
+    this.name = "AnatomimeSessionError"
+    this.status = status
+    this.code = code
+  }
+}
+
+class StaleSessionMutationError extends Error {
+  constructor() {
+    super("Anatomime session changed before the transition could be applied.")
+    this.name = "StaleSessionMutationError"
+  }
+}
+
+function sessionError(status: number, code: string, message: string) {
+  return new AnatomimeSessionError(status, code, message)
+}
+
+function isStaleSessionMutation(error: unknown) {
+  return error instanceof StaleSessionMutationError
 }
 
 const sessionInclude = {
@@ -107,11 +134,14 @@ function viewerIsHost(session: SessionWithRelations, viewer: ViewerContext = {})
 }
 
 function viewerPlayer(session: SessionWithRelations, viewer: ViewerContext = {}) {
+  if (viewer.userId) {
+    const playerByUser = session.players.find((player) => player.userId === viewer.userId && player.role === "PLAYER")
+    if (playerByUser) return playerByUser
+  }
   if (viewer.playerId) {
     const byToken = session.players.find((player) => player.id === viewer.playerId && playerTokenMatches(player, viewer.playerToken))
     if (byToken) return byToken
   }
-  if (viewer.userId) return session.players.find((player) => player.userId === viewer.userId) ?? null
 
   return null
 }
@@ -204,13 +234,24 @@ async function awardWinningTeamAchievements(tx: Prisma.TransactionClient, sessio
   }
 }
 
+function expectedPlayingSessionWhere(session: SessionWithRelations): Prisma.AnatomimeGameSessionWhereInput {
+  return {
+    id: session.id,
+    status: "PLAYING",
+    phase: session.phase,
+    activeCardIndex: session.activeCardIndex,
+    activeTeamOrder: session.activeTeamOrder,
+    phaseEndsAt: session.phaseEndsAt,
+  }
+}
+
 async function advanceToNextCard(tx: Prisma.TransactionClient, session: SessionWithRelations, config: AnatomimeSessionConfig) {
   const nextIndex = session.activeCardIndex + 1
   const teamCount = session.teams.length
 
   if (nextIndex >= session.deckCardIds.length) {
-    await tx.anatomimeGameSession.update({
-      where: { id: session.id },
+    const updated = await tx.anatomimeGameSession.updateMany({
+      where: expectedPlayingSessionWhere(session),
       data: {
         status: "COMPLETED",
         phase: "COMPLETED",
@@ -218,12 +259,13 @@ async function advanceToNextCard(tx: Prisma.TransactionClient, session: SessionW
         phaseEndsAt: null,
       },
     })
+    if (updated.count === 0) throw new StaleSessionMutationError()
     await awardWinningTeamAchievements(tx, session.id)
     return
   }
 
-  await tx.anatomimeGameSession.update({
-    where: { id: session.id },
+  const updated = await tx.anatomimeGameSession.updateMany({
+    where: expectedPlayingSessionWhere(session),
     data: {
       phase: "ACTIVE",
       activeCardIndex: nextIndex,
@@ -231,32 +273,75 @@ async function advanceToNextCard(tx: Prisma.TransactionClient, session: SessionW
       phaseEndsAt: phaseDeadline(config.roundSeconds),
     },
   })
+  if (updated.count === 0) throw new StaleSessionMutationError()
 }
 
 async function awardGuessAndAdvance(session: SessionWithRelations, guessId: string, teamId: string, options: { steal: boolean }) {
   const config = sessionConfig(session)
 
-  await prisma.$transaction(async (tx) => {
-    await tx.anatomimeGameGuess.update({
-      where: { id: guessId },
-      data: { scoreAwarded: 1 },
-    })
-    await tx.anatomimeGameTeam.update({
-      where: { id: teamId },
-      data: { score: { increment: 1 } },
-    })
-    if (options.steal) {
-      const guess = await tx.anatomimeGameGuess.findUnique({
-        where: { id: guessId },
-        select: { userId: true, sessionId: true, teamId: true },
+  try {
+    await prisma.$transaction(async (tx) => {
+      const claimedGuess = await tx.anatomimeGameGuess.updateMany({
+        where: { id: guessId, sessionId: session.id, scoreAwarded: 0 },
+        data: { scoreAwarded: 1 },
       })
-      await awardAchievement(tx, guess?.userId, ANATOMIME_ACHIEVEMENTS.firstSteal, {
-        sessionId: guess?.sessionId,
-        teamId: guess?.teamId,
+      if (claimedGuess.count === 0) throw new StaleSessionMutationError()
+
+      await tx.anatomimeGameTeam.update({
+        where: { id: teamId },
+        data: { score: { increment: 1 } },
       })
-    }
-    await advanceToNextCard(tx, session, config)
-  })
+      if (options.steal) {
+        const guess = await tx.anatomimeGameGuess.findUnique({
+          where: { id: guessId },
+          select: { userId: true, sessionId: true, teamId: true },
+        })
+        await awardAchievement(tx, guess?.userId, ANATOMIME_ACHIEVEMENTS.firstSteal, {
+          sessionId: guess?.sessionId,
+          teamId: guess?.teamId,
+        })
+      }
+      await advanceToNextCard(tx, session, config)
+    })
+
+    return true
+  } catch (error) {
+    if (isStaleSessionMutation(error)) return false
+    throw error
+  }
+}
+
+async function transitionActiveToSteal(session: SessionWithRelations, config: AnatomimeSessionConfig) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.anatomimeGameSession.updateMany({
+        where: expectedPlayingSessionWhere(session),
+        data: {
+          phase: "STEAL",
+          phaseEndsAt: phaseDeadline(config.stealSeconds),
+        },
+      })
+      if (updated.count === 0) throw new StaleSessionMutationError()
+    })
+
+    return true
+  } catch (error) {
+    if (isStaleSessionMutation(error)) return false
+    throw error
+  }
+}
+
+async function advanceWithoutScore(session: SessionWithRelations, config: AnatomimeSessionConfig) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await advanceToNextCard(tx, session, config)
+    })
+
+    return true
+  } catch (error) {
+    if (isStaleSessionMutation(error)) return false
+    throw error
+  }
 }
 
 export async function loadAnatomimeSession(code: string) {
@@ -266,9 +351,13 @@ export async function loadAnatomimeSession(code: string) {
   })
   if (!session) return null
 
-  if (session.status !== "COMPLETED" && session.expiresAt.getTime() < Date.now()) {
-    await prisma.anatomimeGameSession.update({
-      where: { id: session.id },
+  if (session.status !== "COMPLETED" && session.status !== "EXPIRED" && session.expiresAt.getTime() < Date.now()) {
+    await prisma.anatomimeGameSession.updateMany({
+      where: {
+        id: session.id,
+        status: { notIn: ["COMPLETED", "EXPIRED"] },
+        expiresAt: { lt: new Date() },
+      },
       data: { status: "EXPIRED", phase: "COMPLETED", completedAt: new Date(), phaseEndsAt: null },
     })
     return prisma.anatomimeGameSession.findUnique({
@@ -295,21 +384,13 @@ export async function advanceExpiredSession(session: SessionWithRelations): Prom
     if (queuedSteal) {
       await awardGuessAndAdvance(session, queuedSteal.id, queuedSteal.teamId, { steal: true })
     } else {
-      await prisma.anatomimeGameSession.update({
-        where: { id: session.id },
-        data: {
-          phase: "STEAL",
-          phaseEndsAt: phaseDeadline(config.stealSeconds),
-        },
-      })
+      await transitionActiveToSteal(session, config)
     }
   } else if (session.phase === "STEAL") {
     if (queuedSteal) {
       await awardGuessAndAdvance(session, queuedSteal.id, queuedSteal.teamId, { steal: true })
     } else {
-      await prisma.$transaction(async (tx) => {
-        await advanceToNextCard(tx, session, config)
-      })
+      await advanceWithoutScore(session, config)
     }
   }
 
@@ -325,7 +406,7 @@ export async function createAnatomimeGameSession(input: unknown, hostUserId?: st
   const config = normalizeAnatomimeSessionConfig(input)
   const deck = createAnatomimeSessionDeck(config)
   if (deck.length === 0) {
-    throw new Error("This Anatomime setup has no matching sourced anatomy items.")
+    throw sessionError(400, "empty-deck", "This Anatomime setup has no matching sourced anatomy items.")
   }
 
   const finalConfig = {
@@ -382,7 +463,7 @@ export async function createAnatomimeGameSession(input: unknown, hostUserId?: st
 export async function joinAnatomimeGameSession(code: string, input: unknown, userId?: string | null) {
   const session = await loadAnatomimeSession(code)
   if (!session || !["LOBBY", "PLAYING"].includes(session.status)) {
-    throw new Error("Game not found.")
+    throw sessionError(404, "game-not-found", "Game not found.")
   }
 
   const record = input && typeof input === "object" && !Array.isArray(input)
@@ -393,19 +474,43 @@ export async function joinAnatomimeGameSession(code: string, input: unknown, use
     : "Player"
   const requestedTeamId = typeof record.teamId === "string" ? record.teamId : ""
   const team = session.teams.find((candidate) => candidate.id === requestedTeamId) ?? session.teams[0]
-  if (!team) throw new Error("This game has no available teams.")
+  if (!team) throw sessionError(409, "no-teams", "This game has no available teams.")
 
   const token = generateRandomToken(18)
-  const player = await prisma.anatomimeGamePlayer.create({
-    data: {
-      sessionId: session.id,
-      teamId: team.id,
-      userId: userId ?? null,
-      displayName,
-      guestTokenHash: hashToken(token),
-      role: "PLAYER",
-    },
-  })
+  const player = userId
+    ? await prisma.anatomimeGamePlayer.upsert({
+      where: {
+        sessionId_userId_role: {
+          sessionId: session.id,
+          userId,
+          role: "PLAYER",
+        },
+      },
+      create: {
+        sessionId: session.id,
+        teamId: team.id,
+        userId,
+        displayName,
+        guestTokenHash: hashToken(token),
+        role: "PLAYER",
+      },
+      update: {
+        teamId: team.id,
+        displayName,
+        guestTokenHash: hashToken(token),
+        lastSeenAt: new Date(),
+      },
+    })
+    : await prisma.anatomimeGamePlayer.create({
+      data: {
+        sessionId: session.id,
+        teamId: team.id,
+        userId: null,
+        displayName,
+        guestTokenHash: hashToken(token),
+        role: "PLAYER",
+      },
+    })
 
   await publishAnatomimeRealtimeEvent(session.code, "player-joined", { playerId: player.id })
 
@@ -414,23 +519,32 @@ export async function joinAnatomimeGameSession(code: string, input: unknown, use
 
 export async function startAnatomimeGameSession(code: string, viewer: ViewerContext) {
   const session = await loadAnatomimeSession(code)
-  if (!session) throw new Error("Game not found.")
-  if (!viewerIsHost(session, viewer)) throw new Error("Only the host can start this game.")
-  if (session.status === "COMPLETED") throw new Error("This game is already complete.")
+  if (!session) throw sessionError(404, "game-not-found", "Game not found.")
+  if (!viewerIsHost(session, viewer)) throw sessionError(403, "host-required", "Only the host can start this game.")
+  if (session.status === "COMPLETED" || session.status === "EXPIRED") {
+    throw sessionError(409, "game-terminal", "This game is already complete.")
+  }
+  if (session.status === "PLAYING") throw sessionError(409, "game-already-started", "This game has already started.")
 
   const config = sessionConfig(session)
-  const updated = await prisma.anatomimeGameSession.update({
-    where: { id: session.id },
+  const startedAt = session.startedAt ?? new Date()
+  const started = await prisma.anatomimeGameSession.updateMany({
+    where: { id: session.id, status: "LOBBY" },
     data: {
       status: "PLAYING",
       phase: "ACTIVE",
       activeCardIndex: 0,
       activeTeamOrder: 0,
-      startedAt: session.startedAt ?? new Date(),
+      startedAt,
       phaseEndsAt: phaseDeadline(config.roundSeconds),
     },
+  })
+  if (started.count === 0) throw sessionError(409, "game-already-started", "This game has already started.")
+  const updated = await prisma.anatomimeGameSession.findUnique({
+    where: { id: session.id },
     include: sessionInclude,
   })
+  if (!updated) throw sessionError(404, "game-not-found", "Game not found.")
 
   await publishAnatomimeRealtimeEvent(session.code, "game-started", { code: session.code })
 
@@ -439,19 +553,19 @@ export async function startAnatomimeGameSession(code: string, viewer: ViewerCont
 
 export async function recordAnatomimeGuess(code: string, input: unknown, viewer: ViewerContext) {
   const session = await loadAnatomimeSession(code)
-  if (!session) throw new Error("Game not found.")
-  if (session.status !== "PLAYING") throw new Error("This game is not currently accepting guesses.")
+  if (!session) throw sessionError(404, "game-not-found", "Game not found.")
+  if (session.status !== "PLAYING") throw sessionError(409, "not-accepting-guesses", "This game is not currently accepting guesses.")
 
   const player = viewerPlayer(session, viewer)
-  if (!player || player.role !== "PLAYER" || !player.teamId) throw new Error("Join a team before guessing.")
+  if (!player || player.role !== "PLAYER" || !player.teamId) throw sessionError(403, "join-required", "Join a team before guessing.")
 
   const phase = session.phase as AnatomimeSessionPhase
-  if (phase !== "ACTIVE" && phase !== "STEAL") throw new Error("This item is not accepting guesses.")
+  if (phase !== "ACTIVE" && phase !== "STEAL") throw sessionError(409, "item-not-accepting-guesses", "This item is not accepting guesses.")
 
   const config = sessionConfig(session)
   const card = activeCard(session)
   const team = activeTeam(session)
-  if (!card || !team) throw new Error("This game has no active anatomy item.")
+  if (!card || !team) throw sessionError(409, "no-active-item", "This game has no active anatomy item.")
 
   const record = input && typeof input === "object" && !Array.isArray(input)
     ? input as Record<string, unknown>
@@ -472,54 +586,62 @@ export async function recordAnatomimeGuess(code: string, input: unknown, viewer:
   })
   const shouldAwardScore = canAwardImmediateScore(phase, team.id, player.teamId, answerCheck.correct)
 
-  const guess = await prisma.$transaction(async (tx) => {
-    const created = await tx.anatomimeGameGuess.create({
-      data: {
-        sessionId: session.id,
-        teamId: player.teamId ?? team.id,
-        playerId: player.id,
-        userId: player.userId,
-        cardId: card.id,
-        answerMode: config.answerMode,
-        phase,
-        correct: answerCheck.correct,
-        scoreAwarded: shouldAwardScore ? 1 : 0,
-        metadata: json({
-          activeTeamOrder: session.activeTeamOrder,
-          activeCardIndex: session.activeCardIndex,
-        }),
-      },
-    })
-
-    await tx.anatomimeGamePlayer.update({
-      where: { id: player.id },
-      data: { lastSeenAt: new Date() },
-    })
-
-    if (answerCheck.correct && player.userId && !existingCorrect) {
-      await updateFlashcardLinkedProgress(tx, player.userId, card, answerCheck.score)
-      await awardAchievement(tx, player.userId, ANATOMIME_ACHIEVEMENTS.firstCorrectGuess, {
-        sessionId: session.id,
-        cardId: card.id,
-      })
-    }
-
-    if (shouldAwardScore) {
-      await tx.anatomimeGameTeam.update({
-        where: { id: player.teamId ?? team.id },
-        data: { score: { increment: 1 } },
-      })
-      if (phase === "STEAL") {
-        await awardAchievement(tx, player.userId, ANATOMIME_ACHIEVEMENTS.firstSteal, {
+  let guess
+  try {
+    guess = await prisma.$transaction(async (tx) => {
+      const created = await tx.anatomimeGameGuess.create({
+        data: {
           sessionId: session.id,
-          teamId: player.teamId,
+          teamId: player.teamId ?? team.id,
+          playerId: player.id,
+          userId: player.userId,
+          cardId: card.id,
+          answerMode: config.answerMode,
+          phase,
+          correct: answerCheck.correct,
+          scoreAwarded: shouldAwardScore ? 1 : 0,
+          metadata: json({
+            activeTeamOrder: session.activeTeamOrder,
+            activeCardIndex: session.activeCardIndex,
+          }),
+        },
+      })
+
+      await tx.anatomimeGamePlayer.update({
+        where: { id: player.id },
+        data: { lastSeenAt: new Date() },
+      })
+
+      if (answerCheck.correct && player.userId && !existingCorrect) {
+        await updateFlashcardLinkedProgress(tx, player.userId, card, answerCheck.score)
+        await awardAchievement(tx, player.userId, ANATOMIME_ACHIEVEMENTS.firstCorrectGuess, {
+          sessionId: session.id,
+          cardId: card.id,
         })
       }
-      await advanceToNextCard(tx, session, config)
-    }
 
-    return created
-  })
+      if (shouldAwardScore) {
+        await tx.anatomimeGameTeam.update({
+          where: { id: player.teamId ?? team.id },
+          data: { score: { increment: 1 } },
+        })
+        if (phase === "STEAL") {
+          await awardAchievement(tx, player.userId, ANATOMIME_ACHIEVEMENTS.firstSteal, {
+            sessionId: session.id,
+            teamId: player.teamId,
+          })
+        }
+        await advanceToNextCard(tx, session, config)
+      }
+
+      return created
+    })
+  } catch (error) {
+    if (isStaleSessionMutation(error)) {
+      throw sessionError(409, "stale-session", "This item is no longer accepting guesses.")
+    }
+    throw error
+  }
 
   await publishAnatomimeRealtimeEvent(session.code, "guess-recorded", {
     sessionId: session.id,
@@ -534,6 +656,14 @@ export async function recordAnatomimeGuess(code: string, input: unknown, viewer:
   }
 }
 
+/**
+ * Produces the public shared-session payload consumed by host and player
+ * clients. Dates are ISO strings (`expiresAt` is always present; phase,
+ * start, and completion dates may be null), teams/players/recentGuesses keep
+ * stable object keys, and answer-bearing values from `anatomimeTermFromCard`
+ * plus full deck contents are host-only except after `phase === "COMPLETED"`;
+ * multiple-choice labels come from `buildAnatomimeMultipleChoiceOptions`.
+ */
 export function summarizeAnatomimeSession(session: SessionWithRelations, viewer: ViewerContext = {}) {
   const config = sessionConfig(session)
   const hostView = viewerIsHost(session, viewer)

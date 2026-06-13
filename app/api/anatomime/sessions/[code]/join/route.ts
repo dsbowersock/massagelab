@@ -5,12 +5,7 @@ import {
   loadAnatomimeSession,
   summarizeAnatomimeSession,
 } from "@/lib/anatomime-session-server"
-
-function objectBody(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {}
-}
+import { anatomimeErrorResponse, objectBody } from "@/lib/anatomime-api"
 
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const authSession = await getCurrentSession()
@@ -36,8 +31,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
         : null,
     }, { status: 201 })
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Could not join Anatomime game.",
-    }, { status: 400 })
+    return anatomimeErrorResponse(error, "Could not join Anatomime game.")
   }
 }

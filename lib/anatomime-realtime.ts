@@ -2,6 +2,7 @@ import crypto from "node:crypto"
 
 const ABLY_REST_BASE_URL = "https://rest.ably.io"
 const ABLY_TOKEN_TTL_MS = 60 * 60 * 1000
+const ABLY_PUBLISH_TIMEOUT_MS = 3000
 
 function ablyKeyParts() {
   const apiKey = process.env.ABLY_API_KEY?.trim()
@@ -29,23 +30,33 @@ export async function publishAnatomimeRealtimeEvent(code: string, eventName: str
   if (!key) return { sent: false, reason: "not-configured" as const }
 
   const channel = anatomimeRealtimeChannel(code)
-  const response = await fetch(`${ABLY_REST_BASE_URL}/channels/${encodeURIComponent(channel)}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(key.apiKey).toString("base64")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: eventName,
-      data,
-    }),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), ABLY_PUBLISH_TIMEOUT_MS)
 
-  if (!response.ok) {
-    return { sent: false, reason: "publish-failed" as const, status: response.status }
+  try {
+    const response = await fetch(`${ABLY_REST_BASE_URL}/channels/${encodeURIComponent(channel)}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(key.apiKey).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: eventName,
+        data,
+      }),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      return { sent: false, reason: "publish-failed" as const, status: response.status }
+    }
+
+    return { sent: true as const }
+  } catch {
+    return { sent: false, reason: "publish-failed" as const }
+  } finally {
+    clearTimeout(timeout)
   }
-
-  return { sent: true as const }
 }
 
 /**
@@ -64,6 +75,7 @@ export function createAnatomimeRealtimeTokenRequest(code: string, clientId: stri
   const timestamp = Date.now()
   const nonce = crypto.randomBytes(16).toString("hex")
   const signText = [key.keyName, ttl, capability, clientId, timestamp, nonce].join("\n")
+  // lgtm[js/insufficient-password-hash] Ably TokenRequest uses HMAC-SHA256 signing; no password is stored or verified here.
   const mac = crypto.createHmac("sha256", key.keySecret).update(signText).digest("base64")
 
   return {
