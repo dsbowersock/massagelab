@@ -4337,6 +4337,14 @@ function bodySystemConceptSlugsForValue(value: string | null | undefined) {
   return value ? BODY_SYSTEM_CONCEPT_TARGETS[normalizeText(value)] ?? [] : []
 }
 
+/**
+ * Adds belongs_to_system enrichment relationships for a source entity.
+ *
+ * Inputs include precomputed valid concept slugs, mutable relationships and
+ * relationshipNaturalKeys, source identity, candidate system concept slugs, and
+ * optional details. Mutates relationship state through addEnrichmentRelationship,
+ * dedupes candidates, skips concept self-links, and ignores unknown concept slugs.
+ */
 function addBodySystemMembership(
   validConceptSlugs: ReadonlySet<string>,
   relationships: AnatomyRelationship[],
@@ -4365,6 +4373,14 @@ function addBodySystemMembership(
   }
 }
 
+/**
+ * Adds belongs_to_tissue_type enrichment relationships for a source entity.
+ *
+ * Inputs include precomputed valid concept slugs, mutable relationships and
+ * relationshipNaturalKeys, source identity, candidate tissue-type concept slugs,
+ * and optional details. Mutates relationship state through addEnrichmentRelationship,
+ * dedupes candidates, skips concept self-links, and only accepts known canonical tissue types.
+ */
 function addTissueTypeMembership(
   validConceptSlugs: ReadonlySet<string>,
   relationships: AnatomyRelationship[],
