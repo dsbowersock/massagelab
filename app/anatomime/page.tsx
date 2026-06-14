@@ -580,7 +580,7 @@ export default function AnatomimePage() {
           </div>
         </header>
 
-        {message ? (
+        {message && gamePhase !== "selection" ? (
           <div className="anatomime-message" role="status">
             {message}
           </div>
@@ -794,6 +794,11 @@ export default function AnatomimePage() {
                 {creatingSharedGame ? "Creating..." : "Create Shared Game"}
               </button>
             </div>
+            {message ? (
+              <div className="anatomime-message" role="status">
+                {message}
+              </div>
+            ) : null}
           </section>
         ) : null}
 

@@ -262,6 +262,25 @@ test("anatomime shared game starts from the default setup", async ({ page }) => 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("anatomime shared game create failures stay visible in setup", async ({ page }) => {
+  await page.route("**/api/anatomime/sessions", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Shared games need database access in this Vercel environment before they can be created.",
+      }),
+    })
+  })
+
+  await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
+  await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
+  await page.getByRole("button", { name: /Create Shared Game/i }).click()
+
+  await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeVisible()
+  await expect(page.getByText(/Shared games need database access in this Vercel environment/i)).toBeVisible()
+})
+
 test("flashcards can start from local sourced prompts when the prompt API is unavailable", async ({ page }) => {
   let promptApiRequests = 0
 
