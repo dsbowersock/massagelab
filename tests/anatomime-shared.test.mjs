@@ -10,6 +10,7 @@ import {
   createAnatomimeSessionDeck,
   getAnatomimeCandidateCards,
   getAnatomimeNameRecallPrompt,
+  getAnatomimeSetupOptions,
   normalizeAnatomimeSessionConfig,
   selectQueuedStealGuess,
 } from "../lib/anatomime-shared.js"
@@ -19,6 +20,7 @@ describe("Anatomime shared session helpers", () => {
     const config = normalizeAnatomimeSessionConfig({
       categories: ["muscle", "bone_landmark", "bad"],
       regions: ["upper-extremity", "bad-region"],
+      bodySystems: ["muscular-system", "bad-system"],
       difficulty: "hard",
       answerMode: "multiple-choice",
       termCount: 500,
@@ -27,6 +29,7 @@ describe("Anatomime shared session helpers", () => {
 
     assert.deepEqual(config.categories, ["muscle", "bone_landmark"])
     assert.deepEqual(config.regions, ["upper-extremity"])
+    assert.deepEqual(config.bodySystems, ["muscular-system"])
     assert.equal(config.difficulty, "hard")
     assert.equal(config.answerMode, "multiple-choice")
     assert.equal(config.termCount, 40)
@@ -47,6 +50,28 @@ describe("Anatomime shared session helpers", () => {
     assert.equal(firstDeck.length, 6)
     assert.deepEqual(firstDeck.map((card) => card.id), secondDeck.map((card) => card.id))
     assert.ok(firstDeck.every((card) => ["anatomy_structure", "anatomy_concept"].includes(card.category)))
+  })
+
+  it("exposes body-system setup options and honors exact selected cards", () => {
+    const setupOptions = getAnatomimeSetupOptions()
+    const config = normalizeAnatomimeSessionConfig({
+      categories: ["muscle"],
+      regions: ["upper-extremity"],
+      bodySystems: ["muscular-system"],
+      difficulty: "hard",
+      termCount: 4,
+      seed: "selected-card-test",
+    })
+    const selectedCardIds = getAnatomimeCandidateCards(config).slice(0, 4).map((card) => card.id).reverse()
+    const deck = createAnatomimeSessionDeck({
+      ...config,
+      selectedCardIds,
+    })
+
+    assert.ok(setupOptions.bodySystems.some((bodySystem) => bodySystem.id === "muscular-system"))
+    assert.equal(deck.length, 4)
+    assert.deepEqual(deck.map((card) => card.id), selectedCardIds)
+    assert.equal(deck.every((card) => card.bodySystems.includes("muscular-system")), true)
   })
 
   it("checks Anatomime guesses against the flashcard-linked name recall prompt", () => {

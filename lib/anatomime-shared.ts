@@ -1,4 +1,5 @@
 import {
+  ANATOMY_STUDY_BODY_SYSTEMS,
   ANATOMY_STUDY_CATEGORIES,
   ANATOMY_STUDY_CATEGORY_LABELS,
   ANATOMY_STUDY_DIFFICULTIES,
@@ -7,11 +8,13 @@ import {
   checkFlashcardAnswer,
   createAnatomyStudyDeck,
   getAnatomyStudyCards,
+  getAnatomyStudyBodySystems,
   getAnatomyStudyCategories,
   getAnatomyStudyPrompts,
   getAnatomyStudyRegions,
   getAnatomyStudySources,
   type AnatomyStudyCard,
+  type AnatomyStudyBodySystem,
   type AnatomyStudyCategory,
   type AnatomyStudyDifficulty,
   type AnatomyStudyRegion,
@@ -41,6 +44,7 @@ export type AnatomimeSessionPhase = "LOBBY" | "ACTIVE" | "STEAL" | "REVIEW" | "C
 export type AnatomimeSessionConfig = {
   categories: AnatomyStudyCategory[]
   regions: AnatomyStudyRegion[]
+  bodySystems: AnatomyStudyBodySystem[]
   difficulty: AnatomyStudyDifficulty
   answerMode: AnatomimeAnswerMode
   termCount: number
@@ -59,6 +63,8 @@ export type AnatomimeTerm = {
   categoryLabel: string
   regions: AnatomyStudyRegion[]
   regionLabels: string[]
+  bodySystems: AnatomyStudyBodySystem[]
+  bodySystemLabels: string[]
   difficulty: AnatomyStudyDifficulty
   aliases: string[]
   definition?: string
@@ -75,6 +81,7 @@ export type AnatomimeScoringGuess = {
 
 const categorySet = new Set<string>(ANATOMY_STUDY_CATEGORIES)
 const regionSet = new Set<string>(ANATOMY_STUDY_REGION_ORDER)
+const bodySystemSet = new Set<string>(ANATOMY_STUDY_BODY_SYSTEMS)
 const difficultySet = new Set<string>(ANATOMY_STUDY_DIFFICULTIES)
 const answerModeSet = new Set<string>(["typed", "multiple-choice"])
 let nameRecallPromptByCardId: Map<string, FlashcardPrompt> | null = null
@@ -142,10 +149,10 @@ function shuffle<T>(items: T[], seed: string) {
 
 /**
  * Converts raw host setup input into an AnatomimeSessionConfig. Invalid or
- * empty category/region filters fall back to the full sourced study library;
- * difficulty defaults to medium, answerMode defaults to typed, timers and deck
- * size are bounded, seeds are sanitized, selected card ids are deduped/capped,
- * and team names default to two teams with a four-team maximum.
+ * empty category, body-system, or region filters fall back to the full sourced
+ * study library; difficulty defaults to medium, answerMode defaults to typed,
+ * timers and deck size are bounded, seeds are sanitized, selected card ids are
+ * deduped/capped, and team names default to two teams with a four-team maximum.
  */
 export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessionConfig {
   const record = recordFrom(input)
@@ -153,6 +160,8 @@ export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessio
     .filter((category): category is AnatomyStudyCategory => categorySet.has(category))
   const regions = stringArray(record.regions)
     .filter((region): region is AnatomyStudyRegion => regionSet.has(region))
+  const bodySystems = stringArray(record.bodySystems ?? record.systems)
+    .filter((bodySystem): bodySystem is AnatomyStudyBodySystem => bodySystemSet.has(bodySystem))
   const difficulty = difficultySet.has(String(record.difficulty))
     ? String(record.difficulty) as AnatomyStudyDifficulty
     : "medium"
@@ -170,6 +179,7 @@ export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessio
   return {
     categories: categories.length > 0 ? categories : [...ANATOMY_STUDY_CATEGORIES],
     regions: regions.length > 0 ? regions : [...ANATOMY_STUDY_REGION_ORDER],
+    bodySystems: bodySystems.length > 0 ? bodySystems : [...ANATOMY_STUDY_BODY_SYSTEMS],
     difficulty,
     answerMode,
     termCount: boundedInteger(record.termCount ?? record.count, ANATOMIME_DEFAULT_TERM_COUNT, 1, ANATOMIME_MAX_TERM_COUNT),
@@ -190,6 +200,8 @@ export function anatomimeTermFromCard(card: AnatomyStudyCard): AnatomimeTerm {
     categoryLabel: card.categoryLabel,
     regions: card.regions,
     regionLabels: card.regionLabels,
+    bodySystems: card.bodySystems,
+    bodySystemLabels: card.bodySystemLabels,
     difficulty: card.difficulty,
     aliases: card.aliases,
     definition: card.summary,
@@ -202,6 +214,7 @@ export function getAnatomimeSetupOptions() {
 
   return {
     categories: getAnatomyStudyCategories(cards),
+    bodySystems: getAnatomyStudyBodySystems(cards),
     regions: getAnatomyStudyRegions(cards),
     sources: getAnatomyStudySources(cards),
   }
@@ -211,6 +224,7 @@ export function getAnatomimeCandidateCards(config: AnatomimeSessionConfig) {
   return getAnatomyStudyCards({
     categories: config.categories,
     regions: config.regions,
+    bodySystems: config.bodySystems,
     difficulty: config.difficulty,
   })
 }
@@ -228,6 +242,7 @@ export function createAnatomimeSessionDeck(configInput: unknown) {
     const fillCards = createAnatomyStudyDeck({
       categories: config.categories,
       regions: config.regions,
+      bodySystems: config.bodySystems,
       difficulty: config.difficulty,
       seed: `${config.seed}:fill`,
     }).filter((card) => !selectedIds.has(card.id))
@@ -238,6 +253,7 @@ export function createAnatomimeSessionDeck(configInput: unknown) {
   return createAnatomyStudyDeck({
     categories: config.categories,
     regions: config.regions,
+    bodySystems: config.bodySystems,
     difficulty: config.difficulty,
     count: config.termCount,
     seed: config.seed,

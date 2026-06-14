@@ -132,6 +132,18 @@
   gap: 0.55rem;
 }
 
+.anatomime-selection-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.anatomime-selection-toolbar .anatomime-secondary-button {
+  flex: 0 1 auto;
+  min-height: 2.35rem;
+  padding: 0.55rem 0.75rem;
+}
+
 .anatomime-input {
   border-color: rgba(255, 255, 255, 0.16);
   background: rgba(12, 12, 14, 0.82);
@@ -254,10 +266,37 @@
 }
 
 .anatomime-region-grid,
-.anatomime-term-grid {
+.anatomime-term-grid,
+.anatomime-region-term-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem;
+}
+
+.anatomime-region-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.anatomime-region-card {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(10, 10, 12, 0.58);
+  padding: 0.55rem;
+}
+
+.anatomime-region-card[data-selected="true"] {
+  border-color: hsl(var(--brand-orange) / 0.55);
+  background: hsl(var(--brand-orange) / 0.1);
+}
+
+.anatomime-region-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  gap: 0.55rem;
+  align-items: stretch;
 }
 
 .anatomime-region-button,
@@ -268,6 +307,38 @@
   min-height: 5.25rem;
   padding: 0.85rem;
   text-align: left;
+}
+
+.anatomime-region-card .anatomime-region-button {
+  min-height: 4rem;
+}
+
+.anatomime-icon-button {
+  display: inline-grid;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.5rem;
+  background: rgba(12, 12, 14, 0.86);
+  color: #f7f7f7;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.anatomime-icon-button:hover {
+  border-color: hsl(var(--brand-orange) / 0.75);
+}
+
+.anatomime-icon-button[aria-expanded="true"] {
+  border-color: hsl(var(--brand-orange));
+  color: hsl(var(--brand-orange-soft));
+}
+
+.anatomime-empty-state {
+  margin: 0;
+  color: rgba(247, 247, 247, 0.62);
+  font-size: 0.9rem;
 }
 
 .anatomime-region-button small,

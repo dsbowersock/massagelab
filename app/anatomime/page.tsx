@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowDown, ArrowUp, CheckCircle2, Copy, Play, RefreshCw, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, Copy, Play, RefreshCw, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import {
   ANATOMY_STUDY_DIFFICULTIES,
+  type AnatomyStudyBodySystem,
   type AnatomyStudyCategory,
   type AnatomyStudyDifficulty,
 } from "@/lib/anatomy-study"
@@ -38,6 +39,7 @@ import "./styles.css"
 
 type AnatomyKind = AnatomyStudyCategory
 type AnatomyDifficulty = AnatomyStudyDifficulty
+type AnatomyBodySystem = AnatomyStudyBodySystem
 
 type AnatomyTerm = {
   id: string
@@ -47,6 +49,8 @@ type AnatomyTerm = {
   categoryLabel: string
   regions: string[]
   regionLabels: string[]
+  bodySystems: AnatomyBodySystem[]
+  bodySystemLabels: string[]
   difficulty: AnatomyDifficulty
   aliases: string[]
   definition?: string
@@ -80,9 +84,11 @@ const TEAM_OPTIONS = [2, 3, 4]
 
 const setupOptions = getAnatomimeSetupOptions()
 const kindOptions = setupOptions.categories as Array<{ id: AnatomyKind; label: string; termCount: number }>
+const bodySystemOptions = setupOptions.bodySystems as Array<{ id: AnatomyBodySystem; label: string; termCount: number }>
 const anatomyRegions = setupOptions.regions
 const anatomySources = setupOptions.sources
 const defaultCategories = kindOptions.map((option) => option.id)
+const defaultBodySystems = bodySystemOptions.map((option) => option.id)
 const defaultRegions = anatomyRegions.map((region) => region.id)
 
 const difficultyLabels: Record<AnatomyDifficulty, string> = {
@@ -158,11 +164,13 @@ export default function AnatomimePage() {
   const [scores, setScores] = useState([0, 0])
   const [currentTeam, setCurrentTeam] = useState(0)
   const [selectedKinds, setSelectedKinds] = useState<AnatomyKind[]>(defaultCategories)
+  const [selectedBodySystems, setSelectedBodySystems] = useState<AnatomyBodySystem[]>(defaultBodySystems)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(defaultRegions)
   const [difficulty, setDifficulty] = useState<AnatomyDifficulty>("easy")
-  const [termCount, setTermCount] = useState(TERM_COUNT)
   const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("typed")
   const [currentDeck, setCurrentDeck] = useState<AnatomyTerm[]>([])
+  const [selectedSetupTermIds, setSelectedSetupTermIds] = useState<string[]>([])
+  const [expandedRegionIds, setExpandedRegionIds] = useState<string[]>([])
   const [selectedTermIds, setSelectedTermIds] = useState<string[]>([])
   const [currentTermIndex, setCurrentTermIndex] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(ROUND_SECONDS)
@@ -177,26 +185,58 @@ export default function AnatomimePage() {
   const [startingSharedGame, setStartingSharedGame] = useState(false)
   const sharedRefreshInFlightRef = useRef(false)
   const sharedRefreshRequestIdRef = useRef(0)
+  const termCount = TERM_COUNT
 
   useEffect(() => {
     setTeamNames((current) => normalizeTeamNames(current, teamCount))
     setScores((current) => Array.from({ length: teamCount }, (_, index) => current[index] ?? 0))
   }, [teamCount])
 
-  const matchingTerms = useMemo(() => (
-    getAnatomimeCandidateCards(normalizeAnatomimeSessionConfig({
+  const eligibleTerms = useMemo(() => {
+    if (selectedKinds.length === 0 || selectedBodySystems.length === 0) return []
+
+    return getAnatomimeCandidateCards(normalizeAnatomimeSessionConfig({
       categories: selectedKinds,
-      regions: selectedRegions,
+      bodySystems: selectedBodySystems,
+      regions: defaultRegions,
       difficulty,
       termCount,
     })).map(anatomimeTermFromCard) as AnatomyTerm[]
-  ), [difficulty, selectedKinds, selectedRegions, termCount])
+  }, [difficulty, selectedBodySystems, selectedKinds, termCount])
+
+  const matchingTerms = useMemo(() => {
+    if (selectedKinds.length === 0 || selectedBodySystems.length === 0 || selectedRegions.length === 0) return []
+
+    const selectedRegionSet = new Set(selectedRegions)
+    return eligibleTerms.filter((term) => term.regions.some((region) => selectedRegionSet.has(region)))
+  }, [eligibleTerms, selectedBodySystems.length, selectedKinds.length, selectedRegions])
+
+  const termsByRegion = useMemo(() => {
+    const grouped = new Map<string, AnatomyTerm[]>()
+    for (const region of anatomyRegions) {
+      grouped.set(region.id, eligibleTerms.filter((term) => term.regions.includes(region.id)))
+    }
+
+    return grouped
+  }, [eligibleTerms])
+
+  const matchingTermIds = useMemo(() => new Set(matchingTerms.map((term) => term.id)), [matchingTerms])
+
+  const selectedSetupTerms = useMemo(() => (
+    selectedSetupTermIds
+      .map((termId) => eligibleTerms.find((term) => term.id === termId))
+      .filter((term): term is AnatomyTerm => Boolean(term))
+  ), [eligibleTerms, selectedSetupTermIds])
 
   const orderedTerms = useMemo(() => (
     selectedTermIds
       .map((termId) => currentDeck.find((term) => term.id === termId))
       .filter((term): term is AnatomyTerm => Boolean(term))
   ), [currentDeck, selectedTermIds])
+
+  useEffect(() => {
+    setSelectedSetupTermIds((current) => current.filter((termId) => matchingTermIds.has(termId)).slice(0, termCount))
+  }, [matchingTermIds, termCount])
 
   const currentTerm = orderedTerms[currentTermIndex]
   const currentTeamName = teamNames[currentTeam] ?? `Team ${currentTeam + 1}`
@@ -218,8 +258,10 @@ export default function AnatomimePage() {
     const deck = createAnatomimeSessionDeck({
       categories: selectedKinds,
       regions: selectedRegions,
+      bodySystems: selectedBodySystems,
       difficulty,
       termCount,
+      selectedCardIds: selectedSetupTermIds,
       seed: `local-${Date.now().toString(36)}`,
     }).map(anatomimeTermFromCard) as AnatomyTerm[]
 
@@ -232,7 +274,7 @@ export default function AnatomimePage() {
     setLastTurnReview(null)
     setMessage("")
     setGamePhase("setup")
-  }, [difficulty, selectedKinds, selectedRegions, termCount])
+  }, [difficulty, selectedBodySystems, selectedKinds, selectedRegions, selectedSetupTermIds, termCount])
 
   const startGameSetup = () => {
     const trimmedNames = teamNames.slice(0, teamCount).map((name) => name.trim())
@@ -254,16 +296,43 @@ export default function AnatomimePage() {
       setMessage("Choose at least one anatomy category.")
       return
     }
+    if (selectedBodySystems.length === 0) {
+      setMessage("Choose at least one body system.")
+      return
+    }
     if (selectedRegions.length === 0) {
       setMessage("Choose at least one body region.")
       return
     }
+    if (selectedSetupTermIds.length > 0 && selectedSetupTermIds.length !== termCount) {
+      setMessage(`Choose exactly ${termCount} specific terms, or clear them to use a shuffled set.`)
+      return
+    }
     if (matchingTerms.length < termCount) {
-      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${termCount} terms by adding regions, categories, or difficulty.`)
+      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${termCount} terms by adding regions, categories, body systems, or difficulty.`)
       return
     }
 
     buildTurnDeck()
+  }
+
+  const toggleSetupTerm = (term: AnatomyTerm) => {
+    setSelectedSetupTermIds((current) => {
+      if (current.includes(term.id)) return current.filter((termId) => termId !== term.id)
+      if (current.length >= termCount) return current
+
+      return [...current, term.id]
+    })
+    setSelectedRegions((current) => {
+      const next = new Set(current)
+      term.regions.forEach((region) => next.add(region))
+      return [...next]
+    })
+    setMessage("")
+  }
+
+  const toggleExpandedRegion = (regionId: string) => {
+    setExpandedRegionIds((current) => toggleValue(current, regionId))
   }
 
   const addTerm = (termId: string) => {
@@ -399,11 +468,13 @@ export default function AnatomimePage() {
     setScores([0, 0])
     setCurrentTeam(0)
     setSelectedKinds(defaultCategories)
+    setSelectedBodySystems(defaultBodySystems)
     setSelectedRegions(defaultRegions)
     setDifficulty("easy")
-    setTermCount(TERM_COUNT)
     setAnswerMode("typed")
     setCurrentDeck([])
+    setSelectedSetupTermIds([])
+    setExpandedRegionIds([])
     setSelectedTermIds([])
     setCurrentTermIndex(0)
     setTimeRemaining(ROUND_SECONDS)
@@ -469,8 +540,16 @@ export default function AnatomimePage() {
       setMessage("Enter names for all teams before creating a shared game.")
       return
     }
-    if (selectedKinds.length === 0 || selectedRegions.length === 0) {
-      setMessage("Choose at least one category and one region before creating a shared game.")
+    if (selectedKinds.length === 0 || selectedBodySystems.length === 0 || selectedRegions.length === 0) {
+      setMessage("Choose at least one category, body system, and region before creating a shared game.")
+      return
+    }
+    if (selectedSetupTermIds.length > 0 && selectedSetupTermIds.length !== termCount) {
+      setMessage(`Choose exactly ${termCount} specific terms, or clear them to use a shuffled set.`)
+      return
+    }
+    if (matchingTerms.length < termCount) {
+      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${termCount} terms before creating a shared game.`)
       return
     }
 
@@ -485,9 +564,11 @@ export default function AnatomimePage() {
           config: {
             categories: selectedKinds,
             regions: selectedRegions,
+            bodySystems: selectedBodySystems,
             difficulty,
             answerMode,
             termCount,
+            selectedCardIds: selectedSetupTermIds,
             roundSeconds: ROUND_SECONDS,
             stealSeconds: 8,
             teamNames: trimmedNames,
@@ -560,25 +641,28 @@ export default function AnatomimePage() {
   }
 
   const allRegionsSelected = selectedRegions.length === anatomyRegions.length
+  const allBodySystemsSelected = selectedBodySystems.length === bodySystemOptions.length
+  const setupTermLimitReached = selectedSetupTermIds.length >= termCount
 
   return (
     <div className="anatomime-page">
       <MovingBackground className="anatomime-background" testId="anatomime-moving-background" />
       <div className="anatomime-shell">
-        <header className="anatomime-header">
-          <div>
-            <PageHeading>Anatomime</PageHeading>
-            <p className="anatomime-subtitle">
-              Classroom anatomy practice for teams. Choose anatomy categories, regions, and difficulty, then race the timer.
-            </p>
-          </div>
-          <div className="anatomime-status">
-            <span>{roundLabel}</span>
-            <span>{matchingTerms.length} matching terms</span>
-            <span>{termCount} per game</span>
-            <span>{difficultyLabels[difficulty]}</span>
-          </div>
-        </header>
+        {gamePhase === "onboarding" ? (
+          <header className="anatomime-header">
+            <div>
+              <PageHeading>Anatomime</PageHeading>
+              <p className="anatomime-subtitle">
+                Classroom anatomy practice for teams. Choose anatomy categories, regions, and difficulty, then race the timer.
+              </p>
+            </div>
+            <div className="anatomime-status">
+              <span>{roundLabel}</span>
+              <span>{termCount} terms</span>
+              <span>{ROUND_SECONDS}s turns</span>
+            </div>
+          </header>
+        ) : null}
 
         {message && gamePhase !== "selection" ? (
           <div className="anatomime-message" role="status">
@@ -678,7 +762,7 @@ export default function AnatomimePage() {
           <section className="anatomime-panel">
             <div className="anatomime-section-heading">
               <h2>Deck</h2>
-              <p>Term difficulty controls which terms are eligible for the round.</p>
+              <p>{matchingTerms.length} matching terms. Games use {termCount} terms.</p>
             </div>
 
             <div className="anatomime-grid-2">
@@ -693,6 +777,33 @@ export default function AnatomimePage() {
                       data-selected={selectedKinds.includes(option.id)}
                       aria-pressed={selectedKinds.includes(option.id)}
                       onClick={() => setSelectedKinds((current) => toggleValue(current, option.id))}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="anatomime-control-group">
+                <Label>Body systems</Label>
+                <div className="anatomime-selection-toolbar">
+                  <button
+                    type="button"
+                    className="anatomime-secondary-button"
+                    onClick={() => setSelectedBodySystems(allBodySystemsSelected ? [] : defaultBodySystems)}
+                  >
+                    {allBodySystemsSelected ? "Clear All" : "Select All"}
+                  </button>
+                </div>
+                <div className="anatomime-segmented" role="group" aria-label="Body systems">
+                  {bodySystemOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className="anatomime-choice-button"
+                      data-selected={selectedBodySystems.includes(option.id)}
+                      aria-pressed={selectedBodySystems.includes(option.id)}
+                      onClick={() => setSelectedBodySystems((current) => toggleValue(current, option.id))}
                     >
                       {option.label}
                     </button>
@@ -717,24 +828,6 @@ export default function AnatomimePage() {
                   ))}
                 </div>
               </div>
-            </div>
-
-            <div className="anatomime-grid-2">
-              <div className="anatomime-control-group">
-                <Label htmlFor="term-count">Deck size</Label>
-                <div className="anatomime-round-control">
-                  <output className="anatomime-round-dial" htmlFor="term-count">{termCount}</output>
-                  <input
-                    id="term-count"
-                    type="range"
-                    min="4"
-                    max="24"
-                    value={termCount}
-                    onChange={(event) => setTermCount(Number(event.target.value))}
-                    className="anatomime-round-slider"
-                  />
-                </div>
-              </div>
 
               <div className="anatomime-control-group">
                 <Label>Shared answer mode</Label>
@@ -756,30 +849,90 @@ export default function AnatomimePage() {
             </div>
 
             <div className="anatomime-section-heading compact">
-              <h3>Regions</h3>
-              <button
-                type="button"
-                className="anatomime-secondary-button"
-                onClick={() => setSelectedRegions(allRegionsSelected ? [] : defaultRegions)}
-              >
-                {allRegionsSelected ? "Clear All" : "Select All"}
-              </button>
+              <div>
+                <h3>Regions and terms</h3>
+                <p>{selectedSetupTermIds.length > 0 ? `${selectedSetupTermIds.length} of ${termCount} specific terms chosen` : "Choose regions, or expand a region to pick exact terms."}</p>
+              </div>
+              <div className="anatomime-selection-toolbar">
+                {selectedSetupTermIds.length > 0 ? (
+                  <button
+                    type="button"
+                    className="anatomime-secondary-button"
+                    onClick={() => setSelectedSetupTermIds([])}
+                  >
+                    Clear Terms
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="anatomime-secondary-button"
+                  onClick={() => setSelectedRegions(allRegionsSelected ? [] : defaultRegions)}
+                >
+                  {allRegionsSelected ? "Clear Regions" : "Select Regions"}
+                </button>
+              </div>
             </div>
 
-            <div className="anatomime-region-grid">
-              {anatomyRegions.map((region) => (
-                <button
-                  key={region.id}
-                  type="button"
-                  className="anatomime-region-button"
-                  data-selected={selectedRegions.includes(region.id)}
-                  aria-pressed={selectedRegions.includes(region.id)}
-                  onClick={() => setSelectedRegions((current) => toggleValue(current, region.id))}
-                >
-                  <span>{region.label}</span>
-                  <small>{region.termCount} terms</small>
-                </button>
-              ))}
+            <div className="anatomime-region-list">
+              {anatomyRegions.map((region) => {
+                const regionTerms = termsByRegion.get(region.id) ?? []
+                const selectedRegionTerms = selectedSetupTerms.filter((term) => term.regions.includes(region.id))
+                const isRegionSelected = selectedRegions.includes(region.id)
+                const isExpanded = expandedRegionIds.includes(region.id)
+
+                return (
+                  <article key={region.id} className="anatomime-region-card" data-selected={isRegionSelected}>
+                    <div className="anatomime-region-card-header">
+                      <button
+                        type="button"
+                        className="anatomime-region-button"
+                        data-selected={isRegionSelected}
+                        aria-pressed={isRegionSelected}
+                        onClick={() => setSelectedRegions((current) => toggleValue(current, region.id))}
+                      >
+                        <span>{region.label}</span>
+                        <small>
+                          {regionTerms.length} matching
+                          {selectedRegionTerms.length > 0 ? ` · ${selectedRegionTerms.length} chosen` : ""}
+                        </small>
+                      </button>
+                      <button
+                        type="button"
+                        className="anatomime-icon-button"
+                        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${region.label} terms`}
+                        aria-expanded={isExpanded}
+                        onClick={() => toggleExpandedRegion(region.id)}
+                      >
+                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {isExpanded ? (
+                      <div className="anatomime-region-term-grid">
+                        {regionTerms.length > 0 ? regionTerms.map((term) => {
+                          const isSelected = selectedSetupTermIds.includes(term.id)
+
+                          return (
+                            <button
+                              key={term.id}
+                              type="button"
+                              className="anatomime-term-card"
+                              data-selected={isSelected}
+                              aria-pressed={isSelected}
+                              disabled={!isSelected && setupTermLimitReached}
+                              onClick={() => toggleSetupTerm(term)}
+                            >
+                              <span>{term.name}</span>
+                              <small>{formatTermKind(term.kind)} · {difficultyLabels[term.difficulty]}</small>
+                            </button>
+                          )
+                        }) : (
+                          <p className="anatomime-empty-state">No matching terms for this region.</p>
+                        )}
+                      </div>
+                    ) : null}
+                  </article>
+                )
+              })}
             </div>
 
             <div className="anatomime-actions">

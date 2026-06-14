@@ -43,6 +43,20 @@ export const ANATOMY_STUDY_REGION_ORDER = [
   "lower-extremity",
 ] as const
 
+export const ANATOMY_STUDY_BODY_SYSTEMS = [
+  "integumentary-system",
+  "skeletal-system",
+  "muscular-system",
+  "nervous-system",
+  "cardiovascular-system",
+  "lymphatic-system",
+  "respiratory-system",
+  "digestive-system",
+  "endocrine-system",
+  "urinary-system",
+  "reproductive-system",
+] as const
+
 export const ANATOMY_STUDY_CATEGORY_LABELS = {
   bone: "Bones",
   bone_landmark: "Bone Landmarks",
@@ -59,6 +73,20 @@ export const ANATOMY_STUDY_REGION_LABELS = {
   abdomen: "Abdomen",
   pelvis: "Pelvis",
   "lower-extremity": "Lower Extremity",
+} as const
+
+export const ANATOMY_STUDY_BODY_SYSTEM_LABELS = {
+  "integumentary-system": "Integumentary",
+  "skeletal-system": "Skeletal",
+  "muscular-system": "Muscular",
+  "nervous-system": "Nervous",
+  "cardiovascular-system": "Cardiovascular",
+  "lymphatic-system": "Lymphatic",
+  "respiratory-system": "Respiratory",
+  "digestive-system": "Digestive",
+  "endocrine-system": "Endocrine",
+  "urinary-system": "Urinary",
+  "reproductive-system": "Reproductive",
 } as const
 
 export const FLASHCARD_PROMPT_TYPES = [
@@ -102,10 +130,12 @@ const REUSABLE_SUMMARY_FACT_TYPES = new Set([
 ])
 
 const categoryEntityTypes = new Set<AnatomyEntityType>(ANATOMY_STUDY_CATEGORIES)
+const bodySystemSlugs = new Set<string>(ANATOMY_STUDY_BODY_SYSTEMS)
 
 export type AnatomyStudyCategory = typeof ANATOMY_STUDY_CATEGORIES[number]
 export type AnatomyStudyDifficulty = typeof ANATOMY_STUDY_DIFFICULTIES[number]
 export type AnatomyStudyRegion = typeof ANATOMY_STUDY_REGION_ORDER[number]
+export type AnatomyStudyBodySystem = typeof ANATOMY_STUDY_BODY_SYSTEMS[number]
 
 export type AnatomyStudySource = {
   id: string
@@ -147,6 +177,8 @@ export type AnatomyStudyCard = {
   summary: string
   regions: AnatomyStudyRegion[]
   regionLabels: string[]
+  bodySystems: AnatomyStudyBodySystem[]
+  bodySystemLabels: string[]
   foundationRegion: string
   difficulty: AnatomyStudyDifficulty
   sourceRefs: string[]
@@ -159,6 +191,7 @@ export type AnatomyStudyCardFilters = {
   categories?: AnatomyStudyCategory[]
   kinds?: AnatomyStudyCategory[]
   regions?: AnatomyStudyRegion[] | string[]
+  bodySystems?: AnatomyStudyBodySystem[] | string[]
   difficulty?: AnatomyStudyDifficulty
 }
 
@@ -277,6 +310,7 @@ type BuildContext = {
   termsByEntity: Map<string, AnatomyEntityTerm[]>
   citationsByEntity: Map<string, AnatomyCitation[]>
   mediaLinksByEntity: Map<string, AnatomyMediaEntityLink[]>
+  bodySystemsByEntity: Map<string, AnatomyStudyBodySystem[]>
   mediaBySlug: Map<string, AnatomyMediaAsset>
   mediaUrlBySlug: Map<string, string>
 }
@@ -362,6 +396,10 @@ function entityRegion(entityType: AnatomyStudyCategory, entity: FoundationStudyE
   }
 
   return "region" in entity ? entity.region : "spine"
+}
+
+function bodySystemsForEntity(entityType: AnatomyStudyCategory, entitySlug: string, context: BuildContext) {
+  return context.bodySystemsByEntity.get(entityKey(entityType, entitySlug)) ?? []
 }
 
 function seedSourceReferenceSupportsEntitySummary(citation: AnatomyCitation, entityType: AnatomyStudyCategory, entitySlug: string) {
@@ -508,6 +546,7 @@ function buildContext(seed: AnatomyFoundationSeed, options: AnatomyStudyBuildOpt
   const termsByEntity = new Map<string, AnatomyEntityTerm[]>()
   const citationsByEntity = new Map<string, AnatomyCitation[]>()
   const mediaLinksByEntity = new Map<string, AnatomyMediaEntityLink[]>()
+  const bodySystemsByEntity = new Map<string, AnatomyStudyBodySystem[]>()
   const mediaAssets = mergedMediaAssets(seed, options.mediaAssets)
   const mediaEntityLinks = mergedMediaEntityLinks(seed, options.mediaEntityLinks)
 
@@ -523,6 +562,25 @@ function buildContext(seed: AnatomyFoundationSeed, options: AnatomyStudyBuildOpt
     const key = entityKey(link.entityType, link.entitySlug)
     mediaLinksByEntity.set(key, [...(mediaLinksByEntity.get(key) ?? []), link])
   })
+  // Reuse the foundation taxonomy so study filters match the admin body-system browser.
+  seed.relationships.forEach((relationship) => {
+    if (
+      relationship.relationshipType !== "belongs_to_system" ||
+      relationship.targetEntityType !== "anatomy_concept" ||
+      !bodySystemSlugs.has(relationship.targetEntitySlug) ||
+      !relationship.sourceEntityType ||
+      !relationship.sourceEntitySlug
+    ) {
+      return
+    }
+
+    const key = entityKey(relationship.sourceEntityType, relationship.sourceEntitySlug)
+    const bodySystem = relationship.targetEntitySlug as AnatomyStudyBodySystem
+    const current = bodySystemsByEntity.get(key) ?? []
+    if (!current.includes(bodySystem)) {
+      bodySystemsByEntity.set(key, [...current, bodySystem])
+    }
+  })
 
   return {
     seed,
@@ -531,6 +589,7 @@ function buildContext(seed: AnatomyFoundationSeed, options: AnatomyStudyBuildOpt
     termsByEntity,
     citationsByEntity,
     mediaLinksByEntity,
+    bodySystemsByEntity,
     mediaBySlug: new Map(mediaAssets.map((asset) => [asset.slug, asset])),
     mediaUrlBySlug: mediaUrlMap(options.mediaUrlBySlug),
   }
@@ -551,6 +610,7 @@ function cardFromEntity(entityType: AnatomyStudyCategory, entity: FoundationStud
   ])
   const foundationRegion = entityRegion(entityType, entity, context)
   const studyRegion = regionForFoundationRegion(foundationRegion)
+  const bodySystems = bodySystemsForEntity(entityType, entity.slug, context)
 
   return {
     id: `${entityType}-${entity.slug}`,
@@ -564,6 +624,8 @@ function cardFromEntity(entityType: AnatomyStudyCategory, entity: FoundationStud
     summary: entity.description,
     regions: [studyRegion],
     regionLabels: [ANATOMY_STUDY_REGION_LABELS[studyRegion]],
+    bodySystems,
+    bodySystemLabels: bodySystems.map((bodySystem) => ANATOMY_STUDY_BODY_SYSTEM_LABELS[bodySystem]),
     foundationRegion,
     difficulty: difficultyForEntity(entityType, entity),
     sourceRefs: [...sourceRefs],
@@ -614,17 +676,20 @@ function normalizeCategories(filters: AnatomyStudyCardFilters) {
 function filterStudyCards(cards: AnatomyStudyCard[], filters: AnatomyStudyCardFilters = {}) {
   const categories = normalizeCategories(filters)
   const regions = filters.regions?.map(String) ?? [...ANATOMY_STUDY_REGION_ORDER]
+  const bodySystems = filters.bodySystems?.map(String)
   const difficulty = filters.difficulty ?? "hard"
 
-  if (categories.length === 0 || regions.length === 0) return []
+  if (categories.length === 0 || regions.length === 0 || bodySystems?.length === 0) return []
 
   const regionSet = new Set(regions)
   const categorySet = new Set(categories)
+  const bodySystemSet = bodySystems ? new Set(bodySystems) : null
   const maxDifficulty = difficultyRank[difficulty]
 
   return cards.filter((card) => (
     categorySet.has(card.category) &&
     card.regions.some((region) => regionSet.has(region)) &&
+    (!bodySystemSet || card.bodySystems.some((bodySystem) => bodySystemSet.has(bodySystem))) &&
     difficultyRank[card.difficulty] <= maxDifficulty
   ))
 }
@@ -1050,6 +1115,14 @@ export function getAnatomyStudyCategories(cards: AnatomyStudyCard[] = studyCards
     label: ANATOMY_STUDY_CATEGORY_LABELS[category],
     termCount: cards.filter((card) => card.category === category).length,
   })).filter((category) => category.termCount > 0)
+}
+
+export function getAnatomyStudyBodySystems(cards: AnatomyStudyCard[] = studyCards) {
+  return ANATOMY_STUDY_BODY_SYSTEMS.map((bodySystem) => ({
+    id: bodySystem,
+    label: ANATOMY_STUDY_BODY_SYSTEM_LABELS[bodySystem],
+    termCount: cards.filter((card) => card.bodySystems.includes(bodySystem)).length,
+  })).filter((bodySystem) => bodySystem.termCount > 0)
 }
 
 export function getAnatomyStudySources(cards: AnatomyStudyCard[] = studyCards) {
