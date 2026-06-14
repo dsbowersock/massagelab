@@ -71,6 +71,7 @@ describe("Sourced anatomy study adapter", () => {
     assert.equal(easyUpperMuscles.every((card) => card.category === "muscle"), true)
     assert.equal(easyUpperMuscles.every((card) => card.regions.includes("upper-extremity")), true)
     assert.equal(easyUpperMuscles.every((card) => card.bodySystems.includes("muscular-system")), true)
+    assert.ok(skeletalCards.length > 0)
     assert.equal(skeletalCards.every((card) => card.bodySystems.includes("skeletal-system")), true)
     assert.equal(getAnatomyStudyCards({ categories: [], regions: ["head"] }).length, 0)
     assert.equal(getAnatomyStudyCards({ bodySystems: [] }).length, 0)

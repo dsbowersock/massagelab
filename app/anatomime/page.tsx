@@ -244,6 +244,9 @@ export default function AnatomimePage() {
       .filter((term): term is AnatomyTerm => Boolean(term))
   ), [currentDeck, selectedTermIds])
 
+  // Filter changes can remove terms from the selected setup pool; keep
+  // selectedSetupTermIds inside matchingTermIds, while termCount is enforced
+  // when starting or creating the game and when the deck draws from that pool.
   useEffect(() => {
     setSelectedSetupTermIds((current) => current.filter((termId) => matchingTermIds.has(termId)))
   }, [matchingTermIds])
@@ -628,8 +631,12 @@ export default function AnatomimePage() {
       setTeamNames(trimmedNames)
       setSharedSession(payload.session)
       setHostCredentials({ playerId: payload.host.playerId, token: payload.host.token })
-      window.localStorage.setItem(`massagelab-anatomime-host:${payload.session.code}`, JSON.stringify(payload.host))
       setGamePhase("sharedHost")
+      try {
+        window.localStorage.setItem(`massagelab-anatomime-host:${payload.session.code}`, JSON.stringify(payload.host))
+      } catch {
+        // Hosting can continue even when browser storage is unavailable.
+      }
     } catch {
       setMessage("Could not create shared game.")
     } finally {
