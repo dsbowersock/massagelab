@@ -132,6 +132,35 @@
   gap: 0.55rem;
 }
 
+.anatomime-filter-group {
+  grid-column: 1 / -1;
+}
+
+.anatomime-filter-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.anatomime-filter-column {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+}
+
+.anatomime-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.anatomime-filter-label {
+  color: rgba(247, 247, 247, 0.78);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .anatomime-selection-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -271,6 +300,23 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem;
+}
+
+.anatomime-mini-button {
+  min-height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.5rem;
+  background: rgba(12, 12, 14, 0.86);
+  color: #f7f7f7;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.65rem;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.anatomime-mini-button:hover {
+  border-color: hsl(var(--brand-orange) / 0.75);
 }
 
 .anatomime-region-list {
@@ -511,6 +557,22 @@
   overflow-wrap: anywhere;
 }
 
+.anatomime-current-media {
+  width: min(100%, 28rem);
+  margin: 0.35rem 0 0.2rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.anatomime-current-media img {
+  display: block;
+  width: 100%;
+  max-height: min(42vh, 24rem);
+  object-fit: contain;
+}
+
 .anatomime-current-term p {
   margin: 0;
 }
@@ -636,6 +698,45 @@
   font-size: 0.9rem;
 }
 
+.anatomime-game-info {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  background: rgba(16, 16, 18, 0.72);
+  color: rgba(247, 247, 247, 0.72);
+  padding: 0.8rem 1rem;
+}
+
+.anatomime-game-info summary {
+  cursor: pointer;
+  color: hsl(var(--brand-orange-soft));
+  font-weight: 800;
+}
+
+.anatomime-game-info dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.75rem;
+  margin: 0.85rem 0 0;
+}
+
+.anatomime-game-info div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.anatomime-game-info dt {
+  color: rgba(247, 247, 247, 0.54);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.anatomime-game-info dd {
+  margin: 0;
+  color: #f7f7f7;
+  font-weight: 800;
+}
+
 .anatomime-sources summary {
   cursor: pointer;
   color: hsl(var(--brand-orange-soft));
@@ -662,6 +763,7 @@
   .anatomime-header,
   .anatomime-section-heading,
   .anatomime-grid-2,
+  .anatomime-filter-columns,
   .anatomime-team-grid,
   .anatomime-setup-grid {
     grid-template-columns: 1fr;

@@ -74,6 +74,25 @@ describe("Anatomime shared session helpers", () => {
     assert.equal(deck.every((card) => card.bodySystems.includes("muscular-system")), true)
   })
 
+  it("treats larger selected card lists as a deterministic four-term pool", () => {
+    const config = normalizeAnatomimeSessionConfig({
+      categories: ["bone"],
+      regions: ["head"],
+      bodySystems: ["skeletal-system"],
+      difficulty: "hard",
+      termCount: 4,
+      seed: "selected-pool-test",
+    })
+    const selectedCardIds = getAnatomimeCandidateCards(config).slice(0, 12).map((card) => card.id)
+    const firstDeck = createAnatomimeSessionDeck({ ...config, selectedCardIds })
+    const secondDeck = createAnatomimeSessionDeck({ ...config, selectedCardIds })
+    const selectedCardIdSet = new Set(selectedCardIds)
+
+    assert.equal(firstDeck.length, 4)
+    assert.deepEqual(firstDeck.map((card) => card.id), secondDeck.map((card) => card.id))
+    assert.ok(firstDeck.every((card) => selectedCardIdSet.has(card.id)))
+  })
+
   it("checks Anatomime guesses against the flashcard-linked name recall prompt", () => {
     const config = normalizeAnatomimeSessionConfig({
       categories: ["muscle"],

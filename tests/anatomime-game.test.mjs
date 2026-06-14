@@ -44,18 +44,28 @@ describe("Anatomime game helpers", () => {
   it("adjusts prompt hints by difficulty", () => {
     assert.deepEqual(getPromptVisibility("easy"), {
       showProgress: true,
+      showMedia: true,
       showMetadata: true,
       showHint: true,
       showBonus: true,
     })
     assert.deepEqual(getPromptVisibility("medium"), {
       showProgress: true,
-      showMetadata: true,
+      showMedia: true,
+      showMetadata: false,
       showHint: false,
       showBonus: true,
     })
     assert.deepEqual(getPromptVisibility("hard"), {
+      showProgress: true,
+      showMedia: false,
+      showMetadata: false,
+      showHint: true,
+      showBonus: true,
+    })
+    assert.deepEqual(getPromptVisibility("expert"), {
       showProgress: false,
+      showMedia: false,
       showMetadata: false,
       showHint: false,
       showBonus: false,

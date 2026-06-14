@@ -17,6 +17,7 @@ import {
   type AnatomyStudyBodySystem,
   type AnatomyStudyCategory,
   type AnatomyStudyDifficulty,
+  type AnatomyStudyMedia,
   type AnatomyStudyRegion,
   type FlashcardPrompt,
 } from "./anatomy-study.ts"
@@ -28,6 +29,7 @@ export const ANATOMIME_DEFAULT_TERM_COUNT = 12
 export const ANATOMIME_DEFAULT_ROUND_SECONDS = 30
 export const ANATOMIME_DEFAULT_STEAL_SECONDS = 8
 export const ANATOMIME_MAX_TERM_COUNT = 40
+export const ANATOMIME_MAX_SELECTED_CARD_IDS = 500
 export const ANATOMIME_SESSION_TTL_HOURS = 6
 
 export const ANATOMIME_ACHIEVEMENTS = {
@@ -68,6 +70,7 @@ export type AnatomimeTerm = {
   difficulty: AnatomyStudyDifficulty
   aliases: string[]
   definition?: string
+  media: AnatomyStudyMedia[]
   sourceRefs: string[]
 }
 
@@ -152,7 +155,8 @@ function shuffle<T>(items: T[], seed: string) {
  * empty category, body-system, or region filters fall back to the full sourced
  * study library; difficulty defaults to medium, answerMode defaults to typed,
  * timers and deck size are bounded, seeds are sanitized, selected card ids are
- * deduped/capped, and team names default to two teams with a four-team maximum.
+ * deduped/capped as a candidate pool, and team names default to two teams with a
+ * four-team maximum.
  */
 export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessionConfig {
   const record = recordFrom(input)
@@ -186,7 +190,7 @@ export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessio
     roundSeconds: boundedInteger(record.roundSeconds, ANATOMIME_DEFAULT_ROUND_SECONDS, 10, 180),
     stealSeconds: boundedInteger(record.stealSeconds, ANATOMIME_DEFAULT_STEAL_SECONDS, 4, 30),
     seed: sanitizeSeed(record.seed),
-    selectedCardIds: [...new Set(selectedCardIds)].slice(0, ANATOMIME_MAX_TERM_COUNT),
+    selectedCardIds: [...new Set(selectedCardIds)].slice(0, ANATOMIME_MAX_SELECTED_CARD_IDS),
     teamNames: normalizedTeamNames,
   }
 }
@@ -205,6 +209,7 @@ export function anatomimeTermFromCard(card: AnatomyStudyCard): AnatomimeTerm {
     difficulty: card.difficulty,
     aliases: card.aliases,
     definition: card.summary,
+    media: card.media,
     sourceRefs: card.sourceRefs,
   }
 }
@@ -238,6 +243,14 @@ export function createAnatomimeSessionDeck(configInput: unknown) {
     const selectedCards = config.selectedCardIds
       .map((id) => candidateById.get(id))
       .filter((card): card is AnatomyStudyCard => Boolean(card))
+    if (selectedCards.length >= config.termCount) {
+      const selectedPool = selectedCards.length === config.termCount
+        ? selectedCards
+        : shuffle(selectedCards, `${config.seed}:selected`)
+
+      return selectedPool.slice(0, config.termCount)
+    }
+
     const selectedIds = new Set(selectedCards.map((card) => card.id))
     const fillCards = createAnatomyStudyDeck({
       categories: config.categories,

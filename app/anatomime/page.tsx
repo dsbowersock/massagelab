@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
 import {
-  ANATOMY_STUDY_DIFFICULTIES,
   type AnatomyStudyBodySystem,
   type AnatomyStudyCategory,
   type AnatomyStudyDifficulty,
+  type AnatomyStudyMedia,
 } from "@/lib/anatomy-study"
 import {
   anatomimeTermFromCard,
@@ -38,7 +38,7 @@ import {
 import "./styles.css"
 
 type AnatomyKind = AnatomyStudyCategory
-type AnatomyDifficulty = AnatomyStudyDifficulty
+type PresenterClueLevel = "easy" | "medium" | "hard" | "expert"
 type AnatomyBodySystem = AnatomyStudyBodySystem
 
 type AnatomyTerm = {
@@ -51,9 +51,10 @@ type AnatomyTerm = {
   regionLabels: string[]
   bodySystems: AnatomyBodySystem[]
   bodySystemLabels: string[]
-  difficulty: AnatomyDifficulty
+  difficulty: AnatomyStudyDifficulty
   aliases: string[]
   definition?: string
+  media: AnatomyStudyMedia[]
   sourceRefs: string[]
 }
 
@@ -81,6 +82,7 @@ type LearningRecapItem = {
 const TERM_COUNT = 4
 const ROUND_SECONDS = 30
 const TEAM_OPTIONS = [2, 3, 4]
+const CLUE_LEVELS: PresenterClueLevel[] = ["easy", "medium", "hard", "expert"]
 
 const setupOptions = getAnatomimeSetupOptions()
 const kindOptions = setupOptions.categories as Array<{ id: AnatomyKind; label: string; termCount: number }>
@@ -91,10 +93,17 @@ const defaultCategories = kindOptions.map((option) => option.id)
 const defaultBodySystems = bodySystemOptions.map((option) => option.id)
 const defaultRegions = anatomyRegions.map((region) => region.id)
 
-const difficultyLabels: Record<AnatomyDifficulty, string> = {
+const difficultyLabels: Record<AnatomyStudyDifficulty, string> = {
   easy: "Easy",
   medium: "Medium",
   hard: "Hard",
+}
+
+const clueLevelLabels: Record<PresenterClueLevel, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+  expert: "Expert",
 }
 
 const answerModeLabels: Record<AnatomimeAnswerMode, string> = {
@@ -166,11 +175,12 @@ export default function AnatomimePage() {
   const [selectedKinds, setSelectedKinds] = useState<AnatomyKind[]>(defaultCategories)
   const [selectedBodySystems, setSelectedBodySystems] = useState<AnatomyBodySystem[]>(defaultBodySystems)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(defaultRegions)
-  const [difficulty, setDifficulty] = useState<AnatomyDifficulty>("easy")
+  const [clueLevel, setClueLevel] = useState<PresenterClueLevel>("easy")
   const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("typed")
   const [currentDeck, setCurrentDeck] = useState<AnatomyTerm[]>([])
   const [selectedSetupTermIds, setSelectedSetupTermIds] = useState<string[]>([])
   const [expandedRegionIds, setExpandedRegionIds] = useState<string[]>([])
+  const [usedReshuffleKeys, setUsedReshuffleKeys] = useState<string[]>([])
   const [selectedTermIds, setSelectedTermIds] = useState<string[]>([])
   const [currentTermIndex, setCurrentTermIndex] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(ROUND_SECONDS)
@@ -199,10 +209,10 @@ export default function AnatomimePage() {
       categories: selectedKinds,
       bodySystems: selectedBodySystems,
       regions: defaultRegions,
-      difficulty,
+      difficulty: "hard",
       termCount,
     })).map(anatomimeTermFromCard) as AnatomyTerm[]
-  }, [difficulty, selectedBodySystems, selectedKinds, termCount])
+  }, [selectedBodySystems, selectedKinds, termCount])
 
   const matchingTerms = useMemo(() => {
     if (selectedKinds.length === 0 || selectedBodySystems.length === 0 || selectedRegions.length === 0) return []
@@ -235,8 +245,8 @@ export default function AnatomimePage() {
   ), [currentDeck, selectedTermIds])
 
   useEffect(() => {
-    setSelectedSetupTermIds((current) => current.filter((termId) => matchingTermIds.has(termId)).slice(0, termCount))
-  }, [matchingTermIds, termCount])
+    setSelectedSetupTermIds((current) => current.filter((termId) => matchingTermIds.has(termId)))
+  }, [matchingTermIds])
 
   const currentTerm = orderedTerms[currentTermIndex]
   const currentTeamName = teamNames[currentTeam] ?? `Team ${currentTeam + 1}`
@@ -250,8 +260,11 @@ export default function AnatomimePage() {
     roundLimit,
   })
   const showManualEndGame = hardcoreMode || canEndGame || isFinalScheduledTurn
-  const promptVisibility = getPromptVisibility(difficulty)
+  const promptVisibility = getPromptVisibility(clueLevel)
   const roundLabel = getRoundLabel({ hardcoreMode, currentRound, roundLimit })
+  const reshuffleKey = `${currentRound}:${currentTeam}`
+  const reshuffleUsed = usedReshuffleKeys.includes(reshuffleKey)
+  const currentTermMedia = currentTerm?.media.find((media) => ["image", "diagram"].includes(media.mediaType))
   const learningRecap = useMemo(() => getGameLearningRecap(turnHistory) as LearningRecapItem[], [turnHistory])
 
   const buildTurnDeck = useCallback(() => {
@@ -259,7 +272,7 @@ export default function AnatomimePage() {
       categories: selectedKinds,
       regions: selectedRegions,
       bodySystems: selectedBodySystems,
-      difficulty,
+      difficulty: "hard",
       termCount,
       selectedCardIds: selectedSetupTermIds,
       seed: `local-${Date.now().toString(36)}`,
@@ -274,7 +287,7 @@ export default function AnatomimePage() {
     setLastTurnReview(null)
     setMessage("")
     setGamePhase("setup")
-  }, [difficulty, selectedBodySystems, selectedKinds, selectedRegions, selectedSetupTermIds, termCount])
+  }, [selectedBodySystems, selectedKinds, selectedRegions, selectedSetupTermIds, termCount])
 
   const startGameSetup = () => {
     const trimmedNames = teamNames.slice(0, teamCount).map((name) => name.trim())
@@ -287,6 +300,7 @@ export default function AnatomimePage() {
     setScores(new Array(teamCount).fill(0))
     setCurrentTeam(0)
     setCurrentRound(1)
+    setUsedReshuffleKeys([])
     setMessage("")
     setGamePhase("selection")
   }
@@ -304,12 +318,12 @@ export default function AnatomimePage() {
       setMessage("Choose at least one body region.")
       return
     }
-    if (selectedSetupTermIds.length > 0 && selectedSetupTermIds.length !== termCount) {
-      setMessage(`Choose exactly ${termCount} specific terms, or clear them to use a shuffled set.`)
+    if (selectedSetupTermIds.length > 0 && selectedSetupTermIds.length < termCount) {
+      setMessage(`Choose at least ${termCount} specific terms, or clear them to use the region pool.`)
       return
     }
     if (matchingTerms.length < termCount) {
-      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${termCount} terms by adding regions, categories, body systems, or difficulty.`)
+      setMessage(`This selection has ${matchingTerms.length} matching terms. Choose at least ${termCount} terms by adding regions, categories, or body systems.`)
       return
     }
 
@@ -319,7 +333,6 @@ export default function AnatomimePage() {
   const toggleSetupTerm = (term: AnatomyTerm) => {
     setSelectedSetupTermIds((current) => {
       if (current.includes(term.id)) return current.filter((termId) => termId !== term.id)
-      if (current.length >= termCount) return current
 
       return [...current, term.id]
     })
@@ -333,6 +346,35 @@ export default function AnatomimePage() {
 
   const toggleExpandedRegion = (regionId: string) => {
     setExpandedRegionIds((current) => toggleValue(current, regionId))
+  }
+
+  const toggleRegionTermPool = (regionId: string, regionTerms: AnatomyTerm[]) => {
+    const regionTermIds = regionTerms.map((term) => term.id)
+    const regionTermIdSet = new Set(regionTermIds)
+    const allRegionTermsSelected = regionTermIds.length > 0 && regionTermIds.every((termId) => selectedSetupTermIds.includes(termId))
+
+    setSelectedSetupTermIds((current) => (
+      allRegionTermsSelected
+        ? current.filter((termId) => !regionTermIdSet.has(termId))
+        : [...new Set([...current, ...regionTermIds])]
+    ))
+    setSelectedRegions((current) => (
+      allRegionTermsSelected
+        ? current.filter((selectedRegionId) => selectedRegionId !== regionId)
+        : current.includes(regionId)
+          ? current
+          : [...current, regionId]
+    ))
+    setMessage("")
+  }
+
+  const reshuffleCurrentTurn = () => {
+    if (reshuffleUsed) return
+
+    setUsedReshuffleKeys((current) => (
+      current.includes(reshuffleKey) ? current : [...current, reshuffleKey]
+    ))
+    buildTurnDeck()
   }
 
   const addTerm = (termId: string) => {
@@ -470,11 +512,12 @@ export default function AnatomimePage() {
     setSelectedKinds(defaultCategories)
     setSelectedBodySystems(defaultBodySystems)
     setSelectedRegions(defaultRegions)
-    setDifficulty("easy")
+    setClueLevel("easy")
     setAnswerMode("typed")
     setCurrentDeck([])
     setSelectedSetupTermIds([])
     setExpandedRegionIds([])
+    setUsedReshuffleKeys([])
     setSelectedTermIds([])
     setCurrentTermIndex(0)
     setTimeRemaining(ROUND_SECONDS)
@@ -544,8 +587,8 @@ export default function AnatomimePage() {
       setMessage("Choose at least one category, body system, and region before creating a shared game.")
       return
     }
-    if (selectedSetupTermIds.length > 0 && selectedSetupTermIds.length !== termCount) {
-      setMessage(`Choose exactly ${termCount} specific terms, or clear them to use a shuffled set.`)
+    if (selectedSetupTermIds.length > 0 && selectedSetupTermIds.length < termCount) {
+      setMessage(`Choose at least ${termCount} specific terms, or clear them to use the region pool.`)
       return
     }
     if (matchingTerms.length < termCount) {
@@ -565,7 +608,7 @@ export default function AnatomimePage() {
             categories: selectedKinds,
             regions: selectedRegions,
             bodySystems: selectedBodySystems,
-            difficulty,
+            difficulty: "hard",
             answerMode,
             termCount,
             selectedCardIds: selectedSetupTermIds,
@@ -642,7 +685,7 @@ export default function AnatomimePage() {
 
   const allRegionsSelected = selectedRegions.length === anatomyRegions.length
   const allBodySystemsSelected = selectedBodySystems.length === bodySystemOptions.length
-  const setupTermLimitReached = selectedSetupTermIds.length >= termCount
+  const gameStarted = gamePhase === "playing" || gamePhase === "roundEnd" || gamePhase === "end" || (gamePhase === "sharedHost" && sharedSession?.status !== "LOBBY")
 
   return (
     <div className="anatomime-page">
@@ -653,13 +696,8 @@ export default function AnatomimePage() {
             <div>
               <PageHeading>Anatomime</PageHeading>
               <p className="anatomime-subtitle">
-                Classroom anatomy practice for teams. Choose anatomy categories, regions, and difficulty, then race the timer.
+                Classroom anatomy practice for teams. Choose anatomy categories, regions, and clue level, then race the timer.
               </p>
-            </div>
-            <div className="anatomime-status">
-              <span>{roundLabel}</span>
-              <span>{termCount} terms</span>
-              <span>{ROUND_SECONDS}s turns</span>
             </div>
           </header>
         ) : null}
@@ -766,64 +804,69 @@ export default function AnatomimePage() {
             </div>
 
             <div className="anatomime-grid-2">
-              <div className="anatomime-control-group">
-                <Label>Categories</Label>
-                <div className="anatomime-segmented" role="group" aria-label="Categories">
-                  {kindOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className="anatomime-choice-button"
-                      data-selected={selectedKinds.includes(option.id)}
-                      aria-pressed={selectedKinds.includes(option.id)}
-                      onClick={() => setSelectedKinds((current) => toggleValue(current, option.id))}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <div className="anatomime-control-group anatomime-filter-group">
+                <Label>Anatomy filters</Label>
+                <div className="anatomime-filter-columns">
+                  <div className="anatomime-filter-column">
+                    <span className="anatomime-filter-label">Categories</span>
+                    <div className="anatomime-segmented" role="group" aria-label="Categories">
+                      {kindOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className="anatomime-choice-button"
+                          data-selected={selectedKinds.includes(option.id)}
+                          aria-pressed={selectedKinds.includes(option.id)}
+                          onClick={() => setSelectedKinds((current) => toggleValue(current, option.id))}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="anatomime-control-group">
-                <Label>Body systems</Label>
-                <div className="anatomime-selection-toolbar">
-                  <button
-                    type="button"
-                    className="anatomime-secondary-button"
-                    onClick={() => setSelectedBodySystems(allBodySystemsSelected ? [] : defaultBodySystems)}
-                  >
-                    {allBodySystemsSelected ? "Clear All" : "Select All"}
-                  </button>
-                </div>
-                <div className="anatomime-segmented" role="group" aria-label="Body systems">
-                  {bodySystemOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className="anatomime-choice-button"
-                      data-selected={selectedBodySystems.includes(option.id)}
-                      aria-pressed={selectedBodySystems.includes(option.id)}
-                      onClick={() => setSelectedBodySystems((current) => toggleValue(current, option.id))}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  <div className="anatomime-filter-column">
+                    <div className="anatomime-filter-toolbar">
+                      <span className="anatomime-filter-label">Body systems</span>
+                      <button
+                        type="button"
+                        className="anatomime-mini-button"
+                        onClick={() => setSelectedBodySystems(allBodySystemsSelected ? [] : defaultBodySystems)}
+                      >
+                        {allBodySystemsSelected ? "Clear" : "All"}
+                      </button>
+                    </div>
+                    <div className="anatomime-segmented" role="group" aria-label="Body systems">
+                      {bodySystemOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className="anatomime-choice-button"
+                          data-selected={selectedBodySystems.includes(option.id)}
+                          aria-pressed={selectedBodySystems.includes(option.id)}
+                          onClick={() => setSelectedBodySystems((current) => toggleValue(current, option.id))}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="anatomime-control-group">
                 <Label>Difficulty</Label>
                 <div className="anatomime-segmented" role="group" aria-label="Difficulty">
-                  {ANATOMY_STUDY_DIFFICULTIES.map((option) => (
+                  {CLUE_LEVELS.map((option) => (
                     <button
                       key={option}
                       type="button"
                       className="anatomime-choice-button"
-                      data-selected={difficulty === option}
-                      aria-pressed={difficulty === option}
-                      onClick={() => setDifficulty(option)}
+                      data-selected={clueLevel === option}
+                      aria-pressed={clueLevel === option}
+                      onClick={() => setClueLevel(option)}
                     >
-                      {difficultyLabels[option]}
+                      {clueLevelLabels[option]}
                     </button>
                   ))}
                 </div>
@@ -851,7 +894,7 @@ export default function AnatomimePage() {
             <div className="anatomime-section-heading compact">
               <div>
                 <h3>Regions and terms</h3>
-                <p>{selectedSetupTermIds.length > 0 ? `${selectedSetupTermIds.length} of ${termCount} specific terms chosen` : "Choose regions, or expand a region to pick exact terms."}</p>
+                <p>{selectedSetupTermIds.length > 0 ? `${selectedSetupTermIds.length} terms selected. Each turn uses ${termCount}.` : "Choose regions, or expand a region to pick exact terms."}</p>
               </div>
               <div className="anatomime-selection-toolbar">
                 {selectedSetupTermIds.length > 0 ? (
@@ -876,7 +919,9 @@ export default function AnatomimePage() {
             <div className="anatomime-region-list">
               {anatomyRegions.map((region) => {
                 const regionTerms = termsByRegion.get(region.id) ?? []
+                const regionTermIds = regionTerms.map((term) => term.id)
                 const selectedRegionTerms = selectedSetupTerms.filter((term) => term.regions.includes(region.id))
+                const allRegionTermsSelected = regionTermIds.length > 0 && regionTermIds.every((termId) => selectedSetupTermIds.includes(termId))
                 const isRegionSelected = selectedRegions.includes(region.id)
                 const isExpanded = expandedRegionIds.includes(region.id)
 
@@ -886,14 +931,14 @@ export default function AnatomimePage() {
                       <button
                         type="button"
                         className="anatomime-region-button"
-                        data-selected={isRegionSelected}
-                        aria-pressed={isRegionSelected}
-                        onClick={() => setSelectedRegions((current) => toggleValue(current, region.id))}
+                        data-selected={allRegionTermsSelected || isRegionSelected}
+                        aria-pressed={allRegionTermsSelected}
+                        onClick={() => toggleRegionTermPool(region.id, regionTerms)}
                       >
                         <span>{region.label}</span>
                         <small>
                           {regionTerms.length} matching
-                          {selectedRegionTerms.length > 0 ? ` · ${selectedRegionTerms.length} chosen` : ""}
+                          {selectedRegionTerms.length > 0 ? ` · ${selectedRegionTerms.length} selected` : ""}
                         </small>
                       </button>
                       <button
@@ -918,7 +963,6 @@ export default function AnatomimePage() {
                               className="anatomime-term-card"
                               data-selected={isSelected}
                               aria-pressed={isSelected}
-                              disabled={!isSelected && setupTermLimitReached}
                               onClick={() => toggleSetupTerm(term)}
                             >
                               <span>{term.name}</span>
@@ -962,9 +1006,9 @@ export default function AnatomimePage() {
                 <h2>{currentTeamName}&apos;s terms</h2>
                 <p>{roundLabel}. Select the {termCount} terms in presentation order.</p>
               </div>
-              <button type="button" className="anatomime-secondary-button" onClick={buildTurnDeck}>
+              <button type="button" className="anatomime-secondary-button" onClick={reshuffleCurrentTurn} disabled={reshuffleUsed}>
                 <RotateCcw className="h-4 w-4" />
-                Reshuffle
+                {reshuffleUsed ? "Reshuffle Used" : "Reshuffle"}
               </button>
             </div>
 
@@ -985,7 +1029,7 @@ export default function AnatomimePage() {
                         onClick={() => addTerm(term.id)}
                       >
                         <span>{term.name}</span>
-                        <small>{formatTermKind(term.kind)} · {term.difficulty}</small>
+                        <small>{formatTermKind(term.kind)} · {difficultyLabels[term.difficulty]}</small>
                       </button>
                     )
                   })}
@@ -1134,6 +1178,12 @@ export default function AnatomimePage() {
             <div className="anatomime-current-term">
               {promptVisibility.showProgress ? <span>{currentTermIndex + 1} of {orderedTerms.length}</span> : null}
               <h2>{currentTerm?.name}</h2>
+              {currentTermMedia && promptVisibility.showMedia ? (
+                <figure className="anatomime-current-media">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Reviewed anatomy media URLs are dynamic external study assets. */}
+                  <img src={currentTermMedia.url} alt={currentTermMedia.title} loading="lazy" referrerPolicy="no-referrer" />
+                </figure>
+              ) : null}
               {currentTerm && promptVisibility.showMetadata ? (
                 <p>
                   {formatTermKind(currentTerm.kind)} · {currentTerm.regions.map(regionLabel).join(", ")} · {difficultyLabels[currentTerm.difficulty]}
@@ -1251,6 +1301,34 @@ export default function AnatomimePage() {
             </button>
           </section>
         ) : null}
+
+        <details className="anatomime-game-info">
+          <summary>Game info</summary>
+          <dl>
+            {gameStarted ? (
+              <div>
+                <dt>Round</dt>
+                <dd>{roundLabel}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>Terms</dt>
+              <dd>{termCount} terms</dd>
+            </div>
+            <div>
+              <dt>Turns</dt>
+              <dd>{ROUND_SECONDS}s turns</dd>
+            </div>
+            <div>
+              <dt>Teams</dt>
+              <dd>{teamCount}</dd>
+            </div>
+            <div>
+              <dt>Rounds</dt>
+              <dd>{hardcoreMode ? "Hardcore" : roundLimit}</dd>
+            </div>
+          </dl>
+        </details>
 
         <footer className="anatomime-sources">
           <details>

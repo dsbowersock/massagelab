@@ -167,7 +167,7 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
 
 test("anatomime shared game starts from the default setup", async ({ page }) => {
   const health = capturePageHealth(page)
-  let createPayload: { config?: { bodySystems?: string[]; regions?: string[]; termCount?: number } } | null = null
+  let createPayload: { config?: { bodySystems?: string[]; difficulty?: string; regions?: string[]; termCount?: number } } | null = null
   const teams = [
     { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
     { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
@@ -243,15 +243,23 @@ test("anatomime shared game starts from the default setup", async ({ page }) => 
   })
 
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
+  await expect(page.getByText(/Round 1 of 3/i)).toHaveCount(0)
+  await expect(page.getByText("Game info")).toBeVisible()
+  await page.getByText("Game info").click()
+  await expect(page.getByText("4 terms")).toBeVisible()
+  await expect(page.getByText("30s turns")).toBeVisible()
   await page.getByRole("button", { name: /Choose Anatomy Terms/i }).click()
   await expect(page.getByRole("heading", { name: "Deck" })).toBeAttached()
+  await expect(page.getByText("Anatomy filters")).toBeVisible()
   await expect(page.getByRole("group", { name: /Body systems/i })).toBeAttached()
+  await expect(page.getByRole("button", { name: /^Expert$/i })).toBeAttached()
   await expect(page.getByText(/Deck size/i)).toHaveCount(0)
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
 
-  const postedCreatePayload = createPayload as { config?: { bodySystems?: string[]; regions?: string[]; termCount?: number } } | null
+  const postedCreatePayload = createPayload as { config?: { bodySystems?: string[]; difficulty?: string; regions?: string[]; termCount?: number } } | null
   expect(postedCreatePayload?.config?.bodySystems?.length ?? 0).toBeGreaterThan(0)
   expect(postedCreatePayload?.config?.regions?.length ?? 0).toBeGreaterThan(0)
+  expect(postedCreatePayload?.config?.difficulty).toBe("hard")
   expect(postedCreatePayload?.config?.termCount).toBe(4)
   await expect(page.getByRole("button", { name: /Start Shared Game/i })).toBeVisible()
 
