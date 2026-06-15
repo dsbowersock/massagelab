@@ -5,8 +5,6 @@ import {
   ANATOMIME_ACHIEVEMENTS,
   ANATOMIME_SESSION_TTL_HOURS,
   ANATOMIME_TOOL,
-  anatomimeFlashcardProgressTool,
-  anatomimeProgressResult,
   anatomimeTermFromCard,
   buildAnatomimeMultipleChoiceOptions,
   canAwardImmediateScore,
@@ -14,7 +12,6 @@ import {
   createAnatomimeSessionDeck,
   getAnatomimeCandidateCards,
   getAnatomimeSetupOptions,
-  getAnatomimeNameRecallPrompt,
   labelAnatomimeCategory,
   labelAnatomimeRegion,
   nextActiveTeamOrder,
@@ -23,7 +20,7 @@ import {
   type AnatomimeSessionConfig,
   type AnatomimeSessionPhase,
 } from "./anatomime-shared.ts"
-import { nextFlashcardProgressUpdate } from "./flashcard-progress.ts"
+import { updateAnatomimeNameRecallProgress } from "./anatomime-progress-server.ts"
 import { publishAnatomimeRealtimeEvent } from "./anatomime-realtime.ts"
 
 type SessionWithRelations = Prisma.AnatomimeGameSessionGetPayload<{
@@ -170,40 +167,15 @@ async function updateFlashcardLinkedProgress(
   userId: string,
   card: NonNullable<ReturnType<typeof activeCard>>,
   score: number,
+  source: "device-typed" | "device-choice" = "device-typed",
 ) {
-  const prompt = getAnatomimeNameRecallPrompt(card.id)
-  if (!prompt) return
-
-  const result = anatomimeProgressResult(card, true, score)
-  const tool = anatomimeFlashcardProgressTool(card.id)
-  const existing = await tx.learningProgress.findFirst({
-    where: {
-      userId,
-      anatomyTermId: null,
-      tool,
-    },
-    select: { id: true, metadata: true },
+  await updateAnatomimeNameRecallProgress(tx, {
+    userId,
+    card,
+    correct: true,
+    score,
+    source,
   })
-  const update = nextFlashcardProgressUpdate(existing?.metadata, result)
-  const data = {
-    status: update.status,
-    score: update.score,
-    metadata: json(update.metadata),
-    lastSeenAt: new Date(),
-  }
-
-  if (existing) {
-    await tx.learningProgress.update({ where: { id: existing.id }, data })
-  } else {
-    await tx.learningProgress.create({
-      data: {
-        userId,
-        anatomyTermId: null,
-        tool,
-        ...data,
-      },
-    })
-  }
 }
 
 async function awardWinningTeamAchievements(tx: Prisma.TransactionClient, sessionId: string) {
@@ -613,7 +585,13 @@ export async function recordAnatomimeGuess(code: string, input: unknown, viewer:
       })
 
       if (answerCheck.correct && player.userId && !existingCorrect) {
-        await updateFlashcardLinkedProgress(tx, player.userId, card, answerCheck.score)
+        await updateFlashcardLinkedProgress(
+          tx,
+          player.userId,
+          card,
+          answerCheck.score,
+          config.answerMode === "multiple-choice" ? "device-choice" : "device-typed",
+        )
         await awardAchievement(tx, player.userId, ANATOMIME_ACHIEVEMENTS.firstCorrectGuess, {
           sessionId: session.id,
           cardId: card.id,
