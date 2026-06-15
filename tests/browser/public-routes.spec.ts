@@ -167,29 +167,26 @@ test("anonymous flashcards setup keeps prompt controls usable before count hydra
 
 test("anatomime shared game starts from the default setup", async ({ page }) => {
   const health = capturePageHealth(page)
-  let createPayload: { config?: { bodySystems?: string[]; difficulty?: string; regions?: string[]; termCount?: number } } | null = null
+  let createPayload: { config?: { answerMode?: string; bodySystems?: string[]; clueLevel?: string; regions?: string[]; termCount?: number } } | null = null
   const teams = [
     { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
     { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
   ]
   const host = { playerId: "host-player", token: "host-token" }
   const baseSession = {
-    id: "session-1",
     code: "TEST01",
-    config: {},
-    realtime: null,
-    activeCardIndex: 0,
-    activeTeamOrder: 0,
+    status: "LOBBY",
+    phase: "LOBBY",
+    config: { answerMode: "host-judged", clueLevel: "easy", roundSeconds: 30, termCount: 4, roundLimit: 3, hardcoreMode: false },
     phaseEndsAt: null,
-    startedAt: null,
-    completedAt: null,
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    reviewExpiresAt: null,
     teams,
-    players: [{ id: host.playerId, teamId: null, displayName: "Host", role: "HOST", signedIn: false }],
+    players: [{ id: host.playerId, teamId: null, displayName: "Host", signedIn: false, isHost: true, lastSeenAt: new Date().toISOString() }],
     viewer: { isHost: true, playerId: host.playerId, teamId: null },
     activeTeam: teams[0],
-    recentGuesses: [],
-    deck: [],
+    activeItem: null,
+    turnReview: [],
+    recap: [],
   }
   const activeItem = {
     index: 0,
@@ -208,42 +205,47 @@ test("anatomime shared game starts from the default setup", async ({ page }) => 
       sourceRefs: ["test-source"],
     },
     choices: [],
+    multipleChoiceUnlocksAt: null,
+    pendingSteal: false,
   }
+  let currentSession: any = baseSession
 
   await page.route("**/api/anatomime/sessions/TEST01/start", async (route) => {
+    currentSession = {
+      ...baseSession,
+      status: "PLAYING",
+      phase: "ACTIVE_TERM",
+      phaseEndsAt: new Date(Date.now() + 30_000).toISOString(),
+      activeItem,
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        session: {
-          ...baseSession,
-          status: "PLAYING",
-          phase: "ACTIVE",
-          startedAt: new Date().toISOString(),
-          phaseEndsAt: new Date(Date.now() + 30_000).toISOString(),
-          activeItem,
-        },
-      }),
+      body: JSON.stringify({ session: currentSession }),
     })
   })
   await page.route("**/api/anatomime/sessions/TEST01", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ session: { ...baseSession, status: "LOBBY", phase: "LOBBY", activeItem } }),
+      body: JSON.stringify({ session: currentSession }),
     })
   })
   await page.route("**/api/anatomime/sessions", async (route) => {
     createPayload = route.request().postDataJSON()
+    currentSession = baseSession
     await route.fulfill({
       status: 201,
       contentType: "application/json",
-      body: JSON.stringify({ session: { ...baseSession, status: "LOBBY", phase: "LOBBY", activeItem }, host }),
+      body: JSON.stringify({ session: currentSession, host }),
     })
   })
 
   await page.goto("/anatomime", { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+  await page.waitForTimeout(250)
   await expect(page.getByText(/Round 1 of 3/i)).toHaveCount(0)
+  await expect(page.getByRole("link", { name: /Join Shared Game/i })).toHaveAttribute("href", "/anatomime/join")
   await expect(page.getByText("Game info")).toBeVisible()
   await page.getByText("Game info").click()
   await expect(page.getByText("4 terms")).toBeVisible()
@@ -256,16 +258,19 @@ test("anatomime shared game starts from the default setup", async ({ page }) => 
   await expect(page.getByText(/Deck size/i)).toHaveCount(0)
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
 
-  const postedCreatePayload = createPayload as { config?: { bodySystems?: string[]; difficulty?: string; regions?: string[]; termCount?: number } } | null
+  const postedCreatePayload = createPayload as { config?: { answerMode?: string; bodySystems?: string[]; clueLevel?: string; regions?: string[]; termCount?: number } } | null
   expect(postedCreatePayload?.config?.bodySystems?.length ?? 0).toBeGreaterThan(0)
   expect(postedCreatePayload?.config?.regions?.length ?? 0).toBeGreaterThan(0)
-  expect(postedCreatePayload?.config?.difficulty).toBe("hard")
+  expect(postedCreatePayload?.config?.clueLevel).toBe("easy")
+  expect(postedCreatePayload?.config?.answerMode).toBe("host-judged")
   expect(postedCreatePayload?.config?.termCount).toBe(4)
+  await expect(page.getByRole("group", { name: /Shared game code TEST01/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Join Shared Game/i })).toHaveAttribute("href", "/anatomime/join")
   await expect(page.getByRole("button", { name: /Start Shared Game/i })).toBeVisible()
 
   await page.getByRole("button", { name: /Start Shared Game/i }).click()
   await expect(page.getByText("PLAYING")).toBeVisible()
-  await expect(page.getByText("ACTIVE")).toBeVisible()
+  await expect(page.getByText("ACTIVE_TERM")).toBeVisible()
   await expect(page.getByRole("button", { name: /Start Shared Game/i })).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])

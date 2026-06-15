@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, Copy, Play, RefreshCw, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
+import Link from "next/link"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, LogIn, Play, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
@@ -35,6 +36,8 @@ import {
   summarizeTurnReview,
   updateScore,
 } from "@/lib/anatomime-game"
+import { HostRoomClient } from "./host-room-client"
+import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
 
 type AnatomyKind = AnatomyStudyCategory
@@ -112,7 +115,7 @@ const answerModeLabels: Record<AnatomimeAnswerMode, string> = {
   "multiple-choice": "Device Multiple Choice",
 }
 
-const setupAnswerModes: AnatomimeAnswerMode[] = ["typed", "multiple-choice"]
+const setupAnswerModes: AnatomimeAnswerMode[] = ["host-judged", "typed", "multiple-choice"]
 
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
@@ -179,7 +182,7 @@ export default function AnatomimePage() {
   const [selectedBodySystems, setSelectedBodySystems] = useState<AnatomyBodySystem[]>(defaultBodySystems)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(defaultRegions)
   const [clueLevel, setClueLevel] = useState<PresenterClueLevel>("easy")
-  const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("typed")
+  const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("host-judged")
   const [currentDeck, setCurrentDeck] = useState<AnatomyTerm[]>([])
   const [selectedSetupTermIds, setSelectedSetupTermIds] = useState<string[]>([])
   const [expandedRegionIds, setExpandedRegionIds] = useState<string[]>([])
@@ -192,12 +195,9 @@ export default function AnatomimePage() {
   const [termOutcomes, setTermOutcomes] = useState<Record<string, TermOutcome>>({})
   const [lastTurnReview, setLastTurnReview] = useState<TurnHistoryEntry | null>(null)
   const [turnHistory, setTurnHistory] = useState<TurnHistoryEntry[]>([])
-  const [sharedSession, setSharedSession] = useState<any | null>(null)
+  const [sharedSession, setSharedSession] = useState<AnatomimeRoomSummary | null>(null)
   const [hostCredentials, setHostCredentials] = useState<{ playerId: string; token: string } | null>(null)
   const [creatingSharedGame, setCreatingSharedGame] = useState(false)
-  const [startingSharedGame, setStartingSharedGame] = useState(false)
-  const sharedRefreshInFlightRef = useRef(false)
-  const sharedRefreshRequestIdRef = useRef(0)
   const termCount = TERM_COUNT
 
   useEffect(() => {
@@ -519,7 +519,7 @@ export default function AnatomimePage() {
     setSelectedBodySystems(defaultBodySystems)
     setSelectedRegions(defaultRegions)
     setClueLevel("easy")
-    setAnswerMode("typed")
+    setAnswerMode("host-judged")
     setCurrentDeck([])
     setSelectedSetupTermIds([])
     setExpandedRegionIds([])
@@ -533,55 +533,8 @@ export default function AnatomimePage() {
     setTurnHistory([])
     setSharedSession(null)
     setHostCredentials(null)
-    setStartingSharedGame(false)
     setMessage("")
   }
-
-  const sharedViewerHeaders = useMemo(() => (
-    hostCredentials
-      ? {
-        "x-anatomime-player-id": hostCredentials.playerId,
-        "x-anatomime-player-token": hostCredentials.token,
-      }
-      : undefined
-  ), [hostCredentials])
-
-  const refreshSharedSession = useCallback(async () => {
-    if (!sharedSession || sharedRefreshInFlightRef.current) return
-
-    const requestId = sharedRefreshRequestIdRef.current + 1
-    sharedRefreshRequestIdRef.current = requestId
-    sharedRefreshInFlightRef.current = true
-
-    try {
-      const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}`, {
-        cache: "no-store",
-        headers: sharedViewerHeaders,
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (requestId !== sharedRefreshRequestIdRef.current) return
-      if (response.ok) {
-        setSharedSession(payload.session)
-      } else {
-        setMessage(payload.error ?? "Could not refresh shared game.")
-      }
-    } catch {
-      if (requestId === sharedRefreshRequestIdRef.current) {
-        setMessage("Could not refresh shared game.")
-      }
-    } finally {
-      sharedRefreshInFlightRef.current = false
-    }
-  }, [sharedSession, sharedViewerHeaders])
-
-  useEffect(() => {
-    if (gamePhase !== "sharedHost" || !sharedSession) return
-    const timer = window.setInterval(() => {
-      void refreshSharedSession()
-    }, 1500)
-
-    return () => window.clearInterval(timer)
-  }, [gamePhase, refreshSharedSession, sharedSession])
 
   const createSharedGame = async () => {
     const trimmedNames = teamNames.slice(0, teamCount).map((name) => name.trim())
@@ -614,12 +567,13 @@ export default function AnatomimePage() {
             categories: selectedKinds,
             regions: selectedRegions,
             bodySystems: selectedBodySystems,
-            difficulty: "hard",
+            clueLevel,
             answerMode,
             termCount,
+            roundLimit,
+            hardcoreMode,
             selectedCardIds: selectedSetupTermIds,
             roundSeconds: ROUND_SECONDS,
-            stealSeconds: 8,
             teamNames: trimmedNames,
           },
         }),
@@ -644,52 +598,6 @@ export default function AnatomimePage() {
       setMessage("Could not create shared game.")
     } finally {
       setCreatingSharedGame(false)
-    }
-  }
-
-  const startSharedGame = async () => {
-    if (!sharedSession || !hostCredentials) return
-
-    setStartingSharedGame(true)
-    setMessage("Starting shared game...")
-
-    try {
-      const response = await fetch(`/api/anatomime/sessions/${sharedSession.code}/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-anatomime-player-id": hostCredentials.playerId,
-          "x-anatomime-player-token": hostCredentials.token,
-        },
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        setMessage(payload.error ?? "Could not start shared game.")
-        return
-      }
-
-      setSharedSession(payload.session)
-      setMessage("")
-    } catch {
-      setMessage("Could not start shared game.")
-    } finally {
-      setStartingSharedGame(false)
-    }
-  }
-
-  const copyJoinLink = async () => {
-    if (!sharedSession) return
-    const href = `${window.location.origin}/anatomime/play/${sharedSession.code}`
-    if (!window.navigator.clipboard) {
-      setMessage("Failed to copy join link.")
-      return
-    }
-
-    try {
-      await window.navigator.clipboard.writeText(href)
-      setMessage("Join link copied.")
-    } catch {
-      setMessage("Failed to copy join link.")
     }
   }
 
@@ -799,10 +707,16 @@ export default function AnatomimePage() {
               </div>
             </div>
 
-            <button type="button" className="anatomime-primary-button" onClick={startGameSetup}>
-              <Play className="h-4 w-4" />
-              Choose Anatomy Terms
-            </button>
+            <div className="anatomime-actions">
+              <button type="button" className="anatomime-primary-button" onClick={startGameSetup}>
+                <Play className="h-4 w-4" />
+                Choose Anatomy Terms
+              </button>
+              <Link className="anatomime-secondary-button" href="/anatomime/join">
+                <LogIn className="h-4 w-4" />
+                Join Shared Game
+              </Link>
+            </div>
           </section>
         ) : null}
 
@@ -1087,89 +1001,13 @@ export default function AnatomimePage() {
           </section>
         ) : null}
 
-        {gamePhase === "sharedHost" && sharedSession ? (
-          <section className="anatomime-panel">
-            <div className="anatomime-section-heading">
-              <div>
-                <h2>Shared game {sharedSession.code}</h2>
-                <p>Players join at /anatomime/play/{sharedSession.code} and pick a team from their own device.</p>
-              </div>
-              <div className="anatomime-status">
-                <span>{sharedSession.status}</span>
-                <span>{sharedSession.phase}</span>
-                <span>{sharedSession.players.filter((player: any) => player.role === "PLAYER").length} players</span>
-              </div>
-            </div>
-
-            <div className="anatomime-actions">
-              <a className="anatomime-secondary-button" href={`/anatomime/play/${sharedSession.code}`}>
-                Join Page
-              </a>
-              <button type="button" className="anatomime-secondary-button" onClick={copyJoinLink}>
-                <Copy className="h-4 w-4" />
-                Copy Link
-              </button>
-              <button type="button" className="anatomime-secondary-button" onClick={() => refreshSharedSession()}>
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
-              {sharedSession.status === "LOBBY" ? (
-                <button type="button" className="anatomime-primary-button" onClick={startSharedGame} disabled={startingSharedGame}>
-                  <Play className="h-4 w-4" />
-                  {startingSharedGame ? "Starting..." : "Start Shared Game"}
-                </button>
-              ) : null}
-            </div>
-
-            <div className="anatomime-score-grid">
-              {sharedSession.teams.map((team: any) => (
-                <div key={team.id} className="anatomime-score" data-active={sharedSession.activeTeam?.id === team.id}>
-                  <span>{team.name}</span>
-                  <strong>{team.score}</strong>
-                </div>
-              ))}
-            </div>
-
-            {sharedSession.status === "LOBBY" ? (
-              <div className="anatomime-setup-grid">
-                {sharedSession.teams.map((team: any) => (
-                  <div key={team.id} className="anatomime-list-column">
-                    <h3>{team.name}</h3>
-                    <div className="anatomime-review-list">
-                      {sharedSession.players
-                        .filter((player: any) => player.role === "PLAYER" && player.teamId === team.id)
-                        .map((player: any) => (
-                          <article key={player.id} className="anatomime-review-card">
-                            <strong>{player.displayName}</strong>
-                            <p className="anatomime-review-meta">{player.signedIn ? "Signed in" : "Guest"}</p>
-                          </article>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {sharedSession.status === "PLAYING" && sharedSession.activeItem ? (
-              <div className="anatomime-current-term">
-                <span>
-                  {sharedSession.activeItem.index + 1} of {sharedSession.activeItem.total} · {sharedSession.activeTeam?.name}
-                </span>
-                <h2>{sharedSession.activeItem.prompt.name}</h2>
-                <p>
-                  {sharedSession.activeItem.prompt.categoryLabel} · {sharedSession.activeItem.prompt.regionLabels?.join(", ")} · {sharedSession.activeItem.prompt.difficulty}
-                </p>
-                {sharedSession.activeItem.prompt.definition ? <small>{sharedSession.activeItem.prompt.definition}</small> : null}
-              </div>
-            ) : null}
-
-            {sharedSession.status === "COMPLETED" ? (
-              <div className="anatomime-current-term">
-                <h2>Game complete</h2>
-                <p>Final scores are ready. Signed-in correct guesses have been counted toward learning progress.</p>
-              </div>
-            ) : null}
-          </section>
+        {gamePhase === "sharedHost" && sharedSession && hostCredentials ? (
+          <HostRoomClient
+            initialSession={sharedSession}
+            credentials={hostCredentials}
+            onSessionChange={setSharedSession}
+            onResetLocalGame={startNewGame}
+          />
         ) : null}
 
         {gamePhase === "playing" ? (
@@ -1312,7 +1150,7 @@ export default function AnatomimePage() {
           </section>
         ) : null}
 
-        <details className="anatomime-game-info">
+        <details className="anatomime-game-info" suppressHydrationWarning>
           <summary>Game info</summary>
           <dl>
             {gameStarted ? (
@@ -1329,6 +1167,18 @@ export default function AnatomimePage() {
               <dt>Turns</dt>
               <dd>{ROUND_SECONDS}s turns</dd>
             </div>
+            {sharedSession ? (
+              <>
+                <div>
+                  <dt>Join code</dt>
+                  <dd>{sharedSession.code}</dd>
+                </div>
+                <div>
+                  <dt>Join page</dt>
+                  <dd>/anatomime/join</dd>
+                </div>
+              </>
+            ) : null}
             <div>
               <dt>Teams</dt>
               <dd>{teamCount}</dd>
