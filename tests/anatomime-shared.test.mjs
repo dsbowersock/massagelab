@@ -48,6 +48,25 @@ describe("Anatomime shared session helpers", () => {
     assert.equal(hostJudgedConfig.roundSeconds, 30)
   })
 
+  it("defaults and bounds invalid shared-session setup values", () => {
+    const invalidConfig = normalizeAnatomimeSessionConfig({
+      answerMode: "voice",
+      clueLevel: "impossible",
+      roundLimit: "nope",
+      hardcoreMode: "true",
+    })
+
+    assert.equal(invalidConfig.answerMode, "host-judged")
+    assert.equal(invalidConfig.clueLevel, "easy")
+    assert.equal(invalidConfig.roundLimit, 3)
+    assert.equal(invalidConfig.hardcoreMode, false)
+
+    assert.equal(normalizeAnatomimeSessionConfig({ roundLimit: -4 }).roundLimit, 1)
+    assert.equal(normalizeAnatomimeSessionConfig({ roundLimit: 99 }).roundLimit, 12)
+    assert.equal(normalizeAnatomimeSessionConfig({ hardcoreMode: true }).hardcoreMode, true)
+    assert.equal(normalizeAnatomimeSessionConfig({ hardcoreMode: 1 }).hardcoreMode, false)
+  })
+
   it("creates deterministic decks from all sourced anatomy study categories", () => {
     const config = normalizeAnatomimeSessionConfig({
       categories: ["anatomy_structure", "anatomy_concept"],

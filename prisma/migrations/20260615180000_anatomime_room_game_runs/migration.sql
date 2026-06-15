@@ -143,6 +143,9 @@ CREATE INDEX "AnatomimeRoom_lastMeaningfulActivityAt_idx" ON "AnatomimeRoom"("la
 CREATE INDEX "AnatomimeRoom_hostPlayerId_idx" ON "AnatomimeRoom"("hostPlayerId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AnatomimeRoom_currentRunId_key" ON "AnatomimeRoom"("currentRunId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AnatomimeRoomTeam_roomId_sortOrder_key" ON "AnatomimeRoomTeam"("roomId", "sortOrder");
 
 -- CreateIndex
@@ -177,6 +180,12 @@ CREATE INDEX "AnatomimeGameRunGuess_runId_cardIndex_submittedAt_idx" ON "Anatomi
 
 -- CreateIndex
 CREATE INDEX "AnatomimeGameRunGuess_runId_playerId_cardIndex_idx" ON "AnatomimeGameRunGuess"("runId", "playerId", "cardIndex");
+
+-- CreateIndex
+CREATE INDEX "AnatomimeGameRunGuess_roomId_idx" ON "AnatomimeGameRunGuess"("roomId");
+
+-- CreateIndex
+CREATE INDEX "AnatomimeGameRunGuess_activeTeamId_idx" ON "AnatomimeGameRunGuess"("activeTeamId");
 
 -- CreateIndex
 CREATE INDEX "AnatomimeGameRunGuess_userId_submittedAt_idx" ON "AnatomimeGameRunGuess"("userId", "submittedAt");
@@ -224,7 +233,13 @@ ALTER TABLE "AnatomimeGameRunTeamScore" ADD CONSTRAINT "AnatomimeGameRunTeamScor
 ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_runId_fkey" FOREIGN KEY ("runId") REFERENCES "AnatomimeGameRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "AnatomimeRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "AnatomimeRoomTeam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_activeTeamId_fkey" FOREIGN KEY ("activeTeamId") REFERENCES "AnatomimeRoomTeam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "AnatomimeRoomPlayer"("id") ON DELETE SET NULL ON UPDATE CASCADE;

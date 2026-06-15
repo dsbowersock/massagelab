@@ -905,7 +905,7 @@ model AnatomimeRoom {
   code                     String                   @unique
   status                   String                   @default("LOBBY")
   hostPlayerId             String?
-  currentRunId             String?
+  currentRunId             String?                  @unique
   lastMeaningfulActivityAt DateTime                 @default(now())
   hostLastActivityAt       DateTime                 @default(now())
   endedAt                  DateTime?
@@ -919,6 +919,7 @@ model AnatomimeRoom {
   teams                    AnatomimeRoomTeam[]
   players                  AnatomimeRoomPlayer[]    @relation("AnatomimeRoomPlayers")
   gameRuns                 AnatomimeGameRun[]       @relation("AnatomimeRoomGameRuns")
+  guesses                  AnatomimeGameRunGuess[]  @relation("AnatomimeRoomGuesses")
   elections                AnatomimeHostElection[]
 
   @@index([status, expiresAt])
@@ -936,7 +937,8 @@ model AnatomimeRoomTeam {
   room      AnatomimeRoom              @relation(fields: [roomId], references: [id], onDelete: Cascade)
   players   AnatomimeRoomPlayer[]
   scores    AnatomimeGameRunTeamScore[]
-  guesses   AnatomimeGameRunGuess[]
+  guesses       AnatomimeGameRunGuess[] @relation("AnatomimeGuessingTeam")
+  activeGuesses AnatomimeGameRunGuess[] @relation("AnatomimeActiveTeam")
 
   @@unique([roomId, sortOrder])
   @@index([roomId])
@@ -1025,12 +1027,16 @@ model AnatomimeGameRunGuess {
   metadata        Json                 @default("{}")
   submittedAt     DateTime             @default(now())
   run             AnatomimeGameRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
-  team            AnatomimeRoomTeam    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  room            AnatomimeRoom        @relation("AnatomimeRoomGuesses", fields: [roomId], references: [id], onDelete: Cascade)
+  team            AnatomimeRoomTeam    @relation("AnatomimeGuessingTeam", fields: [teamId], references: [id], onDelete: Cascade)
+  activeTeam      AnatomimeRoomTeam    @relation("AnatomimeActiveTeam", fields: [activeTeamId], references: [id], onDelete: Cascade)
   player          AnatomimeRoomPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
   user            User?                @relation("AnatomimeGameRunGuessUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([runId, cardIndex, submittedAt])
   @@index([runId, playerId, cardIndex])
+  @@index([roomId])
+  @@index([activeTeamId])
   @@index([userId, submittedAt])
 }
 
