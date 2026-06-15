@@ -75,6 +75,66 @@ export function calculateMultipleChoiceUnlockSeconds(labels: string[]): number {
   return Math.min(10, Math.max(5, 5 + Math.ceil(Math.max(0, totalChoiceChars - 80) / 30)))
 }
 
+function stableOpaqueToken(value: string) {
+  let state = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    state ^= value.charCodeAt(index)
+    state = Math.imul(state, 16777619)
+  }
+
+  return (state >>> 0).toString(36).padStart(7, "0")
+}
+
+/**
+ * Replaces raw anatomy card ids with stable per-term tokens for player-facing
+ * multiple-choice options while preserving the private card-id mapping needed
+ * by the room server when a guess is submitted.
+ */
+export function buildOpaqueAnatomimeChoiceOptions(
+  options: Array<{ id: string; label: string }>,
+  seed: string,
+) {
+  const rawIds = new Set(options.map((option) => option.id))
+  const usedIds = new Set<string>()
+
+  return options.map((option, index) => {
+    let id = `choice_${stableOpaqueToken(`${seed}:${index}:${option.id}:${option.label}`)}`
+    for (let suffix = 1; rawIds.has(id) || usedIds.has(id); suffix += 1) {
+      id = `choice_${stableOpaqueToken(`${seed}:${index}:${option.id}:${option.label}:${suffix}`)}`
+    }
+    usedIds.add(id)
+
+    return {
+      id,
+      cardId: option.id,
+      label: option.label,
+    }
+  })
+}
+
+export function resolveOpaqueAnatomimeChoiceId(
+  options: Array<{ id: string; cardId: string }>,
+  choiceId: string,
+) {
+  return options.find((option) => option.id === choiceId)?.cardId ?? null
+}
+
+/** Creates a stable non-answer key for client state tied to the current room term. */
+export function opaqueAnatomimeTermKey(input: { seed: string; cardIndex: number }) {
+  return `term_${stableOpaqueToken(`${input.seed}:term:${input.cardIndex}`)}`
+}
+
+export function shouldExposeAnatomimeChoiceOptions(input: {
+  answerMode: AnatomimeRoomAnswerMode
+  hostView: boolean
+  unlocksAt: Date | null
+  now: Date
+}) {
+  return input.answerMode === "multiple-choice" &&
+    !input.hostView &&
+    Boolean(input.unlocksAt && input.unlocksAt.getTime() <= input.now.getTime())
+}
+
 export function canResolveTermTimeout(input: { termEndsAt: Date | null; now: Date }): boolean {
   return Boolean(input.termEndsAt && input.termEndsAt.getTime() <= input.now.getTime())
 }

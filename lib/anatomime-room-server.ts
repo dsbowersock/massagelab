@@ -21,16 +21,20 @@ import {
   ANATOMIME_ROOM_IDLE_MINUTES,
   ANATOMIME_TERM_SECONDS,
   ANATOMIME_TERMS_PER_TURN,
+  buildOpaqueAnatomimeChoiceOptions,
   calculateMultipleChoiceUnlockSeconds,
   canResolveTermTimeout,
   canJoinRoom,
   choiceGuessStatus,
   createInitialTermState,
   nextRunStep,
+  opaqueAnatomimeTermKey,
+  resolveOpaqueAnatomimeChoiceId,
   resolveDeviceGuess,
   resolveHostJudgedCorrect,
   resolveTermTimeout,
   runInstantRunoffElection,
+  shouldExposeAnatomimeChoiceOptions,
   typedGuessStatus,
   type AnatomimeAnswerKind,
   type AnatomimeTermOutcome,
@@ -362,6 +366,20 @@ function expectedActiveTermRunWhere(
   }
 }
 
+function expectedTurnReviewRunWhere(
+  room: Pick<AnatomimeRoomWithRelations, "id">,
+  run: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex" | "activeTeamOrder">,
+): Prisma.AnatomimeGameRunWhereInput {
+  return {
+    id: run.id,
+    roomId: room.id,
+    status: "PLAYING",
+    phase: "TURN_REVIEW",
+    activeCardIndex: run.activeCardIndex,
+    activeTeamOrder: run.activeTeamOrder,
+  }
+}
+
 function assertSameActiveTermRoom(
   room: AnatomimeRoomWithRelations,
   run: AnatomimeRunWithRelations,
@@ -373,6 +391,24 @@ function assertSameActiveTermRoom(
     run.id !== expectedRun.id ||
     run.status !== "PLAYING" ||
     run.phase !== "ACTIVE_TERM" ||
+    run.activeCardIndex !== expectedRun.activeCardIndex ||
+    run.activeTeamOrder !== expectedRun.activeTeamOrder
+  ) {
+    throw new StaleRoomMutationError()
+  }
+}
+
+function assertSameTurnReviewRoom(
+  room: AnatomimeRoomWithRelations,
+  run: AnatomimeRunWithRelations,
+  expectedRun: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex" | "activeTeamOrder">,
+) {
+  if (
+    room.status !== "PLAYING" ||
+    room.currentRunId !== expectedRun.id ||
+    run.id !== expectedRun.id ||
+    run.status !== "PLAYING" ||
+    run.phase !== "TURN_REVIEW" ||
     run.activeCardIndex !== expectedRun.activeCardIndex ||
     run.activeTeamOrder !== expectedRun.activeTeamOrder
   ) {
@@ -398,6 +434,28 @@ async function loadLockedActiveTermRoom(
   currentRoom = await reloadRoom(tx, roomId)
   currentRun = requireCurrentRun(currentRoom)
   assertSameActiveTermRoom(currentRoom, currentRun, expectedRun)
+
+  return { room: currentRoom, run: currentRun }
+}
+
+async function loadLockedTurnReviewRoom(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  expectedRun: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex" | "activeTeamOrder">,
+) {
+  let currentRoom = await reloadRoom(tx, roomId)
+  let currentRun = requireCurrentRun(currentRoom)
+  assertSameTurnReviewRoom(currentRoom, currentRun, expectedRun)
+
+  const locked = await tx.anatomimeGameRun.updateMany({
+    where: expectedTurnReviewRunWhere(currentRoom, currentRun),
+    data: { updatedAt: new Date() },
+  })
+  if (locked.count === 0) throw new StaleRoomMutationError()
+
+  currentRoom = await reloadRoom(tx, roomId)
+  currentRun = requireCurrentRun(currentRoom)
+  assertSameTurnReviewRoom(currentRoom, currentRun, expectedRun)
 
   return { room: currentRoom, run: currentRun }
 }
@@ -695,6 +753,20 @@ function multipleChoiceUnlocksAt(run: AnatomimeRunWithRelations, card: AnatomySt
   return addSeconds(run.termStartedAt, calculateMultipleChoiceUnlockSeconds(choices.map((choice) => choice.label)))
 }
 
+function roomMultipleChoiceOptions(
+  run: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex">,
+  card: AnatomyStudyCard,
+  config: AnatomimeSessionConfig,
+  candidateCards = getAnatomimeCandidateCards(config),
+) {
+  const choices = buildAnatomimeMultipleChoiceOptions(card, candidateCards, `${run.id}:${run.activeCardIndex}`)
+  return buildOpaqueAnatomimeChoiceOptions(choices, `${run.id}:${run.activeCardIndex}`)
+}
+
+function roomTermKey(run: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex">) {
+  return opaqueAnatomimeTermKey({ seed: run.id, cardIndex: run.activeCardIndex })
+}
+
 function currentTurnOutcomes(run: AnatomimeRunWithRelations) {
   const metadata = runMetadata(run.metadata)
   const turnStart = Math.floor(run.activeCardIndex / ANATOMIME_TERMS_PER_TURN) * ANATOMIME_TERMS_PER_TURN
@@ -974,8 +1046,15 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
       )
     }
 
+    const submittedChoiceId = typeof body.choiceId === "string" ? body.choiceId : ""
+    const submittedChoiceCardId = answerKind === "choice"
+      ? resolveOpaqueAnatomimeChoiceId(
+        roomMultipleChoiceOptions(lockedRun, activeCard, config),
+        submittedChoiceId,
+      )
+      : null
     const correct = answerKind === "choice"
-      ? body.choiceId === activeCard.id
+      ? submittedChoiceCardId === activeCard.id
       : checkAnatomimeAnswer(activeCard, typeof body.answer === "string" ? body.answer : "").correct
     const submittedAt = new Date()
     const state = termStateFromRunGuesses(
@@ -1010,7 +1089,7 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
         metadata: json({
           feedbackKind: resolution.feedbackKind,
           answerLength: answerKind === "typed" && typeof body.answer === "string" ? body.answer.trim().length : null,
-          choiceId: answerKind === "choice" ? body.choiceId : null,
+          choiceId: answerKind === "choice" ? submittedChoiceId : null,
         }),
         submittedAt,
       },
@@ -1145,22 +1224,18 @@ export async function startNextAnatomimeTeamTurn(code: string, viewer: ViewerCon
     throw roomError(409, "turn-review-required", "The current turn is not ready for the next team.")
   }
 
-  const config = runConfig(run)
-  const now = new Date()
   const updated = await prisma.$transaction(async (tx) => {
-    const nextTeamOrder = room.teams.length > 0 ? (run.activeTeamOrder + 1) % room.teams.length : 0
-    const nextCardIndex = run.activeCardIndex + 1
-    const deckCardIds = nextCardIndex < run.deckCardIds.length || !config.hardcoreMode
-      ? run.deckCardIds
-      : [...run.deckCardIds, ...deckCardIdsForRun(config, room.teams.length)]
+    const { room: lockedRoom, run: lockedRun } = await loadLockedTurnReviewRoom(tx, room.id, run)
+    const config = runConfig(lockedRun)
+    const now = new Date()
+    const nextTeamOrder = lockedRoom.teams.length > 0 ? (lockedRun.activeTeamOrder + 1) % lockedRoom.teams.length : 0
+    const nextCardIndex = lockedRun.activeCardIndex + 1
+    const deckCardIds = nextCardIndex < lockedRun.deckCardIds.length || !config.hardcoreMode
+      ? lockedRun.deckCardIds
+      : [...lockedRun.deckCardIds, ...deckCardIdsForRun(config, lockedRoom.teams.length)]
 
-    await tx.anatomimeGameRun.update({
-      where: {
-        roomId_id: {
-          roomId: room.id,
-          id: run.id,
-        },
-      },
+    const updatedRun = await tx.anatomimeGameRun.updateMany({
+      where: expectedTurnReviewRunWhere(lockedRoom, lockedRun),
       data: {
         phase: "ACTIVE_TERM",
         activeCardIndex: nextCardIndex,
@@ -1170,12 +1245,16 @@ export async function startNextAnatomimeTeamTurn(code: string, viewer: ViewerCon
         termEndsAt: addSeconds(now, config.roundSeconds),
       },
     })
+    if (updatedRun.count === 0) throw new StaleRoomMutationError()
 
-    return touchRoom(tx, room.id, {
+    return touchRoom(tx, lockedRoom.id, {
       status: "PLAYING",
       hostLastActivityAt: now,
       lastMeaningfulActivityAt: now,
     })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "next-team-turn", { roomId: room.id })
@@ -1393,8 +1472,18 @@ export function summarizeAnatomimeRoom(room: AnatomimeRoomWithRelations, viewer:
   const activeTeam = run ? activeRunTeam(room, run) : null
   const scoreByTeam = new Map((run?.scores ?? []).map((score) => [score.teamId, score.score]))
   const candidateCards = getAnatomimeCandidateCards(config)
-  const choices = run && activeCard && config.answerMode === "multiple-choice"
-    ? buildAnatomimeMultipleChoiceOptions(activeCard, candidateCards, `${run.id}:${run.activeCardIndex}`)
+  const now = new Date()
+  const choiceUnlocksAt = run && activeCard ? multipleChoiceUnlocksAt(run, activeCard, config) : null
+  const choices = run && activeCard && shouldExposeAnatomimeChoiceOptions({
+    answerMode: config.answerMode,
+    hostView,
+    unlocksAt: choiceUnlocksAt,
+    now,
+  })
+    ? roomMultipleChoiceOptions(run, activeCard, config, candidateCards).map((choice) => ({
+      id: choice.id,
+      label: choice.label,
+    }))
     : []
   const pendingSteal = Boolean(run && activeCard && activeTeam && run.guesses.some((guess) => (
     guess.cardIndex === run.activeCardIndex &&
@@ -1453,14 +1542,15 @@ export function summarizeAnatomimeRoom(room: AnatomimeRoomWithRelations, viewer:
         prompt: hostView || run.phase === "GAME_COMPLETE"
           ? anatomimeTermFromCard(activeCard)
           : {
-            id: activeCard.id,
+            id: roomTermKey(run),
+            termKey: roomTermKey(run),
             categoryLabel: labelAnatomimeCategory(activeCard.category),
             regionLabels: activeCard.regions.map(labelAnatomimeRegion),
             bodySystemLabels: activeCard.bodySystemLabels,
             difficulty: activeCard.difficulty,
           },
         choices,
-        multipleChoiceUnlocksAt: multipleChoiceUnlocksAt(run, activeCard, config)?.toISOString() ?? null,
+        multipleChoiceUnlocksAt: choiceUnlocksAt?.toISOString() ?? null,
         pendingSteal,
       }
       : null,

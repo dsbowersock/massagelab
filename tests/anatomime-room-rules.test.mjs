@@ -2,15 +2,18 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   calculateMultipleChoiceUnlockSeconds,
+  buildOpaqueAnatomimeChoiceOptions,
   canResolveTermTimeout,
   canJoinRoom,
   choiceGuessStatus,
   createInitialTermState,
   nextRunStep,
+  resolveOpaqueAnatomimeChoiceId,
   resolveDeviceGuess,
   resolveHostJudgedCorrect,
   resolveTermTimeout,
   runInstantRunoffElection,
+  shouldExposeAnatomimeChoiceOptions,
   typedGuessStatus,
 } from "../lib/anatomime-room-rules.ts"
 
@@ -128,6 +131,54 @@ describe("Anatomime room rules", () => {
       ]),
       10,
     )
+  })
+
+  it("uses opaque room choice ids that resolve only on the server", () => {
+    const rawOptions = [
+      { id: "scapula", label: "Scapula" },
+      { id: "humerus", label: "Humerus" },
+      { id: "radius", label: "Radius" },
+      { id: "ulna", label: "Ulna" },
+    ]
+    const choices = buildOpaqueAnatomimeChoiceOptions(rawOptions, "run-1:0")
+    const repeated = buildOpaqueAnatomimeChoiceOptions(rawOptions, "run-1:0")
+    const scapulaChoice = choices.find((choice) => choice.cardId === "scapula")
+
+    assert.deepEqual(choices, repeated)
+    assert.equal(choices.length, rawOptions.length)
+    assert.equal(new Set(choices.map((choice) => choice.id)).size, choices.length)
+    assert.ok(choices.every((choice) => choice.id !== choice.cardId))
+    assert.equal(resolveOpaqueAnatomimeChoiceId(choices, scapulaChoice?.id ?? ""), "scapula")
+    assert.equal(resolveOpaqueAnatomimeChoiceId(choices, "scapula"), null)
+  })
+
+  it("hides room multiple-choice options from hosts and players before unlock", () => {
+    const unlocksAt = new Date("2026-06-15T12:00:05.000Z")
+
+    assert.equal(shouldExposeAnatomimeChoiceOptions({
+      answerMode: "multiple-choice",
+      hostView: true,
+      unlocksAt,
+      now: new Date("2026-06-15T12:00:06.000Z"),
+    }), false)
+    assert.equal(shouldExposeAnatomimeChoiceOptions({
+      answerMode: "multiple-choice",
+      hostView: false,
+      unlocksAt,
+      now: new Date("2026-06-15T12:00:04.999Z"),
+    }), false)
+    assert.equal(shouldExposeAnatomimeChoiceOptions({
+      answerMode: "multiple-choice",
+      hostView: false,
+      unlocksAt,
+      now: unlocksAt,
+    }), true)
+    assert.equal(shouldExposeAnatomimeChoiceOptions({
+      answerMode: "typed",
+      hostView: false,
+      unlocksAt,
+      now: new Date("2026-06-15T12:00:06.000Z"),
+    }), false)
   })
 
   it("only allows timeout resolution once the active term has expired", () => {
