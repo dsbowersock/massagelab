@@ -730,7 +730,7 @@ export default function AnatomimePage() {
           <section className="anatomime-panel">
             <div className="anatomime-section-heading">
               <h2>Deck</h2>
-              <p>{matchingTerms.length} matching terms. Games use {termCount} terms.</p>
+              <p>{matchingTerms.length} matching terms. Each round uses {termCount} terms.</p>
             </div>
 
             <div className="anatomime-grid-2">
@@ -1166,7 +1166,7 @@ export default function AnatomimePage() {
               </div>
             ) : null}
             <div>
-              <dt>Terms</dt>
+              <dt>Terms per round</dt>
               <dd>{termCount} terms</dd>
             </div>
             <div>
