@@ -104,14 +104,23 @@ describe("Anatomime room rules", () => {
         "Flexor digitorum superficialis",
         "Levator labii superioris alaeque nasi",
       ]),
+      6,
+    )
+    assert.equal(
+      calculateMultipleChoiceUnlockSeconds([
+        "12345678901234567890123456789012345",
+        "12345678901234567890123456789012345",
+        "12345678901234567890123456789012345",
+        "12345678901234567890123456789012345",
+      ]),
       7,
     )
     assert.equal(
       calculateMultipleChoiceUnlockSeconds([
-        "A very long first option label",
-        "A very long second option label",
-        "A very long third option label",
-        "A very long fourth option label",
+        "123456789012345678901234567890123456789012345678901234567890",
+        "123456789012345678901234567890123456789012345678901234567890",
+        "123456789012345678901234567890123456789012345678901234567890",
+        "123456789012345678901234567890123456789012345678901234567890",
       ]),
       10,
     )

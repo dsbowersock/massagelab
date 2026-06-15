@@ -72,8 +72,7 @@ export function choiceGuessStatus(priorChoiceAttempts: number): GuessLimitStatus
 export function calculateMultipleChoiceUnlockSeconds(labels: string[]): number {
   const choiceLabels = labels.slice(0, 4).map((label) => label.trim())
   const totalChoiceChars = choiceLabels.reduce((sum, label) => sum + label.length, 0)
-  if (choiceLabels.length === 4 && choiceLabels.every((label) => label.length >= 25)) return 10
-  return Math.min(10, Math.max(5, 5 + Math.ceil(Math.max(0, totalChoiceChars - 80) / 15)))
+  return Math.min(10, Math.max(5, 5 + Math.ceil(Math.max(0, totalChoiceChars - 80) / 30)))
 }
 
 export function nextRunStep(input: {
