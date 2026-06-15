@@ -298,6 +298,190 @@ test("anatomime shared game create failures stay visible in setup", async ({ pag
   await expect(page.getByText(/Shared games need database access in this Vercel environment/i)).toBeVisible()
 })
 
+test("anatomime player joins by code and submits typed guesses", async ({ page }) => {
+  const health = capturePageHealth(page)
+  await page.addInitScript(() => {
+    window.Ably = {
+      Realtime: class {
+        channels = { get: () => ({ subscribe() {}, unsubscribe() {} }) }
+        close() {}
+      },
+    } as any
+  })
+
+  const teams = [
+    { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
+    { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
+  ]
+  const activeItem = {
+    index: 0,
+    total: 4,
+    prompt: { id: "term-key-1", categoryLabel: "Muscles", regionLabels: ["Upper Extremity"], difficulty: "easy" },
+    choices: [],
+    multipleChoiceUnlocksAt: null,
+    pendingSteal: false,
+  }
+  const player = { id: "player-1", teamId: "team-1", displayName: "Avery", signedIn: false, isHost: false, lastSeenAt: new Date().toISOString() }
+  let currentSession: any = {
+    code: "TEST01",
+    status: "LOBBY",
+    phase: "LOBBY",
+    config: { answerMode: "typed", clueLevel: "easy", roundSeconds: 30, termCount: 4, roundLimit: 3, hardcoreMode: false },
+    phaseEndsAt: null,
+    reviewExpiresAt: null,
+    teams,
+    players: [{ id: "host-player", teamId: null, displayName: "Host", signedIn: false, isHost: true, lastSeenAt: new Date().toISOString() }],
+    viewer: { isHost: false, playerId: null, teamId: null },
+    activeTeam: teams[0],
+    activeItem: null,
+    turnReview: [],
+    recap: [],
+  }
+  let guessCount = 0
+
+  await page.route("**/api/anatomime/sessions/TEST01/realtime-token", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ keyName: "test", nonce: "nonce", mac: "mac" }) })
+  })
+  await page.route("**/api/anatomime/sessions/TEST01/join", async (route) => {
+    currentSession = {
+      ...currentSession,
+      status: "PLAYING",
+      phase: "ACTIVE_TERM",
+      phaseEndsAt: new Date(Date.now() + 30_000).toISOString(),
+      players: [...currentSession.players, player],
+      viewer: { isHost: false, playerId: player.id, teamId: player.teamId },
+      activeItem,
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ player: { id: player.id, token: "player-token", teamId: player.teamId }, session: currentSession }),
+    })
+  })
+  await page.route("**/api/anatomime/sessions/TEST01/guess", async (route) => {
+    guessCount += 1
+    if (guessCount === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ result: { correct: false, scoreAwarded: 0, feedbackKind: "incorrect" }, session: currentSession }),
+      })
+      return
+    }
+
+    currentSession = {
+      ...currentSession,
+      activeItem: { ...activeItem, index: 1, prompt: { id: "term-key-2" } },
+      teams: [{ ...teams[0], score: 1 }, teams[1]],
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ result: { correct: true, scoreAwarded: 1, feedbackKind: "active-correct" }, session: currentSession }),
+    })
+  })
+  await page.route((url) => url.pathname === "/api/anatomime/sessions/TEST01", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ session: currentSession }) })
+  })
+
+  await page.goto("/anatomime/join", { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+  await page.waitForTimeout(250)
+  await page.getByLabel("Code").fill("TEST01")
+  await page.getByRole("button", { name: /Find Game/i }).click()
+  await page.getByLabel("Display name").fill("Avery")
+  await page.getByRole("button", { name: /Join Team/i }).click()
+
+  await expect(page.getByLabel("Guess")).toBeVisible()
+  await page.getByLabel("Guess").fill("wrong")
+  await page.getByRole("button", { name: /Submit Guess/i }).click()
+  await expect(page.getByText("Incorrect. Try another guess.").first()).toBeVisible()
+  await expect(page.getByLabel("Guess")).toHaveValue("")
+  await page.getByLabel("Guess").fill("scapula")
+  await page.getByRole("button", { name: /Submit Guess/i }).click()
+  await expect(page.getByText("Correct. Your team scored.").first()).toBeVisible()
+  await expect(page.getByText("2 of 4")).toBeVisible()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("anatomime multiple-choice options unlock only on player devices", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
+      playerId: "player-1",
+      playerToken: "player-token",
+      teamId: "team-1",
+    }))
+    window.Ably = {
+      Realtime: class {
+        channels = { get: () => ({ subscribe() {}, unsubscribe() {} }) }
+        close() {}
+      },
+    } as any
+  })
+
+  const teams = [
+    { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
+    { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
+  ]
+  const choices = [
+    { id: "choice-1", label: "Scapula" },
+    { id: "choice-2", label: "Clavicle" },
+    { id: "choice-3", label: "Humerus" },
+    { id: "choice-4", label: "Sternum" },
+  ]
+  const makeSession = (unlocked: boolean) => ({
+    code: "TEST01",
+    status: "PLAYING",
+    phase: "ACTIVE_TERM",
+    config: { answerMode: "multiple-choice", clueLevel: "easy", roundSeconds: 30, termCount: 4, roundLimit: 3, hardcoreMode: false },
+    phaseEndsAt: new Date(Date.now() + 30_000).toISOString(),
+    reviewExpiresAt: null,
+    teams,
+    players: [
+      { id: "host-player", teamId: null, displayName: "Host", signedIn: false, isHost: true, lastSeenAt: new Date().toISOString() },
+      { id: "player-1", teamId: "team-1", displayName: "Avery", signedIn: false, isHost: false, lastSeenAt: new Date().toISOString() },
+    ],
+    viewer: { isHost: false, playerId: "player-1", teamId: "team-1" },
+    activeTeam: teams[0],
+    activeItem: {
+      index: 0,
+      total: 4,
+      prompt: { id: "term-key-1" },
+      choices,
+      multipleChoiceUnlocksAt: new Date(Date.now() + (unlocked ? -1000 : 20_000)).toISOString(),
+      pendingSteal: false,
+    },
+    turnReview: [],
+    recap: [],
+  })
+  let currentSession = makeSession(false)
+
+  await page.route("**/api/anatomime/sessions/TEST01/realtime-token", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ keyName: "test", nonce: "nonce", mac: "mac" }) })
+  })
+  await page.route((url) => url.pathname === "/api/anatomime/sessions/TEST01", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ session: currentSession }) })
+  })
+
+  await page.goto("/anatomime/play/TEST01", { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+  await page.waitForTimeout(250)
+  await expect(page.getByLabel("Guess")).toBeVisible()
+  await expect(page.getByRole("group", { name: /Multiple choice answers/i })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Scapula" })).toHaveCount(0)
+
+  currentSession = makeSession(true)
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("group", { name: /Multiple choice answers/i })).toBeVisible()
+  for (const choice of choices) {
+    await expect(page.getByRole("button", { name: choice.label })).toBeVisible()
+  }
+})
+
 test("flashcards can start from local sourced prompts when the prompt API is unavailable", async ({ page }) => {
   let promptApiRequests = 0
 

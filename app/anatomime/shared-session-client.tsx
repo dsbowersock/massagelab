@@ -6,66 +6,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
+import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
-
-type AnatomimeTeamSummary = {
-  id: string
-  name: string
-  sortOrder: number
-  score: number
-}
-
-type AnatomimePlayerSummary = {
-  id: string
-  teamId: string | null
-  displayName: string
-  role: string
-  signedIn: boolean
-}
-
-type AnatomimeSessionSummary = {
-  code: string
-  status: string
-  phase: string
-  phaseEndsAt: string | null
-  config: {
-    answerMode: "typed" | "multiple-choice"
-  }
-  teams: AnatomimeTeamSummary[]
-  players: AnatomimePlayerSummary[]
-  viewer: {
-    playerId: string | null
-    teamId: string | null
-    isHost: boolean
-  }
-  activeTeam: {
-    id: string
-    name: string
-    sortOrder: number
-  } | null
-  activeItem: {
-    index: number
-    total: number
-    prompt: {
-      categoryLabel?: string
-      regionLabels?: string[]
-      difficulty?: string
-    }
-    choices: Array<{ id: string; label: string }>
-  } | null
-  recentGuesses: Array<{
-    id: string
-    teamId: string
-    playerId: string | null
-    correct: boolean
-    scoreAwarded: number
-  }>
-}
 
 type StoredPlayer = {
   playerId: string
   playerToken: string
   teamId: string | null
+}
+
+type TermAttemptState = {
+  typedAttempts: number
+  choiceAttempts: number
+  correct: boolean
+  outOfTypedGuesses: boolean
+  feedback: string
 }
 
 type AblyRealtimeClient = {
@@ -83,17 +38,17 @@ declare global {
     Ably?: {
       Realtime: new (options: {
         authCallback: (tokenParams: unknown, callback: (error: unknown, tokenRequest?: unknown) => void) => void
-      }) => {
-        channels: {
-          get: (name: string) => {
-            subscribe: (callback: () => void) => void
-            unsubscribe: () => void
-          }
-        }
-        close: () => void
-      }
+      }) => AblyRealtimeClient
     }
   }
+}
+
+const feedbackCopy: Record<string, string> = {
+  incorrect: "Incorrect. Try another guess.",
+  "active-correct": "Correct. Your team scored.",
+  "opposing-correct-held": "Correct. Your team can score if the active team misses.",
+  "opposing-team-already-held": "Someone on your team found it. You can still guess for practice.",
+  "practice-correct": "Correct for practice.",
 }
 
 function storageKey(code: string) {
@@ -123,18 +78,37 @@ function writeStoredPlayer(code: string, player: StoredPlayer) {
   window.localStorage.setItem(storageKey(code), JSON.stringify(player))
 }
 
-function secondsLeft(value: string | null) {
+function secondsLeft(value: string | null, now: number) {
   if (!value) return 0
-  return Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 1000))
+  return Math.max(0, Math.ceil((new Date(value).getTime() - now) / 1000))
+}
+
+function activeTermKey(session: AnatomimeRoomSummary | null) {
+  if (!session?.activeItem) return ""
+  return `${session.activeItem.index}:${session.activeItem.prompt.id}`
+}
+
+function emptyAttempt(): TermAttemptState {
+  return {
+    typedAttempts: 0,
+    choiceAttempts: 0,
+    correct: false,
+    outOfTypedGuesses: false,
+    feedback: "",
+  }
+}
+
+function currentPlayer(session: AnatomimeRoomSummary | null) {
+  return session?.players.find((player) => player.id === session.viewer.playerId) ?? null
+}
+
+function playerName(session: AnatomimeRoomSummary, playerId: string) {
+  return session.players.find((player) => player.id === playerId)?.displayName ?? "Player"
 }
 
 /**
- * Loads the browser Ably SDK once for shared-session updates. It takes no
- * arguments and returns a Promise that resolves after the script loads or
- * rejects on failure; callers should fall back to polling when it rejects. The
- * loader checks `window.Ably`, reuses `script[data-anatomime-ably]`, records
- * `data-anatomime-ably-status`, and appends a new script to `document.head`
- * only in the browser.
+ * Loads the browser Ably SDK once for shared-session updates. It falls back to
+ * polling when the script or realtime token is unavailable.
  */
 function ablyScript() {
   return new Promise<void>((resolve, reject) => {
@@ -183,9 +157,11 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const [selectedTeamId, setSelectedTeamId] = useState("")
   const [answer, setAnswer] = useState("")
   const [storedPlayer, setStoredPlayer] = useState<StoredPlayer | null>(null)
-  const [session, setSession] = useState<AnatomimeSessionSummary | null>(null)
+  const [session, setSession] = useState<AnatomimeRoomSummary | null>(null)
   const [message, setMessage] = useState("")
-  const [timeLeft, setTimeLeft] = useState(0)
+  const [attemptsByTerm, setAttemptsByTerm] = useState<Record<string, TermAttemptState>>({})
+  const [rankedPlayerIds, setRankedPlayerIds] = useState<string[]>([])
+  const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
     if (!lookupCode) return
@@ -222,8 +198,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       }
 
       setSession(payload.session)
-      setSelectedTeamId((current) => current || payload.session?.teams?.[0]?.id || "")
-      setTimeLeft(secondsLeft(payload.session?.phaseEndsAt ?? null))
+      setSelectedTeamId((current) => current || payload.session?.viewer?.teamId || payload.session?.teams?.[0]?.id || "")
       setMessage("")
     } catch {
       setMessage("Could not refresh game.")
@@ -280,12 +255,9 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   }, [lookupCode, refreshSession, storedPlayer])
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setTimeLeft(secondsLeft(session?.phaseEndsAt ?? null))
-    }, 500)
-
+    const timer = window.setInterval(() => setNow(Date.now()), 500)
     return () => window.clearInterval(timer)
-  }, [session?.phaseEndsAt])
+  }, [])
 
   useEffect(() => {
     if (!lookupCode || !session?.phaseEndsAt) return
@@ -297,8 +269,34 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     return () => window.clearTimeout(timer)
   }, [lookupCode, refreshSession, session?.phaseEndsAt])
 
+  const termKey = activeTermKey(session)
+  const attempt = attemptsByTerm[termKey] ?? emptyAttempt()
+  const joined = Boolean(storedPlayer && session?.viewer.playerId)
+  const activeTeamName = session?.activeTeam?.name ?? ""
+  const myTeam = session?.teams.find((team) => team.id === session.viewer.teamId || team.id === storedPlayer?.teamId)
+  const me = currentPlayer(session)
+  const isAnonymousComplete = Boolean(joined && me && !me.signedIn && (session?.status === "GAME_COMPLETE" || session?.status === "REVIEW"))
+  const choicesUnlocked = Boolean(
+    session?.config.answerMode === "multiple-choice" &&
+    session.activeItem?.multipleChoiceUnlocksAt &&
+    new Date(session.activeItem.multipleChoiceUnlocksAt).getTime() <= now,
+  )
+  const showTypedInput = Boolean(
+    session?.activeItem &&
+    !attempt.correct &&
+    !attempt.outOfTypedGuesses &&
+    (session.config.answerMode === "typed" || (session.config.answerMode === "multiple-choice" && !choicesUnlocked)),
+  )
+  const showChoices = Boolean(
+    session?.activeItem &&
+    choicesUnlocked &&
+    !attempt.correct &&
+    attempt.choiceAttempts === 0 &&
+    session.activeItem.choices.length === 4,
+  )
   const joinGame = async () => {
-    if (!lookupCode) {
+    const nextLookupCode = lookupCode || code.trim().toUpperCase()
+    if (!nextLookupCode) {
       setLookupCode(code.trim().toUpperCase())
       return
     }
@@ -308,7 +306,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     }
 
     try {
-      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/join`, {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(nextLookupCode)}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -328,7 +326,8 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
         teamId: payload.player.teamId,
       }
 
-      writeStoredPlayer(lookupCode, player)
+      writeStoredPlayer(nextLookupCode, player)
+      setLookupCode(nextLookupCode)
       setStoredPlayer(player)
       setSession(payload.session)
       setMessage("")
@@ -337,8 +336,40 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     }
   }
 
+  const changeTeam = async (teamId: string) => {
+    if (!storedPlayer || !session || session.status !== "LOBBY") return
+
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(session.code)}/team`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-anatomime-player-id": storedPlayer.playerId,
+          "x-anatomime-player-token": storedPlayer.playerToken,
+        },
+        body: JSON.stringify({ teamId }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not change teams.")
+        return
+      }
+
+      const nextPlayer = { ...storedPlayer, teamId }
+      writeStoredPlayer(session.code, nextPlayer)
+      setStoredPlayer(nextPlayer)
+      setSelectedTeamId(teamId)
+      setSession(payload.session)
+      setMessage("Team updated.")
+    } catch {
+      setMessage("Could not change teams.")
+    }
+  }
+
   const submitGuess = async (choiceId?: string) => {
-    if (!storedPlayer || !session?.activeItem) return
+    if (!storedPlayer || !session?.activeItem || !termKey) return
+    const answerKind = choiceId ? "choice" : "typed"
+    if (answerKind === "typed" && !answer.trim()) return
 
     try {
       const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}/guess`, {
@@ -360,19 +391,87 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
         return
       }
 
+      const feedbackKind = String(payload.result?.feedbackKind ?? (payload.result?.correct ? "practice-correct" : "incorrect"))
+      const typedAttempts = answerKind === "typed" ? attempt.typedAttempts + 1 : attempt.typedAttempts
+      const choiceAttempts = answerKind === "choice" ? attempt.choiceAttempts + 1 : attempt.choiceAttempts
+      const locksInput = ["active-correct", "opposing-correct-held", "practice-correct"].includes(feedbackKind)
+      const nextFeedback = feedbackCopy[feedbackKind] ?? (payload.result?.correct ? "Correct." : "Incorrect. Try another guess.")
+
+      setAttemptsByTerm((current) => ({
+        ...current,
+        [termKey]: {
+          typedAttempts,
+          choiceAttempts,
+          correct: locksInput,
+          outOfTypedGuesses: typedAttempts >= 5 && !payload.result?.correct,
+          feedback: typedAttempts >= 5 && !payload.result?.correct ? "Out of guesses for this term." : nextFeedback,
+        },
+      }))
       setSession(payload.session)
       setAnswer("")
-      setMessage(payload.result.correct
-        ? payload.result.scoreAwarded > 0 ? "Correct. Point awarded." : "Correct. Saved for steal if needed."
-        : "Not quite.")
+      setMessage(typedAttempts >= 5 && !payload.result?.correct ? "Out of guesses for this term." : nextFeedback)
     } catch {
       setMessage("Could not submit guess.")
     }
   }
 
-  const joined = Boolean(storedPlayer && session?.viewer.playerId)
-  const activeTeamName = session?.activeTeam?.name ?? ""
-  const myTeam = session?.teams.find((team) => team.id === storedPlayer?.teamId)
+  const requestHostVote = async () => {
+    if (!storedPlayer || !session) return
+
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(session.code)}/host-election`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-anatomime-player-id": storedPlayer.playerId,
+          "x-anatomime-player-token": storedPlayer.playerToken,
+        },
+        body: JSON.stringify({ action: "request" }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not request host vote.")
+        return
+      }
+      setSession(payload.session)
+      setMessage("Host vote requested.")
+    } catch {
+      setMessage("Could not request host vote.")
+    }
+  }
+
+  const submitHostVote = async (action: "vote" | "resolve") => {
+    if (!storedPlayer || !session) return
+
+    try {
+      const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(session.code)}/host-election`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-anatomime-player-id": storedPlayer.playerId,
+          "x-anatomime-player-token": storedPlayer.playerToken,
+        },
+        body: JSON.stringify(action === "vote" ? { action, rankedPlayerIds } : { action }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage(payload.error ?? "Could not update host vote.")
+        return
+      }
+      setSession(payload.session)
+      setMessage(action === "vote" ? "Vote submitted." : "Host vote resolved.")
+    } catch {
+      setMessage("Could not update host vote.")
+    }
+  }
+
+  const toggleRankedCandidate = (playerId: string) => {
+    setRankedPlayerIds((current) => (
+      current.includes(playerId)
+        ? current.filter((id) => id !== playerId)
+        : [...current, playerId]
+    ))
+  }
 
   return (
     <div className="anatomime-page">
@@ -413,7 +512,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
             <div className="anatomime-section-heading">
               <div>
                 <h2>Join {lookupCode}</h2>
-                <p>{session.players.filter((player) => player.role === "PLAYER").length} players in lobby.</p>
+                <p>{session.players.filter((player) => !player.isHost).length} players in lobby.</p>
               </div>
             </div>
             <div className="anatomime-grid-2">
@@ -460,36 +559,36 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
               <div className="anatomime-current-term">
                 <h2>Lobby</h2>
                 <p>Waiting for the host to start.</p>
+                <div className="anatomime-segmented" role="group" aria-label="Choose team">
+                  {session.teams.map((team) => (
+                    <button
+                      key={team.id}
+                      type="button"
+                      className="anatomime-choice-button"
+                      data-selected={session.viewer.teamId === team.id}
+                      aria-pressed={session.viewer.teamId === team.id}
+                      onClick={() => changeTeam(team.id)}
+                    >
+                      {team.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
 
             {session.status === "PLAYING" && session.activeItem ? (
               <>
-                <div className="anatomime-timer">{timeLeft}s</div>
+                <div className="anatomime-timer">{secondsLeft(session.phaseEndsAt, now)}s</div>
                 <div className="anatomime-current-term">
                   <span>{session.activeItem.index + 1} of {session.activeItem.total}</span>
-                  <h2>{session.phase === "STEAL" ? "Steal Window" : activeTeamName}</h2>
-                  <p>
-                    {session.phase === "ACTIVE"
-                      ? `${activeTeamName} has the main point window.`
-                      : "Opposing teams can claim the missed point."}
-                  </p>
-                  {session.activeItem.prompt.categoryLabel ? (
-                    <small>
-                      {session.activeItem.prompt.categoryLabel} · {session.activeItem.prompt.regionLabels?.join(", ")} · {session.activeItem.prompt.difficulty}
-                    </small>
-                  ) : null}
+                  <h2>{activeTeamName}</h2>
+                  <p>{activeTeamName} is guessing now.</p>
+                  {session.activeItem.pendingSteal ? <small>Someone found it. Keep helping your team.</small> : null}
                 </div>
 
-                {session.config.answerMode === "multiple-choice" ? (
-                  <div className="anatomime-region-grid">
-                    {session.activeItem.choices.map((choice) => (
-                      <button key={choice.id} type="button" className="anatomime-region-button" onClick={() => submitGuess(choice.id)}>
-                        <span>{choice.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
+                {attempt.feedback ? <div className="anatomime-message" role="status">{attempt.feedback}</div> : null}
+
+                {showTypedInput ? (
                   <div className="anatomime-control-group">
                     <Label htmlFor="guess">Guess</Label>
                     <Input
@@ -505,15 +604,94 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                       <Send className="h-4 w-4" />
                       Submit Guess
                     </button>
+                    <p className="anatomime-review-meta">{Math.max(0, 5 - attempt.typedAttempts)} typed guesses left.</p>
                   </div>
-                )}
+                ) : null}
+
+                {showChoices && session.activeItem ? (
+                  <div className="anatomime-region-grid" role="group" aria-label="Multiple choice answers">
+                    {session.activeItem.choices.map((choice) => (
+                      <button key={choice.id} type="button" className="anatomime-region-button" onClick={() => submitGuess(choice.id)}>
+                        <span>{choice.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {session.config.answerMode === "multiple-choice" && !choicesUnlocked && !attempt.correct ? (
+                  <p className="anatomime-review-meta">Multiple choice unlocks near the end of the term.</p>
+                ) : null}
               </>
             ) : null}
 
-            {session.status === "COMPLETED" ? (
+            {session.phase === "TURN_REVIEW" ? (
               <div className="anatomime-current-term">
-                <h2>Game Complete</h2>
-                <p>Final scores are posted.</p>
+                <h2>Turn Review</h2>
+                <p>The host is setting up the next team.</p>
+              </div>
+            ) : null}
+
+            {session.status === "GAME_COMPLETE" || session.status === "REVIEW" ? (
+              <div className="anatomime-learning-review">
+                <div className="anatomime-section-heading compact centered">
+                  <div>
+                    <h3>Game recap</h3>
+                    {session.status === "REVIEW" ? <p>Review ends in {secondsLeft(session.reviewExpiresAt, now)}s.</p> : null}
+                  </div>
+                </div>
+                <div className="anatomime-recap-grid">
+                  {session.recap.map((row) => {
+                    const team = session.teams.find((candidate) => candidate.id === row.teamId)
+                    return (
+                      <article key={row.teamId} className="anatomime-recap-card">
+                        <strong>{team?.name ?? "Team"}</strong>
+                        <span>{row.got} got · {row.missed} missed · {row.stolen} stolen</span>
+                      </article>
+                    )
+                  })}
+                </div>
+                {isAnonymousComplete ? <p className="anatomime-message">Sign in next time to save your Anatomime progress.</p> : null}
+              </div>
+            ) : null}
+
+            {joined && session.hostCanBeChallenged && !session.hostElection ? (
+              <button type="button" className="anatomime-secondary-button" onClick={requestHostVote}>
+                Request Host Vote
+              </button>
+            ) : null}
+
+            {joined && session.hostElection ? (
+              <div className="anatomime-learning-review">
+                <div className="anatomime-section-heading compact">
+                  <div>
+                    <h3>Host vote</h3>
+                    <p>Rank players in your preferred host order.</p>
+                  </div>
+                </div>
+                <div className="anatomime-selection-toolbar">
+                  {session.hostElection.candidatePlayerIds.map((playerId) => (
+                    <button
+                      key={playerId}
+                      type="button"
+                      className="anatomime-choice-button"
+                      data-selected={rankedPlayerIds.includes(playerId)}
+                      onClick={() => toggleRankedCandidate(playerId)}
+                    >
+                      {rankedPlayerIds.includes(playerId) ? `${rankedPlayerIds.indexOf(playerId) + 1}. ` : ""}
+                      {playerName(session, playerId)}
+                    </button>
+                  ))}
+                </div>
+                <div className="anatomime-actions">
+                  <button type="button" className="anatomime-primary-button" onClick={() => submitHostVote("vote")} disabled={rankedPlayerIds.length === 0}>
+                    Submit Vote
+                  </button>
+                  {new Date(session.hostElection.closesAt).getTime() <= now ? (
+                    <button type="button" className="anatomime-secondary-button" onClick={() => submitHostVote("resolve")}>
+                      Resolve Vote
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </section>
