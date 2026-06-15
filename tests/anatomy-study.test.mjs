@@ -8,6 +8,7 @@ import {
   createFlashcardPromptDeck,
   createFlashcardPromptPool,
   getAnatomyStudyPrompts,
+  getAnatomyStudyBodySystems,
   getAnatomyStudyCards,
   getAnatomyStudyCategories,
   getAnatomyStudyRegions,
@@ -41,27 +42,39 @@ describe("Sourced anatomy study adapter", () => {
     assert.equal(sources.every((source) => safeSourceIds.has(source.id)), true)
   })
 
-  it("filters by category, region, and public study depth", () => {
+  it("filters by category, region, body system, and public study depth", () => {
     const categories = getAnatomyStudyCategories()
+    const bodySystems = getAnatomyStudyBodySystems()
     const regions = getAnatomyStudyRegions()
     const easyUpperMuscles = getAnatomyStudyCards({
       categories: ["muscle"],
       regions: ["upper-extremity"],
+      bodySystems: ["muscular-system"],
       difficulty: "easy",
     })
     const hardUpperMuscles = getAnatomyStudyCards({
       categories: ["muscle"],
       regions: ["upper-extremity"],
+      bodySystems: ["muscular-system"],
+      difficulty: "hard",
+    })
+    const skeletalCards = getAnatomyStudyCards({
+      bodySystems: ["skeletal-system"],
       difficulty: "hard",
     })
 
     assert.ok(categories.some((category) => category.id === "bone_landmark"))
+    assert.ok(bodySystems.some((bodySystem) => bodySystem.id === "skeletal-system"))
     assert.ok(regions.some((region) => region.id === "thorax"))
     assert.ok(easyUpperMuscles.length > 0)
     assert.ok(hardUpperMuscles.length >= easyUpperMuscles.length)
     assert.equal(easyUpperMuscles.every((card) => card.category === "muscle"), true)
     assert.equal(easyUpperMuscles.every((card) => card.regions.includes("upper-extremity")), true)
+    assert.equal(easyUpperMuscles.every((card) => card.bodySystems.includes("muscular-system")), true)
+    assert.ok(skeletalCards.length > 0)
+    assert.equal(skeletalCards.every((card) => card.bodySystems.includes("skeletal-system")), true)
     assert.equal(getAnatomyStudyCards({ categories: [], regions: ["head"] }).length, 0)
+    assert.equal(getAnatomyStudyCards({ bodySystems: [] }).length, 0)
   })
 
   it("creates deterministic unique decks from sourced cards", () => {

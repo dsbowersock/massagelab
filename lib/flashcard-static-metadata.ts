@@ -40,6 +40,7 @@ export const FLASHCARD_STATIC_REGION_IDS = [
 ] as const
 
 export const FLASHCARD_STATIC_PROMPT_TYPES: FlashcardPromptType[] = [
+  "anatomime_name_recall",
   "identify_from_media",
   "name_to_summary",
   "name_to_region",
@@ -70,6 +71,7 @@ export const FLASHCARD_STATIC_REGIONS: FlashcardSetupOption[] = [
 ]
 
 export const FLASHCARD_STATIC_PROMPT_TYPE_COUNTS: FlashcardPromptTypeCount[] = [
+  { id: "anatomime_name_recall", label: "Anatomime Name Recall", promptCount: 1218 },
   { id: "identify_from_media", label: "Identify From Image", promptCount: 216 },
   { id: "name_to_summary", label: "Recall Key Facts", promptCount: 1218 },
   { id: "name_to_region", label: "Identify Body Region", promptCount: 1218 },

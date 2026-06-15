@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  buildTurnReview,
   canEndGameAfterCurrentTurn,
+  getGameLearningRecap,
   getNextTeamIndex,
   getPromptVisibility,
   getNextTurnState,
@@ -10,6 +12,7 @@ import {
   isScheduledGameComplete,
   normalizeTeamNames,
   normalizeRoundLimit,
+  summarizeTurnReview,
   updateScore,
 } from "../lib/anatomime-game.js"
 
@@ -41,18 +44,28 @@ describe("Anatomime game helpers", () => {
   it("adjusts prompt hints by difficulty", () => {
     assert.deepEqual(getPromptVisibility("easy"), {
       showProgress: true,
+      showMedia: true,
       showMetadata: true,
       showHint: true,
       showBonus: true,
     })
     assert.deepEqual(getPromptVisibility("medium"), {
       showProgress: true,
-      showMetadata: true,
+      showMedia: true,
+      showMetadata: false,
       showHint: false,
       showBonus: true,
     })
     assert.deepEqual(getPromptVisibility("hard"), {
+      showProgress: true,
+      showMedia: false,
+      showMetadata: false,
+      showHint: true,
+      showBonus: true,
+    })
+    assert.deepEqual(getPromptVisibility("expert"), {
       showProgress: false,
+      showMedia: false,
       showMetadata: false,
       showHint: false,
       showBonus: false,
@@ -104,5 +117,55 @@ describe("Anatomime game helpers", () => {
   it("labels bounded and hardcore round modes", () => {
     assert.equal(getRoundLabel({ hardcoreMode: false, currentRound: 2, roundLimit: 5 }), "Round 2 of 5")
     assert.equal(getRoundLabel({ hardcoreMode: true, currentRound: 2, roundLimit: 5 }), "Hardcore mode")
+  })
+
+  it("builds a turn review and defaults unresolved terms to skipped", () => {
+    const terms = [
+      { id: "scapula", name: "Scapula" },
+      { id: "humerus", name: "Humerus" },
+      { id: "biceps-brachii", name: "Biceps brachii" },
+    ]
+    const review = buildTurnReview(terms, {
+      scapula: "correct",
+      humerus: "missed",
+    })
+
+    assert.deepEqual(review.map((entry) => [entry.term.id, entry.outcome]), [
+      ["scapula", "correct"],
+      ["humerus", "missed"],
+      ["biceps-brachii", "skipped"],
+    ])
+    assert.deepEqual(summarizeTurnReview(review), {
+      correct: 1,
+      missed: 1,
+      skipped: 1,
+    })
+  })
+
+  it("prioritizes final recap terms that need review", () => {
+    const scapula = { id: "scapula", name: "Scapula" }
+    const humerus = { id: "humerus", name: "Humerus" }
+    const ulna = { id: "ulna", name: "Ulna" }
+    const recap = getGameLearningRecap([
+      {
+        review: [
+          { term: scapula, outcome: "correct" },
+          { term: humerus, outcome: "missed" },
+        ],
+      },
+      {
+        review: [
+          { term: scapula, outcome: "correct" },
+          { term: ulna, outcome: "skipped" },
+          { term: humerus, outcome: "correct" },
+        ],
+      },
+    ])
+
+    assert.deepEqual(recap.map((entry) => [entry.term.id, entry.correct, entry.missed, entry.skipped]), [
+      ["humerus", 1, 1, 0],
+      ["ulna", 0, 0, 1],
+      ["scapula", 2, 0, 0],
+    ])
   })
 })

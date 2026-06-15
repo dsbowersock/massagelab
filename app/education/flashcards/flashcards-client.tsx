@@ -176,6 +176,7 @@ const regionIconById: Record<string, LucideIcon> = {
 }
 
 const promptTypeIconById: Record<FlashcardPromptType, LucideIcon> = {
+  anatomime_name_recall: Target,
   identify_from_media: Image,
   name_to_summary: BookOpen,
   name_to_region: MapPin,
@@ -464,6 +465,7 @@ function configFromState(state: {
 
 function promptFrontInstruction(prompt: FlashcardPrompt, isReviewMode: boolean) {
   const reviewInstructions: Record<FlashcardPromptType, string> = {
+    anatomime_name_recall: "Recall the anatomy item name.",
     identify_from_media: "Identify the anatomy item.",
     name_to_summary: "Recall the key facts for this anatomy item.",
     name_to_region: "Recall where this anatomy item is located.",
@@ -473,6 +475,7 @@ function promptFrontInstruction(prompt: FlashcardPrompt, isReviewMode: boolean) 
     muscle_innervation: "Recall the innervation.",
   }
   const typedInstructions: Record<FlashcardPromptType, string> = {
+    anatomime_name_recall: "Enter the anatomy item name.",
     identify_from_media: "Enter the anatomy item name.",
     name_to_summary: "Enter the key facts for this anatomy item.",
     name_to_region: "Enter where this anatomy item is located.",
