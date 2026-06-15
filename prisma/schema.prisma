@@ -385,6 +385,8 @@ model User {
   hostedAnatomimeGameSessions AnatomimeGameSession[] @relation("AnatomimeGameHost")
   anatomimeGamePlayers  AnatomimeGamePlayer[]
   anatomimeGameGuesses  AnatomimeGameGuess[]
+  anatomimeRoomPlayers  AnatomimeRoomPlayer[]   @relation("AnatomimeRoomPlayerUser")
+  anatomimeRoomGuesses  AnatomimeGameRunGuess[] @relation("AnatomimeGameRunGuessUser")
   noteTemplates         NoteTemplate[]
   formTemplates         FormTemplate[]
   documentationPreference DocumentationPreference?
@@ -896,6 +898,176 @@ model AnatomimeGameGuess {
   @@index([sessionId, cardId, submittedAt])
   @@index([playerId, cardId])
   @@index([userId, submittedAt])
+}
+
+model AnatomimeRoom {
+  id                       String                   @id @default(cuid())
+  code                     String                   @unique
+  status                   String                   @default("LOBBY")
+  hostPlayerId             String?
+  currentRunId             String?
+  lastMeaningfulActivityAt DateTime                 @default(now())
+  hostLastActivityAt       DateTime                 @default(now())
+  endedAt                  DateTime?
+  reviewExpiresAt          DateTime?
+  expiresAt                DateTime
+  metadata                 Json                     @default("{}")
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  hostPlayer               AnatomimeRoomPlayer?     @relation("AnatomimeRoomHost", fields: [hostPlayerId], references: [id], onDelete: SetNull)
+  currentRun               AnatomimeGameRun?        @relation("AnatomimeRoomCurrentRun", fields: [currentRunId], references: [id], onDelete: SetNull)
+  teams                    AnatomimeRoomTeam[]
+  players                  AnatomimeRoomPlayer[]    @relation("AnatomimeRoomPlayers")
+  gameRuns                 AnatomimeGameRun[]       @relation("AnatomimeRoomGameRuns")
+  elections                AnatomimeHostElection[]
+
+  @@index([status, expiresAt])
+  @@index([lastMeaningfulActivityAt])
+  @@index([hostPlayerId])
+}
+
+model AnatomimeRoomTeam {
+  id        String                     @id @default(cuid())
+  roomId    String
+  name      String
+  sortOrder Int
+  createdAt DateTime                   @default(now())
+  updatedAt DateTime                   @updatedAt
+  room      AnatomimeRoom              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  players   AnatomimeRoomPlayer[]
+  scores    AnatomimeGameRunTeamScore[]
+  guesses   AnatomimeGameRunGuess[]
+
+  @@unique([roomId, sortOrder])
+  @@index([roomId])
+}
+
+model AnatomimeRoomPlayer {
+  id               String                         @id @default(cuid())
+  roomId           String
+  teamId           String?
+  userId           String?
+  displayName      String
+  guestTokenHash   String?
+  lastSeenAt       DateTime                       @default(now())
+  lastActionAt     DateTime                       @default(now())
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
+  room             AnatomimeRoom                  @relation("AnatomimeRoomPlayers", fields: [roomId], references: [id], onDelete: Cascade)
+  team             AnatomimeRoomTeam?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user             User?                          @relation("AnatomimeRoomPlayerUser", fields: [userId], references: [id], onDelete: SetNull)
+  hostForRooms     AnatomimeRoom[]                @relation("AnatomimeRoomHost")
+  guesses          AnatomimeGameRunGuess[]
+  ballots          AnatomimeHostElectionBallot[]
+  startedElections AnatomimeHostElection[]        @relation("AnatomimeHostElectionStarter")
+  wonElections     AnatomimeHostElection[]        @relation("AnatomimeHostElectionWinner")
+
+  @@unique([roomId, guestTokenHash])
+  @@unique([roomId, userId])
+  @@index([roomId, teamId])
+  @@index([userId, updatedAt])
+}
+
+model AnatomimeGameRun {
+  id              String                      @id @default(cuid())
+  roomId          String
+  status          String                      @default("LOBBY")
+  phase           String                      @default("LOBBY")
+  config          Json                        @default("{}")
+  deckCardIds     String[]                    @default([])
+  activeCardIndex Int                         @default(0)
+  activeTeamOrder Int                         @default(0)
+  termStartedAt   DateTime?
+  termEndsAt      DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  metadata        Json                        @default("{}")
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  room            AnatomimeRoom               @relation("AnatomimeRoomGameRuns", fields: [roomId], references: [id], onDelete: Cascade)
+  currentForRooms AnatomimeRoom[]             @relation("AnatomimeRoomCurrentRun")
+  scores          AnatomimeGameRunTeamScore[]
+  guesses         AnatomimeGameRunGuess[]
+
+  @@index([roomId, status])
+  @@index([roomId, activeTeamOrder])
+}
+
+model AnatomimeGameRunTeamScore {
+  id        String            @id @default(cuid())
+  runId     String
+  teamId    String
+  score     Int               @default(0)
+  metadata  Json              @default("{}")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  run       AnatomimeGameRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  team      AnatomimeRoomTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, teamId])
+  @@index([teamId])
+}
+
+model AnatomimeGameRunGuess {
+  id              String               @id @default(cuid())
+  runId           String
+  roomId          String
+  teamId          String
+  playerId        String?
+  userId          String?
+  cardId          String
+  cardIndex       Int
+  activeTeamId    String
+  answerKind      String
+  correct         Boolean              @default(false)
+  scoreAwarded    Int                  @default(0)
+  progressAwarded Boolean              @default(false)
+  metadata        Json                 @default("{}")
+  submittedAt     DateTime             @default(now())
+  run             AnatomimeGameRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  team            AnatomimeRoomTeam    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player          AnatomimeRoomPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  user            User?                @relation("AnatomimeGameRunGuessUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([runId, cardIndex, submittedAt])
+  @@index([runId, playerId, cardIndex])
+  @@index([userId, submittedAt])
+}
+
+model AnatomimeHostElection {
+  id                   String                         @id @default(cuid())
+  roomId               String
+  status               String                         @default("OPEN")
+  startedByPlayerId    String?
+  winnerPlayerId       String?
+  candidatePlayerIds   String[]                       @default([])
+  activeVoterPlayerIds String[]                       @default([])
+  roundHistory         Json                           @default("[]")
+  startedAt            DateTime                       @default(now())
+  closesAt             DateTime
+  resolvedAt           DateTime?
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+  room                 AnatomimeRoom                  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  startedByPlayer      AnatomimeRoomPlayer?           @relation("AnatomimeHostElectionStarter", fields: [startedByPlayerId], references: [id], onDelete: SetNull)
+  winnerPlayer         AnatomimeRoomPlayer?           @relation("AnatomimeHostElectionWinner", fields: [winnerPlayerId], references: [id], onDelete: SetNull)
+  ballots              AnatomimeHostElectionBallot[]
+
+  @@index([roomId, status])
+  @@index([closesAt])
+}
+
+model AnatomimeHostElectionBallot {
+  id              String                @id @default(cuid())
+  electionId      String
+  voterPlayerId   String
+  rankedPlayerIds String[]              @default([])
+  submittedAt     DateTime              @default(now())
+  election        AnatomimeHostElection @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  voter           AnatomimeRoomPlayer   @relation(fields: [voterPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, voterPlayerId])
+  @@index([voterPlayerId, submittedAt])
 }
 
 model AnatomyTerm {

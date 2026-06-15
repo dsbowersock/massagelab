@@ -32,8 +32,20 @@ describe("Anatomime shared session helpers", () => {
     assert.deepEqual(config.bodySystems, ["muscular-system"])
     assert.equal(config.difficulty, "hard")
     assert.equal(config.answerMode, "multiple-choice")
-    assert.equal(config.termCount, 40)
+    assert.equal(config.termCount, 4)
     assert.deepEqual(config.teamNames, ["Flexors", "Extensors", "Team 3"])
+
+    const hostJudgedConfig = normalizeAnatomimeSessionConfig({
+      answerMode: "host-judged",
+      clueLevel: "expert",
+      difficulty: "medium",
+    })
+
+    assert.equal(hostJudgedConfig.answerMode, "host-judged")
+    assert.equal(hostJudgedConfig.clueLevel, "expert")
+    assert.equal(hostJudgedConfig.difficulty, "hard")
+    assert.equal(hostJudgedConfig.termCount, 4)
+    assert.equal(hostJudgedConfig.roundSeconds, 30)
   })
 
   it("creates deterministic decks from all sourced anatomy study categories", () => {
@@ -47,7 +59,7 @@ describe("Anatomime shared session helpers", () => {
     const firstDeck = createAnatomimeSessionDeck(config)
     const secondDeck = createAnatomimeSessionDeck(config)
 
-    assert.equal(firstDeck.length, 6)
+    assert.equal(firstDeck.length, 4)
     assert.deepEqual(firstDeck.map((card) => card.id), secondDeck.map((card) => card.id))
     assert.ok(firstDeck.every((card) => ["anatomy_structure", "anatomy_concept"].includes(card.category)))
   })

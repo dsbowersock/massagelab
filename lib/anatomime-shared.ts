@@ -25,12 +25,14 @@ import { flashcardProgressTool, type FlashcardProgressResult } from "./flashcard
 
 export const ANATOMIME_TOOL = "anatomime"
 export const ANATOMIME_NAME_RECALL_PROMPT_TYPE = "anatomime_name_recall"
-export const ANATOMIME_DEFAULT_TERM_COUNT = 12
+export const ANATOMIME_DEFAULT_TERM_COUNT = 4
 export const ANATOMIME_DEFAULT_ROUND_SECONDS = 30
 export const ANATOMIME_DEFAULT_STEAL_SECONDS = 8
 export const ANATOMIME_MAX_TERM_COUNT = 40
 export const ANATOMIME_MAX_SELECTED_CARD_IDS = 500
 export const ANATOMIME_SESSION_TTL_HOURS = 6
+export const ANATOMIME_ROOM_TTL_MINUTES = 30
+export const ANATOMIME_REVIEW_TTL_MINUTES = 30
 
 export const ANATOMIME_ACHIEVEMENTS = {
   firstSharedGame: "anatomime:first-shared-game",
@@ -39,7 +41,8 @@ export const ANATOMIME_ACHIEVEMENTS = {
   firstTeamWin: "anatomime:first-team-win",
 } as const
 
-export type AnatomimeAnswerMode = "typed" | "multiple-choice"
+export type AnatomimeAnswerMode = "host-judged" | "typed" | "multiple-choice"
+export type AnatomimePresenterClueLevel = "easy" | "medium" | "hard" | "expert"
 export type AnatomimeSessionStatus = "LOBBY" | "PLAYING" | "COMPLETED" | "EXPIRED"
 export type AnatomimeSessionPhase = "LOBBY" | "ACTIVE" | "STEAL" | "REVIEW" | "COMPLETED"
 
@@ -48,8 +51,11 @@ export type AnatomimeSessionConfig = {
   regions: AnatomyStudyRegion[]
   bodySystems: AnatomyStudyBodySystem[]
   difficulty: AnatomyStudyDifficulty
+  clueLevel: AnatomimePresenterClueLevel
   answerMode: AnatomimeAnswerMode
   termCount: number
+  roundLimit: number
+  hardcoreMode: boolean
   roundSeconds: number
   stealSeconds: number
   seed: string
@@ -85,8 +91,8 @@ export type AnatomimeScoringGuess = {
 const categorySet = new Set<string>(ANATOMY_STUDY_CATEGORIES)
 const regionSet = new Set<string>(ANATOMY_STUDY_REGION_ORDER)
 const bodySystemSet = new Set<string>(ANATOMY_STUDY_BODY_SYSTEMS)
-const difficultySet = new Set<string>(ANATOMY_STUDY_DIFFICULTIES)
-const answerModeSet = new Set<string>(["typed", "multiple-choice"])
+const answerModeSet = new Set<string>(["host-judged", "typed", "multiple-choice"])
+const clueLevelSet = new Set<string>(["easy", "medium", "hard", "expert"])
 let nameRecallPromptByCardId: Map<string, FlashcardPrompt> | null = null
 
 function recordFrom(value: unknown) {
@@ -153,10 +159,10 @@ function shuffle<T>(items: T[], seed: string) {
 /**
  * Converts raw host setup input into an AnatomimeSessionConfig. Invalid or
  * empty category, body-system, or region filters fall back to the full sourced
- * study library; difficulty defaults to medium, answerMode defaults to typed,
- * timers and deck size are bounded, seeds are sanitized, selected card ids are
- * deduped/capped as a candidate pool, and team names default to two teams with a
- * four-team maximum.
+ * study library; difficulty is forced to hard for candidate eligibility, clue
+ * level controls presenter hints, shared turns use four terms, timers are
+ * bounded, seeds are sanitized, selected card ids are deduped/capped as a
+ * candidate pool, and team names default to two teams with a four-team maximum.
  */
 export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessionConfig {
   const record = recordFrom(input)
@@ -166,12 +172,14 @@ export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessio
     .filter((region): region is AnatomyStudyRegion => regionSet.has(region))
   const bodySystems = stringArray(record.bodySystems ?? record.systems)
     .filter((bodySystem): bodySystem is AnatomyStudyBodySystem => bodySystemSet.has(bodySystem))
-  const difficulty = difficultySet.has(String(record.difficulty))
-    ? String(record.difficulty) as AnatomyStudyDifficulty
-    : "medium"
-  const answerMode = answerModeSet.has(String(record.answerMode))
-    ? String(record.answerMode) as AnatomimeAnswerMode
-    : "typed"
+  const rawAnswerMode = typeof record.answerMode === "string" ? record.answerMode : "host-judged"
+  const rawClueLevel = typeof record.clueLevel === "string" ? record.clueLevel : "easy"
+  const answerMode = answerModeSet.has(rawAnswerMode)
+    ? rawAnswerMode as AnatomimeAnswerMode
+    : "host-judged"
+  const clueLevel = clueLevelSet.has(rawClueLevel)
+    ? rawClueLevel as AnatomimePresenterClueLevel
+    : "easy"
   const selectedCardIds = stringArray(record.selectedCardIds ?? record.cardIds)
     .map((id) => id.trim())
     .filter(Boolean)
@@ -184,9 +192,12 @@ export function normalizeAnatomimeSessionConfig(input: unknown): AnatomimeSessio
     categories: categories.length > 0 ? categories : [...ANATOMY_STUDY_CATEGORIES],
     regions: regions.length > 0 ? regions : [...ANATOMY_STUDY_REGION_ORDER],
     bodySystems: bodySystems.length > 0 ? bodySystems : [...ANATOMY_STUDY_BODY_SYSTEMS],
-    difficulty,
+    difficulty: "hard",
+    clueLevel,
     answerMode,
-    termCount: boundedInteger(record.termCount ?? record.count, ANATOMIME_DEFAULT_TERM_COUNT, 1, ANATOMIME_MAX_TERM_COUNT),
+    termCount: ANATOMIME_DEFAULT_TERM_COUNT,
+    roundLimit: boundedInteger(record.roundLimit, 3, 1, 12),
+    hardcoreMode: record.hardcoreMode === true,
     roundSeconds: boundedInteger(record.roundSeconds, ANATOMIME_DEFAULT_ROUND_SECONDS, 10, 180),
     stealSeconds: boundedInteger(record.stealSeconds, ANATOMIME_DEFAULT_STEAL_SECONDS, 4, 30),
     seed: sanitizeSeed(record.seed),
