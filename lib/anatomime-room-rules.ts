@@ -69,6 +69,11 @@ export function choiceGuessStatus(priorChoiceAttempts: number): GuessLimitStatus
   }
 }
 
+/**
+ * Returns how many seconds to wait before showing four multiple-choice labels.
+ * The 5-10 second bounds preserve game pace, while the 80-character baseline
+ * and 30-character step add a small reading allowance for longer anatomy terms.
+ */
 export function calculateMultipleChoiceUnlockSeconds(labels: string[]): number {
   const choiceLabels = labels.slice(0, 4).map((label) => label.trim())
   const totalChoiceChars = choiceLabels.reduce((sum, label) => sum + label.length, 0)

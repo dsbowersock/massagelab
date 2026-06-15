@@ -9,7 +9,14 @@ import { anatomimeViewerFromRequest, apiErrorMapper, objectBody } from "@/lib/an
 export const POST = apiErrorMapper(async (request: Request, { params }: { params: Promise<{ code: string }> }) => {
   const authSession = await getCurrentSession()
   const { code } = await params
-  const body = objectBody(await request.json().catch(() => ({})))
+  let parsedBody: unknown
+  try {
+    parsedBody = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Malformed JSON body." }, { status: 400 })
+  }
+
+  const body = objectBody(parsedBody)
   const viewer = anatomimeViewerFromRequest(request, authSession?.user?.id, body)
   const room = await endAnatomimeRoomSession(code, viewer)
 

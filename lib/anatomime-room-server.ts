@@ -211,13 +211,13 @@ function deckCardIdsForRun(config: AnatomimeSessionConfig, teamCount: number) {
   return ids.slice(0, targetTermCount)
 }
 
-function allCardsById() {
+const ALL_CARDS_BY_ID = (() => {
   const allCardsConfig = normalizeAnatomimeSessionConfig({})
   return new Map(getAnatomimeCandidateCards(allCardsConfig).map((card) => [card.id, card]))
-}
+})()
 
 function cardById(cardId: string) {
-  return allCardsById().get(cardId) ?? null
+  return ALL_CARDS_BY_ID.get(cardId) ?? null
 }
 
 function activeRunCard(run: Pick<AnatomimeRunWithRelations, "deckCardIds" | "activeCardIndex">) {
@@ -835,6 +835,11 @@ function recapRows(room: AnatomimeRoomWithRelations) {
   })
 }
 
+/**
+ * Creates a shared room, normalized setup config, teams, and initial host.
+ * Returns the hydrated room plus the one-time host token; requires a playable
+ * four-term deck before any database rows are created.
+ */
 export async function createAnatomimeRoom(input: unknown, hostUserId?: string | null) {
   const config = normalizeAnatomimeSessionConfig(input)
   const minimumDeck = createAnatomimeSessionDeck(config)
@@ -887,6 +892,10 @@ export async function createAnatomimeRoom(input: unknown, hostUserId?: string | 
   return { room, hostToken }
 }
 
+/**
+ * Loads a room by public code, applies idle expiration, and refreshes the
+ * viewer's last-seen timestamp when their player credentials match.
+ */
 export async function loadAnatomimeRoom(code: string, viewer: ViewerContext = {}) {
   const room = await prisma.anatomimeRoom.findUnique({
     where: { code: publicCode(code) },
@@ -898,6 +907,11 @@ export async function loadAnatomimeRoom(code: string, viewer: ViewerContext = {}
   return markViewerSeen(currentRoom, viewer)
 }
 
+/**
+ * Joins or re-enters a room as a signed-in user or token-backed guest.
+ * Team assignment is mutable only before play starts, and review rooms only
+ * admit players who were already present.
+ */
 export async function joinAnatomimeRoom(code: string, input: unknown, userId?: string | null) {
   const room = await loadAnatomimeRoom(code)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
@@ -1002,6 +1016,10 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
   return { room: updatedRoom, player, token }
 }
 
+/**
+ * Moves a joined non-host player between teams before a game run is active.
+ * Uses stale-row guards so team changes cannot race with game start.
+ */
 export async function changeAnatomimeRoomTeam(code: string, input: unknown, viewer: ViewerContext) {
   const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
@@ -1057,6 +1075,11 @@ export async function changeAnatomimeRoomTeam(code: string, input: unknown, view
   return updated
 }
 
+/**
+ * Starts the current lobby run or creates the next run for the host.
+ * Locks the room transition so only a lobby or completed game can enter active
+ * play, preserving the configured four-term team-turn deck.
+ */
 export async function startAnatomimeGameRun(code: string, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   if (room.status !== "LOBBY" && room.status !== "GAME_COMPLETE") {
@@ -1096,6 +1119,11 @@ export async function startAnatomimeGameRun(code: string, viewer: ViewerContext)
   return updated
 }
 
+/**
+ * Records a device guess for a joined team player during an active term.
+ * Enforces answer-mode, unlock, and attempt-limit rules, then advances or
+ * stores progress only according to the room-rule resolution result.
+ */
 export async function submitAnatomimeRoomGuess(code: string, input: unknown, viewer: ViewerContext) {
   const room = await loadRequiredPlayingRoom(code, viewer)
   const player = requireJoinedPlayer(room, viewer)
@@ -1237,6 +1265,11 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
   return result
 }
 
+/**
+ * Lets the host mark the active team correct in host-judged mode.
+ * This scores the active team without personal progress because no individual
+ * player device answer is verified.
+ */
 export async function markHostJudgedCorrect(code: string, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   const run = requireCurrentRun(room)
@@ -1283,6 +1316,10 @@ export async function markHostJudgedCorrect(code: string, viewer: ViewerContext)
   return updated
 }
 
+/**
+ * Resolves an expired active term for the host. A queued opposing correct
+ * answer becomes a steal score; otherwise the term is recorded as missed.
+ */
 export async function resolveAnatomimeRoomTermTimeout(code: string, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   const run = requireCurrentRun(room)
@@ -1344,6 +1381,11 @@ export async function resolveAnatomimeRoomTermTimeout(code: string, viewer: View
   return updated
 }
 
+/**
+ * Advances from turn review to the next team's four-term turn.
+ * Hardcore runs extend the deck deterministically when the scheduled deck is
+ * exhausted; scheduled runs stay inside the prepared card list.
+ */
 export async function startNextAnatomimeTeamTurn(code: string, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   const run = requireCurrentRun(room)
@@ -1388,6 +1430,11 @@ export async function startNextAnatomimeTeamTurn(code: string, viewer: ViewerCon
   return updated
 }
 
+/**
+ * Resets a completed room back to a lobby with the same join code.
+ * Existing players remain in the room, while optional host config overrides
+ * are normalized into the new lobby run.
+ */
 export async function startNextAnatomimeGame(code: string, input: unknown, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   if (room.status !== "GAME_COMPLETE") {
@@ -1429,6 +1476,11 @@ export async function startNextAnatomimeGame(code: string, input: unknown, viewe
   return updated
 }
 
+/**
+ * Ends an active or completed room into its review window.
+ * The room keeps recap access until review expiry, then idle expiration can
+ * close the code permanently.
+ */
 export async function endAnatomimeRoomSession(code: string, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   if (room.status === "REVIEW" || room.status === "EXPIRED") {
@@ -1464,6 +1516,10 @@ export async function endAnatomimeRoomSession(code: string, viewer: ViewerContex
   return updated
 }
 
+/**
+ * Transfers host control from the current host to an existing player.
+ * Terminal review or expired rooms reject host changes.
+ */
 export async function transferAnatomimeRoomHost(code: string, input: unknown, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
   const body = objectBody(input)
@@ -1502,6 +1558,11 @@ export async function transferAnatomimeRoomHost(code: string, input: unknown, vi
   return updated
 }
 
+/**
+ * Opens a ranked-choice host takeover vote for joined players after host idle.
+ * The transaction re-checks idle state and open-election uniqueness before
+ * creating the election.
+ */
 export async function requestAnatomimeHostElection(code: string, viewer: ViewerContext) {
   const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
@@ -1539,6 +1600,11 @@ export async function requestAnatomimeHostElection(code: string, viewer: ViewerC
   return updated
 }
 
+/**
+ * Stores or replaces one ranked host-election ballot for the joined voter.
+ * Ballots are filtered to current candidates and rejected after the election
+ * close time.
+ */
 export async function submitAnatomimeHostElectionBallot(code: string, input: unknown, viewer: ViewerContext) {
   const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
@@ -1612,6 +1678,11 @@ export async function submitAnatomimeHostElectionBallot(code: string, input: unk
   return updated
 }
 
+/**
+ * Resolves a closed or fully-submitted host election for a joined player.
+ * Winner selection uses deterministic instant-runoff rules and then transfers
+ * host control in the same transaction.
+ */
 export async function resolveAnatomimeHostElection(code: string, viewer: ViewerContext) {
   const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
