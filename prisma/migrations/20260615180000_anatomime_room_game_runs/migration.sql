@@ -124,6 +124,7 @@ CREATE TABLE "AnatomimeHostElection" (
 CREATE TABLE "AnatomimeHostElectionBallot" (
     "id" TEXT NOT NULL,
     "electionId" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
     "voterPlayerId" TEXT NOT NULL,
     "rankedPlayerIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -207,16 +208,19 @@ CREATE INDEX "AnatomimeHostElection_roomId_status_idx" ON "AnatomimeHostElection
 CREATE INDEX "AnatomimeHostElection_closesAt_idx" ON "AnatomimeHostElection"("closesAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AnatomimeHostElection_roomId_id_key" ON "AnatomimeHostElection"("roomId", "id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AnatomimeHostElectionBallot_electionId_voterPlayerId_key" ON "AnatomimeHostElectionBallot"("electionId", "voterPlayerId");
 
 -- CreateIndex
-CREATE INDEX "AnatomimeHostElectionBallot_voterPlayerId_submittedAt_idx" ON "AnatomimeHostElectionBallot"("voterPlayerId", "submittedAt");
+CREATE INDEX "AnatomimeHostElectionBallot_roomId_voterPlayerId_submittedAt_idx" ON "AnatomimeHostElectionBallot"("roomId", "voterPlayerId", "submittedAt");
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeRoom" ADD CONSTRAINT "AnatomimeRoom_hostPlayerId_fkey" FOREIGN KEY ("hostPlayerId") REFERENCES "AnatomimeRoomPlayer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeRoom" ADD CONSTRAINT "AnatomimeRoom_id_hostPlayerId_fkey" FOREIGN KEY ("id", "hostPlayerId") REFERENCES "AnatomimeRoomPlayer"("roomId", "id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeRoom" ADD CONSTRAINT "AnatomimeRoom_currentRunId_fkey" FOREIGN KEY ("currentRunId") REFERENCES "AnatomimeGameRun"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeRoom" ADD CONSTRAINT "AnatomimeRoom_id_currentRunId_fkey" FOREIGN KEY ("id", "currentRunId") REFERENCES "AnatomimeGameRun"("roomId", "id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnatomimeRoomTeam" ADD CONSTRAINT "AnatomimeRoomTeam_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "AnatomimeRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -225,7 +229,7 @@ ALTER TABLE "AnatomimeRoomTeam" ADD CONSTRAINT "AnatomimeRoomTeam_roomId_fkey" F
 ALTER TABLE "AnatomimeRoomPlayer" ADD CONSTRAINT "AnatomimeRoomPlayer_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "AnatomimeRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeRoomPlayer" ADD CONSTRAINT "AnatomimeRoomPlayer_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "AnatomimeRoomTeam"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeRoomPlayer" ADD CONSTRAINT "AnatomimeRoomPlayer_roomId_teamId_fkey" FOREIGN KEY ("roomId", "teamId") REFERENCES "AnatomimeRoomTeam"("roomId", "id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnatomimeRoomPlayer" ADD CONSTRAINT "AnatomimeRoomPlayer_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -261,13 +265,13 @@ ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_userId
 ALTER TABLE "AnatomimeHostElection" ADD CONSTRAINT "AnatomimeHostElection_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "AnatomimeRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeHostElection" ADD CONSTRAINT "AnatomimeHostElection_startedByPlayerId_fkey" FOREIGN KEY ("startedByPlayerId") REFERENCES "AnatomimeRoomPlayer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeHostElection" ADD CONSTRAINT "AnatomimeHostElection_roomId_startedByPlayerId_fkey" FOREIGN KEY ("roomId", "startedByPlayerId") REFERENCES "AnatomimeRoomPlayer"("roomId", "id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeHostElection" ADD CONSTRAINT "AnatomimeHostElection_winnerPlayerId_fkey" FOREIGN KEY ("winnerPlayerId") REFERENCES "AnatomimeRoomPlayer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeHostElection" ADD CONSTRAINT "AnatomimeHostElection_roomId_winnerPlayerId_fkey" FOREIGN KEY ("roomId", "winnerPlayerId") REFERENCES "AnatomimeRoomPlayer"("roomId", "id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeHostElectionBallot" ADD CONSTRAINT "AnatomimeHostElectionBallot_electionId_fkey" FOREIGN KEY ("electionId") REFERENCES "AnatomimeHostElection"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeHostElectionBallot" ADD CONSTRAINT "AnatomimeHostElectionBallot_roomId_electionId_fkey" FOREIGN KEY ("roomId", "electionId") REFERENCES "AnatomimeHostElection"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeHostElectionBallot" ADD CONSTRAINT "AnatomimeHostElectionBallot_voterPlayerId_fkey" FOREIGN KEY ("voterPlayerId") REFERENCES "AnatomimeRoomPlayer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeHostElectionBallot" ADD CONSTRAINT "AnatomimeHostElectionBallot_roomId_voterPlayerId_fkey" FOREIGN KEY ("roomId", "voterPlayerId") REFERENCES "AnatomimeRoomPlayer"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;

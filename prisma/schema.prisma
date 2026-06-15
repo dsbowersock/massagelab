@@ -914,8 +914,8 @@ model AnatomimeRoom {
   metadata                 Json                     @default("{}")
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
-  hostPlayer               AnatomimeRoomPlayer?     @relation("AnatomimeRoomHost", fields: [hostPlayerId], references: [id], onDelete: SetNull)
-  currentRun               AnatomimeGameRun?        @relation("AnatomimeRoomCurrentRun", fields: [currentRunId], references: [id], onDelete: SetNull)
+  hostPlayer               AnatomimeRoomPlayer?     @relation("AnatomimeRoomHost", fields: [id, hostPlayerId], references: [roomId, id], onDelete: NoAction)
+  currentRun               AnatomimeGameRun?        @relation("AnatomimeRoomCurrentRun", fields: [id, currentRunId], references: [roomId, id], onDelete: NoAction)
   teams                    AnatomimeRoomTeam[]
   players                  AnatomimeRoomPlayer[]    @relation("AnatomimeRoomPlayers")
   gameRuns                 AnatomimeGameRun[]       @relation("AnatomimeRoomGameRuns")
@@ -957,7 +957,7 @@ model AnatomimeRoomPlayer {
   createdAt        DateTime                       @default(now())
   updatedAt        DateTime                       @updatedAt
   room             AnatomimeRoom                  @relation("AnatomimeRoomPlayers", fields: [roomId], references: [id], onDelete: Cascade)
-  team             AnatomimeRoomTeam?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  team             AnatomimeRoomTeam?             @relation(fields: [roomId, teamId], references: [roomId, id], onDelete: NoAction)
   user             User?                          @relation("AnatomimeRoomPlayerUser", fields: [userId], references: [id], onDelete: SetNull)
   hostForRooms     AnatomimeRoom[]                @relation("AnatomimeRoomHost")
   guesses          AnatomimeGameRunGuess[]
@@ -1059,10 +1059,11 @@ model AnatomimeHostElection {
   createdAt            DateTime                       @default(now())
   updatedAt            DateTime                       @updatedAt
   room                 AnatomimeRoom                  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  startedByPlayer      AnatomimeRoomPlayer?           @relation("AnatomimeHostElectionStarter", fields: [startedByPlayerId], references: [id], onDelete: SetNull)
-  winnerPlayer         AnatomimeRoomPlayer?           @relation("AnatomimeHostElectionWinner", fields: [winnerPlayerId], references: [id], onDelete: SetNull)
+  startedByPlayer      AnatomimeRoomPlayer?           @relation("AnatomimeHostElectionStarter", fields: [roomId, startedByPlayerId], references: [roomId, id], onDelete: NoAction)
+  winnerPlayer         AnatomimeRoomPlayer?           @relation("AnatomimeHostElectionWinner", fields: [roomId, winnerPlayerId], references: [roomId, id], onDelete: NoAction)
   ballots              AnatomimeHostElectionBallot[]
 
+  @@unique([roomId, id])
   @@index([roomId, status])
   @@index([closesAt])
 }
@@ -1070,14 +1071,15 @@ model AnatomimeHostElection {
 model AnatomimeHostElectionBallot {
   id              String                @id @default(cuid())
   electionId      String
+  roomId          String
   voterPlayerId   String
   rankedPlayerIds String[]              @default([])
   submittedAt     DateTime              @default(now())
-  election        AnatomimeHostElection @relation(fields: [electionId], references: [id], onDelete: Cascade)
-  voter           AnatomimeRoomPlayer   @relation(fields: [voterPlayerId], references: [id], onDelete: Cascade)
+  election        AnatomimeHostElection @relation(fields: [roomId, electionId], references: [roomId, id], onDelete: Cascade)
+  voter           AnatomimeRoomPlayer   @relation(fields: [roomId, voterPlayerId], references: [roomId, id], onDelete: Cascade)
 
   @@unique([electionId, voterPlayerId])
-  @@index([voterPlayerId, submittedAt])
+  @@index([roomId, voterPlayerId, submittedAt])
 }
 
 model AnatomyTerm {

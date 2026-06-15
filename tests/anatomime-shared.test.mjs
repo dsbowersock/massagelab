@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   ANATOMIME_NAME_RECALL_PROMPT_TYPE,
@@ -14,6 +15,12 @@ import {
   normalizeAnatomimeSessionConfig,
   selectQueuedStealGuess,
 } from "../lib/anatomime-shared.js"
+
+const schema = readFileSync(new URL("../prisma/schema.prisma", import.meta.url), "utf8")
+const roomGameRunsMigration = readFileSync(
+  new URL("../prisma/migrations/20260615180000_anatomime_room_game_runs/migration.sql", import.meta.url),
+  "utf8",
+)
 
 describe("Anatomime shared session helpers", () => {
   it("normalizes full anatomy setup options beyond legacy bones and muscles", () => {
@@ -173,5 +180,38 @@ describe("Anatomime shared session helpers", () => {
     ])
 
     assert.equal(queued?.id, "early")
+  })
+
+  it("keeps room-owned database relations scoped to the same Anatomime room", () => {
+    const schemaRelations = [
+      /hostPlayer\s+AnatomimeRoomPlayer\?\s+@relation\("AnatomimeRoomHost", fields: \[id, hostPlayerId\], references: \[roomId, id\], onDelete: NoAction\)/,
+      /currentRun\s+AnatomimeGameRun\?\s+@relation\("AnatomimeRoomCurrentRun", fields: \[id, currentRunId\], references: \[roomId, id\], onDelete: NoAction\)/,
+      /team\s+AnatomimeRoomTeam\?\s+@relation\(fields: \[roomId, teamId\], references: \[roomId, id\], onDelete: NoAction\)/,
+      /startedByPlayer\s+AnatomimeRoomPlayer\?\s+@relation\("AnatomimeHostElectionStarter", fields: \[roomId, startedByPlayerId\], references: \[roomId, id\], onDelete: NoAction\)/,
+      /winnerPlayer\s+AnatomimeRoomPlayer\?\s+@relation\("AnatomimeHostElectionWinner", fields: \[roomId, winnerPlayerId\], references: \[roomId, id\], onDelete: NoAction\)/,
+      /election\s+AnatomimeHostElection\s+@relation\(fields: \[roomId, electionId\], references: \[roomId, id\], onDelete: Cascade\)/,
+      /voter\s+AnatomimeRoomPlayer\s+@relation\(fields: \[roomId, voterPlayerId\], references: \[roomId, id\], onDelete: Cascade\)/,
+    ]
+    const migrationConstraints = [
+      /FOREIGN KEY \("id", "hostPlayerId"\) REFERENCES "AnatomimeRoomPlayer"\("roomId", "id"\) ON DELETE NO ACTION/,
+      /FOREIGN KEY \("id", "currentRunId"\) REFERENCES "AnatomimeGameRun"\("roomId", "id"\) ON DELETE NO ACTION/,
+      /FOREIGN KEY \("roomId", "teamId"\) REFERENCES "AnatomimeRoomTeam"\("roomId", "id"\) ON DELETE NO ACTION/,
+      /FOREIGN KEY \("roomId", "startedByPlayerId"\) REFERENCES "AnatomimeRoomPlayer"\("roomId", "id"\) ON DELETE NO ACTION/,
+      /FOREIGN KEY \("roomId", "winnerPlayerId"\) REFERENCES "AnatomimeRoomPlayer"\("roomId", "id"\) ON DELETE NO ACTION/,
+      /FOREIGN KEY \("roomId", "electionId"\) REFERENCES "AnatomimeHostElection"\("roomId", "id"\) ON DELETE CASCADE/,
+      /FOREIGN KEY \("roomId", "voterPlayerId"\) REFERENCES "AnatomimeRoomPlayer"\("roomId", "id"\) ON DELETE CASCADE/,
+    ]
+
+    for (const pattern of schemaRelations) {
+      assert.match(schema, pattern)
+    }
+    for (const pattern of migrationConstraints) {
+      assert.match(roomGameRunsMigration, pattern)
+    }
+
+    assert.match(schema, /model AnatomimeHostElectionBallot \{[\s\S]*?roomId\s+String[\s\S]*?voterPlayerId\s+String/)
+    assert.match(roomGameRunsMigration, /"roomId" TEXT NOT NULL,\r?\n\s+"voterPlayerId" TEXT NOT NULL/)
+    assert.doesNotMatch(schema, /fields: \[hostPlayerId\], references: \[id\]/)
+    assert.doesNotMatch(roomGameRunsMigration, /FOREIGN KEY \("hostPlayerId"\) REFERENCES "AnatomimeRoomPlayer"\("id"\)/)
   })
 })
