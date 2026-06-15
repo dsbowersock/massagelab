@@ -112,6 +112,8 @@ const answerModeLabels: Record<AnatomimeAnswerMode, string> = {
   "multiple-choice": "Device Multiple Choice",
 }
 
+const setupAnswerModes: AnatomimeAnswerMode[] = ["typed", "multiple-choice"]
+
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
 }
@@ -177,7 +179,7 @@ export default function AnatomimePage() {
   const [selectedBodySystems, setSelectedBodySystems] = useState<AnatomyBodySystem[]>(defaultBodySystems)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(defaultRegions)
   const [clueLevel, setClueLevel] = useState<PresenterClueLevel>("easy")
-  const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("host-judged")
+  const [answerMode, setAnswerMode] = useState<AnatomimeAnswerMode>("typed")
   const [currentDeck, setCurrentDeck] = useState<AnatomyTerm[]>([])
   const [selectedSetupTermIds, setSelectedSetupTermIds] = useState<string[]>([])
   const [expandedRegionIds, setExpandedRegionIds] = useState<string[]>([])
@@ -517,7 +519,7 @@ export default function AnatomimePage() {
     setSelectedBodySystems(defaultBodySystems)
     setSelectedRegions(defaultRegions)
     setClueLevel("easy")
-    setAnswerMode("host-judged")
+    setAnswerMode("typed")
     setCurrentDeck([])
     setSelectedSetupTermIds([])
     setExpandedRegionIds([])
@@ -883,7 +885,7 @@ export default function AnatomimePage() {
               <div className="anatomime-control-group">
                 <Label>Shared answer mode</Label>
                 <div className="anatomime-segmented" role="group" aria-label="Shared answer mode">
-                  {(["host-judged", "typed", "multiple-choice"] as AnatomimeAnswerMode[]).map((option) => (
+                  {setupAnswerModes.map((option) => (
                     <button
                       key={option}
                       type="button"

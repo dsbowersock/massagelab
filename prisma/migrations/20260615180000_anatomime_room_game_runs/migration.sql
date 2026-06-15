@@ -70,6 +70,7 @@ CREATE TABLE "AnatomimeGameRun" (
 CREATE TABLE "AnatomimeGameRunTeamScore" (
     "id" TEXT NOT NULL,
     "runId" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
     "score" INTEGER NOT NULL DEFAULT 0,
     "metadata" JSONB NOT NULL DEFAULT '{}',
@@ -149,6 +150,9 @@ CREATE UNIQUE INDEX "AnatomimeRoom_currentRunId_key" ON "AnatomimeRoom"("current
 CREATE UNIQUE INDEX "AnatomimeRoomTeam_roomId_sortOrder_key" ON "AnatomimeRoomTeam"("roomId", "sortOrder");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AnatomimeRoomTeam_roomId_id_key" ON "AnatomimeRoomTeam"("roomId", "id");
+
+-- CreateIndex
 CREATE INDEX "AnatomimeRoomTeam_roomId_idx" ON "AnatomimeRoomTeam"("roomId");
 
 -- CreateIndex
@@ -156,6 +160,9 @@ CREATE UNIQUE INDEX "AnatomimeRoomPlayer_roomId_guestTokenHash_key" ON "Anatomim
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AnatomimeRoomPlayer_roomId_userId_key" ON "AnatomimeRoomPlayer"("roomId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AnatomimeRoomPlayer_roomId_id_key" ON "AnatomimeRoomPlayer"("roomId", "id");
 
 -- CreateIndex
 CREATE INDEX "AnatomimeRoomPlayer_roomId_teamId_idx" ON "AnatomimeRoomPlayer"("roomId", "teamId");
@@ -170,10 +177,13 @@ CREATE INDEX "AnatomimeGameRun_roomId_status_idx" ON "AnatomimeGameRun"("roomId"
 CREATE INDEX "AnatomimeGameRun_roomId_activeTeamOrder_idx" ON "AnatomimeGameRun"("roomId", "activeTeamOrder");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AnatomimeGameRun_roomId_id_key" ON "AnatomimeGameRun"("roomId", "id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "AnatomimeGameRunTeamScore_runId_teamId_key" ON "AnatomimeGameRunTeamScore"("runId", "teamId");
 
 -- CreateIndex
-CREATE INDEX "AnatomimeGameRunTeamScore_teamId_idx" ON "AnatomimeGameRunTeamScore"("teamId");
+CREATE INDEX "AnatomimeGameRunTeamScore_roomId_teamId_idx" ON "AnatomimeGameRunTeamScore"("roomId", "teamId");
 
 -- CreateIndex
 CREATE INDEX "AnatomimeGameRunGuess_runId_cardIndex_submittedAt_idx" ON "AnatomimeGameRunGuess"("runId", "cardIndex", "submittedAt");
@@ -185,7 +195,7 @@ CREATE INDEX "AnatomimeGameRunGuess_runId_playerId_cardIndex_idx" ON "AnatomimeG
 CREATE INDEX "AnatomimeGameRunGuess_roomId_idx" ON "AnatomimeGameRunGuess"("roomId");
 
 -- CreateIndex
-CREATE INDEX "AnatomimeGameRunGuess_activeTeamId_idx" ON "AnatomimeGameRunGuess"("activeTeamId");
+CREATE INDEX "AnatomimeGameRunGuess_roomId_activeTeamId_idx" ON "AnatomimeGameRunGuess"("roomId", "activeTeamId");
 
 -- CreateIndex
 CREATE INDEX "AnatomimeGameRunGuess_userId_submittedAt_idx" ON "AnatomimeGameRunGuess"("userId", "submittedAt");
@@ -224,25 +234,25 @@ ALTER TABLE "AnatomimeRoomPlayer" ADD CONSTRAINT "AnatomimeRoomPlayer_userId_fke
 ALTER TABLE "AnatomimeGameRun" ADD CONSTRAINT "AnatomimeGameRun_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "AnatomimeRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeGameRunTeamScore" ADD CONSTRAINT "AnatomimeGameRunTeamScore_runId_fkey" FOREIGN KEY ("runId") REFERENCES "AnatomimeGameRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeGameRunTeamScore" ADD CONSTRAINT "AnatomimeGameRunTeamScore_roomId_runId_fkey" FOREIGN KEY ("roomId", "runId") REFERENCES "AnatomimeGameRun"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeGameRunTeamScore" ADD CONSTRAINT "AnatomimeGameRunTeamScore_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "AnatomimeRoomTeam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeGameRunTeamScore" ADD CONSTRAINT "AnatomimeGameRunTeamScore_roomId_teamId_fkey" FOREIGN KEY ("roomId", "teamId") REFERENCES "AnatomimeRoomTeam"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_runId_fkey" FOREIGN KEY ("runId") REFERENCES "AnatomimeGameRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_roomId_runId_fkey" FOREIGN KEY ("roomId", "runId") REFERENCES "AnatomimeGameRun"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "AnatomimeRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "AnatomimeRoomTeam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_roomId_teamId_fkey" FOREIGN KEY ("roomId", "teamId") REFERENCES "AnatomimeRoomTeam"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_activeTeamId_fkey" FOREIGN KEY ("activeTeamId") REFERENCES "AnatomimeRoomTeam"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_roomId_activeTeamId_fkey" FOREIGN KEY ("roomId", "activeTeamId") REFERENCES "AnatomimeRoomTeam"("roomId", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "AnatomimeRoomPlayer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_roomId_playerId_fkey" FOREIGN KEY ("roomId", "playerId") REFERENCES "AnatomimeRoomPlayer"("roomId", "id") ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnatomimeGameRunGuess" ADD CONSTRAINT "AnatomimeGameRunGuess_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
