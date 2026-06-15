@@ -71,7 +71,6 @@ export const roomInclude = {
 export type AnatomimeRoomWithRelations = Prisma.AnatomimeRoomGetPayload<{ include: typeof roomInclude }>
 
 type AnatomimeRunWithRelations = NonNullable<AnatomimeRoomWithRelations["currentRun"]>
-type AnatomimeRoomPlayer = AnatomimeRoomWithRelations["players"][number]
 type TermOutcomeRow = {
   cardId: string
   cardIndex: number
