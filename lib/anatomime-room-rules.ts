@@ -75,6 +75,10 @@ export function calculateMultipleChoiceUnlockSeconds(labels: string[]): number {
   return Math.min(10, Math.max(5, 5 + Math.ceil(Math.max(0, totalChoiceChars - 80) / 30)))
 }
 
+export function canResolveTermTimeout(input: { termEndsAt: Date | null; now: Date }): boolean {
+  return Boolean(input.termEndsAt && input.termEndsAt.getTime() <= input.now.getTime())
+}
+
 export function nextRunStep(input: {
   activeCardIndex: number
   termsPerTurn: number

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   calculateMultipleChoiceUnlockSeconds,
+  canResolveTermTimeout,
   canJoinRoom,
   choiceGuessStatus,
   createInitialTermState,
@@ -127,6 +128,14 @@ describe("Anatomime room rules", () => {
       ]),
       10,
     )
+  })
+
+  it("only allows timeout resolution once the active term has expired", () => {
+    const termEndsAt = new Date("2026-06-15T12:00:30.000Z")
+
+    assert.equal(canResolveTermTimeout({ termEndsAt, now: new Date("2026-06-15T12:00:29.999Z") }), false)
+    assert.equal(canResolveTermTimeout({ termEndsAt, now: new Date("2026-06-15T12:00:30.000Z") }), true)
+    assert.equal(canResolveTermTimeout({ termEndsAt: null, now: new Date("2026-06-15T12:00:31.000Z") }), false)
   })
 
   it("host judged correct scores active team and advances", () => {

@@ -22,6 +22,7 @@ import {
   ANATOMIME_TERM_SECONDS,
   ANATOMIME_TERMS_PER_TURN,
   calculateMultipleChoiceUnlockSeconds,
+  canResolveTermTimeout,
   canJoinRoom,
   choiceGuessStatus,
   createInitialTermState,
@@ -77,6 +78,21 @@ type TermOutcomeRow = {
 
 function roomError(status: number, code: string, message: string) {
   return new AnatomimeSessionError(status, code, message)
+}
+
+class StaleRoomMutationError extends Error {
+  constructor() {
+    super("Anatomime room changed before the transition could be applied.")
+    this.name = "StaleRoomMutationError"
+  }
+}
+
+function isStaleRoomMutation(error: unknown) {
+  return error instanceof StaleRoomMutationError
+}
+
+function staleRoomMutationRoomError() {
+  return roomError(409, "stale-session", "This item is no longer accepting guesses.")
 }
 
 function json(value: unknown) {
@@ -332,6 +348,60 @@ async function reloadRoom(tx: Prisma.TransactionClient, roomId: string) {
   return room
 }
 
+function expectedActiveTermRunWhere(
+  room: Pick<AnatomimeRoomWithRelations, "id">,
+  run: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex" | "activeTeamOrder">,
+): Prisma.AnatomimeGameRunWhereInput {
+  return {
+    id: run.id,
+    roomId: room.id,
+    status: "PLAYING",
+    phase: "ACTIVE_TERM",
+    activeCardIndex: run.activeCardIndex,
+    activeTeamOrder: run.activeTeamOrder,
+  }
+}
+
+function assertSameActiveTermRoom(
+  room: AnatomimeRoomWithRelations,
+  run: AnatomimeRunWithRelations,
+  expectedRun: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex" | "activeTeamOrder">,
+) {
+  if (
+    room.status !== "PLAYING" ||
+    room.currentRunId !== expectedRun.id ||
+    run.id !== expectedRun.id ||
+    run.status !== "PLAYING" ||
+    run.phase !== "ACTIVE_TERM" ||
+    run.activeCardIndex !== expectedRun.activeCardIndex ||
+    run.activeTeamOrder !== expectedRun.activeTeamOrder
+  ) {
+    throw new StaleRoomMutationError()
+  }
+}
+
+async function loadLockedActiveTermRoom(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  expectedRun: Pick<AnatomimeRunWithRelations, "id" | "activeCardIndex" | "activeTeamOrder">,
+) {
+  let currentRoom = await reloadRoom(tx, roomId)
+  let currentRun = requireCurrentRun(currentRoom)
+  assertSameActiveTermRoom(currentRoom, currentRun, expectedRun)
+
+  const locked = await tx.anatomimeGameRun.updateMany({
+    where: expectedActiveTermRunWhere(currentRoom, currentRun),
+    data: { updatedAt: new Date() },
+  })
+  if (locked.count === 0) throw new StaleRoomMutationError()
+
+  currentRoom = await reloadRoom(tx, roomId)
+  currentRun = requireCurrentRun(currentRoom)
+  assertSameActiveTermRoom(currentRoom, currentRun, expectedRun)
+
+  return { room: currentRoom, run: currentRun }
+}
+
 async function expireRoomIfIdle(room: AnatomimeRoomWithRelations) {
   if (room.status === "EXPIRED" || room.expiresAt.getTime() > Date.now()) return room
 
@@ -472,26 +542,6 @@ async function advanceTermOrTurnReview(
   const activeTeam = activeRunTeam(room, run)
   if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
 
-  if (input.scoreTeamId) {
-    await tx.anatomimeGameRunTeamScore.upsert({
-      where: {
-        runId_teamId: {
-          runId: run.id,
-          teamId: input.scoreTeamId,
-        },
-      },
-      create: {
-        roomId: room.id,
-        runId: run.id,
-        teamId: input.scoreTeamId,
-        score: 1,
-      },
-      update: {
-        score: { increment: 1 },
-      },
-    })
-  }
-
   const metadata = withTermOutcome(run, {
     cardId: activeCard.id,
     cardIndex: run.activeCardIndex,
@@ -510,13 +560,8 @@ async function advanceTermOrTurnReview(
   })
 
   if (next.phase === "GAME_COMPLETE") {
-    await tx.anatomimeGameRun.update({
-      where: {
-        roomId_id: {
-          roomId: room.id,
-          id: run.id,
-        },
-      },
+    const updated = await tx.anatomimeGameRun.updateMany({
+      where: expectedActiveTermRunWhere(room, run),
       data: {
         status: "GAME_COMPLETE",
         phase: "GAME_COMPLETE",
@@ -525,6 +570,8 @@ async function advanceTermOrTurnReview(
         metadata: json(metadata),
       },
     })
+    if (updated.count === 0) throw new StaleRoomMutationError()
+    await incrementRunScore(tx, room.id, run.id, input.scoreTeamId)
     await touchRoom(tx, room.id, {
       status: "GAME_COMPLETE",
       lastMeaningfulActivityAt: now,
@@ -534,30 +581,22 @@ async function advanceTermOrTurnReview(
   }
 
   if (next.phase === "TURN_REVIEW") {
-    await tx.anatomimeGameRun.update({
-      where: {
-        roomId_id: {
-          roomId: room.id,
-          id: run.id,
-        },
-      },
+    const updated = await tx.anatomimeGameRun.updateMany({
+      where: expectedActiveTermRunWhere(room, run),
       data: {
         phase: "TURN_REVIEW",
         termEndsAt: null,
         metadata: json(metadata),
       },
     })
+    if (updated.count === 0) throw new StaleRoomMutationError()
+    await incrementRunScore(tx, room.id, run.id, input.scoreTeamId)
     await touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
     return
   }
 
-  await tx.anatomimeGameRun.update({
-    where: {
-      roomId_id: {
-        roomId: room.id,
-        id: run.id,
-      },
-    },
+  const updated = await tx.anatomimeGameRun.updateMany({
+    where: expectedActiveTermRunWhere(room, run),
     data: {
       phase: "ACTIVE_TERM",
       activeCardIndex: next.activeCardIndex,
@@ -567,7 +606,36 @@ async function advanceTermOrTurnReview(
       metadata: json(metadata),
     },
   })
+  if (updated.count === 0) throw new StaleRoomMutationError()
+  await incrementRunScore(tx, room.id, run.id, input.scoreTeamId)
   await touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
+}
+
+async function incrementRunScore(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  runId: string,
+  scoreTeamId: string | null,
+) {
+  if (!scoreTeamId) return
+
+  await tx.anatomimeGameRunTeamScore.upsert({
+    where: {
+      runId_teamId: {
+        runId,
+        teamId: scoreTeamId,
+      },
+    },
+    create: {
+      roomId,
+      runId,
+      teamId: scoreTeamId,
+      score: 1,
+    },
+    update: {
+      score: { increment: 1 },
+    },
+  })
 }
 
 function countPlayerAttempts(
@@ -860,67 +928,80 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
   if (player.id === room.hostPlayerId) throw roomError(403, "player-required", "Only team players can guess.")
 
   const run = requireCurrentRun(room)
-  const config = runConfig(run)
   if (run.status !== "PLAYING" || run.phase !== "ACTIVE_TERM") {
     throw roomError(409, "item-not-accepting-guesses", "This item is not accepting guesses.")
   }
-  if (run.termEndsAt && run.termEndsAt.getTime() < Date.now()) {
-    throw roomError(409, "term-expired", "This term has expired.")
-  }
-  if (config.answerMode === "host-judged") {
-    throw roomError(409, "device-answers-disabled", "This game is using host-judged scoring.")
-  }
-
-  const activeCard = activeRunCard(run)
-  const activeTeam = activeRunTeam(room, run)
-  if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
 
   const body = objectBody(input)
   const answerKind: AnatomimeAnswerKind = typeof body.choiceId === "string" ? "choice" : "typed"
-  if (answerKind === "choice" && config.answerMode !== "multiple-choice") {
-    throw roomError(409, "choice-disabled", "This game is not using multiple-choice answers.")
-  }
-  if (answerKind === "choice") {
-    const unlocksAt = multipleChoiceUnlocksAt(run, activeCard, config)
-    if (!unlocksAt || unlocksAt.getTime() > Date.now()) {
-      throw roomError(409, "choice-locked", "Multiple-choice answers are not unlocked yet.")
-    }
-  }
-
-  const priorAttempts = countPlayerAttempts(run.guesses, player.id, run.activeCardIndex, answerKind)
-  const attemptStatus = answerKind === "choice" ? choiceGuessStatus(priorAttempts) : typedGuessStatus(priorAttempts)
-  if (!attemptStatus.allowed) {
-    throw roomError(
-      409,
-      "guess-limit-reached",
-      answerKind === "choice" ? "You already used your multiple-choice guess." : "You are out of guesses for this term.",
-    )
-  }
-
-  const correct = answerKind === "choice"
-    ? body.choiceId === activeCard.id
-    : checkAnatomimeAnswer(activeCard, typeof body.answer === "string" ? body.answer : "").correct
-  const submittedAt = new Date()
   const result = await prisma.$transaction(async (tx) => {
-    const state = termStateFromRunGuesses(run.guesses, activeTeam.id, activeCard.id, run.activeCardIndex)
+    const { room: lockedRoom, run: lockedRun } = await loadLockedActiveTermRoom(tx, room.id, run)
+    const lockedPlayer = requireJoinedPlayer(lockedRoom, viewer)
+    if (!lockedPlayer.teamId) throw roomError(403, "team-required", "Join a team before guessing.")
+    if (lockedPlayer.id === lockedRoom.hostPlayerId) {
+      throw roomError(403, "player-required", "Only team players can guess.")
+    }
+
+    const config = runConfig(lockedRun)
+    if (canResolveTermTimeout({ termEndsAt: lockedRun.termEndsAt, now: new Date() })) {
+      throw roomError(409, "term-expired", "This term has expired.")
+    }
+    if (config.answerMode === "host-judged") {
+      throw roomError(409, "device-answers-disabled", "This game is using host-judged scoring.")
+    }
+
+    const activeCard = activeRunCard(lockedRun)
+    const activeTeam = activeRunTeam(lockedRoom, lockedRun)
+    if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
+
+    if (answerKind === "choice" && config.answerMode !== "multiple-choice") {
+      throw roomError(409, "choice-disabled", "This game is not using multiple-choice answers.")
+    }
+    if (answerKind === "choice") {
+      const unlocksAt = multipleChoiceUnlocksAt(lockedRun, activeCard, config)
+      if (!unlocksAt || unlocksAt.getTime() > Date.now()) {
+        throw roomError(409, "choice-locked", "Multiple-choice answers are not unlocked yet.")
+      }
+    }
+
+    const priorAttempts = countPlayerAttempts(lockedRun.guesses, lockedPlayer.id, lockedRun.activeCardIndex, answerKind)
+    const attemptStatus = answerKind === "choice" ? choiceGuessStatus(priorAttempts) : typedGuessStatus(priorAttempts)
+    if (!attemptStatus.allowed) {
+      throw roomError(
+        409,
+        "guess-limit-reached",
+        answerKind === "choice" ? "You already used your multiple-choice guess." : "You are out of guesses for this term.",
+      )
+    }
+
+    const correct = answerKind === "choice"
+      ? body.choiceId === activeCard.id
+      : checkAnatomimeAnswer(activeCard, typeof body.answer === "string" ? body.answer : "").correct
+    const submittedAt = new Date()
+    const state = termStateFromRunGuesses(
+      lockedRun.guesses,
+      activeTeam.id,
+      activeCard.id,
+      lockedRun.activeCardIndex,
+    )
     const resolution = resolveDeviceGuess(state, {
-      playerId: player.id,
-      teamId: player.teamId ?? "",
-      userId: player.userId,
+      playerId: lockedPlayer.id,
+      teamId: lockedPlayer.teamId ?? "",
+      userId: lockedPlayer.userId,
       correct,
       answerKind,
       submittedAt,
     })
-    const progressAwarded = Boolean(resolution.progressCreditPlayerId === player.id && player.userId)
+    const progressAwarded = Boolean(resolution.progressCreditPlayerId === lockedPlayer.id && lockedPlayer.userId)
     const guess = await tx.anatomimeGameRunGuess.create({
       data: {
-        runId: run.id,
-        roomId: room.id,
-        teamId: player.teamId ?? "",
-        playerId: player.id,
-        userId: player.userId,
+        runId: lockedRun.id,
+        roomId: lockedRoom.id,
+        teamId: lockedPlayer.teamId ?? "",
+        playerId: lockedPlayer.id,
+        userId: lockedPlayer.userId,
         cardId: activeCard.id,
-        cardIndex: run.activeCardIndex,
+        cardIndex: lockedRun.activeCardIndex,
         activeTeamId: activeTeam.id,
         answerKind,
         correct,
@@ -937,7 +1018,7 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
 
     if (progressAwarded) {
       await updateAnatomimeNameRecallProgress(tx, {
-        userId: player.userId,
+        userId: lockedPlayer.userId,
         card: activeCard,
         correct: true,
         score: 100,
@@ -945,20 +1026,23 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
       })
     }
     if (resolution.shouldAdvance || resolution.scoreTeamId) {
-      await advanceTermOrTurnReview(tx, room, run, {
+      await advanceTermOrTurnReview(tx, lockedRoom, lockedRun, {
         scoreTeamId: resolution.scoreTeamId,
         activeOutcome: "got",
       })
     } else {
-      await touchRoom(tx, room.id, { lastMeaningfulActivityAt: submittedAt })
+      await touchRoom(tx, lockedRoom.id, { lastMeaningfulActivityAt: submittedAt })
     }
 
-    return { guess, resolution, room: await reloadRoom(tx, room.id) }
+    return { guess, resolution, room: await reloadRoom(tx, lockedRoom.id), correct }
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "guess-recorded", {
     roomId: room.id,
-    correct,
+    correct: result.correct,
     scoreAwarded: result.guess.scoreAwarded,
     feedbackKind: result.resolution.feedbackKind,
   })
@@ -977,20 +1061,35 @@ export async function markHostJudgedCorrect(code: string, viewer: ViewerContext)
     throw roomError(409, "host-judged-disabled", "This game is using device answers.")
   }
 
-  const activeCard = activeRunCard(run)
-  const activeTeam = activeRunTeam(room, run)
-  if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
-
   const updated = await prisma.$transaction(async (tx) => {
-    const resolution = resolveHostJudgedCorrect(createInitialTermState({ activeTeamId: activeTeam.id, cardId: activeCard.id }))
+    const { room: lockedRoom, run: lockedRun } = await loadLockedActiveTermRoom(tx, room.id, run)
+    const lockedConfig = runConfig(lockedRun)
+    if (lockedConfig.answerMode !== "host-judged") {
+      throw roomError(409, "host-judged-disabled", "This game is using device answers.")
+    }
+
+    const activeCard = activeRunCard(lockedRun)
+    const activeTeam = activeRunTeam(lockedRoom, lockedRun)
+    if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
+
+    const state = termStateFromRunGuesses(
+      lockedRun.guesses,
+      activeTeam.id,
+      activeCard.id,
+      lockedRun.activeCardIndex,
+    )
+    const resolution = resolveHostJudgedCorrect(state)
     if (resolution.shouldAdvance || resolution.scoreTeamId) {
-      await advanceTermOrTurnReview(tx, room, run, {
+      await advanceTermOrTurnReview(tx, lockedRoom, lockedRun, {
         scoreTeamId: resolution.scoreTeamId,
         activeOutcome: "got",
       })
     }
 
-    return reloadRoom(tx, room.id)
+    return reloadRoom(tx, lockedRoom.id)
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "host-judged-correct", { roomId: room.id })
@@ -1004,21 +1103,35 @@ export async function resolveAnatomimeRoomTermTimeout(code: string, viewer: View
     throw roomError(409, "item-not-accepting-guesses", "This item is not accepting guesses.")
   }
 
-  const activeCard = activeRunCard(run)
-  const activeTeam = activeRunTeam(room, run)
-  if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
-
   const updated = await prisma.$transaction(async (tx) => {
-    const state = termStateFromRunGuesses(run.guesses, activeTeam.id, activeCard.id, run.activeCardIndex)
+    const { room: lockedRoom, run: lockedRun } = await loadLockedActiveTermRoom(tx, room.id, run)
+    const now = new Date()
+    if (!canResolveTermTimeout({ termEndsAt: lockedRun.termEndsAt, now })) {
+      throw roomError(409, "term-still-active", "This term is still active.")
+    }
+
+    const activeCard = activeRunCard(lockedRun)
+    const activeTeam = activeRunTeam(lockedRoom, lockedRun)
+    if (!activeCard || !activeTeam) throw roomError(409, "no-active-item", "This game has no active anatomy item.")
+
+    const state = termStateFromRunGuesses(
+      lockedRun.guesses,
+      activeTeam.id,
+      activeCard.id,
+      lockedRun.activeCardIndex,
+    )
     const resolution = resolveTermTimeout(state)
     if (resolution.shouldAdvance || resolution.scoreTeamId) {
-      await advanceTermOrTurnReview(tx, room, run, {
+      await advanceTermOrTurnReview(tx, lockedRoom, lockedRun, {
         scoreTeamId: resolution.scoreTeamId,
         activeOutcome: resolution.scoreTeamId ? "stolen" : "missed",
       })
     }
 
-    return reloadRoom(tx, room.id)
+    return reloadRoom(tx, lockedRoom.id)
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "term-timeout", { roomId: room.id })
