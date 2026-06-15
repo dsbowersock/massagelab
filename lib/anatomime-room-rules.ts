@@ -196,10 +196,15 @@ export function resolveDeviceGuess(
 export function resolveTermTimeout(state: AnatomimeTermState): {
   termState: AnatomimeTermState
   feedbackKind: AnatomimeGuessFeedbackKind
-  shouldAdvance: true
+  shouldAdvance: boolean
   scoreTeamId: string | null
-  activeOutcome: "missed"
+  activeOutcome: "missed" | null
+  progressCreditPlayerId: null
 } {
+  if (state.firstActiveCorrect || state.outcome !== "pending") {
+    return lockedTermResolution(state)
+  }
+
   if (state.firstOpposingCorrect) {
     return {
       termState: {
@@ -210,6 +215,7 @@ export function resolveTermTimeout(state: AnatomimeTermState): {
       shouldAdvance: true,
       scoreTeamId: state.firstOpposingCorrect.teamId,
       activeOutcome: "missed",
+      progressCreditPlayerId: null,
     }
   }
 
@@ -222,17 +228,22 @@ export function resolveTermTimeout(state: AnatomimeTermState): {
     shouldAdvance: true,
     scoreTeamId: null,
     activeOutcome: "missed",
+    progressCreditPlayerId: null,
   }
 }
 
 export function resolveHostJudgedCorrect(state: AnatomimeTermState): {
   termState: AnatomimeTermState
-  feedbackKind: "host-judged-correct"
-  shouldAdvance: true
-  scoreTeamId: string
-  activeOutcome: "got"
+  feedbackKind: "host-judged-correct" | "locked"
+  shouldAdvance: boolean
+  scoreTeamId: string | null
+  activeOutcome: "got" | null
   progressCreditPlayerId: null
 } {
+  if (state.firstActiveCorrect || state.outcome !== "pending") {
+    return lockedTermResolution(state)
+  }
+
   return {
     termState: {
       ...state,
@@ -316,6 +327,17 @@ function correctForPractice(state: AnatomimeTermState) {
     feedbackKind: "practice-correct" as const,
     shouldAdvance: false,
     scoreTeamId: null,
+    progressCreditPlayerId: null,
+  }
+}
+
+function lockedTermResolution(state: AnatomimeTermState) {
+  return {
+    termState: state,
+    feedbackKind: "locked" as const,
+    shouldAdvance: false,
+    scoreTeamId: null,
+    activeOutcome: null,
     progressCreditPlayerId: null,
   }
 }

@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   calculateMultipleChoiceUnlockSeconds,
   canJoinRoom,
+  choiceGuessStatus,
   createInitialTermState,
   nextRunStep,
   resolveDeviceGuess,
@@ -93,6 +94,8 @@ describe("Anatomime room rules", () => {
     assert.deepEqual(typedGuessStatus(0), { allowed: true, remainingAfterUse: 4 })
     assert.deepEqual(typedGuessStatus(4), { allowed: true, remainingAfterUse: 0 })
     assert.deepEqual(typedGuessStatus(5), { allowed: false, remainingAfterUse: 0 })
+    assert.deepEqual(choiceGuessStatus(0), { allowed: true, remainingAfterUse: 0 })
+    assert.deepEqual(choiceGuessStatus(1), { allowed: false, remainingAfterUse: 0 })
   })
 
   it("calculates bounded multiple-choice unlock windows", () => {
@@ -136,6 +139,37 @@ describe("Anatomime room rules", () => {
     assert.equal(result.progressCreditPlayerId, null)
   })
 
+  it("keeps timeout resolution locked after a terminal active-team correct", () => {
+    const state = createInitialTermState({ activeTeamId: "team-a", cardId: "scapula" })
+    const terminal = resolveDeviceGuess(state, {
+      playerId: "player-a",
+      teamId: "team-a",
+      userId: "user-a",
+      correct: true,
+      answerKind: "typed",
+      submittedAt: new Date("2026-06-15T12:00:00.000Z"),
+    })
+    const timeout = resolveTermTimeout(terminal.termState)
+
+    assert.equal(timeout.feedbackKind, "locked")
+    assert.equal(timeout.shouldAdvance, false)
+    assert.equal(timeout.scoreTeamId, null)
+    assert.equal(timeout.progressCreditPlayerId, null)
+    assert.equal(timeout.termState.outcome, "got")
+  })
+
+  it("keeps host-judged resolution locked after a timeout miss", () => {
+    const state = createInitialTermState({ activeTeamId: "team-a", cardId: "scapula" })
+    const missed = resolveTermTimeout(state)
+    const result = resolveHostJudgedCorrect(missed.termState)
+
+    assert.equal(result.feedbackKind, "locked")
+    assert.equal(result.shouldAdvance, false)
+    assert.equal(result.scoreTeamId, null)
+    assert.equal(result.progressCreditPlayerId, null)
+    assert.equal(result.termState.outcome, "missed")
+  })
+
   it("blocks new joins after host-ended review starts", () => {
     const room = {
       status: "REVIEW",
@@ -171,6 +205,16 @@ describe("Anatomime room rules", () => {
 
     assert.equal(result.winnerId, "beta")
     assert.deepEqual(result.rounds[0].eliminatedCandidateIds, ["host"])
+  })
+
+  it("uses the alphabetically first remaining candidate when every host election candidate is tied", () => {
+    const result = runInstantRunoffElection({
+      candidateIds: ["charlie", "bravo", "alpha"],
+      ballots: [["charlie"], ["bravo"], ["alpha"]],
+    })
+
+    assert.equal(result.winnerId, "alpha")
+    assert.deepEqual(result.rounds[0].eliminatedCandidateIds, [])
   })
 
   it("keeps team turns to four terms before turn review", () => {
