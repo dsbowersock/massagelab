@@ -6,7 +6,19 @@ WITH ranked_progress AS (
         "id",
         ROW_NUMBER() OVER (
             PARTITION BY "userId", "tool"
-            ORDER BY "updatedAt" DESC, "lastSeenAt" DESC, "createdAt" DESC, "id" DESC
+            ORDER BY
+                CASE "status"
+                    WHEN 'MASTERED' THEN 4
+                    WHEN 'PRACTICING' THEN 3
+                    WHEN 'STARTED' THEN 2
+                    WHEN 'SKIPPED' THEN 1
+                    ELSE 0
+                END DESC,
+                COALESCE("score", -1) DESC,
+                "updatedAt" DESC,
+                "lastSeenAt" DESC,
+                "createdAt" DESC,
+                "id" DESC
         ) AS row_number
     FROM "LearningProgress"
     WHERE "anatomyTermId" IS NULL

@@ -21,7 +21,9 @@ export const POST = apiErrorMapper(async (request: Request) => {
 
   const session = await getCurrentSession().catch(() => null)
   const created = await createAnatomimeRoom(body.config ?? body, session?.user?.id)
-  const hostPlayerId = created.room.hostPlayerId ?? created.room.players[0]?.id ?? ""
+  const hostPlayerId = created.room.hostPlayerId ?? created.room.players[0]?.id
+  if (!hostPlayerId) throw new Error("Created Anatomime room is missing a host player.")
+
   const viewer = {
     userId: session?.user?.id,
     playerId: hostPlayerId,

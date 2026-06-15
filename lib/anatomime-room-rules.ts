@@ -163,6 +163,11 @@ export function canResolveTermTimeout(input: { termEndsAt: Date | null; now: Dat
   return Boolean(input.termEndsAt && input.termEndsAt.getTime() <= input.now.getTime())
 }
 
+/**
+ * Resolves the next persisted run phase after one active term finishes.
+ * Scheduled games stop after the final planned term; hardcore games keep
+ * advancing until the host ends them.
+ */
 export function nextRunStep(input: {
   activeCardIndex: number
   termsPerTurn: number
@@ -206,6 +211,11 @@ export function nextRunStep(input: {
   }
 }
 
+/**
+ * Applies a player device guess to the active term state. Active-team correct
+ * answers score and advance immediately; the first opposing correct answer is
+ * held as a possible steal until timeout.
+ */
 export function resolveDeviceGuess(
   state: AnatomimeTermState,
   guess: {
@@ -245,6 +255,8 @@ export function resolveDeviceGuess(
   }
 
   if (guess.teamId === state.activeTeamId) {
+    const shouldCreditProgress = !state.firstOpposingCorrect
+
     return {
       termState: {
         ...state,
@@ -254,7 +266,7 @@ export function resolveDeviceGuess(
       feedbackKind: "active-correct",
       shouldAdvance: true,
       scoreTeamId: state.activeTeamId,
-      progressCreditPlayerId: guess.playerId,
+      progressCreditPlayerId: shouldCreditProgress ? guess.playerId : null,
     }
   }
 
@@ -281,6 +293,10 @@ export function resolveDeviceGuess(
   }
 }
 
+/**
+ * Resolves an expired active term. A held opposing correct answer becomes a
+ * steal score; otherwise the active team records a missed term.
+ */
 export function resolveTermTimeout(state: AnatomimeTermState): {
   termState: AnatomimeTermState
   feedbackKind: AnatomimeGuessFeedbackKind
@@ -320,6 +336,10 @@ export function resolveTermTimeout(state: AnatomimeTermState): {
   }
 }
 
+/**
+ * Resolves a host-judged correct term for the active team. This path never
+ * awards personal progress because no individual device answer is verified.
+ */
 export function resolveHostJudgedCorrect(state: AnatomimeTermState): {
   termState: AnatomimeTermState
   feedbackKind: "host-judged-correct" | "locked"
@@ -345,6 +365,10 @@ export function resolveHostJudgedCorrect(state: AnatomimeTermState): {
   }
 }
 
+/**
+ * Decides whether a viewer can join or re-enter a room at the current time.
+ * Review rooms only admit players who were already present in that game.
+ */
 export function canJoinRoom(
   room: {
     status: string
@@ -366,6 +390,10 @@ export function canJoinRoom(
   return { allowed: true, reason: "open" }
 }
 
+/**
+ * Counts ranked host-election ballots with instant-runoff elimination. Ties
+ * fall back to deterministic candidate id order so resolution is repeatable.
+ */
 export function runInstantRunoffElection(input: {
   candidateIds: string[]
   ballots: string[][]

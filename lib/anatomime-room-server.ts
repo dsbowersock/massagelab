@@ -95,6 +95,10 @@ function isStaleRoomMutation(error: unknown) {
   return error instanceof StaleRoomMutationError
 }
 
+function isUniqueConstraintError(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "P2002")
+}
+
 function staleRoomMutationRoomError() {
   return roomError(409, "stale-session", "This item is no longer accepting guesses.")
 }
@@ -306,6 +310,12 @@ function requireCurrentRun(room: AnatomimeRoomWithRelations) {
   if (!room.currentRun) throw roomError(409, "no-active-run", "This room does not have an active game run.")
 
   return room.currentRun
+}
+
+function requireHostElectionMutableRoom(room: AnatomimeRoomWithRelations) {
+  if (room.status === "REVIEW" || room.status === "ENDED" || room.status === "EXPIRED") {
+    throw roomError(409, "room-closed", "This room is no longer accepting host election changes.")
+  }
 }
 
 async function requireHostRoom(code: string, viewer: ViewerContext) {
@@ -888,42 +898,45 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
   const requestedTeamId = typeof body.teamId === "string" ? body.teamId : ""
   const suppliedPlayerId = typeof body.playerId === "string" ? body.playerId : ""
   const suppliedToken = typeof body.playerToken === "string" ? body.playerToken : ""
-  const existingSignedInPlayer = userId ? room.players.find((player) => player.userId === userId) : null
-  const existingGuestPlayer = suppliedPlayerId
-    ? room.players.find((player) => player.id === suppliedPlayerId && playerTokenMatches(player, suppliedToken))
-    : null
-  const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
-  const joinStatus = canJoinRoom(
-    {
-      status: room.status,
-      endedAt: room.endedAt,
-      reviewExpiresAt: room.reviewExpiresAt,
-      expiresAt: room.expiresAt,
-      existingPlayerIds: room.players.map((player) => player.id),
-    },
-    { now: new Date(), playerId: existingPlayer?.id ?? null },
-  )
-  if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
-
-  const requestedTeam = room.teams.find((team) => team.id === requestedTeamId)
-  const fallbackTeam = room.teams[0] ?? null
-  const nextTeamId = requestedTeam?.id ?? fallbackTeam?.id ?? null
   const token = generateRandomToken(18)
+  const tokenHash = hashToken(token)
   const now = new Date()
 
   const updatedRoom = await prisma.$transaction(async (tx) => {
+    const currentRoom = await reloadRoom(tx, room.id)
+    const existingSignedInPlayer = userId ? currentRoom.players.find((player) => player.userId === userId) : null
+    const existingGuestPlayer = suppliedPlayerId
+      ? currentRoom.players.find((player) => player.id === suppliedPlayerId && playerTokenMatches(player, suppliedToken))
+      : null
+    const existingPlayer = existingSignedInPlayer ?? existingGuestPlayer ?? null
+    const joinStatus = canJoinRoom(
+      {
+        status: currentRoom.status,
+        endedAt: currentRoom.endedAt,
+        reviewExpiresAt: currentRoom.reviewExpiresAt,
+        expiresAt: currentRoom.expiresAt,
+        existingPlayerIds: currentRoom.players.map((player) => player.id),
+      },
+      { now, playerId: existingPlayer?.id ?? null },
+    )
+    if (!joinStatus.allowed) throw roomError(409, joinStatus.reason, "This room is no longer accepting new joins.")
+
+    const requestedTeam = currentRoom.teams.find((team) => team.id === requestedTeamId)
+    const fallbackTeam = currentRoom.teams[0] ?? null
+    const nextTeamId = requestedTeam?.id ?? fallbackTeam?.id ?? null
+
     if (existingPlayer) {
       await tx.anatomimeRoomPlayer.update({
         where: {
           roomId_id: {
-            roomId: room.id,
+            roomId: currentRoom.id,
             id: existingPlayer.id,
           },
         },
         data: {
-          displayName: existingPlayer.id === room.hostPlayerId ? existingPlayer.displayName : displayName,
-          teamId: existingPlayer.id === room.hostPlayerId || room.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
-          guestTokenHash: hashToken(token),
+          displayName: existingPlayer.id === currentRoom.hostPlayerId ? existingPlayer.displayName : displayName,
+          teamId: existingPlayer.id === currentRoom.hostPlayerId || currentRoom.status === "PLAYING" ? existingPlayer.teamId : nextTeamId,
+          guestTokenHash: tokenHash,
           lastSeenAt: now,
           lastActionAt: now,
         },
@@ -931,20 +944,45 @@ export async function joinAnatomimeRoom(code: string, input: unknown, userId?: s
     } else {
       if (!nextTeamId) throw roomError(409, "no-teams", "This room has no available teams.")
 
-      await tx.anatomimeRoomPlayer.create({
-        data: {
-          roomId: room.id,
-          teamId: nextTeamId,
-          userId: userId ?? null,
-          displayName,
-          guestTokenHash: hashToken(token),
-          lastSeenAt: now,
-          lastActionAt: now,
-        },
-      })
+      if (userId) {
+        await tx.anatomimeRoomPlayer.upsert({
+          where: {
+            roomId_userId: {
+              roomId: currentRoom.id,
+              userId,
+            },
+          },
+          create: {
+            roomId: currentRoom.id,
+            teamId: nextTeamId,
+            userId,
+            displayName,
+            guestTokenHash: tokenHash,
+            lastSeenAt: now,
+            lastActionAt: now,
+          },
+          update: {
+            guestTokenHash: tokenHash,
+            lastSeenAt: now,
+            lastActionAt: now,
+          },
+        })
+      } else {
+        await tx.anatomimeRoomPlayer.create({
+          data: {
+            roomId: currentRoom.id,
+            teamId: nextTeamId,
+            userId: null,
+            displayName,
+            guestTokenHash: tokenHash,
+            lastSeenAt: now,
+            lastActionAt: now,
+          },
+        })
+      }
     }
 
-    return touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
+    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: now })
   })
   const player = userId
     ? updatedRoom.players.find((candidate) => candidate.userId === userId)
@@ -1262,6 +1300,25 @@ export async function resolveAnatomimeRoomTermTimeout(code: string, viewer: View
     )
     const resolution = resolveTermTimeout(state)
     if (resolution.shouldAdvance || resolution.scoreTeamId) {
+      if (resolution.scoreTeamId && state.firstOpposingCorrect) {
+        const scoredGuess = await tx.anatomimeGameRunGuess.updateMany({
+          where: {
+            roomId: lockedRoom.id,
+            runId: lockedRun.id,
+            cardId: activeCard.id,
+            cardIndex: lockedRun.activeCardIndex,
+            activeTeamId: activeTeam.id,
+            teamId: state.firstOpposingCorrect.teamId,
+            playerId: state.firstOpposingCorrect.playerId,
+            correct: true,
+            scoreAwarded: 0,
+            submittedAt: state.firstOpposingCorrect.submittedAt,
+          },
+          data: { scoreAwarded: 1 },
+        })
+        if (scoredGuess.count === 0) throw new StaleRoomMutationError()
+      }
+
       await advanceTermOrTurnReview(tx, lockedRoom, lockedRun, {
         scoreTeamId: resolution.scoreTeamId,
         activeOutcome: resolution.scoreTeamId ? "stolen" : "missed",
@@ -1440,26 +1497,33 @@ export async function requestAnatomimeHostElection(code: string, viewer: ViewerC
   const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
-  const player = requireJoinedPlayer(room, viewer)
-  const hostIdle = Date.now() - room.hostLastActivityAt.getTime() >= ANATOMIME_HOST_IDLE_SECONDS * 1000
-  if (!hostIdle) throw roomError(409, "host-active", "The host was active recently.")
-  if (room.elections.length > 0) throw roomError(409, "election-open", "A host vote is already open.")
-
-  const candidatePlayerIds = room.players.map((candidate) => candidate.id)
-  const activeVoterPlayerIds = candidatePlayerIds
-  const now = new Date()
+  requireHostElectionMutableRoom(room)
   const updated = await prisma.$transaction(async (tx) => {
+    const currentRoom = await reloadRoom(tx, room.id)
+    requireHostElectionMutableRoom(currentRoom)
+
+    const currentPlayer = requireJoinedPlayer(currentRoom, viewer)
+    const hostIdle = Date.now() - currentRoom.hostLastActivityAt.getTime() >= ANATOMIME_HOST_IDLE_SECONDS * 1000
+    if (!hostIdle) throw roomError(409, "host-active", "The host was active recently.")
+    if (currentRoom.elections.length > 0) throw roomError(409, "election-open", "A host vote is already open.")
+
+    const candidatePlayerIds = currentRoom.players.map((candidate) => candidate.id)
+    const activeVoterPlayerIds = candidatePlayerIds
+    const now = new Date()
     await tx.anatomimeHostElection.create({
       data: {
-        roomId: room.id,
-        startedByPlayerId: player.id,
+        roomId: currentRoom.id,
+        startedByPlayerId: currentPlayer.id,
         candidatePlayerIds,
         activeVoterPlayerIds,
         closesAt: addSeconds(now, ANATOMIME_ELECTION_SECONDS),
       },
     })
 
-    return touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
+    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: now })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error) || isUniqueConstraintError(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "host-election-requested", { roomId: room.id })
@@ -1470,6 +1534,7 @@ export async function submitAnatomimeHostElectionBallot(code: string, input: unk
   const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
+  requireHostElectionMutableRoom(room)
   const player = requireJoinedPlayer(room, viewer)
   const election = room.elections[0]
   if (!election) throw roomError(404, "election-not-found", "No host vote is open.")
@@ -1478,25 +1543,38 @@ export async function submitAnatomimeHostElectionBallot(code: string, input: unk
   }
 
   const body = objectBody(input)
-  const candidateIds = new Set(election.candidatePlayerIds)
-  const rankedPlayerIds = Array.isArray(body.rankedPlayerIds)
-    ? body.rankedPlayerIds.map(String).filter((id) => candidateIds.has(id))
+  const submittedRankedPlayerIds = Array.isArray(body.rankedPlayerIds)
+    ? body.rankedPlayerIds.map(String)
     : []
-  if (rankedPlayerIds.length === 0) throw roomError(400, "empty-ballot", "Choose at least one host candidate.")
+  if (submittedRankedPlayerIds.length === 0) throw roomError(400, "empty-ballot", "Choose at least one host candidate.")
 
   const now = new Date()
   const updated = await prisma.$transaction(async (tx) => {
+    const currentRoom = await reloadRoom(tx, room.id)
+    requireHostElectionMutableRoom(currentRoom)
+
+    const currentPlayer = requireJoinedPlayer(currentRoom, viewer)
+    const currentElection = currentRoom.elections[0]
+    if (!currentElection) throw roomError(404, "election-not-found", "No host vote is open.")
+    if (!currentElection.activeVoterPlayerIds.includes(currentPlayer.id)) {
+      throw roomError(403, "voter-not-eligible", "You cannot vote in this host election.")
+    }
+
+    const candidateIds = new Set(currentElection.candidatePlayerIds)
+    const rankedPlayerIds = submittedRankedPlayerIds.filter((id) => candidateIds.has(id))
+    if (rankedPlayerIds.length === 0) throw roomError(400, "empty-ballot", "Choose at least one host candidate.")
+
     await tx.anatomimeHostElectionBallot.upsert({
       where: {
         electionId_voterPlayerId: {
-          electionId: election.id,
-          voterPlayerId: player.id,
+          electionId: currentElection.id,
+          voterPlayerId: currentPlayer.id,
         },
       },
       create: {
-        roomId: room.id,
-        electionId: election.id,
-        voterPlayerId: player.id,
+        roomId: currentRoom.id,
+        electionId: currentElection.id,
+        voterPlayerId: currentPlayer.id,
         rankedPlayerIds,
         submittedAt: now,
       },
@@ -1508,14 +1586,14 @@ export async function submitAnatomimeHostElectionBallot(code: string, input: unk
     await tx.anatomimeRoomPlayer.update({
       where: {
         roomId_id: {
-          roomId: room.id,
-          id: player.id,
+          roomId: currentRoom.id,
+          id: currentPlayer.id,
         },
       },
       data: { lastSeenAt: now, lastActionAt: now },
     })
 
-    return touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
+    return touchRoom(tx, currentRoom.id, { lastMeaningfulActivityAt: now })
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "host-election-ballot", { playerId: player.id })
@@ -1526,28 +1604,32 @@ export async function resolveAnatomimeHostElection(code: string) {
   const room = await loadAnatomimeRoom(code)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
-  const election = room.elections[0]
-  if (!election) throw roomError(404, "election-not-found", "No host vote is open.")
+  requireHostElectionMutableRoom(room)
+  const resolved = await prisma.$transaction(async (tx) => {
+    const currentRoom = await reloadRoom(tx, room.id)
+    requireHostElectionMutableRoom(currentRoom)
 
-  const ballotVoterIds = new Set(election.ballots.map((ballot) => ballot.voterPlayerId))
-  const allVotersSubmitted = election.activeVoterPlayerIds.every((playerId) => ballotVoterIds.has(playerId))
-  if (!allVotersSubmitted && election.closesAt.getTime() > Date.now()) {
-    throw roomError(409, "election-open", "This host vote is still open.")
-  }
+    const election = currentRoom.elections[0]
+    if (!election) throw roomError(404, "election-not-found", "No host vote is open.")
 
-  const result = runInstantRunoffElection({
-    candidateIds: election.candidatePlayerIds,
-    ballots: election.ballots.map((ballot) => ballot.rankedPlayerIds),
-  })
-  const winnerId = result.winnerId ?? election.candidatePlayerIds.slice().sort()[0] ?? null
-  if (!winnerId) throw roomError(409, "election-empty", "This host vote has no candidates.")
+    const ballotVoterIds = new Set(election.ballots.map((ballot) => ballot.voterPlayerId))
+    const allVotersSubmitted = election.activeVoterPlayerIds.every((playerId) => ballotVoterIds.has(playerId))
+    if (!allVotersSubmitted && election.closesAt.getTime() > Date.now()) {
+      throw roomError(409, "election-open", "This host vote is still open.")
+    }
 
-  const now = new Date()
-  const updated = await prisma.$transaction(async (tx) => {
+    const result = runInstantRunoffElection({
+      candidateIds: election.candidatePlayerIds,
+      ballots: election.ballots.map((ballot) => ballot.rankedPlayerIds),
+    })
+    const winnerId = result.winnerId ?? election.candidatePlayerIds.slice().sort()[0] ?? null
+    if (!winnerId) throw roomError(409, "election-empty", "This host vote has no candidates.")
+
+    const now = new Date()
     await tx.anatomimeHostElection.update({
       where: {
         roomId_id: {
-          roomId: room.id,
+          roomId: currentRoom.id,
           id: election.id,
         },
       },
@@ -1559,15 +1641,18 @@ export async function resolveAnatomimeHostElection(code: string) {
       },
     })
 
-    return touchRoom(tx, room.id, {
-      hostPlayerId: winnerId,
-      hostLastActivityAt: now,
-      lastMeaningfulActivityAt: now,
-    })
+    return {
+      room: await touchRoom(tx, currentRoom.id, {
+        hostPlayerId: winnerId,
+        hostLastActivityAt: now,
+        lastMeaningfulActivityAt: now,
+      }),
+      winnerId,
+    }
   })
 
-  await publishAnatomimeRealtimeEvent(room.code, "host-election-resolved", { playerId: winnerId })
-  return updated
+  await publishAnatomimeRealtimeEvent(room.code, "host-election-resolved", { playerId: resolved.winnerId })
+  return resolved.room
 }
 
 export function summarizeAnatomimeRoom(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}) {

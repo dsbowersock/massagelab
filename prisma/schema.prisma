@@ -1066,6 +1066,7 @@ model AnatomimeHostElection {
   ballots              AnatomimeHostElectionBallot[]
 
   @@unique([roomId, id])
+  @@unique([roomId], where: { status: "OPEN" }, map: "AnatomimeHostElection_one_open_per_room_key")
   @@index([roomId, status])
   @@index([closesAt])
 }

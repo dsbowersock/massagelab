@@ -13,6 +13,7 @@ import {
 import { createFlashcardPromptDeck } from "@/lib/anatomy-study"
 import type { AnatomyStudyRegion } from "@/lib/anatomy-study"
 import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
+import { lockFlashcardLinkedProgress } from "@/lib/anatomime-progress-server"
 import { prisma } from "@/lib/prisma"
 
 function json(value: unknown) {
@@ -59,6 +60,8 @@ async function updatePromptProgress(tx: Prisma.TransactionClient, userId: string
 }) {
   const now = new Date()
   const tool = flashcardProgressTool(result.promptId)
+  await lockFlashcardLinkedProgress(tx, userId, tool)
+
   const existing = await tx.learningProgress.findFirst({
     where: {
       userId,

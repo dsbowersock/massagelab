@@ -85,7 +85,7 @@ function secondsLeft(value: string | null, now: number) {
 
 function activeTermKey(session: AnatomimeRoomSummary | null) {
   if (!session?.activeItem) return ""
-  return `${session.activeItem.index}:${session.activeItem.prompt.id}`
+  return `${session.code}:${session.phaseEndsAt ?? "no-deadline"}:${session.activeItem.index}:${session.activeItem.prompt.id}`
 }
 
 function emptyAttempt(): TermAttemptState {

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, LogIn, Play, RotateCcw, SkipForward, Trophy, Users, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -198,7 +198,12 @@ export default function AnatomimePage() {
   const [sharedSession, setSharedSession] = useState<AnatomimeRoomSummary | null>(null)
   const [hostCredentials, setHostCredentials] = useState<{ playerId: string; token: string } | null>(null)
   const [creatingSharedGame, setCreatingSharedGame] = useState(false)
+  const selectedSetupTermIdsRef = useRef(selectedSetupTermIds)
   const termCount = TERM_COUNT
+
+  useEffect(() => {
+    selectedSetupTermIdsRef.current = selectedSetupTermIds
+  }, [selectedSetupTermIds])
 
   useEffect(() => {
     setTeamNames((current) => normalizeTeamNames(current, teamCount))
@@ -357,13 +362,14 @@ export default function AnatomimePage() {
   const toggleRegionTermPool = (regionId: string, regionTerms: AnatomyTerm[]) => {
     const regionTermIds = regionTerms.map((term) => term.id)
     const regionTermIdSet = new Set(regionTermIds)
-    const allRegionTermsSelected = regionTermIds.length > 0 && regionTermIds.every((termId) => selectedSetupTermIds.includes(termId))
+    const currentTermIds = selectedSetupTermIdsRef.current
+    const allRegionTermsSelected = regionTermIds.length > 0 && regionTermIds.every((termId) => currentTermIds.includes(termId))
+    const nextTermIds = allRegionTermsSelected
+      ? currentTermIds.filter((termId) => !regionTermIdSet.has(termId))
+      : [...new Set([...currentTermIds, ...regionTermIds])]
 
-    setSelectedSetupTermIds((current) => (
-      allRegionTermsSelected
-        ? current.filter((termId) => !regionTermIdSet.has(termId))
-        : [...new Set([...current, ...regionTermIds])]
-    ))
+    selectedSetupTermIdsRef.current = nextTermIds
+    setSelectedSetupTermIds(nextTermIds)
     setSelectedRegions((current) => (
       allRegionTermsSelected
         ? current.filter((selectedRegionId) => selectedRegionId !== regionId)

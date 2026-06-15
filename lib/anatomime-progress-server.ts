@@ -23,7 +23,7 @@ function advisoryLockKey(value: string) {
   return hash | 0
 }
 
-async function lockFlashcardLinkedProgress(tx: Prisma.TransactionClient, userId: string, tool: string) {
+export async function lockFlashcardLinkedProgress(tx: Prisma.TransactionClient, userId: string, tool: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(${7341}, ${advisoryLockKey(`${userId}:${tool}`)})`
 }
 

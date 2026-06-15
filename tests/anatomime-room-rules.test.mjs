@@ -95,6 +95,31 @@ describe("Anatomime room rules", () => {
     assert.equal(second.scoreTeamId, null)
   })
 
+  it("does not award progress to an active-team answer after a held opposing answer", () => {
+    const state = createInitialTermState({ activeTeamId: "team-a", cardId: "scapula" })
+    const held = resolveDeviceGuess(state, {
+      playerId: "player-b",
+      teamId: "team-b",
+      userId: "user-b",
+      correct: true,
+      answerKind: "typed",
+      submittedAt: new Date("2026-06-15T12:00:01.000Z"),
+    })
+    const active = resolveDeviceGuess(held.termState, {
+      playerId: "player-a",
+      teamId: "team-a",
+      userId: "user-a",
+      correct: true,
+      answerKind: "typed",
+      submittedAt: new Date("2026-06-15T12:00:02.000Z"),
+    })
+
+    assert.equal(active.feedbackKind, "active-correct")
+    assert.equal(active.shouldAdvance, true)
+    assert.equal(active.scoreTeamId, "team-a")
+    assert.equal(active.progressCreditPlayerId, null)
+  })
+
   it("enforces typed and multiple-choice attempt limits", () => {
     assert.deepEqual(typedGuessStatus(0), { allowed: true, remainingAfterUse: 4 })
     assert.deepEqual(typedGuessStatus(4), { allowed: true, remainingAfterUse: 0 })
