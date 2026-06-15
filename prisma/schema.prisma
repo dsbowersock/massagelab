@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -754,6 +755,7 @@ model LearningProgress {
   anatomyTerm   AnatomyTerm?   @relation(fields: [anatomyTermId], references: [id], onDelete: Cascade)
 
   @@unique([userId, anatomyTermId, tool])
+  @@unique([userId, tool], where: { anatomyTermId: null }, map: "LearningProgress_userId_tool_null_anatomyTermId_key")
   @@index([userId, tool])
 }
 

@@ -330,17 +330,40 @@ async function touchRoom(
   roomId: string,
   data: Prisma.AnatomimeRoomUncheckedUpdateInput,
 ) {
+  return tx.anatomimeRoom.update({
+    where: { id: roomId },
+    data: roomTouchData(data),
+    include: roomInclude,
+  })
+}
+
+function roomTouchData(data: Prisma.AnatomimeRoomUncheckedUpdateInput) {
   const nextData = { ...data }
   if (data.lastMeaningfulActivityAt && !data.expiresAt) {
     const activityAt = data.lastMeaningfulActivityAt instanceof Date ? data.lastMeaningfulActivityAt : new Date()
     nextData.expiresAt = addMinutes(activityAt, ANATOMIME_ROOM_IDLE_MINUTES)
   }
 
-  return tx.anatomimeRoom.update({
-    where: { id: roomId },
-    data: nextData,
-    include: roomInclude,
+  return nextData
+}
+
+async function touchRoomIfUnchanged(
+  tx: Prisma.TransactionClient,
+  room: Pick<AnatomimeRoomWithRelations, "id" | "updatedAt">,
+  where: Prisma.AnatomimeRoomWhereInput,
+  data: Prisma.AnatomimeRoomUncheckedUpdateInput,
+) {
+  const updated = await tx.anatomimeRoom.updateMany({
+    where: {
+      ...where,
+      id: room.id,
+      updatedAt: room.updatedAt,
+    },
+    data: roomTouchData(data),
   })
+  if (updated.count === 0) throw new StaleRoomMutationError()
+
+  return reloadRoom(tx, room.id)
 }
 
 async function reloadRoom(tx: Prisma.TransactionClient, roomId: string) {
@@ -560,15 +583,12 @@ async function createPlayingRun(tx: Prisma.TransactionClient, room: AnatomimeRoo
 async function startExistingLobbyRun(tx: Prisma.TransactionClient, room: AnatomimeRoomWithRelations, run: AnatomimeRunWithRelations, config: AnatomimeSessionConfig, startedAt: Date) {
   const deckCardIds = deckCardIdsForRun(config, room.teams.length)
 
-  await tx.anatomimeGameRunTeamScore.deleteMany({
-    where: { roomId: room.id, runId: run.id },
-  })
-  await tx.anatomimeGameRun.update({
+  const updated = await tx.anatomimeGameRun.updateMany({
     where: {
-      roomId_id: {
-        roomId: room.id,
-        id: run.id,
-      },
+      roomId: room.id,
+      id: run.id,
+      status: "LOBBY",
+      phase: "LOBBY",
     },
     data: {
       status: "PLAYING",
@@ -583,6 +603,11 @@ async function startExistingLobbyRun(tx: Prisma.TransactionClient, room: Anatomi
       completedAt: null,
       metadata: json({}),
     },
+  })
+  if (updated.count === 0) throw new StaleRoomMutationError()
+
+  await tx.anatomimeGameRunTeamScore.deleteMany({
+    where: { roomId: room.id, runId: run.id },
   })
   await createRunScores(tx, room, run.id)
 
@@ -947,21 +972,39 @@ export async function changeAnatomimeRoomTeam(code: string, input: unknown, view
   if (!team) throw roomError(404, "team-not-found", "Team not found.")
 
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.anatomimeRoomPlayer.update({
+    const currentRoom = await reloadRoom(tx, room.id)
+    if (currentRoom.status !== "LOBBY" && currentRoom.status !== "GAME_COMPLETE") {
+      throw new StaleRoomMutationError()
+    }
+
+    const currentPlayer = requireJoinedPlayer(currentRoom, viewer)
+    if (currentPlayer.id === currentRoom.hostPlayerId) {
+      throw roomError(403, "player-required", "Only joined players can change teams.")
+    }
+
+    const currentTeam = currentRoom.teams.find((candidate) => candidate.id === teamId)
+    if (!currentTeam) throw roomError(404, "team-not-found", "Team not found.")
+
+    const moved = await tx.anatomimeRoomPlayer.updateMany({
       where: {
-        roomId_id: {
-          roomId: room.id,
-          id: player.id,
-        },
+        roomId: currentRoom.id,
+        id: currentPlayer.id,
+        teamId: currentPlayer.teamId,
       },
       data: {
-        teamId: team.id,
+        teamId: currentTeam.id,
         lastSeenAt: new Date(),
         lastActionAt: new Date(),
       },
     })
+    if (moved.count === 0) throw new StaleRoomMutationError()
 
-    return touchRoom(tx, room.id, { lastMeaningfulActivityAt: new Date() })
+    return touchRoomIfUnchanged(tx, currentRoom, {
+      status: { in: ["LOBBY", "GAME_COMPLETE"] },
+    }, { lastMeaningfulActivityAt: new Date() })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "team-changed", { playerId: player.id, teamId: team.id })
@@ -974,20 +1017,33 @@ export async function startAnatomimeGameRun(code: string, viewer: ViewerContext)
     throw roomError(409, "room-not-startable", "This room is not ready to start a game.")
   }
 
-  const config = setupConfigFromRoom(room)
   const startedAt = new Date()
   const updated = await prisma.$transaction(async (tx) => {
-    const currentLobbyRun = room.currentRun?.status === "LOBBY" ? room.currentRun : null
-    const run = currentLobbyRun
-      ? await startExistingLobbyRun(tx, room, currentLobbyRun, config, startedAt)
-      : await createPlayingRun(tx, room, config, startedAt)
+    const currentRoom = await reloadRoom(tx, room.id)
+    if (!viewerIsHost(currentRoom, viewer)) throw new StaleRoomMutationError()
+    if (currentRoom.status !== "LOBBY" && currentRoom.status !== "GAME_COMPLETE") {
+      throw new StaleRoomMutationError()
+    }
 
-    return touchRoom(tx, room.id, {
+    const config = setupConfigFromRoom(currentRoom)
+    const currentLobbyRun = currentRoom.currentRun?.status === "LOBBY" ? currentRoom.currentRun : null
+    const run = currentLobbyRun
+      ? await startExistingLobbyRun(tx, currentRoom, currentLobbyRun, config, startedAt)
+      : await createPlayingRun(tx, currentRoom, config, startedAt)
+
+    return touchRoomIfUnchanged(tx, currentRoom, {
+      status: { in: ["LOBBY", "GAME_COMPLETE"] },
+      hostPlayerId: currentRoom.hostPlayerId,
+      currentRunId: currentRoom.currentRunId,
+    }, {
       status: "PLAYING",
       currentRunId: run.id,
       hostLastActivityAt: startedAt,
       lastMeaningfulActivityAt: startedAt,
     })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "game-started", { code: room.code })
@@ -1269,14 +1325,23 @@ export async function startNextAnatomimeGame(code: string, input: unknown, viewe
   }
 
   const body = objectBody(input)
-  const config = normalizeAnatomimeSessionConfig({
-    ...setupConfigFromRoom(room),
-    ...(objectBody(body.config).answerMode ? objectBody(body.config) : {}),
-  })
+  const configOverride = objectBody(body.config)
   const now = new Date()
   const updated = await prisma.$transaction(async (tx) => {
-    const run = await createLobbyRun(tx, room, config)
-    return touchRoom(tx, room.id, {
+    const currentRoom = await reloadRoom(tx, room.id)
+    if (!viewerIsHost(currentRoom, viewer)) throw new StaleRoomMutationError()
+    if (currentRoom.status !== "GAME_COMPLETE") throw new StaleRoomMutationError()
+
+    const config = normalizeAnatomimeSessionConfig({
+      ...setupConfigFromRoom(currentRoom),
+      ...(configOverride.answerMode ? configOverride : {}),
+    })
+    const run = await createLobbyRun(tx, currentRoom, config)
+    return touchRoomIfUnchanged(tx, currentRoom, {
+      status: "GAME_COMPLETE",
+      hostPlayerId: currentRoom.hostPlayerId,
+      currentRunId: currentRoom.currentRunId,
+    }, {
       status: "LOBBY",
       currentRunId: run.id,
       endedAt: null,
@@ -1285,6 +1350,9 @@ export async function startNextAnatomimeGame(code: string, input: unknown, viewe
       lastMeaningfulActivityAt: now,
       metadata: json({ setup: config }),
     })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "next-game", { roomId: room.id })
@@ -1293,10 +1361,23 @@ export async function startNextAnatomimeGame(code: string, input: unknown, viewe
 
 export async function endAnatomimeRoomSession(code: string, viewer: ViewerContext) {
   const room = await requireHostRoom(code, viewer)
+  if (room.status === "REVIEW" || room.status === "EXPIRED") {
+    throw roomError(409, "room-not-active", "This room has already ended.")
+  }
+
   const now = new Date()
   const reviewExpiresAt = addMinutes(now, ANATOMIME_REVIEW_WINDOW_MINUTES)
   const updated = await prisma.$transaction(async (tx) => {
-    return touchRoom(tx, room.id, {
+    const currentRoom = await reloadRoom(tx, room.id)
+    if (!viewerIsHost(currentRoom, viewer)) throw new StaleRoomMutationError()
+    if (currentRoom.status === "REVIEW" || currentRoom.status === "EXPIRED") {
+      throw new StaleRoomMutationError()
+    }
+
+    return touchRoomIfUnchanged(tx, currentRoom, {
+      status: { in: ["LOBBY", "PLAYING", "GAME_COMPLETE"] },
+      hostPlayerId: currentRoom.hostPlayerId,
+    }, {
       status: "REVIEW",
       endedAt: now,
       reviewExpiresAt,
@@ -1304,6 +1385,9 @@ export async function endAnatomimeRoomSession(code: string, viewer: ViewerContex
       hostLastActivityAt: now,
       lastMeaningfulActivityAt: now,
     })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "room-ended", { roomId: room.id })
@@ -1316,14 +1400,32 @@ export async function transferAnatomimeRoomHost(code: string, input: unknown, vi
   const targetPlayerId = typeof body.playerId === "string" ? body.playerId : ""
   const target = room.players.find((player) => player.id === targetPlayerId)
   if (!target) throw roomError(404, "player-not-found", "Player not found.")
+  if (room.status === "REVIEW" || room.status === "EXPIRED") {
+    throw roomError(409, "room-not-active", "This room has already ended.")
+  }
 
   const now = new Date()
   const updated = await prisma.$transaction(async (tx) => {
-    return touchRoom(tx, room.id, {
-      hostPlayerId: target.id,
+    const currentRoom = await reloadRoom(tx, room.id)
+    if (!viewerIsHost(currentRoom, viewer)) throw new StaleRoomMutationError()
+    if (currentRoom.status === "REVIEW" || currentRoom.status === "EXPIRED") {
+      throw new StaleRoomMutationError()
+    }
+
+    const currentTarget = currentRoom.players.find((player) => player.id === targetPlayerId)
+    if (!currentTarget) throw roomError(404, "player-not-found", "Player not found.")
+
+    return touchRoomIfUnchanged(tx, currentRoom, {
+      status: { in: ["LOBBY", "PLAYING", "GAME_COMPLETE"] },
+      hostPlayerId: currentRoom.hostPlayerId,
+    }, {
+      hostPlayerId: currentTarget.id,
       hostLastActivityAt: now,
       lastMeaningfulActivityAt: now,
     })
+  }).catch((error) => {
+    if (isStaleRoomMutation(error)) throw staleRoomMutationRoomError()
+    throw error
   })
 
   await publishAnatomimeRealtimeEvent(room.code, "host-transferred", { playerId: target.id })

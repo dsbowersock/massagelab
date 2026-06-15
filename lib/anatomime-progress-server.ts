@@ -13,6 +13,20 @@ function json(value: unknown) {
   return value as Prisma.InputJsonValue
 }
 
+function advisoryLockKey(value: string) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return hash | 0
+}
+
+async function lockFlashcardLinkedProgress(tx: Prisma.TransactionClient, userId: string, tool: string) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${7341}, ${advisoryLockKey(`${userId}:${tool}`)})`
+}
+
 /**
  * Writes Anatomime name-recall progress through the same LearningProgress row
  * shape used by flashcards, keyed by the flashcard prompt id/tool instead of a
@@ -34,6 +48,8 @@ export async function updateAnatomimeNameRecallProgress(
   if (!prompt) return null
 
   const tool = anatomimeFlashcardProgressTool(input.card.id)
+  await lockFlashcardLinkedProgress(tx, input.userId, tool)
+
   const existing = await tx.learningProgress.findFirst({
     where: {
       userId: input.userId,
