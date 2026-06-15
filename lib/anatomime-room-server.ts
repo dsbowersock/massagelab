@@ -656,7 +656,7 @@ async function advanceTermOrTurnReview(
     })
     if (updated.count === 0) throw new StaleRoomMutationError()
     await incrementRunScore(tx, room.id, run.id, input.scoreTeamId)
-    await touchRoom(tx, room.id, {
+    await touchRoomIfUnchanged(tx, room, { status: "PLAYING", currentRunId: run.id }, {
       status: "GAME_COMPLETE",
       lastMeaningfulActivityAt: now,
       hostLastActivityAt: now,
@@ -675,7 +675,7 @@ async function advanceTermOrTurnReview(
     })
     if (updated.count === 0) throw new StaleRoomMutationError()
     await incrementRunScore(tx, room.id, run.id, input.scoreTeamId)
-    await touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
+    await touchRoomIfUnchanged(tx, room, { status: "PLAYING", currentRunId: run.id }, { lastMeaningfulActivityAt: now })
     return
   }
 
@@ -692,7 +692,7 @@ async function advanceTermOrTurnReview(
   })
   if (updated.count === 0) throw new StaleRoomMutationError()
   await incrementRunScore(tx, room.id, run.id, input.scoreTeamId)
-  await touchRoom(tx, room.id, { lastMeaningfulActivityAt: now })
+  await touchRoomIfUnchanged(tx, room, { status: "PLAYING", currentRunId: run.id }, { lastMeaningfulActivityAt: now })
 }
 
 async function incrementRunScore(
@@ -1167,7 +1167,12 @@ export async function submitAnatomimeRoomGuess(code: string, input: unknown, vie
         activeOutcome: "got",
       })
     } else {
-      await touchRoom(tx, lockedRoom.id, { lastMeaningfulActivityAt: submittedAt })
+      await touchRoomIfUnchanged(
+        tx,
+        lockedRoom,
+        { status: "PLAYING", currentRunId: lockedRun.id },
+        { lastMeaningfulActivityAt: submittedAt },
+      )
     }
 
     return { guess, resolution, room: await reloadRoom(tx, lockedRoom.id), correct }
@@ -1304,7 +1309,7 @@ export async function startNextAnatomimeTeamTurn(code: string, viewer: ViewerCon
     })
     if (updatedRun.count === 0) throw new StaleRoomMutationError()
 
-    return touchRoom(tx, lockedRoom.id, {
+    return touchRoomIfUnchanged(tx, lockedRoom, { status: "PLAYING", currentRunId: lockedRun.id }, {
       status: "PLAYING",
       hostLastActivityAt: now,
       lastMeaningfulActivityAt: now,
