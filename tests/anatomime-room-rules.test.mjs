@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  anatomimeTurnReviewTermIdentity,
   calculateMultipleChoiceUnlockSeconds,
   buildOpaqueAnatomimeChoiceOptions,
   canResolveTermTimeout,
@@ -150,6 +151,44 @@ describe("Anatomime room rules", () => {
     assert.ok(choices.every((choice) => choice.id !== choice.cardId))
     assert.equal(resolveOpaqueAnatomimeChoiceId(choices, scapulaChoice?.id ?? ""), "scapula")
     assert.equal(resolveOpaqueAnatomimeChoiceId(choices, "scapula"), null)
+  })
+
+  it("masks turn review answer identities for non-host viewers", () => {
+    const hostIdentity = anatomimeTurnReviewTermIdentity({
+      seed: "run-1",
+      cardIndex: 2,
+      cardId: "scapula",
+      name: "Scapula",
+      hostView: true,
+    })
+    const playerIdentity = anatomimeTurnReviewTermIdentity({
+      seed: "run-1",
+      cardIndex: 2,
+      cardId: "scapula",
+      name: "Scapula",
+      hostView: false,
+    })
+    const repeatedPlayerIdentity = anatomimeTurnReviewTermIdentity({
+      seed: "run-1",
+      cardIndex: 2,
+      cardId: "scapula",
+      name: "Scapula",
+      hostView: false,
+    })
+    const nextPlayerIdentity = anatomimeTurnReviewTermIdentity({
+      seed: "run-1",
+      cardIndex: 3,
+      cardId: "humerus",
+      name: "Humerus",
+      hostView: false,
+    })
+
+    assert.deepEqual(hostIdentity, { cardId: "scapula", name: "Scapula" })
+    assert.match(playerIdentity.cardId, /^term_/)
+    assert.notEqual(playerIdentity.cardId, "scapula")
+    assert.equal(playerIdentity.name, "")
+    assert.deepEqual(playerIdentity, repeatedPlayerIdentity)
+    assert.notEqual(playerIdentity.cardId, nextPlayerIdentity.cardId)
   })
 
   it("hides room multiple-choice options from hosts and players before unlock", () => {

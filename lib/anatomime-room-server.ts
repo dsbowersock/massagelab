@@ -21,6 +21,7 @@ import {
   ANATOMIME_ROOM_IDLE_MINUTES,
   ANATOMIME_TERM_SECONDS,
   ANATOMIME_TERMS_PER_TURN,
+  anatomimeTurnReviewTermIdentity,
   buildOpaqueAnatomimeChoiceOptions,
   calculateMultipleChoiceUnlockSeconds,
   canResolveTermTimeout,
@@ -1555,12 +1556,21 @@ export function summarizeAnatomimeRoom(room: AnatomimeRoomWithRelations, viewer:
       }
       : null,
     turnReview: run
-      ? currentTurnOutcomes(run).map((outcome) => ({
-        cardId: outcome.cardId,
-        name: cardById(outcome.cardId)?.name ?? outcome.cardId,
-        outcome: outcome.outcome,
-        scoredTeamId: outcome.scoredTeamId,
-      }))
+      ? currentTurnOutcomes(run).map((outcome) => {
+        const card = cardById(outcome.cardId)
+
+        return {
+          ...anatomimeTurnReviewTermIdentity({
+            seed: run.id,
+            cardIndex: outcome.cardIndex,
+            cardId: outcome.cardId,
+            name: card?.name ?? outcome.cardId,
+            hostView,
+          }),
+          outcome: outcome.outcome,
+          scoredTeamId: outcome.scoredTeamId,
+        }
+      })
       : [],
     recap: recapRows(room),
     hostElection: openElection

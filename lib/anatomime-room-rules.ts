@@ -124,6 +124,30 @@ export function opaqueAnatomimeTermKey(input: { seed: string; cardIndex: number 
   return `term_${stableOpaqueToken(`${input.seed}:term:${input.cardIndex}`)}`
 }
 
+/**
+ * Keeps host turn-review rows answer-bearing while masking completed term
+ * identities from player summaries that still need stable recap row keys.
+ */
+export function anatomimeTurnReviewTermIdentity(input: {
+  seed: string
+  cardIndex: number
+  cardId: string
+  name: string
+  hostView: boolean
+}) {
+  if (input.hostView) {
+    return {
+      cardId: input.cardId,
+      name: input.name,
+    }
+  }
+
+  return {
+    cardId: opaqueAnatomimeTermKey({ seed: input.seed, cardIndex: input.cardIndex }),
+    name: "",
+  }
+}
+
 export function shouldExposeAnatomimeChoiceOptions(input: {
   answerMode: AnatomimeRoomAnswerMode
   hostView: boolean
