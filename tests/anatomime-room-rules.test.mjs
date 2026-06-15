@@ -317,6 +317,21 @@ describe("Anatomime room rules", () => {
     )
   })
 
+  it("blocks joins when a room is explicitly expired", () => {
+    const room = {
+      status: "EXPIRED",
+      endedAt: null,
+      reviewExpiresAt: null,
+      expiresAt: new Date("2026-06-15T12:30:00.000Z"),
+      existingPlayerIds: ["player-a"],
+    }
+
+    assert.deepEqual(
+      canJoinRoom(room, { now: new Date("2026-06-15T12:05:00.000Z"), playerId: "player-a" }),
+      { allowed: false, reason: "expired" },
+    )
+  })
+
   it("resolves instant-runoff host election", () => {
     const result = runInstantRunoffElection({
       candidateIds: ["host", "alpha", "beta"],

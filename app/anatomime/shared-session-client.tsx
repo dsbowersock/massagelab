@@ -181,6 +181,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       }
       : undefined
   ), [storedPlayer])
+  const visibleRankedPlayerIds = useMemo(() => {
+    const allowed = new Set(session?.hostElection?.candidatePlayerIds ?? [])
+    return rankedPlayerIds.filter((playerId) => allowed.has(playerId))
+  }, [rankedPlayerIds, session?.hostElection?.candidatePlayerIds])
 
   const refreshSession = useCallback(async () => {
     if (!lookupCode) return
@@ -451,7 +455,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
           "x-anatomime-player-id": storedPlayer.playerId,
           "x-anatomime-player-token": storedPlayer.playerToken,
         },
-        body: JSON.stringify(action === "vote" ? { action, rankedPlayerIds } : { action }),
+        body: JSON.stringify(action === "vote" ? { action, rankedPlayerIds: visibleRankedPlayerIds } : { action }),
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -683,7 +687,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                   ))}
                 </div>
                 <div className="anatomime-actions">
-                  <button type="button" className="anatomime-primary-button" onClick={() => submitHostVote("vote")} disabled={rankedPlayerIds.length === 0}>
+                  <button type="button" className="anatomime-primary-button" onClick={() => submitHostVote("vote")} disabled={visibleRankedPlayerIds.length === 0}>
                     Submit Vote
                   </button>
                   {new Date(session.hostElection.closesAt).getTime() <= now ? (

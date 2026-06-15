@@ -379,7 +379,9 @@ export function canJoinRoom(
   },
   input: { now: Date; playerId: string | null },
 ): { allowed: boolean; reason: "expired" | "review" | "open" } {
-  if (room.expiresAt.getTime() <= input.now.getTime()) return { allowed: false, reason: "expired" }
+  if (room.status === "EXPIRED" || room.expiresAt.getTime() <= input.now.getTime()) {
+    return { allowed: false, reason: "expired" }
+  }
 
   if (room.status === "REVIEW" || room.status === "ENDED") {
     const reviewOpen = room.reviewExpiresAt ? room.reviewExpiresAt.getTime() > input.now.getTime() : false

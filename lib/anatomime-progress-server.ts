@@ -23,6 +23,11 @@ function advisoryLockKey(value: string) {
   return hash | 0
 }
 
+/**
+ * Serializes flashcard-linked LearningProgress writes for one user/tool within
+ * the caller's Prisma transaction. Callers that need multiple progress locks
+ * should acquire them in deterministic tool order to avoid advisory-lock cycles.
+ */
 export async function lockFlashcardLinkedProgress(tx: Prisma.TransactionClient, userId: string, tool: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(${7341}, ${advisoryLockKey(`${userId}:${tool}`)})`
 }

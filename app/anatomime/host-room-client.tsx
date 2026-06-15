@@ -85,10 +85,29 @@ export function HostRoomClient({
 
   useEffect(() => {
     if (session.status === "REVIEW" || session.status === "EXPIRED") return
-    const timer = window.setInterval(() => {
-      void refreshSession().catch(() => undefined)
-    }, 1500)
-    return () => window.clearInterval(timer)
+    let cancelled = false
+    let inFlight = false
+    let timer = 0
+
+    const poll = async () => {
+      if (!inFlight) {
+        inFlight = true
+        try {
+          await refreshSession()
+        } catch {
+          // Keep polling; the host screen should recover when the next poll succeeds.
+        } finally {
+          inFlight = false
+        }
+      }
+      if (!cancelled) timer = window.setTimeout(poll, 1500)
+    }
+
+    timer = window.setTimeout(poll, 1500)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [refreshSession, session.status])
 
   const performAction = useCallback(async (label: string, path: string, body: Record<string, unknown> = {}) => {
@@ -98,6 +117,7 @@ export function HostRoomClient({
       const nextSession = await postHostAction(path, credentials, body)
       setSyncedSession(nextSession)
     } catch (error) {
+      if (label === "timeout") timeoutKeyRef.current = ""
       setMessage(error instanceof Error ? error.message : "Anatomime action failed.")
     } finally {
       setBusyAction(null)

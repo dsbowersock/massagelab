@@ -494,25 +494,34 @@ async function loadLockedTurnReviewRoom(
 }
 
 async function expireRoomIfIdle(room: AnatomimeRoomWithRelations) {
-  if (room.status === "EXPIRED" || room.expiresAt.getTime() > Date.now()) return room
+  const now = new Date()
+  if (room.status === "EXPIRED" || room.expiresAt.getTime() > now.getTime()) return room
 
   return prisma.$transaction(async (tx) => {
-    if (room.currentRun && room.currentRun.status === "PLAYING") {
+    const expired = await tx.anatomimeRoom.updateMany({
+      where: {
+        id: room.id,
+        status: { not: "EXPIRED" },
+        expiresAt: { lte: now },
+      },
+      data: { status: "EXPIRED" },
+    })
+    if (expired.count === 0) return reloadRoom(tx, room.id)
+
+    const currentRoom = await reloadRoom(tx, room.id)
+    if (currentRoom.currentRun && currentRoom.currentRun.status === "PLAYING") {
       await tx.anatomimeGameRun.updateMany({
-        where: { roomId: room.id, id: room.currentRun.id, status: "PLAYING" },
+        where: { roomId: currentRoom.id, id: currentRoom.currentRun.id, status: "PLAYING" },
         data: {
           status: "GAME_COMPLETE",
           phase: "GAME_COMPLETE",
           termEndsAt: null,
-          completedAt: new Date(),
+          completedAt: now,
         },
       })
     }
 
-    return touchRoom(tx, room.id, {
-      status: "EXPIRED",
-      expiresAt: room.expiresAt,
-    })
+    return reloadRoom(tx, currentRoom.id)
   })
 }
 
@@ -1559,6 +1568,9 @@ export async function submitAnatomimeHostElectionBallot(code: string, input: unk
     if (!currentElection.activeVoterPlayerIds.includes(currentPlayer.id)) {
       throw roomError(403, "voter-not-eligible", "You cannot vote in this host election.")
     }
+    if (currentElection.closesAt.getTime() <= now.getTime()) {
+      throw roomError(409, "election-closed", "This host vote is already closed.")
+    }
 
     const candidateIds = new Set(currentElection.candidatePlayerIds)
     const rankedPlayerIds = submittedRankedPlayerIds.filter((id) => candidateIds.has(id))
@@ -1600,14 +1612,16 @@ export async function submitAnatomimeHostElectionBallot(code: string, input: unk
   return updated
 }
 
-export async function resolveAnatomimeHostElection(code: string) {
-  const room = await loadAnatomimeRoom(code)
+export async function resolveAnatomimeHostElection(code: string, viewer: ViewerContext) {
+  const room = await loadAnatomimeRoom(code, viewer)
   if (!room) throw roomError(404, "room-not-found", "Game not found.")
 
   requireHostElectionMutableRoom(room)
+  requireJoinedPlayer(room, viewer)
   const resolved = await prisma.$transaction(async (tx) => {
     const currentRoom = await reloadRoom(tx, room.id)
     requireHostElectionMutableRoom(currentRoom)
+    requireJoinedPlayer(currentRoom, viewer)
 
     const election = currentRoom.elections[0]
     if (!election) throw roomError(404, "election-not-found", "No host vote is open.")
@@ -1655,6 +1669,12 @@ export async function resolveAnatomimeHostElection(code: string) {
   return resolved.room
 }
 
+/**
+ * Builds the stable shared-room payload consumed by host and player clients.
+ * Host viewers receive answer-bearing prompts; players receive opaque term
+ * keys until the game is complete. Date fields are serialized as ISO strings
+ * or null, and host-election fields expose only public ballot state.
+ */
 export function summarizeAnatomimeRoom(room: AnatomimeRoomWithRelations, viewer: ViewerContext = {}) {
   const run = room.currentRun
   const config = run ? runConfig(run) : setupConfigFromRoom(room)
