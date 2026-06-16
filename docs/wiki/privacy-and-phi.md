@@ -1,8 +1,8 @@
 # Privacy And PHI Posture
 
-MassageLab's alpha is local-first for clinical documentation and health-sensitive data.
+MassageLab's alpha is local-first for clinical documentation. Signed-in client wellness self-tracking is a separate consumer-health data domain, not therapist professional-record storage.
 
-The long-term domain model is defined in [Privacy-first data architecture](privacy-first-data-architecture.md). The short version is: account/contact/booking data may use normal cloud app storage, future client-owned wellness data is a separate privacy-controlled consumer-health domain, and therapist professional records stay local-first until hosted PHI storage passes the compliance gates below.
+The long-term domain model is defined in [Privacy-first data architecture](privacy-first-data-architecture.md). The short version is: account/contact/booking data may use normal cloud app storage, signed-in `/wellness` entries use separate privacy-controlled client-owned self-tracking storage, and therapist professional records stay local-first until hosted PHI storage passes the compliance gates below.
 
 Therapist note-taking tools are visible in the app, but creating or viewing SOAP, intake, journal, ROM, and related professional-record documents requires the `therapist_documentation_tools` entitlement from an active Therapist or Team/Practice membership. This subscription gate does not change the PHI boundary: unlocked professional-record content still stays local-first unless hosted clinical storage passes the compliance gates below.
 
@@ -26,9 +26,15 @@ Encrypted `.mlab` full-vault bundles are the normal user-controlled transfer and
 - The therapist intake workspace is local-first and must not call account, client, calendar, clinical sync, or other `/api/*` endpoints with health history, signatures, pain maps, or intake answers.
 - Built-in intake templates mirror the current Google intake workflow and body-map placeholders, but the app renders MassageLab-native JSON, DOC, and print/PDF outputs instead of exact Google Doc/XLSX files.
 - Pre-arrival remote flows are limited to contact/profile and booking status information. Remote client accounts must not show clinical documents until hosted PHI storage passes the compliance gates below.
-- Future client-owned wellness data may become cloud-backed under a separate privacy-controlled domain, but therapist remote viewing and professional-record import remain deferred until consent, audit, compliance, and product gates are implemented.
+- Client-owned wellness data is cloud-backed only under the separate `/wellness` self-tracking domain. Therapist remote viewing and professional-record import remain deferred until consent, audit, compliance, and product gates are implemented.
 - Professional-record vault data is encrypted at rest in browser storage and unlocked in memory for the current browser session. Encrypted storage and encrypted exports do not replace device passcodes, OS disk encryption, access policies, or backups.
 - Local transfer methods such as Bluetooth, local Wi-Fi, mesh, and browser peer-to-peer transfer are deferred until a dedicated risk model covers authentication, encryption, audit expectations, vendor/BAA requirements, and operating procedures.
+
+## Client Wellness Boundary
+
+`/wellness` lets anonymous users practice quick logs and ROM measurement in memory only. Signed-in users can save client-owned self-tracking entries, export their entries, and soft-delete their entries. These records are not therapist professional records, diagnosis, emergency monitoring, or a live therapist dashboard.
+
+Client wellness entries must stay out of account preferences, calendar payloads, notification payloads, Sentry metadata, analytics, email/SMS bodies, and the therapist professional-record vault. A future therapist sharing bridge requires explicit consent scope, revocation, audit language, and a deliberate professional-record reference step before any shared wellness data is used in treatment planning or notes.
 
 ## PWA Cache Boundary
 
@@ -38,9 +44,9 @@ SOAP, intake, journal, and ROM content remains in the encrypted browser vault af
 
 ## Sync Boundary
 
-Account sync must not include SOAP note, intake form, journal, ROM, client, or treatment content.
+Account preference sync must not include SOAP note, intake form, journal, ROM, client, treatment, or client wellness entry content.
 
-Calendar sync stores scheduling metadata only. SOAP notes, pain-map selections, transcript content, and research exports remain local-first.
+Calendar sync stores scheduling metadata only. SOAP notes, pain-map selections, transcript content, client wellness details, and research exports remain outside calendar payloads.
 
 Hosted clinical sync is disabled unless all of these flags are set:
 

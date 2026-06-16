@@ -28,6 +28,7 @@ describe("Navigation IA model", () => {
     assert.deepEqual(groups.map((group) => group.id), ["tools", "documentation", "education", "games", "about"])
     assert.deepEqual(groups.flatMap((group) => group.routes.map((route) => route.href)), [
       "/chimer",
+      "/wellness",
       "/calendar",
       "/notes",
       "/education/flashcards",
@@ -130,6 +131,7 @@ describe("Navigation IA model", () => {
     assert.deepEqual(primaryGroupIds(navigation), ["tools", "documentation", "education", "games", "about"])
     assert.deepEqual(primaryHrefs(navigation), [
       "/chimer",
+      "/wellness",
       "/calendar",
       "/notes",
       "/education/flashcards",
@@ -142,6 +144,24 @@ describe("Navigation IA model", () => {
     assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), ["/support"])
     assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), [])
     assert.deepEqual(navigation.calendarMenuActions.map((route) => route.href), [])
+  })
+
+  it("keeps the wellness practice surface visible for anonymous, signed-in, and client users", () => {
+    const anonymousNavigation = resolveNavigation({ authState: "anonymous" })
+    const signedInNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "USER", status: "VERIFIED" }],
+    })
+    const clientNavigation = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "CLIENT", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarBasicScheduling],
+    })
+
+    assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness"), true)
+    assert.equal(primaryHrefs(signedInNavigation).includes("/wellness"), true)
+    assert.equal(primaryHrefs(clientNavigation).includes("/wellness"), true)
+    assert.equal(primaryHrefs(clientNavigation).some((href) => href.startsWith("/notes/")), false)
   })
 
   it("resolves signed-in base users without practice-management shortcuts", () => {

@@ -5,6 +5,7 @@ const publicRoutes = [
   { path: "/notes", expectedText: /Therapist or Team\/Practice required/i },
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
+  { path: "/wellness", expectedText: /Client-owned self-tracking/i },
   { path: "/calendar", expectedText: /Calendar/i },
   { path: "/education", expectedText: /Education/i },
   { path: "/education/flashcards", expectedText: /Flashcards/i },
