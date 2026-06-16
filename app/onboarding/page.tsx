@@ -4,6 +4,7 @@ import { ArrowRight, BadgeCheck, Gamepad2, LayoutDashboard, MapPinned } from "lu
 import { getCurrentSession } from "@/auth"
 import {
   homeToolCatalog,
+  resolveExplicitOnboardingHomeToolKeys,
   getOnboardingRecommendedPath,
   resolveOnboardingHomeToolKeys,
   onboardingRoleOptions,
@@ -37,7 +38,9 @@ export default async function OnboardingPage() {
   const savedUseCases = new Set(Array.isArray(savedOnboarding.useCases) ? savedOnboarding.useCases.filter((value) => typeof value === "string") : [])
   const savedJurisdiction = typeof savedOnboarding.jurisdiction === "string" ? savedOnboarding.jurisdiction : ""
   const recommendedPath = getOnboardingRecommendedPath(savedRole)
-  const savedHomeShortcuts = resolveOnboardingHomeToolKeys(savedOnboarding)
+  const savedHomeShortcuts = resolveExplicitOnboardingHomeToolKeys(savedOnboarding)
+  const computedHomeShortcuts = resolveOnboardingHomeToolKeys(savedOnboarding)
+  const shouldPersistHomeShortcuts = savedHomeShortcuts.length > 0
 
   return (
     <AppPageShell title="Onboarding">
@@ -123,8 +126,9 @@ export default async function OnboardingPage() {
               </p>
               <HomeShortcutEditor
                 tools={homeToolCatalog}
-                defaultSelection={savedHomeShortcuts}
+                defaultSelection={savedHomeShortcuts.length > 0 ? savedHomeShortcuts : computedHomeShortcuts}
                 fieldName="homeShortcuts"
+                persistSelection={shouldPersistHomeShortcuts}
               />
             </div>
 

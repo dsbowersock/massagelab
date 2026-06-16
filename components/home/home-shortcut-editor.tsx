@@ -17,11 +17,13 @@ export function HomeShortcutEditor({
   tools,
   defaultSelection,
   fieldName,
+  persistSelection = false,
   maxSelections = maxToolSelections,
 }: {
   tools: ReadonlyArray<HomeToolShortcutOption>
   defaultSelection: ReadonlyArray<string>
   fieldName: string
+  persistSelection?: boolean
   maxSelections?: number
 }) {
   const byKey = useMemo(() => new Map(tools.map((tool) => [tool.key, tool])), [tools])
@@ -42,9 +44,14 @@ export function HomeShortcutEditor({
   }
 
   const [selection, setSelection] = useState<string[]>(() => sanitizeSelection(defaultSelection))
+  const [shouldPersistSelection, setShouldPersistSelection] = useState(persistSelection)
 
   const selectedSet = useMemo(() => new Set(selection), [selection])
   const availableTools = tools.filter((tool) => !selectedSet.has(tool.key))
+
+  function markSelectionModified() {
+    setShouldPersistSelection(true)
+  }
 
   function moveUp(index: number) {
     if (index === 0) {
@@ -53,6 +60,7 @@ export function HomeShortcutEditor({
 
     setSelection((current) => {
       if (index <= 0 || index >= current.length) return current
+      markSelectionModified()
       const next = [...current]
       ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
       return next
@@ -66,6 +74,7 @@ export function HomeShortcutEditor({
 
     setSelection((current) => {
       if (index < 0 || index >= current.length - 1) return current
+      markSelectionModified()
       const next = [...current]
       ;[next[index + 1], next[index]] = [next[index], next[index + 1]]
       return next
@@ -79,10 +88,15 @@ export function HomeShortcutEditor({
         if (current.length >= maxSelections) {
           return current
         }
+        markSelectionModified()
         return [...current, toolKey]
       }
 
       if (!enabled) {
+        if (!hasKey) {
+          return current
+        }
+        markSelectionModified()
         return current.filter((value) => value !== toolKey)
       }
 
@@ -171,8 +185,8 @@ export function HomeShortcutEditor({
             <input
               type="checkbox"
               className="mt-1 h-4 w-4 accent-primary"
-              checked={selectedSet.has(tool.key)}
-              disabled={selection.length >= maxSelections && !selectedSet.has(tool.key)}
+              checked={false}
+              disabled={selection.length >= maxSelections}
               onChange={(event) => toggleTool(tool.key, event.target.checked)}
             />
             <span className="min-w-0">
@@ -190,9 +204,9 @@ export function HomeShortcutEditor({
         </div>
       ) : null}
 
-      {selection.map((toolKey) => (
+      {shouldPersistSelection ? selection.map((toolKey) => (
         <input key={toolKey} type="hidden" name={fieldName} value={toolKey} />
-      ))}
+      )) : null}
     </div>
   )
 }

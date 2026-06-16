@@ -311,9 +311,6 @@ export default async function Home() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visibleTools.map((tool) => {
-            if (!tool) {
-              return null
-            }
             const Icon = tool.icon
             const isAccountTool = tool.key === "account_memberships"
             const href = isAccountTool ? accountToolHref : tool.href

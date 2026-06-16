@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 import {
   ONBOARDING_VERSION,
   buildOnboardingPreference,
+  resolveExplicitOnboardingHomeToolKeys,
   resolveOnboardingHomeToolKeys,
   getOnboardingRecommendedPath,
 } from "../lib/onboarding-preferences.js"
@@ -84,5 +85,16 @@ describe("Onboarding preference helpers", () => {
     assert.equal(payload[0], "calendar_booking")
     assert.equal(payload[1], "local_notes")
     assert.equal(payload[2], "chimer")
+  })
+
+  it("returns only persisted shortcut keys when explicit shortcuts are available", () => {
+    const payload = {
+      primaryRole: "student",
+      useCases: ["run_sessions", "learn_anatomy", "track_progress"],
+      homeShortcuts: ["calendar_booking", "chimer", "education_flashcards", "calendar_booking"],
+    }
+    const persisted = resolveExplicitOnboardingHomeToolKeys(payload)
+
+    assert.deepEqual(persisted, ["calendar_booking", "chimer", "education_flashcards"])
   })
 })
