@@ -46,7 +46,7 @@ export default async function VerifyEmailPage({
     <AppPageShell title="Email Verification" width="narrow">
         <AppSurface title={title} description={description}>
             <Button asChild className="bg-primary hover:bg-brand-orange-glow">
-              <Link href={verified ? "/login?verified=1" : "/login"}>Go to login</Link>
+              <Link href={verified ? "/login?verified=1&callbackUrl=%2Fonboarding" : "/login"}>Go to login</Link>
             </Button>
         </AppSurface>
     </AppPageShell>

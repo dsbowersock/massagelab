@@ -6,6 +6,7 @@ import {
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
+import { objectRecord } from "@/lib/onboarding-preferences"
 import { sanitizeChimerSettingsForEntitlements } from "@/lib/chimer-timer"
 import { getUserEntitlementState } from "@/lib/membership"
 import { prisma } from "@/lib/prisma"
@@ -52,6 +53,13 @@ export async function PUT(request: Request) {
   const existing = await prisma.userPreference.findUnique({
     where: { userId: session.user.id },
   })
+  // Merge existing app settings with incoming values only when callers provide
+  // appSettings. This preserves previously saved flags for omitted keys and
+  // applies replacements only for explicitly submitted entries.
+  const mergedAppSettings = {
+    ...objectRecord(existing?.appSettings),
+    ...payload.app_settings,
+  }
   const chimerSettings = "chimerSettings" in body
     ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, entitlements.features))
     : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {}
@@ -61,7 +69,7 @@ export async function PUT(request: Request) {
     create: {
       userId: session.user.id,
       version: USER_PREFERENCES_VERSION,
-      appSettings: jsonObject(payload.app_settings),
+      appSettings: jsonObject(mergedAppSettings),
       chimerSettings,
       anatomimeSettings: jsonObject(payload.anatomime_settings),
       notePreferences: jsonObject(payload.note_preferences),
@@ -69,7 +77,9 @@ export async function PUT(request: Request) {
     },
     update: {
       version: USER_PREFERENCES_VERSION,
-      appSettings: "appSettings" in body ? jsonObject(payload.app_settings) : (existing?.appSettings as Prisma.InputJsonValue | undefined) ?? {},
+      // Only update app settings on explicit appSettings payloads; otherwise keep
+      // existing settings unchanged to avoid accidental overwrite during partial updates.
+      appSettings: "appSettings" in body ? jsonObject(mergedAppSettings) : (existing?.appSettings as Prisma.InputJsonValue | undefined) ?? {},
       chimerSettings,
       anatomimeSettings: "anatomimeSettings" in body ? jsonObject(payload.anatomime_settings) : (existing?.anatomimeSettings as Prisma.InputJsonValue | undefined) ?? {},
       notePreferences: "notePreferences" in body ? jsonObject(payload.note_preferences) : (existing?.notePreferences as Prisma.InputJsonValue | undefined) ?? {},

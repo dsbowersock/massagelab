@@ -7,13 +7,23 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+/**
+ * Accept only non-empty root-relative URLs that are not protocol-relative.
+ *
+ * @param value Raw callback value from query string.
+ * @returns A safe callback path for in-app redirects.
+ *
+ * Allowed: non-null, non-empty strings beginning with "/".
+ * Blocked: null/empty values and protocol-relative paths (for example "//evil.com").
+ * Falls back to "/onboarding" when validation fails.
+ */
 function safeCallbackUrl(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account"
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/onboarding"
   return value
 }
 
 export default function RegisterPage() {
-  const [callbackUrl, setCallbackUrl] = useState("/account")
+  const [callbackUrl, setCallbackUrl] = useState("/onboarding")
   const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
