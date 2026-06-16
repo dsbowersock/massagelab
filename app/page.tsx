@@ -28,7 +28,7 @@ const proofLanes = [
     title: "Learn anatomy with sourced prompts",
     description: "Build public flashcard decks from reviewed anatomy records, then save progress when you create an account.",
     href: "/education/flashcards",
-    action: "Start studying",
+    action: "Study flashcards",
     icon: BookOpen,
     badge: "Public study",
   },
@@ -368,7 +368,7 @@ export default async function Home() {
           icon={<HeartHandshake className="h-5 w-5" aria-hidden="true" />}
         >
           <Button asChild variant="outline">
-            <Link href="/roadmap">View roadmap</Link>
+            <Link href="/roadmap">Open roadmap</Link>
           </Button>
         </AppSurface>
       </section>

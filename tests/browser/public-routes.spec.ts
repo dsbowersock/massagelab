@@ -152,13 +152,14 @@ test("anonymous homepage presents the optional action router and available tools
     await expect(page.getByText(name).first()).toBeVisible()
   }
 
-  await expect(page.getByRole("link", { name: /Open Chimer/i })).toHaveAttribute("href", "/chimer")
-  await expect(page.getByRole("link", { name: /Study flashcards/i })).toHaveAttribute("href", "/education/flashcards")
-  await expect(page.getByRole("link", { name: /Play Anatomime/i })).toHaveAttribute("href", "/anatomime")
-  await expect(page.getByRole("link", { name: /Open notes/i })).toHaveAttribute("href", "/notes")
-  await expect(page.getByRole("link", { name: /Open calendar/i }).last()).toHaveAttribute("href", "/calendar")
-  await expect(page.getByRole("link", { name: /^Create account$/i })).toHaveAttribute("href", "/register")
-  await expect(page.getByRole("link", { name: /Open roadmap/i })).toHaveAttribute("href", "/roadmap")
+  const availableTools = page.locator("#available-tools")
+  await expect(availableTools.getByRole("link", { name: /Open Chimer/i })).toHaveAttribute("href", "/chimer")
+  await expect(availableTools.getByRole("link", { name: /Study flashcards/i })).toHaveAttribute("href", "/education/flashcards")
+  await expect(availableTools.getByRole("link", { name: /Play Anatomime/i })).toHaveAttribute("href", "/anatomime")
+  await expect(availableTools.getByRole("link", { name: /Open notes/i })).toHaveAttribute("href", "/notes")
+  await expect(availableTools.getByRole("link", { name: /Open calendar/i })).toHaveAttribute("href", "/calendar")
+  await expect(availableTools.getByRole("link", { name: /^Create account$/i })).toHaveAttribute("href", "/register")
+  await expect(availableTools.getByRole("link", { name: /Open roadmap/i })).toHaveAttribute("href", "/roadmap")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
