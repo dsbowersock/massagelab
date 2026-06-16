@@ -12,7 +12,6 @@ describe("Onboarding preference helpers", () => {
       primaryRole: "therapist",
       useCases: ["manage_practice", "run_sessions", "clientName"],
       jurisdiction: "ohio",
-      notes: "Prefers credentials and calendar first.",
     })
 
     assert.equal(payload.version, ONBOARDING_VERSION)
@@ -20,6 +19,7 @@ describe("Onboarding preference helpers", () => {
     assert.deepEqual(payload.useCases, ["manage_practice", "run_sessions"])
     assert.equal(payload.jurisdiction, "OH")
     assert.equal(payload.recommendedPath, "/account?tab=credentials")
+    assert.equal("notes" in payload, false)
   })
 
   it("falls back to public wellness for unknown roles", () => {

@@ -6,6 +6,7 @@ import {
   getOnboardingRecommendedPath,
   onboardingRoleOptions,
   onboardingUseCaseOptions,
+  objectRecord,
 } from "@/lib/onboarding-preferences"
 import { prisma } from "@/lib/prisma"
 import { cn } from "@/lib/utils"
@@ -14,7 +15,6 @@ import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 
 export const dynamic = "force-dynamic"
 
@@ -33,7 +33,6 @@ export default async function OnboardingPage() {
   const savedRole = typeof savedOnboarding.primaryRole === "string" ? savedOnboarding.primaryRole : "public_wellness"
   const savedUseCases = new Set(Array.isArray(savedOnboarding.useCases) ? savedOnboarding.useCases.filter((value) => typeof value === "string") : [])
   const savedJurisdiction = typeof savedOnboarding.jurisdiction === "string" ? savedOnboarding.jurisdiction : ""
-  const savedNotes = typeof savedOnboarding.notes === "string" ? savedOnboarding.notes : ""
   const recommendedPath = getOnboardingRecommendedPath(savedRole)
 
   return (
@@ -99,7 +98,7 @@ export default async function OnboardingPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)]">
+            <div className="space-y-2">
               <div className="space-y-2">
                 <Label htmlFor="jurisdiction">Therapist state</Label>
                 <Input
@@ -113,17 +112,6 @@ export default async function OnboardingPage() {
                 <p id="jurisdiction-help" className="text-xs leading-5 text-muted-foreground">
                   Optional. Used to guide license verification status; it does not verify a role by itself.
                 </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Anything else to keep in mind?</Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  maxLength={240}
-                  rows={4}
-                  placeholder="Example: I teach anatomy labs, or I mostly want booking and session timers."
-                  defaultValue={savedNotes}
-                />
               </div>
             </div>
 
@@ -193,8 +181,4 @@ function formatPathLabel(path: string) {
   if (path.startsWith("/anatomime")) return "Anatomime"
   if (path.startsWith("/calendar")) return "calendar"
   return "MassageLab"
-}
-
-function objectRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }

@@ -5,15 +5,14 @@ import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { USER_PREFERENCES_VERSION } from "@/lib/account-preferences"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
-import { buildOnboardingPreference } from "@/lib/onboarding-preferences"
+import {
+  buildOnboardingPreference,
+  objectRecord,
+} from "@/lib/onboarding-preferences"
 import { prisma } from "@/lib/prisma"
 
 function jsonObject(value: Record<string, unknown>) {
   return value as Prisma.InputJsonObject
-}
-
-function objectRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
 export async function saveOnboardingAction(formData: FormData) {
