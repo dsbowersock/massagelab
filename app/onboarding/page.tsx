@@ -3,7 +3,9 @@ import { redirect } from "next/navigation"
 import { ArrowRight, BadgeCheck, Gamepad2, LayoutDashboard, MapPinned } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import {
+  homeToolCatalog,
   getOnboardingRecommendedPath,
+  resolveOnboardingHomeToolKeys,
   onboardingRoleOptions,
   onboardingUseCaseOptions,
   objectRecord,
@@ -11,6 +13,7 @@ import {
 import { prisma } from "@/lib/prisma"
 import { cn } from "@/lib/utils"
 import { saveOnboardingAction } from "@/app/onboarding/actions"
+import { HomeShortcutEditor } from "@/components/home/home-shortcut-editor"
 import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,6 +37,7 @@ export default async function OnboardingPage() {
   const savedUseCases = new Set(Array.isArray(savedOnboarding.useCases) ? savedOnboarding.useCases.filter((value) => typeof value === "string") : [])
   const savedJurisdiction = typeof savedOnboarding.jurisdiction === "string" ? savedOnboarding.jurisdiction : ""
   const recommendedPath = getOnboardingRecommendedPath(savedRole)
+  const savedHomeShortcuts = resolveOnboardingHomeToolKeys(savedOnboarding)
 
   return (
     <AppPageShell title="Onboarding">
@@ -99,20 +103,29 @@ export default async function OnboardingPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="space-y-2">
-                <Label htmlFor="jurisdiction">Therapist state</Label>
-                <Input
-                  id="jurisdiction"
-                  name="jurisdiction"
-                  maxLength={2}
-                  placeholder="OH"
-                  defaultValue={savedJurisdiction}
-                  aria-describedby="jurisdiction-help"
-                />
-                <p id="jurisdiction-help" className="text-xs leading-5 text-muted-foreground">
-                  Optional. Used to guide license verification status; it does not verify a role by itself.
-                </p>
-              </div>
+              <Label htmlFor="jurisdiction">Therapist state</Label>
+              <Input
+                id="jurisdiction"
+                name="jurisdiction"
+                maxLength={2}
+                placeholder="OH"
+                defaultValue={savedJurisdiction}
+                aria-describedby="jurisdiction-help"
+              />
+              <p id="jurisdiction-help" className="text-xs leading-5 text-muted-foreground">
+                Optional. Used to guide license verification status; it does not verify a role by itself.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Preferred homepage shortcut order</Label>
+              <p className="text-sm text-muted-foreground">
+                Reorder your first-click path with up/down controls and keep your launchpad concise.
+              </p>
+              <HomeShortcutEditor
+                tools={homeToolCatalog}
+                defaultSelection={savedHomeShortcuts}
+                fieldName="homeShortcuts"
+              />
             </div>
 
             <div className="flex flex-wrap gap-3">

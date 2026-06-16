@@ -17,9 +17,25 @@ import {
   UserRound,
 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
+import { prisma } from "@/lib/prisma"
 import { FlipWords } from "@/components/home/flip-words"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { homeToolCatalog, objectRecord, resolveOnboardingHomeToolKeys } from "@/lib/onboarding-preferences"
+
+const homeToolIconByName = {
+  Timer,
+  BookOpen,
+  Brain,
+  ClipboardList,
+  CalendarDays,
+  UserRound,
+  Compass,
+  LockKeyhole,
+  ShieldCheck,
+  HeartHandshake,
+  Route,
+} as const
 
 const flipWords = ["therapists", "students", "educators", "clients", "curious people"]
 
@@ -74,79 +90,37 @@ const proofLanes = [
   },
 ] as const
 
-const availableTools = [
-  {
-    key: "chimer",
-    title: "Chimer",
-    description: "Treatment-room timer, interval pacing, and clock mode.",
-    href: "/chimer",
-    action: "Open Chimer",
-    icon: Timer,
-    status: "Public",
-  },
-  {
-    key: "education_flashcards",
-    title: "Education flashcards",
-    description: "Sourced anatomy study with public decks and signed-in progress.",
-    href: "/education/flashcards",
-    action: "Study flashcards",
-    icon: BookOpen,
-    status: "Public + signed-in progress",
-  },
-  {
-    key: "anatomime",
-    title: "Anatomime",
-    description: "Solo and shared classroom anatomy play with room codes.",
-    href: "/anatomime",
-    action: "Play Anatomime",
-    icon: Brain,
-    status: "Public",
-  },
-  {
-    key: "local_notes",
-    title: "Local-first notes",
-    description: "Create SOAP, intake, journal, and ROM records in an encrypted browser vault.",
-    href: "/notes",
-    action: "Open notes",
-    icon: ClipboardList,
-    status: "Membership + local-first",
-  },
-  {
-    key: "calendar_booking",
-    title: "Calendar and booking",
-    description: "Scheduling, availability, booking settings, public links, waitlist, and capacity controls.",
-    href: "/calendar",
-    action: "Open calendar",
-    icon: CalendarDays,
-    status: "Signed-in",
-  },
-  {
-    key: "account_memberships",
-    title: "Account and memberships",
-    description: "Save progress, remember settings, manage profile defaults, and review paid features.",
-    href: "/account",
-    action: "Open account",
-    icon: UserRound,
-    status: "Signed-in",
-  },
-  {
-    key: "roadmap_support",
-    title: "Roadmap and support",
-    description: "See what is planned, what is available, and how memberships help fund the work.",
-    href: "/roadmap",
-    action: "Open roadmap",
-    icon: Compass,
-    status: "Public",
-  },
-] as const
-
 export default async function Home() {
   const session = await getCurrentSession()
-  const signedIn = Boolean(session?.user?.id)
+  const userId = session?.user?.id
+  const signedIn = typeof userId === "string"
   const primaryAccountHref = signedIn ? "/account" : "/register"
   const practiceHref = signedIn ? "/calendar" : "/register?callbackUrl=%2Fcalendar"
   const accountToolHref = signedIn ? "/account" : "/register"
   const membershipHref = signedIn ? "/account?tab=membership" : "/pricing"
+  const baseHomeTools = homeToolCatalog.map((tool) => ({
+    ...tool,
+    icon: homeToolIconByName[tool.icon as keyof typeof homeToolIconByName],
+  }))
+  const baseToolsByKey = new Map(baseHomeTools.map((tool) => [tool.key, tool]))
+
+  let visibleTools = baseHomeTools
+  if (userId) {
+    const preference = await prisma.userPreference.findUnique({ where: { userId: userId } })
+    const savedOnboarding = objectRecord(objectRecord(preference?.appSettings).onboarding)
+    const preferenceHomeToolKeys = resolveOnboardingHomeToolKeys(savedOnboarding)
+    const preferredKeys = new Set(preferenceHomeToolKeys)
+    const orderedTools = []
+
+    for (const key of preferenceHomeToolKeys) {
+      const tool = baseToolsByKey.get(key)
+      if (tool) {
+        orderedTools.push(tool)
+      }
+    }
+
+    visibleTools = [...orderedTools, ...baseHomeTools.filter((tool) => !preferredKeys.has(tool.key))]
+  }
 
   const actionRouter = [
     {
@@ -336,7 +310,10 @@ export default async function Home() {
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {availableTools.map((tool) => {
+          {visibleTools.map((tool) => {
+            if (!tool) {
+              return null
+            }
             const Icon = tool.icon
             const isAccountTool = tool.key === "account_memberships"
             const href = isAccountTool ? accountToolHref : tool.href
