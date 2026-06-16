@@ -280,6 +280,14 @@
       drop-shadow(-2.2rem 1.75rem 2.25rem hsl(var(--brand-orange-glow) / 0.18));
   }
 
+  .ml-home-flip-word {
+    text-shadow: 0 1px 2px hsl(0 0% 0% / 0.48);
+  }
+
+  .light .ml-home-flip-word {
+    text-shadow: 0 1px 2px hsl(var(--foreground) / 0.22);
+  }
+
   .ml-sidebar-brand-frame {
     border-color: hsl(var(--sidebar-border));
     background:
@@ -464,6 +472,26 @@
   }
 }
 
+@keyframes ml-flip-word-in {
+  0% {
+    opacity: 0;
+    transform: rotateX(88deg) translateY(0.35em);
+    filter: blur(6px);
+  }
+
+  55% {
+    opacity: 1;
+    transform: rotateX(-10deg) translateY(0);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .ml-flashcard-carousel {
   --ml-flashcard-carousel-step: 100%;
 }
@@ -612,6 +640,10 @@
   }
 
   .ml-flashcard-carousel-track[data-slide] {
+    animation: none;
+  }
+
+  [data-testid="home-flip-word"] {
     animation: none;
   }
 

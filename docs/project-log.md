@@ -100,6 +100,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ### 2026-06-15
 
 - Implemented Anatomime's Room + Game Run shared classroom model: reusable join codes, Host Judged, Device Typed, and Device Multiple Choice modes, 4-term team turns, possible steals, signed-in first-correct progress credit, same-code next games, host transfer, ranked-choice host takeover, and 30-minute review-window expiry.
+- Refreshed the public homepage into a product-proof entry point: the hero now communicates multi-role usefulness with a restrained Flip Words-style role accent, anonymous visitors get an optional action router without saved onboarding data, account value is framed around safe preferences/progress/profile defaults, and the bottom of the page lists the available tools with current routes and availability labels.
 
 ### 2026-06-13
 
