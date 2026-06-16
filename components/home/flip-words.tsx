@@ -59,7 +59,7 @@ export function FlipWords({
         key={prefersReducedMotion ? "reduced-motion" : word}
         data-testid="home-flip-word"
         className={cn(
-          "inline-flex justify-center text-primary [backface-visibility:hidden] [transform-style:preserve-3d]",
+          "ml-home-flip-word inline-flex justify-center text-primary [backface-visibility:hidden] [transform-style:preserve-3d]",
           !prefersReducedMotion && "animate-[ml-flip-word-in_520ms_cubic-bezier(0.2,0.8,0.2,1)]",
         )}
       >
