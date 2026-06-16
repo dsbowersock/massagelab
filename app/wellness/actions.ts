@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import {
   clientWellnessExportFilename,
+  normalizeClientWellnessCustomTerms,
   normalizeClientWellnessEntryInput,
   sanitizeClientWellnessLogMetadata,
 } from "@/lib/client-wellness"
@@ -92,6 +93,16 @@ function jsonObjectValue(formData: FormData, key: string) {
 }
 
 /**
+ * Reads custom body-sensation words that should remain private to this user.
+ *
+ * @param formData - Browser-submitted quick-log form data.
+ * @returns Normalized custom terms for private vocabulary suggestions.
+ */
+function customSensationsFromFormData(formData: FormData) {
+  return normalizeClientWellnessCustomTerms(formData.getAll("customSensations"))
+}
+
+/**
  * Builds the broad wellness normalizer input from browser form fields.
  *
  * @param formData - Quick-log or ROM form data from the client component.
@@ -165,6 +176,43 @@ function logWellnessActionFailure(action: string, payload: Partial<WellnessEntry
 }
 
 /**
+ * Stores user-created terms as private suggestions only.
+ *
+ * These rows are for the current user's future convenience and possible manual
+ * review; they are not global vocabulary, therapist-facing records, or shared
+ * clinical content.
+ *
+ * @param userId - Owner id for the signed-in user's private vocabulary.
+ * @param category - Wellness category associated with the custom terms.
+ * @param customTerms - Normalized user-created terms.
+ */
+async function createPrivateVocabularySuggestions(userId: string, category: string, customTerms: string[]) {
+  if (category !== "body_sensation" || customTerms.length === 0) {
+    return
+  }
+
+  const existingSuggestions = await prisma.clientWellnessVocabularySuggestion.findMany({
+    where: { userId, category, status: "PRIVATE" },
+    select: { term: true },
+  })
+  const existingTerms = new Set(existingSuggestions.map((suggestion) => suggestion.term.trim().toLowerCase()))
+  const newTerms = customTerms.filter((term) => !existingTerms.has(term.toLowerCase()))
+
+  if (newTerms.length === 0) {
+    return
+  }
+
+  await prisma.clientWellnessVocabularySuggestion.createMany({
+    data: newTerms.map((term) => ({
+      userId,
+      category,
+      term,
+      status: "PRIVATE",
+    })),
+  })
+}
+
+/**
  * Persists one signed-in user's client-owned wellness entry.
  *
  * @param formData - Normal browser form data for quick logs or ROM measurements.
@@ -178,6 +226,7 @@ export async function createClientWellnessEntryAction(formData: FormData): Promi
   }
 
   const payload = normalizeClientWellnessEntryInput(entryInputFromFormData(formData))
+  const customTerms = customSensationsFromFormData(formData)
 
   try {
     const entry = await prisma.clientWellnessEntry.create({
@@ -195,6 +244,12 @@ export async function createClientWellnessEntryAction(formData: FormData): Promi
         metadata: jsonValue(payload.metadata),
       },
     })
+
+    try {
+      await createPrivateVocabularySuggestions(userId, payload.category, customTerms)
+    } catch {
+      logWellnessActionFailure("preference", payload)
+    }
 
     revalidatePath("/wellness")
     return { ok: true, data: { entry: serializedEntry(entry) } }

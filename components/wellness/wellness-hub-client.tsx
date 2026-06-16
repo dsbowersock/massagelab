@@ -8,6 +8,7 @@ import {
   deleteClientWellnessEntryAction,
   exportClientWellnessEntriesAction,
 } from "@/app/wellness/actions"
+import { BodyRegionSelector, BODY_REGION_OPTIONS } from "@/components/wellness/body-region-selector"
 import { RomMeasurementPanel, type RomMeasurementDraft } from "@/components/wellness/rom-measurement-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -54,8 +55,14 @@ const categoryLabels: Record<string, string> = {
 }
 
 const contextOptions = ["desk", "sleep", "work", "movement", "exercise", "stress", "commute", "home care"]
-const sensationOptions = ["tight", "achy", "sharp", "dull", "warm", "tingly", "numb", "tired"]
-const regionOptions = ["neck", "shoulder", "upper back", "low back", "hip", "knee", "ankle", "wrist"]
+const sensationOptions = ["tight", "achy", "sharp", "dull", "warm", "tingly", "numb", "tired", "burning", "pins and needles", "heavy", "tender"]
+const bodyPositionOptions = ["sitting", "standing", "lying down", "walking", "working", "exercising", "unsure"]
+const movementEffectOptions = [
+  { value: "unsure", label: "Unsure" },
+  { value: "better", label: "Better" },
+  { value: "worse", label: "Worse" },
+  { value: "unchanged", label: "Unchanged" },
+]
 
 export function WellnessHubClient({
   isSignedIn,
@@ -68,6 +75,10 @@ export function WellnessHubClient({
 }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [entries, setEntries] = useState(initialEntries)
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
+  const [timelineCategoryFilter, setTimelineCategoryFilter] = useState("all")
+  const [timelineRegionFilter, setTimelineRegionFilter] = useState("all")
+  const [timelineSignalFilter, setTimelineSignalFilter] = useState("all")
   const [acknowledged, setAcknowledged] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -80,6 +91,14 @@ export function WellnessHubClient({
     rom: entries.filter((entry) => entry.category === "rom").length,
     practice: entries.filter((entry) => !entry.persisted).length,
   }), [entries])
+
+  const timelineSignalOptions = useMemo(() => (
+    [...new Set(entries.flatMap((entry) => [...entry.sensations, ...entry.contexts]))].sort((a, b) => a.localeCompare(b))
+  ), [entries])
+
+  const filteredEntries = useMemo(() => entries.filter((entry) => (
+    matchesTimelineFilter(entry, timelineCategoryFilter, timelineRegionFilter, timelineSignalFilter)
+  )), [entries, timelineCategoryFilter, timelineRegionFilter, timelineSignalFilter])
 
   const saveQuickLog = () => {
     const form = formRef.current
@@ -96,6 +115,7 @@ export function WellnessHubClient({
       setStatus("Practice entry added for this page session. Sign in before saving anything permanently.")
       setError(null)
       form.reset()
+      setSelectedRegions([])
       return
     }
 
@@ -120,6 +140,7 @@ export function WellnessHubClient({
       }
       setStatus("Saved to your client-owned wellness timeline.")
       form.reset()
+      setSelectedRegions([])
     })
   }
 
@@ -318,23 +339,10 @@ export function WellnessHubClient({
             </div>
           </fieldset>
 
-          <details className="mt-4 rounded-md border border-border/80 bg-background/80 p-3">
-            <summary className="cursor-pointer text-sm font-medium">Add body regions, sensations, or time</summary>
+          <details className="mt-4 rounded-md border border-border/80 bg-background/80 p-3" open>
+            <summary className="cursor-pointer text-sm font-medium">Body sensations and timing</summary>
             <div className="mt-4 grid gap-4">
-              <fieldset>
-                <legend className="text-sm font-medium">Body regions</legend>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {regionOptions.map((region) => (
-                    <label
-                      key={region}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border/80 bg-card px-3 py-2 text-sm"
-                    >
-                      <input name="regions" value={region} type="checkbox" className="h-4 w-4" />
-                      {region}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <BodyRegionSelector selectedRegions={selectedRegions} onChange={setSelectedRegions} />
 
               <fieldset>
                 <legend className="text-sm font-medium">Sensation terms</legend>
@@ -355,6 +363,41 @@ export function WellnessHubClient({
                 <div className="space-y-2">
                   <Label htmlFor="wellnessCustomTerm">Custom sensation term</Label>
                   <Input id="wellnessCustomTerm" name="customTerm" placeholder="Your words" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wellnessDuration">Duration in minutes</Label>
+                  <Input id="wellnessDuration" name="durationMinutes" type="number" min="0" max="10080" inputMode="numeric" placeholder="15" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wellnessBodyPosition">Body position</Label>
+                  <select
+                    id="wellnessBodyPosition"
+                    name="bodyPosition"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue=""
+                  >
+                    <option value="">Not selected</option>
+                    {bodyPositionOptions.map((position) => (
+                      <option key={position} value={position}>{position}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wellnessMovementEffect">Movement effect</Label>
+                  <select
+                    id="wellnessMovementEffect"
+                    name="movementEffect"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue="unsure"
+                  >
+                    {movementEffectOptions.map((effect) => (
+                      <option key={effect.value} value={effect.value}>{effect.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wellnessActivityContext">Activity detail</Label>
+                  <Input id="wellnessActivityContext" name="activityContext" placeholder="Typing, driving, lifting, gardening" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="wellnessOccurredAt">Time</Label>
@@ -399,7 +442,50 @@ export function WellnessHubClient({
             </div>
           ) : (
             <div className="mt-4 flex flex-col gap-3">
-              {entries.map((entry) => (
+              <div className="grid gap-2">
+                <Label htmlFor="timelineCategoryFilter">Filter timeline</Label>
+                <select
+                  id="timelineCategoryFilter"
+                  value={timelineCategoryFilter}
+                  onChange={(event) => setTimelineCategoryFilter(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="all">All categories</option>
+                  {CLIENT_WELLNESS_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {categoryLabels[category] ?? category}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filter timeline by body region"
+                  value={timelineRegionFilter}
+                  onChange={(event) => setTimelineRegionFilter(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="all">All regions</option>
+                  {BODY_REGION_OPTIONS.map((region) => (
+                    <option key={region} value={region}>{region}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filter timeline by sensation or context"
+                  value={timelineSignalFilter}
+                  onChange={(event) => setTimelineSignalFilter(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="all">All sensations and contexts</option>
+                  {timelineSignalOptions.map((signal) => (
+                    <option key={signal} value={signal}>{signal}</option>
+                  ))}
+                </select>
+              </div>
+
+              {filteredEntries.length === 0 ? (
+                <div className="rounded-md border border-border/80 bg-background/80 p-3 text-sm text-muted-foreground">
+                  No entries match these filters.
+                </div>
+              ) : filteredEntries.map((entry) => (
                 <TimelineEntry
                   key={entry.id}
                   entry={entry}
@@ -434,6 +520,10 @@ function TimelineEntry({
   onDelete: () => void
 }) {
   const changeDegrees = typeof entry.metadata.changeDegrees === "number" ? entry.metadata.changeDegrees : null
+  const durationMinutes = numberMetadata(entry.metadata.durationMinutes)
+  const bodyPosition = stringMetadata(entry.metadata.bodyPosition)
+  const activityContext = stringMetadata(entry.metadata.activityContext)
+  const movementEffect = stringMetadata(entry.metadata.movementEffect)
 
   return (
     <div className="rounded-md border border-border/80 bg-background/80 p-3">
@@ -453,10 +543,29 @@ function TimelineEntry({
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
         {entry.intensity !== null ? <span>Intensity {entry.intensity}/10</span> : null}
         {changeDegrees !== null ? <span>ROM {changeDegrees} deg</span> : null}
-        {entry.contexts.slice(0, 3).map((context) => <span key={context}>{context}</span>)}
+        {durationMinutes !== null ? <span>{formatDuration(durationMinutes)}</span> : null}
+        {bodyPosition ? <span>{bodyPosition}</span> : null}
+        {movementEffect ? <span>Movement {movementEffect}</span> : null}
+        {activityContext ? <span>{activityContext}</span> : null}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {entry.regions.slice(0, 5).map((region) => <TimelineChip key={`region-${region}`} label={region} />)}
+        {entry.sensations.slice(0, 5).map((sensation) => <TimelineChip key={`sensation-${sensation}`} label={sensation} />)}
+        {entry.contexts.slice(0, 4).map((context) => <TimelineChip key={`context-${context}`} label={context} muted />)}
       </div>
       {confirmDelete ? <p className="mt-2 text-xs text-destructive">Select delete again to remove this saved entry.</p> : null}
     </div>
+  )
+}
+
+function TimelineChip({ label, muted = false }: { label: string; muted?: boolean }) {
+  return (
+    <span className={cn(
+      "rounded-md border px-2 py-1 text-xs",
+      muted ? "border-border/80 bg-muted/60 text-muted-foreground" : "border-primary/20 bg-primary/10 text-foreground",
+    )}>
+      {label}
+    </span>
   )
 }
 
@@ -467,6 +576,7 @@ function wellnessFormData(form: HTMLFormElement) {
 
   if (customTerm) {
     formData.append("sensations", customTerm)
+    formData.append("customSensations", customTerm)
   }
   if (occurredAt) {
     const occurredAtDate = new Date(occurredAt)
@@ -479,6 +589,12 @@ function wellnessFormData(form: HTMLFormElement) {
 
   formData.set("timezone", browserTimezone())
   formData.set("source", "quick-log")
+  formData.set("metadata", JSON.stringify({
+    durationMinutes: stringFormValue(formData, "durationMinutes"),
+    bodyPosition: stringFormValue(formData, "bodyPosition"),
+    activityContext: stringFormValue(formData, "activityContext"),
+    movementEffect: stringFormValue(formData, "movementEffect"),
+  }))
   return formData
 }
 
@@ -560,6 +676,22 @@ function actionReason(reason: string | undefined, fallback: string) {
   return fallback
 }
 
+function matchesTimelineFilter(entry: WellnessTimelineEntry, category: string, region: string, signal: string) {
+  if (category !== "all" && entry.category !== category) {
+    return false
+  }
+
+  if (region !== "all" && !entry.regions.includes(region)) {
+    return false
+  }
+
+  if (signal !== "all" && !entry.sensations.includes(signal) && !entry.contexts.includes(signal)) {
+    return false
+  }
+
+  return true
+}
+
 function stringFormValue(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === "string" ? value.trim() : ""
@@ -591,6 +723,14 @@ function browserTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York"
 }
 
+function numberMetadata(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+function stringMetadata(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : ""
+}
+
 function downloadJson(filename: string, payload: unknown) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
   const url = URL.createObjectURL(blob)
@@ -614,4 +754,14 @@ function formatDateTime(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date)
+}
+
+function formatDuration(minutes: number) {
+  if (minutes < 60) {
+    return `${minutes} min`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return remainingMinutes > 0 ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`
 }

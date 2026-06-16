@@ -5,6 +5,7 @@ import {
   CLIENT_WELLNESS_CATEGORIES,
   calculateRomAngleDelta,
   clientWellnessExportFilename,
+  normalizeClientWellnessCustomTerms,
   normalizeClientWellnessEntryInput,
   sanitizeClientWellnessLogMetadata,
 } from "../lib/client-wellness.js"
@@ -96,6 +97,44 @@ describe("Client wellness helpers", () => {
     })
   })
 
+  it("normalizes body sensation detail metadata while dropping arbitrary sensitive values", () => {
+    const payload = normalizeClientWellnessEntryInput({
+      category: "body_sensation",
+      metadata: {
+        durationMinutes: "45",
+        bodyPosition: "sitting",
+        activityContext: "typing at laptop",
+        movementEffect: "worse",
+        privateNarrative: "do not copy this into metadata",
+      },
+    }, new Date("2026-06-16T12:00:00.000Z"))
+
+    assert.deepEqual(payload.metadata, {
+      durationMinutes: 45,
+      bodyPosition: "sitting",
+      activityContext: "typing at laptop",
+      movementEffect: "worse",
+    })
+  })
+
+  it("normalizes private custom sensation terms for user-owned suggestions", () => {
+    assert.deepEqual(normalizeClientWellnessCustomTerms([
+      "  Zingy ",
+      "zingy",
+      "",
+      42,
+      "x".repeat(120),
+    ]), [
+      "Zingy",
+      "x".repeat(80),
+    ])
+
+    assert.deepEqual(normalizeClientWellnessCustomTerms("sharp, sharp, pins and needles"), [
+      "sharp",
+      "pins and needles",
+    ])
+  })
+
   it("builds stable export filenames without leaking user labels", () => {
     assert.equal(
       clientWellnessExportFilename("Jane Example", new Date("2026-06-16T12:00:00.000Z")),
@@ -168,7 +207,14 @@ describe("Client wellness server action guardrails", () => {
     assert.match(source, /deleteClientWellnessEntryAction/)
     assert.match(source, /exportClientWellnessEntriesAction/)
     assert.match(source, /updateClientWellnessPreferenceAction/)
+    assert.match(source, /normalizeClientWellnessCustomTerms/)
+    assert.match(source, /customSensations/)
+    assert.match(source, /clientWellnessVocabularySuggestion\.findMany/)
+    assert.match(source, /clientWellnessVocabularySuggestion\.createMany/)
+    assert.match(source, /status:\s*"PRIVATE"/)
+    assert.doesNotMatch(source, /status:\s*"APPROVED"/)
     assert.match(source, /userId,\s*deletedAt:\s*null/)
+    assert.match(source, /where:\s*\{\s*userId,\s*category,\s*status:\s*"PRIVATE"\s*\}/s)
     assert.match(source, /where:\s*\{\s*id,\s*userId,\s*deletedAt:\s*null\s*\}/s)
     assert.doesNotMatch(source, /practiceId|therapistId/)
   })
