@@ -187,15 +187,29 @@ export default async function Home() {
           <h1 className="sr-only">MassageLab</h1>
           <div aria-hidden="true" className="relative mb-5 flex w-full justify-start py-3 sm:py-4">
             <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-full bg-brand-orange-glow/28 blur-3xl dark:bg-brand-orange-glow/20 sm:inset-x-10" />
-            <span className="ml-brand-asset-frame relative inline-flex max-w-full rounded-2xl">
+            <span
+              className="ml-brand-asset-frame relative inline-flex max-w-full rounded-2xl"
+              data-testid="home-brand-wordmark"
+              style={{ viewTransitionName: "massagelab-wordmark" }}
+            >
               <Image
-                src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
+                src="/brand/massagelab-home-logo-black-text-20260615.png"
                 alt=""
-                width={360}
-                height={108}
-                className="relative h-auto w-full max-w-[28rem] object-contain"
-                data-testid="home-brand-wordmark"
-                style={{ viewTransitionName: "massagelab-wordmark" }}
+                width={1200}
+                height={360}
+                className="relative h-auto w-full max-w-[28rem] object-contain dark:hidden"
+                data-testid="home-brand-wordmark-light"
+                sizes="(max-width: 640px) 82vw, 448px"
+                loading="eager"
+                priority
+              />
+              <Image
+                src="/brand/massagelab-home-logo-white-text-20260615.png"
+                alt=""
+                width={1200}
+                height={360}
+                className="relative hidden h-auto w-full max-w-[28rem] object-contain dark:block"
+                data-testid="home-brand-wordmark-dark"
                 sizes="(max-width: 640px) 82vw, 448px"
                 loading="eager"
                 priority

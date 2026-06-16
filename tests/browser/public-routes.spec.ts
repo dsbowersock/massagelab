@@ -167,6 +167,36 @@ test("anonymous homepage presents the optional action router and available tools
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("homepage swaps logo artwork for light and dark themes", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const lightLogo = page.getByTestId("home-brand-wordmark-light")
+  const darkLogo = page.getByTestId("home-brand-wordmark-dark")
+  await expect(lightLogo).toHaveAttribute("src", /massagelab-home-logo-black-text-20260615/)
+  await expect(darkLogo).toHaveAttribute("src", /massagelab-home-logo-white-text-20260615/)
+
+  await page.evaluate(() => {
+    document.documentElement.classList.remove("dark")
+    document.documentElement.classList.add("light")
+  })
+  await expect(lightLogo).toBeVisible()
+  await expect(darkLogo).toBeHidden()
+
+  await page.evaluate(() => {
+    document.documentElement.classList.remove("light")
+    document.documentElement.classList.add("dark")
+  })
+  await expect(darkLogo).toBeVisible()
+  await expect(lightLogo).toBeHidden()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("homepage flip words advance when motion is allowed", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" })
   const health = capturePageHealth(page)
