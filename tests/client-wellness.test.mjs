@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   CLIENT_WELLNESS_CATEGORIES,
+  calculateRomAngleDelta,
   clientWellnessExportFilename,
   normalizeClientWellnessEntryInput,
   sanitizeClientWellnessLogMetadata,
@@ -117,6 +118,13 @@ describe("Client wellness helpers", () => {
       entryCount: 2,
     })
     assert.equal(sanitizeClientWellnessLogMetadata({ action: "list", status: "error" }).action, "list")
+  })
+
+  it("calculates ROM deltas across alpha rotation wrap-around", () => {
+    assert.equal(calculateRomAngleDelta("alpha", 10, 350), 20)
+    assert.equal(calculateRomAngleDelta("alpha", 350, 10), -20)
+    assert.equal(calculateRomAngleDelta("beta", 10, 350), -340)
+    assert.equal(calculateRomAngleDelta("alpha", "not a number", 10), 0)
   })
 })
 

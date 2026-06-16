@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { type MeasurementAxis, useDeviceMotionSensors } from "@/hooks/use-device-motion-sensors"
+import { calculateRomAngleDelta } from "@/lib/client-wellness"
 
 export type RomMeasurementDraft = {
   movement: string
@@ -50,8 +51,8 @@ export function RomMeasurementPanel({
       return null
     }
 
-    return normalizeDegrees(currentAngle - baselineForAxis.value)
-  }, [baselineForAxis, currentAngle])
+    return calculateRomAngleDelta(axis, currentAngle, baselineForAxis.value)
+  }, [axis, baselineForAxis, currentAngle])
 
   const enableSensors = async () => {
     const result = await requestAccess()
@@ -89,7 +90,7 @@ export function RomMeasurementPanel({
     saveMeasurement({
       baselineAngle,
       endAngle,
-      changeDegrees: normalizeDegrees(endAngle - baselineAngle),
+      changeDegrees: calculateRomAngleDelta(axis, endAngle, baselineAngle),
       source: "manual",
     })
   }
