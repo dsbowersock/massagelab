@@ -173,7 +173,7 @@ test("homepage uses one logo artwork for light and dark themes", async ({ page }
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
   const logo = page.getByTestId("home-brand-wordmark-image")
-  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-tight-20260615/)
+  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-padded-20260615/)
 
   await page.evaluate(() => {
     document.documentElement.classList.remove("dark")
