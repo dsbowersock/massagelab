@@ -477,7 +477,12 @@ function wellnessFormData(form: HTMLFormElement) {
     formData.append("sensations", customTerm)
   }
   if (occurredAt) {
-    formData.set("occurredAt", new Date(occurredAt).toISOString())
+    const occurredAtDate = new Date(occurredAt)
+    if (Number.isFinite(occurredAtDate.getTime())) {
+      formData.set("occurredAt", occurredAtDate.toISOString())
+    } else {
+      formData.delete("occurredAt")
+    }
   }
 
   formData.set("timezone", browserTimezone())

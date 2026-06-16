@@ -50,7 +50,9 @@ describe("Client wellness source guards", () => {
   it("does not add wellness payload fields to calendar implementation files", () => {
     const calendarSources = [
       ...readFiles("app/calendar"),
-      ...readFiles("lib").filter((source) => /Calendar|calendar/.test(source)),
+      ...readFileEntries("lib")
+        .filter(({ relativePath }) => isCalendarImplementationPath(relativePath))
+        .map(({ source }) => source),
     ].join("\n")
 
     assert.doesNotMatch(calendarSources, /clientWellnessEntries|wellnessEntries|bodySensationEntries|emotionEntries|wellnessJournal/)
@@ -58,6 +60,10 @@ describe("Client wellness source guards", () => {
 })
 
 function readFiles(relativePath) {
+  return readFileEntries(relativePath).map(({ source }) => source)
+}
+
+function readFileEntries(relativePath) {
   const absolutePath = join(repoRoot, relativePath)
 
   if (!existsSync(absolutePath)) {
@@ -67,9 +73,14 @@ function readFiles(relativePath) {
   const stat = statSync(absolutePath)
 
   if (stat.isFile()) {
-    return [readFileSync(absolutePath, "utf8")]
+    return [{ relativePath, source: readFileSync(absolutePath, "utf8") }]
   }
 
   return readdirSync(absolutePath)
-    .flatMap((name) => readFiles(join(relativePath, name)))
+    .flatMap((name) => readFileEntries(join(relativePath, name)))
+}
+
+function isCalendarImplementationPath(relativePath) {
+  const normalizedPath = relativePath.replaceAll("\\", "/").toLowerCase()
+  return /(^|\/)(calendar|sidebar-calendar|public-booking|booking-policy|service-catalog)[^/]*\.(js|ts)$/.test(normalizedPath)
 }

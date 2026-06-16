@@ -34,6 +34,14 @@ export default async function WellnessPage() {
   )
 }
 
+/**
+ * Adapts a persisted wellness entry for the client timeline contract.
+ *
+ * The input is a database row with Date fields plus JSON-backed array/object
+ * fields. Dates are emitted as ISO strings, regions/sensations/contexts are
+ * filtered to string arrays, metadata is reduced to a plain object, and the
+ * result is always marked as persisted because it came from signed-in storage.
+ */
 function serializeWellnessEntry(entry: {
   id: string
   category: string

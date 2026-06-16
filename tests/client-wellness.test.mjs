@@ -116,6 +116,7 @@ describe("Client wellness helpers", () => {
       status: "saved",
       entryCount: 2,
     })
+    assert.equal(sanitizeClientWellnessLogMetadata({ action: "list", status: "error" }).action, "list")
   })
 })
 

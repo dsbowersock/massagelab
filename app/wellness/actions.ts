@@ -18,10 +18,21 @@ type WellnessActionResult<T = unknown> = {
 
 type WellnessEntryPayload = ReturnType<typeof normalizeClientWellnessEntryInput>
 
+/**
+ * Casts normalized wellness payload fragments into Prisma JSON input values.
+ *
+ * @param value - JSON-compatible data produced by the wellness normalizer.
+ * @returns The same value typed for Prisma create and update calls.
+ */
 function jsonValue(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue
 }
 
+/**
+ * Reads the active session user id without redirecting anonymous visitors.
+ *
+ * @returns The signed-in user id, or null when the request is anonymous.
+ */
 async function currentUserId() {
   const session = await getCurrentSession()
   const userId = session?.user?.id
@@ -29,11 +40,25 @@ async function currentUserId() {
   return typeof userId === "string" && userId.trim() ? userId : null
 }
 
+/**
+ * Extracts a single string field from a form payload.
+ *
+ * @param formData - Browser-submitted form data.
+ * @param key - Field name to read.
+ * @returns The string value, or undefined when the field is absent or not text.
+ */
 function stringValue(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === "string" ? value : undefined
 }
 
+/**
+ * Reads repeated string form values while preserving single-value fallback input.
+ *
+ * @param formData - Browser-submitted form data.
+ * @param key - Repeated checkbox or text field name to read.
+ * @returns A string array when repeated values exist, otherwise one string or undefined.
+ */
 function stringListValue(formData: FormData, key: string) {
   const values = formData.getAll(key).filter((value): value is string => typeof value === "string")
 
@@ -44,6 +69,13 @@ function stringListValue(formData: FormData, key: string) {
   return stringValue(formData, key)
 }
 
+/**
+ * Parses a JSON object field while dropping invalid, missing, and array values.
+ *
+ * @param formData - Browser-submitted form data.
+ * @param key - Field name containing serialized JSON.
+ * @returns A plain object suitable for normalizer input, or an empty object on failure.
+ */
 function jsonObjectValue(formData: FormData, key: string) {
   const value = stringValue(formData, key)
 
@@ -59,6 +91,12 @@ function jsonObjectValue(formData: FormData, key: string) {
   }
 }
 
+/**
+ * Builds the broad wellness normalizer input from browser form fields.
+ *
+ * @param formData - Quick-log or ROM form data from the client component.
+ * @returns A loose payload that normalizeClientWellnessEntryInput validates before storage.
+ */
 function entryInputFromFormData(formData: FormData) {
   return {
     category: stringValue(formData, "category"),
@@ -74,6 +112,12 @@ function entryInputFromFormData(formData: FormData) {
   }
 }
 
+/**
+ * Converts a persisted wellness entry into a browser-safe timeline payload.
+ *
+ * @param entry - Owner-scoped database row with Date and JSON fields.
+ * @returns ISO date strings, string-only list fields, and object-only metadata.
+ */
 function serializedEntry(entry: {
   id: string
   category: string
@@ -96,9 +140,9 @@ function serializedEntry(entry: {
     timezone: entry.timezone,
     summary: entry.summary,
     intensity: entry.intensity,
-    regions: Array.isArray(entry.regions) ? entry.regions : [],
-    sensations: Array.isArray(entry.sensations) ? entry.sensations : [],
-    contexts: Array.isArray(entry.contexts) ? entry.contexts : [],
+    regions: Array.isArray(entry.regions) ? entry.regions.filter((item): item is string => typeof item === "string") : [],
+    sensations: Array.isArray(entry.sensations) ? entry.sensations.filter((item): item is string => typeof item === "string") : [],
+    contexts: Array.isArray(entry.contexts) ? entry.contexts.filter((item): item is string => typeof item === "string") : [],
     source: entry.source,
     metadata: entry.metadata && typeof entry.metadata === "object" && !Array.isArray(entry.metadata) ? entry.metadata : {},
     createdAt: entry.createdAt.toISOString(),
@@ -106,6 +150,12 @@ function serializedEntry(entry: {
   }
 }
 
+/**
+ * Logs sanitized operational failure metadata without copying wellness note content.
+ *
+ * @param action - Safe action code used for aggregate troubleshooting.
+ * @param payload - Optional normalized payload fragment used only for safe category metadata.
+ */
 function logWellnessActionFailure(action: string, payload: Partial<WellnessEntryPayload> = {}) {
   console.error("Client wellness action failed", sanitizeClientWellnessLogMetadata({
     action,
@@ -114,6 +164,12 @@ function logWellnessActionFailure(action: string, payload: Partial<WellnessEntry
   }))
 }
 
+/**
+ * Persists one signed-in user's client-owned wellness entry.
+ *
+ * @param formData - Normal browser form data for quick logs or ROM measurements.
+ * @returns ok/data with the serialized entry, sign-in-required, or save-failed.
+ */
 export async function createClientWellnessEntryAction(formData: FormData): Promise<WellnessActionResult> {
   const userId = await currentUserId()
 
@@ -148,6 +204,11 @@ export async function createClientWellnessEntryAction(formData: FormData): Promi
   }
 }
 
+/**
+ * Loads the current user's most recent non-deleted wellness entries.
+ *
+ * @returns ok/data with up to 50 serialized entries, sign-in-required, or load-failed.
+ */
 export async function listClientWellnessEntriesAction(): Promise<WellnessActionResult> {
   const userId = await currentUserId()
 
@@ -164,11 +225,17 @@ export async function listClientWellnessEntriesAction(): Promise<WellnessActionR
 
     return { ok: true, data: { entries: entries.map(serializedEntry) } }
   } catch {
-    logWellnessActionFailure("export")
+    logWellnessActionFailure("list")
     return { ok: false, reason: "load-failed" }
   }
 }
 
+/**
+ * Soft-deletes a current user's wellness entry by id.
+ *
+ * @param formData - Form data containing the persisted entry id.
+ * @returns ok, missing-entry-id, not-found, sign-in-required, or delete-failed.
+ */
 export async function deleteClientWellnessEntryAction(formData: FormData): Promise<WellnessActionResult> {
   const userId = await currentUserId()
 
@@ -196,6 +263,11 @@ export async function deleteClientWellnessEntryAction(formData: FormData): Promi
   }
 }
 
+/**
+ * Exports all non-deleted wellness entries for the signed-in user.
+ *
+ * @returns ok/data with filename, exportedAt, and serialized entries, or an error reason.
+ */
 export async function exportClientWellnessEntriesAction(): Promise<WellnessActionResult> {
   const userId = await currentUserId()
 
@@ -223,6 +295,12 @@ export async function exportClientWellnessEntriesAction(): Promise<WellnessActio
   }
 }
 
+/**
+ * Saves the signed-in user's wellness tool settings.
+ *
+ * @param formData - Form data containing a JSON object in the settings field.
+ * @returns ok/data with version and settings, sign-in-required, or preference-save-failed.
+ */
 export async function updateClientWellnessPreferenceAction(formData: FormData): Promise<WellnessActionResult> {
   const userId = await currentUserId()
 
