@@ -120,6 +120,70 @@ for (const route of publicRoutes) {
   })
 }
 
+test("anonymous homepage presents the optional action router and available tools catalog", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  await expect(page.getByTestId("home-brand-wordmark")).toBeVisible()
+  await expect(page.getByRole("heading", { name: /MassageLab helps/i })).toBeVisible()
+  await expect(page.getByTestId("home-flip-word")).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Create a free account$/i }).first()).toHaveAttribute("href", "/register")
+  await expect(page.getByRole("link", { name: /^Explore tools$/i }).first()).toHaveAttribute("href", "#available-tools")
+
+  await expect(page.getByRole("heading", { name: "What are you here for today?" })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Study anatomy/i })).toHaveAttribute("href", "/education/flashcards")
+  await expect(page.getByRole("link", { name: /Teach or play/i })).toHaveAttribute("href", "/anatomime")
+  await expect(page.getByRole("link", { name: /Run a session/i })).toHaveAttribute("href", "/chimer")
+  await expect(page.getByRole("link", { name: /Organize a practice/i })).toHaveAttribute("href", "/register?callbackUrl=%2Fcalendar")
+  await expect(page.getByRole("link", { name: /Document locally/i })).toHaveAttribute("href", "/notes")
+  await expect(page.getByRole("link", { name: /Just exploring/i })).toHaveAttribute("href", "#available-tools")
+
+  await expect(page.getByRole("heading", { name: "Available tools" })).toBeVisible()
+  for (const name of [
+    "Chimer",
+    "Education flashcards",
+    "Anatomime",
+    "Local-first notes",
+    "Calendar and booking",
+    "Account and memberships",
+    "Roadmap and support",
+  ]) {
+    await expect(page.getByText(name).first()).toBeVisible()
+  }
+
+  await expect(page.getByRole("link", { name: /Open Chimer/i })).toHaveAttribute("href", "/chimer")
+  await expect(page.getByRole("link", { name: /Study flashcards/i })).toHaveAttribute("href", "/education/flashcards")
+  await expect(page.getByRole("link", { name: /Play Anatomime/i })).toHaveAttribute("href", "/anatomime")
+  await expect(page.getByRole("link", { name: /Open notes/i })).toHaveAttribute("href", "/notes")
+  await expect(page.getByRole("link", { name: /Open calendar/i }).last()).toHaveAttribute("href", "/calendar")
+  await expect(page.getByRole("link", { name: /^Create account$/i })).toHaveAttribute("href", "/register")
+  await expect(page.getByRole("link", { name: /Open roadmap/i })).toHaveAttribute("href", "/roadmap")
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("homepage flip words stay stable when reduced motion is requested", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const health = capturePageHealth(page)
+
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const flipWord = page.getByTestId("home-flip-word")
+  await expect(flipWord).toBeVisible()
+  const firstWord = await flipWord.textContent()
+  await page.waitForTimeout(3_500)
+  await expect(flipWord).toHaveText(firstWord ?? "")
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("anonymous flashcards setup keeps prompt controls usable before count hydration", async ({ page }) => {
   const health = capturePageHealth(page)
 
