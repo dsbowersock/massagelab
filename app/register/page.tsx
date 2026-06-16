@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 function safeCallbackUrl(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/account"
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/onboarding"
   return value
 }
 
 export default function RegisterPage() {
-  const [callbackUrl, setCallbackUrl] = useState("/account")
+  const [callbackUrl, setCallbackUrl] = useState("/onboarding")
   const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")

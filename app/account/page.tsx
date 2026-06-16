@@ -8,6 +8,7 @@ import {
   GraduationCap,
   Shield,
   ShieldAlert,
+  Sparkles,
   UserRound,
 } from "lucide-react"
 import { getCurrentSession } from "@/auth"
@@ -357,6 +358,12 @@ async function OverviewTab({ userId, sessionUser }: { userId: string; sessionUse
             icon={<BadgeCheck className="h-4 w-4" aria-hidden="true" />}
             title="Verify credentials"
             description="Submit license or student enrollment details for role access."
+          />
+          <AccountActionLink
+            href="/onboarding"
+            icon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
+            title="Tune your starting path"
+            description="Update the role and tool priorities MassageLab uses to shape account shortcuts."
           />
           {sessionUser.capabilities?.canManageAnatomyContent ? (
             <AccountActionLink

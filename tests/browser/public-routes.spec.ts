@@ -167,6 +167,35 @@ test("anonymous homepage presents the optional action router and available tools
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("anonymous onboarding routes through login with an onboarding callback", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/onboarding", { waitUntil: "domcontentloaded" })
+
+  await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fonboarding/)
+  await expect(page.getByRole("button", { name: /Sign in with email/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Create an account/i })).toHaveAttribute("href", "/register?callbackUrl=%2Fonboarding")
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("register defaults new accounts toward post-account onboarding", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/register", { waitUntil: "domcontentloaded" })
+
+  await expect(page.getByRole("button", { name: /Create account/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Back to login/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fonboarding")
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("homepage uses one logo artwork for light and dark themes", async ({ page }) => {
   const health = capturePageHealth(page)
 
