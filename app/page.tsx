@@ -193,23 +193,12 @@ export default async function Home() {
               style={{ viewTransitionName: "massagelab-wordmark" }}
             >
               <Image
-                src="/brand/massagelab-home-logo-black-text-20260615.png"
+                src="/brand/massagelab-home-logo-badge-tight-20260615.png"
                 alt=""
                 width={1200}
                 height={360}
-                className="relative h-auto w-full max-w-[28rem] object-contain dark:hidden"
-                data-testid="home-brand-wordmark-light"
-                sizes="(max-width: 640px) 82vw, 448px"
-                loading="eager"
-                priority
-              />
-              <Image
-                src="/brand/massagelab-home-logo-white-text-20260615.png"
-                alt=""
-                width={1200}
-                height={360}
-                className="relative hidden h-auto w-full max-w-[28rem] object-contain dark:block"
-                data-testid="home-brand-wordmark-dark"
+                className="relative h-auto w-full max-w-[32rem] object-contain"
+                data-testid="home-brand-wordmark-image"
                 sizes="(max-width: 640px) 82vw, 448px"
                 loading="eager"
                 priority

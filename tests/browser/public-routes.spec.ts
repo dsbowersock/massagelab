@@ -167,29 +167,25 @@ test("anonymous homepage presents the optional action router and available tools
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("homepage swaps logo artwork for light and dark themes", async ({ page }) => {
+test("homepage uses one logo artwork for light and dark themes", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
-  const lightLogo = page.getByTestId("home-brand-wordmark-light")
-  const darkLogo = page.getByTestId("home-brand-wordmark-dark")
-  await expect(lightLogo).toHaveAttribute("src", /massagelab-home-logo-black-text-20260615/)
-  await expect(darkLogo).toHaveAttribute("src", /massagelab-home-logo-white-text-20260615/)
+  const logo = page.getByTestId("home-brand-wordmark-image")
+  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-tight-20260615/)
 
   await page.evaluate(() => {
     document.documentElement.classList.remove("dark")
     document.documentElement.classList.add("light")
   })
-  await expect(lightLogo).toBeVisible()
-  await expect(darkLogo).toBeHidden()
+  await expect(logo).toBeVisible()
 
   await page.evaluate(() => {
     document.documentElement.classList.remove("light")
     document.documentElement.classList.add("dark")
   })
-  await expect(darkLogo).toBeVisible()
-  await expect(lightLogo).toBeHidden()
+  await expect(logo).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
