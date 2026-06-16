@@ -9,6 +9,11 @@ import {
   normalizeClientWellnessEntryInput,
   sanitizeClientWellnessLogMetadata,
 } from "../lib/client-wellness.js"
+import {
+  CLIENT_WELLNESS_REMINDER_KINDS,
+  nextClientWellnessReminderOccurrences,
+  normalizeClientWellnessReminderSchedules,
+} from "../lib/client-wellness-reminders.js"
 
 describe("Client wellness helpers", () => {
   it("defines the first supported client-owned wellness categories", () => {
@@ -165,6 +170,62 @@ describe("Client wellness helpers", () => {
     assert.equal(calculateRomAngleDelta("beta", 10, 350), -340)
     assert.equal(calculateRomAngleDelta("alpha", "not a number", 10), 0)
   })
+
+  it("normalizes generic wellness reminder schedules", () => {
+    assert.deepEqual(CLIENT_WELLNESS_REMINDER_KINDS.map((kind) => kind.id), [
+      "check_in",
+      "body_sensation",
+      "rom",
+      "feeling",
+      "sleep",
+      "home_care",
+    ])
+
+    const schedules = normalizeClientWellnessReminderSchedules([
+      {
+        id: "custom",
+        kind: "rom",
+        cadence: "weekdays",
+        timeOfDay: "7:05",
+        weekdays: [1, 3, 3, "bad"],
+        enabled: true,
+        note: "drop this private note",
+      },
+      { kind: "diagnosis", cadence: "daily", timeOfDay: "99:99" },
+    ])
+
+    assert.deepEqual(schedules, [{
+      id: "custom",
+      kind: "rom",
+      cadence: "weekdays",
+      timeOfDay: "07:05",
+      weekdays: [1, 3],
+      enabled: true,
+    }])
+  })
+
+  it("calculates upcoming generic reminder occurrences", () => {
+    const schedules = normalizeClientWellnessReminderSchedules([{
+      id: "custom",
+      kind: "rom",
+      cadence: "weekdays",
+      timeOfDay: "7:05",
+      weekdays: [1, 3],
+      enabled: true,
+    }])
+
+    const occurrences = nextClientWellnessReminderOccurrences(schedules, new Date(2026, 5, 16, 10, 0, 0, 0), 2)
+
+    assert.deepEqual(occurrences.map((item) => ({
+      kind: item.kind,
+      day: item.startsAt.getDay(),
+      hour: item.startsAt.getHours(),
+      minute: item.startsAt.getMinutes(),
+    })), [
+      { kind: "rom", day: 3, hour: 7, minute: 5 },
+      { kind: "rom", day: 1, hour: 7, minute: 5 },
+    ])
+  })
 })
 
 describe("Client wellness Prisma model guardrails", () => {
@@ -207,13 +268,21 @@ describe("Client wellness server action guardrails", () => {
     assert.match(source, /deleteClientWellnessEntryAction/)
     assert.match(source, /exportClientWellnessEntriesAction/)
     assert.match(source, /updateClientWellnessPreferenceAction/)
+    assert.match(source, /updateClientWellnessReminderSchedulesAction/)
     assert.match(source, /normalizeClientWellnessCustomTerms/)
+    assert.match(source, /normalizeClientWellnessReminderSchedules/)
     assert.match(source, /customSensations/)
     assert.match(source, /clientWellnessVocabularySuggestion\.findMany/)
     assert.match(source, /clientWellnessVocabularySuggestion\.createMany/)
     assert.match(source, /clientWellnessVocabularySuggestion\.createMany\(\{[\s\S]*?status:\s*"PRIVATE"/)
     assert.doesNotMatch(source, /clientWellnessVocabularySuggestion\.(findMany|createMany)\(\{[\s\S]*?status:\s*"APPROVED"/)
     assert.match(source, /userId,\s*deletedAt:\s*null/)
+    assert.match(source, /mergeClientWellnessPreferenceSettings/)
+    assert.match(source, /clientWellnessPreference\.findUnique\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
+    assert.match(source, /clientWellnessPreference\.create\(\{[\s\S]*?data:\s*\{[\s\S]*?\buserId\b/)
+    assert.match(source, /clientWellnessPreference\.updateMany\(\{[\s\S]*?where:\s*\{\s*userId,\s*version:\s*currentPreference\.version\s*\}/)
+    assert.match(source, /version:\s*\{\s*increment:\s*1\s*\}/)
+    assert.match(source, /reminderSchedules/)
     const privateSuggestionWhere = source.match(/clientWellnessVocabularySuggestion\.findMany\(\{[\s\S]*?where:\s*\{([\s\S]*?)\}\s*,\s*select:/)?.[1] ?? ""
     assert.match(privateSuggestionWhere, /\buserId\b/)
     assert.match(privateSuggestionWhere, /\bcategory\b/)

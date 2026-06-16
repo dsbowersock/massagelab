@@ -9,6 +9,7 @@ import {
   normalizeClientWellnessEntryInput,
   sanitizeClientWellnessLogMetadata,
 } from "@/lib/client-wellness"
+import { normalizeClientWellnessReminderSchedules } from "@/lib/client-wellness-reminders"
 import { prisma } from "@/lib/prisma"
 
 type WellnessActionResult<T = unknown> = {
@@ -90,6 +91,89 @@ function jsonObjectValue(formData: FormData, key: string) {
   } catch {
     return {}
   }
+}
+
+/**
+ * Parses a JSON array form field for controlled preference updates.
+ *
+ * @param formData - Browser-submitted form data.
+ * @param key - Field name containing serialized JSON.
+ * @returns The parsed array, or an empty array when invalid or absent.
+ */
+function jsonArrayValue(formData: FormData, key: string) {
+  const value = stringValue(formData, key)
+
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Converts existing preference settings into a mergeable plain object.
+ *
+ * @param value - JSON value loaded from the owner-scoped wellness preference row.
+ * @returns A shallow settings object with arrays and scalars preserved.
+ */
+function settingsObject(value: Prisma.JsonValue | null | undefined) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+/**
+ * Merges a settings patch into the owner-scoped preference row using version checks.
+ *
+ * @param userId - Signed-in user id that owns the preference row.
+ * @param patch - Shallow preference settings to merge into existing settings.
+ * @returns The updated preference version and merged settings payload.
+ */
+async function mergeClientWellnessPreferenceSettings(userId: string, patch: Record<string, unknown>) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const currentPreference = await prisma.clientWellnessPreference.findUnique({
+      where: { userId },
+      select: { settings: true, version: true },
+    })
+    const settings = {
+      ...settingsObject(currentPreference?.settings),
+      ...patch,
+    }
+
+    if (!currentPreference) {
+      try {
+        return await prisma.clientWellnessPreference.create({
+          data: {
+            userId,
+            settings: jsonValue(settings),
+          },
+          select: { settings: true, version: true },
+        })
+      } catch {
+        continue
+      }
+    }
+
+    const result = await prisma.clientWellnessPreference.updateMany({
+      where: { userId, version: currentPreference.version },
+      data: {
+        settings: jsonValue(settings),
+        version: { increment: 1 },
+      },
+    })
+
+    if (result.count > 0) {
+      return {
+        settings,
+        version: currentPreference.version + 1,
+      }
+    }
+  }
+
+  throw new Error("Client wellness preference update conflict.")
 }
 
 /**
@@ -365,19 +449,40 @@ export async function updateClientWellnessPreferenceAction(formData: FormData): 
 
   try {
     const settings = jsonObjectValue(formData, "settings")
-    const preference = await prisma.clientWellnessPreference.upsert({
-      where: { userId },
-      create: {
-        userId,
-        settings: jsonValue(settings),
-      },
-      update: {
-        settings: jsonValue(settings),
-      },
-    })
+    const preference = await mergeClientWellnessPreferenceSettings(userId, settings)
 
     revalidatePath("/wellness")
     return { ok: true, data: { version: preference.version, settings: preference.settings } }
+  } catch {
+    logWellnessActionFailure("preference")
+    return { ok: false, reason: "preference-save-failed" }
+  }
+}
+
+/**
+ * Saves generic in-app reminder schedules for the signed-in wellness user.
+ *
+ * The schedules are client-owned preferences only. This action does not create
+ * practice calendar reminders, delivery intents, external payloads, or
+ * therapist-visible records.
+ *
+ * @param formData - Form data containing a JSON array in reminderSchedules.
+ * @returns ok/data with normalized schedules, sign-in-required, or save failure.
+ */
+export async function updateClientWellnessReminderSchedulesAction(formData: FormData): Promise<WellnessActionResult> {
+  const userId = await currentUserId()
+
+  if (!userId) {
+    return { ok: false, reason: "sign-in-required" }
+  }
+
+  const reminderSchedules = normalizeClientWellnessReminderSchedules(jsonArrayValue(formData, "reminderSchedules"))
+
+  try {
+    const preference = await mergeClientWellnessPreferenceSettings(userId, { reminderSchedules })
+
+    revalidatePath("/wellness")
+    return { ok: true, data: { version: preference.version, reminderSchedules } }
   } catch {
     logWellnessActionFailure("preference")
     return { ok: false, reason: "preference-save-failed" }

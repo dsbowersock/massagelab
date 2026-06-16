@@ -1,19 +1,64 @@
 import { HeartPulse } from "lucide-react"
+import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { WellnessHubClient, type WellnessTimelineEntry } from "@/components/wellness/wellness-hub-client"
+import type {
+  ClientWellnessReminderSchedule,
+  WellnessAppointmentSummary,
+} from "@/components/wellness/wellness-calendar-companion"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { normalizeClientWellnessReminderSchedules } from "@/lib/client-wellness-reminders"
 import { prisma } from "@/lib/prisma"
+
+const wellnessAppointmentInclude = {
+  practice: { select: { name: true, timezone: true } },
+  therapist: { select: { name: true } },
+  event: { select: { title: true, startsAt: true, endsAt: true, timezone: true, status: true } },
+  serviceItems: {
+    select: {
+      serviceName: true,
+      serviceVariantName: true,
+      sortOrder: true,
+    },
+    orderBy: { sortOrder: "asc" },
+  },
+} satisfies Prisma.AppointmentInclude
 
 export default async function WellnessPage() {
   const session = await getCurrentSession()
   const userId = session?.user?.id
-  const entries = userId
-    ? await prisma.clientWellnessEntry.findMany({
-        where: { userId, deletedAt: null },
-        orderBy: { occurredAt: "desc" },
-        take: 25,
-      })
-    : []
+  const now = new Date()
+  const [entries, upcomingAppointments, pastAppointments, preference] = userId
+    ? await Promise.all([
+        prisma.clientWellnessEntry.findMany({
+          where: { userId, deletedAt: null },
+          orderBy: { occurredAt: "desc" },
+          take: 25,
+        }),
+        prisma.appointment.findMany({
+          where: {
+            practiceClient: { userId },
+            endsAt: { gte: now },
+          },
+          include: wellnessAppointmentInclude,
+          orderBy: { startsAt: "asc" },
+          take: 12,
+        }),
+        prisma.appointment.findMany({
+          where: {
+            practiceClient: { userId },
+            endsAt: { lt: now },
+          },
+          include: wellnessAppointmentInclude,
+          orderBy: { startsAt: "desc" },
+          take: 12,
+        }),
+        prisma.clientWellnessPreference.findUnique({
+          where: { userId },
+          select: { settings: true },
+        }),
+      ])
+    : [[], [], [], null]
 
   return (
     <AppPageShell width="wide" contentClassName="gap-5">
@@ -28,6 +73,8 @@ export default async function WellnessPage() {
           isSignedIn={Boolean(userId)}
           displayName={session?.user?.name ?? session?.user?.email ?? null}
           initialEntries={entries.map(serializeWellnessEntry)}
+          appointments={[...upcomingAppointments, ...pastAppointments].map(serializeWellnessAppointment)}
+          reminderSchedules={reminderSchedulesFromPreference(preference?.settings)}
         />
       </AppSurface>
     </AppPageShell>
@@ -79,4 +126,48 @@ function serializeWellnessEntry(entry: {
 
 function isString(value: unknown): value is string {
   return typeof value === "string"
+}
+
+/**
+ * Serializes appointment rows for the client-owned wellness calendar companion.
+ *
+ * The query intentionally avoids appointment notes and practice-client contact
+ * fields, so this adapter only emits operational labels, timing, and status.
+ */
+function serializeWellnessAppointment(appointment: {
+  id: string
+  status: string
+  source: string
+  startsAt: Date
+  endsAt: Date
+  serviceName: string | null
+  serviceVariantName: string | null
+  practice: { name: string; timezone: string }
+  therapist: { name: string | null }
+  event: { title: string; startsAt: Date; endsAt: Date; timezone: string; status: string }
+  serviceItems: Array<{ serviceName: string | null; serviceVariantName: string | null; sortOrder: number }>
+}): WellnessAppointmentSummary {
+  const serviceItemLabels = appointment.serviceItems
+    .map((item) => [item.serviceName, item.serviceVariantName].filter(Boolean).join(" - "))
+    .filter(Boolean)
+  const serviceLabel = serviceItemLabels.length > 0
+    ? serviceItemLabels.join(" + ")
+    : [appointment.serviceName, appointment.serviceVariantName].filter(Boolean).join(" - ") || appointment.event.title || "Appointment"
+
+  return {
+    id: appointment.id,
+    status: appointment.status,
+    source: appointment.source,
+    startsAt: appointment.startsAt.toISOString(),
+    endsAt: appointment.endsAt.toISOString(),
+    timezone: appointment.event.timezone || appointment.practice.timezone,
+    practiceName: appointment.practice.name,
+    therapistLabel: appointment.therapist.name ?? "Provider",
+    serviceLabel,
+  }
+}
+
+function reminderSchedulesFromPreference(settings: unknown): ClientWellnessReminderSchedule[] {
+  const payload = settings && typeof settings === "object" && !Array.isArray(settings) ? settings as Record<string, unknown> : {}
+  return normalizeClientWellnessReminderSchedules(payload.reminderSchedules) as ClientWellnessReminderSchedule[]
 }
