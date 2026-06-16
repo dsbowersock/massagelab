@@ -26,7 +26,7 @@ const flipWords = ["therapists", "students", "educators", "clients", "curious pe
 const proofLanes = [
   {
     title: "Learn anatomy with sourced prompts",
-    description: "Build public flashcard decks from reviewed anatomy records, then save progress when you create an account.",
+    description: "Build anatomy decks, practice from reviewed prompts, and keep progress when you create an account.",
     href: "/education/flashcards",
     action: "Study flashcards",
     icon: BookOpen,
@@ -34,7 +34,7 @@ const proofLanes = [
   },
   {
     title: "Teach with a room code",
-    description: "Run Anatomime as a classroom game with reusable room codes, team turns, and shared review.",
+    description: "Turn anatomy review into a room-code game for study groups, classrooms, and solo practice.",
     href: "/anatomime",
     action: "Open Anatomime",
     icon: Brain,
@@ -50,7 +50,7 @@ const proofLanes = [
   },
   {
     title: "Document under local control",
-    description: "SOAP, intake, journal, and ROM tools stay local-first while hosted clinical sync remains gated.",
+    description: "Create SOAP, intake, journal, and ROM records in a private browser vault.",
     href: "/notes",
     action: "Review notes",
     icon: ShieldCheck,
@@ -58,15 +58,15 @@ const proofLanes = [
   },
   {
     title: "Organize care workflows",
-    description: "Calendar, booking, waitlist, service settings, and provider capacity tools are ready for small-practice shaping.",
+    description: "Set up services, availability, booking links, waitlists, and provider capacity.",
     href: "/calendar",
     action: "Open calendar",
     icon: CalendarDays,
     badge: "Signed-in",
   },
   {
-    title: "Support the careful roadmap",
-    description: "Memberships fund education, practice workflows, security, and the compliance groundwork required before hosted clinical sync.",
+    title: "Support what comes next",
+    description: "Unlock paid features, support new tools, and help MassageLab stay useful for independent practice.",
     href: "/pricing",
     action: "View pricing",
     icon: HeartHandshake,
@@ -101,7 +101,7 @@ const availableTools = [
   },
   {
     title: "Local-first notes",
-    description: "SOAP, intake, journal, and ROM tools with encrypted browser-vault boundaries.",
+    description: "Create SOAP, intake, journal, and ROM records in an encrypted browser vault.",
     href: "/notes",
     action: "Open notes",
     icon: ClipboardList,
@@ -117,7 +117,7 @@ const availableTools = [
   },
   {
     title: "Account and memberships",
-    description: "Safe preferences, profile defaults, role verification, pricing, checkout, and billing portal.",
+    description: "Save progress, remember settings, manage profile defaults, and review paid features.",
     href: "/account",
     action: "Open account",
     icon: UserRound,
@@ -125,7 +125,7 @@ const availableTools = [
   },
   {
     title: "Roadmap and support",
-    description: "Public roadmap, support links, and funding context for future careful infrastructure.",
+    description: "See what is planned, what is available, and how memberships help fund the work.",
     href: "/roadmap",
     action: "Open roadmap",
     icon: Compass,
@@ -162,13 +162,13 @@ export default async function Home() {
     },
     {
       title: "Organize a practice",
-      description: signedIn ? "Go to your calendar workspace." : "Create an account first, then continue to the calendar workspace.",
+      description: signedIn ? "Go to your calendar workspace." : "Create an account to continue to the calendar workspace.",
       href: practiceHref,
       icon: CalendarDays,
     },
     {
       title: "Document locally",
-      description: "Review local-first notes, intake, journal, and ROM boundaries.",
+      description: "See how local SOAP, intake, journal, and ROM records work.",
       href: "/notes",
       icon: LockKeyhole,
     },
@@ -204,10 +204,10 @@ export default async function Home() {
           </div>
 
           <h2 className="max-w-4xl text-4xl font-semibold leading-tight text-foreground sm:text-5xl lg:text-6xl">
-            MassageLab helps <FlipWords words={flipWords} className="align-baseline" /> make anatomy, care, and practice tools more useful.
+            MassageLab helps <FlipWords words={flipWords} duration={2200} className="align-baseline" /> make anatomy, care, and practice tools more useful.
           </h2>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Study anatomy, teach with games, pace treatment-room sessions, organize care, and keep professional records local-first while MassageLab grows carefully toward funded, reviewed infrastructure.
+            A practical toolkit for learning anatomy, teaching body concepts, timing sessions, organizing care, and keeping your work under your control.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg" className="bg-primary hover:bg-brand-orange-glow">
@@ -220,19 +220,19 @@ export default async function Home() {
         </div>
 
         <AppSurface
-          title="Independence first"
-          description="The public tools stay usable without a forced first-visit questionnaire. Sign in when you want saved progress, safe preferences, profile defaults, or memberships."
+          title="Start where it helps"
+          description="Use a tool right away, or create an account when you want saved progress, remembered settings, and a personalized workspace."
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
           className={appCalloutClassName}
         >
           <div className="grid gap-3 text-sm text-muted-foreground">
             <div className="rounded-md border border-primary/30 bg-background/60 p-3">
-              <p className="font-medium text-foreground">No forced public onboarding</p>
-              <p className="mt-1">Visitors can inspect and use the public surfaces first.</p>
+              <p className="font-medium text-foreground">Learn the body</p>
+              <p className="mt-1">Study with flashcards, play Anatomime, and revisit the concepts that need work.</p>
             </div>
             <div className="rounded-md border border-primary/30 bg-background/60 p-3">
-              <p className="font-medium text-foreground">Account setup happens after signup</p>
-              <p className="mt-1">Role questions can become useful setup instead of a gate.</p>
+              <p className="font-medium text-foreground">Run your day</p>
+              <p className="mt-1">Use Chimer, calendar tools, and local records to keep practice work organized.</p>
             </div>
           </div>
         </AppSurface>
@@ -270,7 +270,7 @@ export default async function Home() {
 
       <AppSurface
         title={<h2 className="text-xl font-semibold">What are you here for today?</h2>}
-        description="Pick a path if you want a shortcut. This does not save a role or start onboarding."
+        description="Pick a shortcut. You can ignore this and keep browsing."
         icon={<LayoutDashboard className="h-5 w-5" aria-hidden="true" />}
         contentClassName="gap-4"
       >
@@ -298,9 +298,9 @@ export default async function Home() {
         <div className="flex items-start gap-3">
           <UserRound className="mt-1 h-5 w-5 shrink-0 text-brand-orange" />
           <div>
-            <h2 className="text-xl font-semibold">A free account makes the useful parts portable</h2>
+            <h2 className="text-xl font-semibold">Create an account when you want MassageLab to remember you</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Save safe preferences, flashcard progress, deck templates, and profile defaults. Memberships help fund education features, practice workflows, security work, and the compliance groundwork required before any hosted clinical sync.
+              Save flashcard progress, deck templates, settings, and profile defaults. Your signed-in home can become a personalized launchpad as the toolset grows.
             </p>
           </div>
         </div>
@@ -321,7 +321,7 @@ export default async function Home() {
             <h2 id="available-tools-heading" className="text-2xl font-semibold sm:text-3xl">Available tools</h2>
           </div>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            The catalog stays explicit so visitors can inspect what exists today before deciding whether to create an account.
+            A quick scan of the tools you can open from MassageLab now.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -351,7 +351,7 @@ export default async function Home() {
           title="Local-first clinical boundary"
           description={
             <>
-              MassageLab does not host notes, journals, intake forms, ROM sessions, or treatment details in this alpha. Exported files stay under user control.
+              Notes, journals, intake forms, ROM sessions, and treatment details stay on your device in this alpha. Exported files stay under your control.
             </>
           }
           icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
@@ -359,10 +359,10 @@ export default async function Home() {
         />
 
         <AppSurface
-          title="Support compliant sync groundwork"
+          title="Help build the next tools"
           description={
             <>
-              Memberships and donations help fund HIPAA-capable infrastructure planning, BAAs, audit logging, security review, and future cross-device clinical sync gates.
+              Memberships and donations help build more education tools, practice workflows, and secure foundations for future features.
             </>
           }
           icon={<HeartHandshake className="h-5 w-5" aria-hidden="true" />}

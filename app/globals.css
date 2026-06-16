@@ -465,13 +465,19 @@
 }
 
 @keyframes ml-flip-word-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(0.4rem);
-    filter: blur(5px);
+    transform: rotateX(88deg) translateY(0.35em);
+    filter: blur(6px);
   }
 
-  to {
+  55% {
+    opacity: 1;
+    transform: rotateX(-10deg) translateY(0);
+    filter: blur(0);
+  }
+
+  100% {
     opacity: 1;
     transform: translateY(0);
     filter: blur(0);

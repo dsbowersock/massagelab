@@ -43,17 +43,28 @@ export function FlipWords({
 
   const word = safeWords[index] ?? safeWords[0]
 
+  /**
+   * The outer span keeps the headline width stable while the keyed inner span
+   * remounts for the flip animation. Reduced-motion visitors keep the first
+   * word without a timer so the headline does not keep changing.
+   */
   return (
     <span
-      key={prefersReducedMotion ? "reduced-motion" : word}
-      data-testid="home-flip-word"
       className={cn(
-        "inline-flex min-w-[8.5ch] justify-center text-primary motion-reduce:min-w-0",
-        !prefersReducedMotion && "animate-[ml-flip-word-in_280ms_ease-out]",
+        "inline-grid min-w-[8.5ch] justify-center overflow-hidden align-baseline [perspective:900px] motion-reduce:min-w-0",
         className,
       )}
     >
-      {word}
+      <span
+        key={prefersReducedMotion ? "reduced-motion" : word}
+        data-testid="home-flip-word"
+        className={cn(
+          "inline-flex justify-center text-primary [backface-visibility:hidden] [transform-style:preserve-3d]",
+          !prefersReducedMotion && "animate-[ml-flip-word-in_520ms_cubic-bezier(0.2,0.8,0.2,1)]",
+        )}
+      >
+        {word}
+      </span>
     </span>
   )
 }

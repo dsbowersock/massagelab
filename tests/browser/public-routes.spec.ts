@@ -167,6 +167,28 @@ test("anonymous homepage presents the optional action router and available tools
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("homepage flip words advance when motion is allowed", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  const health = capturePageHealth(page)
+
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const flipWord = page.getByTestId("home-flip-word")
+  await expect(flipWord).toBeVisible()
+  const firstWord = await flipWord.textContent()
+  await expect
+    .poll(async () => flipWord.textContent(), {
+      message: "expected the homepage role word to advance",
+      timeout: 5_000,
+    })
+    .not.toBe(firstWord)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("homepage flip words stay stable when reduced motion is requested", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   const health = capturePageHealth(page)
