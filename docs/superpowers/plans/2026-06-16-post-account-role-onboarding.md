@@ -15,7 +15,7 @@ Create the first post-account onboarding slice for MassageLab. Onboarding should
 ## First Slice
 
 - Add a signed-in `/onboarding` route.
-- Store `appSettings.onboarding` with primary role, use cases, optional therapist jurisdiction, short notes, and a recommended next path.
+- Store `appSettings.onboarding` with primary role, use cases, optional therapist jurisdiction, and a recommended next path.
 - Route default registration and verified-email sign-in toward `/onboarding`.
 - Add an account shortcut so users can revisit onboarding.
 - Cover the pure preference builder with focused tests and keep browser coverage focused on public/sign-in-safe surfaces.
