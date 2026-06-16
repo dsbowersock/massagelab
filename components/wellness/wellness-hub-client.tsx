@@ -10,6 +10,11 @@ import {
 } from "@/app/wellness/actions"
 import { BodyRegionSelector, BODY_REGION_OPTIONS } from "@/components/wellness/body-region-selector"
 import { RomMeasurementPanel, type RomMeasurementDraft } from "@/components/wellness/rom-measurement-panel"
+import {
+  WellnessCalendarCompanion,
+  type ClientWellnessReminderSchedule,
+  type WellnessAppointmentSummary,
+} from "@/components/wellness/wellness-calendar-companion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -68,10 +73,14 @@ export function WellnessHubClient({
   isSignedIn,
   displayName,
   initialEntries,
+  appointments,
+  reminderSchedules,
 }: {
   isSignedIn: boolean
   displayName: string | null
   initialEntries: WellnessTimelineEntry[]
+  appointments: WellnessAppointmentSummary[]
+  reminderSchedules: ClientWellnessReminderSchedule[]
 }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [entries, setEntries] = useState(initialEntries)
@@ -287,6 +296,12 @@ export function WellnessHubClient({
             </div>
           )}
         </div>
+
+        <WellnessCalendarCompanion
+          isSignedIn={isSignedIn}
+          appointments={appointments}
+          reminderSchedules={reminderSchedules}
+        />
 
         <form ref={formRef} className="rounded-md border border-border/80 bg-card/95 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

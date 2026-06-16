@@ -14,6 +14,8 @@ const forbiddenWellnessPreferenceKeys = [
   "activityEntries",
   "wellnessJournal",
   "wellnessSummary",
+  "wellnessReminderSchedules",
+  "clientWellnessReminderSchedules",
 ]
 
 describe("Client wellness source guards", () => {
@@ -45,6 +47,26 @@ describe("Client wellness source guards", () => {
     assert.doesNotMatch(actionsSource, /globalVocabulary|publicVocabulary|sharedVocabulary/)
   })
 
+  it("keeps wellness reminder schedules in the client wellness preference path only", () => {
+    const actionsSource = readFileSync(new URL("../app/wellness/actions.ts", import.meta.url), "utf8")
+
+    assert.match(actionsSource, /updateClientWellnessReminderSchedulesAction/)
+    assert.match(actionsSource, /normalizeClientWellnessReminderSchedules/)
+    assert.match(actionsSource, /clientWellnessPreference\.findUnique\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
+    assert.match(actionsSource, /clientWellnessPreference\.upsert\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
+    assert.doesNotMatch(actionsSource, /CalendarEvent|CalendarReminder|CalendarNotificationIntent|sendEmail|sendSms|webPush|PushSubscription/)
+    assert.doesNotMatch(actionsSource, /practiceId|therapistId|calendarAuditLog|notificationIntent/)
+  })
+
+  it("loads client appointment summaries only through the signed-in practice client link", () => {
+    const pageSource = readFileSync(new URL("../app/wellness/page.tsx", import.meta.url), "utf8")
+
+    assert.match(pageSource, /prisma\.appointment\.findMany\(\{[\s\S]*?practiceClient:\s*\{\s*userId\s*\}/)
+    assert.match(pageSource, /serializeWellnessAppointment/)
+    assert.doesNotMatch(pageSource, /practiceClient:\s*true|include:\s*\{[\s\S]*practiceClient|notes:\s*true/)
+    assert.doesNotMatch(pageSource, /phone:\s*true|displayName:\s*true/)
+  })
+
   it("keeps wellness UI separate from the therapist professional-record vault", () => {
     const wellnessSources = [
       ...readFiles("app/wellness"),
@@ -64,7 +86,7 @@ describe("Client wellness source guards", () => {
         .map(({ source }) => source),
     ].join("\n")
 
-    assert.doesNotMatch(calendarSources, /clientWellnessEntries|wellnessEntries|bodySensationEntries|emotionEntries|wellnessJournal/)
+    assert.doesNotMatch(calendarSources, /clientWellnessEntries|wellnessEntries|bodySensationEntries|emotionEntries|wellnessJournal|reminderSchedules/)
   })
 })
 
