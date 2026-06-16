@@ -32,7 +32,10 @@ export function FlipWords({
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
-    if (prefersReducedMotion || safeWords.length <= 1) return undefined
+    if (prefersReducedMotion || safeWords.length <= 1) {
+      setIndex(0)
+      return undefined
+    }
 
     const intervalId = window.setInterval(() => {
       setIndex((current) => (current + 1) % safeWords.length)

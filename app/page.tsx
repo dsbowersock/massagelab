@@ -76,6 +76,7 @@ const proofLanes = [
 
 const availableTools = [
   {
+    key: "chimer",
     title: "Chimer",
     description: "Treatment-room timer, interval pacing, and clock mode.",
     href: "/chimer",
@@ -84,6 +85,7 @@ const availableTools = [
     status: "Public",
   },
   {
+    key: "education_flashcards",
     title: "Education flashcards",
     description: "Sourced anatomy study with public decks and signed-in progress.",
     href: "/education/flashcards",
@@ -92,6 +94,7 @@ const availableTools = [
     status: "Public + signed-in progress",
   },
   {
+    key: "anatomime",
     title: "Anatomime",
     description: "Solo and shared classroom anatomy play with room codes.",
     href: "/anatomime",
@@ -100,6 +103,7 @@ const availableTools = [
     status: "Public",
   },
   {
+    key: "local_notes",
     title: "Local-first notes",
     description: "Create SOAP, intake, journal, and ROM records in an encrypted browser vault.",
     href: "/notes",
@@ -108,6 +112,7 @@ const availableTools = [
     status: "Membership + local-first",
   },
   {
+    key: "calendar_booking",
     title: "Calendar and booking",
     description: "Scheduling, availability, booking settings, public links, waitlist, and capacity controls.",
     href: "/calendar",
@@ -116,6 +121,7 @@ const availableTools = [
     status: "Signed-in",
   },
   {
+    key: "account_memberships",
     title: "Account and memberships",
     description: "Save progress, remember settings, manage profile defaults, and review paid features.",
     href: "/account",
@@ -124,6 +130,7 @@ const availableTools = [
     status: "Signed-in",
   },
   {
+    key: "roadmap_support",
     title: "Roadmap and support",
     description: "See what is planned, what is available, and how memberships help fund the work.",
     href: "/roadmap",
@@ -331,11 +338,12 @@ export default async function Home() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {availableTools.map((tool) => {
             const Icon = tool.icon
-            const href = tool.title === "Account and memberships" ? accountToolHref : tool.href
-            const action = tool.title === "Account and memberships" && !signedIn ? "Create account" : tool.action
+            const isAccountTool = tool.key === "account_memberships"
+            const href = isAccountTool ? accountToolHref : tool.href
+            const action = isAccountTool && !signedIn ? "Create account" : tool.action
             return (
               <AppSurface
-                key={tool.title}
+                key={tool.key}
                 title={tool.title}
                 description={tool.description}
                 icon={<Icon className="h-5 w-5" aria-hidden="true" />}

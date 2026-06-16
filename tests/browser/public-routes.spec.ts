@@ -174,18 +174,21 @@ test("homepage uses one logo artwork for light and dark themes", async ({ page }
 
   const logo = page.getByTestId("home-brand-wordmark-image")
   await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-padded-20260615/)
+  const initialSrc = await logo.getAttribute("src")
 
   await page.evaluate(() => {
     document.documentElement.classList.remove("dark")
     document.documentElement.classList.add("light")
   })
   await expect(logo).toBeVisible()
+  await expect(logo).toHaveAttribute("src", initialSrc ?? "")
 
   await page.evaluate(() => {
     document.documentElement.classList.remove("light")
     document.documentElement.classList.add("dark")
   })
   await expect(logo).toBeVisible()
+  await expect(logo).toHaveAttribute("src", initialSrc ?? "")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
