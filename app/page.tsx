@@ -186,7 +186,7 @@ export default async function Home() {
         <div className="min-w-0">
           <h1 className="sr-only">MassageLab</h1>
           <div aria-hidden="true" className="relative mb-5 flex w-full justify-start py-3 sm:py-4">
-            <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-full bg-brand-orange-glow/20 blur-3xl sm:inset-x-10" />
+            <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-full bg-brand-orange-glow/28 blur-3xl dark:bg-brand-orange-glow/20 sm:inset-x-10" />
             <span className="ml-brand-asset-frame relative inline-flex max-w-full rounded-2xl">
               <Image
                 src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
