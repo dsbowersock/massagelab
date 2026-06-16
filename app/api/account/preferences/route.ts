@@ -53,6 +53,9 @@ export async function PUT(request: Request) {
   const existing = await prisma.userPreference.findUnique({
     where: { userId: session.user.id },
   })
+  // Merge existing app settings with incoming values only when callers provide
+  // appSettings. This preserves previously saved flags for omitted keys and
+  // applies replacements only for explicitly submitted entries.
   const mergedAppSettings = {
     ...objectRecord(existing?.appSettings),
     ...payload.app_settings,
@@ -74,6 +77,8 @@ export async function PUT(request: Request) {
     },
     update: {
       version: USER_PREFERENCES_VERSION,
+      // Only update app settings on explicit appSettings payloads; otherwise keep
+      // existing settings unchanged to avoid accidental overwrite during partial updates.
       appSettings: "appSettings" in body ? jsonObject(mergedAppSettings) : (existing?.appSettings as Prisma.InputJsonValue | undefined) ?? {},
       chimerSettings,
       anatomimeSettings: "anatomimeSettings" in body ? jsonObject(payload.anatomime_settings) : (existing?.anatomimeSettings as Prisma.InputJsonValue | undefined) ?? {},
