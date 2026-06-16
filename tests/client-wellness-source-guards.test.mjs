@@ -82,5 +82,5 @@ function readFileEntries(relativePath) {
 
 function isCalendarImplementationPath(relativePath) {
   const normalizedPath = relativePath.replaceAll("\\", "/").toLowerCase()
-  return /(^|\/)(calendar|sidebar-calendar|public-booking|booking-policy|service-catalog)[^/]*\.(js|ts)$/.test(normalizedPath)
+  return /(^|\/)(calendar|sidebar-calendar|public-booking|booking-policy|service-catalog)[^/]*\.(js|mjs|cjs|ts|tsx|jsx)$/.test(normalizedPath)
 }
