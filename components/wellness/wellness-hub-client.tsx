@@ -95,6 +95,9 @@ export function WellnessHubClient({
   const timelineSignalOptions = useMemo(() => (
     [...new Set(entries.flatMap((entry) => [...entry.sensations, ...entry.contexts]))].sort((a, b) => a.localeCompare(b))
   ), [entries])
+  const timelineRegionOptions = useMemo(() => (
+    [...new Set([...BODY_REGION_OPTIONS, ...entries.flatMap((entry) => entry.regions)])].sort((a, b) => a.localeCompare(b))
+  ), [entries])
 
   const filteredEntries = useMemo(() => entries.filter((entry) => (
     matchesTimelineFilter(entry, timelineCategoryFilter, timelineRegionFilter, timelineSignalFilter)
@@ -464,7 +467,7 @@ export function WellnessHubClient({
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="all">All regions</option>
-                  {BODY_REGION_OPTIONS.map((region) => (
+                  {timelineRegionOptions.map((region) => (
                     <option key={region} value={region}>{region}</option>
                   ))}
                 </select>
@@ -590,7 +593,7 @@ function wellnessFormData(form: HTMLFormElement) {
   formData.set("timezone", browserTimezone())
   formData.set("source", "quick-log")
   formData.set("metadata", JSON.stringify({
-    durationMinutes: stringFormValue(formData, "durationMinutes"),
+    durationMinutes: durationMinutesOrNull(stringFormValue(formData, "durationMinutes")),
     bodyPosition: stringFormValue(formData, "bodyPosition"),
     activityContext: stringFormValue(formData, "activityContext"),
     movementEffect: stringFormValue(formData, "movementEffect"),
@@ -704,6 +707,15 @@ function stringList(values: FormDataEntryValue[]) {
 function numberOrNull(value: string) {
   const number = Number(value)
   return Number.isFinite(number) ? Math.min(Math.max(Math.trunc(number), 0), 10) : null
+}
+
+function durationMinutesOrNull(value: string) {
+  if (!value) {
+    return null
+  }
+
+  const number = Number(value)
+  return Number.isFinite(number) ? Math.min(Math.max(Math.trunc(number), 0), 10080) : null
 }
 
 function parseJsonRecord(value: string) {
