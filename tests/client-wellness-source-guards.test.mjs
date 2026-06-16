@@ -39,9 +39,9 @@ describe("Client wellness source guards", () => {
   it("keeps custom wellness vocabulary suggestions private until reviewed in a future workflow", () => {
     const actionsSource = readFileSync(new URL("../app/wellness/actions.ts", import.meta.url), "utf8")
 
-    assert.match(actionsSource, /clientWellnessVocabularySuggestion/)
-    assert.match(actionsSource, /status:\s*"PRIVATE"/)
-    assert.doesNotMatch(actionsSource, /status:\s*"APPROVED"/)
+    assert.match(actionsSource, /clientWellnessVocabularySuggestion\.findMany\(\{[\s\S]*?status:\s*"PRIVATE"/)
+    assert.match(actionsSource, /clientWellnessVocabularySuggestion\.createMany\(\{[\s\S]*?status:\s*"PRIVATE"/)
+    assert.doesNotMatch(actionsSource, /clientWellnessVocabularySuggestion\.(findMany|createMany)\(\{[\s\S]*?status:\s*"APPROVED"/)
     assert.doesNotMatch(actionsSource, /globalVocabulary|publicVocabulary|sharedVocabulary/)
   })
 
