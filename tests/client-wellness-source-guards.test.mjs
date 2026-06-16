@@ -52,8 +52,11 @@ describe("Client wellness source guards", () => {
 
     assert.match(actionsSource, /updateClientWellnessReminderSchedulesAction/)
     assert.match(actionsSource, /normalizeClientWellnessReminderSchedules/)
+    assert.match(actionsSource, /mergeClientWellnessPreferenceSettings/)
     assert.match(actionsSource, /clientWellnessPreference\.findUnique\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
-    assert.match(actionsSource, /clientWellnessPreference\.upsert\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
+    assert.match(actionsSource, /clientWellnessPreference\.create\(\{[\s\S]*?data:\s*\{[\s\S]*?\buserId\b/)
+    assert.match(actionsSource, /clientWellnessPreference\.updateMany\(\{[\s\S]*?where:\s*\{\s*userId,\s*version:\s*currentPreference\.version\s*\}/)
+    assert.match(actionsSource, /version:\s*\{\s*increment:\s*1\s*\}/)
     assert.doesNotMatch(actionsSource, /CalendarEvent|CalendarReminder|CalendarNotificationIntent|sendEmail|sendSms|webPush|PushSubscription/)
     assert.doesNotMatch(actionsSource, /practiceId|therapistId|calendarAuditLog|notificationIntent/)
   })

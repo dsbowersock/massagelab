@@ -126,6 +126,57 @@ function settingsObject(value: Prisma.JsonValue | null | undefined) {
 }
 
 /**
+ * Merges a settings patch into the owner-scoped preference row using version checks.
+ *
+ * @param userId - Signed-in user id that owns the preference row.
+ * @param patch - Shallow preference settings to merge into existing settings.
+ * @returns The updated preference version and merged settings payload.
+ */
+async function mergeClientWellnessPreferenceSettings(userId: string, patch: Record<string, unknown>) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const currentPreference = await prisma.clientWellnessPreference.findUnique({
+      where: { userId },
+      select: { settings: true, version: true },
+    })
+    const settings = {
+      ...settingsObject(currentPreference?.settings),
+      ...patch,
+    }
+
+    if (!currentPreference) {
+      try {
+        return await prisma.clientWellnessPreference.create({
+          data: {
+            userId,
+            settings: jsonValue(settings),
+          },
+          select: { settings: true, version: true },
+        })
+      } catch {
+        continue
+      }
+    }
+
+    const result = await prisma.clientWellnessPreference.updateMany({
+      where: { userId, version: currentPreference.version },
+      data: {
+        settings: jsonValue(settings),
+        version: { increment: 1 },
+      },
+    })
+
+    if (result.count > 0) {
+      return {
+        settings,
+        version: currentPreference.version + 1,
+      }
+    }
+  }
+
+  throw new Error("Client wellness preference update conflict.")
+}
+
+/**
  * Reads custom body-sensation words that should remain private to this user.
  *
  * @param formData - Browser-submitted quick-log form data.
@@ -398,16 +449,7 @@ export async function updateClientWellnessPreferenceAction(formData: FormData): 
 
   try {
     const settings = jsonObjectValue(formData, "settings")
-    const preference = await prisma.clientWellnessPreference.upsert({
-      where: { userId },
-      create: {
-        userId,
-        settings: jsonValue(settings),
-      },
-      update: {
-        settings: jsonValue(settings),
-      },
-    })
+    const preference = await mergeClientWellnessPreferenceSettings(userId, settings)
 
     revalidatePath("/wellness")
     return { ok: true, data: { version: preference.version, settings: preference.settings } }
@@ -437,24 +479,7 @@ export async function updateClientWellnessReminderSchedulesAction(formData: Form
   const reminderSchedules = normalizeClientWellnessReminderSchedules(jsonArrayValue(formData, "reminderSchedules"))
 
   try {
-    const currentPreference = await prisma.clientWellnessPreference.findUnique({
-      where: { userId },
-      select: { settings: true },
-    })
-    const settings = {
-      ...settingsObject(currentPreference?.settings),
-      reminderSchedules,
-    }
-    const preference = await prisma.clientWellnessPreference.upsert({
-      where: { userId },
-      create: {
-        userId,
-        settings: jsonValue(settings),
-      },
-      update: {
-        settings: jsonValue(settings),
-      },
-    })
+    const preference = await mergeClientWellnessPreferenceSettings(userId, { reminderSchedules })
 
     revalidatePath("/wellness")
     return { ok: true, data: { version: preference.version, reminderSchedules } }

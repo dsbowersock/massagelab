@@ -214,14 +214,17 @@ describe("Client wellness helpers", () => {
       enabled: true,
     }])
 
-    assert.deepEqual(
-      nextClientWellnessReminderOccurrences(schedules, new Date("2026-06-16T10:00:00.000Z"), 2)
-        .map((item) => ({ kind: item.kind, startsAt: item.startsAt.toISOString() })),
-      [
-        { kind: "rom", startsAt: "2026-06-17T07:05:00.000Z" },
-        { kind: "rom", startsAt: "2026-06-22T07:05:00.000Z" },
-      ],
-    )
+    const occurrences = nextClientWellnessReminderOccurrences(schedules, new Date(2026, 5, 16, 10, 0, 0, 0), 2)
+
+    assert.deepEqual(occurrences.map((item) => ({
+      kind: item.kind,
+      day: item.startsAt.getDay(),
+      hour: item.startsAt.getHours(),
+      minute: item.startsAt.getMinutes(),
+    })), [
+      { kind: "rom", day: 3, hour: 7, minute: 5 },
+      { kind: "rom", day: 1, hour: 7, minute: 5 },
+    ])
   })
 })
 
@@ -274,8 +277,11 @@ describe("Client wellness server action guardrails", () => {
     assert.match(source, /clientWellnessVocabularySuggestion\.createMany\(\{[\s\S]*?status:\s*"PRIVATE"/)
     assert.doesNotMatch(source, /clientWellnessVocabularySuggestion\.(findMany|createMany)\(\{[\s\S]*?status:\s*"APPROVED"/)
     assert.match(source, /userId,\s*deletedAt:\s*null/)
+    assert.match(source, /mergeClientWellnessPreferenceSettings/)
     assert.match(source, /clientWellnessPreference\.findUnique\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
-    assert.match(source, /clientWellnessPreference\.upsert\(\{[\s\S]*?where:\s*\{\s*userId\s*\}/)
+    assert.match(source, /clientWellnessPreference\.create\(\{[\s\S]*?data:\s*\{[\s\S]*?\buserId\b/)
+    assert.match(source, /clientWellnessPreference\.updateMany\(\{[\s\S]*?where:\s*\{\s*userId,\s*version:\s*currentPreference\.version\s*\}/)
+    assert.match(source, /version:\s*\{\s*increment:\s*1\s*\}/)
     assert.match(source, /reminderSchedules/)
     const privateSuggestionWhere = source.match(/clientWellnessVocabularySuggestion\.findMany\(\{[\s\S]*?where:\s*\{([\s\S]*?)\}\s*,\s*select:/)?.[1] ?? ""
     assert.match(privateSuggestionWhere, /\buserId\b/)

@@ -1,4 +1,5 @@
 import { HeartPulse } from "lucide-react"
+import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { WellnessHubClient, type WellnessTimelineEntry } from "@/components/wellness/wellness-hub-client"
 import type {
@@ -9,10 +10,25 @@ import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/a
 import { normalizeClientWellnessReminderSchedules } from "@/lib/client-wellness-reminders"
 import { prisma } from "@/lib/prisma"
 
+const wellnessAppointmentInclude = {
+  practice: { select: { name: true, timezone: true } },
+  therapist: { select: { name: true } },
+  event: { select: { title: true, startsAt: true, endsAt: true, timezone: true, status: true } },
+  serviceItems: {
+    select: {
+      serviceName: true,
+      serviceVariantName: true,
+      sortOrder: true,
+    },
+    orderBy: { sortOrder: "asc" },
+  },
+} satisfies Prisma.AppointmentInclude
+
 export default async function WellnessPage() {
   const session = await getCurrentSession()
   const userId = session?.user?.id
-  const [entries, appointments, preference] = userId
+  const now = new Date()
+  const [entries, upcomingAppointments, pastAppointments, preference] = userId
     ? await Promise.all([
         prisma.clientWellnessEntry.findMany({
           where: { userId, deletedAt: null },
@@ -22,29 +38,27 @@ export default async function WellnessPage() {
         prisma.appointment.findMany({
           where: {
             practiceClient: { userId },
+            endsAt: { gte: now },
           },
-          include: {
-            practice: { select: { name: true, timezone: true } },
-            therapist: { select: { name: true, email: true } },
-            event: { select: { title: true, startsAt: true, endsAt: true, timezone: true, status: true } },
-            serviceItems: {
-              select: {
-                serviceName: true,
-                serviceVariantName: true,
-                sortOrder: true,
-              },
-              orderBy: { sortOrder: "asc" },
-            },
+          include: wellnessAppointmentInclude,
+          orderBy: { startsAt: "asc" },
+          take: 12,
+        }),
+        prisma.appointment.findMany({
+          where: {
+            practiceClient: { userId },
+            endsAt: { lt: now },
           },
+          include: wellnessAppointmentInclude,
           orderBy: { startsAt: "desc" },
-          take: 24,
+          take: 12,
         }),
         prisma.clientWellnessPreference.findUnique({
           where: { userId },
           select: { settings: true },
         }),
       ])
-    : [[], [], null]
+    : [[], [], [], null]
 
   return (
     <AppPageShell width="wide" contentClassName="gap-5">
@@ -59,7 +73,7 @@ export default async function WellnessPage() {
           isSignedIn={Boolean(userId)}
           displayName={session?.user?.name ?? session?.user?.email ?? null}
           initialEntries={entries.map(serializeWellnessEntry)}
-          appointments={appointments.map(serializeWellnessAppointment)}
+          appointments={[...upcomingAppointments, ...pastAppointments].map(serializeWellnessAppointment)}
           reminderSchedules={reminderSchedulesFromPreference(preference?.settings)}
         />
       </AppSurface>
@@ -129,7 +143,7 @@ function serializeWellnessAppointment(appointment: {
   serviceName: string | null
   serviceVariantName: string | null
   practice: { name: string; timezone: string }
-  therapist: { name: string | null; email: string | null }
+  therapist: { name: string | null }
   event: { title: string; startsAt: Date; endsAt: Date; timezone: string; status: string }
   serviceItems: Array<{ serviceName: string | null; serviceVariantName: string | null; sortOrder: number }>
 }): WellnessAppointmentSummary {
@@ -148,7 +162,7 @@ function serializeWellnessAppointment(appointment: {
     endsAt: appointment.endsAt.toISOString(),
     timezone: appointment.event.timezone || appointment.practice.timezone,
     practiceName: appointment.practice.name,
-    therapistLabel: appointment.therapist.name ?? appointment.therapist.email ?? "Provider",
+    therapistLabel: appointment.therapist.name ?? "Provider",
     serviceLabel,
   }
 }

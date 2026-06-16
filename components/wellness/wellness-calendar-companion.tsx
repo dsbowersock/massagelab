@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useRef, useState, useTransition } from "react"
 import { Bell, CalendarDays, Plus, Trash2 } from "lucide-react"
 import { updateClientWellnessReminderSchedulesAction } from "@/app/wellness/actions"
 import { Badge } from "@/components/ui/badge"
@@ -73,6 +73,7 @@ export function WellnessCalendarCompanion({
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const saveRequestIdRef = useRef(0)
 
   const nowTime = Date.now()
   const upcomingAppointments = useMemo(() => appointments
@@ -87,8 +88,17 @@ export function WellnessCalendarCompanion({
     nextClientWellnessReminderOccurrences(schedules, new Date(), 4)
   ), [schedules])
 
+  /**
+   * Applies schedules optimistically and persists only the latest signed-in save.
+   *
+   * Multiple quick interactions can resolve out of order, so each request gets a
+   * monotonically increasing id and older responses are ignored.
+   */
   const persistSchedules = (nextSchedules: ClientWellnessReminderSchedule[], successMessage: string) => {
     const normalizedSchedules = normalizeClientWellnessReminderSchedules(nextSchedules)
+    const requestId = saveRequestIdRef.current + 1
+
+    saveRequestIdRef.current = requestId
     setSchedules(normalizedSchedules)
     setError(null)
 
@@ -101,7 +111,22 @@ export function WellnessCalendarCompanion({
     formData.set("reminderSchedules", JSON.stringify(normalizedSchedules))
 
     startTransition(async () => {
-      const result = await updateClientWellnessReminderSchedulesAction(formData)
+      let result: Awaited<ReturnType<typeof updateClientWellnessReminderSchedulesAction>>
+
+      try {
+        result = await updateClientWellnessReminderSchedulesAction(formData)
+      } catch {
+        if (requestId !== saveRequestIdRef.current) {
+          return
+        }
+
+        setError("Could not save reminder schedules.")
+        return
+      }
+
+      if (requestId !== saveRequestIdRef.current) {
+        return
+      }
 
       if (!result.ok) {
         setError(actionReason(result.reason, "Could not save reminder schedules."))
@@ -255,6 +280,7 @@ export function WellnessCalendarCompanion({
                     <Checkbox
                       checked={schedule.enabled}
                       onCheckedChange={() => toggleSchedule(schedule.id)}
+                      disabled={isPending}
                       aria-label={schedule.enabled ? "Disable reminder" : "Enable reminder"}
                     />
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeSchedule(schedule.id)} disabled={isPending} aria-label="Remove reminder">
@@ -327,7 +353,7 @@ function AppointmentList({
                 <Badge variant="outline">{appointment.status.toLowerCase()}</Badge>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                {formatDateTime(appointment.startsAt)} with {appointment.therapistLabel}
+                {formatDateTime(appointment.startsAt, appointment.timezone)} with {appointment.therapistLabel}
               </p>
             </div>
           ))}
@@ -365,17 +391,32 @@ function actionReason(reason: string | undefined, fallback: string) {
   return fallback
 }
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string, timeZone?: string) {
   const date = new Date(value)
 
   if (!Number.isFinite(date.getTime())) {
     return "Unknown time"
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(date)
+  }
+
+  if (timeZone) {
+    options.timeZone = timeZone
+  }
+
+  try {
+    return new Intl.DateTimeFormat(undefined, options).format(date)
+  } catch {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date)
+  }
 }
