@@ -1,6 +1,6 @@
 # Privacy-First Data Architecture
 
-Verified: 2026-05-29
+Verified: 2026-06-16
 
 This page is an implementation guardrail, not legal advice or a HIPAA compliance certification. It defines how MassageLab separates client-owned wellness tools, therapist professional records, and future sharing workflows while hosted professional-record storage remains gated.
 
@@ -11,7 +11,7 @@ MassageLab should not treat every health-adjacent feature as one shared clinical
 | Domain | Owner | Storage posture | Current product rule |
 | --- | --- | --- | --- |
 | `AccountProfile` | User or practice | Cloud-safe app storage | Name, email, phone, login, profile, preferences, membership, and booking/account status can use the normal app database with least-privilege access. |
-| `ClientWellnessRecord` | Client | Future cloud wellness storage with strong consumer-health privacy controls | Client self-tracking can become cloud-backed later, but therapist access is not automatic and no client wellness data should be sold, used for ad targeting, or repurposed away from the user's benefit. |
+| `ClientWellnessRecord` | Client | Cloud wellness storage with strong consumer-health privacy controls | Signed-in `/wellness` entries are client-owned self-tracking records. Therapist access is not automatic, sharing is disabled, and no client wellness data should be sold, used for ad targeting, or repurposed away from the user's benefit. |
 | `ProfessionalRecordVault` | Therapist or practice | Offline-capable local encrypted storage until hosted PHI gates pass | Therapist-created intake, SOAP, treatment, pain-map, signature, and professional-note content must not be stored, processed, logged, emailed, or synced through MassageLab cloud services yet. |
 | `SharingConsent` | Client | Future cloud consent/control record | Sharing is modeled now but live therapist viewing of cloud wellness data is deferred until legal/compliance review and explicit product gates exist. |
 | `ProfessionalRecordReference` | Therapist or practice | Local professional vault first; hosted only after PHI gates | If a therapist uses client-shared wellness information in treatment planning or notes, the reference becomes an intentional professional-record entry. |
@@ -26,9 +26,9 @@ Pre-arrival remote flows stay contact/profile/booking-only. They must not collec
 
 ### Client-Owned Wellness Data
 
-Client self-tracking is allowed as a future cloud domain, separate from therapist professional records. Examples include ROM self-measurements, body comfort trends, goals, home-care logs, sleep/stress notes, and client-authored wellness journals.
+Client self-tracking is now a separate cloud domain for signed-in `/wellness` entries, distinct from therapist professional records. Examples include ROM self-measurements, body comfort trends, goals, home-care logs, sleep/stress notes, and client-authored wellness journals.
 
-This domain should be treated as sensitive consumer health data even when it is not HIPAA PHI by default. Before cloud wellness storage ships, it needs:
+This domain should be treated as sensitive consumer health data even when it is not HIPAA PHI by default. Current client wellness storage needs:
 
 - explicit product language that it is self-tracking, not diagnosis or continuous monitoring
 - export and deletion controls
@@ -37,7 +37,7 @@ This domain should be treated as sensitive consumer health data even when it is 
 - no sale, ad-targeting, or unrelated secondary use of user health data
 - logging and analytics rules that prevent raw wellness entries from leaking into third-party tools
 
-Therapists must not receive live remote access to this data in the current alpha. The data may be modeled for future sharing, but active therapist viewing remains disabled until the sharing gate below is implemented.
+The first implementation uses `ClientWellnessEntry`, `ClientWellnessPreference`, and `ClientWellnessVocabularySuggestion` for owner-scoped records. Anonymous users can practice on `/wellness` in memory only. Signed-in users can save quick logs and ROM measurements, export entries, and soft-delete entries. Therapists must not receive live remote access to this data in the current alpha. The data may be modeled for future sharing, but active therapist viewing remains disabled until the sharing gate below is implemented.
 
 ### Therapist Professional Records
 
@@ -94,6 +94,7 @@ Re-verify vendor pricing, BAA availability, and product scope before any hosted 
 
 - Keep `/notes/intake`, SOAP, journal, ROM, and future therapist documentation routes local-first unless the hosted PHI gate passes.
 - Keep browser QA and source-guard tests that block clinical content from `/api/clinical/sync`, `/api/clients/`, `/api/account/preferences`, Prisma writes, logs, analytics, and other hosted routes.
+- Keep client wellness source guards that block raw wellness entries from account preferences, calendar payloads, notifications, Sentry metadata, analytics, and the therapist professional-record vault.
 - Do not expose remote client wellness dashboards to therapists until `SharingConsent` has been designed, reviewed, tested, and intentionally enabled.
 - When encrypted local vault behavior is added to a professional-record route, test offline unlock, wrong-passphrase rejection, session-only unlock, export/import, no plaintext persistence, and malformed import rejection.
 - Public and client-facing copy should avoid diagnosis, emergency monitoring, continuous therapist monitoring, or medical-device style claims.
