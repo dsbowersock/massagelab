@@ -104,24 +104,22 @@ export function WellnessHubClient({
       return
     }
 
-    startTransition(() => {
-      void (async () => {
-        setError(null)
-        const result = await createClientWellnessEntryAction(formData)
+    startTransition(async () => {
+      setError(null)
+      const result = await createClientWellnessEntryAction(formData)
 
-        if (!result.ok) {
-          setError(actionReason(result.reason, "Could not save this entry."))
-          return
-        }
+      if (!result.ok) {
+        setError(actionReason(result.reason, "Could not save this entry."))
+        return
+      }
 
-        const data = actionData(result.data)
-        const entry = normalizeTimelineEntry(data.entry, true)
-        if (entry) {
-          setEntries((current) => [entry, ...current])
-        }
-        setStatus("Saved to your client-owned wellness timeline.")
-        form.reset()
-      })()
+      const data = actionData(result.data)
+      const entry = normalizeTimelineEntry(data.entry, true)
+      if (entry) {
+        setEntries((current) => [entry, ...current])
+      }
+      setStatus("Saved to your client-owned wellness timeline.")
+      form.reset()
     })
   }
 
@@ -141,23 +139,21 @@ export function WellnessHubClient({
       return
     }
 
-    startTransition(() => {
-      void (async () => {
-        setError(null)
-        const result = await createClientWellnessEntryAction(formData)
+    startTransition(async () => {
+      setError(null)
+      const result = await createClientWellnessEntryAction(formData)
 
-        if (!result.ok) {
-          setError(actionReason(result.reason, "Could not save this ROM measurement."))
-          return
-        }
+      if (!result.ok) {
+        setError(actionReason(result.reason, "Could not save this ROM measurement."))
+        return
+      }
 
-        const data = actionData(result.data)
-        const entry = normalizeTimelineEntry(data.entry, true)
-        if (entry) {
-          setEntries((current) => [entry, ...current])
-        }
-        setStatus("ROM measurement saved to your wellness timeline.")
-      })()
+      const data = actionData(result.data)
+      const entry = normalizeTimelineEntry(data.entry, true)
+      if (entry) {
+        setEntries((current) => [entry, ...current])
+      }
+      setStatus("ROM measurement saved to your wellness timeline.")
     })
   }
 
@@ -177,20 +173,18 @@ export function WellnessHubClient({
     const formData = new FormData()
     formData.set("id", entry.id)
 
-    startTransition(() => {
-      void (async () => {
-        setError(null)
-        const result = await deleteClientWellnessEntryAction(formData)
+    startTransition(async () => {
+      setError(null)
+      const result = await deleteClientWellnessEntryAction(formData)
 
-        if (!result.ok) {
-          setError(actionReason(result.reason, "Could not delete this entry."))
-          return
-        }
+      if (!result.ok) {
+        setError(actionReason(result.reason, "Could not delete this entry."))
+        return
+      }
 
-        setEntries((current) => current.filter((candidate) => candidate.id !== entry.id))
-        setConfirmDeleteId(null)
-        setStatus("Entry deleted from your wellness timeline.")
-      })()
+      setEntries((current) => current.filter((candidate) => candidate.id !== entry.id))
+      setConfirmDeleteId(null)
+      setStatus("Entry deleted from your wellness timeline.")
     })
   }
 
@@ -205,24 +199,22 @@ export function WellnessHubClient({
       return
     }
 
-    startTransition(() => {
-      void (async () => {
-        setError(null)
-        const result = await exportClientWellnessEntriesAction()
+    startTransition(async () => {
+      setError(null)
+      const result = await exportClientWellnessEntriesAction()
 
-        if (!result.ok) {
-          setError(actionReason(result.reason, "Could not export wellness entries."))
-          return
-        }
+      if (!result.ok) {
+        setError(actionReason(result.reason, "Could not export wellness entries."))
+        return
+      }
 
-        const data = actionData(result.data)
-        downloadJson(data.filename ?? "massagelab-wellness-export.json", {
-          exportedAt: data.exportedAt,
-          entries: data.entries ?? [],
-        })
-        setConfirmExport(false)
-        setStatus("Export prepared in your browser.")
-      })()
+      const data = actionData(result.data)
+      downloadJson(data.filename ?? "massagelab-wellness-export.json", {
+        exportedAt: data.exportedAt,
+        entries: data.entries ?? [],
+      })
+      setConfirmExport(false)
+      setStatus("Export prepared in your browser.")
     })
   }
 
