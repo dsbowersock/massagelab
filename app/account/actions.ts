@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import type { Prisma, StudentAccessStatus, VerificationSourceType, VerificationStatus } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
@@ -9,6 +10,7 @@ import { roleStatusForCredentialStatus, shouldUpdateCredentialRole } from "@/lib
 import { claimVerifiedCredential } from "@/lib/credential-claims"
 import {
   acceptedDocumentIdsFromInput,
+  legalHeadersMetadata,
   missingRequiredLegalDocuments,
   recordLegalAcceptances,
 } from "@/lib/legal-acceptance"
@@ -137,11 +139,13 @@ export async function requestCredentialVerificationAction(formData: FormData) {
     redirect("/account?tab=credentials&legal=therapist-agreement-required")
   }
 
+  const requestHeaders = await headers()
+
   await recordLegalAcceptances({
     prismaClient: prisma,
     userId: session.user.id,
     documents: requiredDocuments,
-    metadata: { ipAddress: null, userAgent: null },
+    metadata: legalHeadersMetadata(requestHeaders),
   })
 
   const rawKind = formString(formData, "credential_kind")

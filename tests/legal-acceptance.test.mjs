@@ -59,6 +59,14 @@ describe("legal acceptance helpers", () => {
       acceptedDocumentIdsFromInput({ "terms:2026-06-legal-v1": true, "privacy:2026-06-legal-v1": false }),
       new Set(["terms:2026-06-legal-v1"]),
     )
+    assert.deepEqual(
+      acceptedDocumentIdsFromInput({
+        "terms:2026-06-legal-v1": "on",
+        "privacy:2026-06-legal-v1": "true",
+        "membership-billing-refunds:2026-06-legal-v1": "false",
+      }),
+      new Set(["terms:2026-06-legal-v1", "privacy:2026-06-legal-v1"]),
+    )
   })
 
   it("reports missing required documents from accepted ids", () => {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, FileText } from "lucide-react"
 import {
   LEGAL_DOCUMENTS,
-  getLegalDocumentBySlug,
+  findLegalDocumentBySlug,
 } from "@/lib/legal-documents"
 import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -14,27 +14,25 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  const document = findLegalDocumentBySlug(slug)
 
-  try {
-    const document = getLegalDocumentBySlug(slug)
-    return {
-      title: `${document.label} | MassageLab`,
-      description: document.summary,
-    }
-  } catch {
+  if (!document) {
     return {
       title: "Legal Document | MassageLab",
     }
+  }
+
+  return {
+    title: `${document.label} | MassageLab`,
+    description: document.summary,
   }
 }
 
 export default async function LegalDocumentPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  let document
+  const document = findLegalDocumentBySlug(slug)
 
-  try {
-    document = getLegalDocumentBySlug(slug)
-  } catch {
+  if (!document) {
     notFound()
   }
 
