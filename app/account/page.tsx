@@ -21,6 +21,7 @@ import { SignOutButton } from "@/app/account/sign-out-button"
 import { accountPageGroups, accountPageTabs, formatAccountDate, selectAccountTab } from "@/lib/account-page"
 import { normalizeSessionRoleAssignments } from "@/lib/account-role-assignments"
 import { getAccountSurfaceData } from "@/lib/account-surface-data"
+import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { US_MASSAGE_JURISDICTIONS } from "@/lib/license-verification"
 import { FEATURE_KEYS } from "@/lib/membership"
 import type { AccountRole, VerificationStatus } from "@/lib/domain-types"
@@ -44,6 +45,7 @@ type AccountPageProps = {
   searchParams?: Promise<{
     billing?: string
     checkout?: string
+    legal?: string
     portal?: string
     tab?: string
   }>
@@ -63,14 +65,15 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const defaultTab = selectAccountTab(params?.tab, {
     billing: params?.billing,
     checkout: params?.checkout,
+    legal: params?.legal,
     portal: params?.portal,
   })
-  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.portal
+  const showMobileIndexFirst = !params?.tab && !params?.billing && !params?.checkout && !params?.legal && !params?.portal
 
   if (!session?.user?.id) {
     return (
       <AccountShell>
-        <AccountNotice billing={params?.billing} checkout={params?.checkout} portal={params?.portal} />
+        <AccountNotice billing={params?.billing} checkout={params?.checkout} legal={params?.legal} portal={params?.portal} />
         <AccountSettingsShell
           defaultValue={defaultTab}
           groups={accountPageGroups}
@@ -164,6 +167,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
       <AccountNotice
         billing={params?.billing}
         checkout={params?.checkout}
+        legal={params?.legal}
         portal={params?.portal}
       />
 
@@ -461,6 +465,8 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
   const data = await getAccountSurfaceData("credentials", userId, sessionUser)
   const roleRows = data.roleAssignments
   const credentialVerifications = data.credentialVerifications
+  const therapistAgreement = getLegalDocumentByKey("therapist-agreement")
+  const therapistAgreementId = legalDocumentAcceptanceId(therapistAgreement)
 
   return (
     <TabsContent value="credentials" className="space-y-5">
@@ -578,6 +584,17 @@ async function CredentialsTab({ userId, sessionUser }: { userId: string; session
             <p className="text-xs text-muted-foreground md:col-span-2">
               Ohio massage license requests run an automatic eLicense check. Other jurisdictions and student enrollment remain pending for review.
             </p>
+            <input type="hidden" name="acceptedLegalDocuments" value={therapistAgreementId} />
+            <label className="flex gap-3 rounded-md border border-border/80 bg-background/70 p-3 text-sm text-muted-foreground md:col-span-2">
+              <input type="checkbox" name="therapistAgreementAccepted" value="true" className="mt-1" required />
+              <span>
+                I agree to the{" "}
+                <Link href={therapistAgreement.route} className="text-brand-orange underline-offset-4 hover:underline">
+                  {therapistAgreement.label}
+                </Link>{" "}
+                before requesting professional or practice access.
+              </span>
+            </label>
             <div className="md:col-span-2">
               <Button type="submit" variant="outline">
                 Request verification
@@ -850,13 +867,15 @@ function AccountActionLink({
 function AccountNotice({
   billing,
   checkout,
+  legal,
   portal,
 }: {
   billing?: string
   checkout?: string
+  legal?: string
   portal?: string
 }) {
-  const notice = accountNotice({ billing, checkout, portal })
+  const notice = accountNotice({ billing, checkout, legal, portal })
 
   if (!notice) {
     return null
@@ -870,10 +889,12 @@ function AccountNotice({
 function accountNotice({
   billing,
   checkout,
+  legal,
   portal,
 }: {
   billing?: string
   checkout?: string
+  legal?: string
   portal?: string
 }) {
   if (checkout === "success") {
@@ -916,6 +937,14 @@ function accountNotice({
     }
   }
 
+  if (legal === "therapist-agreement-required") {
+    return {
+      title: "Therapist Agreement required",
+      description: "Accept the Therapist Agreement before requesting professional or practice access.",
+      tone: "destructive" as const,
+    }
+  }
+
   if (billing) {
     return {
       title: "Checkout unavailable",
@@ -930,6 +959,7 @@ function accountNotice({
 function billingMessage(code: string) {
   if (code === "unsupported-plan") return "That membership level is not supported for Stripe Checkout."
   if (code === "price-not-configured") return "Stripe prices are not configured for that membership option yet."
+  if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
   if (code === "checkout-error") return "Stripe Checkout could not be started. Check the Stripe secret key and price configuration."
   return "Stripe Checkout could not be started."

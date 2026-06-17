@@ -3,6 +3,13 @@ import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpi
 import { sendVerificationEmail } from "@/lib/auth-mail"
 import { ensureUserRole } from "@/lib/auth-users"
 import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
+import {
+  acceptedDocumentIdsFromInput,
+  legalRequestMetadata,
+  missingRequiredLegalDocuments,
+  recordLegalAcceptances,
+} from "@/lib/legal-acceptance"
+import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request: Request) {
@@ -12,12 +19,24 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name.trim() : ""
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "unknown"
   const key = rateLimitKey(email, ip)
+  const requiredDocuments = requiredLegalDocumentsForEvent("registration")
+  const missingLegalDocuments = missingRequiredLegalDocuments({
+    acceptedDocumentIds: acceptedDocumentIdsFromInput(body.acceptedLegalDocuments),
+    documents: requiredDocuments,
+  })
 
   await assertRateLimit("REGISTER", key)
 
   if (!email || password.length < 12) {
     await recordFailedAttempt("REGISTER", key)
     return NextResponse.json({ message: "Use a valid email and a password with at least 12 characters." }, { status: 400 })
+  }
+
+  if (missingLegalDocuments.length > 0) {
+    await recordFailedAttempt("REGISTER", key)
+    return NextResponse.json({
+      message: `Accept ${missingLegalDocuments.map((document) => document.shortLabel).join(" and ")} before creating an account.`,
+    }, { status: 400 })
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } })
@@ -57,6 +76,12 @@ export async function POST(request: Request) {
   })
 
   await ensureUserRole(user.id, user.email)
+  await recordLegalAcceptances({
+    prismaClient: prisma,
+    userId: user.id,
+    documents: requiredDocuments,
+    metadata: legalRequestMetadata(request),
+  })
   const mailResult = await sendVerificationEmail(email, verificationToken)
 
   return NextResponse.json({

@@ -43,12 +43,21 @@ export default async function SupportPage() {
 
         <SupportContactForm initialName={defaults.name} initialContact={defaults.contact} />
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <Link href="/roadmap">
             <AppSurface
               title="Roadmap"
               description="See planned product work, compliance milestones, and funding-dependent features."
               icon={<Map className="h-5 w-5" aria-hidden="true" />}
+              className="h-full transition-colors hover:bg-accent"
+            />
+          </Link>
+
+          <Link href="/legal">
+            <AppSurface
+              title="Legal and trust documents"
+              description="Read MassageLab's current terms, privacy, billing, cookie, and local-first health data notices."
+              icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
               className="h-full transition-colors hover:bg-accent"
             />
           </Link>
