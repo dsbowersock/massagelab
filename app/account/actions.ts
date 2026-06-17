@@ -1,12 +1,20 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import type { Prisma, StudentAccessStatus, VerificationSourceType, VerificationStatus } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { clearAccountSurfaceDataCache } from "@/lib/account-surface-data"
 import { roleStatusForCredentialStatus, shouldUpdateCredentialRole } from "@/lib/credential-verification-roles"
 import { claimVerifiedCredential } from "@/lib/credential-claims"
+import {
+  acceptedDocumentIdsFromInput,
+  legalHeadersMetadata,
+  missingRequiredLegalDocuments,
+  recordLegalAcceptances,
+} from "@/lib/legal-acceptance"
+import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { getJurisdictionVerificationPlan } from "@/lib/license-verification"
 import { buildStudentAccessState } from "@/lib/membership"
 import {
@@ -118,6 +126,27 @@ export async function requestCredentialVerificationAction(formData: FormData) {
   if (!session?.user?.id) {
     redirect("/login")
   }
+
+  const requiredDocuments = requiredLegalDocumentsForEvent("professional-activation")
+  const acceptedDocumentIds = acceptedDocumentIdsFromInput(
+    formString(formData, "therapistAgreementAccepted") === "true"
+      ? formData.getAll("acceptedLegalDocuments")
+      : [],
+  )
+  const missingLegalDocuments = missingRequiredLegalDocuments({ acceptedDocumentIds, documents: requiredDocuments })
+
+  if (missingLegalDocuments.length > 0) {
+    redirect("/account?tab=credentials&legal=therapist-agreement-required")
+  }
+
+  const requestHeaders = await headers()
+
+  await recordLegalAcceptances({
+    prismaClient: prisma,
+    userId: session.user.id,
+    documents: requiredDocuments,
+    metadata: legalHeadersMetadata(requestHeaders),
+  })
 
   const rawKind = formString(formData, "credential_kind")
   const kind: CredentialKind = rawKind === "STUDENT_ENROLLMENT" ? "STUDENT_ENROLLMENT" : "MASSAGE_LICENSE"

@@ -46,6 +46,9 @@ export default function AboutPage() {
               <Button asChild variant="outline">
                 <Link href="/about/derrick">About Derrick</Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link href="/legal">Legal documents</Link>
+              </Button>
         </AppSurface>
 
         <section className="space-y-4">

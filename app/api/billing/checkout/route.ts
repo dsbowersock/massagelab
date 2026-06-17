@@ -12,6 +12,14 @@ import {
   createStripeCheckoutSession,
   ensureStripeCustomerForUser,
 } from "@/lib/stripe-billing"
+import {
+  acceptedDocumentIdsFromInput,
+  hasAcceptedCurrentDocuments,
+  legalRequestMetadata,
+  missingRequiredLegalDocuments,
+  recordLegalAcceptances,
+} from "@/lib/legal-acceptance"
+import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { prisma } from "@/lib/prisma"
 
 export const runtime = "nodejs"
@@ -25,6 +33,8 @@ async function checkoutRequest(request: Request) {
       isForm: true,
       membershipLevel: String(formData.get("membershipLevel") ?? "").toUpperCase(),
       interval: String(formData.get("interval") ?? "month"),
+      acceptedLegalDocuments: formData.getAll("acceptedLegalDocuments"),
+      billingTermsAccepted: formData.get("billingTermsAccepted") === "true",
     }
   }
 
@@ -33,6 +43,8 @@ async function checkoutRequest(request: Request) {
     isForm: false,
     membershipLevel: String(body.membershipLevel ?? "").toUpperCase(),
     interval: String(body.interval ?? "month"),
+    acceptedLegalDocuments: body.acceptedLegalDocuments,
+    billingTermsAccepted: body.billingTermsAccepted === true,
   }
 }
 
@@ -67,6 +79,26 @@ export async function POST(request: Request) {
       : NextResponse.json({ error: "Stripe price is not configured" }, { status: 400 })
   }
 
+  const requiredDocuments = requiredLegalDocumentsForEvent("checkout")
+  const acceptedDocumentIds = acceptedDocumentIdsFromInput(
+    input.billingTermsAccepted ? input.acceptedLegalDocuments : [],
+  )
+  const alreadyAccepted = await hasAcceptedCurrentDocuments({
+    prismaClient: prisma,
+    userId: session.user.id,
+    documents: requiredDocuments,
+  })
+  const missingLegalDocuments = alreadyAccepted ? [] : missingRequiredLegalDocuments({
+    acceptedDocumentIds,
+    documents: requiredDocuments,
+  })
+
+  if (missingLegalDocuments.length > 0) {
+    return input.isForm
+      ? accountRedirect("billing-terms-required")
+      : NextResponse.json({ error: "Accept the membership billing and refund terms before checkout." }, { status: 400 })
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { id: true, email: true, name: true },
@@ -79,6 +111,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (!alreadyAccepted) {
+      await recordLegalAcceptances({
+        prismaClient: prisma,
+        userId: user.id,
+        documents: requiredDocuments,
+        metadata: legalRequestMetadata(request),
+      })
+    }
+
     const [customer, studentAccess] = await Promise.all([
       ensureStripeCustomerForUser(prisma, user),
       prisma.studentAccess.findUnique({ where: { userId: user.id } }),

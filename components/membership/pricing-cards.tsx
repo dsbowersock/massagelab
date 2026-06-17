@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { cn } from "@/lib/utils"
 
 type MembershipPrice = {
@@ -247,10 +248,24 @@ function PlanAction({
     )
   }
 
+  const billingTerms = getLegalDocumentByKey("membership-billing-refunds")
+  const billingTermsId = legalDocumentAcceptanceId(billingTerms)
+
   return (
-    <form action="/api/billing/checkout" method="post">
+    <form action="/api/billing/checkout" method="post" className="space-y-3">
       <input type="hidden" name="membershipLevel" value={plan.membershipLevel} />
       <input type="hidden" name="interval" value={price.interval} />
+      <input type="hidden" name="acceptedLegalDocuments" value={billingTermsId} />
+      <label className="flex gap-3 rounded-md border border-border/80 bg-background/70 p-3 text-xs text-muted-foreground">
+        <input type="checkbox" name="billingTermsAccepted" value="true" className="mt-1" required />
+        <span>
+          I agree to the{" "}
+          <Link href={billingTerms.route} className="text-brand-orange underline-offset-4 hover:underline">
+            {billingTerms.label}
+          </Link>
+          .
+        </span>
+      </label>
       <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={!price.isLookupAvailable}>
         Choose {plan.name}
       </Button>
