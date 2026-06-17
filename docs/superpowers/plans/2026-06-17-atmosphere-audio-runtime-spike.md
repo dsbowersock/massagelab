@@ -6,7 +6,7 @@
 
 **Architecture:** Add a global client `MusicProvider` inside the existing root provider stack so audio state survives App Router navigation. Keep testable domain pieces in small JS modules under `lib/atmosphere`, use a browser-only Tone.js adapter for the audible proof station, and render `/browse` plus the bottom mini-player with existing MassageLab UI primitives. Generative.fm packages are installed and documented in this spike, but the first audible station uses a local Tone generator because the reusable sample-index/hosting source is not packaged with the selected piece.
 
-**Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Tone.js 15.1.22, `@generative-music/web-provider` 3.0.0, `@generative-music/web-library` 0.2.2, `@generative-music/piece-observable-streams` 5.2.0, node:test, Playwright, existing `AppPageShell`/`AppSurface`/`Button`/`Slider` UI primitives.
+**Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Tone.js 14.9.17, `@generative-music/web-provider` 3.0.0, `@generative-music/web-library` 0.2.2, `@generative-music/piece-observable-streams` 5.2.0, node:test, Playwright, existing `AppPageShell`/`AppSurface`/`Button`/`Slider` UI primitives.
 
 ---
 
@@ -43,7 +43,7 @@
 Run:
 
 ```powershell
-npm install tone@15.1.22 @generative-music/web-provider@3.0.0 @generative-music/web-library@0.2.2 @generative-music/piece-observable-streams@5.2.0
+npm install tone@14.9.17 @generative-music/web-provider@3.0.0 @generative-music/web-library@0.2.2 @generative-music/piece-observable-streams@5.2.0
 ```
 
 Expected: `package.json` and `package-lock.json` change. The dependency block in `package.json` includes these entries:
@@ -53,7 +53,7 @@ Expected: `package.json` and `package-lock.json` change. The dependency block in
   "@generative-music/piece-observable-streams": "5.2.0",
   "@generative-music/web-library": "0.2.2",
   "@generative-music/web-provider": "3.0.0",
-  "tone": "15.1.22"
+  "tone": "14.9.17"
 }
 ```
 
@@ -78,7 +78,7 @@ MassageLab hosts the audio runtime in the app. It does not embed Generative.fm a
 
 | Package | Version | License | Source |
 | --- | --- | --- | --- |
-| `tone` | `15.1.22` | MIT | https://github.com/Tonejs/Tone.js |
+| `tone` | `14.9.17` | MIT | https://github.com/Tonejs/Tone.js |
 | `@generative-music/web-provider` | `3.0.0` | MIT | https://github.com/generative-music/web-provider |
 | `@generative-music/web-library` | `0.2.2` | MIT | https://github.com/generative-music/web-library |
 | `@generative-music/piece-observable-streams` | `5.2.0` | MIT | https://github.com/generative-music/piece-observable-streams |
