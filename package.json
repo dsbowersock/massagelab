@@ -26,7 +26,9 @@
     "anatomy:media:upload": "node --experimental-strip-types scripts/anatomy-r2-media.ts upload",
     "anatomy:media:coverage": "node --experimental-strip-types scripts/anatomy-media-view-coverage.ts status",
     "anatomy:media:coverage:import": "node --experimental-strip-types scripts/anatomy-media-view-coverage.ts import",
-    "anatomy:media-requests": "node --experimental-strip-types scripts/anatomy-media-view-requests.ts"
+    "anatomy:media-requests": "node --experimental-strip-types scripts/anatomy-media-view-requests.ts",
+    "atmosphere:samples:scan": "node scripts/atmosphere-sample-intake.mjs",
+    "atmosphere:samples:stage": "node scripts/atmosphere-stage-observable-streams.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

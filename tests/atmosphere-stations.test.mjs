@@ -38,12 +38,32 @@ describe("Atmosphere station catalog", () => {
     assert.equal(station.sourceType, "generative-fm-piece")
     assert.equal(station.enabled, false)
     assert.equal(station.runtime.packageName, "@generative-music/piece-observable-streams")
+    assert.equal(station.runtime.adaptationId, "observable-streams-vsco-adaptation")
+    assert.equal(
+      station.runtime.sampleIndexPath,
+      "/audio/atmosphere/observable-streams-vsco-adaptation/sample-index.json",
+    )
+    assert.equal(
+      station.runtime.sampleBasePath,
+      "/audio/atmosphere/observable-streams-vsco-adaptation/samples",
+    )
+    assert.match(station.runtime.stageCommand, /atmosphere:samples:stage/)
     assert.deepEqual(station.runtime.sampleNames, [
       "observable-streams__vsco2-piano-mf",
       "observable-streams__vsco2-violin-arcvib",
       "observable-streams__sso-cor-anglais",
     ])
+    assert.deepEqual(
+      station.runtime.samplePlan.map((sample) => sample.localSource),
+      [
+        "VSCO 2 Community Edition upright piano",
+        "VSCO 2 Community Edition solo violin arco vibrato",
+        "VSCO 2 Community Edition sustained oboe",
+      ],
+    )
+    assert.match(station.runtime.samplePlan[2].adaptationReason, /excludes SSO/i)
     assert.match(station.disabledReason, /sample-index/i)
+    assert.match(station.disabledReason, /VSCO oboe/i)
     assert.equal(station.attribution.license, "MIT")
     assert.equal(station.attribution.artist, "Alex Bainter")
   })
@@ -65,13 +85,17 @@ describe("Atmosphere station catalog", () => {
     station.tags.push("mutated")
     station.attribution.license = "mutated"
     station.runtime.defaultOptions.baseFrequency = 999
+    const probe = getAtmosphereStationById("observable-streams-probe")
+    probe.runtime.samplePlan[0].localSource = "mutated"
 
     const freshStation = getAtmosphereStationById("mlab-proof-drone")
+    const freshProbe = getAtmosphereStationById("observable-streams-probe")
 
     assert.equal(freshStation.enabled, true)
     assert.equal(freshStation.attribution.license, "MassageLab internal proof")
     assert.equal(freshStation.runtime.defaultOptions.baseFrequency, 110)
     assert.equal(freshStation.tags.includes("mutated"), false)
+    assert.equal(freshProbe.runtime.samplePlan[0].localSource, "VSCO 2 Community Edition upright piano")
   })
 
   it("throws for unknown station ids", () => {

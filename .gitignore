@@ -16,6 +16,9 @@
 /test-results/
 /anatomy-table-top-scrollbar.png
 
+# generated local audio samples
+/public/audio/atmosphere/observable-streams-vsco-adaptation/samples/
+
 # local Codex workspace artifacts
 /.codex-dev-server.*
 /.codex-remote-attachments/

@@ -29,6 +29,51 @@ MassageLab hosts the audio runtime in the app. It does not embed Generative.fm a
 
 The selected package does not include the actual sample-index data needed to resolve those names to hosted audio files. Until MassageLab has explicit sample hosting or a documented first-party sample index, Observable Streams should remain a disabled catalog probe rather than a playable station.
 
+The original package expects `sso-cor-anglais` from Sonatina Symphonic Orchestra. MassageLab will not use SSO raw samples for the hosted public feature because SSO uses the retired Creative Commons Sampling Plus 1.0 license, which is not a clean fit for browser-hosted raw sample redistribution in a public product that may become subscription-supported. The first MassageLab adaptation maps that role to a CC0 VSCO sustained oboe source instead.
+
+## Local Sample Asset Intake
+
+The local sample folder supplied for this branch is `C:\Users\derri\code\audio`. The raw audio files stay outside the repo; MassageLab only commits repeatable scanner logic and documentation.
+
+Run the bounded scan with:
+
+```powershell
+npm run atmosphere:samples:scan -- "C:\Users\derri\code\audio"
+```
+
+The 2026-06-17 scan found 7,740 files and 7,429 audio files. It confirmed these local libraries and license evidence:
+
+| Library | Local status | License evidence |
+| --- | --- | --- |
+| VSCO 2 Community Edition | Present | `VSCO-2-CE-1.1.0/VSCO-2-CE-1.1.0/LICENSE` uses CC0 1.0 Universal. |
+| Versilian Community Sample Library | Present | `VCSL-1.2.2-RC/VCSL-1.2.2-RC/README.md` describes the collection as CC0/public-domain-style. |
+
+Observable Streams local coverage:
+
+| Source sample | Local status | Evidence |
+| --- | --- | --- |
+| `vsco2-piano-mf` | Candidate present | 69 VSCO upright piano WAVs matched, with `MappingChart.txt` mapping A0 to C8 across 45 sample numbers. The first staged adaptation uses dynamic layer `2` as the medium piano source. |
+| `vsco2-violin-arcvib` | Candidate present | 30 VSCO solo violin arco vibrato WAVs matched across `f` and `p` dynamics. |
+| `vsco2-oboe-sus` | Replacement present | 18 VSCO sustained oboe WAVs matched across dynamics `1` and `3`. This intentionally replaces the package's `sso-cor-anglais` role. |
+
+Stage the first curated Observable Streams adaptation with:
+
+```powershell
+npm run atmosphere:samples:stage -- "C:\Users\derri\code\audio" --dry-run
+```
+
+The dry run selects 24 WAV files: 12 VSCO piano dynamic-2 notes, 6 VSCO violin `p` notes, and 6 VSCO sustained-oboe dynamic-1 notes. Running the same command without `--dry-run` copies those WAVs into `public/audio/atmosphere/observable-streams-vsco-adaptation/samples/` and writes `sample-index.json` plus `manifest.json` beside them. The generated `samples/` folder is gitignored so the branch cannot accidentally commit raw audio.
+
+The generated sample index intentionally exposes the oboe replacement under `sso-cor-anglais`. That lets the existing Observable Streams package request its original musical role while MassageLab serves a CC0 VSCO sustained-oboe source instead of SSO raw samples.
+
+Excluded package source:
+
+| Source sample | Decision | Reason |
+| --- | --- | --- |
+| `sso-cor-anglais` | Excluded | SSO's Sampling Plus license is not a clean fit for hosting raw browser samples in a public MassageLab product feature. |
+
+Decision: build the first Observable Streams path as a MassageLab-hosted VSCO adaptation. Observable Streams remains disabled until the generated sample index is intentionally hosted, served with the right cache/CORS behavior, and wired to the Generative.fm adapter.
+
 ## Attribution Draft
 
 Observable Streams by Alex Bainter. Used as a Generative.fm package probe with permission and MIT package licensing. Before any imported piece becomes playable, verify sample file license, hosting rights, CORS behavior, and attribution wording.
