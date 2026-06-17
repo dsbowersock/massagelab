@@ -14,7 +14,7 @@ function entry(overrides = {}) {
     occurredAt: overrides.occurredAt ?? "2026-06-16T14:00:00.000Z",
     timezone: overrides.timezone ?? "America/New_York",
     summary: overrides.summary ?? null,
-    intensity: overrides.intensity ?? 5,
+    intensity: Object.hasOwn(overrides, "intensity") ? overrides.intensity : 5,
     regions: overrides.regions ?? [],
     sensations: overrides.sensations ?? [],
     contexts: overrides.contexts ?? [],
@@ -41,6 +41,16 @@ describe("Client wellness pattern reports", () => {
     assert.deepEqual(report.topSensations[0], { label: "tight", count: 2 })
     assert.deepEqual(report.topContexts[0], { label: "desk", count: 2 })
     assert.equal(report.averageIntensity, 5)
+  })
+
+  it("excludes entries with missing intensity from the average", () => {
+    const report = buildClientWellnessPatternReport([
+      entry({ id: "sensation", intensity: 8 }),
+      entry({ id: "rom", category: "rom", intensity: null, metadata: { movement: "neck rotation", changeDegrees: 40 } }),
+      entry({ id: "empty-intensity", intensity: "" }),
+    ], now)
+
+    assert.equal(report.averageIntensity, 8)
   })
 
   it("creates non-diagnostic confidence-labeled prompts from repeated signals", () => {

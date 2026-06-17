@@ -83,6 +83,14 @@ describe("Client wellness source guards", () => {
     assert.doesNotMatch(pageSource, /phone:\s*true|displayName:\s*true/)
   })
 
+  it("loads a bounded report dataset separately from the signed-in timeline page size", () => {
+    const pageSource = readFileSync(new URL("../app/wellness/page.tsx", import.meta.url), "utf8")
+
+    assert.match(pageSource, /initialReportEntries/)
+    assert.match(pageSource, /occurredAt:\s*\{\s*gte:\s*reportWindowStart\s*\}/)
+    assert.match(pageSource, /take:\s*250/)
+  })
+
   it("keeps wellness UI separate from the therapist professional-record vault", () => {
     const wellnessSources = [
       ...readFiles("app/wellness"),
