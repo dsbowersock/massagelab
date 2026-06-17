@@ -1,4 +1,7 @@
-import * as Tone from "tone"
+import { Volume } from "tone/build/esm/component/channel/Volume"
+import { Filter } from "tone/build/esm/component/filter/Filter"
+import { start } from "tone/build/esm/core/Global"
+import { Oscillator } from "tone/build/esm/source/oscillator/Oscillator"
 
 type ToneProofDroneOptions = {
   baseFrequency?: number
@@ -7,7 +10,7 @@ type ToneProofDroneOptions = {
   volume?: number
 }
 
-let activeVolumeNode: Tone.Volume | null = null
+let activeVolumeNode: Volume | null = null
 
 /**
  * Starts the first MassageLab-owned browser generator used to prove the global
@@ -23,15 +26,15 @@ export async function startToneProofDrone({
     throw new Error("Tone proof stations can only start in the browser.")
   }
 
-  await Tone.start()
+  await start()
 
   const safeBaseFrequency = toFinitePositive(baseFrequency, 110)
   const detuneRatio = Math.pow(2, toFiniteNumber(detuneCents, 7) / 1200)
-  const output = new Tone.Volume(volumeToDecibels(0)).toDestination()
-  const filter = new Tone.Filter(620, "lowpass", -12).connect(output)
-  const baseOscillator = new Tone.Oscillator(safeBaseFrequency, "sine").connect(filter)
-  const detunedOscillator = new Tone.Oscillator(safeBaseFrequency * detuneRatio, "sine").connect(filter)
-  const lowOscillator = new Tone.Oscillator(safeBaseFrequency / 2, "triangle").connect(filter)
+  const output = new Volume(volumeToDecibels(0)).toDestination()
+  const filter = new Filter(620, "lowpass", -12).connect(output)
+  const baseOscillator = new Oscillator(safeBaseFrequency, "sine").connect(filter)
+  const detunedOscillator = new Oscillator(safeBaseFrequency * detuneRatio, "sine").connect(filter)
+  const lowOscillator = new Oscillator(safeBaseFrequency / 2, "triangle").connect(filter)
 
   activeVolumeNode = output
   setToneProofDroneVolume(volume)
