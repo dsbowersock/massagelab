@@ -23,6 +23,7 @@ let activeVolumeNode: Volume | null = null
 export async function startToneProofDrone({
   baseFrequency = 110,
   detuneCents = 7,
+  fadeSeconds = 1.2,
   volume = 0.75,
 }: ToneProofDroneOptions = {}) {
   if (typeof window === "undefined") {
@@ -33,29 +34,47 @@ export async function startToneProofDrone({
 
   const safeBaseFrequency = toFinitePositive(baseFrequency, 110)
   const detuneRatio = Math.pow(2, toFiniteNumber(detuneCents, 7) / 1200)
+  const safeFadeSeconds = toFiniteNonNegative(fadeSeconds, 1.2)
   const output = new Volume(volumeToDecibels(0)).toDestination()
   const filter = new Filter(620, "lowpass", -12).connect(output)
   const baseOscillator = new Oscillator(safeBaseFrequency, "sine").connect(filter)
   const detunedOscillator = new Oscillator(safeBaseFrequency * detuneRatio, "sine").connect(filter)
   const lowOscillator = new Oscillator(safeBaseFrequency / 2, "triangle").connect(filter)
+  let disposed = false
 
   activeVolumeNode = output
-  setToneProofDroneVolume(volume)
 
   baseOscillator.start()
   detunedOscillator.start("+0.03")
   lowOscillator.start("+0.08")
+  output.volume.rampTo(volumeToDecibels(volume), safeFadeSeconds)
 
   return () => {
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
 
-    disposeToneNode(baseOscillator)
-    disposeToneNode(detunedOscillator)
-    disposeToneNode(lowOscillator)
-    disposeToneNode(filter)
-    disposeToneNode(output)
+    output.volume.rampTo(volumeToDecibels(0), safeFadeSeconds)
+
+    const disposeToneGraph = () => {
+      if (disposed) {
+        return
+      }
+      disposed = true
+
+      disposeToneNode(baseOscillator)
+      disposeToneNode(detunedOscillator)
+      disposeToneNode(lowOscillator)
+      disposeToneNode(filter)
+      disposeToneNode(output)
+    }
+
+    if (safeFadeSeconds === 0) {
+      disposeToneGraph()
+      return
+    }
+
+    window.setTimeout(disposeToneGraph, Math.ceil(safeFadeSeconds * 1000))
   }
 }
 
@@ -78,6 +97,10 @@ function toFinitePositive(value: number, fallback: number) {
 
 function toFiniteNumber(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback
+}
+
+function toFiniteNonNegative(value: number, fallback: number) {
+  return Number.isFinite(value) && value >= 0 ? value : fallback
 }
 
 function disposeToneNode(node: { stop?: () => unknown; dispose: () => unknown }) {
