@@ -11,6 +11,12 @@ import {
   normalizeBodyParts3dPartIds,
   safeBodyParts3dRenderableImageUrl,
 } from "@/lib/anatomy-media-review"
+import {
+  MEDIA_REVIEW_QUEUE_STATUS_OPTIONS,
+  mediaReviewQueueHref,
+  parseMediaReviewQueueFilters,
+} from "@/lib/anatomy-media-review-queue"
+import { getAnatomyStudyCards } from "@/lib/anatomy-study"
 import { prisma } from "@/lib/prisma"
 import { reviewAnatomyMediaQueueDecisionAction } from "@/app/admin/anatomy/actions"
 import { ReviewImagePreview } from "@/app/admin/anatomy/media-review/review-image-preview"
@@ -23,6 +29,13 @@ import { Textarea } from "@/components/ui/textarea"
 type AnatomyMediaReviewQueuePageProps = {
   searchParams?: Promise<{
     status?: string
+    preset?: string
+    entityType?: string
+    reason?: string
+    view?: string
+    request?: string
+    sort?: string
+    q?: string
     offset?: string
   }>
 }
@@ -61,6 +74,7 @@ type LinkedImageSummary = {
 type QueueData = {
   rows: MediaQueueRow[]
   total: number
+  filteredTotal: number
   allCount: number
   needsReviewCount: number
   rejectedCount: number
@@ -68,26 +82,35 @@ type QueueData = {
   openRequestCount: number
 }
 
-const QUEUE_STATUS_OPTIONS: QueueStatusOption[] = [
-  { key: "needs-review", label: "Needs Review", reviewStatus: "NEEDS_REVIEW" },
-  { key: "rejected", label: "Rejected", reviewStatus: "REJECTED" },
-  { key: "approved", label: "Approved", reviewStatus: "APPROVED" },
-  { key: "all", label: "All", reviewStatus: null },
-]
-
 const QUEUE_TAKE = 6
 const IMAGE_REVIEW_MEDIA_TYPES = ["IMAGE", "DIAGRAM"] as const satisfies AnatomyMediaType[]
+const STUDY_CATEGORY_TO_ENTITY_TYPE: Record<string, AnatomyEntityType> = {
+  bone: "BONE",
+  bone_landmark: "BONE_LANDMARK",
+  joint: "JOINT",
+  joint_movement: "JOINT_MOVEMENT",
+  range_of_motion: "RANGE_OF_MOTION",
+  muscle: "MUSCLE",
+  muscle_attachment: "MUSCLE_ATTACHMENT",
+  muscle_action: "MUSCLE_ACTION",
+  nerve: "NERVE",
+  muscle_innervation: "MUSCLE_INNERVATION",
+  ligament: "LIGAMENT",
+  anatomy_structure: "ANATOMY_STRUCTURE",
+  anatomy_concept: "ANATOMY_CONCEPT",
+  pain_map_region: "PAIN_MAP_REGION",
+}
 
 export default async function AnatomyMediaReviewQueuePage({ searchParams }: AnatomyMediaReviewQueuePageProps) {
   await requireAnatomyAdminUser()
 
   const params = await searchParams
-  const selectedStatus = queueStatusFromParam(params?.status)
-  const offset = queueOffsetFromParam(params?.offset)
-  const data = await getMediaReviewQueueData(selectedStatus, offset)
+  const filters = parseMediaReviewQueueFilters(params ?? {})
+  const selectedStatus = (MEDIA_REVIEW_QUEUE_STATUS_OPTIONS.find((status) => status.key === filters.status) ?? MEDIA_REVIEW_QUEUE_STATUS_OPTIONS[0]) as QueueStatusOption
+  const data = await getMediaReviewQueueData(filters)
 
-  if (data.rows.length === 0 && data.total > 0 && offset > 0) {
-    redirect(mediaReviewQueueHref(selectedStatus.key))
+  if (data.rows.length === 0 && data.filteredTotal > 0 && filters.offset > 0) {
+    redirect(mediaReviewQueueHref(filters, { offset: 0 }))
   }
 
   const currentRow = data.rows[0] ?? null
@@ -110,13 +133,13 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
             </Button>
           </div>
         </div>
-        <QueueStatusTabs selectedStatus={selectedStatus} data={data} />
+        <QueueStatusTabs selectedStatus={selectedStatus} data={data} filters={filters} />
       </div>
 
       <main className="space-y-3 p-3 sm:p-0">
         <QueueSummary data={data} />
         {currentRow ? (
-          <ImageReviewCard row={currentRow} selectedStatus={selectedStatus} offset={offset} upcomingRows={upcomingRows} />
+          <ImageReviewCard row={currentRow} selectedStatus={selectedStatus} offset={filters.offset} upcomingRows={upcomingRows} />
         ) : (
           <EmptyQueue selectedStatus={selectedStatus} />
         )}
@@ -125,17 +148,118 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
   )
 }
 
-async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset: number): Promise<QueueData> {
-  const where: Prisma.AnatomyMediaEntityWhereInput = {
-    asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
-    ...(selectedStatus.reviewStatus ? { reviewStatus: selectedStatus.reviewStatus } : {}),
+/**
+ * Resolves public study preset filters into admin media-link filters while
+ * retaining explicit entity-type batches that are not part of public cards.
+ */
+function entityFiltersForQueueFilters(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Prisma.AnatomyMediaEntityWhereInput[] {
+  const cards = getAnatomyStudyCards({
+    categories: filters.categories,
+    regions: filters.regions,
+    difficulty: "hard",
+  })
+  const entityFilters = new Map<string, Prisma.AnatomyMediaEntityWhereInput>()
+
+  for (const card of cards) {
+    const entityType = STUDY_CATEGORY_TO_ENTITY_TYPE[card.entityType]
+    if (!entityType) continue
+    const key = `${entityType}:${card.entitySlug}`
+    entityFilters.set(key, { entityType, entitySlug: card.entitySlug })
   }
+
+  for (const entityType of filters.entityTypes) {
+    entityFilters.set(`type:${entityType}`, { entityType: entityType as AnatomyEntityType })
+  }
+
+  return [...entityFilters.values()]
+}
+
+async function openRequestEntityFilters() {
+  const rows = await prisma.anatomyMediaViewRequest.findMany({
+    where: { status: "OPEN" },
+    select: {
+      entityType: true,
+      entitySlug: true,
+    },
+    orderBy: { createdAt: "asc" },
+    take: 500,
+  })
+
+  return rows.map((row) => ({
+    entityType: row.entityType,
+    entitySlug: row.entitySlug,
+  }))
+}
+
+async function mediaReviewQueueWhere(filters: ReturnType<typeof parseMediaReviewQueueFilters>) {
+  const andFilters: Prisma.AnatomyMediaEntityWhereInput[] = [
+    { asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } } },
+  ]
+
+  if (filters.reviewStatus) andFilters.push({ reviewStatus: filters.reviewStatus as AnatomyMediaReviewStatus })
+  if (filters.reason) andFilters.push({ reviewReason: filters.reason })
+  if (filters.view) {
+    andFilters.push({
+      asset: {
+        metadata: {
+          path: ["bodyparts3dView"],
+          equals: filters.view,
+        },
+      },
+    })
+  }
+  if (filters.q) {
+    andFilters.push({
+      OR: [
+        { entitySlug: { contains: filters.q, mode: "insensitive" } },
+        { asset: { title: { contains: filters.q, mode: "insensitive" } } },
+        { asset: { slug: { contains: filters.q, mode: "insensitive" } } },
+        { asset: { source: { label: { contains: filters.q, mode: "insensitive" } } } },
+        { asset: { source: { slug: { contains: filters.q, mode: "insensitive" } } } },
+      ],
+    })
+  }
+
+  const entityFilters = entityFiltersForQueueFilters(filters)
+  if (filters.request === "open") {
+    const requestEntityFilters = await openRequestEntityFilters()
+    if (requestEntityFilters.length === 0) andFilters.push({ id: "__no-open-request-media-review-rows__" })
+    else andFilters.push({ OR: requestEntityFilters })
+  }
+  if (entityFilters.length > 0) {
+    andFilters.push({ OR: entityFilters })
+  }
+
+  return { AND: andFilters } satisfies Prisma.AnatomyMediaEntityWhereInput
+}
+
+function mediaReviewQueueOrderBy(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Prisma.AnatomyMediaEntityOrderByWithRelationInput[] {
+  switch (filters.sort) {
+    case "newest":
+      return [{ createdAt: "desc" }]
+    case "oldest":
+      return [{ createdAt: "asc" }]
+    case "entity":
+      return [{ entitySlug: "asc" }, { displayPriority: "asc" }, { createdAt: "asc" }]
+    case "priority":
+    default:
+      return [{ reviewStatus: "asc" }, { displayPriority: "asc" }, { createdAt: "asc" }]
+  }
+}
+
+async function getMediaReviewQueueData(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Promise<QueueData> {
+  const where = await mediaReviewQueueWhere(filters)
   const imageReviewWhere: Prisma.AnatomyMediaEntityWhereInput = {
     asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
+  }
+  const statusWhere: Prisma.AnatomyMediaEntityWhereInput = {
+    ...imageReviewWhere,
+    ...(filters.reviewStatus ? { reviewStatus: filters.reviewStatus as AnatomyMediaReviewStatus } : {}),
   }
 
   const [
     rows,
+    filteredTotal,
     total,
     allCount,
     needsReviewCount,
@@ -152,15 +276,12 @@ async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset
           },
         },
       },
-      orderBy: [
-        { reviewStatus: "asc" },
-        { displayPriority: "asc" },
-        { createdAt: "asc" },
-      ],
-      skip: offset,
+      orderBy: mediaReviewQueueOrderBy(filters),
+      skip: filters.offset,
       take: QUEUE_TAKE,
     }),
     prisma.anatomyMediaEntity.count({ where }),
+    prisma.anatomyMediaEntity.count({ where: statusWhere }),
     prisma.anatomyMediaEntity.count({ where: imageReviewWhere }),
     prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "NEEDS_REVIEW" } }),
     prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "REJECTED" } }),
@@ -176,6 +297,7 @@ async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset
       linkedImages: linkedImagesByEntity.get(entityKey(row.entityType, row.entitySlug)) ?? [],
     })) as unknown as MediaQueueRow[],
     total,
+    filteredTotal,
     allCount,
     needsReviewCount,
     rejectedCount,
@@ -242,7 +364,15 @@ async function linkedImageSummariesForRows(rows: Array<{ entityType: AnatomyEnti
   return grouped
 }
 
-function QueueStatusTabs({ selectedStatus, data }: { selectedStatus: QueueStatusOption; data: QueueData }) {
+function QueueStatusTabs({
+  selectedStatus,
+  data,
+  filters,
+}: {
+  selectedStatus: QueueStatusOption
+  data: QueueData
+  filters: ReturnType<typeof parseMediaReviewQueueFilters>
+}) {
   const counts: Record<QueueStatusKey, number> = {
     "needs-review": data.needsReviewCount,
     rejected: data.rejectedCount,
@@ -252,13 +382,17 @@ function QueueStatusTabs({ selectedStatus, data }: { selectedStatus: QueueStatus
 
   return (
     <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-      {QUEUE_STATUS_OPTIONS.map((status) => (
-        <Button key={status.key} asChild size="sm" variant={selectedStatus.key === status.key ? "default" : "outline"} className="shrink-0">
-          <Link href={mediaReviewQueueHref(status.key)}>
-            {status.label} ({counts[status.key]})
-          </Link>
-        </Button>
-      ))}
+      {MEDIA_REVIEW_QUEUE_STATUS_OPTIONS.map((statusOption) => {
+        const status = statusOption as QueueStatusOption
+
+        return (
+          <Button key={status.key} asChild size="sm" variant={selectedStatus.key === status.key ? "default" : "outline"} className="shrink-0">
+            <Link href={mediaReviewQueueHref(filters, { status: status.key, offset: 0 })}>
+              {status.label} ({counts[status.key]})
+            </Link>
+          </Button>
+        )
+      })}
     </div>
   )
 }
@@ -312,7 +446,7 @@ function ImageReviewCard({
   const metadataLine = mediaMetadataLine(asset)
   const currentView = mediaViewFromAsset(asset)
   const browserHref = anatomyBrowserHref(row.entityType, row.entitySlug)
-  const skipHref = mediaReviewQueueHref(selectedStatus.key, offset + 1)
+  const skipHref = mediaReviewQueueHref({ status: selectedStatus.key, offset }, { offset: offset + 1 })
 
   return (
     <Card className={appSurfaceClassName}>
@@ -366,7 +500,7 @@ function ImageReviewCard({
               <p className="text-sm font-medium">Next in queue</p>
               <div className="mt-2 space-y-2">
                 {upcomingRows.slice(0, 4).map((upcomingRow, index) => (
-                  <Link key={upcomingRow.id} href={mediaReviewQueueHref(selectedStatus.key, offset + index + 1)} className="block rounded-md border border-border/70 p-2 text-sm transition hover:border-primary/60 hover:bg-accent">
+                  <Link key={upcomingRow.id} href={mediaReviewQueueHref({ status: selectedStatus.key, offset }, { offset: offset + index + 1 })} className="block rounded-md border border-border/70 p-2 text-sm transition hover:border-primary/60 hover:bg-accent">
                     <span className="font-medium">{titleFromSlug(upcomingRow.entitySlug)}</span>
                     <span className="block text-xs text-muted-foreground">{formatLabel(upcomingRow.role)} / {formatLabel(upcomingRow.reviewStatus)}</span>
                   </Link>
@@ -570,7 +704,7 @@ function EmptyQueue({ selectedStatus }: { selectedStatus: QueueStatusOption }) {
             <Link href="/admin">Back to dashboard</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={mediaReviewQueueHref("all")}>Browse all images</Link>
+            <Link href={mediaReviewQueueHref({ status: "all" })}>Browse all images</Link>
           </Button>
         </div>
       </CardContent>
@@ -584,24 +718,6 @@ function ExternalButton({ href, children }: { href: string; children: React.Reac
       <a href={href} target="_blank" rel="noreferrer">{children}</a>
     </Button>
   )
-}
-
-function queueStatusFromParam(value: string | undefined): QueueStatusOption {
-  return QUEUE_STATUS_OPTIONS.find((status) => status.key === value) ?? QUEUE_STATUS_OPTIONS[0]
-}
-
-function queueOffsetFromParam(value: string | undefined) {
-  const parsed = Number(value)
-
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0
-}
-
-function mediaReviewQueueHref(status: QueueStatusKey, offset = 0) {
-  const params = new URLSearchParams()
-  params.set("status", status)
-  if (offset > 0) params.set("offset", String(offset))
-
-  return `/admin/anatomy/media-review?${params.toString()}`
 }
 
 function anatomyBrowserHref(entityType: string, entitySlug: string) {
