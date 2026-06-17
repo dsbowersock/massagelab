@@ -15,6 +15,7 @@ import {
   type ClientWellnessReminderSchedule,
   type WellnessAppointmentSummary,
 } from "@/components/wellness/wellness-calendar-companion"
+import { WellnessPatternReport } from "@/components/wellness/wellness-pattern-report"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -302,6 +303,8 @@ export function WellnessHubClient({
           appointments={appointments}
           reminderSchedules={reminderSchedules}
         />
+
+        <WellnessPatternReport entries={entries} isSignedIn={isSignedIn} />
 
         <form ref={formRef} className="rounded-md border border-border/80 bg-card/95 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
