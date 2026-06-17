@@ -439,6 +439,7 @@ function PresetGroup({
       <div className="flex gap-2 overflow-x-auto pb-1">
         {presets.map((preset) => {
           const linkFilters = {
+            // Presets with their own status must clear the current status so normalization applies the preset's status instead.
             status: preset.filters.status ? "" : filters.status,
             sort: filters.sort,
           }
