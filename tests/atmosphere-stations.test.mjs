@@ -59,6 +59,21 @@ describe("Atmosphere station catalog", () => {
     )
   })
 
+  it("returns cloned station data so callers cannot mutate the catalog", () => {
+    const station = getAtmosphereStationById("mlab-proof-drone")
+    station.enabled = false
+    station.tags.push("mutated")
+    station.attribution.license = "mutated"
+    station.runtime.defaultOptions.baseFrequency = 999
+
+    const freshStation = getAtmosphereStationById("mlab-proof-drone")
+
+    assert.equal(freshStation.enabled, true)
+    assert.equal(freshStation.attribution.license, "MassageLab internal proof")
+    assert.equal(freshStation.runtime.defaultOptions.baseFrequency, 110)
+    assert.equal(freshStation.tags.includes("mutated"), false)
+  })
+
   it("throws for unknown station ids", () => {
     assert.throws(
       () => getAtmosphereStationById("missing-station"),

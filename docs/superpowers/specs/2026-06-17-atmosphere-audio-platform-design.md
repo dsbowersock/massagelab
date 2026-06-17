@@ -110,13 +110,13 @@ The station source model may reserve a disabled future source type for YouTube, 
 
 - Audio context lifecycle.
 - Active station or mix.
-- Transport state: loading, waiting for user gesture, playing, paused, failed, stopped.
+- Transport state for the first spike: loading, playing, failed, stopped. Later pause/resume states belong in a follow-up branch once controls exist.
 - Master volume.
 - Station replacement.
 - Cleanup and disposal.
 - Local persistence coordination for favorites, recents, and presets.
 
-Routes call provider actions such as `playStation`, `playMix`, `pause`, `resume`, `stop`, and `setVolume`. Routes should not create independent audio contexts or long-lived timers.
+Routes call first-spike provider actions such as `playStation`, `stop`, and `setVolume`. Later mix, pause, and resume actions should wait for matching controls and tests. Routes should not create independent audio contexts or long-lived timers.
 
 ### Runtime Layer
 
@@ -141,7 +141,7 @@ The catalog should be typed and versioned. A station definition should include:
 - Stable id.
 - Title.
 - Description.
-- Source type, initially `hosted-generator` or `ambient-mix`.
+- Source type, initially `tone-generator` or `generative-fm-piece` for the spike catalog. Future ambient mix stations can add their own source type when the mixer branch lands.
 - Tags for mood, session context, texture, energy, and duration suitability.
 - Attribution and license metadata.
 - Optional cover or visual treatment.
@@ -156,13 +156,14 @@ The bottom mini-player is persistent across most routes and should show:
 
 - Active station or mix title.
 - Source/type label.
-- Play/pause.
+- Play/restart.
+- Stop.
 - Stop.
 - Master volume.
 - Loading/error state.
 - Collapse/expand control.
 
-Chimer immersive and clock states should receive a compact version so treatment-room display remains uncluttered. The compact player still needs visible stop or pause access.
+Chimer immersive and clock states should receive a compact version so treatment-room display remains uncluttered. The compact player still needs visible stop access.
 
 ## Persistence
 
@@ -194,7 +195,7 @@ Primary station flow:
 7. Mini-player reflects loading and playback state.
 8. User navigates to Chimer, flashcards, Wellness, or another route.
 9. Audio continues because the provider remains mounted.
-10. User pauses, stops, or replaces the station from the mini-player or another route.
+10. User restarts, stops, or replaces the station from the mini-player or another route.
 11. Provider disposes the old runtime before starting any replacement.
 
 Custom mix flow:
@@ -365,7 +366,7 @@ Actual audible output may be hard to assert in Playwright. Tests should focus on
 - Atmosphere uses MassageLab-hosted generator runtime behavior rather than embedding Generative.fm as a remote player UI.
 - Imported or adapted generator sources include permission, license, attribution, and sample-hosting notes.
 - Audio playback is owned by a top-level provider and survives route changes.
-- A bottom mini-player exposes active station state, play/pause, stop, volume, and collapse controls.
+- A bottom mini-player exposes active station state, play/restart, stop, volume, and collapse controls.
 - Chimer immersive or clock mode has a compact player treatment.
 - Local favorites and presets are versioned browser-stored data.
 - Custom ambient stations use curated layers plus simple noise/tone generators before advanced effects.
@@ -381,4 +382,4 @@ Actual audible output may be hard to assert in Playwright. Tests should focus on
 - Run `npm run test`.
 - Run `npm run build`.
 - Add browser tests when the player and route UI are implemented.
-- Manually test start, pause, stop, replace, route navigation, Chimer compact mode, reload, and local persistence behavior.
+- Manually test start, restart, stop, replace, route navigation, Chimer compact mode, reload, and local persistence behavior.

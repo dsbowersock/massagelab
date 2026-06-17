@@ -79,9 +79,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [playbackState, setPlaybackState] = useState<PlaybackState>("stopped")
   const [error, setError] = useState<string | null>(null)
   const [storageState, setStorageState] = useState(defaultStorage)
+  const [storageHydrated, setStorageHydrated] = useState(false)
+  const playbackRequestIdRef = useRef(0)
   const volumeRef = useRef(defaultStorage.volume)
   const controllerRef = useRef<ReturnType<typeof createAtmosphereRuntimeController> | null>(null)
 
+  // Own one runtime controller for this provider lifetime; it is intentionally
+  // above route content so client-side navigation does not tear down playback.
   useEffect(() => {
     const controller = createAtmosphereRuntimeController({
       adapters: {
@@ -102,20 +106,31 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Hydrate non-PHI audio preferences after mount and tolerate storage-denied
+  // browser modes without breaking the public workbench.
   useEffect(() => {
-    setStorageState(parseAtmosphereStorage(window.localStorage.getItem(ATMOSPHERE_STORAGE_KEY)) as AtmosphereStorageState)
+    setStorageState(readStoredAtmosphereState())
+    setStorageHydrated(true)
   }, [])
 
+  // Persist only after hydration so the default state cannot overwrite an
+  // existing browser preference before it has been read.
   useEffect(() => {
-    window.localStorage.setItem(ATMOSPHERE_STORAGE_KEY, serializeAtmosphereStorage(storageState))
-  }, [storageState])
+    if (storageHydrated) {
+      persistStoredAtmosphereState(storageState)
+    }
+  }, [storageHydrated, storageState])
 
+  // Keep the active Tone graph in sync with saved volume changes without
+  // restarting the station or creating a second audio context.
   useEffect(() => {
     volumeRef.current = storageState.volume
     setToneProofDroneVolume(storageState.volume)
   }, [storageState.volume])
 
   const playStation = useCallback(async (stationId: string) => {
+    const requestId = playbackRequestIdRef.current + 1
+    playbackRequestIdRef.current = requestId
     const station = getAtmosphereStationById(stationId)
     const controller = controllerRef.current
 
@@ -139,19 +154,33 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
     try {
       await controller.start(station)
+      if (requestId !== playbackRequestIdRef.current) {
+        return
+      }
+
       setPlaybackState("playing")
       setStorageState((current) => ({
         ...current,
         recentStations: [station.id, ...current.recentStations.filter((id) => id !== station.id)].slice(0, 12),
       }))
     } catch (caughtError) {
+      if (requestId !== playbackRequestIdRef.current) {
+        return
+      }
+
       setPlaybackState("failed")
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not start.")
     }
   }, [])
 
   const stopCurrent = useCallback(async () => {
+    const requestId = playbackRequestIdRef.current + 1
+    playbackRequestIdRef.current = requestId
     await controllerRef.current?.stop()
+    if (requestId !== playbackRequestIdRef.current) {
+      return
+    }
+
     setActiveStationId(null)
     setPlaybackState("stopped")
     setError(null)
@@ -222,4 +251,20 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
 export function useMusic() {
   return useContext(MusicContext)
+}
+
+function readStoredAtmosphereState(): AtmosphereStorageState {
+  try {
+    return parseAtmosphereStorage(window.localStorage.getItem(ATMOSPHERE_STORAGE_KEY)) as AtmosphereStorageState
+  } catch {
+    return createDefaultAtmosphereStorage() as AtmosphereStorageState
+  }
+}
+
+function persistStoredAtmosphereState(storageState: AtmosphereStorageState) {
+  try {
+    window.localStorage.setItem(ATMOSPHERE_STORAGE_KEY, serializeAtmosphereStorage(storageState))
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
 }

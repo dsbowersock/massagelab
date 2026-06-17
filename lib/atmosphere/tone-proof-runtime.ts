@@ -1,3 +1,6 @@
+// Tone 14's top-level browser field resolves to a non-static bundle under
+// Next/Turbopack, so the spike uses Tone's ESM files until package resolution
+// can be revisited without breaking production builds.
 import { Volume } from "tone/build/esm/component/channel/Volume"
 import { Filter } from "tone/build/esm/component/filter/Filter"
 import { start } from "tone/build/esm/core/Global"

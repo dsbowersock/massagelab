@@ -740,7 +740,7 @@ import {
 import { createAtmosphereRuntimeController } from "@/lib/atmosphere/runtime-controller"
 import { setToneProofDroneVolume, startToneProofDrone } from "@/lib/atmosphere/tone-proof-runtime"
 
-type PlaybackState = "idle" | "loading" | "waiting-for-gesture" | "playing" | "paused" | "failed" | "stopped"
+type PlaybackState = "stopped" | "loading" | "playing" | "failed"
 
 type MusicContextType = {
   activeStationId: string | null
