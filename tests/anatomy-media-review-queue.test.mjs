@@ -87,11 +87,11 @@ describe("Anatomy media review queue filters", () => {
 
     assert.equal(
       mediaReviewQueueHref(filters),
-      "/admin/anatomy/media-review?status=needs-review&preset=upper-limb&reason=bad_view&sort=oldest&offset=4",
+      "/admin/anatomy/media-review?preset=upper-limb&reason=bad_view&sort=oldest&offset=4",
     )
     assert.equal(
       mediaReviewQueueHref(filters, { reason: "bad_match", offset: 0 }),
-      "/admin/anatomy/media-review?status=needs-review&preset=upper-limb&reason=bad_match&sort=oldest",
+      "/admin/anatomy/media-review?preset=upper-limb&reason=bad_match&sort=oldest",
     )
   })
 

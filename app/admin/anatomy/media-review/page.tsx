@@ -22,10 +22,9 @@ import {
   activeMediaReviewQueueChips,
   mediaReviewQueueFormFields,
   mediaReviewQueueHref,
-  mediaReviewQueueOffsetAfterDecision,
   parseMediaReviewQueueFilters,
 } from "@/lib/anatomy-media-review-queue"
-import { getAnatomyStudyCards } from "@/lib/anatomy-study"
+import { ANATOMY_STUDY_CATEGORIES, getAnatomyStudyCards, type AnatomyStudyCategory } from "@/lib/anatomy-study"
 import { prisma } from "@/lib/prisma"
 import { reviewAnatomyMediaQueueDecisionAction } from "@/app/admin/anatomy/actions"
 import { ReviewImagePreview } from "@/app/admin/anatomy/media-review/review-image-preview"
@@ -93,6 +92,7 @@ type QueueData = {
 
 const QUEUE_TAKE = 6
 const IMAGE_REVIEW_MEDIA_TYPES = ["IMAGE", "DIAGRAM"] as const satisfies AnatomyMediaType[]
+const STUDY_CATEGORY_KEYS = new Set<string>(ANATOMY_STUDY_CATEGORIES)
 const STUDY_CATEGORY_TO_ENTITY_TYPE: Record<string, AnatomyEntityType> = {
   bone: "BONE",
   bone_landmark: "BONE_LANDMARK",
@@ -167,8 +167,9 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
  * retaining explicit entity-type batches that are not part of public cards.
  */
 function entityFiltersForQueueFilters(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Prisma.AnatomyMediaEntityWhereInput[] {
+  const studyCategories = filters.categories.filter((category): category is AnatomyStudyCategory => STUDY_CATEGORY_KEYS.has(category))
   const cards = getAnatomyStudyCards({
-    categories: filters.categories,
+    categories: studyCategories,
     regions: filters.regions,
     difficulty: "hard",
   })
@@ -643,7 +644,7 @@ function LinkedImageSummaryPanel({ row }: { row: MediaQueueRow }) {
 function QuickApproveForm({ row, filters }: { row: MediaQueueRow; filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction}>
-      <BaseDecisionFields row={row} filters={filters} offset={mediaReviewQueueOffsetAfterDecision(filters, "APPROVED", "")} reviewStatus="APPROVED" />
+      <BaseDecisionFields row={row} filters={filters} offset={filters.offset} reviewStatus="APPROVED" />
       <Button type="submit" className="h-12 w-full text-base">Approve image</Button>
     </form>
   )
@@ -660,7 +661,7 @@ function NeedsBetterViewForm({
 }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction} className={`${appInsetClassName} space-y-3 p-3`}>
-      <BaseDecisionFields row={row} filters={filters} offset={mediaReviewQueueOffsetAfterDecision(filters, "NEEDS_REVIEW", row.reviewReason || "too_tight")} reviewStatus="NEEDS_REVIEW" />
+      <BaseDecisionFields row={row} filters={filters} offset={filters.offset} reviewStatus="NEEDS_REVIEW" />
       <input type="hidden" name="create_view_request" value="1" />
       <div className="grid gap-3 sm:grid-cols-2">
         <SelectField
@@ -704,7 +705,7 @@ function NeedsBetterViewForm({
 function RejectImageForm({ row, filters }: { row: MediaQueueRow; filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction} className={`${appInsetClassName} space-y-3 p-3`}>
-      <BaseDecisionFields row={row} filters={filters} offset={mediaReviewQueueOffsetAfterDecision(filters, "REJECTED", row.reviewReason || "bad_match")} reviewStatus="REJECTED" />
+      <BaseDecisionFields row={row} filters={filters} offset={filters.offset} reviewStatus="REJECTED" />
       <SelectField
         id={`reject-reason-${row.id}`}
         name="review_reason"
