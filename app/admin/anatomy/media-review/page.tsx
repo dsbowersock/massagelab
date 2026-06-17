@@ -169,7 +169,7 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
 function entityFiltersForQueueFilters(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Prisma.AnatomyMediaEntityWhereInput[] {
   const studyCategories = filters.categories.filter((category): category is AnatomyStudyCategory => STUDY_CATEGORY_KEYS.has(category))
   const cards = getAnatomyStudyCards({
-    categories: studyCategories,
+    ...(studyCategories.length > 0 ? { categories: studyCategories } : {}),
     regions: filters.regions,
     difficulty: "hard",
   })
@@ -437,11 +437,18 @@ function PresetGroup({
     <div>
       <p className="mb-1 text-xs font-medium uppercase tracking-normal text-muted-foreground">{label}</p>
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {presets.map((preset) => (
-          <Button key={preset.key} asChild size="sm" variant={filters.preset === preset.key ? "default" : "outline"} className="shrink-0">
-            <Link href={mediaReviewQueueHref(filters, { preset: preset.key, offset: 0 })}>{preset.label}</Link>
-          </Button>
-        ))}
+        {presets.map((preset) => {
+          const linkFilters = {
+            status: preset.filters.status ? "" : filters.status,
+            sort: filters.sort,
+          }
+
+          return (
+            <Button key={preset.key} asChild size="sm" variant={filters.preset === preset.key ? "default" : "outline"} className="shrink-0">
+              <Link href={mediaReviewQueueHref(linkFilters, { preset: preset.key, offset: 0 })}>{preset.label}</Link>
+            </Button>
+          )
+        })}
       </div>
     </div>
   )
@@ -471,6 +478,7 @@ function QueueAdvancedFilters({ filters }: { filters: ReturnType<typeof parseMed
       <summary className="cursor-pointer text-sm font-medium">Advanced filters</summary>
       <form action="/admin/anatomy/media-review" className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <input type="hidden" name="status" value={filters.status} />
+        {filters.preset ? <input type="hidden" name="preset" value={filters.preset} /> : null}
         <SelectField id="queue-entity-type" name="entityType" label="Entity type" values={["", ...MEDIA_REVIEW_QUEUE_ENTITY_TYPES.map((option) => option.key)]} defaultValue={filters.entityType} />
         <SelectField id="queue-reason" name="reason" label="Review reason" values={["", ...MEDIA_REVIEW_QUEUE_REASONS.map((option) => option.key)]} defaultValue={filters.reason} />
         <SelectField id="queue-view" name="view" label="BodyParts3D view" values={["", ...MEDIA_REVIEW_QUEUE_VIEWS.map((option) => option.key)]} defaultValue={filters.view} />

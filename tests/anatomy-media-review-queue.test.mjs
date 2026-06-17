@@ -95,6 +95,27 @@ describe("Anatomy media review queue filters", () => {
     )
   })
 
+  it("builds preset-switch URLs without stale refinements", () => {
+    const filters = parseMediaReviewQueueFilters({
+      status: "all",
+      preset: "bad-view",
+      reason: "bad_view",
+      view: "anterior",
+      q: "scapula",
+      sort: "oldest",
+      offset: "4",
+    })
+
+    assert.equal(
+      mediaReviewQueueHref({ status: filters.status, sort: filters.sort }, { preset: "bad-match", offset: 0 }),
+      "/admin/anatomy/media-review?status=all&preset=bad-match&reason=bad_match&sort=oldest",
+    )
+    assert.equal(
+      mediaReviewQueueHref({ status: "", sort: filters.sort }, { preset: "rejected", offset: 0 }),
+      "/admin/anatomy/media-review?status=rejected&preset=rejected&sort=oldest",
+    )
+  })
+
   it("serializes hidden form fields for decision redirects", () => {
     const fields = mediaReviewQueueFormFields(parseMediaReviewQueueFilters({
       status: "all",
