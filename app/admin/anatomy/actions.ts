@@ -30,6 +30,12 @@ import {
   type BodyParts3dTreeName,
   type BodyParts3dView,
 } from "@/lib/anatomy-media-review"
+import {
+  mediaReviewQueueFiltersFromForm,
+  mediaReviewQueueHref,
+  mediaReviewQueueOffsetAfterDecision,
+  mediaReviewQueueRedirectPathFromForm,
+} from "@/lib/anatomy-media-review-queue"
 import { uploadAnatomyMediaToR2 } from "@/lib/anatomy-media-review-server"
 import type { AnatomyDifficulty, AnatomyKind, AnatomyStatus, CorrectionFlagStatus } from "@/lib/domain-types"
 import { parseAnatomyEntitySelection } from "@/lib/anatomy-queries"
@@ -46,7 +52,6 @@ const VALID_MEDIA_VIEW_REQUEST_STATUSES = new Set<string>(ANATOMY_MEDIA_VIEW_REQ
 const VALID_MEDIA_VIEW_REQUEST_VIEWS = new Set<string>(ANATOMY_MEDIA_VIEW_REQUEST_VIEWS)
 const VALID_MEDIA_ROLES = new Set(["PRIMARY", "REFERENCE", "REGION_CONTEXT", "GAME_PROMPT", "CLIENT_EDUCATION"])
 const VALID_BODYPARTS3D_TREES = new Set(["isa", "partof"])
-const MEDIA_REVIEW_QUEUE_STATUSES = new Set(["needs-review", "rejected", "approved", "all"])
 const VALID_ENTITY_RELATIONSHIP_TYPES = new Set([
   "deep_to",
   "superficial_to",
@@ -98,19 +103,7 @@ function displayPriorityValue(formData: FormData) {
 }
 
 function mediaReviewQueueRedirectPath(formData: FormData) {
-  const status = formString(formData, "queue_status")
-  const offset = Math.max(0, Math.trunc(formNumber(formData, "queue_offset", 0)))
-  const params = new URLSearchParams()
-
-  if (MEDIA_REVIEW_QUEUE_STATUSES.has(status)) {
-    params.set("status", status)
-  }
-  if (offset > 0) {
-    params.set("offset", String(offset))
-  }
-
-  const query = params.toString()
-  return query ? `/admin/anatomy/media-review?${query}` : "/admin/anatomy/media-review"
+  return mediaReviewQueueRedirectPathFromForm(formData)
 }
 
 function mediaRoleValue(value: string) {
@@ -529,6 +522,9 @@ export async function reviewAnatomyMediaQueueDecisionAction(formData: FormData) 
     "NEEDS_REVIEW",
   )
   const reviewReason = reviewStatus === "APPROVED" ? null : mediaReviewReasonValue(formString(formData, "review_reason"))
+  const queueFilters = mediaReviewQueueFiltersFromForm(formData)
+  const nextOffset = mediaReviewQueueOffsetAfterDecision(queueFilters, reviewStatus, reviewReason ?? "")
+  const redirectHref = mediaReviewQueueHref(queueFilters, { offset: nextOffset })
 
   const link = await prisma.anatomyMediaEntity.update({
     where: { id },
@@ -565,7 +561,7 @@ export async function reviewAnatomyMediaQueueDecisionAction(formData: FormData) 
   revalidatePath("/admin")
   revalidatePath("/admin/anatomy")
   revalidatePath("/admin/anatomy/media-review")
-  redirect(mediaReviewQueueRedirectPath(formData))
+  redirect(redirectHref)
 }
 
 export async function linkAnatomyMediaAssetAction(formData: FormData) {

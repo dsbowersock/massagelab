@@ -142,6 +142,24 @@ describe("Anatomy media review queue filters", () => {
     assert.equal(mediaReviewQueueOffsetAfterDecision(needsReviewBadView, "NEEDS_REVIEW", "bad_match"), 4)
   })
 
+  it("computes the next queue offset from FormData decision fields", () => {
+    const formData = new FormData()
+    formData.set("queue_status", "needs-review")
+    formData.set("queue_preset", "upper-limb")
+    formData.set("queue_reason", "bad_view")
+    formData.set("queue_offset", "6")
+
+    const filters = parseMediaReviewQueueFilters({
+      status: formData.get("queue_status"),
+      preset: formData.get("queue_preset"),
+      reason: formData.get("queue_reason"),
+      offset: formData.get("queue_offset"),
+    })
+
+    assert.equal(mediaReviewQueueOffsetAfterDecision(filters, "NEEDS_REVIEW", "bad_view"), 7)
+    assert.equal(mediaReviewQueueOffsetAfterDecision(filters, "APPROVED", ""), 6)
+  })
+
   it("labels active chips without duplicating defaults", () => {
     const chips = activeMediaReviewQueueChips(parseMediaReviewQueueFilters({
       status: "needs-review",
