@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-top-bar"
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
 import { MovingBackground } from "@/components/moving-background"
+import { MusicMiniPlayer } from "@/components/providers/music-mini-player"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { cn } from "@/lib/utils"
 
@@ -22,7 +23,9 @@ export function LayoutWrapper({
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
   const isFlashcardsRoute = pathname === "/education/flashcards"
+  const isChimerRoute = pathname.startsWith("/chimer")
   const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
+  const musicPlayerCompact = isChimerRoute
 
   const shell = (
     <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background">
@@ -56,6 +59,7 @@ export function LayoutWrapper({
           {children}
         </div>
       </div>
+      <MusicMiniPlayer compact={musicPlayerCompact} />
     </div>
   )
 

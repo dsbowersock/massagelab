@@ -5,6 +5,7 @@ const publicRoutes = [
   { path: "/notes", expectedText: /Therapist or Team\/Practice required/i },
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
+  { path: "/browse", expectedText: /MassageLab-hosted audio stations/i },
   { path: "/wellness", expectedText: /Client-owned self-tracking/i },
   { path: "/calendar", expectedText: /Calendar/i },
   { path: "/education", expectedText: /Education/i },
@@ -161,6 +162,42 @@ test("anonymous homepage presents the optional action router and available tools
   await expect(availableTools.getByRole("link", { name: /Open calendar/i })).toHaveAttribute("href", "/calendar")
   await expect(availableTools.getByRole("link", { name: /^Create account$/i })).toHaveAttribute("href", "/register")
   await expect(availableTools.getByRole("link", { name: /Open roadmap/i })).toHaveAttribute("href", "/roadmap")
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("Atmosphere proof station keeps global player state across client routes", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/browse", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: /MassageLab-hosted audio stations/i })).toBeVisible()
+  await page.getByRole("button", { name: /^Play station$/i }).first().click()
+
+  await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
+  await expect(page.getByText(/Playing|Loading station/i).last()).toBeVisible()
+
+  const flashcardsLink = page.getByRole("link", { name: /^Flashcards$/i }).first()
+  if (!await flashcardsLink.isVisible().catch(() => false)) {
+    const openNavigation = page.getByRole("button", { name: /Open navigation|Expand navigation/i }).first()
+    if (await openNavigation.isVisible().catch(() => false)) {
+      await openNavigation.click()
+    }
+  }
+
+  const educationTrigger = page.getByRole("button", { name: /^Education$/i }).first()
+  if (await educationTrigger.isVisible().catch(() => false)) {
+    const isExpanded = (await educationTrigger.getAttribute("aria-expanded")) === "true"
+    if (!isExpanded) await educationTrigger.click()
+  }
+  await expect(flashcardsLink).toBeVisible()
+  await flashcardsLink.click()
+  await expect(page).toHaveURL(/\/education\/flashcards/)
+  await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
+  await page.getByRole("button", { name: /^Stop$/i }).last().click()
+  await expect(page.getByText("MassageLab Proof Drone").last()).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
