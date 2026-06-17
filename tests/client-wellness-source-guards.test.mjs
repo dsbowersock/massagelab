@@ -61,6 +61,19 @@ describe("Client wellness source guards", () => {
     assert.doesNotMatch(actionsSource, /practiceId|therapistId|calendarAuditLog|notificationIntent/)
   })
 
+  it("keeps wellness pattern reports local, reflective, and non-delivery", () => {
+    const reportSources = [
+      readFileSync(new URL("../lib/client-wellness-patterns.js", import.meta.url), "utf8"),
+      readFileSync(new URL("../components/wellness/wellness-pattern-report.tsx", import.meta.url), "utf8"),
+    ].join("\n")
+
+    assert.doesNotMatch(reportSources, /CalendarEvent|CalendarReminder|CalendarNotificationIntent|sendEmail|sendSms|webPush|PushSubscription/)
+    assert.doesNotMatch(reportSources, /practiceId|therapistId|calendarAuditLog|notificationIntent/)
+    assert.doesNotMatch(reportSources, /Sentry|captureException|captureMessage|analytics|trackEvent/)
+    assert.doesNotMatch(reportSources, /massagelab-professional-record-vault-v1|ProfessionalRecordVault|ClinicalArtifactManifest/)
+    assert.doesNotMatch(reportSources, /\bdiagnosis\b|\bnormal\b|\babnormal\b|\btreatment\b/i)
+  })
+
   it("loads client appointment summaries only through the signed-in practice client link", () => {
     const pageSource = readFileSync(new URL("../app/wellness/page.tsx", import.meta.url), "utf8")
 
@@ -68,6 +81,14 @@ describe("Client wellness source guards", () => {
     assert.match(pageSource, /serializeWellnessAppointment/)
     assert.doesNotMatch(pageSource, /practiceClient:\s*true|include:\s*\{[\s\S]*practiceClient|notes:\s*true/)
     assert.doesNotMatch(pageSource, /phone:\s*true|displayName:\s*true/)
+  })
+
+  it("loads a bounded report dataset separately from the signed-in timeline page size", () => {
+    const pageSource = readFileSync(new URL("../app/wellness/page.tsx", import.meta.url), "utf8")
+
+    assert.match(pageSource, /initialReportEntries/)
+    assert.match(pageSource, /occurredAt:\s*\{\s*gte:\s*reportWindowStart\s*\}/)
+    assert.match(pageSource, /take:\s*250/)
   })
 
   it("keeps wellness UI separate from the therapist professional-record vault", () => {

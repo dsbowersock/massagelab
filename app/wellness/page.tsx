@@ -28,12 +28,19 @@ export default async function WellnessPage() {
   const session = await getCurrentSession()
   const userId = session?.user?.id
   const now = new Date()
-  const [entries, upcomingAppointments, pastAppointments, preference] = userId
+  const reportWindowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const [entries, reportEntries, upcomingAppointments, pastAppointments, preference] = userId
     ? await Promise.all([
         prisma.clientWellnessEntry.findMany({
           where: { userId, deletedAt: null },
           orderBy: { occurredAt: "desc" },
           take: 25,
+        }),
+        // Pattern reports need the full bounded window; the visible timeline stays page-sized.
+        prisma.clientWellnessEntry.findMany({
+          where: { userId, deletedAt: null, occurredAt: { gte: reportWindowStart } },
+          orderBy: { occurredAt: "desc" },
+          take: 250,
         }),
         prisma.appointment.findMany({
           where: {
@@ -58,7 +65,7 @@ export default async function WellnessPage() {
           select: { settings: true },
         }),
       ])
-    : [[], [], [], null]
+    : [[], [], [], [], null]
 
   return (
     <AppPageShell width="wide" contentClassName="gap-5">
@@ -73,6 +80,7 @@ export default async function WellnessPage() {
           isSignedIn={Boolean(userId)}
           displayName={session?.user?.name ?? session?.user?.email ?? null}
           initialEntries={entries.map(serializeWellnessEntry)}
+          initialReportEntries={reportEntries.map(serializeWellnessEntry)}
           appointments={[...upcomingAppointments, ...pastAppointments].map(serializeWellnessAppointment)}
           reminderSchedules={reminderSchedulesFromPreference(preference?.settings)}
         />

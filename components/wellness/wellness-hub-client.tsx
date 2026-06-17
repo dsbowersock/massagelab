@@ -15,6 +15,7 @@ import {
   type ClientWellnessReminderSchedule,
   type WellnessAppointmentSummary,
 } from "@/components/wellness/wellness-calendar-companion"
+import { WellnessPatternReport } from "@/components/wellness/wellness-pattern-report"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -73,17 +74,20 @@ export function WellnessHubClient({
   isSignedIn,
   displayName,
   initialEntries,
+  initialReportEntries,
   appointments,
   reminderSchedules,
 }: {
   isSignedIn: boolean
   displayName: string | null
   initialEntries: WellnessTimelineEntry[]
+  initialReportEntries: WellnessTimelineEntry[]
   appointments: WellnessAppointmentSummary[]
   reminderSchedules: ClientWellnessReminderSchedule[]
 }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [entries, setEntries] = useState(initialEntries)
+  const [reportEntries, setReportEntries] = useState(initialReportEntries)
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const [timelineCategoryFilter, setTimelineCategoryFilter] = useState("all")
   const [timelineRegionFilter, setTimelineRegionFilter] = useState("all")
@@ -112,6 +116,10 @@ export function WellnessHubClient({
     matchesTimelineFilter(entry, timelineCategoryFilter, timelineRegionFilter, timelineSignalFilter)
   )), [entries, timelineCategoryFilter, timelineRegionFilter, timelineSignalFilter])
 
+  const reportEntriesForPanel = useMemo(() => (
+    isSignedIn ? reportEntries : entries
+  ), [entries, isSignedIn, reportEntries])
+
   const saveQuickLog = () => {
     const form = formRef.current
 
@@ -123,7 +131,7 @@ export function WellnessHubClient({
 
     if (!isSignedIn) {
       const entry = localEntryFromFormData(formData)
-      setEntries((current) => [entry, ...current])
+      setEntries((current) => upsertTimelineEntry(entry, current))
       setStatus("Practice entry added for this page session. Sign in before saving anything permanently.")
       setError(null)
       form.reset()
@@ -148,7 +156,8 @@ export function WellnessHubClient({
       const data = actionData(result.data)
       const entry = normalizeTimelineEntry(data.entry, true)
       if (entry) {
-        setEntries((current) => [entry, ...current])
+        setEntries((current) => upsertTimelineEntry(entry, current))
+        setReportEntries((current) => upsertTimelineEntry(entry, current))
       }
       setStatus("Saved to your client-owned wellness timeline.")
       form.reset()
@@ -161,7 +170,7 @@ export function WellnessHubClient({
 
     if (!isSignedIn) {
       const entry = localEntryFromFormData(formData)
-      setEntries((current) => [entry, ...current])
+      setEntries((current) => upsertTimelineEntry(entry, current))
       setStatus("Practice ROM measurement added for this page session. Sign in to keep measurements over time.")
       setError(null)
       return
@@ -184,7 +193,8 @@ export function WellnessHubClient({
       const data = actionData(result.data)
       const entry = normalizeTimelineEntry(data.entry, true)
       if (entry) {
-        setEntries((current) => [entry, ...current])
+        setEntries((current) => upsertTimelineEntry(entry, current))
+        setReportEntries((current) => upsertTimelineEntry(entry, current))
       }
       setStatus("ROM measurement saved to your wellness timeline.")
     })
@@ -192,7 +202,7 @@ export function WellnessHubClient({
 
   const deleteEntry = (entry: WellnessTimelineEntry) => {
     if (!entry.persisted) {
-      setEntries((current) => current.filter((candidate) => candidate.id !== entry.id))
+      setEntries((current) => removeTimelineEntry(entry.id, current))
       setConfirmDeleteId(null)
       setStatus("Removed the practice entry from this page session.")
       return
@@ -215,7 +225,8 @@ export function WellnessHubClient({
         return
       }
 
-      setEntries((current) => current.filter((candidate) => candidate.id !== entry.id))
+      setEntries((current) => removeTimelineEntry(entry.id, current))
+      setReportEntries((current) => removeTimelineEntry(entry.id, current))
       setConfirmDeleteId(null)
       setStatus("Entry deleted from your wellness timeline.")
     })
@@ -302,6 +313,8 @@ export function WellnessHubClient({
           appointments={appointments}
           reminderSchedules={reminderSchedules}
         />
+
+        <WellnessPatternReport entries={reportEntriesForPanel} isSignedIn={isSignedIn} />
 
         <form ref={formRef} className="rounded-md border border-border/80 bg-card/95 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -708,6 +721,20 @@ function matchesTimelineFilter(entry: WellnessTimelineEntry, category: string, r
   }
 
   return true
+}
+
+function upsertTimelineEntry(entry: WellnessTimelineEntry, entries: WellnessTimelineEntry[]) {
+  return [entry, ...entries.filter((candidate) => candidate.id !== entry.id)]
+    .sort((a, b) => timelineTime(b.occurredAt) - timelineTime(a.occurredAt))
+}
+
+function removeTimelineEntry(id: string, entries: WellnessTimelineEntry[]) {
+  return entries.filter((candidate) => candidate.id !== id)
+}
+
+function timelineTime(value: string) {
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : 0
 }
 
 function stringFormValue(formData: FormData, key: string) {
