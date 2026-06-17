@@ -11,6 +11,20 @@ import {
   normalizeBodyParts3dPartIds,
   safeBodyParts3dRenderableImageUrl,
 } from "@/lib/anatomy-media-review"
+import {
+  MEDIA_REVIEW_QUEUE_ENTITY_TYPES,
+  MEDIA_REVIEW_QUEUE_PRESETS,
+  MEDIA_REVIEW_QUEUE_REASONS,
+  MEDIA_REVIEW_QUEUE_REQUESTS,
+  MEDIA_REVIEW_QUEUE_SORTS,
+  MEDIA_REVIEW_QUEUE_STATUS_OPTIONS,
+  MEDIA_REVIEW_QUEUE_VIEWS,
+  activeMediaReviewQueueChips,
+  mediaReviewQueueFormFields,
+  mediaReviewQueueHref,
+  parseMediaReviewQueueFilters,
+} from "@/lib/anatomy-media-review-queue"
+import { ANATOMY_STUDY_CATEGORIES, getAnatomyStudyCards, type AnatomyStudyCategory } from "@/lib/anatomy-study"
 import { prisma } from "@/lib/prisma"
 import { reviewAnatomyMediaQueueDecisionAction } from "@/app/admin/anatomy/actions"
 import { ReviewImagePreview } from "@/app/admin/anatomy/media-review/review-image-preview"
@@ -23,6 +37,13 @@ import { Textarea } from "@/components/ui/textarea"
 type AnatomyMediaReviewQueuePageProps = {
   searchParams?: Promise<{
     status?: string
+    preset?: string
+    entityType?: string
+    reason?: string
+    view?: string
+    request?: string
+    sort?: string
+    q?: string
     offset?: string
   }>
 }
@@ -61,6 +82,7 @@ type LinkedImageSummary = {
 type QueueData = {
   rows: MediaQueueRow[]
   total: number
+  filteredTotal: number
   allCount: number
   needsReviewCount: number
   rejectedCount: number
@@ -68,26 +90,36 @@ type QueueData = {
   openRequestCount: number
 }
 
-const QUEUE_STATUS_OPTIONS: QueueStatusOption[] = [
-  { key: "needs-review", label: "Needs Review", reviewStatus: "NEEDS_REVIEW" },
-  { key: "rejected", label: "Rejected", reviewStatus: "REJECTED" },
-  { key: "approved", label: "Approved", reviewStatus: "APPROVED" },
-  { key: "all", label: "All", reviewStatus: null },
-]
-
 const QUEUE_TAKE = 6
 const IMAGE_REVIEW_MEDIA_TYPES = ["IMAGE", "DIAGRAM"] as const satisfies AnatomyMediaType[]
+const STUDY_CATEGORY_KEYS = new Set<string>(ANATOMY_STUDY_CATEGORIES)
+const STUDY_CATEGORY_TO_ENTITY_TYPE: Record<string, AnatomyEntityType> = {
+  bone: "BONE",
+  bone_landmark: "BONE_LANDMARK",
+  joint: "JOINT",
+  joint_movement: "JOINT_MOVEMENT",
+  range_of_motion: "RANGE_OF_MOTION",
+  muscle: "MUSCLE",
+  muscle_attachment: "MUSCLE_ATTACHMENT",
+  muscle_action: "MUSCLE_ACTION",
+  nerve: "NERVE",
+  muscle_innervation: "MUSCLE_INNERVATION",
+  ligament: "LIGAMENT",
+  anatomy_structure: "ANATOMY_STRUCTURE",
+  anatomy_concept: "ANATOMY_CONCEPT",
+  pain_map_region: "PAIN_MAP_REGION",
+}
 
 export default async function AnatomyMediaReviewQueuePage({ searchParams }: AnatomyMediaReviewQueuePageProps) {
   await requireAnatomyAdminUser()
 
   const params = await searchParams
-  const selectedStatus = queueStatusFromParam(params?.status)
-  const offset = queueOffsetFromParam(params?.offset)
-  const data = await getMediaReviewQueueData(selectedStatus, offset)
+  const filters = parseMediaReviewQueueFilters(params ?? {})
+  const selectedStatus = (MEDIA_REVIEW_QUEUE_STATUS_OPTIONS.find((status) => status.key === filters.status) ?? MEDIA_REVIEW_QUEUE_STATUS_OPTIONS[0]) as QueueStatusOption
+  const data = await getMediaReviewQueueData(filters)
 
-  if (data.rows.length === 0 && data.total > 0 && offset > 0) {
-    redirect(mediaReviewQueueHref(selectedStatus.key))
+  if (data.rows.length === 0 && data.filteredTotal > 0 && filters.offset > 0) {
+    redirect(mediaReviewQueueHref(filters, { offset: 0 }))
   }
 
   const currentRow = data.rows[0] ?? null
@@ -99,7 +131,9 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-lg font-semibold leading-tight">Image review queue</h1>
-            <p className="text-xs text-muted-foreground">{data.total} in {selectedStatus.label.toLowerCase()} queue</p>
+            <p className="text-xs text-muted-foreground">
+              {data.filteredTotal.toLocaleString()} in this batch / {data.total.toLocaleString()} in {selectedStatus.label.toLowerCase()} queue
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
@@ -110,13 +144,16 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
             </Button>
           </div>
         </div>
-        <QueueStatusTabs selectedStatus={selectedStatus} data={data} />
+        <QueueStatusTabs selectedStatus={selectedStatus} data={data} filters={filters} />
+        <QueuePresetLinks filters={filters} />
+        <QueueActiveFilters filters={filters} />
+        <QueueAdvancedFilters filters={filters} />
       </div>
 
       <main className="space-y-3 p-3 sm:p-0">
         <QueueSummary data={data} />
         {currentRow ? (
-          <ImageReviewCard row={currentRow} selectedStatus={selectedStatus} offset={offset} upcomingRows={upcomingRows} />
+          <ImageReviewCard row={currentRow} filters={filters} upcomingRows={upcomingRows} />
         ) : (
           <EmptyQueue selectedStatus={selectedStatus} />
         )}
@@ -125,17 +162,119 @@ export default async function AnatomyMediaReviewQueuePage({ searchParams }: Anat
   )
 }
 
-async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset: number): Promise<QueueData> {
-  const where: Prisma.AnatomyMediaEntityWhereInput = {
-    asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
-    ...(selectedStatus.reviewStatus ? { reviewStatus: selectedStatus.reviewStatus } : {}),
+/**
+ * Resolves public study preset filters into admin media-link filters while
+ * retaining explicit entity-type batches that are not part of public cards.
+ */
+function entityFiltersForQueueFilters(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Prisma.AnatomyMediaEntityWhereInput[] {
+  const studyCategories = filters.categories.filter((category): category is AnatomyStudyCategory => STUDY_CATEGORY_KEYS.has(category))
+  const cards = getAnatomyStudyCards({
+    ...(studyCategories.length > 0 ? { categories: studyCategories } : {}),
+    regions: filters.regions,
+    difficulty: "hard",
+  })
+  const entityFilters = new Map<string, Prisma.AnatomyMediaEntityWhereInput>()
+
+  for (const card of cards) {
+    const entityType = STUDY_CATEGORY_TO_ENTITY_TYPE[card.entityType]
+    if (!entityType) continue
+    const key = `${entityType}:${card.entitySlug}`
+    entityFilters.set(key, { entityType, entitySlug: card.entitySlug })
   }
+
+  for (const entityType of filters.entityTypes) {
+    entityFilters.set(`type:${entityType}`, { entityType: entityType as AnatomyEntityType })
+  }
+
+  return [...entityFilters.values()]
+}
+
+async function openRequestEntityFilters() {
+  const rows = await prisma.anatomyMediaViewRequest.findMany({
+    where: { status: "OPEN" },
+    select: {
+      entityType: true,
+      entitySlug: true,
+    },
+    orderBy: { createdAt: "asc" },
+    take: 500,
+  })
+
+  return rows.map((row) => ({
+    entityType: row.entityType,
+    entitySlug: row.entitySlug,
+  }))
+}
+
+async function mediaReviewQueueWhere(filters: ReturnType<typeof parseMediaReviewQueueFilters>) {
+  const andFilters: Prisma.AnatomyMediaEntityWhereInput[] = [
+    { asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } } },
+  ]
+
+  if (filters.reviewStatus) andFilters.push({ reviewStatus: filters.reviewStatus as AnatomyMediaReviewStatus })
+  if (filters.reason) andFilters.push({ reviewReason: filters.reason })
+  if (filters.view) {
+    andFilters.push({
+      asset: {
+        metadata: {
+          path: ["bodyparts3dView"],
+          equals: filters.view,
+        },
+      },
+    })
+  }
+  if (filters.q) {
+    andFilters.push({
+      OR: [
+        { entitySlug: { contains: filters.q, mode: "insensitive" } },
+        { asset: { title: { contains: filters.q, mode: "insensitive" } } },
+        { asset: { slug: { contains: filters.q, mode: "insensitive" } } },
+        { asset: { source: { label: { contains: filters.q, mode: "insensitive" } } } },
+        { asset: { source: { slug: { contains: filters.q, mode: "insensitive" } } } },
+      ],
+    })
+  }
+
+  const entityFilters = entityFiltersForQueueFilters(filters)
+  if (filters.request === "open") {
+    const requestEntityFilters = await openRequestEntityFilters()
+    if (requestEntityFilters.length === 0) andFilters.push({ id: "__no-open-request-media-review-rows__" })
+    else andFilters.push({ OR: requestEntityFilters })
+  }
+  if (entityFilters.length > 0) {
+    andFilters.push({ OR: entityFilters })
+  }
+
+  return { AND: andFilters } satisfies Prisma.AnatomyMediaEntityWhereInput
+}
+
+function mediaReviewQueueOrderBy(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Prisma.AnatomyMediaEntityOrderByWithRelationInput[] {
+  switch (filters.sort) {
+    case "newest":
+      return [{ createdAt: "desc" }]
+    case "oldest":
+      return [{ createdAt: "asc" }]
+    case "entity":
+      return [{ entitySlug: "asc" }, { displayPriority: "asc" }, { createdAt: "asc" }]
+    case "priority":
+    default:
+      return [{ reviewStatus: "asc" }, { displayPriority: "asc" }, { createdAt: "asc" }]
+  }
+}
+
+async function getMediaReviewQueueData(filters: ReturnType<typeof parseMediaReviewQueueFilters>): Promise<QueueData> {
+  const where = await mediaReviewQueueWhere(filters)
   const imageReviewWhere: Prisma.AnatomyMediaEntityWhereInput = {
     asset: { mediaType: { in: IMAGE_REVIEW_MEDIA_TYPES } },
+  }
+  const statusWhere: Prisma.AnatomyMediaEntityWhereInput = {
+    ...imageReviewWhere,
+    ...(filters.reviewStatus ? { reviewStatus: filters.reviewStatus as AnatomyMediaReviewStatus } : {}),
   }
 
   const [
     rows,
+    filteredTotal,
     total,
     allCount,
     needsReviewCount,
@@ -152,15 +291,12 @@ async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset
           },
         },
       },
-      orderBy: [
-        { reviewStatus: "asc" },
-        { displayPriority: "asc" },
-        { createdAt: "asc" },
-      ],
-      skip: offset,
+      orderBy: mediaReviewQueueOrderBy(filters),
+      skip: filters.offset,
       take: QUEUE_TAKE,
     }),
     prisma.anatomyMediaEntity.count({ where }),
+    prisma.anatomyMediaEntity.count({ where: statusWhere }),
     prisma.anatomyMediaEntity.count({ where: imageReviewWhere }),
     prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "NEEDS_REVIEW" } }),
     prisma.anatomyMediaEntity.count({ where: { ...imageReviewWhere, reviewStatus: "REJECTED" } }),
@@ -176,6 +312,7 @@ async function getMediaReviewQueueData(selectedStatus: QueueStatusOption, offset
       linkedImages: linkedImagesByEntity.get(entityKey(row.entityType, row.entitySlug)) ?? [],
     })) as unknown as MediaQueueRow[],
     total,
+    filteredTotal,
     allCount,
     needsReviewCount,
     rejectedCount,
@@ -242,7 +379,15 @@ async function linkedImageSummariesForRows(rows: Array<{ entityType: AnatomyEnti
   return grouped
 }
 
-function QueueStatusTabs({ selectedStatus, data }: { selectedStatus: QueueStatusOption; data: QueueData }) {
+function QueueStatusTabs({
+  selectedStatus,
+  data,
+  filters,
+}: {
+  selectedStatus: QueueStatusOption
+  data: QueueData
+  filters: ReturnType<typeof parseMediaReviewQueueFilters>
+}) {
   const counts: Record<QueueStatusKey, number> = {
     "needs-review": data.needsReviewCount,
     rejected: data.rejectedCount,
@@ -252,14 +397,106 @@ function QueueStatusTabs({ selectedStatus, data }: { selectedStatus: QueueStatus
 
   return (
     <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-      {QUEUE_STATUS_OPTIONS.map((status) => (
-        <Button key={status.key} asChild size="sm" variant={selectedStatus.key === status.key ? "default" : "outline"} className="shrink-0">
-          <Link href={mediaReviewQueueHref(status.key)}>
-            {status.label} ({counts[status.key]})
-          </Link>
-        </Button>
-      ))}
+      {MEDIA_REVIEW_QUEUE_STATUS_OPTIONS.map((statusOption) => {
+        const status = statusOption as QueueStatusOption
+
+        return (
+          <Button key={status.key} asChild size="sm" variant={selectedStatus.key === status.key ? "default" : "outline"} className="shrink-0">
+            <Link href={mediaReviewQueueHref(filters, { status: status.key, offset: 0 })}>
+              {status.label} ({counts[status.key]})
+            </Link>
+          </Button>
+        )
+      })}
     </div>
+  )
+}
+
+function QueuePresetLinks({ filters }: { filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
+  const anatomyPresets = MEDIA_REVIEW_QUEUE_PRESETS.filter((preset) => preset.group === "anatomy")
+  const cleanupPresets = MEDIA_REVIEW_QUEUE_PRESETS.filter((preset) => preset.group === "cleanup")
+
+  return (
+    <div className="mt-3 space-y-2">
+      <PresetGroup label="Anatomy batches" presets={anatomyPresets} filters={filters} />
+      <PresetGroup label="Image problem batches" presets={cleanupPresets} filters={filters} />
+    </div>
+  )
+}
+
+function PresetGroup({
+  label,
+  presets,
+  filters,
+}: {
+  label: string
+  presets: typeof MEDIA_REVIEW_QUEUE_PRESETS
+  filters: ReturnType<typeof parseMediaReviewQueueFilters>
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium uppercase tracking-normal text-muted-foreground">{label}</p>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {presets.map((preset) => {
+          const linkFilters = {
+            // Presets with their own status must clear the current status so normalization applies the preset's status instead.
+            status: preset.filters.status ? "" : filters.status,
+            sort: filters.sort,
+          }
+
+          return (
+            <Button key={preset.key} asChild size="sm" variant={filters.preset === preset.key ? "default" : "outline"} className="shrink-0">
+              <Link href={mediaReviewQueueHref(linkFilters, { preset: preset.key, offset: 0 })}>{preset.label}</Link>
+            </Button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function QueueActiveFilters({ filters }: { filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
+  const chips = activeMediaReviewQueueChips(filters)
+  if (chips.length === 0) return null
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {chips.map((chip) => (
+        <span key={chip.key} className="rounded-md border border-border/80 bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+          {chip.label}
+        </span>
+      ))}
+      <Button asChild size="sm" variant="ghost">
+        <Link href="/admin/anatomy/media-review">Clear filters</Link>
+      </Button>
+    </div>
+  )
+}
+
+function QueueAdvancedFilters({ filters }: { filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
+  return (
+    <details className="mt-3 rounded-md border border-border/80 bg-muted/20 p-3">
+      <summary className="cursor-pointer text-sm font-medium">Advanced filters</summary>
+      <form action="/admin/anatomy/media-review" className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <input type="hidden" name="status" value={filters.status} />
+        {filters.preset ? <input type="hidden" name="preset" value={filters.preset} /> : null}
+        <SelectField id="queue-entity-type" name="entityType" label="Entity type" values={["", ...MEDIA_REVIEW_QUEUE_ENTITY_TYPES.map((option) => option.key)]} defaultValue={filters.entityType} />
+        <SelectField id="queue-reason" name="reason" label="Review reason" values={["", ...MEDIA_REVIEW_QUEUE_REASONS.map((option) => option.key)]} defaultValue={filters.reason} />
+        <SelectField id="queue-view" name="view" label="BodyParts3D view" values={["", ...MEDIA_REVIEW_QUEUE_VIEWS.map((option) => option.key)]} defaultValue={filters.view} />
+        <SelectField id="queue-request" name="request" label="Request state" values={["", ...MEDIA_REVIEW_QUEUE_REQUESTS.map((option) => option.key)]} defaultValue={filters.request} />
+        <SelectField id="queue-sort" name="sort" label="Sort" values={MEDIA_REVIEW_QUEUE_SORTS.map((option) => option.key)} defaultValue={filters.sort} />
+        <div className="space-y-2">
+          <Label htmlFor="queue-search">Search</Label>
+          <input id="queue-search" name="q" defaultValue={filters.q} className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        </div>
+        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
+          <Button type="submit" size="sm">Apply filters</Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/admin/anatomy/media-review">Reset</Link>
+          </Button>
+        </div>
+      </form>
+    </details>
   )
 }
 
@@ -295,13 +532,11 @@ function QueueMetric({ label, value, href }: { label: string; value: number; hre
 
 function ImageReviewCard({
   row,
-  selectedStatus,
-  offset,
+  filters,
   upcomingRows,
 }: {
   row: MediaQueueRow
-  selectedStatus: QueueStatusOption
-  offset: number
+  filters: ReturnType<typeof parseMediaReviewQueueFilters>
   upcomingRows: MediaQueueRow[]
 }) {
   const asset = row.asset
@@ -312,7 +547,7 @@ function ImageReviewCard({
   const metadataLine = mediaMetadataLine(asset)
   const currentView = mediaViewFromAsset(asset)
   const browserHref = anatomyBrowserHref(row.entityType, row.entitySlug)
-  const skipHref = mediaReviewQueueHref(selectedStatus.key, offset + 1)
+  const skipHref = mediaReviewQueueHref(filters, { offset: filters.offset + 1 })
 
   return (
     <Card className={appSurfaceClassName}>
@@ -357,16 +592,16 @@ function ImageReviewCard({
           </div>
 
           <LinkedImageSummaryPanel row={row} />
-          <QuickApproveForm row={row} selectedStatus={selectedStatus} offset={offset} />
-          <NeedsBetterViewForm row={row} selectedStatus={selectedStatus} offset={offset} currentView={currentView} />
-          <RejectImageForm row={row} selectedStatus={selectedStatus} offset={offset} />
+          <QuickApproveForm row={row} filters={filters} />
+          <NeedsBetterViewForm row={row} filters={filters} currentView={currentView} />
+          <RejectImageForm row={row} filters={filters} />
 
           {upcomingRows.length > 0 ? (
             <div className={`${appInsetClassName} p-3`}>
               <p className="text-sm font-medium">Next in queue</p>
               <div className="mt-2 space-y-2">
                 {upcomingRows.slice(0, 4).map((upcomingRow, index) => (
-                  <Link key={upcomingRow.id} href={mediaReviewQueueHref(selectedStatus.key, offset + index + 1)} className="block rounded-md border border-border/70 p-2 text-sm transition hover:border-primary/60 hover:bg-accent">
+                  <Link key={upcomingRow.id} href={mediaReviewQueueHref(filters, { offset: filters.offset + index + 1 })} className="block rounded-md border border-border/70 p-2 text-sm transition hover:border-primary/60 hover:bg-accent">
                     <span className="font-medium">{titleFromSlug(upcomingRow.entitySlug)}</span>
                     <span className="block text-xs text-muted-foreground">{formatLabel(upcomingRow.role)} / {formatLabel(upcomingRow.reviewStatus)}</span>
                   </Link>
@@ -415,10 +650,10 @@ function LinkedImageSummaryPanel({ row }: { row: MediaQueueRow }) {
   )
 }
 
-function QuickApproveForm({ row, selectedStatus, offset }: { row: MediaQueueRow; selectedStatus: QueueStatusOption; offset: number }) {
+function QuickApproveForm({ row, filters }: { row: MediaQueueRow; filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction}>
-      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={queueOffsetAfterDecision(selectedStatus, offset, "APPROVED")} reviewStatus="APPROVED" />
+      <BaseDecisionFields row={row} filters={filters} offset={filters.offset} reviewStatus="APPROVED" />
       <Button type="submit" className="h-12 w-full text-base">Approve image</Button>
     </form>
   )
@@ -426,18 +661,16 @@ function QuickApproveForm({ row, selectedStatus, offset }: { row: MediaQueueRow;
 
 function NeedsBetterViewForm({
   row,
-  selectedStatus,
-  offset,
+  filters,
   currentView,
 }: {
   row: MediaQueueRow
-  selectedStatus: QueueStatusOption
-  offset: number
+  filters: ReturnType<typeof parseMediaReviewQueueFilters>
   currentView: string
 }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction} className={`${appInsetClassName} space-y-3 p-3`}>
-      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={queueOffsetAfterDecision(selectedStatus, offset, "NEEDS_REVIEW")} reviewStatus="NEEDS_REVIEW" />
+      <BaseDecisionFields row={row} filters={filters} offset={filters.offset} reviewStatus="NEEDS_REVIEW" />
       <input type="hidden" name="create_view_request" value="1" />
       <div className="grid gap-3 sm:grid-cols-2">
         <SelectField
@@ -478,10 +711,10 @@ function NeedsBetterViewForm({
   )
 }
 
-function RejectImageForm({ row, selectedStatus, offset }: { row: MediaQueueRow; selectedStatus: QueueStatusOption; offset: number }) {
+function RejectImageForm({ row, filters }: { row: MediaQueueRow; filters: ReturnType<typeof parseMediaReviewQueueFilters> }) {
   return (
     <form action={reviewAnatomyMediaQueueDecisionAction} className={`${appInsetClassName} space-y-3 p-3`}>
-      <BaseDecisionFields row={row} selectedStatus={selectedStatus} offset={queueOffsetAfterDecision(selectedStatus, offset, "REJECTED")} reviewStatus="REJECTED" />
+      <BaseDecisionFields row={row} filters={filters} offset={filters.offset} reviewStatus="REJECTED" />
       <SelectField
         id={`reject-reason-${row.id}`}
         name="review_reason"
@@ -498,35 +731,28 @@ function RejectImageForm({ row, selectedStatus, offset }: { row: MediaQueueRow; 
   )
 }
 
-/**
- * Advances after a decision only when the reviewed row remains visible in the
- * active queue; otherwise the next row shifts into the current offset.
- */
-function queueOffsetAfterDecision(selectedStatus: QueueStatusOption, offset: number, nextReviewStatus: AnatomyMediaReviewStatus) {
-  const rowRemainsInCurrentQueue = selectedStatus.key === "all" || selectedStatus.reviewStatus === nextReviewStatus
-
-  return rowRemainsInCurrentQueue ? offset + 1 : offset
-}
-
 function BaseDecisionFields({
   row,
-  selectedStatus,
+  filters,
   offset,
   reviewStatus,
 }: {
   row: MediaQueueRow
-  selectedStatus: QueueStatusOption
+  filters: ReturnType<typeof parseMediaReviewQueueFilters>
   offset: number
   reviewStatus: AnatomyMediaReviewStatus
 }) {
+  const queueFields = mediaReviewQueueFormFields({ ...filters, offset })
+
   return (
     <>
       <input type="hidden" name="id" value={row.id} />
       <input type="hidden" name="review_status" value={reviewStatus} />
       <input type="hidden" name="display_priority" value={String(row.displayPriority)} />
       <input type="hidden" name="notes" value={row.notes ?? ""} />
-      <input type="hidden" name="queue_status" value={selectedStatus.key} />
-      <input type="hidden" name="queue_offset" value={String(offset)} />
+      {queueFields.map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       {reviewStatus === "APPROVED" ? <input type="hidden" name="review_note" value="" /> : null}
     </>
   )
@@ -551,7 +777,7 @@ function SelectField({
       <select id={id} name={name} defaultValue={defaultValue} className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
         {values.map((value) => (
           <option key={value} value={value}>
-            {formatLabel(value)}
+            {value ? formatLabel(value) : "Any"}
           </option>
         ))}
       </select>
@@ -570,7 +796,7 @@ function EmptyQueue({ selectedStatus }: { selectedStatus: QueueStatusOption }) {
             <Link href="/admin">Back to dashboard</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={mediaReviewQueueHref("all")}>Browse all images</Link>
+            <Link href={mediaReviewQueueHref({ status: "all" })}>Browse all images</Link>
           </Button>
         </div>
       </CardContent>
@@ -584,24 +810,6 @@ function ExternalButton({ href, children }: { href: string; children: React.Reac
       <a href={href} target="_blank" rel="noreferrer">{children}</a>
     </Button>
   )
-}
-
-function queueStatusFromParam(value: string | undefined): QueueStatusOption {
-  return QUEUE_STATUS_OPTIONS.find((status) => status.key === value) ?? QUEUE_STATUS_OPTIONS[0]
-}
-
-function queueOffsetFromParam(value: string | undefined) {
-  const parsed = Number(value)
-
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0
-}
-
-function mediaReviewQueueHref(status: QueueStatusKey, offset = 0) {
-  const params = new URLSearchParams()
-  params.set("status", status)
-  if (offset > 0) params.set("offset", String(offset))
-
-  return `/admin/anatomy/media-review?${params.toString()}`
 }
 
 function anatomyBrowserHref(entityType: string, entitySlug: string) {
