@@ -82,8 +82,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const volumeRef = useRef(defaultStorage.volume)
   const controllerRef = useRef<ReturnType<typeof createAtmosphereRuntimeController> | null>(null)
 
-  if (!controllerRef.current) {
-    controllerRef.current = createAtmosphereRuntimeController({
+  useEffect(() => {
+    const controller = createAtmosphereRuntimeController({
       adapters: {
         "tone-proof-drone": async ({ station }: RuntimeAdapterPayload) => startToneProofDrone({
           ...station.runtime?.defaultOptions,
@@ -91,7 +91,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         }),
       },
     })
-  }
+
+    controllerRef.current = controller
+
+    return () => {
+      if (controllerRef.current === controller) {
+        controllerRef.current = null
+      }
+      void controller.stop()
+    }
+  }, [])
 
   useEffect(() => {
     setStorageState(parseAtmosphereStorage(window.localStorage.getItem(ATMOSPHERE_STORAGE_KEY)) as AtmosphereStorageState)
@@ -106,14 +115,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setToneProofDroneVolume(storageState.volume)
   }, [storageState.volume])
 
-  useEffect(() => {
-    return () => {
-      void controllerRef.current?.stop()
-    }
-  }, [])
-
   const playStation = useCallback(async (stationId: string) => {
     const station = getAtmosphereStationById(stationId)
+    const controller = controllerRef.current
 
     if (!station.enabled) {
       setActiveStationId(station.id)
@@ -122,12 +126,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    if (!controller) {
+      setActiveStationId(station.id)
+      setPlaybackState("failed")
+      setError("Audio runtime is still loading.")
+      return
+    }
+
     setActiveStationId(station.id)
     setPlaybackState("loading")
     setError(null)
 
     try {
-      await controllerRef.current?.start(station)
+      await controller.start(station)
       setPlaybackState("playing")
       setStorageState((current) => ({
         ...current,
