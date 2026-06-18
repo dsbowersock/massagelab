@@ -4,6 +4,7 @@ import { describe, it } from "node:test"
 import {
   createObservableStreamsR2UploadPlan,
   DEFAULT_ATMOSPHERE_PUBLIC_MEDIA_BUCKET,
+  DEFAULT_ATMOSPHERE_R2_METADATA_CACHE_CONTROL,
   isTransientR2UploadStatus,
   missingAtmosphereR2UploadEnv,
   publicUrlForR2Object,
@@ -60,6 +61,10 @@ describe("Atmosphere R2 sample hosting", () => {
       plan.sampleIndex["sso-cor-anglais"]["A#3"],
       "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/samples/oboe-sus-a-sharp3.wav",
     )
+    assert.equal(plan.sampleObjects[0].cacheControl, "public, max-age=31536000, immutable")
+    assert.equal(plan.metadataCacheControl, DEFAULT_ATMOSPHERE_R2_METADATA_CACHE_CONTROL)
+    assert.equal(plan.metadataObjects[0].cacheControl, DEFAULT_ATMOSPHERE_R2_METADATA_CACHE_CONTROL)
+    assert.equal(plan.metadataObjects[1].cacheControl, DEFAULT_ATMOSPHERE_R2_METADATA_CACHE_CONTROL)
     assert.match(plan.metadataObjects[0].body, /"vsco2-piano-mf"/)
     assert.match(plan.metadataObjects[1].body, /"sampleObjectCount": 2/)
   })
@@ -101,9 +106,11 @@ describe("Atmosphere R2 sample hosting", () => {
       MASSAGELAB_PUBLIC_MEDIA_BUCKET: "massagelab-public-media",
       MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL: "https://media.massagelab.app/",
       MASSAGELAB_PUBLIC_MEDIA_OBJECT_PREFIX: "atmosphere/observable-streams-vsco-adaptation",
+      MASSAGELAB_PUBLIC_MEDIA_METADATA_CACHE_CONTROL: "public, max-age=60, must-revalidate",
     })
     assert.deepEqual(missingAtmosphereR2UploadEnv(ready), [])
     assert.equal(ready.publicBaseUrl, "https://media.massagelab.app")
+    assert.equal(ready.metadataCacheControl, "public, max-age=60, must-revalidate")
 
     const missing = missingAtmosphereR2UploadEnv(readAtmospherePublicMediaR2Env({}))
     assert.deepEqual(missing, [

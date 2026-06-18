@@ -45,6 +45,7 @@ function runCheck() {
     publicBaseUrlConfigured: Boolean(env.publicBaseUrl),
     objectPrefix: env.objectPrefix,
     cacheControl: env.cacheControl,
+    metadataCacheControl: env.metadataCacheControl,
     uploadReady: missingForUpload.length === 0,
     missingForUpload,
   }, null, 2))
@@ -99,6 +100,7 @@ async function runUpload(uploadArgs) {
     publicBaseUrl: env.publicBaseUrl,
     objectPrefix: env.objectPrefix,
     cacheControl: env.cacheControl,
+    metadataCacheControl: env.metadataCacheControl,
   })
 
   printPlan(uploadPlan)

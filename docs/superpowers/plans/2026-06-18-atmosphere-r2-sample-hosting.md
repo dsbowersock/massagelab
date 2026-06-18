@@ -28,7 +28,7 @@ Actual upload should only run after confirming `MASSAGELAB_PUBLIC_MEDIA_PUBLIC_B
 - `massagelab-public-media` is connected to `https://media.massagelab.app` with minimum TLS 1.2.
 - The public-media CORS policy is tracked at [../../cloudflare/massagelab-public-media-cors.json](../../cloudflare/massagelab-public-media-cors.json).
 - On 2026-06-18 the first Observable Streams VSCO adaptation was uploaded: 24 WAV sample objects, `sample-index.json`, and `manifest.json`.
-- Public verification returned HTTP 200 for the sample index and a WAV sample with long-lived cache headers and `Access-Control-Allow-Origin: *`.
+- Public verification returned HTTP 200 for the sample index and a WAV sample with `Access-Control-Allow-Origin: *`; WAV samples use long-lived immutable caching, while generated JSON metadata uses short revalidating cache headers on subsequent uploads.
 - Observable Streams remains disabled until the Generative.fm adapter is wired to the hosted index and browser playback is verified.
 
 ## Validation

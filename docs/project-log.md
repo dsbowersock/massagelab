@@ -99,7 +99,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ### 2026-06-18
 
-- Added the [Atmosphere R2 Sample Hosting plan](superpowers/plans/2026-06-18-atmosphere-r2-sample-hosting.md), public-media R2 upload helper, and CLI commands for the first Observable Streams VSCO adaptation. The workflow targets `massagelab-public-media`, keeps raw audio outside Git, connects `https://media.massagelab.app` with browser-read CORS, uploads the 24-WAV hosted sample-index payload plus manifest, and keeps `massagelab-anatomy-media` and `massagelab-private-media` out of the public Atmosphere sample path. Observable Streams remains disabled until a follow-up branch wires the Generative.fm adapter to the hosted index and verifies playback.
+- Added the [Atmosphere R2 Sample Hosting plan](superpowers/plans/2026-06-18-atmosphere-r2-sample-hosting.md), public-media R2 upload helper, and CLI commands for the first Observable Streams VSCO adaptation. The workflow targets `massagelab-public-media`, keeps raw audio outside Git, connects `https://media.massagelab.app` with browser-read CORS, uploads the 24-WAV hosted sample-index payload plus manifest, keeps `massagelab-anatomy-media` and `massagelab-private-media` out of the public Atmosphere sample path, and splits cache behavior so WAV samples stay immutable while generated JSON metadata revalidates quickly. Observable Streams remains disabled until a follow-up branch wires the Generative.fm adapter to the hosted index and verifies playback.
 
 ### 2026-06-17
 
