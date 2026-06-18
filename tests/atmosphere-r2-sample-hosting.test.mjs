@@ -4,8 +4,10 @@ import { describe, it } from "node:test"
 import {
   createObservableStreamsR2UploadPlan,
   DEFAULT_ATMOSPHERE_PUBLIC_MEDIA_BUCKET,
+  isTransientR2UploadStatus,
   missingAtmosphereR2UploadEnv,
   publicUrlForR2Object,
+  putAtmosphereObjectToR2,
   readAtmospherePublicMediaR2Env,
 } from "../lib/atmosphere/r2-sample-hosting.js"
 
@@ -117,6 +119,58 @@ describe("Atmosphere R2 sample hosting", () => {
       () => publicUrlForR2Object("https://media.example.test", "atmosphere/../sample.wav"),
       /Invalid R2 object key/,
     )
+  })
+
+  it("classifies only 429 and 5xx upload responses as retryable", () => {
+    assert.equal(isTransientR2UploadStatus(429), true)
+    assert.equal(isTransientR2UploadStatus(500), true)
+    assert.equal(isTransientR2UploadStatus(503), true)
+    assert.equal(isTransientR2UploadStatus(408), false)
+    assert.equal(isTransientR2UploadStatus(400), false)
+    assert.equal(isTransientR2UploadStatus(200), false)
+  })
+
+  it("retries transient R2 upload responses before succeeding", async () => {
+    const originalFetch = globalThis.fetch
+    const originalWarn = console.warn
+    const calls = []
+
+    console.warn = () => undefined
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url, init })
+      if (calls.length === 1) {
+        return new Response("temporarily unavailable", { status: 503 })
+      }
+      return new Response("", { status: 200 })
+    }
+
+    try {
+      await putAtmosphereObjectToR2({
+        accountId: "account-id",
+        accessKeyId: "access-key",
+        secretAccessKey: "secret-key",
+        bucket: "massagelab-public-media",
+        endpoint: "https://account-id.r2.cloudflarestorage.com",
+        publicBaseUrl: "https://media.massagelab.app",
+        cacheControl: "public, max-age=31536000, immutable",
+        objectPrefix: "atmosphere/observable-streams-vsco-adaptation",
+      }, {
+        objectKey: "atmosphere/observable-streams-vsco-adaptation/sample-index.json",
+        body: "{}\n",
+        contentType: "application/json; charset=utf-8",
+      })
+    } finally {
+      globalThis.fetch = originalFetch
+      console.warn = originalWarn
+    }
+
+    assert.equal(calls.length, 2)
+    assert.equal(
+      calls[0].url,
+      "https://account-id.r2.cloudflarestorage.com/massagelab-public-media/atmosphere/observable-streams-vsco-adaptation/sample-index.json",
+    )
+    assert.equal(calls[0].init.method, "PUT")
+    assert.equal(calls[1].init.method, "PUT")
   })
 
   it("keeps the checked-in public media CORS policy limited to browser reads", async () => {
