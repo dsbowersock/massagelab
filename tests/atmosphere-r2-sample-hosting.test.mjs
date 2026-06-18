@@ -98,6 +98,53 @@ describe("Atmosphere R2 sample hosting", () => {
     )
   })
 
+  it("adds rendered sample objects to the hosted index and manifest", () => {
+    const plan = createObservableStreamsR2UploadPlan({
+      publicBaseUrl: "https://media.massagelab.app",
+      assetPlan: {
+        selectedAssets: [
+          {
+            instrumentName: "vsco2-piano-mf",
+            noteName: "C#2",
+            sourceRelativePath: "Piano.wav",
+            outputFileName: "piano-c-sharp2.wav",
+            sizeBytes: 1024,
+          },
+        ],
+      },
+      renderedSampleObjects: [
+        {
+          kind: "rendered-sample",
+          instrumentName: "observable-streams__vsco2-piano-mf",
+          noteName: "C2",
+          sourceInstrumentName: "vsco2-piano-mf",
+          sourceNoteName: "C#2",
+          sourceRelativePath: "Piano.wav",
+          outputFileName: "rendered-piano-c2.wav",
+          objectKey: "atmosphere/observable-streams-vsco-adaptation/rendered/observable-streams__vsco2-piano-mf/rendered-piano-c2.wav",
+          publicUrl:
+            "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/rendered/observable-streams__vsco2-piano-mf/rendered-piano-c2.wav",
+          contentType: "audio/wav",
+          body: new Uint8Array([1, 2, 3]),
+          sizeBytes: 3,
+          render: { additionalRenderLengthSeconds: 3, fadeOutSeconds: 0 },
+        },
+      ],
+    })
+
+    assert.equal(plan.objectCount, 4)
+    assert.equal(plan.samplePayloadBytes, 1027)
+    assert.equal(plan.sampleObjects.length, 1)
+    assert.equal(plan.renderedSampleObjects.length, 1)
+    assert.equal(
+      plan.sampleIndex["observable-streams__vsco2-piano-mf"].C2,
+      "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/rendered/observable-streams__vsco2-piano-mf/rendered-piano-c2.wav",
+    )
+    assert.match(plan.metadataObjects[0].body, /"observable-streams__vsco2-piano-mf"/)
+    assert.match(plan.metadataObjects[1].body, /"renderedAssets"/)
+    assert.equal(plan.manifest.renderedAssets[0].sourceNoteName, "C#2")
+  })
+
   it("keeps the public-media bucket explicit in environment readiness checks", () => {
     const ready = readAtmospherePublicMediaR2Env({
       CLOUDFLARE_ACCOUNT_ID: "account-id",

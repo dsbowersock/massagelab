@@ -7,6 +7,7 @@ import {
   createObservableStreamsVscoAssetPlan,
   findObservableStreamsVscoPianoMappingChartPath,
 } from "../lib/atmosphere/sample-intake.js"
+import { createObservableStreamsRenderedSampleObjects } from "../lib/atmosphere/prerendered-samples.js"
 import {
   createObservableStreamsR2UploadPlan,
   endpointForAtmosphereR2Env,
@@ -94,8 +95,19 @@ async function runUpload(uploadArgs) {
     throw new Error(`Missing curated Observable Streams source notes:\n${missing}`)
   }
 
+  const renderedSampleObjects = options.includeRendered
+    ? await createObservableStreamsRenderedSampleObjects({
+      assetPlan,
+      audioRoot: resolvedAudioRoot,
+      publicBaseUrl: env.publicBaseUrl,
+      objectPrefix: env.objectPrefix,
+      cacheControl: env.cacheControl,
+    })
+    : []
+
   const uploadPlan = createObservableStreamsR2UploadPlan({
     assetPlan,
+    renderedSampleObjects,
     bucket: env.bucket,
     publicBaseUrl: env.publicBaseUrl,
     objectPrefix: env.objectPrefix,
@@ -126,6 +138,16 @@ async function runUpload(uploadArgs) {
     console.log(`Uploaded ${asset.objectKey} (${body.byteLength} bytes).`)
   }
 
+  for (const asset of uploadPlan.renderedSampleObjects) {
+    await putAtmosphereObjectToR2(env, {
+      objectKey: asset.objectKey,
+      body: asset.body,
+      contentType: asset.contentType,
+      cacheControl: asset.cacheControl,
+    })
+    console.log(`Uploaded ${asset.objectKey} (${asset.body.byteLength} bytes).`)
+  }
+
   for (const object of uploadPlan.metadataObjects) {
     await putAtmosphereObjectToR2(env, object)
     console.log(`Uploaded ${object.objectKey} (${object.body.length} bytes).`)
@@ -139,6 +161,7 @@ function parseUploadArgs(uploadArgs) {
   const options = {
     audioRoot: process.env.MASSAGELAB_AUDIO_SAMPLE_ROOT,
     dryRun: false,
+    includeRendered: false,
     publicBaseUrl: undefined,
     objectPrefix: undefined,
   }
@@ -148,6 +171,11 @@ function parseUploadArgs(uploadArgs) {
 
     if (arg === "--dry-run") {
       options.dryRun = true
+      continue
+    }
+
+    if (arg === "--include-rendered") {
+      options.includeRendered = true
       continue
     }
 
@@ -198,8 +226,16 @@ function printPlan(uploadPlan) {
   console.log(`Approximate WAV payload: ${formatBytes(uploadPlan.samplePayloadBytes)}`)
   console.log(`Sample index: ${uploadPlan.sampleIndexPublicUrl}`)
   console.log(`Manifest: ${uploadPlan.manifestPublicUrl}`)
+  if (uploadPlan.renderedSampleObjects.length > 0) {
+    console.log(`Rendered samples: ${uploadPlan.renderedSampleObjects.length}`)
+  }
   for (const asset of uploadPlan.sampleObjects) {
     console.log(`- ${asset.instrumentName} ${asset.noteName}: ${asset.sourceRelativePath} -> ${asset.objectKey}`)
+  }
+  for (const asset of uploadPlan.renderedSampleObjects) {
+    console.log(
+      `- ${asset.instrumentName} ${asset.noteName}: ${asset.sourceInstrumentName} ${asset.sourceNoteName} -> ${asset.objectKey}`,
+    )
   }
 }
 
@@ -251,5 +287,5 @@ async function walkDirectory(rootPath, currentPath, files) {
 function printUsage() {
   console.error("Usage:")
   console.error("  npm run atmosphere:samples:r2:check")
-  console.error("  npm run atmosphere:samples:r2:upload -- <audio-sample-root> [--dry-run] [--public-base-url <url>] [--object-prefix <prefix>]")
+  console.error("  npm run atmosphere:samples:r2:upload -- <audio-sample-root> [--dry-run] [--include-rendered] [--public-base-url <url>] [--object-prefix <prefix>]")
 }
