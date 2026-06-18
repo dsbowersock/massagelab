@@ -18,7 +18,11 @@ import {
   parseAtmosphereStorage,
   serializeAtmosphereStorage,
 } from "@/lib/atmosphere/storage"
-import { setGenerativeFmPieceVolume, startGenerativeFmPiece } from "@/lib/atmosphere/generative-fm-runtime"
+import {
+  prewarmGenerativeFmPiece,
+  setGenerativeFmPieceVolume,
+  startGenerativeFmPiece,
+} from "@/lib/atmosphere/generative-fm-runtime"
 import { setToneProofDroneVolume, startToneProofDrone } from "@/lib/atmosphere/tone-proof-runtime"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "failed"
@@ -33,6 +37,7 @@ interface MusicContextType {
   volume: number
   miniPlayerCollapsed: boolean
   playStation: (stationId: string) => Promise<void>
+  prewarmStation: (stationId: string) => Promise<void>
   stopCurrent: () => Promise<void>
   setVolume: (volume: number) => void
   toggleFavorite: (stationId: string) => void
@@ -71,6 +76,7 @@ const defaultMusicContext: MusicContextType = {
   volume: defaultStorage.volume,
   miniPlayerCollapsed: defaultStorage.miniPlayerCollapsed,
   playStation: async () => undefined,
+  prewarmStation: async () => undefined,
   stopCurrent: async () => undefined,
   setVolume: () => undefined,
   toggleFavorite: () => undefined,
@@ -183,6 +189,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const prewarmStation = useCallback(async (stationId: string) => {
+    try {
+      const station = getAtmosphereStationById(stationId)
+      if (!station.enabled || station.runtime?.adapterId !== "generative-fm-piece") {
+        return
+      }
+
+      await prewarmGenerativeFmPiece({ station })
+    } catch {
+      // Prewarm is opportunistic; playback should surface any real runtime error.
+    }
+  }, [])
+
   const stopCurrent = useCallback(async () => {
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
@@ -246,6 +265,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     volume: storageState.volume,
     miniPlayerCollapsed: storageState.miniPlayerCollapsed,
     playStation,
+    prewarmStation,
     stopCurrent,
     setVolume,
     toggleFavorite,
@@ -256,6 +276,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     error,
     playStation,
     playbackState,
+    prewarmStation,
     setMiniPlayerCollapsed,
     setVolume,
     stopCurrent,

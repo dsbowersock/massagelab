@@ -49,7 +49,7 @@ describe("Generative.fm sample-index helpers", () => {
     )
   })
 
-  it("loads JSON with no-cache semantics before validating required instruments", async () => {
+  it("loads JSON with browser cache-aware semantics before validating required instruments", async () => {
     const requests = []
     const sampleIndex = await fetchGenerativeFmSampleIndex({
       sampleIndexUrl: "https://media.massagelab.app/sample-index.json",
@@ -66,8 +66,27 @@ describe("Generative.fm sample-index helpers", () => {
 
     assert.equal(sampleIndex["sso-cor-anglais"].C4, "oboe.wav")
     assert.equal(requests[0].url, "https://media.massagelab.app/sample-index.json")
-    assert.equal(requests[0].init.cache, "no-cache")
+    assert.equal(requests[0].init.cache, "default")
     assert.equal(requests[0].init.headers.Accept, "application/json")
+  })
+
+  it("allows callers to force a metadata reload when bypassing browser cache is needed", async () => {
+    const requests = []
+    await fetchGenerativeFmSampleIndex({
+      sampleIndexUrl: "https://media.massagelab.app/sample-index.json",
+      sampleGroups: observableStreamsSampleGroups,
+      cacheMode: "reload",
+      fetchImpl: async (url, init) => {
+        requests.push({ url, init })
+        return Response.json({
+          "vsco2-piano-mf": { C2: "piano.wav" },
+          "vsco2-violin-arcvib": { G4: "violin.wav" },
+          "sso-cor-anglais": { C4: "oboe.wav" },
+        })
+      },
+    })
+
+    assert.equal(requests[0].init.cache, "reload")
   })
 
   it("surfaces hosted sample-index HTTP failures", async () => {

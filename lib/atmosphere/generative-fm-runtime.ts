@@ -15,6 +15,9 @@ type GenerativeFmRuntimeOptions = {
 }
 
 type ToneModule = typeof import("tone")
+type GenerativeFmSampleIndex = Record<string, string | string[] | Record<string, string>>
+type WebProviderFactory = typeof import("@generative-music/web-provider").default
+type WebLibraryFactory = typeof import("@generative-music/web-library").default
 type WebLibrary = import("@generative-music/web-library").WebLibrary
 
 type GenerativeMusicPiece = (options: {
@@ -24,13 +27,43 @@ type GenerativeMusicPiece = (options: {
   onProgress: (progress: number) => void
 }) => Promise<[deactivate: () => unknown, schedule: () => (() => unknown) | undefined]>
 
+type GenerativeFmRuntimeConfig = {
+  pieceId: string
+  sampleGroups: Array<string | string[]>
+  sampleIndexUrl: string
+}
+
+type GenerativeFmRuntimeModules = {
+  Tone: ToneModule
+  createWebProvider: WebProviderFactory
+  createWebLibrary: WebLibraryFactory
+}
+
+type PreparedGenerativeFmRuntime = GenerativeFmRuntimeConfig & GenerativeFmRuntimeModules & {
+  piece: GenerativeMusicPiece
+  sampleIndex: GenerativeFmSampleIndex
+  preparedFor: "playback" | "prewarm"
+}
+
+type PreparedGenerativeFmRuntimeResult = PreparedGenerativeFmRuntime & {
+  usedCompletedPrewarm: boolean
+}
+
+type PreparedRuntimeCacheEntry = {
+  promise: Promise<PreparedGenerativeFmRuntime>
+  preparedFor: PreparedGenerativeFmRuntime["preparedFor"]
+  settled: boolean
+}
+
 let activeVolumeNode: { volume: { value: number, rampTo?: (value: number, seconds: number) => unknown } } | null = null
 let activeTransportOwner: symbol | null = null
+let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
+const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
- * The adapter intentionally fetches the hosted sample index before importing
- * sample-heavy runtime modules so station failures stay clear and actionable.
+ * The adapter reuses any already prepared metadata/module promise, then starts
+ * Tone only from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
   station,
@@ -40,35 +73,13 @@ export async function startGenerativeFmPiece({
     throw new Error("Generative.fm stations can only start in the browser.")
   }
 
-  const sampleIndexUrl = station.runtime?.hostedSampleIndexUrl
-  if (!sampleIndexUrl) {
-    throw new Error("Generative.fm station is missing a hosted sample-index URL.")
-  }
-
-  const sampleGroups = station.runtime?.sampleNameGroups
-  if (!sampleGroups || sampleGroups.length === 0) {
-    throw new Error("Generative.fm station is missing package sample-name groups.")
-  }
-
-  const pieceId = station.runtime?.pieceId
-  if (!pieceId) {
-    throw new Error("Generative.fm station is missing a package piece id.")
-  }
-
-  const sampleIndex = await fetchGenerativeFmSampleIndex({ sampleIndexUrl, sampleGroups })
-  const [
-    Tone,
-    { default: createWebProvider },
-    { default: createWebLibrary },
-    piece,
-  ] = await Promise.all([
-    import("tone"),
-    import("@generative-music/web-provider"),
-    import("@generative-music/web-library"),
-    loadGenerativeFmPiece(pieceId),
-  ])
+  const startedAt = performance.now()
+  const prepared = await getPreparedGenerativeFmRuntime(station, "playback")
+  const preparedAt = performance.now()
+  const { Tone, createWebProvider, createWebLibrary, piece, pieceId, sampleIndex } = prepared
 
   await Tone.start()
+  const toneStartedAt = performance.now()
 
   const provider = createWebProvider()
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
@@ -88,6 +99,7 @@ export async function startGenerativeFmPiece({
     output.dispose()
     throw error
   }
+  const activatedAt = performance.now()
 
   let endStage: (() => unknown) | undefined
   try {
@@ -99,6 +111,17 @@ export async function startGenerativeFmPiece({
   }
 
   Tone.Transport.start()
+  const scheduledAt = performance.now()
+  recordStartupTiming({
+    stationId: station.id,
+    pieceId,
+    usedPrewarm: prepared.usedCompletedPrewarm,
+    prepareWaitMs: preparedAt - startedAt,
+    toneStartMs: toneStartedAt - preparedAt,
+    pieceActivateMs: activatedAt - toneStartedAt,
+    scheduleMs: scheduledAt - activatedAt,
+    totalMs: scheduledAt - startedAt,
+  })
   activeVolumeNode = output
   const transportOwner = Symbol(station.id)
   activeTransportOwner = transportOwner
@@ -133,12 +156,116 @@ export async function startGenerativeFmPiece({
   }
 }
 
+/**
+ * Prepares the hosted sample-index metadata and browser runtime modules without
+ * starting Tone or downloading audio sample payloads. The next playback request
+ * reuses the same promise so quick hover/tap races do not duplicate work.
+ */
+export async function prewarmGenerativeFmPiece({
+  station,
+}: {
+  station: GenerativeFmRuntimeStation
+}) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  await getPreparedGenerativeFmRuntime(station, "prewarm")
+}
+
 export function setGenerativeFmPieceVolume(volume: number) {
   if (!activeVolumeNode) {
     return
   }
 
   activeVolumeNode.volume.value = volumeToDecibels(volume)
+}
+
+async function getPreparedGenerativeFmRuntime(
+  station: GenerativeFmRuntimeStation,
+  preparedFor: PreparedGenerativeFmRuntime["preparedFor"],
+): Promise<PreparedGenerativeFmRuntimeResult> {
+  const config = readGenerativeFmRuntimeConfig(station)
+  const cacheKey = preparedRuntimeCacheKey(config)
+  const cachedEntry = preparedRuntimeEntries.get(cacheKey)
+  if (cachedEntry) {
+    const usedCompletedPrewarm = preparedFor === "playback"
+      && cachedEntry.preparedFor === "prewarm"
+      && cachedEntry.settled
+    const prepared = await cachedEntry.promise
+    return { ...prepared, usedCompletedPrewarm }
+  }
+
+  const entry: PreparedRuntimeCacheEntry = {
+    preparedFor,
+    settled: false,
+    promise: Promise.resolve(null as never),
+  }
+
+  entry.promise = Promise.all([
+    fetchGenerativeFmSampleIndex({
+      sampleIndexUrl: config.sampleIndexUrl,
+      sampleGroups: config.sampleGroups,
+    }) as Promise<GenerativeFmSampleIndex>,
+    loadGenerativeFmRuntimeModules(),
+    loadGenerativeFmPiece(config.pieceId),
+  ]).then(([sampleIndex, modules, piece]) => ({
+    ...config,
+    ...modules,
+    piece,
+    sampleIndex,
+    preparedFor,
+  })).then((prepared) => {
+    entry.settled = true
+    return prepared
+  }).catch((error) => {
+    preparedRuntimeEntries.delete(cacheKey)
+    throw error
+  })
+
+  preparedRuntimeEntries.set(cacheKey, entry)
+  const prepared = await entry.promise
+  return { ...prepared, usedCompletedPrewarm: false }
+}
+
+function readGenerativeFmRuntimeConfig(station: GenerativeFmRuntimeStation): GenerativeFmRuntimeConfig {
+  const sampleIndexUrl = station.runtime?.hostedSampleIndexUrl
+  if (!sampleIndexUrl) {
+    throw new Error("Generative.fm station is missing a hosted sample-index URL.")
+  }
+
+  const sampleGroups = station.runtime?.sampleNameGroups
+  if (!sampleGroups || sampleGroups.length === 0) {
+    throw new Error("Generative.fm station is missing package sample-name groups.")
+  }
+
+  const pieceId = station.runtime?.pieceId
+  if (!pieceId) {
+    throw new Error("Generative.fm station is missing a package piece id.")
+  }
+
+  return { pieceId, sampleGroups, sampleIndexUrl }
+}
+
+function preparedRuntimeCacheKey({ pieceId, sampleGroups, sampleIndexUrl }: GenerativeFmRuntimeConfig) {
+  return JSON.stringify([pieceId, sampleIndexUrl, sampleGroups])
+}
+
+function loadGenerativeFmRuntimeModules() {
+  runtimeModulesPromise = runtimeModulesPromise ?? Promise.all([
+    import("tone"),
+    import("@generative-music/web-provider"),
+    import("@generative-music/web-library"),
+  ]).then(([Tone, { default: createWebProvider }, { default: createWebLibrary }]) => ({
+    Tone,
+    createWebProvider,
+    createWebLibrary,
+  })).catch((error) => {
+    runtimeModulesPromise = null
+    throw error
+  })
+
+  return runtimeModulesPromise
 }
 
 function resolveToneContext(Tone: ToneModule) {
@@ -178,4 +305,25 @@ async function loadGenerativeFmPiece(pieceId: string): Promise<GenerativeMusicPi
 function volumeToDecibels(volume: number) {
   const clampedVolume = Math.min(1, Math.max(0, Number.isFinite(volume) ? volume : 0.75))
   return -60 + clampedVolume * 48
+}
+
+function recordStartupTiming(detail: {
+  stationId: string
+  pieceId: string
+  usedPrewarm: boolean
+  prepareWaitMs: number
+  toneStartMs: number
+  pieceActivateMs: number
+  scheduleMs: number
+  totalMs: number
+}) {
+  window.dispatchEvent(new CustomEvent("massagelab:atmosphere-startup-timing", { detail }))
+
+  try {
+    if (window.localStorage.getItem("massagelab:atmosphere:debug") === "1") {
+      console.info("MassageLab Atmosphere startup timing", detail)
+    }
+  } catch {
+    // Local storage can be unavailable in private or restricted browser contexts.
+  }
 }
