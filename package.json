@@ -29,9 +29,12 @@
     "anatomy:media-requests": "node --experimental-strip-types scripts/anatomy-media-view-requests.ts",
     "atmosphere:samples:scan": "node scripts/atmosphere-sample-intake.mjs",
     "atmosphere:samples:coverage": "node scripts/atmosphere-generative-sample-coverage.mjs",
+    "atmosphere:samples:render-plan": "node scripts/atmosphere-generative-render-plan.mjs",
     "atmosphere:samples:stage": "node scripts/atmosphere-stage-observable-streams.mjs",
     "atmosphere:samples:r2:check": "node scripts/atmosphere-upload-observable-streams-r2.mjs check",
-    "atmosphere:samples:r2:upload": "node scripts/atmosphere-upload-observable-streams-r2.mjs upload"
+    "atmosphere:samples:r2:upload": "node scripts/atmosphere-upload-observable-streams-r2.mjs upload",
+    "atmosphere:samples:generative:r2:check": "node scripts/atmosphere-upload-generative-fm-r2.mjs check",
+    "atmosphere:samples:generative:r2:upload": "node scripts/atmosphere-upload-generative-fm-r2.mjs upload"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
