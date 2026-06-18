@@ -32,7 +32,7 @@ describe("Generative.fm first-batch sample upload planning", () => {
     )
 
     const littleBells = plans.find((plan) => plan.pieceId === "little-bells")
-    assert.deepEqual(littleBells.selectedAssets.map((asset) => asset.noteName), ["C5", "G5"])
+    assert.deepEqual(littleBells.selectedAssets.map((asset) => asset.noteName), ["C5", "G5", "C6"])
     assert.equal(littleBells.renderedTargets[0].renderedInstrumentName, "little-bells__vsco2-glock")
   })
 
@@ -114,6 +114,7 @@ function createFixtureFiles() {
     `${vscoRoot}/Keys/Upright Piano/Player_dyn1_rr1_000.wav`,
     `${vscoRoot}/Percussion/Glock/glock_medium_C5.wav`,
     `${vscoRoot}/Percussion/Glock/glock_medium_G5.wav`,
+    `${vscoRoot}/Percussion/Glock/Glock_C6_v1_rr1.wav`,
     `${vcslRoot}/README.md`,
     `${vcslRoot}/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v2_rr1_Main.wav`,
     `${vcslRoot}/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v1_rr2_Main.wav`,
