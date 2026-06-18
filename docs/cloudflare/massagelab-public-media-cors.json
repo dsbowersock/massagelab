@@ -1,0 +1,21 @@
+{
+  "rules": [
+    {
+      "id": "Public browser reads for Atmosphere audio",
+      "allowed": {
+        "methods": ["GET", "HEAD"],
+        "origins": ["*"],
+        "headers": ["Range"]
+      },
+      "exposeHeaders": [
+        "Accept-Ranges",
+        "Cache-Control",
+        "Content-Length",
+        "Content-Range",
+        "Content-Type",
+        "ETag"
+      ],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

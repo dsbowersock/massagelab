@@ -97,6 +97,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-06-18
+
+- Added the [Atmosphere R2 Sample Hosting plan](superpowers/plans/2026-06-18-atmosphere-r2-sample-hosting.md), public-media R2 upload helper, and CLI commands for the first Observable Streams VSCO adaptation. The workflow targets `massagelab-public-media`, keeps raw audio outside Git, connects `https://media.massagelab.app` with browser-read CORS, uploads the 24-WAV hosted sample-index payload plus manifest, and keeps `massagelab-anatomy-media` and `massagelab-private-media` out of the public Atmosphere sample path. Observable Streams remains disabled until a follow-up branch wires the Generative.fm adapter to the hosted index and verifies playback.
+
 ### 2026-06-17
 
 - Added the [Legal Trust Pages implementation plan](superpowers/plans/2026-06-17-legal-trust-pages.md), based on the approved Branch 1 legal decisions: adult accounts only, functional-only cookies, current Stripe membership billing/refund terms, local-first professional-record boundaries, client-owned wellness separation, and future branches for account deletion/export, provider payments, AI/transcription, research consent, and hosted clinical storage.

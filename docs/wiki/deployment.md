@@ -77,6 +77,41 @@ MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false
 
 Do not enable Session Replay, User Feedback, or Logs until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
 
+## Public Media R2
+
+Use separate Cloudflare R2 buckets for media classes:
+
+- `massagelab-anatomy-media`: anatomy image/media workflow.
+- `massagelab-private-media`: reserved for private media workflows.
+- `massagelab-public-media`: public non-PHI files such as Atmosphere audio samples.
+
+Atmosphere audio samples should target `massagelab-public-media` with an explicit public delivery base URL. The uploader can share R2 access keys and account/endpoint settings with the anatomy uploader, but it uses separate public-media variables so public samples are not accidentally written to the anatomy bucket.
+
+```text
+CLOUDFLARE_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+MASSAGELAB_PUBLIC_MEDIA_BUCKET=massagelab-public-media
+MASSAGELAB_PUBLIC_MEDIA_R2_ENDPOINT=
+MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL=https://media.massagelab.app
+MASSAGELAB_PUBLIC_MEDIA_OBJECT_PREFIX=atmosphere/observable-streams-vsco-adaptation
+MASSAGELAB_PUBLIC_MEDIA_CACHE_CONTROL=public, max-age=31536000, immutable
+```
+
+The public media bucket is connected to `media.massagelab.app` with minimum TLS 1.2. Its CORS policy is tracked in [../cloudflare/massagelab-public-media-cors.json](../cloudflare/massagelab-public-media-cors.json) and can be applied with:
+
+```bash
+wrangler r2 bucket domain add massagelab-public-media --domain media.massagelab.app --zone-id "<massagelab-zone-id>" --min-tls 1.2 --force
+wrangler r2 bucket cors set massagelab-public-media --file docs/cloudflare/massagelab-public-media-cors.json --force
+```
+
+Readiness and dry-run commands:
+
+```bash
+npm run atmosphere:samples:r2:check
+npm run atmosphere:samples:r2:upload -- "<audio-sample-root>" --dry-run --public-base-url "<public-media-base-url>"
+```
+
 ## Production Migrations
 
 Run migrations as a deploy step before serving new code:
