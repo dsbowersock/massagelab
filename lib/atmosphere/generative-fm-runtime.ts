@@ -45,10 +45,20 @@ type PreparedGenerativeFmRuntime = GenerativeFmRuntimeConfig & GenerativeFmRunti
   preparedFor: "playback" | "prewarm"
 }
 
+type PreparedGenerativeFmRuntimeResult = PreparedGenerativeFmRuntime & {
+  usedCompletedPrewarm: boolean
+}
+
+type PreparedRuntimeCacheEntry = {
+  promise: Promise<PreparedGenerativeFmRuntime>
+  preparedFor: PreparedGenerativeFmRuntime["preparedFor"]
+  settled: boolean
+}
+
 let activeVolumeNode: { volume: { value: number, rampTo?: (value: number, seconds: number) => unknown } } | null = null
 let activeTransportOwner: symbol | null = null
 let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
-const preparedRuntimePromises = new Map<string, Promise<PreparedGenerativeFmRuntime>>()
+const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
@@ -105,7 +115,7 @@ export async function startGenerativeFmPiece({
   recordStartupTiming({
     stationId: station.id,
     pieceId,
-    usedPrewarm: prepared.preparedFor === "prewarm",
+    usedPrewarm: prepared.usedCompletedPrewarm,
     prepareWaitMs: preparedAt - startedAt,
     toneStartMs: toneStartedAt - preparedAt,
     pieceActivateMs: activatedAt - toneStartedAt,
@@ -171,18 +181,28 @@ export function setGenerativeFmPieceVolume(volume: number) {
   activeVolumeNode.volume.value = volumeToDecibels(volume)
 }
 
-function getPreparedGenerativeFmRuntime(
+async function getPreparedGenerativeFmRuntime(
   station: GenerativeFmRuntimeStation,
   preparedFor: PreparedGenerativeFmRuntime["preparedFor"],
-) {
+): Promise<PreparedGenerativeFmRuntimeResult> {
   const config = readGenerativeFmRuntimeConfig(station)
   const cacheKey = preparedRuntimeCacheKey(config)
-  const cachedPromise = preparedRuntimePromises.get(cacheKey)
-  if (cachedPromise) {
-    return cachedPromise
+  const cachedEntry = preparedRuntimeEntries.get(cacheKey)
+  if (cachedEntry) {
+    const usedCompletedPrewarm = preparedFor === "playback"
+      && cachedEntry.preparedFor === "prewarm"
+      && cachedEntry.settled
+    const prepared = await cachedEntry.promise
+    return { ...prepared, usedCompletedPrewarm }
   }
 
-  const promise = Promise.all([
+  const entry: PreparedRuntimeCacheEntry = {
+    preparedFor,
+    settled: false,
+    promise: Promise.resolve(null as never),
+  }
+
+  entry.promise = Promise.all([
     fetchGenerativeFmSampleIndex({
       sampleIndexUrl: config.sampleIndexUrl,
       sampleGroups: config.sampleGroups,
@@ -195,13 +215,17 @@ function getPreparedGenerativeFmRuntime(
     piece,
     sampleIndex,
     preparedFor,
-  })).catch((error) => {
-    preparedRuntimePromises.delete(cacheKey)
+  })).then((prepared) => {
+    entry.settled = true
+    return prepared
+  }).catch((error) => {
+    preparedRuntimeEntries.delete(cacheKey)
     throw error
   })
 
-  preparedRuntimePromises.set(cacheKey, promise)
-  return promise
+  preparedRuntimeEntries.set(cacheKey, entry)
+  const prepared = await entry.promise
+  return { ...prepared, usedCompletedPrewarm: false }
 }
 
 function readGenerativeFmRuntimeConfig(station: GenerativeFmRuntimeStation): GenerativeFmRuntimeConfig {

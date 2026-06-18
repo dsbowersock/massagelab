@@ -31,7 +31,7 @@ Prewarm calls validate the hosted sample-index metadata and import the browser r
 
 The workspace prewarms enabled Generative.fm stations after browser idle time with a short stagger, and also prewarms a station on hover or focus. Prewarm errors are swallowed because playback remains the authoritative place to report station failures.
 
-Playback dispatches `massagelab:atmosphere-startup-timing` on `window` with `stationId`, `pieceId`, `usedPrewarm`, and startup phase timings. Debug console logging is opt-in with:
+Playback dispatches `massagelab:atmosphere-startup-timing` on `window` with `stationId`, `pieceId`, `usedPrewarm`, and startup phase timings. `usedPrewarm` is only true when playback reused a preparation promise that had already completed before the playback request. Debug console logging is opt-in with:
 
 ```js
 localStorage.setItem("massagelab:atmosphere:debug", "1")

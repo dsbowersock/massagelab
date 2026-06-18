@@ -25,6 +25,8 @@ export function AtmosphereWorkspace() {
     void prewarmMusicStation(stationId)
   }, [prewarmMusicStation])
 
+  // Prewarm station metadata/modules after initial paint, staggering each call
+  // and cleaning up both idle fallback and per-station timers on route changes.
   useEffect(() => {
     if (prewarmableGenerativeFmStationIds.length === 0) {
       return undefined
