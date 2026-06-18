@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback, useEffect } from "react"
 import Link from "next/link"
 import { Heart, Play, Radio, Square } from "lucide-react"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
@@ -13,9 +14,49 @@ const stations = getVisibleAtmosphereStations()
 const generativeFmStations = stations.filter((station) => station.sourceType === "generative-fm-piece")
 const playableGenerativeFmStationCount = generativeFmStations.filter((station) => station.enabled).length
 const pendingGenerativeFmStationCount = generativeFmStations.length - playableGenerativeFmStationCount
+const prewarmableGenerativeFmStationIds = generativeFmStations
+  .filter((station) => station.enabled)
+  .map((station) => station.id)
 
 export function AtmosphereWorkspace() {
   const music = useMusic()
+  const { prewarmStation: prewarmMusicStation } = music
+  const prewarmStation = useCallback((stationId: string) => {
+    void prewarmMusicStation(stationId)
+  }, [prewarmMusicStation])
+
+  useEffect(() => {
+    if (prewarmableGenerativeFmStationIds.length === 0) {
+      return undefined
+    }
+
+    let cancelled = false
+    const timeoutHandles: number[] = []
+    const prewarmPlayableStations = () => {
+      prewarmableGenerativeFmStationIds.forEach((stationId, index) => {
+        const timeoutHandle = window.setTimeout(() => {
+          if (!cancelled) {
+            prewarmStation(stationId)
+          }
+        }, index * 75)
+        timeoutHandles.push(timeoutHandle)
+      })
+    }
+
+    const idleHandle = window.requestIdleCallback
+      ? window.requestIdleCallback(prewarmPlayableStations, { timeout: 2_500 })
+      : window.setTimeout(prewarmPlayableStations, 1_000)
+
+    return () => {
+      cancelled = true
+      timeoutHandles.forEach((timeoutHandle) => window.clearTimeout(timeoutHandle))
+      if (window.cancelIdleCallback) {
+        window.cancelIdleCallback(idleHandle)
+      } else {
+        window.clearTimeout(idleHandle)
+      }
+    }
+  }, [prewarmStation])
 
   return (
     <AppPageShell width="full" contentClassName="pb-28">
@@ -54,55 +95,60 @@ export function AtmosphereWorkspace() {
           const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
 
           return (
-            <AppSurface
+            <div
               id={`station-${station.id}`}
               key={station.id}
-              title={station.title}
-              icon={<Radio aria-hidden="true" className="size-5" />}
-              badge={station.enabled ? "Playable" : "Samples pending"}
-              className={cn(isActive && "border-primary/70")}
-              contentClassName="gap-4"
+              onFocus={() => prewarmStation(station.id)}
+              onPointerEnter={() => prewarmStation(station.id)}
             >
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">{station.description}</p>
-                {attributionText ? (
-                  <p className="text-xs text-muted-foreground">
-                    {attributionHref ? (
-                      <a
-                        href={attributionHref}
-                        target={isExternalUrl(attributionHref) ? "_blank" : undefined}
-                        rel={isExternalUrl(attributionHref) ? "noreferrer" : undefined}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {attributionText}
-                      </a>
-                    ) : attributionText}
-                  </p>
-                ) : null}
-                {!station.enabled && station.disabledReason ? (
-                  <AppNotice tone="default" title="Not playable yet" description={station.disabledReason} />
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => void music.playStation(station.id)}
-                  disabled={!station.enabled || music.playbackState === "loading"}
-                >
-                  <Play aria-hidden="true" />
-                  {isActive ? "Restart station" : "Play station"}
-                </Button>
-                {isActive ? (
-                  <Button variant="outline" onClick={() => void music.stopCurrent()}>
-                    <Square aria-hidden="true" />
-                    Stop
+              <AppSurface
+                title={station.title}
+                icon={<Radio aria-hidden="true" className="size-5" />}
+                badge={station.enabled ? "Playable" : "Samples pending"}
+                className={cn(isActive && "border-primary/70")}
+                contentClassName="gap-4"
+              >
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">{station.description}</p>
+                  {attributionText ? (
+                    <p className="text-xs text-muted-foreground">
+                      {attributionHref ? (
+                        <a
+                          href={attributionHref}
+                          target={isExternalUrl(attributionHref) ? "_blank" : undefined}
+                          rel={isExternalUrl(attributionHref) ? "noreferrer" : undefined}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {attributionText}
+                        </a>
+                      ) : attributionText}
+                    </p>
+                  ) : null}
+                  {!station.enabled && station.disabledReason ? (
+                    <AppNotice tone="default" title="Not playable yet" description={station.disabledReason} />
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => void music.playStation(station.id)}
+                    disabled={!station.enabled || music.playbackState === "loading"}
+                  >
+                    <Play aria-hidden="true" />
+                    {isActive ? "Restart station" : "Play station"}
                   </Button>
-                ) : null}
-                <Button variant="ghost" onClick={() => music.toggleFavorite(station.id)}>
-                  <Heart aria-hidden="true" className={cn(isFavorite && "fill-primary text-primary")} />
-                  {isFavorite ? "Favorited" : "Favorite"}
-                </Button>
-              </div>
-            </AppSurface>
+                  {isActive ? (
+                    <Button variant="outline" onClick={() => void music.stopCurrent()}>
+                      <Square aria-hidden="true" />
+                      Stop
+                    </Button>
+                  ) : null}
+                  <Button variant="ghost" onClick={() => music.toggleFavorite(station.id)}>
+                    <Heart aria-hidden="true" className={cn(isFavorite && "fill-primary text-primary")} />
+                    {isFavorite ? "Favorited" : "Favorite"}
+                  </Button>
+                </div>
+              </AppSurface>
+            </div>
           )
         })}
       </section>

@@ -216,6 +216,16 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   const health = capturePageHealth(page)
 
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
+  await page.evaluate(() => {
+    window.addEventListener("massagelab:atmosphere-startup-timing", (event) => {
+      const existing = Reflect.get(window, "__massagelabAtmosphereTimings")
+      const timings = Array.isArray(existing) ? existing : []
+      Reflect.set(window, "__massagelabAtmosphereTimings", [
+        ...timings,
+        event instanceof CustomEvent ? event.detail : null,
+      ])
+    })
+  })
   await expect(page.getByText(/11 Generative\.fm stations.+46 more Generative\.fm stations/i)).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
@@ -246,6 +256,21 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
   await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
+  await expect
+    .poll(async () => page.evaluate(() => {
+      const startupTimings = Reflect.get(window, "__massagelabAtmosphereTimings")
+      return Array.isArray(startupTimings) && startupTimings.some((startupTiming: unknown) => {
+        if (!startupTiming || typeof startupTiming !== "object") {
+          return false
+        }
+
+        const detail = startupTiming as Record<string, unknown>
+        return detail.pieceId === "observable-streams"
+          && detail.stationId === "observable-streams-probe"
+          && typeof detail.usedPrewarm === "boolean"
+      })
+    }), { timeout: 45_000 })
+    .toBe(true)
   await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
   await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
 
