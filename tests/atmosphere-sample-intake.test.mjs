@@ -4,6 +4,7 @@ import {
   createObservableStreamsVscoAssetPlan,
   createObservableStreamsSampleIntake,
   midiToScientificPitch,
+  findObservableStreamsVscoPianoMappingChartPath,
   OBSERVABLE_STREAMS_VSCO_ADAPTATION,
   parseVscoPianoMappingChart,
 } from "../lib/atmosphere/sample-intake.js"
@@ -105,6 +106,30 @@ describe("Atmosphere sample intake", () => {
     assert.equal(oboe.status, "replacement-present")
     assert.equal(oboe.sampleFileCount, 1)
     assert.deepEqual(oboe.evidencePaths, [`${vscoRoot}/Woodwinds/Oboe/Sus/Oboe_Sus_F5_v3_Main.wav`])
+  })
+
+  it("requires the VSCO piano mapping chart before reporting piano candidates as present", () => {
+    const summary = createObservableStreamsSampleIntake({
+      files: [
+        `${vscoRoot}/Keys/Upright Piano/Player_dyn2_rr1_008.wav`,
+      ],
+    })
+
+    const piano = summary.requirements.find((requirement) => requirement.sourceName === "vsco2-piano-mf")
+    assert.equal(piano.status, "missing")
+    assert.equal(piano.sampleFileCount, 1)
+    assert.equal(piano.mappingChartPath, null)
+  })
+
+  it("finds the VSCO piano mapping chart path from collected files", () => {
+    assert.equal(
+      findObservableStreamsVscoPianoMappingChartPath([
+        `${vscoRoot}/Keys/Upright Piano/Player_dyn2_rr1_008.wav`,
+        `${vscoRoot}/Keys/Upright Piano/MappingChart.txt`,
+      ]),
+      `${vscoRoot}/Keys/Upright Piano/MappingChart.txt`,
+    )
+    assert.equal(findObservableStreamsVscoPianoMappingChartPath([]), null)
   })
 
   it("builds a curated VSCO sample index for the disabled Observable Streams adaptation", () => {

@@ -4,6 +4,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import {
   createObservableStreamsVscoAssetPlan,
+  findObservableStreamsVscoPianoMappingChartPath,
   OBSERVABLE_STREAMS_VSCO_ADAPTATION,
 } from "../lib/atmosphere/sample-intake.js"
 
@@ -20,27 +21,30 @@ if (!audioRoot) {
 } else {
   const resolvedAudioRoot = path.resolve(audioRoot)
   const files = await collectFiles(resolvedAudioRoot)
-  const mappingChartText = await fs.readFile(
-    path.join(resolvedAudioRoot, "VSCO-2-CE-1.1.0", "VSCO-2-CE-1.1.0", "Keys", "Upright Piano", "MappingChart.txt"),
-    "utf8",
-  )
-  const plan = createObservableStreamsVscoAssetPlan({
-    rootPath: resolvedAudioRoot,
-    files,
-    vscoPianoMappingChartText: mappingChartText,
-  })
-
-  if (plan.missingNotes.length > 0) {
-    console.error("Missing curated Observable Streams source notes:")
-    for (const missing of plan.missingNotes) {
-      console.error(`- ${missing.instrumentName} ${missing.noteName} dynamic ${missing.dynamicLayer}`)
-    }
+  const mappingChartPath = findObservableStreamsVscoPianoMappingChartPath(files)
+  if (!mappingChartPath) {
+    console.error("Could not find VSCO upright piano MappingChart.txt in the supplied audio root.")
     process.exitCode = 1
-  } else if (dryRun) {
-    printPlan(plan)
   } else {
-    await stageAssets({ resolvedAudioRoot, plan })
-    printPlan(plan)
+    const mappingChartText = await fs.readFile(path.join(resolvedAudioRoot, mappingChartPath), "utf8")
+    const plan = createObservableStreamsVscoAssetPlan({
+      rootPath: resolvedAudioRoot,
+      files,
+      vscoPianoMappingChartText: mappingChartText,
+    })
+
+    if (plan.missingNotes.length > 0) {
+      console.error("Missing curated Observable Streams source notes:")
+      for (const missing of plan.missingNotes) {
+        console.error(`- ${missing.instrumentName} ${missing.noteName} dynamic ${missing.dynamicLayer}`)
+      }
+      process.exitCode = 1
+    } else if (dryRun) {
+      printPlan(plan)
+    } else {
+      await stageAssets({ resolvedAudioRoot, plan })
+      printPlan(plan)
+    }
   }
 }
 
@@ -48,6 +52,7 @@ if (!audioRoot) {
  * @param {{ resolvedAudioRoot: string, plan: ReturnType<typeof createObservableStreamsVscoAssetPlan> }} params
  */
 async function stageAssets({ resolvedAudioRoot, plan }) {
+  await fs.rm(outputSampleRoot, { recursive: true, force: true })
   await fs.mkdir(outputSampleRoot, { recursive: true })
 
   for (const asset of plan.selectedAssets) {
