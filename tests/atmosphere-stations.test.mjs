@@ -98,11 +98,15 @@ describe("Atmosphere station catalog", () => {
     const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
 
     assert.equal(visibleStationIds.length, 58)
-    assert.equal(playableStationIds.length, 5)
+    assert.equal(playableStationIds.length, 9)
     assert.equal(playableStationIds.includes("mlab-proof-drone"), true)
     assert.equal(playableStationIds.includes(OBSERVABLE_STREAMS_STATION_ID), true)
     assert.equal(playableStationIds.includes("generative-fm-aisatsana"), true)
     assert.equal(playableStationIds.includes("generative-fm-at-sunrise"), true)
+    assert.equal(playableStationIds.includes("generative-fm-day-dream"), true)
+    assert.equal(playableStationIds.includes("generative-fm-eno-machine"), true)
+    assert.equal(playableStationIds.includes("generative-fm-impact"), true)
+    assert.equal(playableStationIds.includes("generative-fm-lemniscate"), true)
     assert.equal(playableStationIds.includes("generative-fm-little-bells"), true)
     assert.equal(playableStationIds.includes("generative-fm-zed"), false)
 
@@ -113,7 +117,14 @@ describe("Atmosphere station catalog", () => {
       "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/sample-index.json",
     )
 
-    const pianoPendingStation = getAtmosphereStationById("generative-fm-day-dream")
+    const secondBatchPianoStation = getAtmosphereStationById("generative-fm-day-dream")
+    assert.equal(secondBatchPianoStation.enabled, true)
+    assert.equal(
+      secondBatchPianoStation.runtime.hostedSampleIndexUrl,
+      "https://media.massagelab.app/atmosphere/generative-fm/day-dream/sample-index.json",
+    )
+
+    const pianoPendingStation = getAtmosphereStationById("generative-fm-pinwheels")
     assert.equal(pianoPendingStation.enabled, false)
     assert.match(pianoPendingStation.disabledReason, /vsco2-piano-mf/)
 

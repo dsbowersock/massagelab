@@ -92,6 +92,35 @@ describe("Atmosphere runtime controller", () => {
     assert.deepEqual(events, ["start:one", "stop:one"])
   })
 
+  it("does not reactivate a station after a stop cancels a slow start", async () => {
+    const events = []
+    let releaseStart
+    const startReady = new Promise((resolve) => {
+      releaseStart = resolve
+    })
+    const controller = createAtmosphereRuntimeController({
+      adapters: {
+        a: async ({ station }) => {
+          events.push(`start:${station.id}`)
+          await startReady
+          return () => events.push(`stop:${station.id}`)
+        },
+      },
+    })
+
+    const start = controller.start({ id: "one", runtime: { adapterId: "a" } })
+    const stop = controller.stop()
+
+    releaseStart()
+    await start
+
+    assert.equal(controller.getActiveStationId(), null)
+    assert.deepEqual(events, ["start:one", "stop:one"])
+
+    await stop
+    assert.equal(controller.getActiveStationId(), null)
+  })
+
   it("clears active state when a station fails to start", async () => {
     const events = []
     const controller = createAtmosphereRuntimeController({

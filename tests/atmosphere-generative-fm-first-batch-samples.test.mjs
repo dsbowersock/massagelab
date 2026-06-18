@@ -13,16 +13,37 @@ import { decodeWav, encodePcm16Wav } from "../lib/atmosphere/prerendered-samples
 const vscoRoot = "VSCO-2-CE-1.1.0/VSCO-2-CE-1.1.0"
 const vcslRoot = "VCSL-1.2.2-RC/VCSL-1.2.2-RC"
 
-describe("Generative.fm first-batch sample upload planning", () => {
+describe("Generative.fm sample upload planning", () => {
   it("selects package-compatible source assets from the local CC0 libraries", () => {
     const plans = createGenerativeFmFirstBatchAssetPlans(createFixtureParams())
 
-    assert.deepEqual(plans.map((plan) => plan.pieceId), ["aisatsana", "at-sunrise", "little-bells"])
+    assert.deepEqual(plans.map((plan) => plan.pieceId), [
+      "aisatsana",
+      "at-sunrise",
+      "day-dream",
+      "eno-machine",
+      "impact",
+      "lemniscate",
+      "little-bells",
+    ])
 
     const aisatsana = plans.find((plan) => plan.pieceId === "aisatsana")
     assert.equal(aisatsana.objectPrefix, "atmosphere/generative-fm/aisatsana")
     assert.deepEqual(aisatsana.selectedAssets.map((asset) => asset.noteName), ["C4", "E4"])
     assert.deepEqual(unique(aisatsana.selectedAssets.map((asset) => asset.instrumentName)), ["vsco2-piano-mf"])
+
+    const secondBatchPianoPieces = ["day-dream", "eno-machine", "impact", "lemniscate"].map((pieceId) =>
+      plans.find((plan) => plan.pieceId === pieceId)
+    )
+    assert.deepEqual(
+      secondBatchPianoPieces.map((plan) => plan.selectedAssets.map((asset) => asset.noteName)),
+      [
+        ["C4", "E4"],
+        ["C4", "E4"],
+        ["C4", "E4"],
+        ["C4", "E4"],
+      ],
+    )
 
     const atSunrise = plans.find((plan) => plan.pieceId === "at-sunrise")
     assert.deepEqual(atSunrise.selectedAssets.map((asset) => asset.noteName), ["C3", "E5"])
@@ -51,6 +72,11 @@ describe("Generative.fm first-batch sample upload planning", () => {
       assert.equal(aisatsana.renderedSampleObjects.length, 0)
       assert.equal(aisatsana.sampleIndex["vsco2-piano-mf"].C4, "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/samples/vsco2-piano-mf-c4.wav")
       assert.equal(aisatsana.metadataObjects.length, 2)
+
+      const impact = uploadPlans.find((plan) => plan.pieceId === "impact")
+      assert.equal(impact.sampleObjects.length, 2)
+      assert.equal(impact.renderedSampleObjects.length, 0)
+      assert.equal(impact.sampleIndex["vsco2-piano-mf"].E4, "https://media.massagelab.app/atmosphere/generative-fm/impact/samples/vsco2-piano-mf-e4.wav")
 
       const atSunrise = uploadPlans.find((plan) => plan.pieceId === "at-sunrise")
       assert.equal(atSunrise.renderedSampleObjects.length, 8)

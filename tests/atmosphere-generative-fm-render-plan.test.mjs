@@ -10,15 +10,23 @@ const vscoRoot = "VSCO-2-CE-1.1.0/VSCO-2-CE-1.1.0"
 const vcslRoot = "VCSL-1.2.2-RC/VCSL-1.2.2-RC"
 
 describe("Generative.fm render plan", () => {
-  it("plans the first source-index and rendered-note batch from local CC0 coverage", () => {
+  it("plans source-index and rendered-note batches from local CC0 coverage", () => {
     const plan = createPlan()
 
-    assert.equal(plan.batchId, "initial-piano-vibraphone-glock")
-    assert.deepEqual(plan.requestedPieceIds, ["aisatsana", "at-sunrise", "little-bells"])
-    assert.equal(plan.summary.totalPieces, 3)
-    assert.equal(plan.summary.readyPieces, 3)
+    assert.equal(plan.batchId, "piano-source-and-first-rendered-batches")
+    assert.deepEqual(plan.requestedPieceIds, [
+      "aisatsana",
+      "at-sunrise",
+      "day-dream",
+      "eno-machine",
+      "impact",
+      "lemniscate",
+      "little-bells",
+    ])
+    assert.equal(plan.summary.totalPieces, 7)
+    assert.equal(plan.summary.readyPieces, 7)
     assert.equal(plan.summary.blockedPieces, 0)
-    assert.equal(plan.summary.sourceIndexTargets, 1)
+    assert.equal(plan.summary.sourceIndexTargets, 5)
     assert.equal(plan.summary.renderedTargets, 2)
     assert.equal(plan.summary.renderedNotes, 18)
 
@@ -41,6 +49,18 @@ describe("Generative.fm render plan", () => {
       ["F4", "A4", "C5", "D#5", "F#5", "A5", "C6", "D#6", "F#6", "A6"],
     )
     assert.equal(littleBells.renderedTargets[0].sourceInstrumentName, "vsco2-glock")
+
+    const secondBatchPianoPieces = plan.pieces.filter((piece) => ["day-dream", "eno-machine", "impact", "lemniscate"].includes(piece.id))
+    assert.deepEqual(secondBatchPianoPieces.map((piece) => piece.strategy), [
+      "source-index",
+      "source-index",
+      "source-index",
+      "source-index",
+    ])
+    assert.deepEqual(
+      secondBatchPianoPieces.map((piece) => piece.sourceIndexTargets[0].instrumentName),
+      ["vsco2-piano-mf", "vsco2-piano-mf", "vsco2-piano-mf", "vsco2-piano-mf"],
+    )
   })
 
   it("keeps a batch piece blocked when local license evidence is missing", () => {
@@ -69,7 +89,7 @@ describe("Generative.fm render plan", () => {
     assert.equal(plan.pieces[0].blockedSampleGroups[0].status, "license-evidence-missing")
   })
 
-  it("formats a concise operator report for the first batch", () => {
+  it("formats a concise operator report for planned batches", () => {
     const report = formatGenerativeFmRenderPlanReport(createPlan())
 
     assert.match(report, /Generative\.fm Render Plan/)
@@ -79,16 +99,18 @@ describe("Generative.fm render plan", () => {
     assert.match(report, /Rendered notes: C3, F3, C4, F4, C5, E5, G5, C6/)
     assert.match(report, /Little Bells \(little-bells\)/)
     assert.match(report, /Rendered notes: F4, A4, C5, D#5, F#5, A5, C6, D#6, F#6, A6/)
+    assert.match(report, /Day\/Dream \(day-dream\)/)
+    assert.match(report, /Impact \(impact\)/)
   })
 
-  it("rejects pieces that are not in the explicit first-batch registry", () => {
+  it("rejects pieces that are not in the explicit render-plan registry", () => {
     assert.throws(
       () => createGenerativeFmRenderPlan({
         files: createLocalCandidateFiles(),
         licenseTextByPath: createLicenseTextByPath(),
         pieceIds: ["zed"],
       }),
-      /No first-batch render plan entry/,
+      /No Generative\.fm render plan entry/,
     )
   })
 })

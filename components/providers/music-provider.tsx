@@ -186,14 +186,20 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const stopCurrent = useCallback(async () => {
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
-    await controllerRef.current?.stop()
-    if (requestId !== playbackRequestIdRef.current) {
-      return
-    }
-
     setActiveStationId(null)
     setPlaybackState("stopped")
     setError(null)
+
+    try {
+      await controllerRef.current?.stop()
+    } catch (caughtError) {
+      if (requestId !== playbackRequestIdRef.current) {
+        return
+      }
+
+      setPlaybackState("failed")
+      setError(caughtError instanceof Error ? caughtError.message : "Audio could not stop.")
+    }
   }, [])
 
   const setVolume = useCallback((nextVolume: number) => {
