@@ -50,6 +50,8 @@ export function AtmosphereWorkspace() {
         {stations.map((station) => {
           const isActive = music.activeStationId === station.id
           const isFavorite = music.favorites.includes(station.id)
+          const attributionText = stationAttributionText(station)
+          const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
 
           return (
             <AppSurface
@@ -63,8 +65,19 @@ export function AtmosphereWorkspace() {
             >
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">{station.description}</p>
-                {station.attribution.notice ? (
-                  <p className="text-xs text-muted-foreground">{station.attribution.notice}</p>
+                {attributionText ? (
+                  <p className="text-xs text-muted-foreground">
+                    {attributionHref ? (
+                      <a
+                        href={attributionHref}
+                        target={isExternalUrl(attributionHref) ? "_blank" : undefined}
+                        rel={isExternalUrl(attributionHref) ? "noreferrer" : undefined}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {attributionText}
+                      </a>
+                    ) : attributionText}
+                  </p>
                 ) : null}
                 {!station.enabled && station.disabledReason ? (
                   <AppNotice tone="default" title="Not playable yet" description={station.disabledReason} />
@@ -95,4 +108,23 @@ export function AtmosphereWorkspace() {
       </section>
     </AppPageShell>
   )
+}
+
+function stationAttributionText(station: (typeof stations)[number]) {
+  const notice = station.attribution.notice.trim()
+  if (notice) {
+    return notice
+  }
+
+  const artist = station.attribution.artist.trim()
+  const license = station.attribution.license.trim()
+  if (artist && license) {
+    return `${artist} · ${license}`
+  }
+
+  return artist || license
+}
+
+function isExternalUrl(href: string) {
+  return /^https?:\/\//i.test(href)
 }

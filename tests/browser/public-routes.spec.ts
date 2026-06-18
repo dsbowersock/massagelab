@@ -221,6 +221,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
   await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()
+  await expect(observableStreamsStation.getByRole("link", { name: "Alex Bainter · MIT" })).toBeVisible()
   const hostedGenerativeFmStations = [
     page.locator("#station-generative-fm-aisatsana"),
     page.locator("#station-generative-fm-at-sunrise"),
