@@ -177,6 +177,10 @@ test("Atmosphere proof station keeps global player state across client routes", 
 
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /Wellness audio stations/i })).toBeVisible()
+  await expect(page.getByText("Breathing guide")).toBeVisible()
+  await page.getByRole("button", { name: /^Start breathing$/i }).click()
+  await expect(page.getByRole("button", { name: /^Pause breathing$/i })).toBeVisible()
+  await page.getByRole("button", { name: /^Reset breathing$/i }).click()
   await page.getByRole("button", { name: /^Play station$/i }).first().click()
 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()

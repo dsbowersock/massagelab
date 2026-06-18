@@ -8,7 +8,7 @@ Atmosphere is a public, non-clinical audio workspace. It does not store PHI, the
 
 ## Runtime Decision
 
-MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the Observable Streams Generative.fm adapter through the global music provider, route-persistent playback, and the bottom mini-player.
+MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the Observable Streams Generative.fm adapter through the global music provider, route-persistent playback, and the bottom mini-player. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records.
 
 ## Package Findings
 

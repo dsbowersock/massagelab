@@ -5,6 +5,7 @@ import { Heart, Play, Radio, Square } from "lucide-react"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
+import { AtmosphereBreathingGuide } from "@/app/wellness/atmosphere/breathing-guide"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 import { cn } from "@/lib/utils"
 
@@ -38,6 +39,8 @@ export function AtmosphereWorkspace() {
           />
         </div>
       </section>
+
+      <AtmosphereBreathingGuide />
 
       <section className="grid gap-4 lg:grid-cols-2">
         {stations.map((station) => {
