@@ -52,4 +52,4 @@ Hosted media verification confirmed each second-batch `sample-index.json` and `m
 
 ## Next Handoff
 
-The next station-enablement branch should pick a small rendered-note batch from the remaining 31 local-source candidate pieces. Good candidates are pieces with package-derived rendered sample groups such as `no-refrain`, `transmission`, and `trees`, because they still map to verified local CC0 piano sources but need package-compatible rendered indexes before playback is enabled.
+Superseded by the third-batch listener-copy branch. After `pinwheels`, `sevenths`, and `uun`, the next station-enablement branch should pick a small rendered-note batch from the remaining 28 local-source candidate pieces. Good candidates are pieces with package-derived rendered sample groups such as `no-refrain`, `transmission`, and `trees`, because they still map to verified local CC0 piano sources but need package-compatible rendered indexes before playback is enabled.

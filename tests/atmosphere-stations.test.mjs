@@ -37,7 +37,7 @@ describe("Atmosphere station catalog", () => {
     assert.equal(station.enabled, true)
     assert.equal(station.runtime.adapterId, "tone-proof-drone")
     assert.equal(station.attribution.sourceUrl, "/wellness/atmosphere")
-    assert.match(station.description, /MassageLab-hosted/i)
+    assert.match(station.description, /soft, steady drone/i)
     assert.equal(station.attribution.license, "MassageLab internal proof")
   })
 
@@ -90,7 +90,8 @@ describe("Atmosphere station catalog", () => {
     assert.deepEqual(station.runtime.missingSampleGroups, [])
     assert.equal(station.attribution.license, "MIT")
     assert.equal(station.attribution.artist, "Alex Bainter")
-    assert.match(station.attribution.notice, /hosted CC0 VSCO sample adaptation/i)
+    assert.equal(station.attribution.notice, "")
+    assert.match(station.description, /Piano, violin, and oboe-like tones/i)
   })
 
   it("separates visible stations from playable stations", () => {
@@ -98,7 +99,7 @@ describe("Atmosphere station catalog", () => {
     const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
 
     assert.equal(visibleStationIds.length, 58)
-    assert.equal(playableStationIds.length, 9)
+    assert.equal(playableStationIds.length, 12)
     assert.equal(playableStationIds.includes("mlab-proof-drone"), true)
     assert.equal(playableStationIds.includes(OBSERVABLE_STREAMS_STATION_ID), true)
     assert.equal(playableStationIds.includes("generative-fm-aisatsana"), true)
@@ -108,10 +109,15 @@ describe("Atmosphere station catalog", () => {
     assert.equal(playableStationIds.includes("generative-fm-impact"), true)
     assert.equal(playableStationIds.includes("generative-fm-lemniscate"), true)
     assert.equal(playableStationIds.includes("generative-fm-little-bells"), true)
+    assert.equal(playableStationIds.includes("generative-fm-pinwheels"), true)
+    assert.equal(playableStationIds.includes("generative-fm-sevenths"), true)
+    assert.equal(playableStationIds.includes("generative-fm-uun"), true)
     assert.equal(playableStationIds.includes("generative-fm-zed"), false)
 
     const hostedPianoStation = getAtmosphereStationById("generative-fm-aisatsana")
     assert.equal(hostedPianoStation.enabled, true)
+    assert.match(hostedPianoStation.description, /Sparse piano notes/i)
+    assert.doesNotMatch(hostedPianoStation.description, /hosted|sample index|public-media/i)
     assert.equal(
       hostedPianoStation.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/sample-index.json",
@@ -124,13 +130,22 @@ describe("Atmosphere station catalog", () => {
       "https://media.massagelab.app/atmosphere/generative-fm/day-dream/sample-index.json",
     )
 
-    const pianoPendingStation = getAtmosphereStationById("generative-fm-pinwheels")
+    const thirdBatchPianoStation = getAtmosphereStationById("generative-fm-pinwheels")
+    assert.equal(thirdBatchPianoStation.enabled, true)
+    assert.equal(
+      thirdBatchPianoStation.runtime.hostedSampleIndexUrl,
+      "https://media.massagelab.app/atmosphere/generative-fm/pinwheels/sample-index.json",
+    )
+
+    const pianoPendingStation = getAtmosphereStationById("generative-fm-splash")
     assert.equal(pianoPendingStation.enabled, false)
-    assert.match(pianoPendingStation.disabledReason, /vsco2-piano-mf/)
+    assert.equal(pianoPendingStation.disabledReason, "This station is still being prepared for playback.")
+    assert.deepEqual(pianoPendingStation.runtime.missingSampleGroups, [["vsco2-piano-mf"]])
 
     const pendingStation = getAtmosphereStationById("generative-fm-zed")
     assert.equal(pendingStation.enabled, false)
-    assert.match(pendingStation.disabledReason, /zed__pad/)
+    assert.equal(pendingStation.disabledReason, "This station is still being prepared for playback.")
+    assert.deepEqual(pendingStation.runtime.missingSampleGroups, [["zed__pad"], ["zed__noise"]])
   })
 
   it("returns cloned station data so callers cannot mutate the catalog", () => {

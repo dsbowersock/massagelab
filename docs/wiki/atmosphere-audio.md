@@ -8,7 +8,7 @@ Atmosphere is a public, non-clinical audio workspace. It does not store PHI, the
 
 ## Runtime Decision
 
-MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the full Alex Bainter Generative.fm package catalog through the global music provider, route-persistent playback, and the bottom mini-player. Eight Generative.fm stations are currently playable from hosted public-media sample indexes. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records.
+MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the full Alex Bainter Generative.fm package catalog through the global music provider, route-persistent playback, and the bottom mini-player. Eleven Generative.fm stations are currently playable from hosted public-media sample indexes. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records.
 
 ## Package Findings
 
@@ -98,13 +98,13 @@ Current catalog matrix:
 
 | Coverage category | Count | Meaning |
 | --- | ---: | --- |
-| Hosted/playable stations | 8 | `observable-streams-probe`, `aisatsana`, `at-sunrise`, `day-dream`, `eno-machine`, `impact`, `lemniscate`, and `little-bells` have hosted public-media sample indexes and browser-verified playback. |
-| Local CC0 source candidates | 31 | Every pending group for the piece maps to local VSCO, VCSL, or Signature Sounds source samples or a documented CC0 SSO-role adaptation, but package-compatible rendered keys still need to be generated, uploaded, indexed, and browser-smoked. |
+| Hosted/playable stations | 11 | `observable-streams-probe`, `aisatsana`, `at-sunrise`, `day-dream`, `eno-machine`, `impact`, `lemniscate`, `little-bells`, `pinwheels`, `sevenths`, and `uun` have hosted public-media sample indexes and browser-verified playback. |
+| Local CC0 source candidates | 28 | Every pending group for the piece maps to local VSCO, VCSL, or Signature Sounds source samples or a documented CC0 SSO-role adaptation, but package-compatible rendered keys still need to be generated, uploaded, indexed, and browser-smoked. |
 | Replacement/source-review pieces | 18 | At least one required group is an uncovered field recording, guitar, voice/hum, lofi drum, pad/noise, or another source that is not covered by the current local CC0 libraries. |
 
 The configured SSO-role adaptations are `sso-cor-anglais` to CC0 VSCO sustained oboe, `sso-chorus-female` to Signature Sounds children choir ambience, and `sso-chorus-male` to Signature Sounds men-of-choirs WAVs. The `waves` source group maps to Signature Sounds Beach Ambience WAVs. Later rendered uploads should keep the package-facing sample names while serving those replacement sources.
 
-The current render/upload candidate pieces are 420hz Gamma Waves for Big Brain, A Viable System, Above the Rain, Agua Ravine, Apoapsis, Beneath Waves, Bhairav, Buttafingers, Documentary Films, Drones, Drones II, Enough, Expand/Collapse, Homage, Nakaii, No Refrain, Oxalis 1, Pinwheels, Remembering, Return to Form, Ritual, Sevenths, Soundtrack, Splash, Spring Again, Substrate, Timbral Oscillations, Transmission, Trees, Uun, and Yesterday.
+The current render/upload candidate pieces are 420hz Gamma Waves for Big Brain, A Viable System, Above the Rain, Agua Ravine, Apoapsis, Beneath Waves, Bhairav, Buttafingers, Documentary Films, Drones, Drones II, Enough, Expand/Collapse, Homage, Nakaii, No Refrain, Oxalis 1, Remembering, Return to Form, Ritual, Soundtrack, Splash, Spring Again, Substrate, Timbral Oscillations, Transmission, Trees, and Yesterday.
 
 Pieces still needing replacement or source review are Animalia Chordata, Awash, Didgeridoobeats, Eyes Closed, Last Transit, Lullaby, Meditation, Moment, Neuroplasticity, Otherness, Peace, Pulse-code Modulation, Skyline, Stratospheric, Stream of Consciousness, Townsend, Western Medicine, and Zed. Their missing groups are field/animal recordings (`whales`, `idling-truck`, `birds`, `explosion`), guitar sources, vocal/hum sources, lofi drum sources, percussion brush sources, and Zed pad/noise sources. Do not enable these pieces until replacement files have clear hosted-browser rights and package-compatible rendered coverage.
 
@@ -130,7 +130,7 @@ Downloaded Signature Sounds future candidate packs:
 | `Underwater+One+Shots+2` | Future texture/percussion candidate | Useful for aquatic one-shot layers after source and content review. |
 | `White+Noise` | Future noise-layer candidate | Useful for custom noise beds and mixable ambience controls. |
 
-The detailed coverage branch handoff lives at [../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md](../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md). The first-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md), and the second-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md).
+The detailed coverage branch handoff lives at [../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md](../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md). The first-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md), the second-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md), and the third-batch listener-copy handoff lives at [../superpowers/plans/2026-06-18-atmosphere-third-batch-listener-copy.md](../superpowers/plans/2026-06-18-atmosphere-third-batch-listener-copy.md).
 
 ## Public R2 Sample Hosting
 
@@ -214,16 +214,26 @@ Later on 2026-06-18, the second piano-source batch was uploaded under `atmospher
 
 The second-batch upload published 100 objects, approximately 344.6 MB of WAV payload, with no raw audio committed to Git. Verification confirmed each hosted `sample-index.json` and `manifest.json` returns `200` with JSON content; representative `vsco2-piano-mf-c-sharp4.wav` range requests return `206`, `Content-Type: audio/wav`, a valid `Content-Range`, and `Access-Control-Allow-Origin: *` when requested with an Origin header.
 
+Later on 2026-06-18, the third piano-source batch was uploaded under `atmosphere/generative-fm/`:
+
+| Piece | Hosted object prefix | Payload |
+| --- | --- | --- |
+| `pinwheels` | `atmosphere/generative-fm/pinwheels` | 23 VSCO upright piano source WAVs plus `sample-index.json` and `manifest.json`. |
+| `sevenths` | `atmosphere/generative-fm/sevenths` | 23 VSCO upright piano source WAVs plus `sample-index.json` and `manifest.json`. |
+| `uun` | `atmosphere/generative-fm/uun` | 23 VSCO upright piano source WAVs plus `sample-index.json` and `manifest.json`. |
+
+The third-batch upload published 75 objects, approximately 258.5 MB of WAV payload, with no raw audio committed to Git. Verification confirmed each hosted `sample-index.json` and `manifest.json` returns `200` with JSON content; representative `vsco2-piano-mf-c-sharp4.wav` range requests return `206`, `Content-Type: audio/wav`, a valid `Content-Range`, and `Access-Control-Allow-Origin: *` when requested with an Origin header.
+
 ## Generative.fm Adapter Runtime
 
 - `/wellness/atmosphere` exposes the full 57-piece Alex Bainter Generative.fm package catalog through MassageLab's global music provider and persistent mini-player. `/browse` remains available as a compatibility workbench for the same UI.
 - The browser-only adapter fetches and validates the hosted sample index for the selected verified station, creates the Generative.fm web library/provider pair, loads the requested package through the aggregate package loader, starts Tone transport, and returns cleanup to the existing runtime controller.
 - The station id for Observable Streams remains `observable-streams-probe` for local favorites and recent-station storage stability while the display copy treats it as a playable station.
-- The current hosted public-media indexes enable Observable Streams, `aisatsana`, `at-sunrise`, `day-dream`, `eno-machine`, `impact`, `lemniscate`, and `little-bells`. The other 49 catalog entries are visible but disabled with exact missing package-compatible sample-group reasons.
+- The current hosted public-media indexes enable Observable Streams, `aisatsana`, `at-sunrise`, `day-dream`, `eno-machine`, `impact`, `lemniscate`, `little-bells`, `pinwheels`, `sevenths`, and `uun`. The other 46 catalog entries are visible but disabled with listener-facing pending copy while `runtime.missingSampleGroups` keeps exact package-compatible sample-group reasons for operator planning.
 - Manifest-level source-group matches such as `vsco2-piano-mf` are not enough to enable a station by themselves. Future enablement should add package-compatible rendered sample groups or otherwise verify note coverage before flipping a station to playable. The hosting registry therefore supports piece-scoped indexes without treating shared source names as global hosted coverage.
 - The local audio root currently contains VSCO 2 Community Edition, VCSL, and selected Signature Sounds packs, so later sample-hosting passes can likely unlock more VSCO/VCSL/Signature-backed pieces, but field recordings, guitar, voice, lofi drum, and other third-party sample groups still need separate source and licensing review before hosting.
 - Next/Turbopack resolves `tone` to `tone/build/esm/index.js` and maps `regenerator-runtime/runtime.js` to a local no-op shim because the older Generative.fm packages otherwise fail the Next 16 production build before runtime.
-- The Observable Streams, At Sunrise, and Little Bells hosted sample indexes include package-compatible rendered instrument keys, so those stations should skip browser-time prerendering on first start. Day/Dream, Eno Machine, Impact, and Lemniscate use piece-scoped `vsco2-piano-mf` source indexes directly. Keep browser smoke coverage around first play because these optimizations depend on each package continuing to request the same source or rendered names.
+- The Observable Streams, At Sunrise, and Little Bells hosted sample indexes include package-compatible rendered instrument keys, so those stations should skip browser-time prerendering on first start. Day/Dream, Eno Machine, Impact, Lemniscate, Pinwheels, Sevenths, and Uun use piece-scoped `vsco2-piano-mf` source indexes directly. Keep browser smoke coverage around first play because these optimizations depend on each package continuing to request the same source or rendered names.
 
 ## Attribution Draft
 

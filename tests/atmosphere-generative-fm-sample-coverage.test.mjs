@@ -18,8 +18,8 @@ describe("Generative.fm sample coverage", () => {
     const coverage = createCoverage()
 
     assert.equal(coverage.summary.totalPieces, 57)
-    assert.equal(coverage.summary.hostedPieces, 8)
-    assert.equal(coverage.summary.localSourceCandidatePieces, 18)
+    assert.equal(coverage.summary.hostedPieces, 11)
+    assert.equal(coverage.summary.localSourceCandidatePieces, 15)
     assert.equal(coverage.summary.replacementNeededPieces, 31)
     assert.equal(coverage.libraries.find((library) => library.id === "vsco-2-ce").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "vcsl").licenseStatus, "license-confirmed")
@@ -60,19 +60,24 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(dayDream.sampleGroups[0].sourceName, "vsco2-piano-mf")
 
     const pinwheels = coverage.pieces.find((piece) => piece.id === "pinwheels")
-    assert.equal(pinwheels.status, "local-source-candidate")
+    assert.equal(pinwheels.status, "hosted")
     assert.equal(pinwheels.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
     assert.equal(pinwheels.sampleGroups[0].sourceName, "vsco2-piano-mf")
+
+    const splash = coverage.pieces.find((piece) => piece.id === "splash")
+    assert.equal(splash.status, "local-source-candidate")
+    assert.equal(splash.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
+    assert.equal(splash.sampleGroups[0].sourceName, "vsco2-piano-mf")
   })
 
   it("requires confirmed local license evidence before reporting non-hosted CC0 candidates", () => {
     const coverage = createGenerativeFmSampleCoverage({
       files: createLocalCandidateFiles(),
     })
-    const pinwheels = coverage.pieces.find((piece) => piece.id === "pinwheels")
+    const splash = coverage.pieces.find((piece) => piece.id === "splash")
 
-    assert.equal(pinwheels.status, "replacement-needed")
-    assert.equal(pinwheels.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING)
+    assert.equal(splash.status, "replacement-needed")
+    assert.equal(splash.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING)
   })
 
   it("keeps hosted stations available even when local files are absent", () => {

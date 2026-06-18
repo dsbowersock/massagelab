@@ -28,7 +28,7 @@ export function AtmosphereWorkspace() {
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
               Start a station, move to another MassageLab tool, and the bottom player keeps control of the sound.
-              {` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} Generative.fm stations are queued for package-compatible hosted samples.`}
+              {` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} more Generative.fm stations are being prepared.`}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild variant="outline">
@@ -39,7 +39,7 @@ export function AtmosphereWorkspace() {
           <AppNotice
             tone="accent"
             title="Generative.fm catalog"
-            description="MassageLab now lists the full Alex Bainter package catalog, with package-compatible rendered-sample stations enabled and the remaining stations held until their audio assets are hosted from public media."
+            description="Browse calm generative stations for different treatment-room moods. New stations are added as playback is verified."
           />
         </div>
       </section>
@@ -63,7 +63,9 @@ export function AtmosphereWorkspace() {
             >
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">{station.description}</p>
-                <p className="text-xs text-muted-foreground">{station.attribution.notice}</p>
+                {station.attribution.notice ? (
+                  <p className="text-xs text-muted-foreground">{station.attribution.notice}</p>
+                ) : null}
                 {!station.enabled && station.disabledReason ? (
                   <AppNotice tone="default" title="Not playable yet" description={station.disabledReason} />
                 ) : null}
