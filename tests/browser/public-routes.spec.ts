@@ -256,8 +256,13 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
   await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
+  const supportsOpus = await page.evaluate(() => {
+    const audio = document.createElement("audio")
+    return audio.canPlayType('audio/ogg; codecs="opus"') !== ""
+  })
+  const expectedSampleFormat = supportsOpus ? "opus" : "wav"
   await expect
-    .poll(async () => page.evaluate(() => {
+    .poll(async () => page.evaluate((expectedFormat) => {
       const startupTimings = Reflect.get(window, "__massagelabAtmosphereTimings")
       return Array.isArray(startupTimings) && startupTimings.some((startupTiming: unknown) => {
         if (!startupTiming || typeof startupTiming !== "object") {
@@ -267,9 +272,10 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
         const detail = startupTiming as Record<string, unknown>
         return detail.pieceId === "observable-streams"
           && detail.stationId === "observable-streams-probe"
+          && detail.sampleFormat === expectedFormat
           && typeof detail.usedPrewarm === "boolean"
       })
-    }), { timeout: 45_000 })
+    }, expectedSampleFormat), { timeout: 45_000 })
     .toBe(true)
   await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
   await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)

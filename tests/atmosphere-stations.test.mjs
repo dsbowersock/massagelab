@@ -65,15 +65,26 @@ describe("Atmosphere station catalog", () => {
       "atmosphere/observable-streams-vsco-adaptation/sample-index.json",
     )
     assert.equal(
+      station.runtime.r2OpusSampleIndexObjectKey,
+      "atmosphere/observable-streams-vsco-adaptation/sample-index.opus.json",
+    )
+    assert.equal(
       station.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/sample-index.json",
     )
+    assert.deepEqual(station.runtime.hostedSampleIndexFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/sample-index.opus.json",
+    })
     assert.equal(
       station.runtime.hostedManifestUrl,
       "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/manifest.json",
     )
+    assert.deepEqual(station.runtime.hostedManifestFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/manifest.opus.json",
+    })
     assert.match(station.runtime.stageCommand, /atmosphere:samples:stage/)
     assert.match(station.runtime.r2UploadCommand, /atmosphere:samples:r2:upload/)
+    assert.match(station.runtime.r2WebAudioUploadCommand, /atmosphere:samples:web-audio:r2:upload/)
     assert.deepEqual(station.runtime.sampleNameGroups, [
       ["observable-streams__vsco2-piano-mf", "vsco2-piano-mf"],
       ["observable-streams__vsco2-violin-arcvib", "vsco2-violin-arcvib"],
@@ -122,6 +133,7 @@ describe("Atmosphere station catalog", () => {
       hostedPianoStation.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/sample-index.json",
     )
+    assert.equal(hostedPianoStation.runtime.hostedSampleIndexFormatUrls, undefined)
 
     const secondBatchPianoStation = getAtmosphereStationById("generative-fm-day-dream")
     assert.equal(secondBatchPianoStation.enabled, true)

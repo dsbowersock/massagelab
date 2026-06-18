@@ -8,7 +8,7 @@ Atmosphere is a public, non-clinical audio workspace. It does not store PHI, the
 
 ## Runtime Decision
 
-MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the full Alex Bainter Generative.fm package catalog through the global music provider, route-persistent playback, and the bottom mini-player. Eleven Generative.fm stations are currently playable from hosted public-media sample indexes. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records. The hosted Generative.fm runtime now prewarms sample-index metadata and browser modules during idle, hover, or focus, while actual Tone start and WAV sample loading remain user-gesture gated.
+MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the full Alex Bainter Generative.fm package catalog through the global music provider, route-persistent playback, and the bottom mini-player. Eleven Generative.fm stations are currently playable from hosted public-media sample indexes. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records. The hosted Generative.fm runtime now prewarms sample-index metadata and browser modules during idle, hover, or focus, while actual Tone start and sample loading remain user-gesture gated. Observable Streams has an Ogg Opus sidecar index for Opus-capable browsers and keeps the original WAV index as fallback.
 
 ## Package Findings
 
@@ -130,7 +130,7 @@ Downloaded Signature Sounds future candidate packs:
 | `Underwater+One+Shots+2` | Future texture/percussion candidate | Useful for aquatic one-shot layers after source and content review. |
 | `White+Noise` | Future noise-layer candidate | Useful for custom noise beds and mixable ambience controls. |
 
-The detailed coverage branch handoff lives at [../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md](../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md). The first-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md), the second-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md), the third-batch listener-copy handoff lives at [../superpowers/plans/2026-06-18-atmosphere-third-batch-listener-copy.md](../superpowers/plans/2026-06-18-atmosphere-third-batch-listener-copy.md), and the startup-performance handoff lives at [../superpowers/plans/2026-06-18-atmosphere-startup-performance.md](../superpowers/plans/2026-06-18-atmosphere-startup-performance.md).
+The detailed coverage branch handoff lives at [../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md](../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md). The first-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-first-batch-hosting.md), the second-batch hosting handoff lives at [../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md](../superpowers/plans/2026-06-18-atmosphere-second-batch-hosting.md), the third-batch listener-copy handoff lives at [../superpowers/plans/2026-06-18-atmosphere-third-batch-listener-copy.md](../superpowers/plans/2026-06-18-atmosphere-third-batch-listener-copy.md), the startup-performance handoff lives at [../superpowers/plans/2026-06-18-atmosphere-startup-performance.md](../superpowers/plans/2026-06-18-atmosphere-startup-performance.md), and the web-audio format pilot handoff lives at [../superpowers/plans/2026-06-18-atmosphere-web-audio-format-pilot.md](../superpowers/plans/2026-06-18-atmosphere-web-audio-format-pilot.md).
 
 ## Public R2 Sample Hosting
 
@@ -160,6 +160,13 @@ Include package-compatible rendered samples in the plan or upload:
 
 ```powershell
 npm run atmosphere:samples:r2:upload -- "C:\Users\derri\code\audio" --dry-run --include-rendered --public-base-url "https://media.massagelab.app"
+```
+
+Generate and upload the Observable Streams Opus sidecar pilot:
+
+```powershell
+npm run atmosphere:samples:web-audio:r2:upload -- "C:\Users\derri\code\audio" --dry-run --public-base-url "https://media.massagelab.app"
+npm run atmosphere:samples:web-audio:r2:upload -- "C:\Users\derri\code\audio" --public-base-url "https://media.massagelab.app"
 ```
 
 The dry run reuses the same curated 24-WAV asset selection as local staging. With `--include-rendered`, it also generates 30 rendered WAV payloads in memory from those curated sources, then maps everything to these public-media R2 objects:
@@ -224,12 +231,21 @@ Later on 2026-06-18, the third piano-source batch was uploaded under `atmosphere
 
 The third-batch upload published 75 objects, approximately 258.5 MB of WAV payload, with no raw audio committed to Git. Verification confirmed each hosted `sample-index.json` and `manifest.json` returns `200` with JSON content; representative `vsco2-piano-mf-c-sharp4.wav` range requests return `206`, `Content-Type: audio/wav`, a valid `Content-Range`, and `Access-Control-Allow-Origin: *` when requested with an Origin header.
 
+Later on 2026-06-18, the web-audio format pilot uploaded Observable Streams Opus sidecar payloads under the existing prefix:
+
+| Format | Object layout | Payload |
+| --- | --- | --- |
+| Ogg Opus | `atmosphere/observable-streams-vsco-adaptation/web/opus/...` | 54 encoded audio objects plus `sample-index.opus.json` and `manifest.opus.json`. |
+
+The Opus upload published 56 objects, approximately 10.7 MB of encoded audio payload, representing the same 172.1 MB WAV source/rendered plan. Verification confirmed `sample-index.opus.json` returns `200` with JSON content, short metadata caching, and `Access-Control-Allow-Origin: *`; representative rendered Opus range requests return `206`, `Content-Type: audio/ogg; codecs=opus`, a valid `Content-Range`, immutable cache headers, and `Access-Control-Allow-Origin: *`.
+
 ## Generative.fm Adapter Runtime
 
 - `/wellness/atmosphere` exposes the full 57-piece Alex Bainter Generative.fm package catalog through MassageLab's global music provider and persistent mini-player. `/browse` remains available as a compatibility workbench for the same UI.
 - The browser-only adapter fetches and validates the hosted sample index for the selected verified station with browser cache-aware semantics, creates the Generative.fm web library/provider pair, loads the requested package through the aggregate package loader, starts Tone transport, and returns cleanup to the existing runtime controller.
+- When a station exposes `hostedSampleIndexFormatUrls.opus`, the runtime prefers that sidecar index only if the browser reports Ogg Opus support through `audio.canPlayType('audio/ogg; codecs="opus"')`; otherwise it falls back to the WAV `hostedSampleIndexUrl`.
 - Startup prewarm validates hosted sample-index metadata and imports shared browser runtime modules on idle, hover, or focus. It intentionally does not start Tone, start transport, construct output nodes, or download WAV payloads before a user chooses playback.
-- Playback dispatches `massagelab:atmosphere-startup-timing` with station, piece, completed-prewarm reuse, and phase timing details. Console logging is opt-in with `localStorage.setItem("massagelab:atmosphere:debug", "1")`.
+- Playback dispatches `massagelab:atmosphere-startup-timing` with station, piece, selected sample format, completed-prewarm reuse, and phase timing details. Console logging is opt-in with `localStorage.setItem("massagelab:atmosphere:debug", "1")`.
 - The station id for Observable Streams remains `observable-streams-probe` for local favorites and recent-station storage stability while the display copy treats it as a playable station.
 - The current hosted public-media indexes enable Observable Streams, `aisatsana`, `at-sunrise`, `day-dream`, `eno-machine`, `impact`, `lemniscate`, `little-bells`, `pinwheels`, `sevenths`, and `uun`. The other 46 catalog entries are visible but disabled with listener-facing pending copy while `runtime.missingSampleGroups` keeps exact package-compatible sample-group reasons for operator planning.
 - Manifest-level source-group matches such as `vsco2-piano-mf` are not enough to enable a station by themselves. Future enablement should add package-compatible rendered sample groups or otherwise verify note coverage before flipping a station to playable. The hosting registry therefore supports piece-scoped indexes without treating shared source names as global hosted coverage.
