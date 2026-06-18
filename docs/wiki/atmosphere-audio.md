@@ -98,7 +98,7 @@ Current catalog matrix:
 
 | Coverage category | Count | Meaning |
 | --- | ---: | --- |
-| Hosted/playable Generative.fm pieces | 4 | Observable Streams, `aisatsana`, `at-sunrise`, and `little-bells` have hosted public-media sample indexes and browser-verified playback. |
+| Hosted/playable stations | 4 | `observable-streams-probe`, `aisatsana`, `at-sunrise`, and `little-bells` have hosted public-media sample indexes and browser-verified playback. |
 | Local CC0 source candidates | 35 | Every pending group for the piece maps to local VSCO, VCSL, or Signature Sounds source samples or a documented CC0 SSO-role adaptation, but package-compatible rendered keys still need to be generated, uploaded, indexed, and browser-smoked. |
 | Replacement/source-review pieces | 18 | At least one required group is an uncovered field recording, guitar, voice/hum, lofi drum, pad/noise, or another source that is not covered by the current local CC0 libraries. |
 
