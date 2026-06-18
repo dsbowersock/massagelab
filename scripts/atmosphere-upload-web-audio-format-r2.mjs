@@ -249,6 +249,18 @@ function runFfmpeg(ffmpegArgs) {
  * @param {string[]} uploadArgs
  */
 function parseUploadArgs(uploadArgs) {
+  /**
+   * @param {string} flag
+   * @param {number} currentIndex
+   */
+  const requireOptionValue = (flag, currentIndex) => {
+    const value = uploadArgs[currentIndex + 1]
+    if (!value || value.startsWith("--")) {
+      throw new Error(`Missing value for ${flag}`)
+    }
+    return value
+  }
+
   const options = {
     audioRoot: process.env.MASSAGELAB_AUDIO_SAMPLE_ROOT,
     dryRun: false,
@@ -265,8 +277,8 @@ function parseUploadArgs(uploadArgs) {
     }
 
     if (arg === "--public-base-url") {
+      options.publicBaseUrl = requireOptionValue("--public-base-url", index)
       index += 1
-      options.publicBaseUrl = uploadArgs[index]
       continue
     }
 
@@ -276,8 +288,8 @@ function parseUploadArgs(uploadArgs) {
     }
 
     if (arg === "--object-prefix") {
+      options.objectPrefix = requireOptionValue("--object-prefix", index)
       index += 1
-      options.objectPrefix = uploadArgs[index]
       continue
     }
 

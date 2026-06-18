@@ -252,6 +252,14 @@ function readGenerativeFmRuntimeConfig(station: GenerativeFmRuntimeStation): Gen
   return { pieceId, sampleFormat, sampleGroups, sampleIndexUrl }
 }
 
+/**
+ * Selects the hosted sample-index URL and audio format for runtime prep.
+ * The resolved sampleFormat also partitions the prepared-runtime cache so an
+ * Opus-capable browser does not reuse a WAV fallback preparation, or vice versa.
+ *
+ * @param runtime Station runtime metadata with the WAV fallback URL and optional format sidecars.
+ * @returns The selected sample format and its sample-index URL, if configured.
+ */
 function selectHostedSampleIndexUrl(runtime: GenerativeFmRuntimeStation["runtime"]) {
   const opusSampleIndexUrl = runtime?.hostedSampleIndexFormatUrls?.opus
   if (opusSampleIndexUrl && canPlayAudioType('audio/ogg; codecs="opus"')) {
@@ -261,6 +269,12 @@ function selectHostedSampleIndexUrl(runtime: GenerativeFmRuntimeStation["runtime
   return { sampleFormat: "wav" as const, sampleIndexUrl: runtime?.hostedSampleIndexUrl }
 }
 
+/**
+ * Safely checks browser playback support for an audio MIME type.
+ *
+ * @param audioType MIME type passed to HTMLAudioElement.canPlayType.
+ * @returns True when the browser reports playback support; false on failure or unsupported types.
+ */
 function canPlayAudioType(audioType: string) {
   try {
     const audio = document.createElement("audio")
