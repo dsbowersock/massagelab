@@ -22,11 +22,14 @@ describe("Generative.fm render plan", () => {
       "impact",
       "lemniscate",
       "little-bells",
+      "pinwheels",
+      "sevenths",
+      "uun",
     ])
-    assert.equal(plan.summary.totalPieces, 7)
-    assert.equal(plan.summary.readyPieces, 7)
+    assert.equal(plan.summary.totalPieces, 10)
+    assert.equal(plan.summary.readyPieces, 10)
     assert.equal(plan.summary.blockedPieces, 0)
-    assert.equal(plan.summary.sourceIndexTargets, 5)
+    assert.equal(plan.summary.sourceIndexTargets, 8)
     assert.equal(plan.summary.renderedTargets, 2)
     assert.equal(plan.summary.renderedNotes, 18)
 
@@ -60,6 +63,17 @@ describe("Generative.fm render plan", () => {
     assert.deepEqual(
       secondBatchPianoPieces.map((piece) => piece.sourceIndexTargets[0].instrumentName),
       ["vsco2-piano-mf", "vsco2-piano-mf", "vsco2-piano-mf", "vsco2-piano-mf"],
+    )
+
+    const thirdBatchPianoPieces = plan.pieces.filter((piece) => ["pinwheels", "sevenths", "uun"].includes(piece.id))
+    assert.deepEqual(thirdBatchPianoPieces.map((piece) => piece.strategy), [
+      "source-index",
+      "source-index",
+      "source-index",
+    ])
+    assert.deepEqual(
+      thirdBatchPianoPieces.map((piece) => piece.sourceIndexTargets[0].instrumentName),
+      ["vsco2-piano-mf", "vsco2-piano-mf", "vsco2-piano-mf"],
     )
   })
 
@@ -101,6 +115,9 @@ describe("Generative.fm render plan", () => {
     assert.match(report, /Rendered notes: F4, A4, C5, D#5, F#5, A5, C6, D#6, F#6, A6/)
     assert.match(report, /Day\/Dream \(day-dream\)/)
     assert.match(report, /Impact \(impact\)/)
+    assert.match(report, /Pinwheels \(pinwheels\)/)
+    assert.match(report, /Sevenths \(sevenths\)/)
+    assert.match(report, /Uun \(uun\)/)
   })
 
   it("rejects pieces that are not in the explicit render-plan registry", () => {

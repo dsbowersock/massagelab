@@ -216,10 +216,12 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   const health = capturePageHealth(page)
 
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
-  await expect(page.getByText(/8 Generative\.fm stations.+49 Generative\.fm stations/i)).toBeVisible()
+  await expect(page.getByText(/11 Generative\.fm stations.+46 more Generative\.fm stations/i)).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
+  await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()
+  await expect(observableStreamsStation.getByRole("link", { name: "Alex Bainter · MIT" })).toBeVisible()
   const hostedGenerativeFmStations = [
     page.locator("#station-generative-fm-aisatsana"),
     page.locator("#station-generative-fm-at-sunrise"),
@@ -228,6 +230,9 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     page.locator("#station-generative-fm-impact"),
     page.locator("#station-generative-fm-lemniscate"),
     page.locator("#station-generative-fm-little-bells"),
+    page.locator("#station-generative-fm-pinwheels"),
+    page.locator("#station-generative-fm-sevenths"),
+    page.locator("#station-generative-fm-uun"),
   ]
   for (const station of hostedGenerativeFmStations) {
     await expect(station.getByText("Playable")).toBeVisible()
@@ -235,7 +240,8 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
   await expect(page.getByText("Zed").first()).toBeVisible()
   await expect(page.getByText("Samples pending").first()).toBeVisible()
-  await expect(page.getByText("Needs hosted samples before playback: zed__pad, zed__noise.")).toBeVisible()
+  await expect(page.getByText("This station is still being prepared for playback.").first()).toBeVisible()
+  await expect(page.getByText(/hosted CC0|sample index|public-media/i)).toHaveCount(0)
 
   await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
   await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })

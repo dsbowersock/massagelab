@@ -25,6 +25,9 @@ describe("Generative.fm sample upload planning", () => {
       "impact",
       "lemniscate",
       "little-bells",
+      "pinwheels",
+      "sevenths",
+      "uun",
     ])
 
     const aisatsana = plans.find((plan) => plan.pieceId === "aisatsana")
@@ -39,6 +42,18 @@ describe("Generative.fm sample upload planning", () => {
       secondBatchPianoPieces.map((plan) => plan.selectedAssets.map((asset) => asset.noteName)),
       [
         ["C4", "E4"],
+        ["C4", "E4"],
+        ["C4", "E4"],
+        ["C4", "E4"],
+      ],
+    )
+
+    const thirdBatchPianoPieces = ["pinwheels", "sevenths", "uun"].map((pieceId) =>
+      plans.find((plan) => plan.pieceId === pieceId)
+    )
+    assert.deepEqual(
+      thirdBatchPianoPieces.map((plan) => plan.selectedAssets.map((asset) => asset.noteName)),
+      [
         ["C4", "E4"],
         ["C4", "E4"],
         ["C4", "E4"],
@@ -77,6 +92,11 @@ describe("Generative.fm sample upload planning", () => {
       assert.equal(impact.sampleObjects.length, 2)
       assert.equal(impact.renderedSampleObjects.length, 0)
       assert.equal(impact.sampleIndex["vsco2-piano-mf"].E4, "https://media.massagelab.app/atmosphere/generative-fm/impact/samples/vsco2-piano-mf-e4.wav")
+
+      const pinwheels = uploadPlans.find((plan) => plan.pieceId === "pinwheels")
+      assert.equal(pinwheels.sampleObjects.length, 2)
+      assert.equal(pinwheels.renderedSampleObjects.length, 0)
+      assert.equal(pinwheels.sampleIndex["vsco2-piano-mf"].C4, "https://media.massagelab.app/atmosphere/generative-fm/pinwheels/samples/vsco2-piano-mf-c4.wav")
 
       const atSunrise = uploadPlans.find((plan) => plan.pieceId === "at-sunrise")
       assert.equal(atSunrise.renderedSampleObjects.length, 8)
