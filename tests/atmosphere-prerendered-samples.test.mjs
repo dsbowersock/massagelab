@@ -66,6 +66,15 @@ describe("Atmosphere prerendered Observable Streams samples", () => {
     assert.deepEqual(Array.from(octaveUp.channels[0].slice(0, 4)), [0, 0.5, 1, 0.5])
     assert.deepEqual(Array.from(octaveUp.channels[0].slice(4)), [0, 0])
 
+    const octaveDownByParameter = renderPitchShiftedSample({
+      source,
+      sourceNoteName: "C4",
+      targetNoteName: "C4",
+      pitchShiftSemitones: -12,
+    })
+
+    assert.equal(octaveDownByParameter.channels[0].length, 16)
+
     const faded = renderPitchShiftedSample({
       source: { sampleRate: 8, channels: [Float32Array.from(Array(8).fill(1))] },
       sourceNoteName: "C4",
