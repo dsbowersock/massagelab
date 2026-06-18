@@ -267,6 +267,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
         const detail = startupTiming as Record<string, unknown>
         return detail.pieceId === "observable-streams"
           && detail.stationId === "observable-streams-probe"
+          && detail.sampleFormat === "opus"
           && typeof detail.usedPrewarm === "boolean"
       })
     }), { timeout: 45_000 })

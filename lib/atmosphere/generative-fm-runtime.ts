@@ -4,6 +4,9 @@ type GenerativeFmRuntimeStation = {
   id: string
   runtime?: {
     hostedSampleIndexUrl?: string
+    hostedSampleIndexFormatUrls?: {
+      opus?: string
+    }
     pieceId?: string
     sampleNameGroups?: Array<string | string[]>
   }
@@ -30,6 +33,7 @@ type GenerativeMusicPiece = (options: {
 type GenerativeFmRuntimeConfig = {
   pieceId: string
   sampleGroups: Array<string | string[]>
+  sampleFormat: "wav" | "opus"
   sampleIndexUrl: string
 }
 
@@ -115,6 +119,7 @@ export async function startGenerativeFmPiece({
   recordStartupTiming({
     stationId: station.id,
     pieceId,
+    sampleFormat: prepared.sampleFormat,
     usedPrewarm: prepared.usedCompletedPrewarm,
     prepareWaitMs: preparedAt - startedAt,
     toneStartMs: toneStartedAt - preparedAt,
@@ -229,7 +234,7 @@ async function getPreparedGenerativeFmRuntime(
 }
 
 function readGenerativeFmRuntimeConfig(station: GenerativeFmRuntimeStation): GenerativeFmRuntimeConfig {
-  const sampleIndexUrl = station.runtime?.hostedSampleIndexUrl
+  const { sampleFormat, sampleIndexUrl } = selectHostedSampleIndexUrl(station.runtime)
   if (!sampleIndexUrl) {
     throw new Error("Generative.fm station is missing a hosted sample-index URL.")
   }
@@ -244,11 +249,29 @@ function readGenerativeFmRuntimeConfig(station: GenerativeFmRuntimeStation): Gen
     throw new Error("Generative.fm station is missing a package piece id.")
   }
 
-  return { pieceId, sampleGroups, sampleIndexUrl }
+  return { pieceId, sampleFormat, sampleGroups, sampleIndexUrl }
 }
 
-function preparedRuntimeCacheKey({ pieceId, sampleGroups, sampleIndexUrl }: GenerativeFmRuntimeConfig) {
-  return JSON.stringify([pieceId, sampleIndexUrl, sampleGroups])
+function selectHostedSampleIndexUrl(runtime: GenerativeFmRuntimeStation["runtime"]) {
+  const opusSampleIndexUrl = runtime?.hostedSampleIndexFormatUrls?.opus
+  if (opusSampleIndexUrl && canPlayAudioType('audio/ogg; codecs="opus"')) {
+    return { sampleFormat: "opus" as const, sampleIndexUrl: opusSampleIndexUrl }
+  }
+
+  return { sampleFormat: "wav" as const, sampleIndexUrl: runtime?.hostedSampleIndexUrl }
+}
+
+function canPlayAudioType(audioType: string) {
+  try {
+    const audio = document.createElement("audio")
+    return audio.canPlayType(audioType) !== ""
+  } catch {
+    return false
+  }
+}
+
+function preparedRuntimeCacheKey({ pieceId, sampleFormat, sampleGroups, sampleIndexUrl }: GenerativeFmRuntimeConfig) {
+  return JSON.stringify([pieceId, sampleFormat, sampleIndexUrl, sampleGroups])
 }
 
 function loadGenerativeFmRuntimeModules() {
@@ -310,6 +333,7 @@ function volumeToDecibels(volume: number) {
 function recordStartupTiming(detail: {
   stationId: string
   pieceId: string
+  sampleFormat: "wav" | "opus"
   usedPrewarm: boolean
   prepareWaitMs: number
   toneStartMs: number
