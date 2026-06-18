@@ -40,17 +40,17 @@ describe("Atmosphere prerendered Observable Streams samples", () => {
     assert.equal(noteNameToMidi("A#3"), 58)
   })
 
-  it("chooses the closest curated source note for rendered targets", () => {
+  it("chooses the closest curated source note and matches the package tie-breaker", () => {
     const closest = selectClosestSourceAsset([
       { noteName: "C#2", sourceRelativePath: "piano-c-sharp2.wav" },
       { noteName: "F2", sourceRelativePath: "piano-f2.wav" },
       { noteName: "A2", sourceRelativePath: "piano-a2.wav" },
     ], "G2")
 
-    assert.equal(closest.noteName, "F2")
+    assert.equal(closest.noteName, "A2")
   })
 
-  it("renders pitch-shifted PCM WAV samples with optional tail and fade", () => {
+  it("renders pitch-shifted PCM WAV samples with optional tail, fade, and reverb", () => {
     const source = {
       sampleRate: 8,
       channels: [Float32Array.from([0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25])],
@@ -74,6 +74,16 @@ describe("Atmosphere prerendered Observable Streams samples", () => {
     })
 
     assert.deepEqual(Array.from(faded.channels[0].slice(4)), [0.75, 0.5, 0.25, 0])
+
+    const reverbed = renderPitchShiftedSample({
+      source: { sampleRate: 8000, channels: [Float32Array.from([1, ...Array(799).fill(0)])] },
+      sourceNoteName: "C4",
+      targetNoteName: "C4",
+      additionalRenderLengthSeconds: 0.25,
+      reverb: { roomSize: 0.9, wet: 1 },
+    })
+
+    assert.ok(Array.from(reverbed.channels[0].slice(800)).some((value) => Math.abs(value) > 0.0001))
   })
 
   it("round-trips generated PCM WAV files", () => {
@@ -91,6 +101,45 @@ describe("Atmosphere prerendered Observable Streams samples", () => {
     assert.equal(decoded.channels[0].length, 5)
     assert.ok(Math.abs(decoded.channels[0][1] - -0.5) < 0.0001)
     assert.ok(Math.abs(decoded.channels[1][3] - -0.5) < 0.0001)
+  })
+
+  it("rejects malformed WAV sample widths and non-frame-aligned data", () => {
+    const zeroBitWav = Buffer.from(encodePcm16Wav({
+      sampleRate: 8000,
+      channels: [Float32Array.from([0])],
+    }))
+    zeroBitWav.writeUInt16LE(0, 34)
+    assert.throws(() => decodeWav(zeroBitWav), /0-bit samples/)
+
+    const unalignedWav = Buffer.concat([
+      Buffer.from(encodePcm16Wav({
+        sampleRate: 8000,
+        channels: [Float32Array.from([0])],
+      })),
+      Buffer.from([0]),
+    ])
+    unalignedWav.writeUInt32LE(3, 40)
+    assert.throws(() => decodeWav(unalignedWav), /data chunk is not frame-aligned/)
+  })
+
+  it("keeps rendered source reads contained inside the audio root", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "massagelab-atmosphere-"))
+    try {
+      await assert.rejects(
+        () => createObservableStreamsRenderedSampleObjects({
+          audioRoot: tempDir,
+          publicBaseUrl: "https://media.massagelab.app",
+          assetPlan: {
+            selectedAssets: [
+              { instrumentName: "vsco2-piano-mf", noteName: "C4", sourceRelativePath: "../outside.wav" },
+            ],
+          },
+        }),
+        /outside audioRoot/,
+      )
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true })
+    }
   })
 
   it("creates rendered R2 sample objects without committing audio", async () => {

@@ -37,15 +37,15 @@ diagnostics.
    - select the closest source note for each rendered target note,
    - resample to the target pitch,
    - apply the package-compatible violin fade-out,
-   - add the package-compatible rendered tail length for piano and cor anglais,
+   - add deterministic reverb tails for the package's wet rendered buffers,
    - encode browser-loadable PCM WAV output.
 2. Extend the R2 upload plan so it can optionally include rendered sample
    objects and publish an expanded `sample-index.json`.
 3. Keep generated audio artifacts out of git. The repository should contain the
    reproducible script and metadata logic, not the rendered WAV payloads.
-4. Validate with a dry-run against `C:\Users\derri\code\audio`, then upload to
-   `massagelab-public-media` if the local environment has the existing R2
-   credentials.
+4. Validate with a dry-run against `<audio-sample-root>` (for example
+   `~/code/audio`), then upload to `massagelab-public-media` if the local
+   environment has the existing R2 credentials.
 
 ## Non-Goals
 
