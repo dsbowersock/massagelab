@@ -67,13 +67,70 @@ The dry run selects 24 WAV files: 12 VSCO piano dynamic-2 notes, 6 VSCO violin `
 
 The generated sample index intentionally exposes the oboe replacement under `sso-cor-anglais`. That lets the existing Observable Streams package request its original musical role while MassageLab serves a CC0 VSCO sustained-oboe source instead of SSO raw samples.
 
-Excluded package source:
+Excluded package source and adaptations:
 
 | Source sample | Decision | Reason |
 | --- | --- | --- |
-| `sso-cor-anglais` | Excluded | SSO's Sampling Plus license is not a clean fit for hosting raw browser samples in a public MassageLab product feature. |
+| Raw SSO samples | Excluded | SSO's Sampling Plus license is not a clean fit for hosting raw browser samples in a public MassageLab product feature. |
+| `sso-cor-anglais` package role | Adapted | Served from CC0 VSCO sustained oboe while preserving the package-facing sample name. |
 
 Decision: build the first Observable Streams path as a MassageLab-hosted VSCO adaptation. Observable Streams is playable after the generated sample index was hosted with the right cache/CORS behavior and wired to the Generative.fm adapter.
+
+## Catalog-Wide Generative.fm Sample Coverage
+
+Run the full catalog coverage scan without copying or committing raw audio:
+
+```powershell
+npm run atmosphere:samples:coverage -- "C:\Users\derri\code\audio"
+```
+
+The 2026-06-18 scan checked the full Alex Bainter package catalog against the local audio root and confirmed the local VSCO, VCSL, and selected Signature Sounds libraries have hostable CC0 evidence:
+
+| Library | Local status | License evidence |
+| --- | --- | --- |
+| VSCO 2 Community Edition | Present | `VSCO-2-CE-1.1.0/VSCO-2-CE-1.1.0/LICENSE` confirms CC0 1.0 Universal. |
+| Versilian Community Sample Library | Present | `VCSL-1.2.2-RC/VCSL-1.2.2-RC/README.md` confirms Creative Commons 0/public-domain-style permissions. |
+| Signature Sounds Beach Ambience Recordings | Present | `Signature Samples/SS_Beach_Ambience_Recordings_CC0/SS_Beach_Ambience_Recordings_CC0/LICENSE_Beach_Collection_PRO.txt` confirms CC0 1.0 Universal permissions. |
+| Signature Sounds Choirs/Vocals SFX Teaser | Present | `Signature Samples/SS_Choirs_Vocals_SFX_Teaser_CC0/SS_Choirs_Vocals_SFX_Teaser_CC0/LICENSE_Choir_Collection_PRO.txt` confirms CC0 1.0 Universal permissions. |
+| Signature Sounds Serbian Orthodox Choirs | Present | `Signature Samples/SS_Serbian_Orthodox_Choirs_Original_Recordings_CC0/SS_Serbian_Orthodox_Choirs_Original_Recordings_CC0/LICENSE_Serbian_Choir_PRO_v2.txt` confirms CC0 1.0 Universal permissions. |
+
+Current catalog matrix:
+
+| Coverage category | Count | Meaning |
+| --- | ---: | --- |
+| Hosted/playable Generative.fm pieces | 1 | Observable Streams has a hosted rendered sample index and browser-verified playback. |
+| Local CC0 source candidates | 38 | Every pending group for the piece maps to local VSCO, VCSL, or Signature Sounds source samples or a documented CC0 SSO-role adaptation, but package-compatible rendered keys still need to be generated, uploaded, indexed, and browser-smoked. |
+| Replacement/source-review pieces | 18 | At least one required group is an uncovered field recording, guitar, voice/hum, lofi drum, pad/noise, or another source that is not covered by the current local CC0 libraries. |
+
+The configured SSO-role adaptations are `sso-cor-anglais` to CC0 VSCO sustained oboe, `sso-chorus-female` to Signature Sounds children choir ambience, and `sso-chorus-male` to Signature Sounds men-of-choirs WAVs. The `waves` source group maps to Signature Sounds Beach Ambience WAVs. Later rendered uploads should keep the package-facing sample names while serving those replacement sources.
+
+The current render/upload candidate pieces are 420hz Gamma Waves for Big Brain, A Viable System, Above the Rain, Agua Ravine, aisatsana, Apoapsis, At Sunrise, Beneath Waves, Bhairav, Buttafingers, Day/Dream, Documentary Films, Drones, Drones II, Eno Machine, Enough, Expand/Collapse, Homage, Impact, Lemniscate, Little Bells, Nakaii, No Refrain, Oxalis 1, Pinwheels, Remembering, Return to Form, Ritual, Sevenths, Soundtrack, Splash, Spring Again, Substrate, Timbral Oscillations, Transmission, Trees, Uun, and Yesterday.
+
+Pieces still needing replacement or source review are Animalia Chordata, Awash, Didgeridoobeats, Eyes Closed, Last Transit, Lullaby, Meditation, Moment, Neuroplasticity, Otherness, Peace, Pulse-code Modulation, Skyline, Stratospheric, Stream of Consciousness, Townsend, Western Medicine, and Zed. Their missing groups are field/animal recordings (`whales`, `idling-truck`, `birds`, `explosion`), guitar sources, vocal/hum sources, lofi drum sources, percussion brush sources, and Zed pad/noise sources. Do not enable these pieces until replacement files have clear hosted-browser rights and package-compatible rendered coverage.
+
+Other downloaded Signature Sounds packs are useful future candidates for custom generator tools and for freshening rendered station palettes. The current Generative.fm coverage rules only count packs that have a direct current sample-group fit, so this pass wires the choir teaser to the SSO chorus roles and the beach ambience WAVs to `waves` while leaving unrelated packs out of the station-ready count.
+
+Downloaded Signature Sounds future candidate packs:
+
+| Pack | Current use label | Notes |
+| --- | --- | --- |
+| `Angellic+Vocal+Kit` | Future vocal/pad candidate | Useful for custom generator vocal textures after loop/key review. |
+| `Beach+amb-recordings+3` | Future ambience candidate | Overlaps with the confirmed beach ambience source family; not wired because `SS_Beach_Ambience_Recordings_CC0` has clearer local license evidence. |
+| `Cave+Atmosphere+SFX+2` | Future ambience candidate | Useful for dark room-tone, cave, and low movement atmosphere generators. |
+| `Fire+place+foley+CC0+SignatureSounds.org` | Future ambience/foley candidate | Folder name and site copy support CC0-style use; useful for warm-room and hearth atmosphere tools. |
+| `Light+Rain` | Future ambience candidate | Useful for rain layers and calmness/noise-mix tools. |
+| `Moroccan+Countryside+` | Future field-recording candidate | Useful for outdoor/place-based atmosphere experiments after content review. |
+| `Risers+And+Whooshes` | Future transition/texture candidate | Useful for subtle generator transitions only if kept gentle enough for treatment-room use. |
+| `SignatureSamples.Co.Uk+Light+Waves+Crashing` | Future wave candidate | Site listing marks Waves Crashing on Shore as CC0, but the current `waves` rule uses the WAV-only `SS_Beach_Ambience_Recordings_CC0` pack with local license evidence. |
+| `SignatureSamples.Co.Uk+Mallets` | Future melodic/percussive candidate | Useful for custom generator instruments after key/range review. |
+| `Spiritual+Acoustics+CC0+Signaturesounds.org` | Future ambience candidate | Folder name supports CC0-style use; useful for spacious acoustic layers after content review. |
+| `SS_Beach_Ambience_Recordings_CC0` | Current `waves` source candidate | Local license evidence confirmed and mapped to the Generative.fm `waves` source group. |
+| `SS_Choirs_Vocals_SFX_Teaser_CC0` | Current SSO chorus adaptation | Local license evidence confirmed and mapped to `sso-chorus-female` and `sso-chorus-male`. |
+| `SS_Serbian_Orthodox_Choirs_Original_Recordings_CC0` | Future choir variation candidate | Local license evidence confirmed; held for later variation or custom generator work rather than the first SSO chorus mapping. |
+| `Underwater+One+Shots+2` | Future texture/percussion candidate | Useful for aquatic one-shot layers after source and content review. |
+| `White+Noise` | Future noise-layer candidate | Useful for custom noise beds and mixable ambience controls. |
+
+The detailed branch handoff lives at [../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md](../superpowers/plans/2026-06-18-atmosphere-generative-fm-sample-coverage.md).
 
 ## Public R2 Sample Hosting
 

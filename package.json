@@ -28,6 +28,7 @@
     "anatomy:media:coverage:import": "node --experimental-strip-types scripts/anatomy-media-view-coverage.ts import",
     "anatomy:media-requests": "node --experimental-strip-types scripts/anatomy-media-view-requests.ts",
     "atmosphere:samples:scan": "node scripts/atmosphere-sample-intake.mjs",
+    "atmosphere:samples:coverage": "node scripts/atmosphere-generative-sample-coverage.mjs",
     "atmosphere:samples:stage": "node scripts/atmosphere-stage-observable-streams.mjs",
     "atmosphere:samples:r2:check": "node scripts/atmosphere-upload-observable-streams-r2.mjs check",
     "atmosphere:samples:r2:upload": "node scripts/atmosphere-upload-observable-streams-r2.mjs upload"
