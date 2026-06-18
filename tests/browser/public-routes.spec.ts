@@ -5,8 +5,9 @@ const publicRoutes = [
   { path: "/notes", expectedText: /Therapist or Team\/Practice required/i },
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
-  { path: "/browse", expectedText: /MassageLab-hosted audio stations/i },
+  { path: "/browse", expectedText: /Wellness audio stations/i },
   { path: "/wellness", expectedText: /Client-owned self-tracking/i },
+  { path: "/wellness/atmosphere", expectedText: /Wellness audio stations/i },
   { path: "/calendar", expectedText: /Calendar/i },
   { path: "/education", expectedText: /Education/i },
   { path: "/education/flashcards", expectedText: /Flashcards/i },
@@ -144,6 +145,7 @@ test("anonymous homepage presents the optional action router and available tools
   await expect(page.getByRole("heading", { name: "Available tools" })).toBeVisible()
   for (const name of [
     "Chimer",
+    "Atmosphere",
     "Education flashcards",
     "Anatomime",
     "Local-first notes",
@@ -156,6 +158,7 @@ test("anonymous homepage presents the optional action router and available tools
 
   const availableTools = page.locator("#available-tools")
   await expect(availableTools.getByRole("link", { name: /Open Chimer/i })).toHaveAttribute("href", "/chimer")
+  await expect(availableTools.getByRole("link", { name: /Open Atmosphere/i })).toHaveAttribute("href", "/wellness/atmosphere")
   await expect(availableTools.getByRole("link", { name: /Study flashcards/i })).toHaveAttribute("href", "/education/flashcards")
   await expect(availableTools.getByRole("link", { name: /Play Anatomime/i })).toHaveAttribute("href", "/anatomime")
   await expect(availableTools.getByRole("link", { name: /Open notes/i })).toHaveAttribute("href", "/notes")
@@ -172,8 +175,8 @@ test("anonymous homepage presents the optional action router and available tools
 test("Atmosphere proof station keeps global player state across client routes", async ({ page }) => {
   const health = capturePageHealth(page)
 
-  await page.goto("/browse", { waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("heading", { name: /MassageLab-hosted audio stations/i })).toBeVisible()
+  await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: /Wellness audio stations/i })).toBeVisible()
   await page.getByRole("button", { name: /^Play station$/i }).first().click()
 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()

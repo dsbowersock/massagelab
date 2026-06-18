@@ -1,4 +1,5 @@
-import { HeartPulse } from "lucide-react"
+import Link from "next/link"
+import { HeartPulse, Radio } from "lucide-react"
 import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { WellnessHubClient, type WellnessTimelineEntry } from "@/components/wellness/wellness-hub-client"
@@ -6,6 +7,7 @@ import type {
   ClientWellnessReminderSchedule,
   WellnessAppointmentSummary,
 } from "@/components/wellness/wellness-calendar-companion"
+import { Button } from "@/components/ui/button"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { normalizeClientWellnessReminderSchedules } from "@/lib/client-wellness-reminders"
 import { prisma } from "@/lib/prisma"
@@ -69,6 +71,17 @@ export default async function WellnessPage() {
 
   return (
     <AppPageShell width="wide" contentClassName="gap-5">
+      <AppSurface
+        title="Atmosphere"
+        description="Public wellness audio stations for massage-room pacing, study, and personal focus."
+        icon={<Radio className="h-5 w-5" aria-hidden="true" />}
+        badge="Public audio"
+      >
+        <Button asChild variant="outline">
+          <Link href="/wellness/atmosphere">Open Atmosphere</Link>
+        </Button>
+      </AppSurface>
+
       <AppSurface
         title="Wellness"
         description="Client-owned self-tracking for quick check-ins, context notes, and range-of-motion measurements."

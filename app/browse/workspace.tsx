@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Heart, Play, Radio, Square } from "lucide-react"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -19,11 +20,16 @@ export function AtmosphereWorkspace() {
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
           <div>
             <h1 className="text-3xl font-semibold tracking-normal sm:text-4xl">
-              MassageLab-hosted audio stations
+              Wellness audio stations
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
               Start a station, move to another MassageLab tool, and the bottom player keeps control of the sound.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/wellness">Wellness hub</Link>
+              </Button>
+            </div>
           </div>
           <AppNotice
             tone="accent"

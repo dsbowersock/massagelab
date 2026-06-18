@@ -10,6 +10,7 @@ import {
   HeartHandshake,
   LayoutDashboard,
   LockKeyhole,
+  Radio,
   Route,
   ShieldCheck,
   Sparkles,
@@ -34,6 +35,7 @@ const homeToolIconByName = {
   LockKeyhole,
   ShieldCheck,
   HeartHandshake,
+  Radio,
   Route,
 } as const
 

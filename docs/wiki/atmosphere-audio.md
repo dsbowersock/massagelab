@@ -4,11 +4,11 @@ This page records source, licensing, and runtime findings for the public Atmosph
 
 ## Current Product Boundary
 
-Atmosphere is a public, non-clinical audio workspace. It does not store PHI, therapist professional records, client appointment details, or clinical notes. The first implementation stays hidden from primary navigation while playback reliability, browser behavior, and source permissions are verified.
+Atmosphere is a public, non-clinical audio workspace. It does not store PHI, therapist professional records, client appointment details, or clinical notes. The public product surface lives under `/wellness/atmosphere`; `/browse` remains a compatibility workbench for the same station UI while future experiments are staged.
 
 ## Runtime Decision
 
-MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/browse` now proves the local Tone.js proof station plus the Observable Streams Generative.fm adapter through the global music provider, route-persistent playback, and the bottom mini-player.
+MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the Observable Streams Generative.fm adapter through the global music provider, route-persistent playback, and the bottom mini-player.
 
 ## Package Findings
 
@@ -135,7 +135,7 @@ Verification confirmed the refreshed sample index returns `200` with `Content-Ty
 
 ## Generative.fm Adapter Runtime
 
-- `/browse` exposes Observable Streams as a playable station through MassageLab's global music provider and persistent mini-player.
+- `/wellness/atmosphere` exposes Observable Streams as a playable station through MassageLab's global music provider and persistent mini-player. `/browse` remains available as a compatibility workbench for the same UI.
 - The browser-only adapter fetches and validates the hosted sample index, creates the Generative.fm web library/provider pair, activates `@generative-music/piece-observable-streams`, starts Tone transport, and returns cleanup to the existing runtime controller.
 - The station id remains `observable-streams-probe` for local favorites and recent-station storage stability while the display copy treats it as a playable station.
 - Next/Turbopack resolves `tone` to `tone/build/esm/index.js` and maps `regenerator-runtime/runtime.js` to a local no-op shim because the older Generative.fm packages otherwise fail the Next 16 production build before runtime.
