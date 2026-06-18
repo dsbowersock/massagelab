@@ -74,6 +74,50 @@ Excluded package source:
 
 Decision: build the first Observable Streams path as a MassageLab-hosted VSCO adaptation. Observable Streams remains disabled until the generated sample index is intentionally hosted, served with the right cache/CORS behavior, and wired to the Generative.fm adapter.
 
+## Public R2 Sample Hosting
+
+Atmosphere samples are public, non-PHI media and should be hosted from `massagelab-public-media`. Do not use `massagelab-anatomy-media` for these audio files, and do not use `massagelab-private-media` for public browser-playable samples.
+
+Configured bucket roles:
+
+| Bucket | Atmosphere use |
+| --- | --- |
+| `massagelab-public-media` | Public non-PHI audio samples, sample indexes, and manifests. |
+| `massagelab-anatomy-media` | Anatomy media workflow only. |
+| `massagelab-private-media` | Reserved for private media workflows; not used for public Atmosphere samples. |
+
+Check local R2 readiness without printing secrets:
+
+```powershell
+npm run atmosphere:samples:r2:check
+```
+
+Plan the hosted Observable Streams object layout without uploading:
+
+```powershell
+npm run atmosphere:samples:r2:upload -- "C:\Users\derri\code\audio" --dry-run --public-base-url "https://media.massagelab.app"
+```
+
+The dry run reuses the same curated 24-WAV asset selection as local staging, then maps it to these public-media R2 objects:
+
+- `atmosphere/observable-streams-vsco-adaptation/samples/*.wav`
+- `atmosphere/observable-streams-vsco-adaptation/sample-index.json`
+- `atmosphere/observable-streams-vsco-adaptation/manifest.json`
+
+Actual upload requires `MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL`, R2 credentials, and either `CLOUDFLARE_ACCOUNT_ID` or an explicit R2 endpoint. The command uploads WAVs directly from the local audio root and writes generated JSON metadata to R2; the raw audio stays outside Git.
+
+The uploader applies long-lived immutable cache headers to WAV sample payloads and short revalidating cache headers to generated JSON metadata (`sample-index.json` and `manifest.json`). That keeps stable sample URLs cacheable while allowing metadata corrections to propagate quickly.
+
+The public bucket is connected to `https://media.massagelab.app` with the checked-in CORS policy at [../cloudflare/massagelab-public-media-cors.json](../cloudflare/massagelab-public-media-cors.json). The policy allows public browser `GET` and `HEAD` reads with the `Range` request header and exposes the media/cache headers needed by audio fetches.
+
+On 2026-06-18 the first Observable Streams VSCO adaptation was uploaded to `massagelab-public-media`: 24 WAV files, `sample-index.json`, and `manifest.json`. Verification confirmed:
+
+- `https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/sample-index.json` returns `200` with `Content-Type: application/json; charset=utf-8`.
+- `https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/samples/piano-c-sharp2.wav` returns `200` with `Content-Type: audio/wav`.
+- Both verified URLs return `Access-Control-Allow-Origin: *` when requested with an Origin header.
+
+Observable Streams still remains disabled after this hosting utility until a follow-up branch wires the Generative.fm adapter to the hosted sample index and verifies playback behavior.
+
 ## Attribution Draft
 
 Observable Streams by Alex Bainter. Used as a Generative.fm package probe with permission and MIT package licensing. Before any imported piece becomes playable, verify sample file license, hosting rights, CORS behavior, and attribution wording.

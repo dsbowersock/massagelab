@@ -47,7 +47,27 @@ describe("Atmosphere station catalog", () => {
       station.runtime.sampleBasePath,
       "/audio/atmosphere/observable-streams-vsco-adaptation/samples",
     )
+    assert.equal(station.runtime.r2Bucket, "massagelab-public-media")
+    assert.equal(station.runtime.r2PublicBaseUrl, "https://media.massagelab.app")
+    assert.equal(station.runtime.r2ObjectPrefix, "atmosphere/observable-streams-vsco-adaptation")
+    assert.equal(
+      station.runtime.r2SampleIndexObjectKey,
+      "atmosphere/observable-streams-vsco-adaptation/sample-index.json",
+    )
+    assert.equal(
+      station.runtime.r2ManifestObjectKey,
+      "atmosphere/observable-streams-vsco-adaptation/manifest.json",
+    )
+    assert.equal(
+      station.runtime.hostedSampleIndexUrl,
+      "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/sample-index.json",
+    )
+    assert.equal(
+      station.runtime.hostedManifestUrl,
+      "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/manifest.json",
+    )
     assert.match(station.runtime.stageCommand, /atmosphere:samples:stage/)
+    assert.match(station.runtime.r2UploadCommand, /atmosphere:samples:r2:upload/)
     assert.deepEqual(station.runtime.sampleNames, [
       "observable-streams__vsco2-piano-mf",
       "observable-streams__vsco2-violin-arcvib",
