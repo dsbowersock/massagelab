@@ -18,6 +18,7 @@ import {
   parseAtmosphereStorage,
   serializeAtmosphereStorage,
 } from "@/lib/atmosphere/storage"
+import { setGenerativeFmPieceVolume, startGenerativeFmPiece } from "@/lib/atmosphere/generative-fm-runtime"
 import { setToneProofDroneVolume, startToneProofDrone } from "@/lib/atmosphere/tone-proof-runtime"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "failed"
@@ -48,8 +49,11 @@ interface AtmosphereStorageState {
 
 interface RuntimeAdapterPayload {
   station: {
+    id: string
     runtime?: {
       defaultOptions?: Record<string, number>
+      hostedSampleIndexUrl?: string
+      sampleNameGroups?: Array<string | string[]>
     }
   }
 }
@@ -93,6 +97,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           ...station.runtime?.defaultOptions,
           volume: volumeRef.current,
         }),
+        "generative-fm-piece": async ({ station }: RuntimeAdapterPayload) => startGenerativeFmPiece({
+          station,
+          volume: volumeRef.current,
+        }),
       },
     })
 
@@ -126,6 +134,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     volumeRef.current = storageState.volume
     setToneProofDroneVolume(storageState.volume)
+    setGenerativeFmPieceVolume(storageState.volume)
   }, [storageState.volume])
 
   const playStation = useCallback(async (stationId: string) => {
@@ -190,6 +199,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const clampedVolume = Math.min(1, Math.max(0, nextVolume))
     volumeRef.current = clampedVolume
     setToneProofDroneVolume(clampedVolume)
+    setGenerativeFmPieceVolume(clampedVolume)
     setStorageState((current) => ({
       ...current,
       volume: clampedVolume,

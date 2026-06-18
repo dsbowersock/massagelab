@@ -48,6 +48,10 @@ const nextConfig = {
   },
   turbopack: {
     root,
+    resolveAlias: {
+      "regenerator-runtime/runtime.js": "./lib/atmosphere/regenerator-runtime-shim.js",
+      tone: "tone/build/esm/index.js",
+    },
   },
 }
 

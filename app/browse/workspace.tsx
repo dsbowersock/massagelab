@@ -22,13 +22,13 @@ export function AtmosphereWorkspace() {
               MassageLab-hosted audio stations
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Start the proof station, move to another MassageLab tool, and the bottom player keeps control of the sound.
+              Start a station, move to another MassageLab tool, and the bottom player keeps control of the sound.
             </p>
           </div>
           <AppNotice
             tone="accent"
-            title="Runtime spike"
-            description="Generative.fm packages are installed and attributed, while imported sample-heavy pieces stay disabled until sample hosting is verified."
+            title="Hosted playback"
+            description="Observable Streams now runs inside MassageLab using the public-media sample index hosted from Cloudflare R2."
           />
         </div>
       </section>

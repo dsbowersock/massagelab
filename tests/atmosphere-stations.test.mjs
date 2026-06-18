@@ -32,11 +32,11 @@ describe("Atmosphere station catalog", () => {
     assert.equal(station.attribution.license, "MassageLab internal proof")
   })
 
-  it("keeps the Generative.fm package probe visible but not playable", () => {
+  it("exposes the Generative.fm Observable Streams station as playable with hosted samples", () => {
     const station = getAtmosphereStationById("observable-streams-probe")
 
     assert.equal(station.sourceType, "generative-fm-piece")
-    assert.equal(station.enabled, false)
+    assert.equal(station.enabled, true)
     assert.equal(station.runtime.packageName, "@generative-music/piece-observable-streams")
     assert.equal(station.runtime.adaptationId, "observable-streams-vsco-adaptation")
     assert.equal(
@@ -68,6 +68,11 @@ describe("Atmosphere station catalog", () => {
     )
     assert.match(station.runtime.stageCommand, /atmosphere:samples:stage/)
     assert.match(station.runtime.r2UploadCommand, /atmosphere:samples:r2:upload/)
+    assert.deepEqual(station.runtime.sampleNameGroups, [
+      ["observable-streams__vsco2-piano-mf", "vsco2-piano-mf"],
+      ["observable-streams__vsco2-violin-arcvib", "vsco2-violin-arcvib"],
+      ["observable-streams__sso-cor-anglais", "sso-cor-anglais"],
+    ])
     assert.deepEqual(station.runtime.sampleNames, [
       "observable-streams__vsco2-piano-mf",
       "observable-streams__vsco2-violin-arcvib",
@@ -82,10 +87,9 @@ describe("Atmosphere station catalog", () => {
       ],
     )
     assert.match(station.runtime.samplePlan[2].adaptationReason, /excludes SSO/i)
-    assert.match(station.disabledReason, /sample-index/i)
-    assert.match(station.disabledReason, /VSCO oboe/i)
     assert.equal(station.attribution.license, "MIT")
     assert.equal(station.attribution.artist, "Alex Bainter")
+    assert.match(station.attribution.notice, /hosted CC0 VSCO sample adaptation/i)
   })
 
   it("separates visible stations from playable stations", () => {
@@ -95,7 +99,7 @@ describe("Atmosphere station catalog", () => {
     )
     assert.deepEqual(
       getPlayableAtmosphereStations().map((station) => station.id),
-      ["mlab-proof-drone"],
+      ["mlab-proof-drone", "observable-streams-probe"],
     )
   })
 
@@ -107,6 +111,7 @@ describe("Atmosphere station catalog", () => {
     station.runtime.defaultOptions.baseFrequency = 999
     const probe = getAtmosphereStationById("observable-streams-probe")
     probe.runtime.samplePlan[0].localSource = "mutated"
+    probe.runtime.sampleNameGroups[0].push("mutated")
 
     const freshStation = getAtmosphereStationById("mlab-proof-drone")
     const freshProbe = getAtmosphereStationById("observable-streams-probe")
@@ -116,6 +121,10 @@ describe("Atmosphere station catalog", () => {
     assert.equal(freshStation.runtime.defaultOptions.baseFrequency, 110)
     assert.equal(freshStation.tags.includes("mutated"), false)
     assert.equal(freshProbe.runtime.samplePlan[0].localSource, "VSCO 2 Community Edition upright piano")
+    assert.deepEqual(freshProbe.runtime.sampleNameGroups[0], [
+      "observable-streams__vsco2-piano-mf",
+      "vsco2-piano-mf",
+    ])
   })
 
   it("throws for unknown station ids", () => {
