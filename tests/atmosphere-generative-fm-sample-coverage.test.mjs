@@ -18,6 +18,9 @@ describe("Generative.fm sample coverage", () => {
     const coverage = createCoverage()
 
     assert.equal(coverage.summary.totalPieces, 57)
+    assert.equal(coverage.summary.hostedPieces, 8)
+    assert.equal(coverage.summary.localSourceCandidatePieces, 18)
+    assert.equal(coverage.summary.replacementNeededPieces, 31)
     assert.equal(coverage.libraries.find((library) => library.id === "vsco-2-ce").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "vcsl").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "signature-sounds-beach").licenseStatus, "license-confirmed")
@@ -37,13 +40,13 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(atSunrise.sampleGroups[0].library, "massagelab-public-media")
 
     const dayDream = coverage.pieces.find((piece) => piece.id === "day-dream")
-    assert.equal(dayDream.status, "local-source-candidate")
+    assert.equal(dayDream.status, "hosted")
     assert.equal(dayDream.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
     assert.equal(dayDream.sampleGroups[0].sourceName, "vsco2-piano-mf")
     assert.equal(dayDream.sampleGroups[0].library, "VSCO 2 Community Edition")
   })
 
-  it("keeps shared source names piece-scoped when only one station has a hosted index", () => {
+  it("keeps shared source names piece-scoped when selected piano stations have hosted indexes", () => {
     const coverage = createCoverage()
 
     const aisatsana = coverage.pieces.find((piece) => piece.id === "aisatsana")
@@ -52,28 +55,35 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(aisatsana.sampleGroups[0].sourceName, "vsco2-piano-mf")
 
     const dayDream = coverage.pieces.find((piece) => piece.id === "day-dream")
-    assert.equal(dayDream.status, "local-source-candidate")
+    assert.equal(dayDream.status, "hosted")
     assert.equal(dayDream.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
     assert.equal(dayDream.sampleGroups[0].sourceName, "vsco2-piano-mf")
+
+    const pinwheels = coverage.pieces.find((piece) => piece.id === "pinwheels")
+    assert.equal(pinwheels.status, "local-source-candidate")
+    assert.equal(pinwheels.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
+    assert.equal(pinwheels.sampleGroups[0].sourceName, "vsco2-piano-mf")
   })
 
   it("requires confirmed local license evidence before reporting non-hosted CC0 candidates", () => {
     const coverage = createGenerativeFmSampleCoverage({
       files: createLocalCandidateFiles(),
     })
-    const dayDream = coverage.pieces.find((piece) => piece.id === "day-dream")
+    const pinwheels = coverage.pieces.find((piece) => piece.id === "pinwheels")
 
-    assert.equal(dayDream.status, "replacement-needed")
-    assert.equal(dayDream.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING)
+    assert.equal(pinwheels.status, "replacement-needed")
+    assert.equal(pinwheels.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING)
   })
 
-  it("keeps first-batch hosted stations available even when local files are absent", () => {
+  it("keeps hosted stations available even when local files are absent", () => {
     const coverage = createGenerativeFmSampleCoverage()
     const atSunrise = coverage.pieces.find((piece) => piece.id === "at-sunrise")
+    const dayDream = coverage.pieces.find((piece) => piece.id === "day-dream")
 
     assert.equal(atSunrise.status, "hosted")
     assert.equal(atSunrise.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.HOSTED)
     assert.equal(atSunrise.sampleGroups[0].sourceName, "at-sunrise__vcsl-vibraphone-soft-mallets-mp")
+    assert.equal(dayDream.status, "hosted")
   })
 
   it("maps configured SSO roles to local CC0 replacement candidates while unknown groups stay blocked", () => {

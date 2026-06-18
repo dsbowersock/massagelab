@@ -213,7 +213,7 @@ function printPlans(uploadPlans) {
   const totalObjects = uploadPlans.reduce((total, plan) => total + plan.objectCount, 0)
   const totalPayload = uploadPlans.reduce((total, plan) => total + plan.samplePayloadBytes, 0)
 
-  console.log(`Generative.fm first-batch R2 upload plan: ${uploadPlans.length} pieces, ${totalObjects} objects`)
+  console.log(`Generative.fm R2 upload plan: ${uploadPlans.length} pieces, ${totalObjects} objects`)
   console.log(`Approximate WAV payload: ${formatBytes(totalPayload)}`)
 
   for (const plan of uploadPlans) {
