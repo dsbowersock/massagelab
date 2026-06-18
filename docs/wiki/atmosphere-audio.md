@@ -98,13 +98,20 @@ Plan the hosted Observable Streams object layout without uploading:
 npm run atmosphere:samples:r2:upload -- "C:\Users\derri\code\audio" --dry-run --public-base-url "https://media.massagelab.app"
 ```
 
-The dry run reuses the same curated 24-WAV asset selection as local staging, then maps it to these public-media R2 objects:
+Include package-compatible rendered samples in the plan or upload:
+
+```powershell
+npm run atmosphere:samples:r2:upload -- "C:\Users\derri\code\audio" --dry-run --include-rendered --public-base-url "https://media.massagelab.app"
+```
+
+The dry run reuses the same curated 24-WAV asset selection as local staging. With `--include-rendered`, it also generates 30 rendered WAV payloads in memory from those curated sources, then maps everything to these public-media R2 objects:
 
 - `atmosphere/observable-streams-vsco-adaptation/samples/*.wav`
+- `atmosphere/observable-streams-vsco-adaptation/rendered/<rendered-instrument>/*.wav`
 - `atmosphere/observable-streams-vsco-adaptation/sample-index.json`
 - `atmosphere/observable-streams-vsco-adaptation/manifest.json`
 
-Actual upload requires `MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL`, R2 credentials, and either `CLOUDFLARE_ACCOUNT_ID` or an explicit R2 endpoint. The command uploads WAVs directly from the local audio root and writes generated JSON metadata to R2; the raw audio stays outside Git.
+Actual upload requires `MASSAGELAB_PUBLIC_MEDIA_PUBLIC_BASE_URL`, R2 credentials, and either `CLOUDFLARE_ACCOUNT_ID` or an explicit R2 endpoint. The command uploads WAVs directly from the local audio root, generates optional rendered WAVs locally, and writes generated JSON metadata to R2; the raw and rendered audio stay outside Git.
 
 The uploader applies long-lived immutable cache headers to WAV sample payloads and short revalidating cache headers to generated JSON metadata (`sample-index.json` and `manifest.json`). That keeps stable sample URLs cacheable while allowing metadata corrections to propagate quickly.
 
@@ -118,13 +125,21 @@ On 2026-06-18 the first Observable Streams VSCO adaptation was uploaded to `mass
 
 The hosted sample index is now wired into the Observable Streams station on `/browse`.
 
+Later on 2026-06-18, the prerendered sample branch uploaded 30 rendered Observable Streams WAVs beside the source samples and refreshed `sample-index.json` plus `manifest.json`. The hosted index now includes these rendered instrument keys, which the runtime requests before source-key fallbacks:
+
+- `observable-streams__vsco2-piano-mf`: 16 rendered notes.
+- `observable-streams__vsco2-violin-arcvib`: 8 rendered notes.
+- `observable-streams__sso-cor-anglais`: 6 rendered notes, still generated from the CC0 VSCO sustained-oboe replacement source.
+
+Verification confirmed the refreshed sample index returns `200` with `Content-Type: application/json; charset=utf-8` and `Access-Control-Allow-Origin: *`. A rendered piano sample at `https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/rendered/observable-streams__vsco2-piano-mf/rendered-piano-c4.wav` returned `206` for a range request with `Content-Type: audio/wav`, `Content-Range`, and `Access-Control-Allow-Origin: *`.
+
 ## Generative.fm Adapter Runtime
 
 - `/browse` exposes Observable Streams as a playable station through MassageLab's global music provider and persistent mini-player.
 - The browser-only adapter fetches and validates the hosted sample index, creates the Generative.fm web library/provider pair, activates `@generative-music/piece-observable-streams`, starts Tone transport, and returns cleanup to the existing runtime controller.
 - The station id remains `observable-streams-probe` for local favorites and recent-station storage stability while the display copy treats it as a playable station.
 - Next/Turbopack resolves `tone` to `tone/build/esm/index.js` and maps `regenerator-runtime/runtime.js` to a local no-op shim because the older Generative.fm packages otherwise fail the Next 16 production build before runtime.
-- First start currently waits while the package prerenders browser buffers from the hosted source samples. A temporary desktop Chromium smoke reached `Playing` in about 1.2 minutes; a later branch should consider hosting prerendered rendered-instrument samples to make first start feel immediate.
+- The hosted sample index now includes the package's rendered instrument keys, so Observable Streams should skip the browser-time prerender step that previously delayed first start. Keep browser smoke coverage around first play because this optimization depends on the package continuing to request rendered names before source fallbacks.
 
 ## Attribution Draft
 
