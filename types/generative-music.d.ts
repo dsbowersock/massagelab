@@ -37,3 +37,12 @@ declare module "@generative-music/piece-observable-streams" {
     onProgress: (progress: number) => void
   }): Promise<[GenerativeMusicDeactivate, GenerativeMusicStageSchedule]>
 }
+
+declare module "@generative-music/pieces-alex-bainter" {
+  import type createPiece from "@generative-music/piece-observable-streams"
+
+  export const byId: Record<string, typeof createPiece>
+
+  const pieces: Array<typeof createPiece>
+  export default pieces
+}

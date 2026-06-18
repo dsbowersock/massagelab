@@ -5,8 +5,9 @@ const publicRoutes = [
   { path: "/notes", expectedText: /Therapist or Team\/Practice required/i },
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },
-  { path: "/browse", expectedText: /MassageLab-hosted audio stations/i },
+  { path: "/browse", expectedText: /Wellness audio stations/i },
   { path: "/wellness", expectedText: /Client-owned self-tracking/i },
+  { path: "/wellness/atmosphere", expectedText: /Wellness audio stations/i },
   { path: "/calendar", expectedText: /Calendar/i },
   { path: "/education", expectedText: /Education/i },
   { path: "/education/flashcards", expectedText: /Flashcards/i },
@@ -144,6 +145,7 @@ test("anonymous homepage presents the optional action router and available tools
   await expect(page.getByRole("heading", { name: "Available tools" })).toBeVisible()
   for (const name of [
     "Chimer",
+    "Atmosphere",
     "Education flashcards",
     "Anatomime",
     "Local-first notes",
@@ -156,6 +158,7 @@ test("anonymous homepage presents the optional action router and available tools
 
   const availableTools = page.locator("#available-tools")
   await expect(availableTools.getByRole("link", { name: /Open Chimer/i })).toHaveAttribute("href", "/chimer")
+  await expect(availableTools.getByRole("link", { name: /Open Atmosphere/i })).toHaveAttribute("href", "/wellness/atmosphere")
   await expect(availableTools.getByRole("link", { name: /Study flashcards/i })).toHaveAttribute("href", "/education/flashcards")
   await expect(availableTools.getByRole("link", { name: /Play Anatomime/i })).toHaveAttribute("href", "/anatomime")
   await expect(availableTools.getByRole("link", { name: /Open notes/i })).toHaveAttribute("href", "/notes")
@@ -172,8 +175,12 @@ test("anonymous homepage presents the optional action router and available tools
 test("Atmosphere proof station keeps global player state across client routes", async ({ page }) => {
   const health = capturePageHealth(page)
 
-  await page.goto("/browse", { waitUntil: "domcontentloaded" })
-  await expect(page.getByRole("heading", { name: /MassageLab-hosted audio stations/i })).toBeVisible()
+  await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: /Wellness audio stations/i })).toBeVisible()
+  await expect(page.getByText("Breathing guide")).toBeVisible()
+  await page.getByRole("button", { name: /^Start breathing$/i }).click()
+  await expect(page.getByRole("button", { name: /^Pause breathing$/i })).toBeVisible()
+  await page.getByRole("button", { name: /^Reset breathing$/i }).click()
   await page.getByRole("button", { name: /^Play station$/i }).first().click()
 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
@@ -198,6 +205,31 @@ test("Atmosphere proof station keeps global player state across client routes", 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
   await page.getByRole("button", { name: /^Stop$/i }).last().click()
   await expect(page.getByText("MassageLab Proof Drone").last()).toHaveCount(0)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
+  await expect(page.getByText(/1 Generative\.fm station.+56 Generative\.fm stations/i)).toBeVisible()
+  const observableStreamsStation = page.locator("#station-observable-streams-probe")
+  await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
+  await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
+  await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
+  await expect(page.getByText("Zed").first()).toBeVisible()
+  await expect(page.getByText("Samples pending").first()).toBeVisible()
+  await expect(page.getByText("Needs hosted samples before playback: zed__pad, zed__noise.")).toBeVisible()
+
+  await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
+  await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
+  await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
+  await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
+  await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])

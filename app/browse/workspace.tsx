@@ -1,13 +1,18 @@
 "use client"
 
+import Link from "next/link"
 import { Heart, Play, Radio, Square } from "lucide-react"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
+import { AtmosphereBreathingGuide } from "@/app/wellness/atmosphere/breathing-guide"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 import { cn } from "@/lib/utils"
 
 const stations = getVisibleAtmosphereStations()
+const generativeFmStations = stations.filter((station) => station.sourceType === "generative-fm-piece")
+const playableGenerativeFmStationCount = generativeFmStations.filter((station) => station.enabled).length
+const pendingGenerativeFmStationCount = generativeFmStations.length - playableGenerativeFmStationCount
 
 export function AtmosphereWorkspace() {
   const music = useMusic()
@@ -19,19 +24,27 @@ export function AtmosphereWorkspace() {
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
           <div>
             <h1 className="text-3xl font-semibold tracking-normal sm:text-4xl">
-              MassageLab-hosted audio stations
+              Wellness audio stations
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
               Start a station, move to another MassageLab tool, and the bottom player keeps control of the sound.
+              {` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} Generative.fm stations are queued for package-compatible hosted samples.`}
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/wellness">Wellness hub</Link>
+              </Button>
+            </div>
           </div>
           <AppNotice
             tone="accent"
-            title="Hosted playback"
-            description="Observable Streams now runs inside MassageLab using the public-media sample index hosted from Cloudflare R2."
+            title="Generative.fm catalog"
+            description="MassageLab now lists the full Alex Bainter package catalog, with package-compatible rendered-sample stations enabled and the remaining stations held until their audio assets are hosted from public media."
           />
         </div>
       </section>
+
+      <AtmosphereBreathingGuide />
 
       <section className="grid gap-4 lg:grid-cols-2">
         {stations.map((station) => {
@@ -40,10 +53,11 @@ export function AtmosphereWorkspace() {
 
           return (
             <AppSurface
+              id={`station-${station.id}`}
               key={station.id}
               title={station.title}
               icon={<Radio aria-hidden="true" className="size-5" />}
-              badge={station.enabled ? "Playable" : "Probe"}
+              badge={station.enabled ? "Playable" : "Samples pending"}
               className={cn(isActive && "border-primary/70")}
               contentClassName="gap-4"
             >

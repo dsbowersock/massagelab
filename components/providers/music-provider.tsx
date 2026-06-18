@@ -53,6 +53,7 @@ interface RuntimeAdapterPayload {
     runtime?: {
       defaultOptions?: Record<string, number>
       hostedSampleIndexUrl?: string
+      pieceId?: string
       sampleNameGroups?: Array<string | string[]>
     }
   }

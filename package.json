@@ -28,6 +28,7 @@
     "anatomy:media:coverage:import": "node --experimental-strip-types scripts/anatomy-media-view-coverage.ts import",
     "anatomy:media-requests": "node --experimental-strip-types scripts/anatomy-media-view-requests.ts",
     "atmosphere:samples:scan": "node scripts/atmosphere-sample-intake.mjs",
+    "atmosphere:samples:coverage": "node scripts/atmosphere-generative-sample-coverage.mjs",
     "atmosphere:samples:stage": "node scripts/atmosphere-stage-observable-streams.mjs",
     "atmosphere:samples:r2:check": "node scripts/atmosphere-upload-observable-streams-r2.mjs check",
     "atmosphere:samples:r2:upload": "node scripts/atmosphere-upload-observable-streams-r2.mjs upload"
@@ -40,6 +41,7 @@
     "@fullcalendar/react": "^6.1.20",
     "@fullcalendar/timegrid": "^6.1.20",
     "@generative-music/piece-observable-streams": "5.2.0",
+    "@generative-music/pieces-alex-bainter": "5.2.2",
     "@generative-music/web-library": "0.2.2",
     "@generative-music/web-provider": "3.0.0",
     "@hookform/resolvers": "3.9.1",
