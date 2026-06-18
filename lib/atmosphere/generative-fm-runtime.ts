@@ -4,6 +4,7 @@ type GenerativeFmRuntimeStation = {
   id: string
   runtime?: {
     hostedSampleIndexUrl?: string
+    pieceId?: string
     sampleNameGroups?: Array<string | string[]>
   }
 }
@@ -14,11 +15,12 @@ type GenerativeFmRuntimeOptions = {
 }
 
 type ToneModule = typeof import("tone")
+type WebLibrary = import("@generative-music/web-library").WebLibrary
 
 type GenerativeMusicPiece = (options: {
   context: unknown
   destination: unknown
-  sampleLibrary: unknown
+  sampleLibrary: WebLibrary
   onProgress: (progress: number) => void
 }) => Promise<[deactivate: () => unknown, schedule: () => (() => unknown) | undefined]>
 
@@ -48,17 +50,22 @@ export async function startGenerativeFmPiece({
     throw new Error("Generative.fm station is missing package sample-name groups.")
   }
 
+  const pieceId = station.runtime?.pieceId
+  if (!pieceId) {
+    throw new Error("Generative.fm station is missing a package piece id.")
+  }
+
   const sampleIndex = await fetchGenerativeFmSampleIndex({ sampleIndexUrl, sampleGroups })
   const [
     Tone,
     { default: createWebProvider },
     { default: createWebLibrary },
-    { default: createObservableStreamsPiece },
+    piece,
   ] = await Promise.all([
     import("tone"),
     import("@generative-music/web-provider"),
     import("@generative-music/web-library"),
-    import("@generative-music/piece-observable-streams"),
+    loadGenerativeFmPiece(pieceId),
   ])
 
   await Tone.start()
@@ -66,7 +73,6 @@ export async function startGenerativeFmPiece({
   const provider = createWebProvider()
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
   const output = new Tone.Volume(volumeToDecibels(volume)).toDestination()
-  const piece = createObservableStreamsPiece as GenerativeMusicPiece
   let deactivate: () => unknown
   let schedule: () => (() => unknown) | undefined
   try {
@@ -107,20 +113,21 @@ export async function startGenerativeFmPiece({
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
-    if (activeTransportOwner === transportOwner) {
+    const ownsTransport = activeTransportOwner === transportOwner
+    if (ownsTransport) {
       activeTransportOwner = null
+      // Cancel queued package events before disposing samplers so a late
+      // Transport callback cannot trigger a released buffer.
+      Tone.Transport.stop()
+      Tone.Transport.cancel()
     }
 
     output.volume.rampTo?.(volumeToDecibels(0), 0.1)
     endStage?.()
     deactivate()
 
-    // Give the piece cleanup and volume ramp a short window before clearing Tone's shared transport.
+    // Give the piece cleanup and volume ramp a short window before dropping the output node.
     window.setTimeout(() => {
-      if (activeTransportOwner === null) {
-        Tone.Transport.stop()
-        Tone.Transport.cancel()
-      }
       output.dispose()
     }, 150)
   }
@@ -140,6 +147,27 @@ function resolveToneContext(Tone: ToneModule) {
   }
 
   return Tone.context
+}
+
+/**
+ * Loads the requested Generative.fm package piece. Observable Streams stays on
+ * the single-piece package because its exported runtime matches the hosted
+ * rendered sample keys verified for MassageLab playback; the aggregate package
+ * remains the catalog source for future sample-enabled stations.
+ */
+async function loadGenerativeFmPiece(pieceId: string): Promise<GenerativeMusicPiece> {
+  if (pieceId === "observable-streams") {
+    const { default: piece } = await import("@generative-music/piece-observable-streams")
+    return piece
+  }
+
+  const { byId: piecesById } = await import("@generative-music/pieces-alex-bainter")
+  const piece = piecesById?.[pieceId] as GenerativeMusicPiece | undefined
+  if (!piece) {
+    throw new Error(`Generative.fm package did not expose piece id: ${pieceId}`)
+  }
+
+  return piece
 }
 
 /**

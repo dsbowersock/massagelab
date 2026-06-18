@@ -212,6 +212,30 @@ test("Atmosphere proof station keeps global player state across client routes", 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
+  await expect(page.getByText(/1 Generative\.fm station.+56 Generative\.fm stations/i)).toBeVisible()
+  await expect(page.getByText("Observable Streams").first()).toBeVisible()
+  await expect(page.getByText("Playable").nth(1)).toBeVisible()
+  await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
+  await expect(page.getByText("Zed").first()).toBeVisible()
+  await expect(page.getByText("Samples pending").first()).toBeVisible()
+  await expect(page.getByText("Needs hosted samples before playback: zed__pad, zed__noise.")).toBeVisible()
+
+  await page.getByRole("button", { name: /^Play station$/i }).nth(1).click()
+  await expect(page.getByText("Observable Streams").last()).toBeVisible({ timeout: 45_000 })
+  await expect(page.getByText(/Playing|Loading station/i).last()).toBeVisible({ timeout: 45_000 })
+  await page.getByRole("button", { name: /^Stop$/i }).last().click()
+  await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("anonymous onboarding routes through login with an onboarding callback", async ({ page }) => {
   const health = capturePageHealth(page)
 

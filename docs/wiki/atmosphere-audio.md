@@ -8,7 +8,7 @@ Atmosphere is a public, non-clinical audio workspace. It does not store PHI, the
 
 ## Runtime Decision
 
-MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the Observable Streams Generative.fm adapter through the global music provider, route-persistent playback, and the bottom mini-player. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records.
+MassageLab hosts the audio runtime in the app. It does not embed Generative.fm as a remote player UI. `/wellness/atmosphere` now exposes the local Tone.js proof station plus the full Alex Bainter Generative.fm package catalog through the global music provider, route-persistent playback, and the bottom mini-player. The route also includes a first public Calmness-style breathing guide that does not store account data or clinical records.
 
 ## Package Findings
 
@@ -18,6 +18,7 @@ MassageLab hosts the audio runtime in the app. It does not embed Generative.fm a
 | `@generative-music/web-provider` | `3.0.0` | MIT | https://github.com/generative-music/web-provider |
 | `@generative-music/web-library` | `0.2.2` | MIT | https://github.com/generative-music/web-library |
 | `@generative-music/piece-observable-streams` | `5.2.0` | MIT | https://github.com/generative-music/piece-observable-streams |
+| `@generative-music/pieces-alex-bainter` | `5.2.2` | MIT | https://github.com/generative-music/pieces-alex-bainter |
 
 ## Generative.fm Observable Streams Adapter
 
@@ -135,12 +136,15 @@ Verification confirmed the refreshed sample index returns `200` with `Content-Ty
 
 ## Generative.fm Adapter Runtime
 
-- `/wellness/atmosphere` exposes Observable Streams as a playable station through MassageLab's global music provider and persistent mini-player. `/browse` remains available as a compatibility workbench for the same UI.
-- The browser-only adapter fetches and validates the hosted sample index, creates the Generative.fm web library/provider pair, activates `@generative-music/piece-observable-streams`, starts Tone transport, and returns cleanup to the existing runtime controller.
-- The station id remains `observable-streams-probe` for local favorites and recent-station storage stability while the display copy treats it as a playable station.
+- `/wellness/atmosphere` exposes the full 57-piece Alex Bainter Generative.fm package catalog through MassageLab's global music provider and persistent mini-player. `/browse` remains available as a compatibility workbench for the same UI.
+- The browser-only adapter fetches and validates the hosted sample index, creates the Generative.fm web library/provider pair, loads the direct Observable Streams package for the currently verified station, keeps the aggregate package loader available for future verified pieces, starts Tone transport, and returns cleanup to the existing runtime controller.
+- The station id for Observable Streams remains `observable-streams-probe` for local favorites and recent-station storage stability while the display copy treats it as a playable station.
+- The current hosted rendered sample index enables Observable Streams. The other 56 catalog entries are visible but disabled with exact missing package-compatible sample-group reasons.
+- Manifest-level source-group matches such as `vsco2-piano-mf` are not enough to enable a station by themselves. A browser smoke check against another piano-based package produced a missing-buffer error because the source index did not include every exact note the package later scheduled. Future enablement should add package-compatible rendered sample groups or otherwise verify note coverage before flipping a station to playable.
+- The local audio root currently contains VSCO 2 Community Edition and VCSL, so a later sample-hosting pass can likely unlock more VSCO/VCSL-backed pieces, but field recordings, guitar, voice, lofi drum, and other third-party sample groups still need separate source and licensing review before hosting.
 - Next/Turbopack resolves `tone` to `tone/build/esm/index.js` and maps `regenerator-runtime/runtime.js` to a local no-op shim because the older Generative.fm packages otherwise fail the Next 16 production build before runtime.
 - The hosted sample index now includes the package's rendered instrument keys, so Observable Streams should skip the browser-time prerender step that previously delayed first start. Keep browser smoke coverage around first play because this optimization depends on the package continuing to request rendered names before source fallbacks.
 
 ## Attribution Draft
 
-Observable Streams by Alex Bainter. Package used with permission and MIT package licensing. The playable MassageLab adaptation uses CC0 VSCO-hosted sample sources, including VSCO sustained oboe under the package's `sso-cor-anglais` role.
+Generative.fm pieces by Alex Bainter. Packages used with permission and MIT package licensing. Playable MassageLab stations use the hosted public-media sample index, including CC0 VSCO-hosted sample sources and VSCO sustained oboe under the Observable Streams `sso-cor-anglais` role.
