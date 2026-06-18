@@ -77,7 +77,7 @@ describe("Generative.fm sample-index helpers", () => {
         sampleGroups: observableStreamsSampleGroups,
         fetchImpl: async () => new Response("not found", { status: 404 }),
       }),
-      /HTTP 404/,
+      /HTTP 404 for https:\/\/media\.massagelab\.app\/sample-index\.json/,
     )
   })
 

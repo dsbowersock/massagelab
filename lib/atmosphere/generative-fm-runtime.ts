@@ -23,6 +23,7 @@ type GenerativeMusicPiece = (options: {
 }) => Promise<[deactivate: () => unknown, schedule: () => (() => unknown) | undefined]>
 
 let activeVolumeNode: { volume: { value: number, rampTo?: (value: number, seconds: number) => unknown } } | null = null
+let activeTransportOwner: symbol | null = null
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
@@ -66,16 +67,35 @@ export async function startGenerativeFmPiece({
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
   const output = new Tone.Volume(volumeToDecibels(volume)).toDestination()
   const piece = createObservableStreamsPiece as GenerativeMusicPiece
-  const [deactivate, schedule] = await piece({
-    context: resolveToneContext(Tone),
-    destination: output,
-    sampleLibrary,
-    onProgress: () => undefined,
-  })
-  const endStage = schedule()
+  let deactivate: () => unknown
+  let schedule: () => (() => unknown) | undefined
+  try {
+    const runtime = await piece({
+      context: resolveToneContext(Tone),
+      destination: output,
+      sampleLibrary,
+      onProgress: () => undefined,
+    })
+    deactivate = runtime[0]
+    schedule = runtime[1]
+  } catch (error) {
+    output.dispose()
+    throw error
+  }
+
+  let endStage: (() => unknown) | undefined
+  try {
+    endStage = schedule()
+  } catch (error) {
+    deactivate()
+    output.dispose()
+    throw error
+  }
 
   Tone.Transport.start()
   activeVolumeNode = output
+  const transportOwner = Symbol(station.id)
+  activeTransportOwner = transportOwner
 
   let disposed = false
   return () => {
@@ -87,6 +107,9 @@ export async function startGenerativeFmPiece({
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
+    if (activeTransportOwner === transportOwner) {
+      activeTransportOwner = null
+    }
 
     output.volume.rampTo?.(volumeToDecibels(0), 0.1)
     endStage?.()
@@ -94,8 +117,10 @@ export async function startGenerativeFmPiece({
 
     // Give the piece cleanup and volume ramp a short window before clearing Tone's shared transport.
     window.setTimeout(() => {
-      Tone.Transport.stop()
-      Tone.Transport.cancel()
+      if (activeTransportOwner === null) {
+        Tone.Transport.stop()
+        Tone.Transport.cancel()
+      }
       output.dispose()
     }, 150)
   }
@@ -117,6 +142,11 @@ function resolveToneContext(Tone: ToneModule) {
   return Tone.context
 }
 
+/**
+ * Maps UI volume values from 0..1 onto a conservative -60 dB..-12 dB range.
+ * The -12 dB upper cap is intentional so imported Generative.fm pieces stay
+ * below unity gain inside MassageLab's shared audio graph.
+ */
 function volumeToDecibels(volume: number) {
   const clampedVolume = Math.min(1, Math.max(0, Number.isFinite(volume) ? volume : 0.75))
   return -60 + clampedVolume * 48
