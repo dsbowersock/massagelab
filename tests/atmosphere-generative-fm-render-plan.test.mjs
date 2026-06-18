@@ -56,6 +56,19 @@ describe("Generative.fm render plan", () => {
     assert.match(plan.pieces[0].nextAction, /Resolve source\/license coverage/)
   })
 
+  it("does not let hosted playback indexes bypass source-license checks for re-uploads", () => {
+    const plan = createGenerativeFmRenderPlan({
+      files: createLocalCandidateFiles(),
+      pieceIds: ["at-sunrise"],
+    })
+
+    assert.equal(plan.summary.readyPieces, 0)
+    assert.equal(plan.summary.blockedPieces, 1)
+    assert.equal(plan.pieces[0].status, GENERATIVE_FM_RENDER_PLAN_STATUS.BLOCKED)
+    assert.equal(plan.pieces[0].blockedSampleGroups[0].displayName, "at-sunrise__vcsl-vibraphone-soft-mallets-mp or vcsl-vibraphone-soft-mallets-mp")
+    assert.equal(plan.pieces[0].blockedSampleGroups[0].status, "license-evidence-missing")
+  })
+
   it("formats a concise operator report for the first batch", () => {
     const report = formatGenerativeFmRenderPlanReport(createPlan())
 

@@ -98,13 +98,22 @@ describe("Atmosphere station catalog", () => {
     const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
 
     assert.equal(visibleStationIds.length, 58)
-    assert.equal(playableStationIds.length, 2)
+    assert.equal(playableStationIds.length, 5)
     assert.equal(playableStationIds.includes("mlab-proof-drone"), true)
     assert.equal(playableStationIds.includes(OBSERVABLE_STREAMS_STATION_ID), true)
-    assert.equal(playableStationIds.includes("generative-fm-aisatsana"), false)
+    assert.equal(playableStationIds.includes("generative-fm-aisatsana"), true)
+    assert.equal(playableStationIds.includes("generative-fm-at-sunrise"), true)
+    assert.equal(playableStationIds.includes("generative-fm-little-bells"), true)
     assert.equal(playableStationIds.includes("generative-fm-zed"), false)
 
-    const pianoPendingStation = getAtmosphereStationById("generative-fm-aisatsana")
+    const hostedPianoStation = getAtmosphereStationById("generative-fm-aisatsana")
+    assert.equal(hostedPianoStation.enabled, true)
+    assert.equal(
+      hostedPianoStation.runtime.hostedSampleIndexUrl,
+      "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/sample-index.json",
+    )
+
+    const pianoPendingStation = getAtmosphereStationById("generative-fm-day-dream")
     assert.equal(pianoPendingStation.enabled, false)
     assert.match(pianoPendingStation.disabledReason, /vsco2-piano-mf/)
 

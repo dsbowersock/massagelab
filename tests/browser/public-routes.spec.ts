@@ -216,10 +216,18 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   const health = capturePageHealth(page)
 
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
-  await expect(page.getByText(/1 Generative\.fm station.+56 Generative\.fm stations/i)).toBeVisible()
+  await expect(page.getByText(/4 Generative\.fm stations.+53 Generative\.fm stations/i)).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
+  const firstBatchStations = [
+    page.locator("#station-generative-fm-aisatsana"),
+    page.locator("#station-generative-fm-at-sunrise"),
+    page.locator("#station-generative-fm-little-bells"),
+  ]
+  for (const station of firstBatchStations) {
+    await expect(station.getByText("Playable")).toBeVisible()
+  }
   await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
   await expect(page.getByText("Zed").first()).toBeVisible()
   await expect(page.getByText("Samples pending").first()).toBeVisible()
@@ -230,6 +238,13 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
   await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
   await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
+
+  for (const station of firstBatchStations) {
+    await station.getByRole("button", { name: /^Play station$/i }).click()
+    await expect(station.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
+    await station.getByRole("button", { name: /^Stop$/i }).click()
+    await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
+  }
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
