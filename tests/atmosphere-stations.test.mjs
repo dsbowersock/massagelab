@@ -69,6 +69,10 @@ describe("Atmosphere station catalog", () => {
       "atmosphere/observable-streams-vsco-adaptation/sample-index.opus.json",
     )
     assert.equal(
+      station.runtime.r2OpusManifestObjectKey,
+      "atmosphere/observable-streams-vsco-adaptation/manifest.opus.json",
+    )
+    assert.equal(
       station.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/observable-streams-vsco-adaptation/sample-index.json",
     )
@@ -133,7 +137,17 @@ describe("Atmosphere station catalog", () => {
       hostedPianoStation.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/sample-index.json",
     )
-    assert.equal(hostedPianoStation.runtime.hostedSampleIndexFormatUrls, undefined)
+    assert.equal(
+      hostedPianoStation.runtime.r2OpusSampleIndexObjectKey,
+      "atmosphere/generative-fm/aisatsana/sample-index.opus.json",
+    )
+    assert.deepEqual(hostedPianoStation.runtime.hostedSampleIndexFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/sample-index.opus.json",
+    })
+    assert.deepEqual(hostedPianoStation.runtime.hostedManifestFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/aisatsana/manifest.opus.json",
+    })
+    assert.match(hostedPianoStation.runtime.r2WebAudioUploadCommand, /atmosphere:samples:generative:web-audio:r2:upload/)
 
     const secondBatchPianoStation = getAtmosphereStationById("generative-fm-day-dream")
     assert.equal(secondBatchPianoStation.enabled, true)
@@ -141,6 +155,9 @@ describe("Atmosphere station catalog", () => {
       secondBatchPianoStation.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/generative-fm/day-dream/sample-index.json",
     )
+    assert.deepEqual(secondBatchPianoStation.runtime.hostedSampleIndexFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/day-dream/sample-index.opus.json",
+    })
 
     const thirdBatchPianoStation = getAtmosphereStationById("generative-fm-pinwheels")
     assert.equal(thirdBatchPianoStation.enabled, true)
@@ -148,6 +165,15 @@ describe("Atmosphere station catalog", () => {
       thirdBatchPianoStation.runtime.hostedSampleIndexUrl,
       "https://media.massagelab.app/atmosphere/generative-fm/pinwheels/sample-index.json",
     )
+    assert.deepEqual(thirdBatchPianoStation.runtime.hostedSampleIndexFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/pinwheels/sample-index.opus.json",
+    })
+
+    const renderedVibraphoneStation = getAtmosphereStationById("generative-fm-at-sunrise")
+    assert.equal(renderedVibraphoneStation.enabled, true)
+    assert.deepEqual(renderedVibraphoneStation.runtime.hostedSampleIndexFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/at-sunrise/sample-index.opus.json",
+    })
 
     const pianoPendingStation = getAtmosphereStationById("generative-fm-splash")
     assert.equal(pianoPendingStation.enabled, false)
