@@ -331,7 +331,7 @@ function AtmosphereStationRail({
         <div
           ref={railRef}
           aria-label={`${group.title} stations`}
-          className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 scroll-smooth [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
+          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 scroll-smooth [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
         >
           {group.stations.map((station) => (
             <AtmosphereStationCard
@@ -368,7 +368,7 @@ function AtmosphereStationCard({
     <article
       id={`station-${station.id}`}
       className={cn(
-        "flex min-w-[min(72vw,14.25rem)] snap-start flex-col overflow-hidden rounded-md border border-border/80 bg-card shadow-sm transition-colors sm:min-w-[14.5rem] lg:min-w-[15rem] xl:min-w-[15.5rem]",
+        "flex min-w-[min(58vw,10.75rem)] snap-start flex-col overflow-hidden rounded-md border border-border/80 bg-card shadow-sm transition-colors sm:min-w-[10.875rem] lg:min-w-[11.25rem] xl:min-w-[11.625rem]",
         isActive && "border-primary/80 shadow-lg shadow-primary/15",
       )}
       onFocus={() => prewarmStation(station.id)}
@@ -383,7 +383,7 @@ function AtmosphereStationCard({
           stationId={station.id}
           title={station.title}
         />
-        <div className="absolute left-2 top-2 rounded-md border border-background/40 bg-background/80 px-2 py-1 text-[0.7rem] font-medium text-foreground shadow-sm backdrop-blur">
+        <div className="absolute left-1.5 top-1.5 rounded-md border border-background/40 bg-background/80 px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground shadow-sm backdrop-blur">
           {station.enabled ? "Playable" : "Samples pending"}
         </div>
         {isActive && music.playbackState === "loading" ? (
@@ -392,10 +392,10 @@ function AtmosphereStationCard({
           </div>
         ) : null}
       </div>
-      <div className="flex min-h-[11rem] flex-1 flex-col gap-2.5 p-2.5">
+      <div className="flex min-h-[8.25rem] flex-1 flex-col gap-2 p-2">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold tracking-normal">{station.title}</h3>
-          <p className="mt-1 min-h-[3.25rem] overflow-hidden text-xs leading-5 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+          <p className="mt-1 min-h-[2.5rem] overflow-hidden text-xs leading-5 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             {station.description}
           </p>
         </div>
