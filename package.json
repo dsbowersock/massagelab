@@ -35,6 +35,8 @@
     "atmosphere:samples:r2:upload": "node scripts/atmosphere-upload-observable-streams-r2.mjs upload",
     "atmosphere:samples:generative:r2:check": "node scripts/atmosphere-upload-generative-fm-r2.mjs check",
     "atmosphere:samples:generative:r2:upload": "node scripts/atmosphere-upload-generative-fm-r2.mjs upload",
+    "atmosphere:samples:generative:web-audio:r2:check": "node scripts/atmosphere-upload-generative-web-audio-r2.mjs check",
+    "atmosphere:samples:generative:web-audio:r2:upload": "node scripts/atmosphere-upload-generative-web-audio-r2.mjs upload",
     "atmosphere:samples:web-audio:r2:check": "node scripts/atmosphere-upload-web-audio-format-r2.mjs check",
     "atmosphere:samples:web-audio:r2:upload": "node scripts/atmosphere-upload-web-audio-format-r2.mjs upload"
   },
