@@ -42,7 +42,7 @@ export function AtmosphereStationArtwork({
   return (
     <svg
       aria-label={`${title} station artwork`}
-      className="h-full w-full"
+      className="h-full w-full rounded-[9px]"
       role="img"
       viewBox="0 0 240 240"
       xmlns="http://www.w3.org/2000/svg"

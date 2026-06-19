@@ -208,7 +208,6 @@ function AtmosphereStationGridCard({
       <AppSurface
         title={station.title}
         icon={<Radio aria-hidden="true" className="size-5" />}
-        badge={station.enabled ? "Playable" : "Samples pending"}
         className={cn(isActive && "border-primary/70")}
         contentClassName="gap-4"
       >
@@ -376,16 +375,13 @@ function AtmosphereStationCard({
         includeSamplePayloads: canPrewarmCompressedSamplePayloads(),
       })}
     >
-      <div className="relative aspect-[4/3] bg-background">
+      <div className="relative aspect-[4/3] rounded-[9px] bg-background p-1">
         <AtmosphereStationArtwork
           description={station.description}
           groupId={groupId}
           stationId={station.id}
           title={station.title}
         />
-        <div className="absolute left-1.5 top-1.5 rounded-md border border-background/40 bg-background/80 px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground shadow-sm backdrop-blur">
-          {station.enabled ? "Playable" : "Samples pending"}
-        </div>
         {isActive && music.playbackState === "loading" ? (
           <div className="absolute inset-x-2 bottom-2 rounded-md border border-background/30 bg-background/80 p-2 backdrop-blur">
             <MusicLoadingProgress compact progress={music.loadingProgress} startedAt={music.loadingStartedAt} />

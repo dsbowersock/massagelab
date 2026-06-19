@@ -372,7 +372,6 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(page.getByRole("heading", { name: /Rhythm and experimental texture/i })).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
-  await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
   await expect(observableStreamsStation.getByRole("img", { name: /Observable Streams station artwork/i })).toBeVisible()
   await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()
   await expect(observableStreamsStation.getByRole("link", { name: "Alex Bainter · MIT" })).toBeVisible()
@@ -399,13 +398,14 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     page.locator("#station-generative-fm-zed"),
   ]
   for (const station of representativeHostedGenerativeFmStations) {
-    await expect(station.getByText("Playable")).toBeVisible()
+    await expect(station).toBeVisible()
   }
   await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
   await expect(page.getByText("Zed").first()).toBeVisible()
   await expect(page.locator("#station-generative-fm-little-bells").getByText(/long quiet gaps/i)).toBeVisible()
   await expect(page.locator("#station-generative-fm-awash").getByText(/voice-like edges/i)).toBeVisible()
   await expect(page.locator("#station-generative-fm-neuroplasticity").getByText(/voice-like artifacts/i)).toBeVisible()
+  await expect(page.getByText("Playable")).toHaveCount(0)
   await expect(page.getByText("Samples pending")).toHaveCount(0)
   await expect(page.getByText("This station is still being prepared for playback.")).toHaveCount(0)
   await expect(page.getByText(/hosted CC0|sample index|public-media/i)).toHaveCount(0)
