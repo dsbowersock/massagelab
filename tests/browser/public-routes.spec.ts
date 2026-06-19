@@ -291,7 +291,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await expect(page.getByText(/hosted CC0|sample index|public-media/i)).toHaveCount(0)
 
   await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
-  await expect(page.getByText(/Preparing audio|Preparing station/i).last()).toBeVisible()
+  await expect(observableStreamsStation.getByText(/Preparing station/i)).toBeVisible()
   await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
   const expectedSampleFormat = await page.evaluate(() => {
