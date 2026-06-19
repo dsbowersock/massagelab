@@ -8,6 +8,7 @@ const publicRoutes = [
   { path: "/browse", expectedText: /Wellness audio stations/i },
   { path: "/wellness", expectedText: /Client-owned self-tracking/i },
   { path: "/wellness/atmosphere", expectedText: /Wellness audio stations/i },
+  { path: "/wellness/breathing", expectedText: /Breathing guide/i },
   { path: "/calendar", expectedText: /Calendar/i },
   { path: "/education", expectedText: /Education/i },
   { path: "/education/flashcards", expectedText: /Flashcards/i },
@@ -177,14 +178,14 @@ test("Atmosphere proof station keeps global player state across client routes", 
 
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
   await expect(page.getByRole("heading", { name: /Wellness audio stations/i })).toBeVisible()
-  await expect(page.getByText("Breathing guide")).toBeVisible()
-  await page.getByRole("button", { name: /^Start breathing$/i }).click()
-  await expect(page.getByRole("button", { name: /^Pause breathing$/i })).toBeVisible()
-  await page.getByRole("button", { name: /^Reset breathing$/i }).click()
+  await expect(page.getByRole("link", { name: /Breathing guide/i })).toHaveAttribute("href", "/wellness/breathing")
+  await expect(page.getByRole("heading", { name: "Breathing guide" })).toHaveCount(0)
   await page.getByRole("button", { name: /^Play station$/i }).first().click()
 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
-  await expect(page.getByText(/Playing|Preparing audio/i).last()).toBeVisible()
+  await expect(page.getByText(/Playing|Preparing audio|Preparing station/i).last()).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Previous station$/i }).last()).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Next station$/i }).last()).toBeVisible()
 
   const flashcardsLink = page.getByRole("link", { name: /^Flashcards$/i }).first()
   if (!await flashcardsLink.isVisible().catch(() => false)) {
@@ -212,6 +213,26 @@ test("Atmosphere proof station keeps global player state across client routes", 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("Breathing guide route runs separately from Atmosphere stations", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/wellness/breathing", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: /^Breathing guide$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Atmosphere stations/i })).toHaveAttribute("href", "/wellness/atmosphere")
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
+  const startBreathingButton = page.getByRole("button", { name: /^Start breathing$/i })
+  await expect(startBreathingButton).toBeEnabled()
+  await startBreathingButton.click()
+  await expect(page.getByRole("button", { name: /^Pause breathing$/i })).toBeVisible()
+  await page.getByRole("button", { name: /^Reset breathing$/i }).click()
+  await expect(page.getByRole("button", { name: /^Start breathing$/i })).toBeVisible()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
   const health = capturePageHealth(page)
 
@@ -226,7 +247,10 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     })
   })
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
-  await expect(page.getByText(/all 57 Generative\.fm stations are playable now/i)).toBeVisible()
+  await expect(page.getByText(/All 57 hosted Generative\.fm stations are playable now/i)).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Water, nature, and field textures/i })).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Rhythm and experimental texture/i })).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
@@ -259,11 +283,15 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   }
   await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
   await expect(page.getByText("Zed").first()).toBeVisible()
+  await expect(page.locator("#station-generative-fm-little-bells").getByText(/long quiet gaps/i)).toBeVisible()
+  await expect(page.locator("#station-generative-fm-awash").getByText(/voice-like edges/i)).toBeVisible()
+  await expect(page.locator("#station-generative-fm-neuroplasticity").getByText(/voice-like artifacts/i)).toBeVisible()
   await expect(page.getByText("Samples pending")).toHaveCount(0)
   await expect(page.getByText("This station is still being prepared for playback.")).toHaveCount(0)
   await expect(page.getByText(/hosted CC0|sample index|public-media/i)).toHaveCount(0)
 
   await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
+  await expect(observableStreamsStation.getByText(/Preparing station/i)).toBeVisible()
   await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
   const expectedSampleFormat = await page.evaluate(() => {
@@ -292,7 +320,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     }, expectedSampleFormat), { timeout: 45_000 })
     .toBe(true)
   await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
-  await expect(page.getByText(/Playing|Preparing audio/i)).toHaveCount(0)
+  await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
 
   const smokePlaybackStations = [
     page.locator("#station-generative-fm-420hz-gamma-waves-for-big-brain"),
@@ -306,7 +334,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     await station.getByRole("button", { name: /^Play station$/i }).click()
     await expect(station.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
     await station.getByRole("button", { name: /^Stop$/i }).click()
-    await expect(page.getByText(/Playing|Preparing audio/i)).toHaveCount(0)
+    await expect(page.getByText(/Playing|Preparing audio|Preparing station/i)).toHaveCount(0)
   }
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])

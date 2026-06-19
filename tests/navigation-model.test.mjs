@@ -30,6 +30,7 @@ describe("Navigation IA model", () => {
       "/chimer",
       "/wellness",
       "/wellness/atmosphere",
+      "/wellness/breathing",
       "/calendar",
       "/notes",
       "/education/flashcards",
@@ -135,6 +136,7 @@ describe("Navigation IA model", () => {
       "/chimer",
       "/wellness",
       "/wellness/atmosphere",
+      "/wellness/breathing",
       "/calendar",
       "/notes",
       "/education/flashcards",
@@ -163,10 +165,13 @@ describe("Navigation IA model", () => {
 
     assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness"), true)
     assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness/atmosphere"), true)
+    assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness/breathing"), true)
     assert.equal(primaryHrefs(signedInNavigation).includes("/wellness"), true)
     assert.equal(primaryHrefs(signedInNavigation).includes("/wellness/atmosphere"), true)
+    assert.equal(primaryHrefs(signedInNavigation).includes("/wellness/breathing"), true)
     assert.equal(primaryHrefs(clientNavigation).includes("/wellness"), true)
     assert.equal(primaryHrefs(clientNavigation).includes("/wellness/atmosphere"), true)
+    assert.equal(primaryHrefs(clientNavigation).includes("/wellness/breathing"), true)
     assert.equal(primaryHrefs(clientNavigation).some((href) => href.startsWith("/notes/")), false)
   })
 

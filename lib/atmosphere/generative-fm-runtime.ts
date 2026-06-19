@@ -19,6 +19,7 @@ type GenerativeFmRuntimeStation = {
 type GenerativeFmRuntimeOptions = {
   station: GenerativeFmRuntimeStation
   volume?: number
+  onLoadProgress?: (progress: number) => void
 }
 
 type GenerativeFmPrewarmOptions = {
@@ -85,6 +86,7 @@ let activeTransportOwner: symbol | null = null
 let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
 const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
 const samplePayloadPrewarmEntries = new Map<string, SamplePayloadPrewarmEntry>()
+const GENERATIVE_FM_HANDOFF_FADE_SECONDS = 1.2
 const SAMPLE_PAYLOAD_PREWARM_LIMIT = 24
 const SAMPLE_PAYLOAD_PREWARM_CONCURRENCY = 3
 const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
@@ -102,6 +104,7 @@ const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
  * Tone only from the user-initiated playback path.
  */
 export async function startGenerativeFmPiece({
+  onLoadProgress,
   station,
   volume = 0.75,
 }: GenerativeFmRuntimeOptions) {
@@ -110,16 +113,19 @@ export async function startGenerativeFmPiece({
   }
 
   const startedAt = performance.now()
+  reportLoadProgress(onLoadProgress, 0.04)
   const prepared = await getPreparedGenerativeFmRuntime(station, "playback")
   const preparedAt = performance.now()
+  reportLoadProgress(onLoadProgress, 0.22)
   const { Tone, createWebProvider, createWebLibrary, piece, pieceId, sampleIndex } = prepared
 
   await Tone.start()
   const toneStartedAt = performance.now()
+  reportLoadProgress(onLoadProgress, 0.32)
 
   const provider = createWebProvider()
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
-  const output = new Tone.Volume(volumeToDecibels(volume)).toDestination()
+  const output = new Tone.Volume(volumeToDecibels(0)).toDestination()
   let deactivate: () => unknown
   let schedule: () => (() => unknown) | undefined
   try {
@@ -127,7 +133,7 @@ export async function startGenerativeFmPiece({
       context: resolveToneContext(Tone),
       destination: output,
       sampleLibrary,
-      onProgress: () => undefined,
+      onProgress: (progress) => reportLoadProgress(onLoadProgress, 0.32 + clampLoadProgress(progress) * 0.56),
     })
     deactivate = runtime[0]
     schedule = runtime[1]
@@ -136,6 +142,7 @@ export async function startGenerativeFmPiece({
     throw error
   }
   const activatedAt = performance.now()
+  reportLoadProgress(onLoadProgress, 0.9)
 
   let endStage: (() => unknown) | undefined
   try {
@@ -145,9 +152,11 @@ export async function startGenerativeFmPiece({
     output.dispose()
     throw error
   }
+  reportLoadProgress(onLoadProgress, 0.97)
 
   Tone.Transport.start()
   const scheduledAt = performance.now()
+  reportLoadProgress(onLoadProgress, 1)
   const samplePayloadPrewarm = readSamplePayloadPrewarmState(prepared)
   recordStartupTiming({
     stationId: station.id,
@@ -166,6 +175,7 @@ export async function startGenerativeFmPiece({
   activeVolumeNode = output
   const transportOwner = Symbol(station.id)
   activeTransportOwner = transportOwner
+  output.volume.rampTo?.(volumeToDecibels(volume), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
   let disposed = false
   return () => {
@@ -177,23 +187,26 @@ export async function startGenerativeFmPiece({
     if (activeVolumeNode === output) {
       activeVolumeNode = null
     }
-    const ownsTransport = activeTransportOwner === transportOwner
-    if (ownsTransport) {
-      activeTransportOwner = null
-      // Cancel queued package events before disposing samplers so a late
-      // Transport callback cannot trigger a released buffer.
-      Tone.Transport.stop()
-      Tone.Transport.cancel()
-    }
 
-    output.volume.rampTo?.(volumeToDecibels(0), 0.1)
-    endStage?.()
-    deactivate()
+    output.volume.rampTo?.(volumeToDecibels(0), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
-    // Give the piece cleanup and volume ramp a short window before dropping the output node.
+    // Let the old piece fade under the next station. If no newer station has
+    // claimed the shared Transport by the end of the fade, stop it as part of
+    // the normal user-visible stop path.
     window.setTimeout(() => {
+      const ownsTransport = activeTransportOwner === transportOwner
+      if (ownsTransport) {
+        activeTransportOwner = null
+        // Cancel queued package events before disposing samplers so a late
+        // Transport callback cannot trigger a released buffer.
+        Tone.Transport.stop()
+        Tone.Transport.cancel()
+      }
+
+      endStage?.()
+      deactivate()
       output.dispose()
-    }, 150)
+    }, Math.ceil(GENERATIVE_FM_HANDOFF_FADE_SECONDS * 1000))
   }
 }
 
@@ -477,6 +490,18 @@ async function loadGenerativeFmPiece(pieceId: string): Promise<GenerativeMusicPi
 function volumeToDecibels(volume: number) {
   const clampedVolume = Math.min(1, Math.max(0, Number.isFinite(volume) ? volume : 0.75))
   return -60 + clampedVolume * 48
+}
+
+function reportLoadProgress(onLoadProgress: GenerativeFmRuntimeOptions["onLoadProgress"], progress: number) {
+  try {
+    onLoadProgress?.(clampLoadProgress(progress))
+  } catch {
+    // Progress reporting is best-effort UI feedback and must not block audio startup.
+  }
+}
+
+function clampLoadProgress(progress: number) {
+  return Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0))
 }
 
 function recordStartupTiming(detail: {

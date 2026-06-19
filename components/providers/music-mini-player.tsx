@@ -1,9 +1,10 @@
 "use client"
 
-import { Pause, Play, Square, Volume2 } from "lucide-react"
+import { Pause, Play, SkipBack, SkipForward, Square, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
+import { MusicLoadingProgress } from "./music-loading-progress"
 import { useMusic } from "./music-provider"
 
 export function MusicMiniPlayer({ compact = false }: { compact?: boolean }) {
@@ -21,6 +22,28 @@ export function MusicMiniPlayer({ compact = false }: { compact?: boolean }) {
           <span className="max-w-[11rem] truncate text-xs font-medium">
             {music.activeStationTitle ?? "Atmosphere"}
           </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Previous station"
+            title="Previous station"
+            className="size-8"
+            disabled={music.playbackState === "loading"}
+            onClick={() => void music.playPreviousStation()}
+          >
+            <SkipBack aria-hidden="true" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Next station"
+            title="Next station"
+            className="size-8"
+            disabled={music.playbackState === "loading"}
+            onClick={() => void music.playNextStation()}
+          >
+            <SkipForward aria-hidden="true" />
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => void music.stopCurrent()}>
             <Square aria-hidden="true" />
             Stop
@@ -43,8 +66,23 @@ export function MusicMiniPlayer({ compact = false }: { compact?: boolean }) {
           <p className={cn("text-xs text-muted-foreground", music.error && "text-destructive")}>
             {music.error ?? playerStatusLabel(music.playbackState)}
           </p>
+          {music.playbackState === "loading" ? (
+            <div className="mt-2 sm:hidden">
+              <MusicLoadingProgress progress={music.loadingProgress} startedAt={music.loadingStartedAt} />
+            </div>
+          ) : null}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Previous station"
+            title="Previous station"
+            disabled={music.playbackState === "loading"}
+            onClick={() => void music.playPreviousStation()}
+          >
+            <SkipBack aria-hidden="true" />
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -56,11 +94,26 @@ export function MusicMiniPlayer({ compact = false }: { compact?: boolean }) {
             {music.playbackState === "playing" ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
             {music.playbackState === "playing" ? "Restart" : "Play"}
           </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Next station"
+            title="Next station"
+            disabled={music.playbackState === "loading"}
+            onClick={() => void music.playNextStation()}
+          >
+            <SkipForward aria-hidden="true" />
+          </Button>
           <Button size="sm" variant="outline" onClick={() => void music.stopCurrent()}>
             <Square aria-hidden="true" />
             Stop
           </Button>
         </div>
+        {music.playbackState === "loading" ? (
+          <div className="hidden min-w-44 flex-1 sm:block">
+            <MusicLoadingProgress compact progress={music.loadingProgress} startedAt={music.loadingStartedAt} />
+          </div>
+        ) : null}
         <label className="flex min-w-36 items-center gap-2 text-xs text-muted-foreground">
           <Volume2 aria-hidden="true" className="size-4 shrink-0" />
           <Slider

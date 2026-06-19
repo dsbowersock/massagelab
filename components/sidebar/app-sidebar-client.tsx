@@ -37,6 +37,7 @@ import {
   UserPlus,
   UserRound,
   UsersRound,
+  Wind,
   Wrench,
 } from "lucide-react"
 import { useSettings } from "@/components/providers/settings-provider"
@@ -104,6 +105,7 @@ const routeIcons = {
   Timer,
   UserRound,
   UsersRound,
+  Wind,
 } satisfies Record<string, LucideIcon>
 
 const primaryGroupIcons: Record<string, LucideIcon> = {
