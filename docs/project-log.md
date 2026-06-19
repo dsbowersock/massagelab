@@ -100,6 +100,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ### 2026-06-19
 
 - Added the [Atmosphere Rendered Piano Batch plan](superpowers/plans/2026-06-19-atmosphere-rendered-piano-batch.md) and enabled No Refrain, Transmission, and Trees with package-compatible rendered VSCO piano sample groups. The branch published WAV indexes/manifests and Opus sidecars under each piece prefix, moving playable Generative.fm coverage to 14 stations and the remaining local-source candidate count to 25. Header checks confirmed JSON metadata and representative rendered-piano Opus range/CORS behavior, while raw and rendered audio remain outside Git.
+- Expanded the same Atmosphere branch to finish the remaining currently covered source-index rollout instead of continuing in small batches. The branch now hosts 25 additional Generative.fm stations from `420hz-gamma-waves-for-big-brain` through `yesterday`, publishing 703 WAV-side R2 objects representing 2,077.7 MB of WAV payload and 703 Opus sidecar objects representing 99.9 MB of encoded payload. Metadata checks confirmed all 25 new WAV/Opus sample indexes and manifests return JSON with CORS, representative Opus/WAV range checks passed, `/wellness/atmosphere` now exposes 39 playable Generative.fm stations, and the catalog coverage scan classifies 0 remaining local-source candidates and 18 replacement/source-review pieces.
 
 ### 2026-06-18
 

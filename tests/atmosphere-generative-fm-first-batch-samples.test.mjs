@@ -12,12 +12,15 @@ import { decodeWav, encodePcm16Wav } from "../lib/atmosphere/prerendered-samples
 
 const vscoRoot = "VSCO-2-CE-1.1.0/VSCO-2-CE-1.1.0"
 const vcslRoot = "VCSL-1.2.2-RC/VCSL-1.2.2-RC"
+const signatureBeachRoot = "Signature Samples/SS_Beach_Ambience_Recordings_CC0/SS_Beach_Ambience_Recordings_CC0"
+const signatureChoirRoot = "Signature Samples/SS_Choirs_Vocals_SFX_Teaser_CC0/SS_Choirs_Vocals_SFX_Teaser_CC0"
 
 describe("Generative.fm sample upload planning", () => {
   it("selects package-compatible source assets from the local CC0 libraries", () => {
     const plans = createGenerativeFmFirstBatchAssetPlans(createFixtureParams())
 
-    assert.deepEqual(plans.map((plan) => plan.pieceId), [
+    const planPieceIds = plans.map((plan) => plan.pieceId)
+    const originalBatchPieceIds = [
       "aisatsana",
       "at-sunrise",
       "day-dream",
@@ -31,7 +34,38 @@ describe("Generative.fm sample upload planning", () => {
       "no-refrain",
       "transmission",
       "trees",
-    ])
+    ]
+    const sourceRolloutPieceIds = [
+      "420hz-gamma-waves-for-big-brain",
+      "a-viable-system",
+      "above-the-rain",
+      "agua-ravine",
+      "apoapsis",
+      "beneath-waves",
+      "bhairav",
+      "buttafingers",
+      "documentary-films",
+      "drones",
+      "drones-2",
+      "enough",
+      "expand-collapse",
+      "homage",
+      "nakaii",
+      "oxalis-1",
+      "remembering",
+      "return-to-form",
+      "ritual",
+      "soundtrack",
+      "splash",
+      "spring-again",
+      "substrate",
+      "timbral-oscillations",
+      "yesterday",
+    ]
+
+    assert.equal(plans.length, 38)
+    assert.deepEqual(planPieceIds.slice(0, originalBatchPieceIds.length), originalBatchPieceIds)
+    assert.deepEqual(planPieceIds.slice(originalBatchPieceIds.length), sourceRolloutPieceIds)
 
     const aisatsana = plans.find((plan) => plan.pieceId === "aisatsana")
     assert.equal(aisatsana.objectPrefix, "atmosphere/generative-fm/aisatsana")
@@ -89,6 +123,32 @@ describe("Generative.fm sample upload planning", () => {
       renderedPianoPieces.map((plan) => plan.renderedTargets[0].renderedInstrumentName),
       ["no-refrain__vsco2-piano-mf", "transmission__vsco2-piano-mf", "trees__vsco2-piano-mf"],
     )
+
+    const gammaWaves = plans.find((plan) => plan.pieceId === "420hz-gamma-waves-for-big-brain")
+    assert.deepEqual(unique(gammaWaves.selectedAssets.map((asset) => asset.instrumentName)).sort(), [
+      "sso-chorus-male",
+      "vsco2-piano-mf",
+      "waves",
+    ])
+    assert.equal(gammaWaves.selectedAssets.find((asset) => asset.instrumentName === "waves").collectionType, "array")
+    assert.equal(gammaWaves.selectedAssets.find((asset) => asset.instrumentName === "sso-chorus-male").noteName, "D3")
+
+    const buttafingers = plans.find((plan) => plan.pieceId === "buttafingers")
+    assert.equal(buttafingers.selectedAssets.find((asset) => asset.instrumentName === "vcsl-claves").collectionType, "array")
+    assert.equal(buttafingers.selectedAssets.find((asset) => asset.instrumentName === "vcsl-wine-glasses-slow").noteName, "D#4")
+
+    const ritual = plans.find((plan) => plan.pieceId === "ritual")
+    assert.deepEqual(unique(ritual.selectedAssets.map((asset) => asset.instrumentName)).sort(), [
+      "vcsl-bassdrum-hit-ff",
+      "vcsl-darbuka-1-f",
+      "vcsl-darbuka-2-f",
+      "vcsl-darbuka-3-f",
+      "vcsl-darbuka-4-f",
+      "vcsl-darbuka-5-f",
+      "vcsl-didgeridoo-sus",
+      "vsco2-violins-susvib",
+    ])
+    assert.equal(ritual.selectedAssets.find((asset) => asset.instrumentName === "vcsl-didgeridoo-sus").collectionType, "array")
   })
 
   it("creates source, rendered, index, and manifest objects without committing audio", async () => {
@@ -139,6 +199,23 @@ describe("Generative.fm sample upload planning", () => {
       const trees = uploadPlans.find((plan) => plan.pieceId === "trees")
       assert.equal(trees.renderedSampleObjects.length, 13)
       assert.ok(trees.sampleIndex["trees__vsco2-piano-mf"].B6.endsWith("/rendered-piano-b6.wav"))
+
+      const gammaWaves = uploadPlans.find((plan) => plan.pieceId === "420hz-gamma-waves-for-big-brain")
+      assert.equal(gammaWaves.renderedSampleObjects.length, 0)
+      assert.deepEqual(gammaWaves.sampleIndex.waves, [
+        "https://media.massagelab.app/atmosphere/generative-fm/420hz-gamma-waves-for-big-brain/samples/waves-beach-ambience-4.wav",
+        "https://media.massagelab.app/atmosphere/generative-fm/420hz-gamma-waves-for-big-brain/samples/waves-beach-ambience-10.wav",
+      ])
+      assert.ok(gammaWaves.sampleIndex["sso-chorus-male"].D3.endsWith("/sso-chorus-male-d3.wav"))
+
+      const buttafingers = uploadPlans.find((plan) => plan.pieceId === "buttafingers")
+      assert.equal(Array.isArray(buttafingers.sampleIndex["vcsl-claves"]), true)
+      assert.ok(buttafingers.sampleIndex["vcsl-wine-glasses-slow"]["D#4"].endsWith("/vcsl-wine-glasses-slow-d-sharp4.wav"))
+
+      const ritual = uploadPlans.find((plan) => plan.pieceId === "ritual")
+      assert.equal(Array.isArray(ritual.sampleIndex["vcsl-didgeridoo-sus"]), true)
+      assert.equal(Array.isArray(ritual.sampleIndex["vcsl-darbuka-5-f"]), true)
+      assert.ok(ritual.sampleIndex["vsco2-violins-susvib"].C4.endsWith("/vsco2-violins-susvib-c4.wav"))
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true })
     }
@@ -179,6 +256,10 @@ function createLicenseTextByPath() {
   return {
     [`${vscoRoot}/LICENSE`]: "CC0 1.0 Universal",
     [`${vcslRoot}/README.md`]: "Creative Commons 0 Public Domain",
+    [`${signatureBeachRoot}/LICENSE_Beach_Collection_PRO.txt`]:
+      "Creative Commons CC0 1.0 Universal Public Domain. Use these sounds for any purpose, including commercial. No attribution is required.",
+    [`${signatureChoirRoot}/LICENSE_Choir_Collection_PRO.txt`]:
+      "Creative Commons CC0 1.0 Universal Public Domain. Use these sounds for any purpose, including commercial. No attribution is required.",
   }
 }
 
@@ -189,13 +270,40 @@ function createFixtureFiles() {
     `${vscoRoot}/Keys/Upright Piano/Player_dyn2_rr1_000.wav`,
     `${vscoRoot}/Keys/Upright Piano/Player_dyn2_rr1_002.wav`,
     `${vscoRoot}/Keys/Upright Piano/Player_dyn1_rr1_000.wav`,
+    `${vscoRoot}/Woodwinds/Oboe/Sus/Oboe_Sus_A#3_v1_Main.wav`,
+    `${vscoRoot}/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_C1_v1_rr1.wav`,
+    `${vscoRoot}/Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C4_p.wav`,
+    `${vscoRoot}/Brass/Trumpet/sus/Sum_SHTrumpet_sus_C3_v1_rr1.wav`,
+    `${vscoRoot}/Brass/Trumpet/sus/Sum_SHTrumpet_sus_C3_v3_rr1.wav`,
+    `${vscoRoot}/Strings/Violin Section/susVib/VlnEns_susVib_C4_v1.wav`,
+    `${vscoRoot}/Strings/Cello Section/susvib/susvib_C3_v1_1.wav`,
+    `${vscoRoot}/Strings/Cello Section/susvib/susvib_C3_v3_1.wav`,
+    `${vscoRoot}/Brass/Tenor Trombone/sus/tenortbn_sus_C3_v1_1.wav`,
+    `${vscoRoot}/Brass/Tuba/sus/Tuba3_sus_F1_v1_rr1_Mid.wav`,
     `${vscoRoot}/Percussion/Glock/glock_medium_C5.wav`,
     `${vscoRoot}/Percussion/Glock/glock_medium_G5.wav`,
     `${vscoRoot}/Percussion/Glock/Glock_C6_v1_rr1.wav`,
+    `${vscoRoot}/Percussion/Marimba/Marimba_hit_Outrigger_C4_loud_01.wav`,
     `${vcslRoot}/README.md`,
     `${vcslRoot}/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v2_rr1_Main.wav`,
     `${vcslRoot}/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v1_rr2_Main.wav`,
     `${vcslRoot}/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E5_v1_rr1_Main.wav`,
+    `${vcslRoot}/Idiophones/Friction Idiophones/Wine Glasses/Sustains/Slow/glass1_D#4_Slow_1_Main.wav`,
+    `${vcslRoot}/Idiophones/Struck Idiophones/Claves/Claves1_Hit_v1_rr1_Mid.wav`,
+    `${vcslRoot}/Aerophones/Lip Aerophones/Didgeridoo/Didgeridoo1_Sus2_Main.wav`,
+    `${vcslRoot}/Membranophones/Struck Membranophones/Bass Drum 2/bassdrum_hit_ff.wav`,
+    `${vcslRoot}/Membranophones/Struck Membranophones/Darbuka/Darbuka_1_hit_vl2_rr1.wav`,
+    `${vcslRoot}/Membranophones/Struck Membranophones/Darbuka/Darbuka_2_hit_vl2_rr1.wav`,
+    `${vcslRoot}/Membranophones/Struck Membranophones/Darbuka/Darbuka_3_hit_vl2_rr1.wav`,
+    `${vcslRoot}/Membranophones/Struck Membranophones/Darbuka/Darbuka_4_hit_vl2_rr1.wav`,
+    `${vcslRoot}/Membranophones/Struck Membranophones/Darbuka/Darbuka_5_hit_vl2_rr1.wav`,
+    `${vcslRoot}/Aerophones/Reed Aerophones/Tenor Saxophone/Vibrato/BrettTenor_Vib_Main_C3_var1.wav`,
+    `${signatureBeachRoot}/LICENSE_Beach_Collection_PRO.txt`,
+    `${signatureBeachRoot}/Beach_Ambience_4.wav`,
+    `${signatureBeachRoot}/Beach_Ambience_10.wav`,
+    `${signatureChoirRoot}/LICENSE_Choir_Collection_PRO.txt`,
+    `${signatureChoirRoot}/Choirs_Children_Ambience_-01.wav`,
+    `${signatureChoirRoot}/Men_Of_Choirs_05_Key_D.wav`,
   ]
 }
 
