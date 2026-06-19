@@ -25,13 +25,16 @@ describe("Generative.fm render plan", () => {
       "pinwheels",
       "sevenths",
       "uun",
+      "no-refrain",
+      "transmission",
+      "trees",
     ])
-    assert.equal(plan.summary.totalPieces, 10)
-    assert.equal(plan.summary.readyPieces, 10)
+    assert.equal(plan.summary.totalPieces, 13)
+    assert.equal(plan.summary.readyPieces, 13)
     assert.equal(plan.summary.blockedPieces, 0)
     assert.equal(plan.summary.sourceIndexTargets, 8)
-    assert.equal(plan.summary.renderedTargets, 2)
-    assert.equal(plan.summary.renderedNotes, 18)
+    assert.equal(plan.summary.renderedTargets, 5)
+    assert.equal(plan.summary.renderedNotes, 55)
 
     const aisatsana = plan.pieces.find((piece) => piece.id === "aisatsana")
     assert.equal(aisatsana.status, GENERATIVE_FM_RENDER_PLAN_STATUS.READY_FOR_UPLOAD_PLANNING)
@@ -74,6 +77,27 @@ describe("Generative.fm render plan", () => {
     assert.deepEqual(
       thirdBatchPianoPieces.map((piece) => piece.sourceIndexTargets[0].instrumentName),
       ["vsco2-piano-mf", "vsco2-piano-mf", "vsco2-piano-mf"],
+    )
+
+    const noRefrain = plan.pieces.find((piece) => piece.id === "no-refrain")
+    assert.equal(noRefrain.strategy, "rendered-notes")
+    assert.deepEqual(
+      noRefrain.renderedTargets[0].notes,
+      ["A2", "C3", "G3", "G2", "C4", "E4", "G4", "B4", "C5", "E5", "G5", "B5"],
+    )
+
+    const transmission = plan.pieces.find((piece) => piece.id === "transmission")
+    assert.equal(transmission.strategy, "rendered-notes")
+    assert.deepEqual(
+      transmission.renderedTargets[0].notes,
+      ["A1", "C#2", "E2", "G#2", "C4", "E4", "G4", "A#4", "D#5", "G5", "A#5", "D6"],
+    )
+
+    const trees = plan.pieces.find((piece) => piece.id === "trees")
+    assert.equal(trees.strategy, "rendered-notes")
+    assert.deepEqual(
+      trees.renderedTargets[0].notes,
+      ["C3", "E3", "G3", "C4", "E4", "G4", "C5", "E5", "G5", "C6", "E6", "G6", "B6"],
     )
   })
 
@@ -118,6 +142,9 @@ describe("Generative.fm render plan", () => {
     assert.match(report, /Pinwheels \(pinwheels\)/)
     assert.match(report, /Sevenths \(sevenths\)/)
     assert.match(report, /Uun \(uun\)/)
+    assert.match(report, /No Refrain \(no-refrain\)/)
+    assert.match(report, /Transmission \(transmission\)/)
+    assert.match(report, /Trees \(trees\)/)
   })
 
   it("rejects pieces that are not in the explicit render-plan registry", () => {

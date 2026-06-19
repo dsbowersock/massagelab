@@ -28,6 +28,9 @@ describe("Generative.fm sample upload planning", () => {
       "pinwheels",
       "sevenths",
       "uun",
+      "no-refrain",
+      "transmission",
+      "trees",
     ])
 
     const aisatsana = plans.find((plan) => plan.pieceId === "aisatsana")
@@ -70,6 +73,22 @@ describe("Generative.fm sample upload planning", () => {
     const littleBells = plans.find((plan) => plan.pieceId === "little-bells")
     assert.deepEqual(littleBells.selectedAssets.map((asset) => asset.noteName), ["C5", "G5", "C6"])
     assert.equal(littleBells.renderedTargets[0].renderedInstrumentName, "little-bells__vsco2-glock")
+
+    const renderedPianoPieces = ["no-refrain", "transmission", "trees"].map((pieceId) =>
+      plans.find((plan) => plan.pieceId === pieceId)
+    )
+    assert.deepEqual(
+      renderedPianoPieces.map((plan) => plan.selectedAssets.map((asset) => asset.noteName)),
+      [
+        ["C4", "E4"],
+        ["C4", "E4"],
+        ["C4", "E4"],
+      ],
+    )
+    assert.deepEqual(
+      renderedPianoPieces.map((plan) => plan.renderedTargets[0].renderedInstrumentName),
+      ["no-refrain__vsco2-piano-mf", "transmission__vsco2-piano-mf", "trees__vsco2-piano-mf"],
+    )
   })
 
   it("creates source, rendered, index, and manifest objects without committing audio", async () => {
@@ -108,6 +127,18 @@ describe("Generative.fm sample upload planning", () => {
       assert.equal(littleBells.renderedSampleObjects.length, 10)
       assert.equal(littleBells.objectCount, littleBells.sampleObjects.length + littleBells.renderedSampleObjects.length + 2)
       assert.ok(littleBells.sampleIndex["little-bells__vsco2-glock"]["D#5"].endsWith("/rendered-glock-d-sharp5.wav"))
+
+      const noRefrain = uploadPlans.find((plan) => plan.pieceId === "no-refrain")
+      assert.equal(noRefrain.renderedSampleObjects.length, 12)
+      assert.ok(noRefrain.sampleIndex["no-refrain__vsco2-piano-mf"].A2.endsWith("/rendered-piano-a2.wav"))
+
+      const transmission = uploadPlans.find((plan) => plan.pieceId === "transmission")
+      assert.equal(transmission.renderedSampleObjects.length, 12)
+      assert.ok(transmission.sampleIndex["transmission__vsco2-piano-mf"]["C#2"].endsWith("/rendered-piano-c-sharp2.wav"))
+
+      const trees = uploadPlans.find((plan) => plan.pieceId === "trees")
+      assert.equal(trees.renderedSampleObjects.length, 13)
+      assert.ok(trees.sampleIndex["trees__vsco2-piano-mf"].B6.endsWith("/rendered-piano-b6.wav"))
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true })
     }

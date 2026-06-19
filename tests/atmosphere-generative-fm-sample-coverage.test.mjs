@@ -18,8 +18,8 @@ describe("Generative.fm sample coverage", () => {
     const coverage = createCoverage()
 
     assert.equal(coverage.summary.totalPieces, 57)
-    assert.equal(coverage.summary.hostedPieces, 11)
-    assert.equal(coverage.summary.localSourceCandidatePieces, 15)
+    assert.equal(coverage.summary.hostedPieces, 14)
+    assert.equal(coverage.summary.localSourceCandidatePieces, 12)
     assert.equal(coverage.summary.replacementNeededPieces, 31)
     assert.equal(coverage.libraries.find((library) => library.id === "vsco-2-ce").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "vcsl").licenseStatus, "license-confirmed")
@@ -44,6 +44,12 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(dayDream.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
     assert.equal(dayDream.sampleGroups[0].sourceName, "vsco2-piano-mf")
     assert.equal(dayDream.sampleGroups[0].library, "VSCO 2 Community Edition")
+
+    const noRefrain = coverage.pieces.find((piece) => piece.id === "no-refrain")
+    assert.equal(noRefrain.status, "hosted")
+    assert.equal(noRefrain.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.HOSTED)
+    assert.equal(noRefrain.sampleGroups[0].sourceName, "no-refrain__vsco2-piano-mf")
+    assert.equal(noRefrain.sampleGroups[0].library, "massagelab-public-media")
   })
 
   it("keeps shared source names piece-scoped when selected piano stations have hosted indexes", () => {
