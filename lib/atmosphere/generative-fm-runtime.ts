@@ -159,8 +159,17 @@ export async function startGenerativeFmPiece({
   const activatedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.9)
 
+  const transportOwner = Symbol(station.id)
   let endStage: (() => unknown) | undefined
   try {
+    if (activeTransportOwner) {
+      // Generative.fm pieces share Tone.Transport and package callbacks are not
+      // owner-scoped. Clear old future callbacks before the next station claims
+      // the transport; already-started sources keep fading through their output.
+      Tone.Transport.cancel()
+      activeTransportOwner = null
+    }
+
     endStage = schedule()
   } catch (error) {
     deactivate()
@@ -194,7 +203,6 @@ export async function startGenerativeFmPiece({
     totalMs: scheduledAt - startedAt,
   })
   activeVolumeNode = output
-  const transportOwner = Symbol(station.id)
   activeTransportOwner = transportOwner
   output.volume.rampTo?.(volumeToDecibels(volume), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
