@@ -1,4 +1,7 @@
-import { fetchGenerativeFmSampleIndex } from "./generative-fm-sample-index"
+import {
+  fetchGenerativeFmSampleIndex,
+  selectGenerativeFmSampleWarmupUrls,
+} from "./generative-fm-sample-index"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -16,6 +19,11 @@ type GenerativeFmRuntimeStation = {
 type GenerativeFmRuntimeOptions = {
   station: GenerativeFmRuntimeStation
   volume?: number
+}
+
+type GenerativeFmPrewarmOptions = {
+  station: GenerativeFmRuntimeStation
+  includeSamplePayloads?: boolean
 }
 
 type ToneModule = typeof import("tone")
@@ -60,10 +68,25 @@ type PreparedRuntimeCacheEntry = {
   settled: boolean
 }
 
+type SamplePayloadPrewarmResult = {
+  sampleUrlCount: number
+  failedUrlCount: number
+}
+
+type SamplePayloadPrewarmEntry = {
+  promise: Promise<SamplePayloadPrewarmResult>
+  settled: boolean
+  sampleUrlCount: number
+  failedUrlCount: number
+}
+
 let activeVolumeNode: { volume: { value: number, rampTo?: (value: number, seconds: number) => unknown } } | null = null
 let activeTransportOwner: symbol | null = null
 let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
 const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
+const samplePayloadPrewarmEntries = new Map<string, SamplePayloadPrewarmEntry>()
+const SAMPLE_PAYLOAD_PREWARM_LIMIT = 24
+const SAMPLE_PAYLOAD_PREWARM_CONCURRENCY = 3
 const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
   id: HostedCompressedSampleFormat
   audioType: string
@@ -125,11 +148,15 @@ export async function startGenerativeFmPiece({
 
   Tone.Transport.start()
   const scheduledAt = performance.now()
+  const samplePayloadPrewarm = readSamplePayloadPrewarmState(prepared)
   recordStartupTiming({
     stationId: station.id,
     pieceId,
     sampleFormat: prepared.sampleFormat,
     usedPrewarm: prepared.usedCompletedPrewarm,
+    usedSamplePayloadPrewarm: samplePayloadPrewarm.settled
+      && samplePayloadPrewarm.sampleUrlCount > samplePayloadPrewarm.failedUrlCount,
+    samplePayloadPrewarmCount: samplePayloadPrewarm.sampleUrlCount,
     prepareWaitMs: preparedAt - startedAt,
     toneStartMs: toneStartedAt - preparedAt,
     pieceActivateMs: activatedAt - toneStartedAt,
@@ -177,14 +204,16 @@ export async function startGenerativeFmPiece({
  */
 export async function prewarmGenerativeFmPiece({
   station,
-}: {
-  station: GenerativeFmRuntimeStation
-}) {
+  includeSamplePayloads = false,
+}: GenerativeFmPrewarmOptions) {
   if (typeof window === "undefined") {
     return
   }
 
-  await getPreparedGenerativeFmRuntime(station, "prewarm")
+  const prepared = await getPreparedGenerativeFmRuntime(station, "prewarm")
+  if (includeSamplePayloads) {
+    await prewarmGenerativeFmSamplePayloads(prepared)
+  }
 }
 
 export function setGenerativeFmPieceVolume(volume: number) {
@@ -299,6 +328,101 @@ function preparedRuntimeCacheKey({ pieceId, sampleFormat, sampleGroups, sampleIn
   return JSON.stringify([pieceId, sampleFormat, sampleIndexUrl, sampleGroups])
 }
 
+/**
+ * Opportunistically warms selected compressed sample payloads for one prepared
+ * runtime configuration. Results are cached by the same runtime key as metadata
+ * preparation, WAV remains lazy because it is the large fallback format, and
+ * failed warmups collapse to a counted failure result without blocking playback.
+ */
+function prewarmGenerativeFmSamplePayloads(prepared: PreparedGenerativeFmRuntime): Promise<SamplePayloadPrewarmResult> {
+  const cacheKey = preparedRuntimeCacheKey(prepared)
+  const existingEntry = samplePayloadPrewarmEntries.get(cacheKey)
+  if (existingEntry) {
+    return existingEntry.promise
+  }
+
+  // WAV payloads can still be large; compressed formats already cover the
+  // browsers this branch is trying to speed up, so keep WAV fallback lazy.
+  if (prepared.sampleFormat === "wav") {
+    return Promise.resolve({ sampleUrlCount: 0, failedUrlCount: 0 })
+  }
+
+  const sampleUrls = selectGenerativeFmSampleWarmupUrls({
+    sampleIndex: prepared.sampleIndex,
+    sampleGroups: prepared.sampleGroups,
+    maxUrls: SAMPLE_PAYLOAD_PREWARM_LIMIT,
+  })
+  const entry: SamplePayloadPrewarmEntry = {
+    settled: false,
+    sampleUrlCount: sampleUrls.length,
+    failedUrlCount: sampleUrls.length,
+    promise: warmSamplePayloadUrls(sampleUrls).then((result) => {
+      entry.failedUrlCount = result.failedUrlCount
+      entry.settled = true
+      return result
+    }).catch(() => {
+      samplePayloadPrewarmEntries.delete(cacheKey)
+      return { sampleUrlCount: sampleUrls.length, failedUrlCount: sampleUrls.length }
+    }),
+  }
+
+  samplePayloadPrewarmEntries.set(cacheKey, entry)
+  return entry.promise
+}
+
+/**
+ * Reads the current payload-prewarm cache state without requiring a cache hit.
+ * Missing entries default to an unsettled, zero-count state so telemetry can be
+ * emitted safely for immediate playback and WAV fallback paths.
+ */
+function readSamplePayloadPrewarmState(prepared: PreparedGenerativeFmRuntime) {
+  const entry = samplePayloadPrewarmEntries.get(preparedRuntimeCacheKey(prepared))
+  return {
+    sampleUrlCount: entry?.sampleUrlCount ?? 0,
+    failedUrlCount: entry?.failedUrlCount ?? 0,
+    settled: entry?.settled ?? false,
+  }
+}
+
+/**
+ * Fetches sample payload URLs with bounded browser-side concurrency. Individual
+ * fetch failures are counted and swallowed because payload warmup is an
+ * optimization; the actual playback path remains responsible for surfacing
+ * real runtime loading errors.
+ */
+async function warmSamplePayloadUrls(sampleUrls: string[]): Promise<SamplePayloadPrewarmResult> {
+  if (sampleUrls.length === 0 || typeof fetch !== "function") {
+    return { sampleUrlCount: sampleUrls.length, failedUrlCount: 0 }
+  }
+
+  let failedUrlCount = 0
+  let nextUrlIndex = 0
+  const workerCount = Math.min(SAMPLE_PAYLOAD_PREWARM_CONCURRENCY, sampleUrls.length)
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextUrlIndex < sampleUrls.length) {
+      const sampleUrl = sampleUrls[nextUrlIndex]
+      nextUrlIndex += 1
+      try {
+        const response = await fetch(sampleUrl, {
+          cache: "force-cache",
+          credentials: "omit",
+          mode: "cors",
+        })
+        if (!response.ok) {
+          failedUrlCount += 1
+          continue
+        }
+
+        await response.arrayBuffer()
+      } catch {
+        failedUrlCount += 1
+      }
+    }
+  }))
+
+  return { sampleUrlCount: sampleUrls.length, failedUrlCount }
+}
+
 function loadGenerativeFmRuntimeModules() {
   runtimeModulesPromise = runtimeModulesPromise ?? Promise.all([
     import("tone"),
@@ -360,6 +484,8 @@ function recordStartupTiming(detail: {
   pieceId: string
   sampleFormat: HostedSampleFormat
   usedPrewarm: boolean
+  usedSamplePayloadPrewarm: boolean
+  samplePayloadPrewarmCount: number
   prepareWaitMs: number
   toneStartMs: number
   pieceActivateMs: number

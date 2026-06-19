@@ -81,7 +81,7 @@ export function MusicMiniPlayer({ compact = false }: { compact?: boolean }) {
 }
 
 function playerStatusLabel(state: string) {
-  if (state === "loading") return "Loading station..."
+  if (state === "loading") return "Preparing audio..."
   if (state === "playing") return "Playing"
   if (state === "stopped") return "Stopped"
   return "Ready"
