@@ -37,7 +37,7 @@ interface MusicContextType {
   volume: number
   miniPlayerCollapsed: boolean
   playStation: (stationId: string) => Promise<void>
-  prewarmStation: (stationId: string) => Promise<void>
+  prewarmStation: (stationId: string, options?: { includeSamplePayloads?: boolean }) => Promise<void>
   stopCurrent: () => Promise<void>
   setVolume: (volume: number) => void
   toggleFavorite: (stationId: string) => void
@@ -58,6 +58,7 @@ interface RuntimeAdapterPayload {
     runtime?: {
       defaultOptions?: Record<string, number>
       hostedSampleIndexUrl?: string
+      hostedSampleIndexFormatUrls?: Partial<Record<"opus" | "aac" | "mp3", string>>
       pieceId?: string
       sampleNameGroups?: Array<string | string[]>
     }
@@ -189,14 +190,20 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const prewarmStation = useCallback(async (stationId: string) => {
+  const prewarmStation = useCallback(async (
+    stationId: string,
+    options: { includeSamplePayloads?: boolean } = {},
+  ) => {
     try {
       const station = getAtmosphereStationById(stationId)
       if (!station.enabled || station.runtime?.adapterId !== "generative-fm-piece") {
         return
       }
 
-      await prewarmGenerativeFmPiece({ station })
+      await prewarmGenerativeFmPiece({
+        station,
+        includeSamplePayloads: options.includeSamplePayloads ?? false,
+      })
     } catch {
       // Prewarm is opportunistic; playback should surface any real runtime error.
     }

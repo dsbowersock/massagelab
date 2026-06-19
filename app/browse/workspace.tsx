@@ -24,9 +24,12 @@ const prewarmableGenerativeFmStationIds = generativeFmStations
 export function AtmosphereWorkspace() {
   const music = useMusic()
   const { prewarmStation: prewarmMusicStation } = music
-  const prewarmStation = useCallback((stationId: string) => {
-    void prewarmMusicStation(stationId)
+  const prewarmStation = useCallback((stationId: string, includeSamplePayloads = false) => {
+    void prewarmMusicStation(stationId, { includeSamplePayloads })
   }, [prewarmMusicStation])
+  const prewarmStationSamples = useCallback((stationId: string) => {
+    prewarmStation(stationId, true)
+  }, [prewarmStation])
 
   // Prewarm station metadata/modules after initial paint, staggering each call
   // and cleaning up both idle fallback and per-station timers on route changes.
@@ -103,8 +106,8 @@ export function AtmosphereWorkspace() {
             <div
               id={`station-${station.id}`}
               key={station.id}
-              onFocus={() => prewarmStation(station.id)}
-              onPointerEnter={() => prewarmStation(station.id)}
+              onFocus={() => prewarmStationSamples(station.id)}
+              onPointerEnter={() => prewarmStationSamples(station.id)}
             >
               <AppSurface
                 title={station.title}
@@ -136,6 +139,8 @@ export function AtmosphereWorkspace() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={() => void music.playStation(station.id)}
+                    onFocus={() => prewarmStationSamples(station.id)}
+                    onPointerDown={() => prewarmStationSamples(station.id)}
                     disabled={!station.enabled || music.playbackState === "loading"}
                   >
                     <Play aria-hidden="true" />

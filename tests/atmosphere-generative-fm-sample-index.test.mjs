@@ -4,6 +4,7 @@ import {
   assertGenerativeFmSampleIndex,
   fetchGenerativeFmSampleIndex,
   normalizeSampleGroups,
+  selectGenerativeFmSampleWarmupUrls,
 } from "../lib/atmosphere/generative-fm-sample-index.js"
 
 const observableStreamsSampleGroups = [
@@ -108,6 +109,31 @@ describe("Generative.fm sample-index helpers", () => {
     ]), [
       ["solo-instrument"],
       ["rendered", "source"],
+    ])
+  })
+
+  it("selects bounded warmup URLs from the first usable sample group candidate", () => {
+    assert.deepEqual(selectGenerativeFmSampleWarmupUrls({
+      sampleGroups: [
+        ["rendered-piano", "source-piano"],
+        "pad",
+        ["missing", "fallback"],
+      ],
+      sampleIndex: {
+        "rendered-piano": ["https://media.massagelab.app/rendered-c4.opus", "https://media.massagelab.app/rendered-e4.opus"],
+        "source-piano": { C4: "https://media.massagelab.app/source-c4.opus" },
+        pad: {
+          C3: "https://media.massagelab.app/pad-c3.opus",
+          G3: "https://media.massagelab.app/pad-g3.opus",
+        },
+        fallback: ["https://media.massagelab.app/fallback-c4.opus"],
+      },
+      maxUrls: 4,
+    }), [
+      "https://media.massagelab.app/rendered-c4.opus",
+      "https://media.massagelab.app/rendered-e4.opus",
+      "https://media.massagelab.app/pad-c3.opus",
+      "https://media.massagelab.app/pad-g3.opus",
     ])
   })
 })

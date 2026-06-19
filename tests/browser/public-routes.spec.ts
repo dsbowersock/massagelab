@@ -184,7 +184,7 @@ test("Atmosphere proof station keeps global player state across client routes", 
   await page.getByRole("button", { name: /^Play station$/i }).first().click()
 
   await expect(page.getByText("MassageLab Proof Drone").last()).toBeVisible()
-  await expect(page.getByText(/Playing|Loading station/i).last()).toBeVisible()
+  await expect(page.getByText(/Playing|Preparing audio/i).last()).toBeVisible()
 
   const flashcardsLink = page.getByRole("link", { name: /^Flashcards$/i }).first()
   if (!await flashcardsLink.isVisible().catch(() => false)) {
@@ -215,8 +215,7 @@ test("Atmosphere proof station keeps global player state across client routes", 
 test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample station", async ({ page }) => {
   const health = capturePageHealth(page)
 
-  await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     window.addEventListener("massagelab:atmosphere-startup-timing", (event) => {
       const existing = Reflect.get(window, "__massagelabAtmosphereTimings")
       const timings = Array.isArray(existing) ? existing : []
@@ -226,6 +225,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
       ])
     })
   })
+  await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
   await expect(page.getByText(/all 57 Generative\.fm stations are playable now/i)).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
@@ -286,11 +286,13 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
           && detail.stationId === "observable-streams-probe"
           && detail.sampleFormat === expectedFormat
           && typeof detail.usedPrewarm === "boolean"
+          && typeof detail.usedSamplePayloadPrewarm === "boolean"
+          && typeof detail.samplePayloadPrewarmCount === "number"
       })
     }, expectedSampleFormat), { timeout: 45_000 })
     .toBe(true)
   await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
-  await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
+  await expect(page.getByText(/Playing|Preparing audio/i)).toHaveCount(0)
 
   const smokePlaybackStations = [
     page.locator("#station-generative-fm-420hz-gamma-waves-for-big-brain"),
@@ -304,7 +306,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     await station.getByRole("button", { name: /^Play station$/i }).click()
     await expect(station.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
     await station.getByRole("button", { name: /^Stop$/i }).click()
-    await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
+    await expect(page.getByText(/Playing|Preparing audio/i)).toHaveCount(0)
   }
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
