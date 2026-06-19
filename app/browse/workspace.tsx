@@ -15,7 +15,7 @@ const generativeFmStations = stations.filter((station) => station.sourceType ===
 const playableGenerativeFmStationCount = generativeFmStations.filter((station) => station.enabled).length
 const pendingGenerativeFmStationCount = generativeFmStations.length - playableGenerativeFmStationCount
 const generativeFmCatalogStatusText = pendingGenerativeFmStationCount > 0
-  ? ` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} more Generative.fm stations are being prepared.`
+  ? ` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} more Generative.fm ${pendingGenerativeFmStationCount === 1 ? "station is" : "stations are"} being prepared.`
   : ` The proof drone and all ${playableGenerativeFmStationCount} Generative.fm stations are playable now.`
 const prewarmableGenerativeFmStationIds = generativeFmStations
   .filter((station) => station.enabled)
