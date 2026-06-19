@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { HeartPulse, Radio } from "lucide-react"
+import { HeartPulse, Radio, Wind } from "lucide-react"
 import type { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { WellnessHubClient, type WellnessTimelineEntry } from "@/components/wellness/wellness-hub-client"
@@ -79,6 +79,17 @@ export default async function WellnessPage() {
       >
         <Button asChild variant="outline">
           <Link href="/wellness/atmosphere">Open Atmosphere</Link>
+        </Button>
+      </AppSurface>
+
+      <AppSurface
+        title="Breathing guide"
+        description="A public breathing pacer for settling before, during, or after a session."
+        icon={<Wind className="h-5 w-5" aria-hidden="true" />}
+        badge="Public tool"
+      >
+        <Button asChild variant="outline">
+          <Link href="/wellness/breathing">Open Breathing Guide</Link>
         </Button>
       </AppSurface>
 

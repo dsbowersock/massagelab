@@ -2,46 +2,55 @@
 
 import { useCallback, useEffect } from "react"
 import Link from "next/link"
-import { Heart, Play, Radio, Square } from "lucide-react"
+import { Heart, Play, Radio, Square, Wind } from "lucide-react"
 import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
-import { AtmosphereBreathingGuide } from "@/app/wellness/atmosphere/breathing-guide"
+import { MusicLoadingProgress } from "@/components/providers/music-loading-progress"
+import { groupAtmosphereStations } from "@/lib/atmosphere/station-groups"
 import { getVisibleAtmosphereStations } from "@/lib/atmosphere/stations"
 import { cn } from "@/lib/utils"
 
 const stations = getVisibleAtmosphereStations()
+const stationGroups = groupAtmosphereStations(stations)
 const generativeFmStations = stations.filter((station) => station.sourceType === "generative-fm-piece")
 const playableGenerativeFmStationCount = generativeFmStations.filter((station) => station.enabled).length
 const pendingGenerativeFmStationCount = generativeFmStations.length - playableGenerativeFmStationCount
 const generativeFmCatalogStatusText = pendingGenerativeFmStationCount > 0
-  ? ` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} more Generative.fm ${pendingGenerativeFmStationCount === 1 ? "station is" : "stations are"} being prepared.`
-  : ` The proof drone and all ${playableGenerativeFmStationCount} Generative.fm stations are playable now.`
-const prewarmableGenerativeFmStationIds = generativeFmStations
-  .filter((station) => station.enabled)
+  ? ` ${playableGenerativeFmStationCount} hosted Generative.fm ${playableGenerativeFmStationCount === 1 ? "station is" : "stations are"} playable now; ${pendingGenerativeFmStationCount} more ${pendingGenerativeFmStationCount === 1 ? "station is" : "stations are"} being prepared.`
+  : ` All ${playableGenerativeFmStationCount} hosted Generative.fm stations are playable now.`
+const initialPrewarmStationIdSet = new Set([
+  "observable-streams-probe",
+  "generative-fm-aisatsana",
+  "generative-fm-at-sunrise",
+  "generative-fm-day-dream",
+  "generative-fm-eno-machine",
+  "generative-fm-lemniscate",
+  "generative-fm-peace",
+  "generative-fm-trees",
+])
+const initialPrewarmableGenerativeFmStationIds = generativeFmStations
+  .filter((station) => station.enabled && initialPrewarmStationIdSet.has(station.id))
   .map((station) => station.id)
 
 export function AtmosphereWorkspace() {
   const music = useMusic()
   const { prewarmStation: prewarmMusicStation } = music
-  const prewarmStation = useCallback((stationId: string, includeSamplePayloads = false) => {
-    void prewarmMusicStation(stationId, { includeSamplePayloads })
+  const prewarmStation = useCallback((stationId: string) => {
+    void prewarmMusicStation(stationId)
   }, [prewarmMusicStation])
-  const prewarmStationSamples = useCallback((stationId: string) => {
-    prewarmStation(stationId, true)
-  }, [prewarmStation])
 
-  // Prewarm station metadata/modules after initial paint, staggering each call
-  // and cleaning up both idle fallback and per-station timers on route changes.
+  // Keep background work small: warm only likely starter stations after initial
+  // paint, then let user intent drive metadata/module warmups for the rest.
   useEffect(() => {
-    if (prewarmableGenerativeFmStationIds.length === 0) {
+    if (initialPrewarmableGenerativeFmStationIds.length === 0) {
       return undefined
     }
 
     let cancelled = false
     const timeoutHandles: number[] = []
     const prewarmPlayableStations = () => {
-      prewarmableGenerativeFmStationIds.forEach((stationId, index) => {
+      initialPrewarmableGenerativeFmStationIds.forEach((stationId, index) => {
         const timeoutHandle = window.setTimeout(() => {
           if (!cancelled) {
             prewarmStation(stationId)
@@ -83,85 +92,113 @@ export function AtmosphereWorkspace() {
               <Button asChild variant="outline">
                 <Link href="/wellness">Wellness hub</Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link href="/wellness/breathing">
+                  <Wind aria-hidden="true" />
+                  Breathing guide
+                </Link>
+              </Button>
             </div>
           </div>
           <AppNotice
             tone="accent"
-            title="Generative.fm catalog"
-            description="Browse calm generative stations for different treatment-room moods. New stations are added as playback is verified."
+            title="Station tuner"
+            description="Stations are grouped by listening feel so calm defaults, water textures, drones, and experimental pieces are easier to choose."
           />
         </div>
       </section>
 
-      <AtmosphereBreathingGuide />
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        {stations.map((station) => {
-          const isActive = music.activeStationId === station.id
-          const isFavorite = music.favorites.includes(station.id)
-          const attributionText = stationAttributionText(station)
-          const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
-
-          return (
-            <div
-              id={`station-${station.id}`}
-              key={station.id}
-              onFocus={() => prewarmStationSamples(station.id)}
-              onPointerEnter={() => prewarmStationSamples(station.id)}
-            >
-              <AppSurface
-                title={station.title}
-                icon={<Radio aria-hidden="true" className="size-5" />}
-                badge={station.enabled ? "Playable" : "Samples pending"}
-                className={cn(isActive && "border-primary/70")}
-                contentClassName="gap-4"
-              >
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">{station.description}</p>
-                  {attributionText ? (
-                    <p className="text-xs text-muted-foreground">
-                      {attributionHref ? (
-                        <a
-                          href={attributionHref}
-                          target={isExternalUrl(attributionHref) ? "_blank" : undefined}
-                          rel={isExternalUrl(attributionHref) ? "noreferrer" : undefined}
-                          className="underline-offset-4 hover:underline"
-                        >
-                          {attributionText}
-                        </a>
-                      ) : attributionText}
-                    </p>
-                  ) : null}
-                  {!station.enabled && station.disabledReason ? (
-                    <AppNotice tone="default" title="Not playable yet" description={station.disabledReason} />
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    onClick={() => void music.playStation(station.id)}
-                    onFocus={() => prewarmStationSamples(station.id)}
-                    onPointerDown={() => prewarmStationSamples(station.id)}
-                    disabled={!station.enabled || music.playbackState === "loading"}
-                  >
-                    <Play aria-hidden="true" />
-                    {isActive ? "Restart station" : "Play station"}
-                  </Button>
-                  {isActive ? (
-                    <Button variant="outline" onClick={() => void music.stopCurrent()}>
-                      <Square aria-hidden="true" />
-                      Stop
-                    </Button>
-                  ) : null}
-                  <Button variant="ghost" onClick={() => music.toggleFavorite(station.id)}>
-                    <Heart aria-hidden="true" className={cn(isFavorite && "fill-primary text-primary")} />
-                    {isFavorite ? "Favorited" : "Favorite"}
-                  </Button>
-                </div>
-              </AppSurface>
+      <div className="space-y-8">
+        {stationGroups.map((group) => (
+          <section
+            key={group.id}
+            aria-labelledby={`station-group-${group.id}`}
+            className="space-y-3"
+          >
+            <div>
+              <h2 id={`station-group-${group.id}`} className="text-xl font-semibold tracking-normal">
+                {group.title}
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{group.description}</p>
             </div>
-          )
-        })}
-      </section>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {group.stations.map((station) => {
+                const isActive = music.activeStationId === station.id
+                const isFavorite = music.favorites.includes(station.id)
+                const attributionText = stationAttributionText(station)
+                const attributionHref = station.attribution.notice ? "" : station.attribution.sourceUrl
+
+                return (
+                  <div
+                    id={`station-${station.id}`}
+                    key={station.id}
+                    onFocus={() => prewarmStation(station.id)}
+                    onPointerEnter={() => prewarmStation(station.id)}
+                  >
+                    <AppSurface
+                      title={station.title}
+                      icon={<Radio aria-hidden="true" className="size-5" />}
+                      badge={station.enabled ? "Playable" : "Samples pending"}
+                      className={cn(isActive && "border-primary/70")}
+                      contentClassName="gap-4"
+                    >
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">{station.description}</p>
+                        {attributionText ? (
+                          <p className="text-xs text-muted-foreground">
+                            {attributionHref ? (
+                              <a
+                                href={attributionHref}
+                                target={isExternalUrl(attributionHref) ? "_blank" : undefined}
+                                rel={isExternalUrl(attributionHref) ? "noreferrer" : undefined}
+                                className="underline-offset-4 hover:underline"
+                              >
+                                {attributionText}
+                              </a>
+                            ) : attributionText}
+                          </p>
+                        ) : null}
+                        {!station.enabled && station.disabledReason ? (
+                          <AppNotice tone="default" title="Not playable yet" description={station.disabledReason} />
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => {
+                            void music.playStation(station.id)
+                          }}
+                          onFocus={() => prewarmStation(station.id)}
+                          onPointerDown={() => prewarmStation(station.id)}
+                          disabled={!station.enabled || music.playbackState === "loading"}
+                        >
+                          <Play aria-hidden="true" />
+                          {isActive ? "Restart station" : "Play station"}
+                        </Button>
+                        {isActive ? (
+                          <Button variant="outline" onClick={() => void music.stopCurrent()}>
+                            <Square aria-hidden="true" />
+                            Stop
+                          </Button>
+                        ) : null}
+                        <Button variant="ghost" onClick={() => music.toggleFavorite(station.id)}>
+                          <Heart aria-hidden="true" className={cn(isFavorite && "fill-primary text-primary")} />
+                          {isFavorite ? "Favorited" : "Favorite"}
+                        </Button>
+                      </div>
+                      {isActive && music.playbackState === "loading" ? (
+                        <MusicLoadingProgress
+                          progress={music.loadingProgress}
+                          startedAt={music.loadingStartedAt}
+                        />
+                      ) : null}
+                    </AppSurface>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
     </AppPageShell>
   )
 }

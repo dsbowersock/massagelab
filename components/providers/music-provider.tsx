@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { getAtmosphereStationById } from "@/lib/atmosphere/stations"
+import { getAtmosphereStationById, getPlayableAtmosphereStations } from "@/lib/atmosphere/stations"
 import { createAtmosphereRuntimeController } from "@/lib/atmosphere/runtime-controller"
 import {
   ATMOSPHERE_STORAGE_KEY,
@@ -31,12 +31,16 @@ interface MusicContextType {
   activeStationId: string | null
   activeStationTitle: string | null
   playbackState: PlaybackState
+  loadingProgress: number | null
+  loadingStartedAt: number | null
   error: string | null
   favorites: string[]
   recentStations: string[]
   volume: number
   miniPlayerCollapsed: boolean
   playStation: (stationId: string) => Promise<void>
+  playNextStation: () => Promise<void>
+  playPreviousStation: () => Promise<void>
   prewarmStation: (stationId: string, options?: { includeSamplePayloads?: boolean }) => Promise<void>
   stopCurrent: () => Promise<void>
   setVolume: (volume: number) => void
@@ -66,17 +70,22 @@ interface RuntimeAdapterPayload {
 }
 
 const defaultStorage = createDefaultAtmosphereStorage() as AtmosphereStorageState
+const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
 
 const defaultMusicContext: MusicContextType = {
   activeStationId: null,
   activeStationTitle: null,
   playbackState: "stopped",
+  loadingProgress: null,
+  loadingStartedAt: null,
   error: null,
   favorites: defaultStorage.favorites,
   recentStations: defaultStorage.recentStations,
   volume: defaultStorage.volume,
   miniPlayerCollapsed: defaultStorage.miniPlayerCollapsed,
   playStation: async () => undefined,
+  playNextStation: async () => undefined,
+  playPreviousStation: async () => undefined,
   prewarmStation: async () => undefined,
   stopCurrent: async () => undefined,
   setVolume: () => undefined,
@@ -89,12 +98,23 @@ const MusicContext = createContext<MusicContextType>(defaultMusicContext)
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
   const [playbackState, setPlaybackState] = useState<PlaybackState>("stopped")
+  const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
+  const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [storageState, setStorageState] = useState(defaultStorage)
   const [storageHydrated, setStorageHydrated] = useState(false)
   const playbackRequestIdRef = useRef(0)
+  const loadingStationIdRef = useRef<string | null>(null)
   const volumeRef = useRef(defaultStorage.volume)
   const controllerRef = useRef<ReturnType<typeof createAtmosphereRuntimeController> | null>(null)
+
+  const reportStationLoadProgress = useCallback((stationId: string, progress: number) => {
+    if (loadingStationIdRef.current !== stationId) {
+      return
+    }
+
+    setLoadingProgress((current) => Math.max(current ?? 0, clampLoadingProgress(progress)))
+  }, [])
 
   // Own one runtime controller for this provider lifetime; it is intentionally
   // above route content so client-side navigation does not tear down playback.
@@ -106,6 +126,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           volume: volumeRef.current,
         }),
         "generative-fm-piece": async ({ station }: RuntimeAdapterPayload) => startGenerativeFmPiece({
+          onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
           station,
           volume: volumeRef.current,
         }),
@@ -120,7 +141,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       }
       void controller.stop()
     }
-  }, [])
+  }, [reportStationLoadProgress])
 
   // Hydrate non-PHI audio preferences after mount and tolerate storage-denied
   // browser modes without breaking the public workbench.
@@ -154,6 +175,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     if (!station.enabled) {
       setActiveStationId(station.id)
       setPlaybackState("failed")
+      setLoadingProgress(null)
+      setLoadingStartedAt(null)
+      loadingStationIdRef.current = null
       setError(station.disabledReason ?? "This station is not playable yet.")
       return
     }
@@ -161,12 +185,18 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     if (!controller) {
       setActiveStationId(station.id)
       setPlaybackState("failed")
+      setLoadingProgress(null)
+      setLoadingStartedAt(null)
+      loadingStationIdRef.current = null
       setError("Audio runtime is still loading.")
       return
     }
 
     setActiveStationId(station.id)
     setPlaybackState("loading")
+    setLoadingProgress(0.05)
+    setLoadingStartedAt(Date.now())
+    loadingStationIdRef.current = station.id
     setError(null)
 
     try {
@@ -175,6 +205,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      loadingStationIdRef.current = null
+      setLoadingProgress(null)
+      setLoadingStartedAt(null)
       setPlaybackState("playing")
       setStorageState((current) => ({
         ...current,
@@ -185,10 +218,33 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      loadingStationIdRef.current = null
+      setLoadingProgress(null)
+      setLoadingStartedAt(null)
       setPlaybackState("failed")
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not start.")
     }
   }, [])
+
+  const playAdjacentStation = useCallback(async (direction: 1 | -1) => {
+    if (playableStationIds.length === 0) {
+      return
+    }
+
+    const currentIndex = activeStationId ? playableStationIds.indexOf(activeStationId) : -1
+    const fallbackIndex = direction === 1 ? -1 : 0
+    const nextIndex = (currentIndex >= 0 ? currentIndex : fallbackIndex) + direction
+    const normalizedIndex = (nextIndex + playableStationIds.length) % playableStationIds.length
+    await playStation(playableStationIds[normalizedIndex])
+  }, [activeStationId, playStation])
+
+  const playNextStation = useCallback(async () => {
+    await playAdjacentStation(1)
+  }, [playAdjacentStation])
+
+  const playPreviousStation = useCallback(async () => {
+    await playAdjacentStation(-1)
+  }, [playAdjacentStation])
 
   const prewarmStation = useCallback(async (
     stationId: string,
@@ -214,6 +270,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     playbackRequestIdRef.current = requestId
     setActiveStationId(null)
     setPlaybackState("stopped")
+    setLoadingProgress(null)
+    setLoadingStartedAt(null)
+    loadingStationIdRef.current = null
     setError(null)
 
     try {
@@ -266,12 +325,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     activeStationId,
     activeStationTitle,
     playbackState,
+    loadingProgress,
+    loadingStartedAt,
     error,
     favorites: storageState.favorites,
     recentStations: storageState.recentStations,
     volume: storageState.volume,
     miniPlayerCollapsed: storageState.miniPlayerCollapsed,
     playStation,
+    playNextStation,
+    playPreviousStation,
     prewarmStation,
     stopCurrent,
     setVolume,
@@ -281,6 +344,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     activeStationId,
     activeStationTitle,
     error,
+    loadingProgress,
+    loadingStartedAt,
+    playNextStation,
+    playPreviousStation,
     playStation,
     playbackState,
     prewarmStation,
@@ -312,4 +379,8 @@ function persistStoredAtmosphereState(storageState: AtmosphereStorageState) {
   } catch {
     // Storage can be unavailable in private or restricted browser contexts.
   }
+}
+
+function clampLoadingProgress(progress: number) {
+  return Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0))
 }
