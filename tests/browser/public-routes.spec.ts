@@ -226,7 +226,7 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
       ])
     })
   })
-  await expect(page.getByText(/39 Generative\.fm stations.+18 more Generative\.fm stations/i)).toBeVisible()
+  await expect(page.getByText(/all 57 Generative\.fm stations are playable now/i)).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
@@ -252,24 +252,27 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
     page.locator("#station-generative-fm-trees"),
     page.locator("#station-generative-fm-uun"),
     page.locator("#station-generative-fm-yesterday"),
+    page.locator("#station-generative-fm-zed"),
   ]
   for (const station of representativeHostedGenerativeFmStations) {
     await expect(station.getByText("Playable")).toBeVisible()
   }
   await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
   await expect(page.getByText("Zed").first()).toBeVisible()
-  await expect(page.getByText("Samples pending").first()).toBeVisible()
-  await expect(page.getByText("This station is still being prepared for playback.").first()).toBeVisible()
+  await expect(page.getByText("Samples pending")).toHaveCount(0)
+  await expect(page.getByText("This station is still being prepared for playback.")).toHaveCount(0)
   await expect(page.getByText(/hosted CC0|sample index|public-media/i)).toHaveCount(0)
 
   await observableStreamsStation.getByRole("button", { name: /^Play station$/i }).click()
   await expect(observableStreamsStation.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
   await expect(observableStreamsStation.getByRole("button", { name: /^Stop$/i })).toBeVisible({ timeout: 45_000 })
-  const supportsOpus = await page.evaluate(() => {
+  const expectedSampleFormat = await page.evaluate(() => {
     const audio = document.createElement("audio")
-    return audio.canPlayType('audio/ogg; codecs="opus"') !== ""
+    if (audio.canPlayType('audio/ogg; codecs="opus"') !== "") return "opus"
+    if (audio.canPlayType('audio/mp4; codecs="mp4a.40.2"') !== "") return "aac"
+    if (audio.canPlayType("audio/mpeg") !== "") return "mp3"
+    return "wav"
   })
-  const expectedSampleFormat = supportsOpus ? "opus" : "wav"
   await expect
     .poll(async () => page.evaluate((expectedFormat) => {
       const startupTimings = Reflect.get(window, "__massagelabAtmosphereTimings")

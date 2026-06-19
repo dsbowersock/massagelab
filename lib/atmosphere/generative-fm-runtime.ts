@@ -1,12 +1,13 @@
 import { fetchGenerativeFmSampleIndex } from "./generative-fm-sample-index"
 
+type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
+type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
+
 type GenerativeFmRuntimeStation = {
   id: string
   runtime?: {
     hostedSampleIndexUrl?: string
-    hostedSampleIndexFormatUrls?: {
-      opus?: string
-    }
+    hostedSampleIndexFormatUrls?: Partial<Record<HostedCompressedSampleFormat, string>>
     pieceId?: string
     sampleNameGroups?: Array<string | string[]>
   }
@@ -33,7 +34,7 @@ type GenerativeMusicPiece = (options: {
 type GenerativeFmRuntimeConfig = {
   pieceId: string
   sampleGroups: Array<string | string[]>
-  sampleFormat: "wav" | "opus"
+  sampleFormat: HostedSampleFormat
   sampleIndexUrl: string
 }
 
@@ -63,6 +64,14 @@ let activeVolumeNode: { volume: { value: number, rampTo?: (value: number, second
 let activeTransportOwner: symbol | null = null
 let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
 const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
+const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
+  id: HostedCompressedSampleFormat
+  audioType: string
+}> = Object.freeze([
+  { id: "opus", audioType: 'audio/ogg; codecs="opus"' },
+  { id: "aac", audioType: 'audio/mp4; codecs="mp4a.40.2"' },
+  { id: "mp3", audioType: "audio/mpeg" },
+])
 
 /**
  * Starts a Generative.fm package inside MassageLab's global audio lifecycle.
@@ -255,15 +264,17 @@ function readGenerativeFmRuntimeConfig(station: GenerativeFmRuntimeStation): Gen
 /**
  * Selects the hosted sample-index URL and audio format for runtime prep.
  * The resolved sampleFormat also partitions the prepared-runtime cache so an
- * Opus-capable browser does not reuse a WAV fallback preparation, or vice versa.
+ * Opus, AAC, MP3, and WAV preparations cannot accidentally reuse each other.
  *
  * @param runtime Station runtime metadata with the WAV fallback URL and optional format sidecars.
  * @returns The selected sample format and its sample-index URL, if configured.
  */
 function selectHostedSampleIndexUrl(runtime: GenerativeFmRuntimeStation["runtime"]) {
-  const opusSampleIndexUrl = runtime?.hostedSampleIndexFormatUrls?.opus
-  if (opusSampleIndexUrl && canPlayAudioType('audio/ogg; codecs="opus"')) {
-    return { sampleFormat: "opus" as const, sampleIndexUrl: opusSampleIndexUrl }
+  for (const format of HOSTED_SAMPLE_FORMAT_PREFERENCE) {
+    const sampleIndexUrl = runtime?.hostedSampleIndexFormatUrls?.[format.id]
+    if (sampleIndexUrl && canPlayAudioType(format.audioType)) {
+      return { sampleFormat: format.id, sampleIndexUrl }
+    }
   }
 
   return { sampleFormat: "wav" as const, sampleIndexUrl: runtime?.hostedSampleIndexUrl }
@@ -347,7 +358,7 @@ function volumeToDecibels(volume: number) {
 function recordStartupTiming(detail: {
   stationId: string
   pieceId: string
-  sampleFormat: "wav" | "opus"
+  sampleFormat: HostedSampleFormat
   usedPrewarm: boolean
   prepareWaitMs: number
   toneStartMs: number

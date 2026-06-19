@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  AAC_WEB_AUDIO_FORMAT,
+  MP3_WEB_AUDIO_FORMAT,
   OPUS_WEB_AUDIO_FORMAT,
+  getWebAudioSidecarFormat,
   createWebAudioFormatPlan,
   createWebAudioVariantSampleObject,
 } from "../lib/atmosphere/web-audio-format-pilot.js"
@@ -64,5 +67,58 @@ describe("Atmosphere web-audio format pilot", () => {
       }),
       /outside object prefix/,
     )
+  })
+
+  it("builds AAC and MP3 sidecar object layouts for browser fallbacks", () => {
+    const sourceObject = {
+      instrumentName: "vsco2-piano-mf",
+      noteName: "C4",
+      outputFileName: "piano-c4.wav",
+      objectKey: "atmosphere/generative-fm/aisatsana/samples/piano-c4.wav",
+      sizeBytes: 1_024_000,
+    }
+
+    const aacVariant = createWebAudioVariantSampleObject({
+      sourceObject,
+      objectPrefix: "atmosphere/generative-fm/aisatsana",
+      publicBaseUrl: "https://media.massagelab.app",
+      encodedBody: new Uint8Array(96_000),
+      format: AAC_WEB_AUDIO_FORMAT,
+    })
+    const mp3Variant = createWebAudioVariantSampleObject({
+      sourceObject,
+      objectPrefix: "atmosphere/generative-fm/aisatsana",
+      publicBaseUrl: "https://media.massagelab.app",
+      encodedBody: new Uint8Array(128_000),
+      format: MP3_WEB_AUDIO_FORMAT,
+    })
+
+    assert.equal(aacVariant.objectKey, "atmosphere/generative-fm/aisatsana/web/aac/samples/piano-c4.m4a")
+    assert.equal(aacVariant.contentType, "audio/mp4; codecs=mp4a.40.2")
+    assert.equal(AAC_WEB_AUDIO_FORMAT.canPlayType, 'audio/mp4; codecs="mp4a.40.2"')
+    assert.equal(mp3Variant.objectKey, "atmosphere/generative-fm/aisatsana/web/mp3/samples/piano-c4.mp3")
+    assert.equal(mp3Variant.contentType, "audio/mpeg")
+    assert.equal(MP3_WEB_AUDIO_FORMAT.canPlayType, "audio/mpeg")
+
+    const aacPlan = createWebAudioFormatPlan({
+      objectPrefix: "atmosphere/generative-fm/aisatsana",
+      publicBaseUrl: "https://media.massagelab.app",
+      sourceSampleIndexObjectKey: "atmosphere/generative-fm/aisatsana/sample-index.json",
+      sourceManifestObjectKey: "atmosphere/generative-fm/aisatsana/manifest.json",
+      sourcePayloadBytes: sourceObject.sizeBytes,
+      variantSampleObjects: [aacVariant],
+      format: AAC_WEB_AUDIO_FORMAT,
+    })
+
+    assert.equal(aacPlan.sampleIndexObjectKey, "atmosphere/generative-fm/aisatsana/sample-index.aac.json")
+    assert.equal(aacPlan.manifestObjectKey, "atmosphere/generative-fm/aisatsana/manifest.aac.json")
+    assert.equal(aacPlan.manifest.format.id, "aac")
+  })
+
+  it("selects sidecar format definitions by id", () => {
+    assert.equal(getWebAudioSidecarFormat("opus"), OPUS_WEB_AUDIO_FORMAT)
+    assert.equal(getWebAudioSidecarFormat("aac"), AAC_WEB_AUDIO_FORMAT)
+    assert.equal(getWebAudioSidecarFormat("mp3"), MP3_WEB_AUDIO_FORMAT)
+    assert.throws(() => getWebAudioSidecarFormat("flac"), /Unsupported web audio sidecar format/)
   })
 })
