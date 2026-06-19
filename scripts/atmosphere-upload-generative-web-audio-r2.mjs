@@ -81,6 +81,13 @@ async function runUpload(uploadArgs) {
     )
   }
 
+  if (!options.dryRun) {
+    const missingForUpload = missingAtmosphereR2UploadEnv(env)
+    if (missingForUpload.length > 0) {
+      throw new Error(`Cannot upload hosted atmosphere samples. Missing required environment variables: ${missingForUpload.join(", ")}`)
+    }
+  }
+
   const resolvedAudioRoot = path.resolve(options.audioRoot)
   const files = await collectFiles(resolvedAudioRoot)
   const mappingChartPath = findObservableStreamsVscoPianoMappingChartPath(files)
@@ -132,11 +139,6 @@ async function runUpload(uploadArgs) {
   if (options.dryRun) {
     console.log("Dry run only. No R2 objects were uploaded.")
     return
-  }
-
-  const missingForUpload = missingAtmosphereR2UploadEnv(env)
-  if (missingForUpload.length > 0) {
-    throw new Error(`Cannot upload hosted atmosphere samples. Missing required environment variables: ${missingForUpload.join(", ")}`)
   }
 
   for (const webAudioPlan of webAudioPlans) {
@@ -248,6 +250,8 @@ function runFfmpeg(ffmpegArgs) {
  * @param {string[]} uploadArgs
  */
 function parseUploadArgs(uploadArgs) {
+  let positionalAudioRootSeen = false
+
   /**
    * @param {string} flag
    * @param {number} currentIndex
@@ -314,8 +318,9 @@ function parseUploadArgs(uploadArgs) {
       throw new Error(`Unknown option: ${arg}`)
     }
 
-    if (!options.audioRoot || options.audioRoot === process.env.MASSAGELAB_AUDIO_SAMPLE_ROOT) {
+    if (!positionalAudioRootSeen) {
       options.audioRoot = arg
+      positionalAudioRootSeen = true
       continue
     }
 
