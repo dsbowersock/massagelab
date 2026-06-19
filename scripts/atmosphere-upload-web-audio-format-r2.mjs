@@ -18,9 +18,10 @@ import {
   readAtmospherePublicMediaR2Env,
 } from "../lib/atmosphere/r2-sample-hosting.js"
 import {
-  OPUS_WEB_AUDIO_FORMAT,
+  WEB_AUDIO_SIDECAR_FORMATS,
   createWebAudioFormatPlan,
   createWebAudioVariantSampleObject,
+  getWebAudioSidecarFormat,
 } from "../lib/atmosphere/web-audio-format-pilot.js"
 
 config({ path: ".env.local" })
@@ -53,7 +54,7 @@ function runCheck() {
     endpoint: env.endpoint ?? (env.accountId ? endpointForAtmosphereR2Env(env) : null),
     publicBaseUrlConfigured: Boolean(env.publicBaseUrl),
     objectPrefix: env.objectPrefix,
-    format: OPUS_WEB_AUDIO_FORMAT.id,
+    supportedFormats: WEB_AUDIO_SIDECAR_FORMATS.map((format) => format.id),
     ffmpegAvailable: ffmpeg.status === 0,
     uploadReady: missingForUpload.length === 0 && ffmpeg.status === 0,
     missingForUpload,
@@ -65,6 +66,7 @@ function runCheck() {
  */
 async function runUpload(uploadArgs) {
   const options = parseUploadArgs(uploadArgs)
+  const format = getWebAudioSidecarFormat(options.formatId)
   const baseEnv = readAtmospherePublicMediaR2Env()
   const env = {
     ...baseEnv,
@@ -119,10 +121,11 @@ async function runUpload(uploadArgs) {
     cacheControl: env.cacheControl,
     metadataCacheControl: env.metadataCacheControl,
   })
-  const variantSampleObjects = await createOpusVariantSampleObjects({
+  const variantSampleObjects = await createFormatVariantSampleObjects({
     wavUploadPlan,
     resolvedAudioRoot,
     publicBaseUrl: env.publicBaseUrl,
+    format,
   })
   const webAudioPlan = createWebAudioFormatPlan({
     objectPrefix: wavUploadPlan.objectPrefix,
@@ -131,6 +134,7 @@ async function runUpload(uploadArgs) {
     sourceManifestObjectKey: wavUploadPlan.manifestObjectKey,
     sourcePayloadBytes: wavUploadPlan.samplePayloadBytes,
     variantSampleObjects,
+    format,
     metadataCacheControl: env.metadataCacheControl,
   })
 
@@ -167,29 +171,32 @@ async function runUpload(uploadArgs) {
  *   wavUploadPlan: ReturnType<typeof createObservableStreamsR2UploadPlan>,
  *   resolvedAudioRoot: string,
  *   publicBaseUrl: string,
+ *   format: import("../lib/atmosphere/web-audio-format-pilot.js").WebAudioSidecarFormat,
  * }} params
  */
-async function createOpusVariantSampleObjects({ wavUploadPlan, resolvedAudioRoot, publicBaseUrl }) {
+async function createFormatVariantSampleObjects({ wavUploadPlan, resolvedAudioRoot, publicBaseUrl, format }) {
   const variantSampleObjects = []
 
   for (const sourceObject of wavUploadPlan.sampleObjects) {
     const wavBody = await fs.readFile(path.join(resolvedAudioRoot, sourceObject.sourceRelativePath))
-    const encodedBody = await encodeWavToOpus(wavBody)
+    const encodedBody = await encodeWavToFormat(wavBody, format)
     variantSampleObjects.push(createWebAudioVariantSampleObject({
       sourceObject,
       objectPrefix: wavUploadPlan.objectPrefix,
       publicBaseUrl,
       encodedBody,
+      format,
     }))
   }
 
   for (const sourceObject of wavUploadPlan.renderedSampleObjects) {
-    const encodedBody = await encodeWavToOpus(sourceObject.body)
+    const encodedBody = await encodeWavToFormat(sourceObject.body, format)
     variantSampleObjects.push(createWebAudioVariantSampleObject({
       sourceObject,
       objectPrefix: wavUploadPlan.objectPrefix,
       publicBaseUrl,
       encodedBody,
+      format,
     }))
   }
 
@@ -198,11 +205,12 @@ async function createOpusVariantSampleObjects({ wavUploadPlan, resolvedAudioRoot
 
 /**
  * @param {string | Uint8Array} wavBody
+ * @param {import("../lib/atmosphere/web-audio-format-pilot.js").WebAudioSidecarFormat} format
  */
-async function encodeWavToOpus(wavBody) {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "massagelab-opus-"))
+async function encodeWavToFormat(wavBody, format) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `massagelab-${format.id}-`))
   const inputPath = path.join(tempDir, "input.wav")
-  const outputPath = path.join(tempDir, "output.ogg")
+  const outputPath = path.join(tempDir, `output.${format.extension}`)
 
   try {
     await fs.writeFile(inputPath, wavBody)
@@ -213,7 +221,7 @@ async function encodeWavToOpus(wavBody) {
       "-y",
       "-i",
       inputPath,
-      ...OPUS_WEB_AUDIO_FORMAT.ffmpegOutputArgs,
+      ...format.ffmpegOutputArgs,
       outputPath,
     ])
     return await fs.readFile(outputPath)
@@ -266,6 +274,7 @@ function parseUploadArgs(uploadArgs) {
     dryRun: false,
     publicBaseUrl: undefined,
     objectPrefix: undefined,
+    formatId: undefined,
   }
 
   for (let index = 0; index < uploadArgs.length; index += 1) {
@@ -295,6 +304,17 @@ function parseUploadArgs(uploadArgs) {
 
     if (arg.startsWith("--object-prefix=")) {
       options.objectPrefix = arg.slice("--object-prefix=".length)
+      continue
+    }
+
+    if (arg === "--format") {
+      options.formatId = requireOptionValue("--format", index)
+      index += 1
+      continue
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.formatId = arg.slice("--format=".length)
       continue
     }
 
@@ -374,5 +394,5 @@ async function walkDirectory(rootPath, currentPath, files) {
 function printUsage() {
   console.error("Usage:")
   console.error("  npm run atmosphere:samples:web-audio:r2:check")
-  console.error("  npm run atmosphere:samples:web-audio:r2:upload -- <audio-sample-root> [--dry-run] [--public-base-url <url>] [--object-prefix <prefix>]")
+  console.error("  npm run atmosphere:samples:web-audio:r2:upload -- <audio-sample-root> [--dry-run] [--format opus|aac|mp3] [--public-base-url <url>] [--object-prefix <prefix>]")
 }

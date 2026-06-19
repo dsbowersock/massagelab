@@ -14,6 +14,9 @@ const stations = getVisibleAtmosphereStations()
 const generativeFmStations = stations.filter((station) => station.sourceType === "generative-fm-piece")
 const playableGenerativeFmStationCount = generativeFmStations.filter((station) => station.enabled).length
 const pendingGenerativeFmStationCount = generativeFmStations.length - playableGenerativeFmStationCount
+const generativeFmCatalogStatusText = pendingGenerativeFmStationCount > 0
+  ? ` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} more Generative.fm stations are being prepared.`
+  : ` The proof drone and all ${playableGenerativeFmStationCount} Generative.fm stations are playable now.`
 const prewarmableGenerativeFmStationIds = generativeFmStations
   .filter((station) => station.enabled)
   .map((station) => station.id)
@@ -71,7 +74,7 @@ export function AtmosphereWorkspace() {
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
               Start a station, move to another MassageLab tool, and the bottom player keeps control of the sound.
-              {` The proof drone and ${playableGenerativeFmStationCount} Generative.fm ${playableGenerativeFmStationCount === 1 ? "station" : "stations"} are playable now; ${pendingGenerativeFmStationCount} more Generative.fm stations are being prepared.`}
+              {generativeFmCatalogStatusText}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button asChild variant="outline">

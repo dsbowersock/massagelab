@@ -12,19 +12,38 @@ const vcslRoot = "VCSL-1.2.2-RC/VCSL-1.2.2-RC"
 const signatureBeachRoot = "Signature Samples/SS_Beach_Ambience_Recordings_CC0/SS_Beach_Ambience_Recordings_CC0"
 const signatureChoirRoot = "Signature Samples/SS_Choirs_Vocals_SFX_Teaser_CC0/SS_Choirs_Vocals_SFX_Teaser_CC0"
 const signatureSerbianChoirRoot = "Signature Samples/SS_Serbian_Orthodox_Choirs_Original_Recordings_CC0/SS_Serbian_Orthodox_Choirs_Original_Recordings_CC0"
+const signatureBellRoot = "Signature Samples/SS_Bell_One_Kit_Key_CC0/SS_Bell_One_Kit_Key_CC0"
+const signatureBurialPadsRoot = "Signature Samples/SS_Burial_Pads_CC0/SS_Burial_Pads_CC0"
+const signatureSpiritualRoot = "Signature Samples/Spiritual+Acoustics+CC0+Signaturesounds.org/Spiritual Acoustics CC0 Signaturesounds.org"
+const signatureUnderwaterRoot = "Signature Samples/Underwater+One+Shots+2/Underwater One Shots"
+const signatureSpanishGuitarRoot = "Signature Samples/Spanish+Guitar/Spanish Guitar"
+const signatureCutleryRoot = "Signature Samples/SS_Cutlery_Percussion_Foley_CC0/SS_Cutlery_Percussion_Foley_CC0"
+const signatureVhsDrumRoot = "Signature Samples/VHS-Drumkit+CC0+2/VHS-Drumkit CC0"
+const signatureLondonRoot = "Signature Samples/London+Underground+Rcordings/London Underground Rcordings"
+const signatureKotorRoot = "Signature Samples/Kotor,+Montenegro+-Signaturesounds.org/Kotor, Montenegro -Signaturesounds.org"
+const signatureFireworksRoot = "Signature Samples/Distant+Fireworks/Distant Fireworks"
+const signatureLoopsRoot = "Signature Samples/Loops+Of+Ambience/Loops Of Ambience"
+const signatureBeachRocksRoot = "Signature Samples/SS_Beach-Rocks_Textures_CC0/SS_Beach-Rocks_Textures_CC0"
+const signatureCymbalRoot = "Signature Samples/Cymbal+Crashes+-+SignatureSounds.org/Cymbal Crashes - SignatureSounds.org"
+const signatureWhiteNoiseRoot = "Signature Samples/White+Noise/White Noise"
 
 describe("Generative.fm sample coverage", () => {
   it("separates hosted stations from local CC0 source candidates", () => {
     const coverage = createCoverage()
 
     assert.equal(coverage.summary.totalPieces, 57)
-    assert.equal(coverage.summary.hostedPieces, 39)
+    assert.equal(coverage.summary.hostedPieces, 57)
     assert.equal(coverage.summary.localSourceCandidatePieces, 0)
-    assert.equal(coverage.summary.replacementNeededPieces, 18)
+    assert.equal(coverage.summary.replacementNeededPieces, 0)
     assert.equal(coverage.libraries.find((library) => library.id === "vsco-2-ce").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "vcsl").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "signature-sounds-beach").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "signature-sounds-choir-teaser").licenseStatus, "license-confirmed")
+    assert.equal(coverage.libraries.find((library) => library.id === "signature-sounds-site-cc0").licenseStatus, "license-confirmed")
+    assert.equal(
+      coverage.libraries.find((library) => library.id === "signature-sounds-site-cc0").licenseEvidencePath,
+      "https://signaturesounds.org/about-",
+    )
 
     const observableStreams = coverage.pieces.find((piece) => piece.id === "observable-streams")
     assert.equal(observableStreams.status, "hosted")
@@ -76,14 +95,14 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(splash.sampleGroups[0].sourceName, "vsco2-piano-mf")
 
     const pulseCodeModulation = coverage.pieces.find((piece) => piece.id === "pulse-code-modulation")
-    assert.equal(pulseCodeModulation.status, "replacement-needed")
+    assert.equal(pulseCodeModulation.status, "hosted")
     assert.equal(
       pulseCodeModulation.sampleGroups.find((group) => group.sourceName === "vsco2-piano-mf").status,
       GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE,
     )
     assert.equal(
       pulseCodeModulation.sampleGroups.find((group) => group.sourceName === "acoustic-guitar").status,
-      GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.REPLACEMENT_NEEDED,
+      GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE,
     )
   })
 
@@ -93,7 +112,7 @@ describe("Generative.fm sample coverage", () => {
     })
     const pulseCodeModulation = coverage.pieces.find((piece) => piece.id === "pulse-code-modulation")
 
-    assert.equal(pulseCodeModulation.status, "replacement-needed")
+    assert.equal(pulseCodeModulation.status, "hosted")
     assert.equal(
       pulseCodeModulation.sampleGroups.find((group) => group.sourceName === "vsco2-piano-mf").status,
       GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING,
@@ -142,9 +161,9 @@ describe("Generative.fm sample coverage", () => {
     )
 
     const animalia = coverage.pieces.find((piece) => piece.id === "animalia-chordata")
-    assert.equal(animalia.status, "replacement-needed")
+    assert.equal(animalia.status, "hosted")
     assert.equal(animalia.sampleGroups[0].sourceName, "whales")
-    assert.equal(animalia.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.REPLACEMENT_NEEDED)
+    assert.equal(animalia.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
   })
 
   it("lists known local CC0 source rules for future rendered-sample planning", () => {
@@ -153,16 +172,18 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(listKnownLocalCc0GenerativeFmSampleGroups().includes("waves"), true)
     assert.equal(listKnownLocalCc0GenerativeFmSampleGroups().includes("sso-cor-anglais"), true)
     assert.equal(listKnownLocalCc0GenerativeFmSampleGroups().includes("sso-chorus-female"), true)
+    assert.equal(listKnownLocalCc0GenerativeFmSampleGroups().includes("whales"), true)
+    assert.equal(listKnownLocalCc0GenerativeFmSampleGroups().includes("zed__pad"), true)
   })
 
   it("formats a human-readable report", () => {
     const report = formatGenerativeFmSampleCoverageReport(createCoverage())
 
     assert.match(report, /Generative\.fm Sample Coverage Report/)
-    assert.match(report, /Ready For Render\/Upload Planning/)
-    assert.match(report, /Needs Replacement Or Separate Source Review/)
+    assert.match(report, /Hosted\/playable/)
+    assert.match(report, /Signature Sounds site-wide CC0 packs/)
     assert.match(report, /Day\/Dream \(day-dream\)/)
-    assert.match(report, /sso-chorus-female: local-cc0-candidate/)
+    assert.match(report, /Animalia Chordata \(animalia-chordata\)/)
   })
 })
 
@@ -189,11 +210,14 @@ function createLocalCandidateFiles() {
     `${vscoRoot}/Keys/Upright Piano/MappingChart.txt`,
     `${vscoRoot}/Keys/Upright Piano/Player_dyn2_rr1_008.wav`,
     `${vscoRoot}/Woodwinds/Oboe/Sus/Oboe_Sus_A#3_v1_Main.wav`,
+    `${vscoRoot}/Woodwinds/Flute/SusVib/LdFlute_susVib_C3_v1_1.wav`,
     `${vscoRoot}/Strings/Solo Contrabass/SusVib/BKCtbss_SusVib_C1_v1_rr1.wav`,
     `${vscoRoot}/Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C4_p.wav`,
+    `${vscoRoot}/Strings/Harp/KSHarp_C3_mf.wav`,
     `${vscoRoot}/Brass/Trumpet/sus/Sum_SHTrumpet_sus_C3_v1_rr1.wav`,
     `${vcslRoot}/README.md`,
     `${vcslRoot}/Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v1_rr2_Main.wav`,
+    `${vcslRoot}/Membranophones/Other Membranophones/Ocean Drum/OceanDrum_Sus_1_Mid.wav`,
     `${signatureBeachRoot}/LICENSE_Beach_Collection_PRO.txt`,
     `${signatureBeachRoot}/Beach_Ambience_4.wav`,
     `${signatureBeachRoot}/Beach_Ambience_10.wav`,
@@ -202,5 +226,20 @@ function createLocalCandidateFiles() {
     `${signatureChoirRoot}/Men_Of_Choirs_05_Key_D.wav`,
     `${signatureSerbianChoirRoot}/LICENSE_Serbian_Choir_PRO_v2.txt`,
     `${signatureSerbianChoirRoot}/CHOIR_SerbianOrthodox_Ambience_01.wav`,
+    `${signatureBellRoot}/Bell_One_Shot_ C1.wav`,
+    `${signatureBurialPadsRoot}/Burial_Pad_Long_1.wav`,
+    `${signatureSpiritualRoot}/Spiritual Acoustics Loop 1.wav`,
+    `${signatureUnderwaterRoot}/Underwater One Shots.wav`,
+    `${signatureSpanishGuitarRoot}/Spanish Guitars (SignatureSounds.Org) 01.wav`,
+    `${signatureCutleryRoot}/Cutlery_Percussion_01.wav`,
+    `${signatureVhsDrumRoot}/bdr-01.wav`,
+    `${signatureVhsDrumRoot}/sdr-01.wav`,
+    `${signatureLondonRoot}/Train Engine Revving Up And Track Noises.wav`,
+    `${signatureKotorRoot}/Kotor, Montenegro - Birds Singing In The Evening.wav`,
+    `${signatureFireworksRoot}/Far Away Fireworks-01.wav`,
+    `${signatureLoopsRoot}/Guitars/Ambient Guitars Loop 01 77bpm.wav`,
+    `${signatureBeachRocksRoot}/Beach_Rocks_Percussion_One_Shots_Textures_1.wav`,
+    `${signatureCymbalRoot}/Cymbal Crash 1.wav`,
+    `${signatureWhiteNoiseRoot}/White Noise.wav`,
   ]
 }
