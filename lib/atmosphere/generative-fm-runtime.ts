@@ -91,6 +91,8 @@ let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
 const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
 const samplePayloadPrewarmEntries = new Map<string, SamplePayloadPrewarmEntry>()
 const GENERATIVE_FM_HANDOFF_FADE_SECONDS = 1.2
+const SAMPLE_REQUEST_PROGRESS_START = 0.34
+const SAMPLE_REQUEST_PROGRESS_SPAN = 0.34
 const SAMPLE_PAYLOAD_PREWARM_LIMIT = 24
 const SAMPLE_PAYLOAD_PREWARM_CONCURRENCY = 3
 const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
@@ -135,7 +137,7 @@ export async function startGenerativeFmPiece({
       const totalUniqueUrlCount = Math.max(1, progress.totalUniqueUrlCount)
       reportLoadProgress(
         onLoadProgress,
-        0.34 + (progress.loadedUniqueUrlCount / totalUniqueUrlCount) * 0.34,
+        SAMPLE_REQUEST_PROGRESS_START + (progress.loadedUniqueUrlCount / totalUniqueUrlCount) * SAMPLE_REQUEST_PROGRESS_SPAN,
       )
     },
   }) as ReturnType<WebProviderFactory>

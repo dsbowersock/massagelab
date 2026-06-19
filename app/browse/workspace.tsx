@@ -479,6 +479,13 @@ function isExternalUrl(href: string) {
   return /^https?:\/\//i.test(href)
 }
 
+/**
+ * Decides whether idle/hover warmup may fetch compressed audio payloads.
+ *
+ * Payload warmup is skipped when the browser reports data-saver mode, but when
+ * connection information is unavailable we assume a normal connection so
+ * browsers without the Network Information API can still benefit from warmup.
+ */
 function canPrewarmCompressedSamplePayloads() {
   const connection = (navigator as Navigator & {
     connection?: {

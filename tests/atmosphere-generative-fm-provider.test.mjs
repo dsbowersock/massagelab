@@ -8,13 +8,18 @@ import {
 describe("Generative.fm provider wrapper", () => {
   it("requests uncached sample URLs in bounded batches and preserves caller order", async () => {
     const requests = []
+    const fakeBuffers = new Map()
     const stats = createGenerativeFmProviderRequestStats()
     const provider = createBoundedGenerativeFmWebProvider({
       maxBatchSize: 2,
       provider: {
         request: async (_audioContext, urls) => {
           requests.push([...urls])
-          return urls.map((url) => `buffer:${url}`)
+          return urls.map((url) => {
+            const buffer = { url }
+            fakeBuffers.set(url, buffer)
+            return buffer
+          })
         },
       },
       stats,
@@ -23,7 +28,12 @@ describe("Generative.fm provider wrapper", () => {
     const buffers = await provider.request({}, ["a.opus", "b.opus", "c.opus", "b.opus"])
 
     assert.deepEqual(requests, [["a.opus", "b.opus"], ["c.opus"]])
-    assert.deepEqual(buffers, ["buffer:a.opus", "buffer:b.opus", "buffer:c.opus", "buffer:b.opus"])
+    assert.deepEqual(buffers, [
+      fakeBuffers.get("a.opus"),
+      fakeBuffers.get("b.opus"),
+      fakeBuffers.get("c.opus"),
+      fakeBuffers.get("b.opus"),
+    ])
     assert.equal(stats.requestCount, 1)
     assert.equal(stats.requestedUrlCount, 4)
     assert.equal(stats.uniqueUrlCount, 3)
@@ -59,7 +69,7 @@ describe("Generative.fm provider wrapper", () => {
       maxBatchSize: 2,
       onSampleProgress: (progress) => progressEvents.push(progress),
       provider: {
-        request: async (_audioContext, urls) => urls.map((url) => `buffer:${url}`),
+        request: async (_audioContext, urls) => urls.map((url) => ({ url })),
       },
     })
 
@@ -84,6 +94,28 @@ describe("Generative.fm provider wrapper", () => {
     await assert.rejects(
       () => provider.request({}, ["bad.opus"]),
       /decode failed/,
+    )
+  })
+
+  it("rejects provider responses that cannot be mapped back to requested URLs", async () => {
+    const shortResponseProvider = createBoundedGenerativeFmWebProvider({
+      provider: {
+        request: async () => [],
+      },
+    })
+    const invalidBufferProvider = createBoundedGenerativeFmWebProvider({
+      provider: {
+        request: async () => [undefined],
+      },
+    })
+
+    await assert.rejects(
+      () => shortResponseProvider.request({}, ["missing.opus"]),
+      /Provider returned 0 buffers but expected 1/,
+    )
+    await assert.rejects(
+      () => invalidBufferProvider.request({}, ["invalid.opus"]),
+      /Provider returned an invalid buffer at index 0 for invalid\.opus/,
     )
   })
 })

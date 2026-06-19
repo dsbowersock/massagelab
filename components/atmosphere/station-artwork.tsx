@@ -65,6 +65,13 @@ export function AtmosphereStationArtwork({
   )
 }
 
+/**
+ * Chooses the organic-geometric artwork motif for a station.
+ *
+ * @param text Lowercase station title, description, and group text used for sound/feel keyword matching.
+ * @param seed Stable station hash used only when no keyword rule matches.
+ * @returns One of the motif ids supported by `renderMotif`; keyword matches win before the seeded fallback.
+ */
 function chooseMotif(text: string, seed: number) {
   if (/bell|glock|mallet|piano|key|little/.test(text)) return "honeycomb"
   if (/wave|water|rain|ocean|lullaby|beneath/.test(text)) return "moon-waves"
@@ -245,6 +252,13 @@ function hashString(value: string) {
   return hash
 }
 
+/**
+ * Adjusts a six-digit hex color by the same channel offset.
+ *
+ * @param hex Color string in `#rrggbb` or `rrggbb` form.
+ * @param amount Signed channel offset; positive lightens and negative darkens.
+ * @returns A clamped `#rrggbb` color string.
+ */
 function shadeHex(hex: string, amount: number) {
   const normalized = hex.replace("#", "")
   const value = Number.parseInt(normalized, 16)
@@ -254,6 +268,12 @@ function shadeHex(hex: string, amount: number) {
   return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`
 }
 
+/**
+ * Clamps a color channel to the CSS RGB byte range.
+ *
+ * @param value Raw channel value after shade adjustment.
+ * @returns An integer-compatible number between 0 and 255.
+ */
 function clampColor(value: number) {
   return Math.max(0, Math.min(255, value))
 }

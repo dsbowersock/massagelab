@@ -218,7 +218,7 @@ test("legacy Wellness Atmosphere route redirects to top-level Atmosphere", async
 
   await page.goto("/wellness/atmosphere", { waitUntil: "domcontentloaded" })
 
-  await expect(page).toHaveURL(/\/atmosphere$/)
+  await expect.poll(() => new URL(page.url()).pathname).toBe("/atmosphere")
   await expect(page.getByRole("heading", { name: /Atmosphere audio stations/i, includeHidden: true })).toBeAttached()
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
 
@@ -231,6 +231,8 @@ test("legacy Wellness Atmosphere route redirects to top-level Atmosphere", async
 test("Atmosphere registers mobile media notification controls for active stations", async ({ page }) => {
   const health = capturePageHealth(page)
 
+  // Install a deterministic Media Session shim before app code runs so this
+  // test can assert notification metadata and action-handler registration.
   await page.addInitScript(() => {
     const handlers: Record<string, (() => void) | null> = {}
     const mediaSession = {
@@ -253,14 +255,18 @@ test("Atmosphere registers mobile media notification controls for active station
       }
     }
 
+    // The app reads navigator.mediaSession, so the shim must live on the
+    // Navigator prototype before React code initializes.
     Object.defineProperty(Navigator.prototype, "mediaSession", {
       configurable: true,
       get: () => mediaSession,
     })
+    // The app constructs MediaMetadata when updating notification controls.
     Object.defineProperty(window, "MediaMetadata", {
       configurable: true,
       value: MockMediaMetadata,
     })
+    // Expose shim state for page.evaluate polling assertions in this test.
     Reflect.set(window, "__massagelabMediaSession", mediaSession)
   })
 
