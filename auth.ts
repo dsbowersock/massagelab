@@ -186,18 +186,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const userId = typeof token.id === "string" ? token.id : token.sub
 
       if (userId) {
-        if (account?.provider === "google") {
-          await ensureGoogleUserState(userId, user?.email)
-        }
-
-        const state = await getUserAuthState(userId)
         token.id = userId
-        token.role = state.role
-        token.roles = state.roles
-        token.roleAssignments = state.roleAssignments
-        token.capabilities = state.capabilities
-        token.emailVerified = state.emailVerified
-        token.twoFactorEnabled = state.twoFactorEnabled
+        try {
+          if (account?.provider === "google") {
+            await ensureGoogleUserState(userId, user?.email)
+          }
+
+          const state = await getUserAuthState(userId)
+          token.role = state.role
+          token.roles = state.roles
+          token.roleAssignments = state.roleAssignments
+          token.capabilities = state.capabilities
+          token.emailVerified = state.emailVerified
+          token.twoFactorEnabled = state.twoFactorEnabled
+        } catch (error) {
+          logAuthStateRefreshError(error)
+          // If account-state refresh fails, keep identity but drop privileges until the database is readable again.
+          token.role = "USER"
+          token.roles = ["USER"]
+          token.roleAssignments = [{ role: "USER", status: "VERIFIED" }]
+          token.capabilities = defaultAccountCapabilities("USER")
+          token.emailVerified = false
+          token.twoFactorEnabled = false
+        }
       }
 
       return token
@@ -220,15 +231,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         sessionUser.roleAssignments = Array.isArray(token.roleAssignments)
           ? (token.roleAssignments as Array<{ role: AccountRole; status: VerificationStatus }>)
           : sessionUser.roles.map((role) => ({ role, status: "VERIFIED" as VerificationStatus }))
-        sessionUser.capabilities = (token.capabilities ?? {
-          canAdministerAccounts: sessionUser.role === "ADMIN",
-          canManageAnatomyContent: sessionUser.role === "ADMIN" || sessionUser.role === "ANATOMY_ADMIN",
-          canManageClients: false,
-          canRequestCredentials: true,
-          canUseLocalClinicalTools: false,
-          canUseChimerCustomColors: false,
-          hostedClinicalSyncEnabled: false,
-        }) as AccountCapabilities
+        sessionUser.capabilities = (token.capabilities ?? defaultAccountCapabilities(sessionUser.role)) as AccountCapabilities
         sessionUser.emailVerified = Boolean(token.emailVerified)
         sessionUser.twoFactorEnabled = Boolean(token.twoFactorEnabled)
       }
@@ -240,4 +243,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 export function getCurrentSession() {
   return auth()
+}
+
+function defaultAccountCapabilities(role: AccountRole): AccountCapabilities {
+  return {
+    canAdministerAccounts: role === "ADMIN",
+    canManageAnatomyContent: role === "ADMIN" || role === "ANATOMY_ADMIN",
+    canManageClients: false,
+    canRequestCredentials: true,
+    canUseLocalClinicalTools: false,
+    canUseChimerCustomColors: false,
+    hostedClinicalSyncEnabled: false,
+  }
+}
+
+function logAuthStateRefreshError(error: unknown) {
+  console.error("Failed to refresh session account state", { error: summarizeAuthCallbackError(error) })
+}
+
+function summarizeAuthCallbackError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return { name: typeof error }
+  }
+
+  const maybeError = error as { name?: unknown; code?: unknown; cause?: unknown }
+  const cause = maybeError.cause && typeof maybeError.cause === "object"
+    ? maybeError.cause as { code?: unknown; kind?: unknown }
+    : undefined
+
+  return {
+    name: typeof maybeError.name === "string" ? maybeError.name : "Error",
+    code: typeof maybeError.code === "string" ? maybeError.code : undefined,
+    causeCode: typeof cause?.code === "string" ? cause.code : undefined,
+    causeKind: typeof cause?.kind === "string" ? cause.kind : undefined,
+  }
 }

@@ -36,7 +36,7 @@ describe("Atmosphere station catalog", () => {
     assert.equal(station.sourceType, "tone-generator")
     assert.equal(station.enabled, true)
     assert.equal(station.runtime.adapterId, "tone-proof-drone")
-    assert.equal(station.attribution.sourceUrl, "/wellness/atmosphere")
+    assert.equal(station.attribution.sourceUrl, "/atmosphere")
     assert.match(station.description, /soft, steady drone/i)
     assert.equal(station.attribution.license, "MassageLab internal proof")
   })

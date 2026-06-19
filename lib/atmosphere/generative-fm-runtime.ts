@@ -2,6 +2,10 @@ import {
   fetchGenerativeFmSampleIndex,
   selectGenerativeFmSampleWarmupUrls,
 } from "./generative-fm-sample-index"
+import {
+  createBoundedGenerativeFmWebProvider,
+  createGenerativeFmProviderRequestStats,
+} from "./generative-fm-provider"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -87,6 +91,8 @@ let runtimeModulesPromise: Promise<GenerativeFmRuntimeModules> | null = null
 const preparedRuntimeEntries = new Map<string, PreparedRuntimeCacheEntry>()
 const samplePayloadPrewarmEntries = new Map<string, SamplePayloadPrewarmEntry>()
 const GENERATIVE_FM_HANDOFF_FADE_SECONDS = 1.2
+const SAMPLE_REQUEST_PROGRESS_START = 0.34
+const SAMPLE_REQUEST_PROGRESS_SPAN = 0.34
 const SAMPLE_PAYLOAD_PREWARM_LIMIT = 24
 const SAMPLE_PAYLOAD_PREWARM_CONCURRENCY = 3
 const HOSTED_SAMPLE_FORMAT_PREFERENCE: ReadonlyArray<{
@@ -123,7 +129,18 @@ export async function startGenerativeFmPiece({
   const toneStartedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.32)
 
-  const provider = createWebProvider()
+  const providerRequestStats = createGenerativeFmProviderRequestStats()
+  const provider = createBoundedGenerativeFmWebProvider({
+    provider: createWebProvider(),
+    stats: providerRequestStats,
+    onSampleProgress: (progress) => {
+      const totalUniqueUrlCount = Math.max(1, progress.totalUniqueUrlCount)
+      reportLoadProgress(
+        onLoadProgress,
+        SAMPLE_REQUEST_PROGRESS_START + (progress.loadedUniqueUrlCount / totalUniqueUrlCount) * SAMPLE_REQUEST_PROGRESS_SPAN,
+      )
+    },
+  }) as ReturnType<WebProviderFactory>
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
   const output = new Tone.Volume(volumeToDecibels(0)).toDestination()
   let deactivate: () => unknown
@@ -144,8 +161,17 @@ export async function startGenerativeFmPiece({
   const activatedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.9)
 
+  const transportOwner = Symbol(station.id)
   let endStage: (() => unknown) | undefined
   try {
+    if (activeTransportOwner) {
+      // Generative.fm pieces share Tone.Transport and package callbacks are not
+      // owner-scoped. Clear old future callbacks before the next station claims
+      // the transport; already-started sources keep fading through their output.
+      Tone.Transport.cancel()
+      activeTransportOwner = null
+    }
+
     endStage = schedule()
   } catch (error) {
     deactivate()
@@ -166,6 +192,12 @@ export async function startGenerativeFmPiece({
     usedSamplePayloadPrewarm: samplePayloadPrewarm.settled
       && samplePayloadPrewarm.sampleUrlCount > samplePayloadPrewarm.failedUrlCount,
     samplePayloadPrewarmCount: samplePayloadPrewarm.sampleUrlCount,
+    sampleRequestBatchCount: providerRequestStats.batchCount,
+    sampleRequestCount: providerRequestStats.requestCount,
+    sampleRequestMaxBatchSize: providerRequestStats.maxBatchSize,
+    sampleRequestMemoryHitUrlCount: providerRequestStats.memoryHitUrlCount,
+    sampleRequestUniqueUrlCount: providerRequestStats.uniqueUrlCount,
+    sampleRequestUrlCount: providerRequestStats.requestedUrlCount,
     prepareWaitMs: preparedAt - startedAt,
     toneStartMs: toneStartedAt - preparedAt,
     pieceActivateMs: activatedAt - toneStartedAt,
@@ -173,7 +205,6 @@ export async function startGenerativeFmPiece({
     totalMs: scheduledAt - startedAt,
   })
   activeVolumeNode = output
-  const transportOwner = Symbol(station.id)
   activeTransportOwner = transportOwner
   output.volume.rampTo?.(volumeToDecibels(volume), GENERATIVE_FM_HANDOFF_FADE_SECONDS)
 
@@ -511,6 +542,12 @@ function recordStartupTiming(detail: {
   usedPrewarm: boolean
   usedSamplePayloadPrewarm: boolean
   samplePayloadPrewarmCount: number
+  sampleRequestBatchCount: number
+  sampleRequestCount: number
+  sampleRequestMaxBatchSize: number
+  sampleRequestMemoryHitUrlCount: number
+  sampleRequestUniqueUrlCount: number
+  sampleRequestUrlCount: number
   prepareWaitMs: number
   toneStartMs: number
   pieceActivateMs: number

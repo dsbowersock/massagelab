@@ -69,8 +69,24 @@ interface RuntimeAdapterPayload {
   }
 }
 
+type AtmosphereMediaSessionAction = "play" | "pause" | "stop" | "previoustrack" | "nexttrack"
+
+interface AtmosphereMediaSession {
+  metadata: unknown
+  playbackState: "none" | "paused" | "playing"
+  setActionHandler: (action: AtmosphereMediaSessionAction, handler: (() => void) | null) => void
+}
+
+interface AtmosphereMediaMetadataInit {
+  title: string
+  artist: string
+  album: string
+  artwork: Array<{ src: string; sizes: string; type: string }>
+}
+
 const defaultStorage = createDefaultAtmosphereStorage() as AtmosphereStorageState
 const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
+const mediaSessionActions: AtmosphereMediaSessionAction[] = ["play", "pause", "stop", "previoustrack", "nexttrack"]
 
 const defaultMusicContext: MusicContextType = {
   activeStationId: null,
@@ -287,6 +303,46 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Expose the active station to Android/iOS/browser media surfaces when the
+  // browser supports Media Session. Unsupported actions are ignored because
+  // browser notification controls vary by device and installed browser.
+  useEffect(() => {
+    const mediaSession = (navigator as unknown as { mediaSession?: AtmosphereMediaSession }).mediaSession
+    if (!mediaSession) {
+      return undefined
+    }
+
+    if (!activeStationId || playbackState === "stopped" || playbackState === "failed") {
+      mediaSession.playbackState = "none"
+      mediaSession.metadata = null
+      clearAtmosphereMediaSessionHandlers(mediaSession)
+      return undefined
+    }
+
+    const station = getAtmosphereStationById(activeStationId)
+    mediaSession.playbackState = "playing"
+    setAtmosphereMediaSessionMetadata(mediaSession, station)
+    setAtmosphereMediaSessionHandler(mediaSession, "play", () => {
+      void playStation(station.id)
+    })
+    setAtmosphereMediaSessionHandler(mediaSession, "pause", () => {
+      void stopCurrent()
+    })
+    setAtmosphereMediaSessionHandler(mediaSession, "stop", () => {
+      void stopCurrent()
+    })
+    setAtmosphereMediaSessionHandler(mediaSession, "previoustrack", () => {
+      void playPreviousStation()
+    })
+    setAtmosphereMediaSessionHandler(mediaSession, "nexttrack", () => {
+      void playNextStation()
+    })
+
+    return () => {
+      clearAtmosphereMediaSessionHandlers(mediaSession)
+    }
+  }, [activeStationId, playNextStation, playPreviousStation, playStation, playbackState, stopCurrent])
+
   const setVolume = useCallback((nextVolume: number) => {
     const clampedVolume = Math.min(1, Math.max(0, nextVolume))
     volumeRef.current = clampedVolume
@@ -383,4 +439,52 @@ function persistStoredAtmosphereState(storageState: AtmosphereStorageState) {
 
 function clampLoadingProgress(progress: number) {
   return Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0))
+}
+
+function setAtmosphereMediaSessionMetadata(
+  mediaSession: AtmosphereMediaSession,
+  station: ReturnType<typeof getAtmosphereStationById>,
+) {
+  const MediaMetadataConstructor = (window as unknown as {
+    MediaMetadata?: new (init: AtmosphereMediaMetadataInit) => unknown
+  }).MediaMetadata
+  if (!MediaMetadataConstructor) {
+    return
+  }
+
+  try {
+    mediaSession.metadata = new MediaMetadataConstructor({
+      title: station.title,
+      artist: station.artist || station.attribution.artist || "MassageLab",
+      album: "MassageLab Atmosphere",
+      artwork: [
+        { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+    })
+  } catch {
+    // Metadata failures should not interrupt playback.
+  }
+}
+
+function setAtmosphereMediaSessionHandler(
+  mediaSession: AtmosphereMediaSession,
+  action: AtmosphereMediaSessionAction,
+  handler: () => void,
+) {
+  try {
+    mediaSession.setActionHandler(action, handler)
+  } catch {
+    // Some browsers expose Media Session but reject individual controls.
+  }
+}
+
+function clearAtmosphereMediaSessionHandlers(mediaSession: AtmosphereMediaSession) {
+  for (const action of mediaSessionActions) {
+    try {
+      mediaSession.setActionHandler(action, null)
+    } catch {
+      // Clearing handlers is best-effort for the same device-variance reason.
+    }
+  }
 }

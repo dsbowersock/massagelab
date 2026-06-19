@@ -29,7 +29,7 @@ describe("Navigation IA model", () => {
     assert.deepEqual(groups.flatMap((group) => group.routes.map((route) => route.href)), [
       "/chimer",
       "/wellness",
-      "/wellness/atmosphere",
+      "/atmosphere",
       "/wellness/breathing",
       "/calendar",
       "/notes",
@@ -135,7 +135,7 @@ describe("Navigation IA model", () => {
     assert.deepEqual(primaryHrefs(navigation), [
       "/chimer",
       "/wellness",
-      "/wellness/atmosphere",
+      "/atmosphere",
       "/wellness/breathing",
       "/calendar",
       "/notes",
@@ -164,13 +164,13 @@ describe("Navigation IA model", () => {
     })
 
     assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness"), true)
-    assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness/atmosphere"), true)
+    assert.equal(primaryHrefs(anonymousNavigation).includes("/atmosphere"), true)
     assert.equal(primaryHrefs(anonymousNavigation).includes("/wellness/breathing"), true)
     assert.equal(primaryHrefs(signedInNavigation).includes("/wellness"), true)
-    assert.equal(primaryHrefs(signedInNavigation).includes("/wellness/atmosphere"), true)
+    assert.equal(primaryHrefs(signedInNavigation).includes("/atmosphere"), true)
     assert.equal(primaryHrefs(signedInNavigation).includes("/wellness/breathing"), true)
     assert.equal(primaryHrefs(clientNavigation).includes("/wellness"), true)
-    assert.equal(primaryHrefs(clientNavigation).includes("/wellness/atmosphere"), true)
+    assert.equal(primaryHrefs(clientNavigation).includes("/atmosphere"), true)
     assert.equal(primaryHrefs(clientNavigation).includes("/wellness/breathing"), true)
     assert.equal(primaryHrefs(clientNavigation).some((href) => href.startsWith("/notes/")), false)
   })
