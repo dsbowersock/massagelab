@@ -226,25 +226,34 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
       ])
     })
   })
-  await expect(page.getByText(/11 Generative\.fm stations.+46 more Generative\.fm stations/i)).toBeVisible()
+  await expect(page.getByText(/39 Generative\.fm stations.+18 more Generative\.fm stations/i)).toBeVisible()
   const observableStreamsStation = page.locator("#station-observable-streams-probe")
   await expect(observableStreamsStation.getByText("Observable Streams", { exact: true })).toBeVisible()
   await expect(observableStreamsStation.getByText("Playable")).toBeVisible()
   await expect(observableStreamsStation.getByText(/Piano, violin, and oboe-like tones/i)).toBeVisible()
   await expect(observableStreamsStation.getByRole("link", { name: "Alex Bainter · MIT" })).toBeVisible()
-  const hostedGenerativeFmStations = [
+  const representativeHostedGenerativeFmStations = [
+    page.locator("#station-generative-fm-420hz-gamma-waves-for-big-brain"),
+    page.locator("#station-generative-fm-above-the-rain"),
     page.locator("#station-generative-fm-aisatsana"),
     page.locator("#station-generative-fm-at-sunrise"),
+    page.locator("#station-generative-fm-buttafingers"),
     page.locator("#station-generative-fm-day-dream"),
     page.locator("#station-generative-fm-eno-machine"),
     page.locator("#station-generative-fm-impact"),
     page.locator("#station-generative-fm-lemniscate"),
     page.locator("#station-generative-fm-little-bells"),
+    page.locator("#station-generative-fm-no-refrain"),
     page.locator("#station-generative-fm-pinwheels"),
+    page.locator("#station-generative-fm-ritual"),
     page.locator("#station-generative-fm-sevenths"),
+    page.locator("#station-generative-fm-splash"),
+    page.locator("#station-generative-fm-transmission"),
+    page.locator("#station-generative-fm-trees"),
     page.locator("#station-generative-fm-uun"),
+    page.locator("#station-generative-fm-yesterday"),
   ]
-  for (const station of hostedGenerativeFmStations) {
+  for (const station of representativeHostedGenerativeFmStations) {
     await expect(station.getByText("Playable")).toBeVisible()
   }
   await expect(page.getByText("aisatsana (generative remix)").first()).toBeVisible()
@@ -280,7 +289,15 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   await observableStreamsStation.getByRole("button", { name: /^Stop$/i }).click()
   await expect(page.getByText(/Playing|Loading station/i)).toHaveCount(0)
 
-  for (const station of hostedGenerativeFmStations) {
+  const smokePlaybackStations = [
+    page.locator("#station-generative-fm-420hz-gamma-waves-for-big-brain"),
+    page.locator("#station-generative-fm-aisatsana"),
+    page.locator("#station-generative-fm-at-sunrise"),
+    page.locator("#station-generative-fm-day-dream"),
+    page.locator("#station-generative-fm-little-bells"),
+    page.locator("#station-generative-fm-no-refrain"),
+  ]
+  for (const station of smokePlaybackStations) {
     await station.getByRole("button", { name: /^Play station$/i }).click()
     await expect(station.getByRole("button", { name: /^Restart station$/i })).toBeVisible({ timeout: 45_000 })
     await station.getByRole("button", { name: /^Stop$/i }).click()

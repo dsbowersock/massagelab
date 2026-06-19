@@ -97,6 +97,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-06-19
+
+- Added the [Atmosphere Rendered Piano Batch plan](superpowers/plans/2026-06-19-atmosphere-rendered-piano-batch.md) and enabled No Refrain, Transmission, and Trees with package-compatible rendered VSCO piano sample groups. The branch published WAV indexes/manifests and Opus sidecars under each piece prefix, moving playable Generative.fm coverage to 14 stations and the remaining local-source candidate count to 25. Header checks confirmed JSON metadata and representative rendered-piano Opus range/CORS behavior, while raw and rendered audio remain outside Git.
+- Expanded the same Atmosphere branch to finish the remaining currently covered source-index rollout instead of continuing in small batches. The branch now hosts 25 additional Generative.fm stations from `420hz-gamma-waves-for-big-brain` through `yesterday`, publishing 703 WAV-side R2 objects representing 2,077.7 MB of WAV payload and 703 Opus sidecar objects representing 99.9 MB of encoded payload. Metadata checks confirmed all 25 new WAV/Opus sample indexes and manifests return JSON with CORS, representative Opus/WAV range checks passed, `/wellness/atmosphere` now exposes 39 playable Generative.fm stations, and the catalog coverage scan classifies 0 remaining local-source candidates and 18 replacement/source-review pieces.
+
 ### 2026-06-18
 
 - Added the [Atmosphere R2 Sample Hosting plan](superpowers/plans/2026-06-18-atmosphere-r2-sample-hosting.md), public-media R2 upload helper, and CLI commands for the first Observable Streams VSCO adaptation. The workflow targets `massagelab-public-media`, keeps raw audio outside Git, connects `https://media.massagelab.app` with browser-read CORS, uploads the 24-WAV hosted sample-index payload plus manifest, keeps `massagelab-anatomy-media` and `massagelab-private-media` out of the public Atmosphere sample path, and splits cache behavior so WAV samples stay immutable while generated JSON metadata revalidates quickly. Observable Streams remains disabled until a follow-up branch wires the Generative.fm adapter to the hosted index and verifies playback.

@@ -18,9 +18,9 @@ describe("Generative.fm sample coverage", () => {
     const coverage = createCoverage()
 
     assert.equal(coverage.summary.totalPieces, 57)
-    assert.equal(coverage.summary.hostedPieces, 11)
-    assert.equal(coverage.summary.localSourceCandidatePieces, 15)
-    assert.equal(coverage.summary.replacementNeededPieces, 31)
+    assert.equal(coverage.summary.hostedPieces, 39)
+    assert.equal(coverage.summary.localSourceCandidatePieces, 0)
+    assert.equal(coverage.summary.replacementNeededPieces, 18)
     assert.equal(coverage.libraries.find((library) => library.id === "vsco-2-ce").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "vcsl").licenseStatus, "license-confirmed")
     assert.equal(coverage.libraries.find((library) => library.id === "signature-sounds-beach").licenseStatus, "license-confirmed")
@@ -44,6 +44,12 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(dayDream.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
     assert.equal(dayDream.sampleGroups[0].sourceName, "vsco2-piano-mf")
     assert.equal(dayDream.sampleGroups[0].library, "VSCO 2 Community Edition")
+
+    const noRefrain = coverage.pieces.find((piece) => piece.id === "no-refrain")
+    assert.equal(noRefrain.status, "hosted")
+    assert.equal(noRefrain.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.HOSTED)
+    assert.equal(noRefrain.sampleGroups[0].sourceName, "no-refrain__vsco2-piano-mf")
+    assert.equal(noRefrain.sampleGroups[0].library, "massagelab-public-media")
   })
 
   it("keeps shared source names piece-scoped when selected piano stations have hosted indexes", () => {
@@ -65,19 +71,33 @@ describe("Generative.fm sample coverage", () => {
     assert.equal(pinwheels.sampleGroups[0].sourceName, "vsco2-piano-mf")
 
     const splash = coverage.pieces.find((piece) => piece.id === "splash")
-    assert.equal(splash.status, "local-source-candidate")
+    assert.equal(splash.status, "hosted")
     assert.equal(splash.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE)
     assert.equal(splash.sampleGroups[0].sourceName, "vsco2-piano-mf")
+
+    const pulseCodeModulation = coverage.pieces.find((piece) => piece.id === "pulse-code-modulation")
+    assert.equal(pulseCodeModulation.status, "replacement-needed")
+    assert.equal(
+      pulseCodeModulation.sampleGroups.find((group) => group.sourceName === "vsco2-piano-mf").status,
+      GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE,
+    )
+    assert.equal(
+      pulseCodeModulation.sampleGroups.find((group) => group.sourceName === "acoustic-guitar").status,
+      GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.REPLACEMENT_NEEDED,
+    )
   })
 
   it("requires confirmed local license evidence before reporting non-hosted CC0 candidates", () => {
     const coverage = createGenerativeFmSampleCoverage({
       files: createLocalCandidateFiles(),
     })
-    const splash = coverage.pieces.find((piece) => piece.id === "splash")
+    const pulseCodeModulation = coverage.pieces.find((piece) => piece.id === "pulse-code-modulation")
 
-    assert.equal(splash.status, "replacement-needed")
-    assert.equal(splash.sampleGroups[0].status, GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING)
+    assert.equal(pulseCodeModulation.status, "replacement-needed")
+    assert.equal(
+      pulseCodeModulation.sampleGroups.find((group) => group.sourceName === "vsco2-piano-mf").status,
+      GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LICENSE_EVIDENCE_MISSING,
+    )
   })
 
   it("keeps hosted stations available even when local files are absent", () => {
@@ -95,7 +115,7 @@ describe("Generative.fm sample coverage", () => {
     const coverage = createCoverage()
 
     const aboveTheRain = coverage.pieces.find((piece) => piece.id === "above-the-rain")
-    assert.equal(aboveTheRain.status, "local-source-candidate")
+    assert.equal(aboveTheRain.status, "hosted")
     assert.equal(
       aboveTheRain.sampleGroups.find((group) => group.sourceName === "sso-chorus-female").status,
       GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE,
@@ -106,12 +126,12 @@ describe("Generative.fm sample coverage", () => {
     )
 
     const enough = coverage.pieces.find((piece) => piece.id === "enough")
-    assert.equal(enough.status, "local-source-candidate")
+    assert.equal(enough.status, "hosted")
     assert.equal(enough.sampleGroups[0].sourceName, "sso-cor-anglais")
     assert.equal(enough.sampleGroups[0].library, "VSCO 2 Community Edition")
 
     const gammaWaves = coverage.pieces.find((piece) => piece.id === "420hz-gamma-waves-for-big-brain")
-    assert.equal(gammaWaves.status, "local-source-candidate")
+    assert.equal(gammaWaves.status, "hosted")
     assert.equal(
       gammaWaves.sampleGroups.find((group) => group.sourceName === "waves").status,
       GENERATIVE_FM_SAMPLE_COVERAGE_STATUS.LOCAL_CC0_CANDIDATE,

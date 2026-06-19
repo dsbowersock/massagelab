@@ -114,19 +114,47 @@ describe("Atmosphere station catalog", () => {
     const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
 
     assert.equal(visibleStationIds.length, 58)
-    assert.equal(playableStationIds.length, 12)
+    assert.equal(playableStationIds.length, 40)
     assert.equal(playableStationIds.includes("mlab-proof-drone"), true)
     assert.equal(playableStationIds.includes(OBSERVABLE_STREAMS_STATION_ID), true)
+    assert.equal(playableStationIds.includes("generative-fm-420hz-gamma-waves-for-big-brain"), true)
+    assert.equal(playableStationIds.includes("generative-fm-a-viable-system"), true)
+    assert.equal(playableStationIds.includes("generative-fm-above-the-rain"), true)
+    assert.equal(playableStationIds.includes("generative-fm-agua-ravine"), true)
     assert.equal(playableStationIds.includes("generative-fm-aisatsana"), true)
+    assert.equal(playableStationIds.includes("generative-fm-apoapsis"), true)
     assert.equal(playableStationIds.includes("generative-fm-at-sunrise"), true)
+    assert.equal(playableStationIds.includes("generative-fm-beneath-waves"), true)
+    assert.equal(playableStationIds.includes("generative-fm-bhairav"), true)
+    assert.equal(playableStationIds.includes("generative-fm-buttafingers"), true)
     assert.equal(playableStationIds.includes("generative-fm-day-dream"), true)
+    assert.equal(playableStationIds.includes("generative-fm-documentary-films"), true)
+    assert.equal(playableStationIds.includes("generative-fm-drones"), true)
+    assert.equal(playableStationIds.includes("generative-fm-drones-2"), true)
     assert.equal(playableStationIds.includes("generative-fm-eno-machine"), true)
+    assert.equal(playableStationIds.includes("generative-fm-enough"), true)
+    assert.equal(playableStationIds.includes("generative-fm-expand-collapse"), true)
+    assert.equal(playableStationIds.includes("generative-fm-homage"), true)
     assert.equal(playableStationIds.includes("generative-fm-impact"), true)
     assert.equal(playableStationIds.includes("generative-fm-lemniscate"), true)
     assert.equal(playableStationIds.includes("generative-fm-little-bells"), true)
+    assert.equal(playableStationIds.includes("generative-fm-nakaii"), true)
     assert.equal(playableStationIds.includes("generative-fm-pinwheels"), true)
+    assert.equal(playableStationIds.includes("generative-fm-oxalis-1"), true)
+    assert.equal(playableStationIds.includes("generative-fm-remembering"), true)
+    assert.equal(playableStationIds.includes("generative-fm-return-to-form"), true)
+    assert.equal(playableStationIds.includes("generative-fm-ritual"), true)
     assert.equal(playableStationIds.includes("generative-fm-sevenths"), true)
+    assert.equal(playableStationIds.includes("generative-fm-soundtrack"), true)
+    assert.equal(playableStationIds.includes("generative-fm-splash"), true)
+    assert.equal(playableStationIds.includes("generative-fm-spring-again"), true)
+    assert.equal(playableStationIds.includes("generative-fm-substrate"), true)
+    assert.equal(playableStationIds.includes("generative-fm-timbral-oscillations"), true)
     assert.equal(playableStationIds.includes("generative-fm-uun"), true)
+    assert.equal(playableStationIds.includes("generative-fm-no-refrain"), true)
+    assert.equal(playableStationIds.includes("generative-fm-transmission"), true)
+    assert.equal(playableStationIds.includes("generative-fm-trees"), true)
+    assert.equal(playableStationIds.includes("generative-fm-yesterday"), true)
     assert.equal(playableStationIds.includes("generative-fm-zed"), false)
 
     const hostedPianoStation = getAtmosphereStationById("generative-fm-aisatsana")
@@ -175,10 +203,44 @@ describe("Atmosphere station catalog", () => {
       opus: "https://media.massagelab.app/atmosphere/generative-fm/at-sunrise/sample-index.opus.json",
     })
 
-    const pianoPendingStation = getAtmosphereStationById("generative-fm-splash")
-    assert.equal(pianoPendingStation.enabled, false)
-    assert.equal(pianoPendingStation.disabledReason, "This station is still being prepared for playback.")
-    assert.deepEqual(pianoPendingStation.runtime.missingSampleGroups, [["vsco2-piano-mf"]])
+    const renderedPianoStation = getAtmosphereStationById("generative-fm-no-refrain")
+    assert.equal(renderedPianoStation.enabled, true)
+    assert.match(renderedPianoStation.description, /Piano notes cycle/i)
+    assert.equal(
+      renderedPianoStation.runtime.hostedSampleIndexUrl,
+      "https://media.massagelab.app/atmosphere/generative-fm/no-refrain/sample-index.json",
+    )
+    assert.deepEqual(renderedPianoStation.runtime.hostedSampleIndexFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/no-refrain/sample-index.opus.json",
+    })
+    assert.deepEqual(renderedPianoStation.runtime.missingSampleGroups, [])
+
+    const transmissionStation = getAtmosphereStationById("generative-fm-transmission")
+    assert.equal(transmissionStation.enabled, true)
+    assert.deepEqual(transmissionStation.runtime.hostedManifestFormatUrls, {
+      opus: "https://media.massagelab.app/atmosphere/generative-fm/transmission/manifest.opus.json",
+    })
+
+    const treesStation = getAtmosphereStationById("generative-fm-trees")
+    assert.equal(treesStation.enabled, true)
+    assert.equal(
+      treesStation.runtime.r2OpusSampleIndexObjectKey,
+      "atmosphere/generative-fm/trees/sample-index.opus.json",
+    )
+
+    const sourceRolloutStation = getAtmosphereStationById("generative-fm-splash")
+    assert.equal(sourceRolloutStation.enabled, true)
+    assert.match(sourceRolloutStation.description, /Piano tones scatter and ripple/i)
+    assert.equal(
+      sourceRolloutStation.runtime.hostedSampleIndexUrl,
+      "https://media.massagelab.app/atmosphere/generative-fm/splash/sample-index.json",
+    )
+    assert.deepEqual(sourceRolloutStation.runtime.missingSampleGroups, [])
+
+    const pendingPianoStation = getAtmosphereStationById("generative-fm-peace")
+    assert.equal(pendingPianoStation.enabled, false)
+    assert.equal(pendingPianoStation.disabledReason, "This station is still being prepared for playback.")
+    assert.deepEqual(pendingPianoStation.runtime.missingSampleGroups, [["peace__native-american-flute-susvib", "native-american-flute-susvib"]])
 
     const pendingStation = getAtmosphereStationById("generative-fm-zed")
     assert.equal(pendingStation.enabled, false)
