@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Radio } from "lucide-react"
-import { AtmosphereBreathingGuide } from "@/app/wellness/atmosphere/breathing-guide"
+import { AtmosphereBreathingGuide } from "@/components/atmosphere/breathing-guide"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 
@@ -22,7 +22,7 @@ export default function WellnessBreathingPage() {
                 <Link href="/wellness">Wellness hub</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/wellness/atmosphere">Atmosphere stations</Link>
+                <Link href="/atmosphere">Atmosphere stations</Link>
               </Button>
             </div>
           </div>

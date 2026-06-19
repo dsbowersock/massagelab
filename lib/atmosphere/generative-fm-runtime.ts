@@ -2,6 +2,10 @@ import {
   fetchGenerativeFmSampleIndex,
   selectGenerativeFmSampleWarmupUrls,
 } from "./generative-fm-sample-index"
+import {
+  createBoundedGenerativeFmWebProvider,
+  createGenerativeFmProviderRequestStats,
+} from "./generative-fm-provider"
 
 type HostedCompressedSampleFormat = "opus" | "aac" | "mp3"
 type HostedSampleFormat = HostedCompressedSampleFormat | "wav"
@@ -123,7 +127,18 @@ export async function startGenerativeFmPiece({
   const toneStartedAt = performance.now()
   reportLoadProgress(onLoadProgress, 0.32)
 
-  const provider = createWebProvider()
+  const providerRequestStats = createGenerativeFmProviderRequestStats()
+  const provider = createBoundedGenerativeFmWebProvider({
+    provider: createWebProvider(),
+    stats: providerRequestStats,
+    onSampleProgress: (progress) => {
+      const totalUniqueUrlCount = Math.max(1, progress.totalUniqueUrlCount)
+      reportLoadProgress(
+        onLoadProgress,
+        0.34 + (progress.loadedUniqueUrlCount / totalUniqueUrlCount) * 0.34,
+      )
+    },
+  }) as ReturnType<WebProviderFactory>
   const sampleLibrary = createWebLibrary({ sampleIndex, provider })
   const output = new Tone.Volume(volumeToDecibels(0)).toDestination()
   let deactivate: () => unknown
@@ -166,6 +181,12 @@ export async function startGenerativeFmPiece({
     usedSamplePayloadPrewarm: samplePayloadPrewarm.settled
       && samplePayloadPrewarm.sampleUrlCount > samplePayloadPrewarm.failedUrlCount,
     samplePayloadPrewarmCount: samplePayloadPrewarm.sampleUrlCount,
+    sampleRequestBatchCount: providerRequestStats.batchCount,
+    sampleRequestCount: providerRequestStats.requestCount,
+    sampleRequestMaxBatchSize: providerRequestStats.maxBatchSize,
+    sampleRequestMemoryHitUrlCount: providerRequestStats.memoryHitUrlCount,
+    sampleRequestUniqueUrlCount: providerRequestStats.uniqueUrlCount,
+    sampleRequestUrlCount: providerRequestStats.requestedUrlCount,
     prepareWaitMs: preparedAt - startedAt,
     toneStartMs: toneStartedAt - preparedAt,
     pieceActivateMs: activatedAt - toneStartedAt,
@@ -511,6 +532,12 @@ function recordStartupTiming(detail: {
   usedPrewarm: boolean
   usedSamplePayloadPrewarm: boolean
   samplePayloadPrewarmCount: number
+  sampleRequestBatchCount: number
+  sampleRequestCount: number
+  sampleRequestMaxBatchSize: number
+  sampleRequestMemoryHitUrlCount: number
+  sampleRequestUniqueUrlCount: number
+  sampleRequestUrlCount: number
   prepareWaitMs: number
   toneStartMs: number
   pieceActivateMs: number

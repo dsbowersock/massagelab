@@ -1,5 +1,5 @@
-import { AtmosphereWorkspace } from "@/app/browse/workspace"
+import { redirect } from "next/navigation"
 
 export default function WellnessAtmospherePage() {
-  return <AtmosphereWorkspace />
+  redirect("/atmosphere")
 }
