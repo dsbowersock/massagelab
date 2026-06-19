@@ -349,13 +349,18 @@ test("Atmosphere lists the Generative.fm catalog and starts a hosted-sample stat
   const treatmentRoomStartersScroller = treatmentRoomStartersRail.locator('[aria-label="Treatment room starters stations"]')
   await expect(treatmentRoomStartersRail).toBeVisible()
   await expect(treatmentRoomStartersRailControls).toHaveCSS("opacity", "0")
-  await treatmentRoomStartersRail.hover()
-  await expect(treatmentRoomStartersRailControls).toHaveCSS("opacity", "1")
-  const treatmentRoomStartersScrollLeft = await treatmentRoomStartersScroller.evaluate((element) => element.scrollLeft)
-  await treatmentRoomStartersRail.getByRole("button", { name: /^Next Treatment room starters stations$/i }).click()
-  await expect
-    .poll(async () => treatmentRoomStartersScroller.evaluate((element) => element.scrollLeft))
-    .toBeGreaterThan(treatmentRoomStartersScrollLeft + 40)
+  const supportsHoverRailControls = await page.evaluate(() => (
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  ))
+  if (supportsHoverRailControls) {
+    await treatmentRoomStartersRail.hover()
+    await expect(treatmentRoomStartersRailControls).toHaveCSS("opacity", "1")
+    const treatmentRoomStartersScrollLeft = await treatmentRoomStartersScroller.evaluate((element) => element.scrollLeft)
+    await treatmentRoomStartersRail.getByRole("button", { name: /^Next Treatment room starters stations$/i }).click()
+    await expect
+      .poll(async () => treatmentRoomStartersScroller.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(treatmentRoomStartersScrollLeft + 40)
+  }
   await expect(page.getByRole("heading", { name: /Treatment room starters/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Water, nature, and field textures/i })).toBeVisible()
   await expect(page.getByRole("heading", { name: /Rhythm and experimental texture/i })).toBeVisible()
