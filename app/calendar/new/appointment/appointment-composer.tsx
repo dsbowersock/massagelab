@@ -2,7 +2,8 @@
 
 import { useActionState, useMemo, useState } from "react"
 import { AlertTriangle, Plus, X } from "lucide-react"
-import { createAppointmentFormAction, type AppointmentActionState } from "@/app/calendar/actions"
+import { createAppointmentFormAction } from "@/app/calendar/actions"
+import type { AppointmentActionState } from "@/app/calendar/actions/types"
 import { appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
