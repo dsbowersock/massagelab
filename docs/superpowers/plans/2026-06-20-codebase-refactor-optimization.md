@@ -300,25 +300,35 @@ Expected: same calendar action names and user-visible behavior, no quota bypass 
 - Modify after measurement only: `app/anatomime/page.tsx`
 - Test: `tests/browser/public-routes.spec.ts`
 
-- [ ] **Step 1: use the clean production build output to identify largest first-load routes**
+- [x] **Step 1: use the clean production build output to identify largest first-load routes**
 
 Do not add `next/dynamic` blindly. Pick targets from current build output and browser traces.
+
+2026-06-20 branch note: refreshed `main`, ran a clean production build, and used `.next/diagnostics/route-bundle-stats.json` to separate shared shell weight from route-owned chunks. The measured global shell cost was the best branch-sized target because `components/providers/music-provider.tsx` statically imported the Atmosphere station catalog plus Tone/Generative.fm runtime helpers through `app/layout.tsx`.
 
 - [ ] **Step 2: calendar workspace**
 
 If FullCalendar is in a public first-load bundle or a non-calendar bundle, wrap the workspace client island so FullCalendar loads only on `/calendar`.
 
+2026-06-20 branch note: measured `/calendar` at 2,100,580 bytes with about 307.6 KB route-owned chunks before this pass, and the FullCalendar work did not appear in the public/simple-route route-owned chunks. Calendar workspace splitting was skipped for this branch.
+
 - [ ] **Step 3: public booking picker**
 
 If the booking wizard bundle is large, split weekly availability grid and account-benefits card from the first step while keeping direct slot clicks accessible.
 
-- [ ] **Step 4: music provider**
+2026-06-20 branch note: measured `/book/[practiceSlug]` at 1,829,866 bytes with about 43.3 KB route-owned chunks before this pass, so the booking picker was not the strongest measured target.
+
+- [x] **Step 4: music provider**
 
 Keep route-persistent playback. Measure whether globally importing station catalog/runtime code increases first-load JS on non-music routes. If it does, introduce a lightweight global playback shell that dynamically imports the station runtime only after the user opens `/music`, `/browse`, or plays a station.
+
+2026-06-20 result: `MusicProvider` now keeps only the lightweight provider/storage shell in the global layout and loads station catalog, runtime controller, Generative.fm runtime, and Tone proof runtime through a cached async runtime path when a station is played or prewarmed. After the production rebuild, representative first-load JavaScript dropped from 1,787,081 to 1,113,612 bytes on `/`, from 2,100,580 to 1,427,111 bytes on `/calendar`, and from about 1.81 MB to 1,598,886 bytes on `/music` and `/browse`, while route-persistent playback and Media Session browser checks passed.
 
 - [ ] **Step 5: Anatomime**
 
 Split shared-room creation/join widgets from the solo game runner only if bundle output shows the combined route is heavy enough to matter.
+
+2026-06-20 branch note: `/anatomime` still measured as a large route-owned client bundle after the shared audio shell reduction. Keep it as a separate follow-up branch so the game state and shared-session widgets can be split with focused tests.
 
 - [ ] **Step 6: validate**
 
