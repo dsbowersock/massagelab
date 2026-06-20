@@ -2,6 +2,7 @@ import "server-only"
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { dateAtMinute, parseTimeToMinute } from "@/lib/calendar"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
@@ -21,6 +22,28 @@ import {
 function parseDayOfWeek(formData: FormData) {
   const value = fieldString(formData, "dayOfWeek").trim()
   return value === "" ? Number.NaN : Number(value)
+}
+
+/**
+ * Serializes practice quota checks for one owner before creating the nested
+ * practice membership. Without this parent-row lock, concurrent free-account
+ * submissions could each observe the same pre-create membership count.
+ */
+async function lockPracticeCreationOwner(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$queryRaw`
+    SELECT id
+    FROM "User"
+    WHERE id = ${userId}
+    FOR UPDATE
+  `
+}
+
+/**
+ * Serializes global practice slug allocation. The owner-row lock protects the
+ * free-account quota, but slugs are unique across all owners.
+ */
+async function lockPracticeSlugAllocation(tx: Prisma.TransactionClient) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${8520}, ${1})`
 }
 
 export async function createAvailabilitySchedule(formData: FormData) {
@@ -127,53 +150,61 @@ export async function createPractice(formData: FormData) {
   }
 
   const entitlements = await getUserEntitlementState(prisma, userId)
-  if (!entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling)) {
-    const ownedPracticeCount = await prisma.practiceMembership.count({
-      where: { userId, role: "OWNER" },
-    })
-    if (ownedPracticeCount >= FREE_CALENDAR_LIMITS.practices) {
-      throw new Error("Free calendars include one solo workspace.")
-    }
-  }
+  const hasFullScheduling = entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling)
 
   const baseSlug = slugify(name) || "practice"
-  let slug = baseSlug
-  let suffix = 2
 
-  while (await prisma.practice.findUnique({ where: { slug }, select: { id: true } })) {
-    slug = `${baseSlug}-${suffix}`
-    suffix += 1
-  }
+  const practice = await prisma.$transaction(async (tx) => {
+    await lockPracticeCreationOwner(tx, userId)
+    await lockPracticeSlugAllocation(tx)
 
-  const practice = await prisma.practice.create({
-    data: {
-      name,
-      slug,
-      createdById: userId,
-      memberships: {
-        create: {
-          userId,
-          role: "OWNER",
+    if (!hasFullScheduling) {
+      const ownedPracticeCount = await tx.practiceMembership.count({
+        where: { userId, role: "OWNER" },
+      })
+      if (ownedPracticeCount >= FREE_CALENDAR_LIMITS.practices) {
+        throw new Error("Free calendars include one solo workspace.")
+      }
+    }
+
+    let slug = baseSlug
+    let suffix = 2
+
+    while (await tx.practice.findUnique({ where: { slug }, select: { id: true } })) {
+      slug = `${baseSlug}-${suffix}`
+      suffix += 1
+    }
+
+    return tx.practice.create({
+      data: {
+        name,
+        slug,
+        createdById: userId,
+        memberships: {
+          create: {
+            userId,
+            role: "OWNER",
+          },
         },
-      },
-      serviceTypes: {
-        create: {
-          name: "Massage Session",
-          durationMinutes: 60,
-          description: "Default 60-minute appointment.",
-          clientVisible: true,
-          variants: {
-            create: {
-              name: "60 minute",
-              durationMinutes: 60,
-              bufferAfterMinutes: 0,
-              clientVisible: true,
-              sortOrder: 0,
+        serviceTypes: {
+          create: {
+            name: "Massage Session",
+            durationMinutes: 60,
+            description: "Default 60-minute appointment.",
+            clientVisible: true,
+            variants: {
+              create: {
+                name: "60 minute",
+                durationMinutes: 60,
+                bufferAfterMinutes: 0,
+                clientVisible: true,
+                sortOrder: 0,
+              },
             },
           },
         },
       },
-    },
+    })
   })
 
   revalidatePath("/calendar")

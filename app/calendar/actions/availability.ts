@@ -184,15 +184,18 @@ export async function lockAppointmentSchedulingRows(
     resourceIds,
     startsAt,
     endsAt,
+    eventIds = [],
   }: {
     practiceId: string
     therapistId: string
     resourceIds: string[]
     startsAt: Date
     endsAt: Date
+    eventIds?: string[]
   },
 ) {
   const uniqueResourceIds = [...new Set(resourceIds.filter(Boolean))]
+  const uniqueEventIds = [...new Set(eventIds.filter(Boolean))]
 
   await tx.$queryRaw`
     SELECT id
@@ -255,17 +258,36 @@ export async function lockAppointmentSchedulingRows(
       AND o."therapistId" = ${therapistId}
     FOR UPDATE OF oi
   `
-  await tx.$queryRaw`
-    SELECT id
-    FROM "CalendarEvent"
-    WHERE "practiceId" = ${practiceId}
-      AND "ownerUserId" = ${therapistId}
-      AND "blocksAvailability" = true
-      AND "status" IN ('REQUESTED', 'CONFIRMED', 'ACTIVE')
-      AND "startsAt" < ${endsAt}
-      AND "endsAt" > ${startsAt}
-    FOR UPDATE
-  `
+  if (uniqueEventIds.length > 0) {
+    await tx.$queryRaw(Prisma.sql`
+      SELECT id
+      FROM "CalendarEvent"
+      WHERE id IN (${Prisma.join(uniqueEventIds)})
+        OR (
+          "practiceId" = ${practiceId}
+          AND "ownerUserId" = ${therapistId}
+          AND "blocksAvailability" = true
+          AND "status" IN ('REQUESTED', 'CONFIRMED', 'ACTIVE')
+          AND "startsAt" < ${endsAt}
+          AND "endsAt" > ${startsAt}
+        )
+      ORDER BY id
+      FOR UPDATE
+    `)
+  } else {
+    await tx.$queryRaw`
+      SELECT id
+      FROM "CalendarEvent"
+      WHERE "practiceId" = ${practiceId}
+        AND "ownerUserId" = ${therapistId}
+        AND "blocksAvailability" = true
+        AND "status" IN ('REQUESTED', 'CONFIRMED', 'ACTIVE')
+        AND "startsAt" < ${endsAt}
+        AND "endsAt" > ${startsAt}
+      ORDER BY id
+      FOR UPDATE
+    `
+  }
 
   if (uniqueResourceIds.length === 0) return
 
@@ -273,6 +295,7 @@ export async function lockAppointmentSchedulingRows(
     SELECT id
     FROM "CalendarResource"
     WHERE id IN (${Prisma.join(uniqueResourceIds)})
+    ORDER BY id
     FOR UPDATE
   `)
   await tx.$queryRaw(Prisma.sql`
@@ -281,6 +304,7 @@ export async function lockAppointmentSchedulingRows(
     WHERE "resourceId" IN (${Prisma.join(uniqueResourceIds)})
       AND "startsAt" < ${endsAt}
       AND "endsAt" > ${startsAt}
+    ORDER BY id
     FOR UPDATE
   `)
 }

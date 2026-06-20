@@ -261,23 +261,23 @@ Expected: no import-path behavior change, same server-action names, same form be
 - Test: `tests/calendar*.test.mjs`
 - Test: `tests/public-booking-*.test.mjs`
 
-- [ ] **Step 1: keep the action-facade split intact**
+- [x] **Step 1: keep the action-facade split intact**
 
 Start from the decomposed calendar action modules. Do not re-merge implementation back into `app/calendar/actions.ts`; this branch should harden mutation semantics inside the focused modules created by Task 5.
 
-- [ ] **Step 2: serialize preference patch writes**
+- [x] **Step 2: serialize preference patch writes**
 
 Prevent lost updates when multiple calendar preference forms patch the same JSON preference row close together. Preserve `mergeCalendarPreferencePatch` sanitization, feature boundaries, and existing route revalidation while using a transaction, conditional retry, or database-side merge strategy that proves the final row includes both valid patches.
 
-- [ ] **Step 3: harden reschedule stale-row protection**
+- [x] **Step 3: harden reschedule stale-row protection**
 
 Make reschedule writes re-check the current event state at update time so a concurrent cancel, status change, ownership change, or earlier reschedule cannot be overwritten by a stale form submission. Preserve the existing editability checks, conflict checks, audit logging, lock ordering, and calendar revalidation contract.
 
-- [ ] **Step 4: make free-practice quota enforcement atomic with creation**
+- [x] **Step 4: make free-practice quota enforcement atomic with creation**
 
 Ensure the free-practice count/quota check and practice creation cannot interleave across concurrent submissions for the same user. Keep entitlement decisions based on feature keys such as `calendar_practices`, preserve default service setup, and avoid plan-name branching.
 
-- [ ] **Step 5: validate**
+- [x] **Step 5: validate**
 
 Run:
 
