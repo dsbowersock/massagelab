@@ -130,7 +130,7 @@ describe("Anatomy admin browser table UI", () => {
     assert.match(pageSource, /needsMaintenanceData \? prisma\.anatomyTerm\.findMany/)
     assert.match(pageSource, /needsMaintenanceData \? prisma\.anatomyCorrectionFlag\.findMany/)
     assert.match(pageSource, /needsMaintenanceData \? getAnatomyFoundationCounts\(\)/)
-    assert.match(pageSource, /getAnatomyBrowserDataForView\(\{ view: selectedView, searchQuery, selectedEntity \}\)/)
+    assert.match(pageSource, /getAnatomyBrowserDataForView\(\{ view: selectedView, selectedEntity \}\)/)
     assert.match(browserDataSource, /function getAnatomyBrowserDataForView/)
     assert.match(needsSource, /case "muscles":[\s\S]*add\("muscles", "entityTerms", "relationships"\)/)
     assert.match(needsSource, /case "queries":[\s\S]*case "maintenance":[\s\S]*break/)

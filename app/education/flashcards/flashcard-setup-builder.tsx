@@ -569,16 +569,24 @@ export function FlashcardSetupBuilder({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto_auto]">
-        <Input value={deckDescription} onChange={(event) => onDeckDescriptionChange(event.target.value)} placeholder="Deck note" />
-        <select value={visibility} onChange={(event) => onVisibilityChange(event.target.value as "PUBLIC" | "PRIVATE")} className={cn(selectClassName(), "w-full")}>
-          <option value="PUBLIC">Public</option>
-          <option value="PRIVATE">Private</option>
-        </select>
-        <Button type="button" variant="outline" onClick={onSaveDeck} className="w-full md:w-auto">
-          <Save className="mr-2 h-4 w-4" aria-hidden="true" />
-          Save
-        </Button>
+      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem_auto]">
+        <div className="space-y-2">
+          <Label htmlFor="deck-description">Deck Note</Label>
+          <Input id="deck-description" value={deckDescription} onChange={(event) => onDeckDescriptionChange(event.target.value)} placeholder="Deck note" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="deck-visibility">Visibility</Label>
+          <select id="deck-visibility" value={visibility} onChange={(event) => onVisibilityChange(event.target.value as "PUBLIC" | "PRIVATE")} className={cn(selectClassName(), "w-full")}>
+            <option value="PUBLIC">Public</option>
+            <option value="PRIVATE">Private</option>
+          </select>
+        </div>
+        <div className="flex items-end">
+          <Button type="button" variant="outline" onClick={onSaveDeck} className="w-full md:w-auto">
+            <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+            Save
+          </Button>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">

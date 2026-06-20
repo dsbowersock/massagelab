@@ -538,7 +538,6 @@ export function getAnatomyBrowserDataForView({
   selectedEntity,
 }: {
   view: AnatomyBrowserView
-  searchQuery?: string
   selectedEntity: AnatomyEntitySelection | null
 }) {
   return getAnatomyBrowserData(view, selectedEntity)

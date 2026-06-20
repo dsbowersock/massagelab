@@ -60,6 +60,12 @@ function promptFrontInstruction(prompt: FlashcardPrompt, isReviewMode: boolean) 
   return isReviewMode ? reviewInstructions[prompt.type] : typedInstructions[prompt.type]
 }
 
+function isEmbeddedInteractiveTarget(target: EventTarget | null) {
+  const element = target instanceof HTMLElement ? target : null
+  // Keep links, buttons, and form controls usable inside the card without also flipping it.
+  return Boolean(element?.closest("a,button,input,select,textarea"))
+}
+
 export function PromptSourceLinks({ prompt }: { prompt: FlashcardPrompt }) {
   return (
     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -102,7 +108,7 @@ export function PromptFront({ prompt, isReviewMode }: { prompt: FlashcardPrompt;
           <figure className="flex h-full w-full flex-col overflow-hidden rounded-none border border-border/80 bg-background/80 shadow-inner">
             <div className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- reviewed source media can come from multiple external hosts not configured for next/image. */}
-              <img src={prompt.front.media.url} alt="Reviewed anatomy study image" className="max-h-full max-w-full object-contain drop-shadow-sm" loading="lazy" referrerPolicy="no-referrer" />
+              <img src={prompt.front.media.url} alt={prompt.front.media.title || `${prompt.name} anatomical view`} className="max-h-full max-w-full object-contain drop-shadow-sm" loading="lazy" referrerPolicy="no-referrer" />
             </div>
             <figcaption className="border-t border-border/80 px-3 py-1.5 text-xs text-muted-foreground">Reviewed BodyParts3D anatomy image</figcaption>
           </figure>
@@ -181,14 +187,12 @@ export function FlashcardSurface({
           tabIndex={canFlipCard ? 0 : undefined}
           aria-label={canFlipCard ? (isFlipped ? "Flip flashcard to prompt" : "Flip flashcard to answer") : undefined}
           onClick={canFlipCard ? (event) => {
-            const target = event.target instanceof HTMLElement ? event.target : null
-            if (target?.closest("a,button,input,select,textarea")) return
+            if (isEmbeddedInteractiveTarget(event.target)) return
             onFlip()
           } : undefined}
           onKeyDown={(event) => {
             if (!canFlipCard) return
-            const target = event.target instanceof HTMLElement ? event.target : null
-            if (target?.closest("a,button,input,select,textarea")) return
+            if (isEmbeddedInteractiveTarget(event.target)) return
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault()
               onFlip()

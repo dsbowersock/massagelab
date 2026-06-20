@@ -313,10 +313,14 @@ async function localPromptSummaries(config: NormalizedFlashcardDeckConfig) {
 }
 
 export async function loadFlashcardProgressDashboard() {
-  const response = await fetch("/api/education/flashcards/progress")
-  if (!response.ok) return null
+  try {
+    const response = await fetch("/api/education/flashcards/progress")
+    if (!response.ok) return null
 
-  return progressPayload(await response.json())
+    return progressPayload(await response.json())
+  } catch {
+    return null
+  }
 }
 
 export async function loadFlashcardPromptCatalog(config: NormalizedFlashcardDeckConfig): Promise<FlashcardPromptCatalogPayload> {

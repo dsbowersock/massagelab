@@ -31,7 +31,7 @@ Build timing from the successful production run:
 | Static page generation | 78 pages in 7.2s |
 | Command wall time | 106.2s |
 
-Build diagnostics ended at `static-generation`, which confirms the previous stale-build-lock problem was transient generated-output state rather than a source failure.
+Build diagnostics ended at `static-generation`; after clearing stale local build output and rerunning, the production build completed successfully.
 
 ## Source Shape
 

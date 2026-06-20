@@ -165,6 +165,8 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
             },
           }
           : payload)
+      } else {
+        setProgressDashboard(null)
       }
     } catch (error) {
       console.error("Failed to load flashcard progress", error)

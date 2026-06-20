@@ -160,7 +160,7 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
       take: 20,
     }) : Promise.resolve([]),
     needsMaintenanceData ? getAnatomyFoundationCounts() : Promise.resolve([]),
-    getAnatomyBrowserDataForView({ view: selectedView, searchQuery, selectedEntity }),
+    getAnatomyBrowserDataForView({ view: selectedView, selectedEntity }),
     searchQuery ? anatomyQueries.searchAnatomyEntities(searchQuery, 18) : Promise.resolve([]),
     getAnatomyQuickResult(quickQueryKey),
     selectedEntity

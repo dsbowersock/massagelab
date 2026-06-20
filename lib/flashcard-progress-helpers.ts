@@ -64,6 +64,8 @@ export async function optionalFlashcardMediaOptions() {
         timeoutId = setTimeout(() => resolve(emptyFlashcardMediaOptions), 1500)
       }),
     ])
+  } catch {
+    return emptyFlashcardMediaOptions
   } finally {
     if (timeoutId) clearTimeout(timeoutId)
   }
@@ -187,6 +189,12 @@ function selectedPromptTypes(config: FlashcardDeckConfig) {
   return new Set(config.promptTypes.filter((type): type is FlashcardPromptType => flashcardPromptTypeSet.has(type)))
 }
 
+/**
+ * Creates a deterministic pseudo-random number generator for repeatable deck shuffles.
+ *
+ * The same seed yields the same numeric sequence, but this is not cryptographically
+ * secure and must not be used for security-sensitive randomness.
+ */
 function seededRng(seed: string) {
   let state = 2166136261
   for (let index = 0; index < seed.length; index += 1) {
