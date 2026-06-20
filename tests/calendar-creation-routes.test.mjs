@@ -290,14 +290,16 @@ describe("calendar creation route wiring", () => {
   })
 
   it("persists notice dismissal patches without spreading stale calendar preferences", async () => {
-    const [notice, actions] = await Promise.all([
+    const [notice, actions, preferenceActions] = await Promise.all([
       readFile("app/calendar/calendar-guidance-notice.tsx", "utf8"),
       readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/preferences.ts", "utf8"),
     ])
 
     assert.match(notice, /saveCalendarPreferencesAction\(\{\s*noticeDismissals:/)
     assert.equal(notice.includes("...preferences,\n        noticeDismissals"), false)
-    assert.match(actions, /mergeCalendarPreferencePatch/)
+    assert.match(actions, /return saveCalendarPreferences\(input\)/)
+    assert.match(preferenceActions, /mergeCalendarPreferencePatch/)
   })
 
   it("keeps service variants and resources documented as catalog entities, not event detail records", async () => {

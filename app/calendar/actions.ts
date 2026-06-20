@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { dateAtMinute, dateValue, parseTimeToMinute } from "@/lib/calendar"
 import {
@@ -36,6 +35,7 @@ import {
   joinBookingWaitlist,
   requestBookingSequence,
 } from "./actions/public-booking"
+import { saveCalendarPreferences } from "./actions/preferences"
 import {
   createAppointment,
   createAppointmentForm,
@@ -52,7 +52,6 @@ import {
   updateService,
 } from "./actions/services"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
-import { mergeCalendarPreferencePatch } from "@/lib/calendar-preferences"
 import { canRescheduleCalendarEvent } from "@/lib/calendar-workspace"
 import { FEATURE_KEYS, getUserEntitlementState } from "@/lib/membership"
 import { FREE_CALENDAR_LIMITS } from "@/lib/service-catalog"
@@ -86,26 +85,7 @@ export async function convertWaitlistEntryAction(formData: FormData) {
 }
 
 export async function saveCalendarPreferencesAction(input: Record<string, unknown>) {
-  const userId = await currentUserId()
-  const current = await prisma.userPreference.findUnique({
-    where: { userId },
-    select: { calendarPreferences: true },
-  })
-  const preferences = mergeCalendarPreferencePatch(current?.calendarPreferences ?? {}, input)
-
-  const saved = await prisma.userPreference.upsert({
-    where: { userId },
-    create: {
-      userId,
-      calendarPreferences: preferences as Prisma.InputJsonValue,
-    },
-    update: {
-      calendarPreferences: preferences as Prisma.InputJsonValue,
-    },
-  })
-
-  revalidatePath("/calendar")
-  return { preferences: saved.calendarPreferences }
+  return saveCalendarPreferences(input)
 }
 
 export async function createAvailabilityScheduleAction(formData: FormData) {
