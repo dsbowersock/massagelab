@@ -38,7 +38,7 @@
 
 ## Skipped Review Items
 
-- Preference write serialization, reschedule stale-row protection, and free-practice quota atomicity are valid concurrency hardening ideas, but they require a dedicated transaction/retry design and were not bundled into this behavior-preserving extraction branch.
+- Preference write serialization, reschedule stale-row protection, and free-practice quota atomicity are valid concurrency hardening ideas, but they require a dedicated transaction/retry design and were not bundled into this behavior-preserving extraction branch. They are staged as the next refactor-plan task after calendar action decomposition and before measured client lazy-loading.
 
 ## Simplification Checks
 
@@ -52,4 +52,4 @@
 
 - `app/calendar/actions.ts` is now small enough to reason about as a public facade rather than as a domain implementation file.
 - Source-shape tests should keep following behavior invariants into extracted modules instead of pinning all server-action details to the facade.
-- The next optimization branch should shift from action decomposition to measured lazy-loading or local-first type hardening.
+- The next optimization branch should harden calendar mutation concurrency before shifting to measured lazy-loading or local-first type hardening.
