@@ -42,13 +42,25 @@ import {
   savePublicBookingUrl,
 } from "./actions/booking"
 import {
+  getServiceVariantForScheduling,
+  getServiceVariantsForScheduling,
+  selectedAddOnVariantIds,
+  selectedServiceVariantIds,
+  serviceBookingRole,
+  serviceCompositionEndTime,
+  serviceCompositionForCreate,
+  serviceCountsTowardCapacity,
+  serviceResourceIds,
+  serviceSnapshotForCreate,
+} from "./actions/service-catalog"
+import {
   capacityAllowsBooking,
   hasRestGapConflict,
   normalizePressureLevel,
   providerAppointmentLimitAllows,
 } from "@/lib/booking-policy"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
-import { MAX_PUBLIC_ADD_ONS, PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
+import { PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
 import {
   buildCalendarCreationPlan,
   buildCalendarNotificationIntents,
@@ -62,10 +74,7 @@ import {
 } from "@/lib/public-booking-url"
 import {
   FREE_CALENDAR_LIMITS,
-  buildServiceSnapshot,
-  composeAppointmentServices,
   calculateServiceEndTime,
-  serviceVariantBookableMinutes,
   sanitizeServiceClinicalTemplatePayload,
   sanitizeServicePolicyPayload,
 } from "@/lib/service-catalog"
@@ -76,144 +85,6 @@ export type AppointmentActionState = {
   status: "idle" | "outside-availability" | "error"
   message: string
   overrideKey?: string
-}
-
-type ServiceVariantForScheduling = Prisma.ServiceVariantGetPayload<{
-  include: {
-    serviceType: true
-    resourceRequirements: {
-      include: { resource: true }
-    }
-  }
-}>
-
-async function getServiceVariantForScheduling({
-  practiceId,
-  serviceVariantId,
-  serviceTypeId,
-  providerUserId,
-  clientVisible = false,
-  classEligible = false,
-}: {
-  practiceId: string
-  serviceVariantId?: string
-  serviceTypeId?: string
-  providerUserId?: string
-  clientVisible?: boolean
-  classEligible?: boolean
-}) {
-  const variant = await prisma.serviceVariant.findFirst({
-    where: {
-      ...(serviceVariantId ? { id: serviceVariantId } : {}),
-      ...(serviceTypeId ? { serviceTypeId } : {}),
-      active: true,
-      ...(clientVisible ? { clientVisible: true } : {}),
-      serviceType: {
-        practiceId,
-        active: true,
-        ...(clientVisible ? { clientVisible: true } : {}),
-        ...(classEligible ? { classEligible: true } : {}),
-      },
-    },
-    include: {
-      serviceType: true,
-      resourceRequirements: {
-        include: { resource: true },
-      },
-    },
-    orderBy: [
-      { sortOrder: "asc" },
-      { durationMinutes: "asc" },
-    ],
-  })
-
-  if (!variant) {
-    throw new Error(classEligible ? "Choose a class-eligible service variant." : "Choose an available service variant.")
-  }
-  if (providerUserId && variant.serviceType.eligibleProviderIds.length > 0 && !variant.serviceType.eligibleProviderIds.includes(providerUserId)) {
-    throw new Error("Choose a provider who is eligible for the selected service.")
-  }
-
-  return variant
-}
-
-async function getServiceVariantsForScheduling({
-  practiceId,
-  serviceVariantIds,
-  providerUserId,
-  clientVisible = false,
-}: {
-  practiceId: string
-  serviceVariantIds: string[]
-  providerUserId: string
-  clientVisible?: boolean
-}) {
-  const uniqueIds = [...new Set(serviceVariantIds.filter(Boolean))].slice(0, 6)
-  if (uniqueIds.length === 0) {
-    throw new Error("Choose at least one available service.")
-  }
-
-  const variants = await Promise.all(uniqueIds.map((serviceVariantId) => (
-    getServiceVariantForScheduling({ practiceId, serviceVariantId, providerUserId, clientVisible })
-  )))
-
-  return variants
-}
-
-function serviceResourceIds(variant: ServiceVariantForScheduling) {
-  return variant.resourceRequirements
-    .filter((requirement) => requirement.resource.active)
-    .map((requirement) => requirement.resourceId)
-}
-
-function serviceSnapshotForCreate(variant: ServiceVariantForScheduling) {
-  return buildServiceSnapshot({ service: variant.serviceType, variant })
-}
-
-function selectedServiceVariantIds(formData: FormData) {
-  const ids = formData.getAll("serviceVariantIds")
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .filter(Boolean)
-  const single = fieldString(formData, "serviceVariantId")
-  return ids.length > 0 ? ids : (single ? [single] : [])
-}
-
-function selectedAddOnVariantIds(formData: FormData) {
-  const values = formData.getAll("addOnServiceVariantIds")
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .filter(Boolean)
-  const commaList = fieldString(formData, "addOnServiceVariantIds")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean)
-
-  return [...new Set([...values, ...commaList])].slice(0, MAX_PUBLIC_ADD_ONS)
-}
-
-function serviceBookingRole(formData: FormData) {
-  return fieldString(formData, "bookingRole") === "ADD_ON" ? "ADD_ON" : "PRIMARY"
-}
-
-function serviceCountsTowardCapacity(formData: FormData, bookingRole: "PRIMARY" | "ADD_ON") {
-  void bookingRole
-  if (formData.has("countsTowardMassageCapacity")) {
-    return fieldBoolean(formData, "countsTowardMassageCapacity")
-  }
-
-  return false
-}
-
-function serviceCompositionForCreate(variants: ServiceVariantForScheduling[]) {
-  return composeAppointmentServices(variants.map((variant) => ({
-    service: variant.serviceType,
-    variant,
-    resourceIds: serviceResourceIds(variant),
-  })))
-}
-
-function serviceCompositionEndTime(startsAt: Date, variants: ServiceVariantForScheduling[]) {
-  const totalMinutes = variants.reduce((sum, variant) => sum + serviceVariantBookableMinutes(variant), 0)
-  return new Date(startsAt.getTime() + totalMinutes * 60_000)
 }
 
 async function ensureAppointmentPracticeClient(
