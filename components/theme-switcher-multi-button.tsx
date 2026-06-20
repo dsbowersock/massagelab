@@ -36,13 +36,18 @@ const themes: Array<{
   { value: "dark", icon: MoonIcon, label: "Use dark theme", shortLabel: "Dark" },
 ]
 
+const compactThemeCollapseDelayMs = 5_000
+// Keep compact options temporarily expanded so touch and keyboard users can choose a theme without leaving the bar permanently wide.
+
 export function ThemeSwitcherMultiButton({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   const { settings, updateSettings } = useSettings()
   const [mounted, setMounted] = useState(false)
+  const [compactExpanded, setCompactExpanded] = useState(false)
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedThemeMode>("dark")
+  const collapseTimeoutRef = useRef<number | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
 
@@ -67,6 +72,44 @@ export function ThemeSwitcherMultiButton({
       mediaQuery.removeEventListener("change", updateResolvedTheme)
     }
   }, [settings.themeMode])
+
+  useEffect(() => {
+    // A pending compact-collapse timer should not fire after this shared top-bar control unmounts.
+    return () => {
+      if (collapseTimeoutRef.current) {
+        window.clearTimeout(collapseTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  function clearCompactCollapseTimer() {
+    // Cancel stale collapse work before rescheduling or forcing a manual close.
+    if (!collapseTimeoutRef.current) return
+
+    window.clearTimeout(collapseTimeoutRef.current)
+    collapseTimeoutRef.current = null
+  }
+
+  function scheduleCompactCollapse() {
+    // Auto-close expanded compact options after a short idle window on narrow screens.
+    clearCompactCollapseTimer()
+    collapseTimeoutRef.current = window.setTimeout(() => {
+      setCompactExpanded(false)
+      collapseTimeoutRef.current = null
+    }, compactThemeCollapseDelayMs)
+  }
+
+  function expandCompactThemePicker() {
+    // Revealing hidden compact options also starts the idle countdown back to the single active icon.
+    setCompactExpanded(true)
+    scheduleCompactCollapse()
+  }
+
+  function collapseCompactThemePicker() {
+    // Manual collapse is used after selection or when focus leaves the whole switcher group.
+    clearCompactCollapseTimer()
+    setCompactExpanded(false)
+  }
 
   function rememberTransitionOrigin(event: React.PointerEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -137,6 +180,13 @@ export function ThemeSwitcherMultiButton({
       ref={rootRef}
       role="group"
       aria-label="Theme"
+      onFocusCapture={expandCompactThemePicker}
+      onBlurCapture={(event) => {
+        // Moving between theme buttons should keep the compact picker open.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          collapseCompactThemePicker()
+        }
+      }}
       className={cn(
         "group relative isolate inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.05),0_1px_8px_hsl(var(--background)/0.24)] backdrop-blur",
         className,
@@ -149,6 +199,7 @@ export function ThemeSwitcherMultiButton({
         onValueChange={(value) => {
           if (value) {
             setTheme(value as ThemeMode)
+            collapseCompactThemePicker()
           }
         }}
         aria-label={`Theme: ${settings.themeMode === "system" ? `system (${resolvedTheme})` : settings.themeMode}`}
@@ -166,10 +217,14 @@ export function ThemeSwitcherMultiButton({
               title={label}
               aria-pressed={isActive}
               data-state={isActive ? "on" : "off"}
-              onPointerDown={rememberTransitionOrigin}
+              onPointerDown={(event) => {
+                rememberTransitionOrigin(event)
+                // Pointer users need the compact choices visible before the toggle group settles selection.
+                expandCompactThemePicker()
+              }}
               className={cn(
                 "relative size-8 min-w-0 rounded-full p-0 text-muted-foreground transition-[background-color,color,box-shadow,transform] hover:bg-transparent hover:text-foreground active:translate-y-px data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--brand-orange-glow)/0.34)]",
-                !isSelected && "max-sm:hidden max-sm:group-focus-within:inline-flex max-sm:group-hover:inline-flex",
+                !isSelected && !compactExpanded && "max-sm:hidden",
                 !mounted && "pointer-events-none animate-pulse bg-muted/70",
               )}
             >

@@ -46,7 +46,7 @@ test("service worker only warms anonymous public tool routes for offline navigat
   const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8")
   const publicRoutesBlock = source.match(/const PUBLIC_OFFLINE_ROUTES = \[([\s\S]*?)\]/)?.[1] ?? ""
 
-  for (const route of ["/", "/notes", "/notes/soap", "/notes/intake", "/notes/journal", "/notes/rom", "/chimer", "/anatomime"]) {
+  for (const route of ["/", "/notes", "/notes/soap", "/notes/intake", "/notes/journal", "/notes/rom", "/chimer", "/clock", "/anatomime"]) {
     assert.match(publicRoutesBlock, new RegExp(`"${route.replaceAll("/", "\\/")}"`))
   }
 

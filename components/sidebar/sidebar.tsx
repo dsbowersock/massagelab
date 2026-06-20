@@ -90,7 +90,7 @@ async function loadSidebarPracticeRoles(userId: string) {
 }
 
 function logSidebarContextLoadError(message: string, error: unknown) {
-  console.error(message, { error: summarizeServerError(error) })
+  console.warn(message, { error: summarizeServerError(error) })
 }
 
 function summarizeServerError(error: unknown) {

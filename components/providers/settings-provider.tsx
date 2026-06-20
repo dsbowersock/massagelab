@@ -6,10 +6,12 @@ import { createContext, useContext, useEffect, useState } from "react"
 
 type SidebarPosition = "left" | "right"
 type SidebarTriggerPosition = "top" | "bottom"
+export type AppBarPosition = "top" | "bottom"
 export type ThemeMode = "dark" | "light" | "system"
 export type ResolvedThemeMode = "dark" | "light"
 
 interface Settings {
+  appBarPosition: AppBarPosition
   sidebarPosition: SidebarPosition
   sidebarTriggerPosition: SidebarTriggerPosition
   themeMode: ThemeMode

@@ -1,7 +1,7 @@
 "use client"
 
-import { Layout, Monitor, Moon, PanelLeft, Sun, UserRound } from "lucide-react"
-import type { ThemeMode } from "@/components/providers/settings-provider"
+import { Layout, Monitor, Moon, PanelBottom, PanelLeft, PanelTop, Sun, UserRound } from "lucide-react"
+import type { AppBarPosition, ThemeMode } from "@/components/providers/settings-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
 import { getSidebarButtonPosition, resolveSidebarButtonSettings } from "@/lib/app-settings"
@@ -35,6 +35,21 @@ const sidebarButtonPositions = [
   },
 ]
 
+const appBarPositions = [
+  {
+    value: "top",
+    label: "Top",
+    description: "Breadcrumb and theme controls stay at the top; the audio player sits at the bottom.",
+    icon: PanelTop,
+  },
+  {
+    value: "bottom",
+    label: "Bottom",
+    description: "Breadcrumb and theme controls move to the bottom; the audio player sits at the top.",
+    icon: PanelBottom,
+  },
+]
+
 const themeModes = [
   {
     value: "system",
@@ -65,9 +80,40 @@ export function AccountAppSettingsPanel() {
       <SettingsSurface
         id="app-layout-settings"
         title="Layout and sidebar"
-        description="Choose where the sidebar opens from and where the portrait sidebar button sits."
+        description="Choose the app bar edge, audio player edge, and portrait sidebar button placement."
         icon={<Layout data-icon="inline-start" aria-hidden="true" />}
       >
+        <div className="flex flex-col gap-3">
+          <Label className="text-base">App bar position</Label>
+          <RadioGroup
+            value={settings.appBarPosition}
+            onValueChange={(value) => updateSettings({ appBarPosition: value as AppBarPosition })}
+            className="grid gap-3 sm:grid-cols-2"
+          >
+            {appBarPositions.map((option) => {
+              const Icon = option.icon
+
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={`app-bar-${option.value}`}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent",
+                    settings.appBarPosition === option.value && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
+                  )}
+                >
+                  <RadioGroupItem id={`app-bar-${option.value}`} value={option.value} className="mt-1" />
+                  <Icon data-icon="inline-start" className="mt-0.5 text-primary" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </RadioGroup>
+        </div>
+
         <div className="flex flex-col gap-3">
           <Label className="text-base">Sidebar button position</Label>
           <RadioGroup

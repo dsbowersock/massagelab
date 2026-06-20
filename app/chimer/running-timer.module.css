@@ -410,23 +410,23 @@
 }
 
 .closeButton {
-  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  top: var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem));
   right: calc(env(safe-area-inset-right, 0px) + 1rem);
 }
 
 .fullscreenButton {
-  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  top: var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem));
   left: calc(env(safe-area-inset-left, 0px) + 1rem);
 }
 
 .settingsButton {
-  top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  top: var(--chimer-top-control-offset, calc(env(safe-area-inset-top, 0px) + 1rem));
   left: calc(env(safe-area-inset-left, 0px) + 5.25rem);
 }
 
 .settingsPanel {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 5.25rem);
+  top: var(--chimer-settings-panel-top-offset, calc(env(safe-area-inset-top, 0px) + 5.25rem));
   left: calc(env(safe-area-inset-left, 0px) + 1rem);
   z-index: 10004;
   display: flex;
@@ -688,7 +688,7 @@
 
 .bottomControls {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+  bottom: var(--chimer-bottom-control-offset, calc(env(safe-area-inset-bottom, 0px) + 1.25rem));
   left: 50%;
   z-index: 10003;
   display: flex;
@@ -769,9 +769,9 @@
   }
 
   .settingsPanel {
-    top: calc(env(safe-area-inset-top, 0px) + 5rem);
+    top: var(--chimer-settings-panel-top-offset, calc(env(safe-area-inset-top, 0px) + 5rem));
     right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+    bottom: var(--chimer-panel-bottom-offset, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
     left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
     width: auto;
     max-height: none;
@@ -801,13 +801,13 @@
   }
 
   .bottomControls {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+    bottom: var(--chimer-bottom-control-offset, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
   }
 
   .settingsPanel {
-    top: calc(env(safe-area-inset-top, 0px) + 4.75rem);
+    top: var(--chimer-settings-panel-top-offset, calc(env(safe-area-inset-top, 0px) + 4.75rem));
     right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+    bottom: var(--chimer-panel-bottom-offset, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
     left: calc(env(safe-area-inset-left, 0px) + 0.75rem);
     width: auto;
     max-height: none;

@@ -8,6 +8,7 @@ describe("sidebar calendar context route gating", () => {
     assert.equal(shouldLoadSidebarCalendarContext("/account"), true)
     assert.equal(shouldLoadSidebarCalendarContext("/notes"), true)
     assert.equal(shouldLoadSidebarCalendarContext("/chimer"), true)
+    assert.equal(shouldLoadSidebarCalendarContext("/clock"), true)
   })
 
   it("continues to load calendar context on calendar and booking routes", () => {

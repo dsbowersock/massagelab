@@ -152,7 +152,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     sync: "Local-first",
     accessibility: "Coming later",
     notifications: "Coming later",
-    "app-settings": "Theme and sidebar",
+    "app-settings": "Theme and layout",
     "therapist-defaults": "Local defaults",
     "practice-profile": "Coming later",
     people: "Coming later",

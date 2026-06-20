@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   defaultAppSettings,
+  getAudioPlayerToolbarPlacement,
   getSidebarButtonPosition,
   normalizeAppSettings,
   resolveSidebarButtonSettings,
@@ -22,10 +23,12 @@ describe("App settings helpers", () => {
 
   it("preserves valid layout and theme preferences", () => {
     assert.deepEqual(normalizeAppSettings({
+      appBarPosition: "bottom",
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
       themeMode: "system",
     }), {
+      appBarPosition: "bottom",
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
       themeMode: "system",
@@ -36,8 +39,15 @@ describe("App settings helpers", () => {
     assert.deepEqual(normalizeAppSettings({
       sidebarPosition: "center",
       sidebarTriggerPosition: "middle",
+      appBarPosition: "middle",
       themeMode: "high-contrast",
     }), defaultAppSettings)
+  })
+
+  it("places the audio player toolbar opposite the app bar", () => {
+    assert.equal(defaultAppSettings.appBarPosition, "top")
+    assert.equal(getAudioPlayerToolbarPlacement(defaultAppSettings), "bottom")
+    assert.equal(getAudioPlayerToolbarPlacement({ appBarPosition: "bottom" }), "top")
   })
 
   it("maps persisted sidebar settings to a four-corner button position", () => {
