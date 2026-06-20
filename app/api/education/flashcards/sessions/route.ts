@@ -4,8 +4,11 @@ import { getCurrentSession } from "@/auth"
 import {
   normalizeFlashcardDeckConfig,
 } from "@/lib/flashcard-community"
-import { createFlashcardPromptDeck, createFlashcardPromptPool } from "@/lib/anatomy-study"
-import { loadAnatomyStudyMediaUrlOptions } from "@/lib/anatomy-study-media"
+import {
+  getFlashcardPromptDeckFromCatalog,
+  getFlashcardPromptPoolFromCatalog,
+  optionalFlashcardMediaOptions,
+} from "@/lib/flashcard-progress-helpers"
 import {
   flashcardProgressTool,
   isFlashcardProgressMastered,
@@ -13,26 +16,10 @@ import {
 } from "@/lib/flashcard-progress"
 import { prisma } from "@/lib/prisma"
 
-const emptyMediaOptions = { mediaUrlBySlug: new Map<string, string>() }
 const flashcardPromptToolPrefix = flashcardProgressTool("")
 
 function json(value: unknown) {
   return value as Prisma.InputJsonValue
-}
-
-async function boundedMediaOptions() {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined
-
-  try {
-    return await Promise.race([
-      loadAnatomyStudyMediaUrlOptions(),
-      new Promise<typeof emptyMediaOptions>((resolve) => {
-        timeoutId = setTimeout(() => resolve(emptyMediaOptions), 1500)
-      }),
-    ])
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId)
-  }
 }
 
 export async function POST(request: Request) {
@@ -65,10 +52,10 @@ export async function POST(request: Request) {
   }
 
   const config = normalizeFlashcardDeckConfig(deck?.config ?? body.config)
-  const mediaOptions = await boundedMediaOptions()
+  const mediaOptions = await optionalFlashcardMediaOptions()
   let prompts = skipMastered
-    ? createFlashcardPromptPool(config, mediaOptions)
-    : createFlashcardPromptDeck(config, mediaOptions)
+    ? getFlashcardPromptPoolFromCatalog(config, mediaOptions)
+    : getFlashcardPromptDeckFromCatalog(config, mediaOptions)
   if (prompts.length === 0) {
     return NextResponse.json({ error: "This deck has no eligible sourced prompts." }, { status: 400 })
   }

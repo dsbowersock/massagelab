@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client"
 import { getCurrentSession } from "@/auth"
 import { FLASHCARD_TOOL } from "@/lib/flashcard-community"
 import {
-  allFlashcardPrompts,
+  currentFlashcardPromptCatalog,
   flashcardPromptIdFromTool,
   optionalFlashcardMediaOptions,
 } from "@/lib/flashcard-progress-helpers"
@@ -147,9 +147,10 @@ export async function GET(request: Request): Promise<NextResponse<FlashcardProgr
   const flashcardToolLike = `${FLASHCARD_TOOL}:%`
   const promptIdStart = `${FLASHCARD_TOOL}:`.length + 1
   const mediaOptions = await optionalFlashcardMediaOptions()
-  const currentPrompts = allFlashcardPrompts(mediaOptions)
-  const currentPromptIds = currentPrompts.map((prompt) => prompt.id)
-  const promptById = new Map(currentPrompts.map((prompt) => [prompt.id, prompt]))
+  const currentPromptCatalog = currentFlashcardPromptCatalog(mediaOptions)
+  const currentPrompts = currentPromptCatalog.prompts
+  const currentPromptIds = [...currentPromptCatalog.promptIds]
+  const promptById = currentPromptCatalog.promptById
   const targetPromptCount = currentPromptIds.length
   const currentPromptFilter = currentPromptIds.length > 0
     ? Prisma.sql`AND prompt_id IN (${Prisma.join(currentPromptIds)})`

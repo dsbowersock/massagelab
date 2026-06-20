@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   FLASHCARD_ACHIEVEMENTS,
@@ -120,5 +121,65 @@ describe("Flashcard community deck policy", () => {
     })
 
     assert.deepEqual(deckPromptIds(config), ["name_to_region:muscle-biceps-brachii"])
+  })
+
+  it("keeps client API parsing and sourced fallback loading outside the React state machine", async () => {
+    const clientSource = await readFile(new URL("../app/education/flashcards/flashcards-client.tsx", import.meta.url), "utf8")
+    const apiClientSource = await readFile(new URL("../app/education/flashcards/flashcard-api-client.ts", import.meta.url), "utf8")
+    const runnerSource = await readFile(new URL("../app/education/flashcards/flashcard-runner.tsx", import.meta.url), "utf8")
+    const setupBuilderSource = await readFile(new URL("../app/education/flashcards/flashcard-setup-builder.tsx", import.meta.url), "utf8")
+    const progressDashboardSource = await readFile(new URL("../app/education/flashcards/flashcard-progress-dashboard.tsx", import.meta.url), "utf8")
+
+    assert.match(clientSource, /flashcard-api-client/)
+    assert.match(clientSource, /flashcard-runner/)
+    assert.match(clientSource, /flashcard-setup-builder/)
+    assert.match(clientSource, /flashcard-progress-dashboard/)
+    assert.doesNotMatch(clientSource, /function\s+progressPayload\b/)
+    assert.doesNotMatch(clientSource, /function\s+promptDeckPayload\b/)
+    assert.doesNotMatch(clientSource, /function\s+sessionStartPayload\b/)
+    assert.doesNotMatch(clientSource, /function\s+SelectionButton\b/)
+    assert.doesNotMatch(clientSource, /function\s+SetupDisclosure\b/)
+    assert.doesNotMatch(clientSource, /function\s+formatDuration\b/)
+    assert.doesNotMatch(clientSource, /function\s+PromptFront\b/)
+    assert.doesNotMatch(clientSource, /function\s+PromptBack\b/)
+    assert.doesNotMatch(clientSource, /function\s+FlashcardSurface\b/)
+    assert.doesNotMatch(clientSource, /function\s+FlashcardRunner\b/)
+    assert.doesNotMatch(clientSource, /function\s+FlashcardProgressDashboard\b/)
+    assert.match(apiClientSource, /loadFlashcardPromptCatalog/)
+    assert.match(apiClientSource, /loadTemporaryFlashcardDeck/)
+    assert.match(apiClientSource, /startFlashcardProgressSession/)
+    assert.match(apiClientSource, /await\s+import\(["']@\/lib\/anatomy-study["']\)/)
+    assert.doesNotMatch(
+      apiClientSource,
+      /import\s+\{[\s\S]*createFlashcardPromptDeck[\s\S]*\}\s+from\s+["']@\/lib\/anatomy-study["']/,
+    )
+    assert.match(runnerSource, /function\s+PromptFront\b/)
+    assert.match(runnerSource, /function\s+PromptBack\b/)
+    assert.match(runnerSource, /function\s+FlashcardSurface\b/)
+    assert.match(runnerSource, /function\s+FlashcardRunner\b/)
+    assert.match(setupBuilderSource, /function\s+SelectionButton\b/)
+    assert.match(setupBuilderSource, /function\s+SetupDisclosure\b/)
+    assert.match(setupBuilderSource, /function\s+FlashcardSetupBuilder\b/)
+    assert.match(progressDashboardSource, /function\s+formatDuration\b/)
+    assert.match(progressDashboardSource, /function\s+titleFromSlug\b/)
+    assert.match(progressDashboardSource, /function\s+FlashcardProgressDashboard\b/)
+  })
+
+  it("keeps progress APIs on the cached sourced prompt catalog helper", async () => {
+    const helperSource = await readFile(new URL("../lib/flashcard-progress-helpers.ts", import.meta.url), "utf8")
+    const progressRouteSource = await readFile(new URL("../app/api/education/flashcards/progress/route.ts", import.meta.url), "utf8")
+    const sessionsRouteSource = await readFile(new URL("../app/api/education/flashcards/sessions/route.ts", import.meta.url), "utf8")
+
+    assert.match(helperSource, /promptCatalogCache/)
+    assert.match(helperSource, /function\s+promptCatalogSignature\b/)
+    assert.match(helperSource, /function\s+currentFlashcardPromptCatalog\b/)
+    assert.match(helperSource, /function\s+getFlashcardPromptDeckFromCatalog\b/)
+    assert.match(helperSource, /function\s+getFlashcardPromptPoolFromCatalog\b/)
+    assert.match(progressRouteSource, /currentFlashcardPromptCatalog/)
+    assert.match(sessionsRouteSource, /getFlashcardPromptDeckFromCatalog/)
+    assert.match(sessionsRouteSource, /getFlashcardPromptPoolFromCatalog/)
+    assert.doesNotMatch(sessionsRouteSource, /createFlashcardPromptDeck/)
+    assert.doesNotMatch(sessionsRouteSource, /createFlashcardPromptPool/)
+    assert.doesNotMatch(sessionsRouteSource, /loadAnatomyStudyMediaUrlOptions/)
   })
 })
