@@ -182,9 +182,10 @@ describe("calendar creation route wiring", () => {
   })
 
   it("warns before allowing manual appointment creation outside provider availability", async () => {
-    const [composer, actions, availability] = await Promise.all([
+    const [composer, actions, eventActions, availability] = await Promise.all([
       readFile("app/calendar/new/appointment/appointment-composer.tsx", "utf8"),
       readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/events.ts", "utf8"),
       readFile("app/calendar/actions/availability.ts", "utf8"),
     ])
 
@@ -194,7 +195,7 @@ describe("calendar creation route wiring", () => {
     assert.match(composer, /outsideAvailabilityReady \?/)
     assert.match(availability, /class OutsideProviderAvailabilityError/)
     assert.match(actions, /export async function createAppointmentFormAction/)
-    assert.match(actions, /allowOutsideAvailability/)
+    assert.match(eventActions, /allowOutsideAvailability/)
   })
 
   it("keeps ongoing resource bookings in public booking availability checks", async () => {
@@ -235,8 +236,8 @@ describe("calendar creation route wiring", () => {
   })
 
   it("locks scheduling rows inside every blocking calendar mutation transaction", async () => {
-    const [actions, eventActions] = await Promise.all([
-      readFile("app/calendar/actions.ts", "utf8"),
+    const [rescheduleActions, eventActions] = await Promise.all([
+      readFile("app/calendar/actions/reschedule.ts", "utf8"),
       readFile("app/calendar/actions/events.ts", "utf8"),
     ])
     const blockingActions = [
@@ -248,8 +249,8 @@ describe("calendar creation route wiring", () => {
       },
       {
         label: "rescheduleCalendarEventAction",
-        name: "rescheduleCalendarEventAction",
-        source: actions,
+        name: "rescheduleCalendarEvent",
+        source: rescheduleActions,
         checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
       {
