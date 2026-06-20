@@ -258,7 +258,7 @@ function defaultAccountCapabilities(role: AccountRole): AccountCapabilities {
 }
 
 function logAuthStateRefreshError(error: unknown) {
-  console.error("Failed to refresh session account state", { error: summarizeAuthCallbackError(error) })
+  console.warn("Using restricted session account state fallback", { error: summarizeAuthCallbackError(error) })
 }
 
 function summarizeAuthCallbackError(error: unknown) {

@@ -111,6 +111,10 @@ describe("Account page tab model", () => {
       ["app-settings"],
     )
     assert.deepEqual(
+      filterAccountPageGroups("app bar").flatMap((group) => group.items.map((item) => item.id)),
+      ["app-settings"],
+    )
+    assert.deepEqual(
       filterAccountPageGroups("therapist defaults").flatMap((group) => group.items.map((item) => item.id)),
       ["therapist-defaults"],
     )

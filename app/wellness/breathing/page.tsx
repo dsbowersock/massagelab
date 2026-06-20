@@ -22,13 +22,13 @@ export default function WellnessBreathingPage() {
                 <Link href="/wellness">Wellness hub</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/atmosphere">Atmosphere stations</Link>
+                <Link href="/music">Music stations</Link>
               </Button>
             </div>
           </div>
           <AppSurface
-            title="Atmosphere link"
-            description="Start a station from Atmosphere, then keep audio running while you use this breathing tool."
+            title="Music link"
+            description="Start a music station, then keep audio running while you use this breathing tool."
             icon={<Radio className="h-5 w-5" aria-hidden="true" />}
             badge="Audio compatible"
           />

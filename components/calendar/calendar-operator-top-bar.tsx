@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Clock,
   ListChecks,
+  Music2,
   PanelLeft,
   PanelRight,
   Plus,
@@ -39,6 +40,7 @@ import {
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { isNavigationRouteActive } from "@/lib/navigation"
+import { cn } from "@/lib/utils"
 
 const routeIcons = {
   CalendarCog,
@@ -75,12 +77,14 @@ const segmentLabels: Record<string, string> = {
   calendar: "Calendar",
   chimer: "Chimer",
   class: "Class",
+  clock: "Clock",
   corrections: "Corrections",
   derrick: "Derrick",
   "forgot-password": "Forgot password",
   intake: "Intake",
   journal: "Journal",
   login: "Login",
+  music: "Music",
   new: "Create",
   notes: "Notes",
   personal: "Personal event",
@@ -394,6 +398,7 @@ export function CalendarOperatorTopBar({
   const toolbarSlot = useCalendarOperatorToolbarSlot()
   const hasToolbarSlot = Boolean(toolbarSlot)
   const sidebarIsRight = settings.sidebarPosition === "right"
+  const appBarIsBottom = settings.appBarPosition === "bottom"
   const SidebarToggleIcon = sidebarIsRight ? PanelRight : PanelLeft
   const breadcrumbs = routeBreadcrumbs(pathname)
   const pageLabel = breadcrumbs.map((breadcrumb) => breadcrumb.label).join(" / ")
@@ -484,9 +489,45 @@ export function CalendarOperatorTopBar({
   const calendarControl = (
     <CalendarDrawerButton calendarActions={calendarActions} user={user} side={sidebarIsRight ? "left" : "right"} />
   )
+  const musicControl = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          asChild
+          variant={pathname === "/music" ? "secondary" : "outline"}
+          size="icon"
+          className="h-10 w-10 shrink-0"
+        >
+          <Link href="/music" aria-label="Open music">
+            <Music2 data-icon="inline-start" />
+          </Link>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Music</TooltipContent>
+    </Tooltip>
+  )
+  const clockControl = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          asChild
+          variant={pathname === "/clock" ? "secondary" : "outline"}
+          size="icon"
+          className="h-10 w-10 shrink-0"
+        >
+          <Link href="/clock" aria-label="Open clock">
+            <Clock data-icon="inline-start" />
+          </Link>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Clock</TooltipContent>
+    </Tooltip>
+  )
   const oppositeControls = (
     <div className="flex shrink-0 items-center gap-2">
-      <ThemeSwitcherMultiButton />
+      <ThemeSwitcherMultiButton className="max-[360px]:hidden" />
+      {musicControl}
+      {clockControl}
       {calendarControl}
     </div>
   )
@@ -495,7 +536,12 @@ export function CalendarOperatorTopBar({
   const trailingControl = sidebarIsRight ? sidebarControl : oppositeControls
 
   const secondaryToolbar = controlsOverflowing && hasToolbarSlot ? (
-    <div className="ml-calendar-medial-toolbar border-t border-border/60 bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
+    <div
+      className={cn(
+        "ml-calendar-medial-toolbar bg-background/95 px-3 py-2 backdrop-blur sm:px-4",
+        appBarIsBottom ? "border-b border-border/60" : "border-t border-border/60",
+      )}
+    >
       <div ref={secondaryToolbarRef} className="flex min-w-0 items-center">
         {toolbarSlot}
       </div>
@@ -504,7 +550,13 @@ export function CalendarOperatorTopBar({
 
   return (
     <TooltipProvider delayDuration={150}>
-      <header ref={headerRef} className="ml-app-topbar relative z-30 border-b border-border/70 bg-background/95 shadow-sm backdrop-blur">
+      <header
+        ref={headerRef}
+        className={cn(
+          "ml-app-topbar relative z-30 bg-background/95 shadow-sm backdrop-blur",
+          appBarIsBottom ? "border-t border-border/70" : "border-b border-border/70",
+        )}
+      >
         <div ref={primaryRowRef} className="flex min-h-14 items-center gap-2 px-3 sm:px-4">
           <div ref={leadingControlsRef} className="flex shrink-0 items-center">
             {leadingControl}

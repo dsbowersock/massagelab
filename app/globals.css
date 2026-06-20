@@ -60,6 +60,7 @@
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
+    --ml-audio-toolbar-height: 4rem;
   }
 
   .light {
@@ -133,6 +134,21 @@
 
   body {
     @apply bg-background text-foreground;
+
+    --chimer-top-control-offset: calc(var(--ml-safe-top) + 1rem);
+    --chimer-settings-panel-top-offset: calc(var(--ml-safe-top) + 5.25rem);
+    --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + 1.25rem);
+    --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + 0.75rem);
+  }
+
+  body.ml-music-player-active.ml-music-player-top {
+    --chimer-top-control-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-settings-panel-top-offset: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height) + 4.75rem);
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom {
+    --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
   body.chimer-running aside,
@@ -161,24 +177,53 @@
 
 @layer components {
   .ml-app-shell {
+    --ml-page-top-safe: 0px;
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
+  }
+
+  body.ml-music-player-active.ml-music-player-top .ml-app-shell {
+    --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell {
+    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-audio-toolbar-height));
   }
 
   body.chimer-running .ml-app-shell,
   body.chimer-alerting .ml-app-shell {
+    --ml-page-top-safe: 0px;
     --ml-page-bottom-safe: 0px;
   }
 
   .ml-app-scroll {
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable;
-    scroll-padding-top: calc(var(--ml-safe-top) + var(--ml-page-edge-gap));
+    scroll-padding-top: calc(var(--ml-safe-top) + var(--ml-page-edge-gap) + var(--ml-page-top-safe));
     scroll-padding-bottom: var(--ml-page-bottom-safe);
   }
 
   .ml-app-content {
     min-height: 100%;
+    padding-top: var(--ml-page-top-safe);
     padding-bottom: var(--ml-page-bottom-safe);
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] {
+    top: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="bottom"] {
+    bottom: 0;
+  }
+
+  .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
+    border-bottom: 1px solid hsl(var(--border) / 0.82);
+    padding-top: var(--ml-safe-top);
+  }
+
+  .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
+    border-top: 1px solid hsl(var(--border) / 0.82);
+    padding-bottom: var(--ml-safe-bottom);
   }
 
   @supports selector(:has(*)) {

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   clampActiveTimerMs,
@@ -62,6 +63,18 @@ const idleTimerState: TimerState = {
   msUntilNextAlert: null,
 }
 
+function createClockTimerState(): TimerState {
+  return {
+    status: "clock",
+    totalMs: 0,
+    remainingMs: 0,
+    endsAtMs: null,
+    intervalMs: null,
+    nextAlertAtMs: null,
+    msUntilNextAlert: null,
+  }
+}
+
 function hasSavedPreference(value: unknown) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length > 0)
 }
@@ -71,8 +84,12 @@ function areChimerSettingsEqual(left: ChimerSettings, right: ChimerSettings) {
 }
 
 export default function ChimerPage() {
+  const pathname = usePathname() ?? ""
+  const startsInClockMode = pathname === "/clock" || pathname.startsWith("/clock/")
   const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
-  const [timerState, setTimerState] = useState<TimerState>(idleTimerState)
+  const [timerState, setTimerState] = useState<TimerState>(() => (
+    startsInClockMode ? createClockTimerState() : idleTimerState
+  ))
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [currentTime, setCurrentTime] = useState<CurrentTimeParts>({ time: "", meridiem: "" })
   const [showTimeModal, setShowTimeModal] = useState(false)
@@ -582,15 +599,7 @@ export default function ChimerPage() {
     setError(null)
     setIsAlerting(false)
 
-    const clockState: TimerState = {
-      status: "clock",
-      totalMs: 0,
-      remainingMs: 0,
-      endsAtMs: null,
-      intervalMs: null,
-      nextAlertAtMs: null,
-      msUntilNextAlert: null,
-    }
+    const clockState = createClockTimerState()
 
     timerStateRef.current = clockState
     setTimerState(clockState)

@@ -72,13 +72,13 @@ export default async function WellnessPage() {
   return (
     <AppPageShell width="wide" contentClassName="gap-5">
       <AppSurface
-        title="Atmosphere"
+        title="Music"
         description="Public audio stations for massage-room pacing, study, and personal focus."
         icon={<Radio className="h-5 w-5" aria-hidden="true" />}
         badge="Public audio"
       >
         <Button asChild variant="outline">
-          <Link href="/atmosphere">Open Atmosphere</Link>
+          <Link href="/music">Open Music</Link>
         </Button>
       </AppSurface>
 

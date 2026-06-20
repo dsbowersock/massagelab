@@ -8,6 +8,7 @@ const PUBLIC_OFFLINE_ROUTES = [
   "/notes/journal",
   "/notes/rom",
   "/chimer",
+  "/clock",
   "/anatomime",
 ]
 const SENSITIVE_PREFIXES = [

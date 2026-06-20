@@ -110,6 +110,7 @@ const routeIcons = {
 
 const primaryGroupIcons: Record<string, LucideIcon> = {
   tools: Wrench,
+  atmosphere: Radio,
   documentation: FileText,
   education: BookOpen,
   games: Brain,

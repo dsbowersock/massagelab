@@ -6,7 +6,9 @@ import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
 import { MovingBackground } from "@/components/moving-background"
 import { MusicMiniPlayer } from "@/components/providers/music-mini-player"
+import { useSettings } from "@/components/providers/settings-provider"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
+import { getAudioPlayerToolbarPlacement } from "@/lib/app-settings"
 import { cn } from "@/lib/utils"
 
 export function LayoutWrapper({
@@ -19,16 +21,23 @@ export function LayoutWrapper({
   user: SidebarUser
 }) {
   const pathname = usePathname() ?? ""
+  const { settings } = useSettings()
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
   const isFlashcardsRoute = pathname === "/education/flashcards"
-  const isChimerRoute = pathname.startsWith("/chimer")
-  const routeOwnsBackground = pathname.startsWith("/chimer") || pathname.startsWith("/anatomime")
-  const musicPlayerCompact = isChimerRoute
+  const routeOwnsBackground = pathname.startsWith("/chimer")
+    || pathname.startsWith("/clock")
+    || pathname.startsWith("/anatomime")
+  const appBarIsBottom = settings.appBarPosition === "bottom"
+  const musicPlayerPlacement = getAudioPlayerToolbarPlacement(settings)
+  const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
 
   const shell = (
-    <div className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background">
+    <div
+      className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background"
+      data-app-bar-position={settings.appBarPosition}
+    >
       {!routeOwnsBackground && (
         <>
           <MovingBackground
@@ -41,7 +50,7 @@ export function LayoutWrapper({
           />
         </>
       )}
-      <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
+      {!appBarIsBottom && appBar}
       <div
         className={cn(
           "ml-app-scroll relative z-10 min-h-0 w-full flex-1 overscroll-contain",
@@ -59,7 +68,8 @@ export function LayoutWrapper({
           {children}
         </div>
       </div>
-      <MusicMiniPlayer compact={musicPlayerCompact} />
+      {appBarIsBottom && appBar}
+      <MusicMiniPlayer placement={musicPlayerPlacement} />
     </div>
   )
 
