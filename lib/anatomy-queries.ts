@@ -487,7 +487,9 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
         },
         include: {
           source: true,
-          entityLinks: true,
+          entityLinks: {
+            where: { entityType, entitySlug },
+          },
         },
         orderBy: [{ reviewStatus: "asc" }, { title: "asc" }],
       })
@@ -581,7 +583,12 @@ export function createAnatomyQueryHelpers(client: AnatomyQueryClient = defaultPr
         }),
         requireDelegate(client, "anatomyMediaAsset").findMany({
           where: { entityLinks: { some: { entityType, entitySlug } } },
-          include: { source: true, entityLinks: true },
+          include: {
+            source: true,
+            entityLinks: {
+              where: { entityType, entitySlug },
+            },
+          },
           orderBy: [{ reviewStatus: "asc" }, { title: "asc" }],
         }),
         optionalFindMany(client, "anatomyMediaViewRequest", {

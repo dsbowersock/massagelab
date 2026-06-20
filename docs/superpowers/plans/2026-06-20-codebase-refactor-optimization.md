@@ -345,7 +345,32 @@ Expected: lower or unchanged first-load JS for public routes, no broken audio pe
 
 2026-06-20 result: the Anatomime lazy client branch passed `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, `npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-chromium`, and `git diff --check`.
 
-### Task 8: Harden Local-First Documentation Types
+### Task 8: Harden Neon Transfer Hotspots
+
+**Files:**
+- Modify: `lib/anatomy-study-media.ts`
+- Modify: `app/admin/anatomy/browser-data.ts`
+- Modify: `app/admin/anatomy/media-review/page.tsx`
+- Modify: `lib/anatomy-queries.ts`
+- Modify: `scripts/anatomy-media-view-coverage.ts`
+- Modify: `scripts/anatomy-media-view-requests.ts`
+- Test: `tests/neon-transfer-hardening.test.mjs`
+
+- [x] **Step 1: project repeated public study-media reads**
+
+Replace repeated whole-table anatomy media loads with a reviewed BodyParts3D image/diagram projection, approved link filtering, and a short process-local cache.
+
+- [x] **Step 2: project admin media review rows**
+
+Keep the mobile media-review queue paginated and select only the asset/source fields rendered by the review card and sibling-image summary.
+
+- [x] **Step 3: reduce admin/script media record width**
+
+Keep anatomy browser media candidates and maintenance scripts on explicit media/link/request snippets instead of full asset/source/link records.
+
+2026-06-20 result: the Neon transfer-hardening branch narrowed DB-backed flashcard media loading to reviewed open-reuse BodyParts3D image/diagram assets with approved links, added a 60-second in-process media-options cache for repeated flashcard API calls, projected admin media-review rows to rendered asset/source fields, limited selected-entity media details to the matching entity links, and projected BodyParts3D maintenance scripts. Added a source-contract test to guard these transfer boundaries.
+
+### Task 9: Harden Local-First Documentation Types
 
 **Files:**
 - Modify: `app/notes/intake/client-page.tsx`

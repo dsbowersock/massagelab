@@ -93,6 +93,24 @@ type QueueData = {
 const QUEUE_TAKE = 6
 const IMAGE_REVIEW_MEDIA_TYPES = ["IMAGE", "DIAGRAM"] as const satisfies AnatomyMediaType[]
 const STUDY_CATEGORY_KEYS = new Set<string>(ANATOMY_STUDY_CATEGORIES)
+const mediaReviewAssetSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  mediaType: true,
+  sourceUrl: true,
+  remoteUrl: true,
+  thumbnailUrl: true,
+  usageScope: true,
+  reviewStatus: true,
+  metadata: true,
+  source: {
+    select: {
+      slug: true,
+      label: true,
+    },
+  },
+} satisfies Prisma.AnatomyMediaAssetSelect
 const STUDY_CATEGORY_TO_ENTITY_TYPE: Record<string, AnatomyEntityType> = {
   bone: "BONE",
   bone_landmark: "BONE_LANDMARK",
@@ -284,11 +302,18 @@ async function getMediaReviewQueueData(filters: ReturnType<typeof parseMediaRevi
   ] = await Promise.all([
     prisma.anatomyMediaEntity.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        entityType: true,
+        entitySlug: true,
+        role: true,
+        notes: true,
+        reviewStatus: true,
+        reviewReason: true,
+        reviewNote: true,
+        displayPriority: true,
         asset: {
-          include: {
-            source: true,
-          },
+          select: mediaReviewAssetSelect,
         },
       },
       orderBy: mediaReviewQueueOrderBy(filters),
@@ -349,9 +374,7 @@ async function linkedImageSummariesForRows(rows: Array<{ entityType: AnatomyEnti
       reviewReason: true,
       displayPriority: true,
       asset: {
-        include: {
-          source: true,
-        },
+        select: mediaReviewAssetSelect,
       },
     },
     orderBy: [

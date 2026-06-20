@@ -76,7 +76,15 @@ async function eligibleItems(): Promise<EligibleBodyParts3dItem[]> {
       mediaType: "IMAGE",
       source: { slug: BODYPARTS3D_SOURCE_SLUG },
     },
-    include: { entityLinks: true },
+    select: {
+      metadata: true,
+      entityLinks: {
+        select: {
+          entityType: true,
+          entitySlug: true,
+        },
+      },
+    },
     orderBy: { slug: "asc" },
     take: 20_000,
   })
