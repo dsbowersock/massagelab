@@ -118,6 +118,12 @@ export async function assertPracticeTherapist(practiceId: string, therapistId: s
   }
 }
 
+export function assertCanManageTherapistSchedule(role: string, userId: string, therapistId: string) {
+  if (role === "THERAPIST" && userId !== therapistId) {
+    throw new Error("Therapists can only manage their own schedule.")
+  }
+}
+
 export async function getPracticeOrThrow(practiceId: string) {
   const practice = await prisma.practice.findUnique({
     where: { id: practiceId },

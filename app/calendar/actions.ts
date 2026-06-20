@@ -11,6 +11,7 @@ import {
   PRACTICE_SCHEDULING_ROLES,
   STAFF_ROLES,
   THERAPIST_ROLES,
+  assertCanManageTherapistSchedule,
   assertCalendarFlowAccess,
   assertPracticeAccess,
   assertPracticeTherapist,
@@ -33,6 +34,7 @@ import {
   assertProviderAvailability,
   lockAppointmentSchedulingRows,
 } from "./actions/availability"
+import { revalidateCalendarRoutes } from "./actions/revalidation"
 import {
   capacityAllowsBooking,
   hasRestGapConflict,
@@ -480,21 +482,6 @@ async function writeCalendarAuditAndNotifications(
         payload: intent.payload as Prisma.InputJsonValue,
       })) satisfies Prisma.CalendarNotificationIntentCreateManyInput[],
     })
-  }
-}
-
-function revalidateCalendarRoutes(practiceSlug?: string, publicBookingPath?: string) {
-  revalidatePath("/calendar")
-  revalidatePath("/calendar/requests")
-  revalidatePath("/calendar/availability")
-  revalidatePath("/calendar/booking")
-  revalidatePath("/book/[practiceSlug]", "page")
-  revalidatePath("/book/[stateSlug]/[bookingSlug]", "page")
-  if (practiceSlug) {
-    revalidatePath(`/book/${practiceSlug}`)
-  }
-  if (publicBookingPath) {
-    revalidatePath(publicBookingPath)
   }
 }
 
@@ -1264,12 +1251,6 @@ export async function saveCalendarPreferencesAction(input: Record<string, unknow
 
   revalidatePath("/calendar")
   return { preferences: saved.calendarPreferences }
-}
-
-function assertCanManageTherapistSchedule(role: string, userId: string, therapistId: string) {
-  if (role === "THERAPIST" && userId !== therapistId) {
-    throw new Error("Therapists can only manage their own schedule.")
-  }
 }
 
 export async function createAvailabilityScheduleAction(formData: FormData) {
