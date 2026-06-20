@@ -22,7 +22,6 @@ import {
   fieldInteger,
   fieldString,
   getPracticeOrThrow,
-  localDateTime,
   operationalCalendarNote,
 } from "./access"
 import {
@@ -512,9 +511,9 @@ export async function requestAppointment(formData: FormData) {
   const therapistId = fieldString(formData, "therapistId")
   const serviceVariantId = fieldString(formData, "serviceVariantId")
   const serviceTypeId = fieldString(formData, "serviceTypeId")
-  const startsAt = localDateTime(fieldString(formData, "startsAt"))
+  const startsAtValue = fieldString(formData, "startsAt")
 
-  if (!practiceId || !therapistId || (!serviceVariantId && !serviceTypeId) || !startsAt) {
+  if (!practiceId || !therapistId || (!serviceVariantId && !serviceTypeId) || !startsAtValue) {
     throw new Error("Choose an available appointment time.")
   }
 
@@ -526,6 +525,11 @@ export async function requestAppointment(formData: FormData) {
       select: { name: true, email: true },
     }),
   ])
+
+  const startsAt = localDateTimeToUtc(startsAtValue, practice.timezone)
+  if (!startsAt) {
+    throw new Error("Choose an available appointment time.")
+  }
 
   await assertPracticeTherapist(practiceId, therapistId)
   await assertCalendarFlowAccess({ flow: "CLIENT_REQUEST", practiceId, userId, targetUserId: therapistId, isClientSelf: true })

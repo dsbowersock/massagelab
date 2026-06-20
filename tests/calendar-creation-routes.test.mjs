@@ -183,6 +183,14 @@ describe("calendar creation route wiring", () => {
     assert.match(availability, /SELECT[\s\S]+FOR UPDATE/)
   })
 
+  it("converts client appointment request times with the practice timezone", async () => {
+    const eventActions = await readFile("app/calendar/actions/events.ts", "utf8")
+    const requestAppointment = exportedActionBody(eventActions, "requestAppointment")
+
+    assert.match(requestAppointment, /localDateTimeToUtc\(startsAtValue,\s*practice\.timezone\)/)
+    assert.doesNotMatch(requestAppointment, /localDateTime\(fieldString\(formData,\s*"startsAt"\)\)/)
+  })
+
   it("locks scheduling rows inside every blocking calendar mutation transaction", async () => {
     const [actions, eventActions] = await Promise.all([
       readFile("app/calendar/actions.ts", "utf8"),
