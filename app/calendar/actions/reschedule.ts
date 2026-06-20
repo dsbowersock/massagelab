@@ -19,6 +19,12 @@ import {
   formOrObjectValue,
 } from "./access"
 
+/**
+ * Reschedules an existing calendar event from FormData or an object payload.
+ * Requires event id and start/end timestamps; optionally honors manual
+ * outside-availability confirmation while preserving conflict checks, cascaded
+ * child-record updates, sanitized audit writes, notifications, and revalidation.
+ */
 export async function rescheduleCalendarEvent(input: FormData | Record<string, unknown>) {
   const userId = await currentUserId()
   await assertCalendarDatabaseReady()

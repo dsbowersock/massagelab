@@ -18,13 +18,18 @@ import {
   slugify,
 } from "./access"
 
+function parseDayOfWeek(formData: FormData) {
+  const value = fieldString(formData, "dayOfWeek").trim()
+  return value === "" ? Number.NaN : Number(value)
+}
+
 export async function createAvailabilitySchedule(formData: FormData) {
   const userId = await currentUserId()
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const therapistId = fieldString(formData, "therapistId")
   const name = fieldString(formData, "name") || "Working schedule"
-  const dayOfWeek = Number(fieldString(formData, "dayOfWeek"))
+  const dayOfWeek = parseDayOfWeek(formData)
   const startMinute = parseTimeToMinute(fieldString(formData, "startTime"))
   const endMinute = parseTimeToMinute(fieldString(formData, "endTime"))
   const practice = await getPracticeOrThrow(practiceId)
@@ -38,13 +43,19 @@ export async function createAvailabilitySchedule(formData: FormData) {
 
   const effectiveFrom = fieldString(formData, "effectiveFrom")
   const effectiveTo = fieldString(formData, "effectiveTo")
+  const effectiveFromDate = effectiveFrom ? dateAtMinute(effectiveFrom, 0, practice.timezone) : null
+  const effectiveToDate = effectiveTo ? dateAtMinute(effectiveTo, 0, practice.timezone) : null
+  if (effectiveFromDate && effectiveToDate && effectiveToDate < effectiveFromDate) {
+    throw new Error("Schedule end date must be on or after the start date.")
+  }
+
   await prisma.calendarAvailabilitySchedule.create({
     data: {
       practiceId,
       therapistId,
       name,
-      effectiveFrom: effectiveFrom ? dateAtMinute(effectiveFrom, 0, practice.timezone) : null,
-      effectiveTo: effectiveTo ? dateAtMinute(effectiveTo, 0, practice.timezone) : null,
+      effectiveFrom: effectiveFromDate,
+      effectiveTo: effectiveToDate,
       timezone: practice.timezone,
       intervals: {
         create: {
@@ -174,7 +185,7 @@ export async function createAvailabilityRule(formData: FormData) {
   await assertCalendarDatabaseReady()
   const practiceId = fieldString(formData, "practiceId")
   const therapistId = fieldString(formData, "therapistId")
-  const dayOfWeek = Number(fieldString(formData, "dayOfWeek"))
+  const dayOfWeek = parseDayOfWeek(formData)
   const startMinute = parseTimeToMinute(fieldString(formData, "startTime"))
   const endMinute = parseTimeToMinute(fieldString(formData, "endTime"))
 

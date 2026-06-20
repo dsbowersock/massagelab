@@ -34,7 +34,11 @@
 - After setup extraction: focused calendar/public-booking/service suite -- 71 passing; `npm run typecheck` passed.
 - After reschedule extraction: focused calendar/public-booking/service suite -- 71 passing; `npm run typecheck` passed.
 - Final branch validation: `npm run typecheck`, `npm run lint`, `npm run test` -- 643 passing, `npm run build`, and `git diff --check` passed.
-- Review hardening validation: `node --test tests/calendar-creation-routes.test.mjs`, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed.
+- Review hardening validation: `node --test tests/calendar-creation-routes.test.mjs`, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed. Follow-up review fixes kept extracted modules server-only, rejected missing `dayOfWeek` before numeric coercion, validated schedule effective-date ordering, and documented the reschedule transaction contract.
+
+## Skipped Review Items
+
+- Preference write serialization, reschedule stale-row protection, and free-practice quota atomicity are valid concurrency hardening ideas, but they require a dedicated transaction/retry design and were not bundled into this behavior-preserving extraction branch.
 
 ## Simplification Checks
 

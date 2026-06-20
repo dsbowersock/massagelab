@@ -300,7 +300,10 @@ describe("calendar creation route wiring", () => {
   })
 
   it("uses unique availability time input ids without changing submitted field names", async () => {
-    const availabilityPage = await readFile("app/calendar/availability/page.tsx", "utf8")
+    const [availabilityPage, setupActions] = await Promise.all([
+      readFile("app/calendar/availability/page.tsx", "utf8"),
+      readFile("app/calendar/actions/setup.ts", "utf8"),
+    ])
 
     assert.match(availabilityPage, /idPrefix="weekly-rule"/)
     assert.match(availabilityPage, /idPrefix="named-schedule"/)
@@ -308,6 +311,18 @@ describe("calendar creation route wiring", () => {
     assert.match(availabilityPage, /id=\{`\$\{idPrefix\}-startTime`\}\s+name="startTime"/)
     assert.match(availabilityPage, /formatPracticeDate\(override\.date,\s*membership\.practice\.timezone\)/)
     assert.equal(availabilityPage.includes("override.date.toISOString().slice(0, 10)"), false)
+    assert.match(setupActions, /function parseDayOfWeek\(formData: FormData\)/)
+    assert.doesNotMatch(setupActions, /Number\(fieldString\(formData,\s*"dayOfWeek"\)\)/)
+    assert.match(setupActions, /effectiveToDate < effectiveFromDate/)
+  })
+
+  it("documents the reschedule action transaction contract", async () => {
+    const rescheduleActions = await readFile("app/calendar/actions/reschedule.ts", "utf8")
+
+    assert.match(rescheduleActions, /Reschedules an existing calendar event/)
+    assert.match(rescheduleActions, /outside-availability confirmation/)
+    assert.match(rescheduleActions, /conflict checks/)
+    assert.match(rescheduleActions, /audit writes/)
   })
 
   it("persists notice dismissal patches without spreading stale calendar preferences", async () => {
