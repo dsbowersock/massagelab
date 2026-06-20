@@ -324,13 +324,15 @@ Keep route-persistent playback. Measure whether globally importing station catal
 
 2026-06-20 result: `MusicProvider` now keeps only the lightweight provider/storage shell in the global layout and loads station catalog, runtime controller, Generative.fm runtime, and Tone proof runtime through a cached async runtime path when a station is played or prewarmed. After the production rebuild, representative first-load JavaScript dropped from 1,787,081 to 1,113,612 bytes on `/`, from 2,100,580 to 1,427,111 bytes on `/calendar`, and from about 1.81 MB to 1,598,886 bytes on `/music` and `/browse`, while route-persistent playback and Media Session browser checks passed.
 
-- [ ] **Step 5: Anatomime**
+- [x] **Step 5: Anatomime**
 
 Split shared-room creation/join widgets from the solo game runner only if bundle output shows the combined route is heavy enough to matter.
 
 2026-06-20 branch note: `/anatomime` still measured as a large route-owned client bundle after the shared audio shell reduction. Keep it as a separate follow-up branch so the game state and shared-session widgets can be split with focused tests.
 
-- [ ] **Step 6: validate**
+2026-06-20 result: `/anatomime` was the next measured route-owned target at 2,889,251 first-load JavaScript bytes, 1,775,639 bytes above the home shell. The route now renders a lightweight team/round setup shell, warms the lazy game client during online idle so the service worker can cache its chunks for offline play, and renders the sourced anatomy deck and full game workspace after "Choose Anatomy Terms." Production route-bundle diagnostics dropped `/anatomime` to 1,122,077 bytes, leaving only 8,016 bytes above the home shell while keeping `/anatomime/join` and `/anatomime/play/[code]` unchanged. Added a source-contract test for the lazy boundary, and focused Anatomime browser tests passed.
+
+- [x] **Step 6: validate**
 
 Run:
 
@@ -340,6 +342,8 @@ npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-ch
 ```
 
 Expected: lower or unchanged first-load JS for public routes, no broken audio persistence, no calendar workspace regressions, no booking wizard interaction regression.
+
+2026-06-20 result: the Anatomime lazy client branch passed `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, `npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-chromium`, and `git diff --check`.
 
 ### Task 8: Harden Local-First Documentation Types
 
