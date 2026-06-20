@@ -41,7 +41,12 @@ describe("calendar creation route wiring", () => {
   })
 
   it("exposes server actions for creation, rescheduling, preferences, availability, and request review", async () => {
-    const actions = await readFile("app/calendar/actions.ts", "utf8")
+    const [actions, setupActions, preferenceActions, rescheduleActions] = await Promise.all([
+      readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/setup.ts", "utf8"),
+      readFile("app/calendar/actions/preferences.ts", "utf8"),
+      readFile("app/calendar/actions/reschedule.ts", "utf8"),
+    ])
 
     assert.match(actions, /export async function createAppointmentAction/)
     assert.match(actions, /export async function createPersonalEventAction/)
@@ -54,6 +59,21 @@ describe("calendar creation route wiring", () => {
     assert.match(actions, /export async function createAvailabilityOverrideAction/)
     assert.match(actions, /export async function rescheduleCalendarEventAction/)
     assert.match(actions, /export async function updateAppointmentRequestStatusAction/)
+    assert.match(actions, /return createAvailabilitySchedule\(formData\)/)
+    assert.match(actions, /return createAvailabilityOverride\(formData\)/)
+    assert.match(actions, /return createPractice\(formData\)/)
+    assert.match(actions, /return createAvailabilityRule\(formData\)/)
+    assert.match(setupActions, /export async function createAvailabilitySchedule\(formData: FormData\)/)
+    assert.match(setupActions, /export async function createAvailabilityOverride\(formData: FormData\)/)
+    assert.match(setupActions, /export async function createPractice\(formData: FormData\)/)
+    assert.match(setupActions, /export async function createAvailabilityRule\(formData: FormData\)/)
+    assert.match(actions, /^"use server"/)
+    assert.match(preferenceActions, /import "server-only"/)
+    assert.match(setupActions, /import "server-only"/)
+    assert.match(rescheduleActions, /import "server-only"/)
+    assert.doesNotMatch(preferenceActions, /^"use server"/)
+    assert.doesNotMatch(setupActions, /^"use server"/)
+    assert.doesNotMatch(rescheduleActions, /^"use server"/)
     assert.equal(actions.includes("sendMail"), false)
     assert.equal(actions.includes("sendVerificationEmail"), false)
   })
@@ -171,9 +191,10 @@ describe("calendar creation route wiring", () => {
   })
 
   it("warns before allowing manual appointment creation outside provider availability", async () => {
-    const [composer, actions, availability] = await Promise.all([
+    const [composer, actions, eventActions, availability] = await Promise.all([
       readFile("app/calendar/new/appointment/appointment-composer.tsx", "utf8"),
       readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/events.ts", "utf8"),
       readFile("app/calendar/actions/availability.ts", "utf8"),
     ])
 
@@ -183,7 +204,7 @@ describe("calendar creation route wiring", () => {
     assert.match(composer, /outsideAvailabilityReady \?/)
     assert.match(availability, /class OutsideProviderAvailabilityError/)
     assert.match(actions, /export async function createAppointmentFormAction/)
-    assert.match(actions, /allowOutsideAvailability/)
+    assert.match(eventActions, /allowOutsideAvailability/)
   })
 
   it("keeps ongoing resource bookings in public booking availability checks", async () => {
@@ -224,8 +245,8 @@ describe("calendar creation route wiring", () => {
   })
 
   it("locks scheduling rows inside every blocking calendar mutation transaction", async () => {
-    const [actions, eventActions] = await Promise.all([
-      readFile("app/calendar/actions.ts", "utf8"),
+    const [rescheduleActions, eventActions] = await Promise.all([
+      readFile("app/calendar/actions/reschedule.ts", "utf8"),
       readFile("app/calendar/actions/events.ts", "utf8"),
     ])
     const blockingActions = [
@@ -237,8 +258,8 @@ describe("calendar creation route wiring", () => {
       },
       {
         label: "rescheduleCalendarEventAction",
-        name: "rescheduleCalendarEventAction",
-        source: actions,
+        name: "rescheduleCalendarEvent",
+        source: rescheduleActions,
         checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
       {
@@ -279,7 +300,10 @@ describe("calendar creation route wiring", () => {
   })
 
   it("uses unique availability time input ids without changing submitted field names", async () => {
-    const availabilityPage = await readFile("app/calendar/availability/page.tsx", "utf8")
+    const [availabilityPage, setupActions] = await Promise.all([
+      readFile("app/calendar/availability/page.tsx", "utf8"),
+      readFile("app/calendar/actions/setup.ts", "utf8"),
+    ])
 
     assert.match(availabilityPage, /idPrefix="weekly-rule"/)
     assert.match(availabilityPage, /idPrefix="named-schedule"/)
@@ -287,17 +311,31 @@ describe("calendar creation route wiring", () => {
     assert.match(availabilityPage, /id=\{`\$\{idPrefix\}-startTime`\}\s+name="startTime"/)
     assert.match(availabilityPage, /formatPracticeDate\(override\.date,\s*membership\.practice\.timezone\)/)
     assert.equal(availabilityPage.includes("override.date.toISOString().slice(0, 10)"), false)
+    assert.match(setupActions, /function parseDayOfWeek\(formData: FormData\)/)
+    assert.doesNotMatch(setupActions, /Number\(fieldString\(formData,\s*"dayOfWeek"\)\)/)
+    assert.match(setupActions, /effectiveToDate < effectiveFromDate/)
+  })
+
+  it("documents the reschedule action transaction contract", async () => {
+    const rescheduleActions = await readFile("app/calendar/actions/reschedule.ts", "utf8")
+
+    assert.match(rescheduleActions, /Reschedules an existing calendar event/)
+    assert.match(rescheduleActions, /outside-availability confirmation/)
+    assert.match(rescheduleActions, /conflict checks/)
+    assert.match(rescheduleActions, /audit writes/)
   })
 
   it("persists notice dismissal patches without spreading stale calendar preferences", async () => {
-    const [notice, actions] = await Promise.all([
+    const [notice, actions, preferenceActions] = await Promise.all([
       readFile("app/calendar/calendar-guidance-notice.tsx", "utf8"),
       readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/preferences.ts", "utf8"),
     ])
 
     assert.match(notice, /saveCalendarPreferencesAction\(\{\s*noticeDismissals:/)
     assert.equal(notice.includes("...preferences,\n        noticeDismissals"), false)
-    assert.match(actions, /mergeCalendarPreferencePatch/)
+    assert.match(actions, /return saveCalendarPreferences\(input\)/)
+    assert.match(preferenceActions, /mergeCalendarPreferencePatch/)
   })
 
   it("keeps service variants and resources documented as catalog entities, not event detail records", async () => {

@@ -204,36 +204,41 @@ Expected: same API response shapes with fewer repeated prompt-catalog rebuilds.
 - Create: `app/calendar/actions/access.ts`
 - Create: `app/calendar/actions/availability.ts`
 - Create: `app/calendar/actions/booking.ts`
+- Create: `app/calendar/actions/preferences.ts`
+- Create: `app/calendar/actions/public-booking.ts`
+- Create: `app/calendar/actions/reschedule.ts`
 - Create: `app/calendar/actions/service-catalog.ts`
+- Create: `app/calendar/actions/services.ts`
+- Create: `app/calendar/actions/setup.ts`
 - Create: `app/calendar/actions/events.ts`
 - Test: `tests/calendar*.test.mjs`
 - Test: `tests/public-booking-*.test.mjs`
 
-- [ ] **Step 1: preserve the public action exports**
+- [x] **Step 1: preserve the public action exports**
 
 Keep `app/calendar/actions.ts` as the import surface used by pages and forms. Move implementation groups into smaller files and re-export the same action names.
 
-- [ ] **Step 2: extract access and parsing helpers**
+- [x] **Step 2: extract access and parsing helpers**
 
 Move `currentUserId`, `assertPracticeAccess`, `assertPracticeTherapist`, field parsers, and PHI-shaped operational note checks to `access.ts`.
 
-- [ ] **Step 3: extract availability and conflict logic**
+- [x] **Step 3: extract availability and conflict logic**
 
 Move provider availability, resource conflict, appointment conflict, row locking, and schedule override logic to `availability.ts`.
 
-- [ ] **Step 4: extract booking and waitlist mutations**
+- [x] **Step 4: extract booking and waitlist mutations**
 
 Move public booking sequence request, waitlist join, waitlist conversion, provider booking policy, and capacity rules to `booking.ts`.
 
-- [ ] **Step 5: extract service catalog mutations**
+- [x] **Step 5: extract service catalog mutations**
 
 Move create/update service, variants, resources, and service limits to `service-catalog.ts`.
 
-- [ ] **Step 6: extract event creation and request review**
+- [x] **Step 6: extract event creation and request review**
 
 Move appointment, personal event, class, reminder, reschedule, and appointment request review to `events.ts`.
 
-- [ ] **Step 7: validate**
+- [x] **Step 7: validate**
 
 Run:
 
