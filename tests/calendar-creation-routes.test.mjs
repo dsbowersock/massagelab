@@ -89,18 +89,18 @@ describe("calendar creation route wiring", () => {
   })
 
   it("lets staff create a practice client while composing an appointment", async () => {
-    const [appointmentPage, composer, actions] = await Promise.all([
+    const [appointmentPage, composer, eventActions] = await Promise.all([
       readFile("app/calendar/new/appointment/page.tsx", "utf8"),
       readFile("app/calendar/new/appointment/appointment-composer.tsx", "utf8"),
-      readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/events.ts", "utf8"),
     ])
 
     assert.equal(appointmentPage.includes("clients.length === 0"), false)
     assert.match(composer, /name="newClientName"/)
     assert.match(composer, /name="newClientEmail"/)
     assert.match(composer, /value=\{NEW_CLIENT_VALUE\}/)
-    assert.match(actions, /fieldString\(formData, "newClientName"\)/)
-    assert.match(actions, /ensureAppointmentPracticeClient/)
+    assert.match(eventActions, /fieldString\(formData, "newClientName"\)/)
+    assert.match(eventActions, /ensureAppointmentPracticeClient/)
   })
 
   it("moves calendar controls into the operator toolbar and hides team controls for solo providers", async () => {
@@ -170,57 +170,78 @@ describe("calendar creation route wiring", () => {
   })
 
   it("rechecks appointment conflicts inside the write transaction and links the canonical client", async () => {
-    const [actions, availability] = await Promise.all([
-      readFile("app/calendar/actions.ts", "utf8"),
+    const [eventActions, availability] = await Promise.all([
+      readFile("app/calendar/actions/events.ts", "utf8"),
       readFile("app/calendar/actions/availability.ts", "utf8"),
     ])
 
-    assert.match(actions, /lockAppointmentSchedulingRows\(tx/)
-    assert.match(actions, /assertProviderAvailability\(\{\s*db:\s*tx/)
-    assert.match(actions, /assertNoCalendarEventConflict\(\{\s*db:\s*tx/)
-    assert.match(actions, /assertNoResourceConflict\(\{\s*db:\s*tx/)
-    assert.match(actions, /practiceClientId:\s*practiceClient\.id/)
+    assert.match(eventActions, /lockAppointmentSchedulingRows\(tx/)
+    assert.match(eventActions, /assertProviderAvailability\(\{\s*db:\s*tx/)
+    assert.match(eventActions, /assertNoCalendarEventConflict\(\{\s*db:\s*tx/)
+    assert.match(eventActions, /assertNoResourceConflict\(\{\s*db:\s*tx/)
+    assert.match(eventActions, /practiceClientId:\s*practiceClient\.id/)
     assert.match(availability, /SELECT[\s\S]+FOR UPDATE/)
   })
 
+  it("converts client appointment request times with the practice timezone", async () => {
+    const eventActions = await readFile("app/calendar/actions/events.ts", "utf8")
+    const requestAppointment = exportedActionBody(eventActions, "requestAppointment")
+
+    assert.match(requestAppointment, /localDateTimeToUtc\(startsAtValue,\s*practice\.timezone\)/)
+    assert.doesNotMatch(requestAppointment, /localDateTime\(fieldString\(formData,\s*"startsAt"\)\)/)
+  })
+
   it("locks scheduling rows inside every blocking calendar mutation transaction", async () => {
-    const actions = await readFile("app/calendar/actions.ts", "utf8")
+    const [actions, eventActions] = await Promise.all([
+      readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/events.ts", "utf8"),
+    ])
     const blockingActions = [
       {
-        name: "createPersonalEventAction",
+        label: "createPersonalEventAction",
+        name: "createPersonalEvent",
+        source: eventActions,
         checks: ["assertNoCalendarEventConflict"],
       },
       {
+        label: "rescheduleCalendarEventAction",
         name: "rescheduleCalendarEventAction",
+        source: actions,
         checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
       {
-        name: "createClassAction",
+        label: "createClassAction",
+        name: "createClass",
+        source: eventActions,
         checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
       {
-        name: "requestAppointmentAction",
+        label: "requestAppointmentAction",
+        name: "requestAppointment",
+        source: eventActions,
         checks: ["assertProviderAvailability", "assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
       {
-        name: "updateAppointmentRequestStatusAction",
+        label: "updateAppointmentRequestStatusAction",
+        name: "updateAppointmentRequestStatus",
+        source: eventActions,
         checks: ["assertNoCalendarEventConflict", "assertNoResourceConflict"],
       },
     ]
 
-    for (const { name, checks } of blockingActions) {
-      const body = exportedActionBody(actions, name)
+    for (const { label, name, source, checks } of blockingActions) {
+      const body = exportedActionBody(source, name)
       const transactionStart = body.indexOf("await prisma.$transaction(async (tx) => {")
-      assert.notEqual(transactionStart, -1, `${name} should use a transaction`)
+      assert.notEqual(transactionStart, -1, `${label} should use a transaction`)
       const transactionBody = body.slice(transactionStart)
       const lockIndex = transactionBody.indexOf("await lockAppointmentSchedulingRows(tx")
-      assert.notEqual(lockIndex, -1, `${name} should lock scheduling rows inside the transaction`)
+      assert.notEqual(lockIndex, -1, `${label} should lock scheduling rows inside the transaction`)
 
       for (const check of checks) {
         const checkIndex = transactionBody.indexOf(`${check}({`)
-        assert.notEqual(checkIndex, -1, `${name} should re-run ${check} inside the transaction`)
-        assert.ok(lockIndex < checkIndex, `${name} should lock before ${check}`)
-        assert.match(transactionBody.slice(checkIndex, checkIndex + 120), /db:\s*tx/, `${name} should run ${check} with tx`)
+        assert.notEqual(checkIndex, -1, `${label} should re-run ${check} inside the transaction`)
+        assert.ok(lockIndex < checkIndex, `${label} should lock before ${check}`)
+        assert.match(transactionBody.slice(checkIndex, checkIndex + 120), /db:\s*tx/, `${label} should run ${check} with tx`)
       }
     }
   })
