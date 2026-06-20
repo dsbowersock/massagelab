@@ -73,6 +73,12 @@ function parsePromptList(value: string) {
     .slice(0, 20)
 }
 
+/**
+ * Parses up to three submitted service variants into the write shape used by
+ * service create/update actions. Inactive or incomplete rows are ignored, the
+ * first active row must have a positive duration, and at least one usable
+ * variant is required before a service can be saved.
+ */
 function parseServiceVariants(formData: FormData) {
   const variants = Array.from({ length: 3 }, (_, index) => {
     const name = fieldString(formData, `variantName${index}`) || (index === 0 ? "Default" : "")
@@ -124,11 +130,13 @@ async function assertServiceCatalogLimits({
   practiceId,
   userId,
   variantCount,
+  resultingActive,
   updatingServiceId,
 }: {
   practiceId: string
   userId: string
   variantCount: number
+  resultingActive: boolean
   updatingServiceId?: string
 }) {
   const entitlements = await getUserEntitlementState(prisma, userId)
@@ -138,9 +146,13 @@ async function assertServiceCatalogLimits({
     throw new Error("Free calendars can keep up to three active variants per service.")
   }
 
-  if (!updatingServiceId) {
+  if (resultingActive) {
     const activeServiceCount = await prisma.serviceType.count({
-      where: { practiceId, active: true },
+      where: {
+        practiceId,
+        active: true,
+        ...(updatingServiceId ? { id: { not: updatingServiceId } } : {}),
+      },
     })
     if (activeServiceCount >= FREE_CALENDAR_LIMITS.activeServices) {
       throw new Error("Free calendars can keep up to three active services.")
@@ -148,6 +160,11 @@ async function assertServiceCatalogLimits({
   }
 }
 
+/**
+ * Resolves named practice resources inside the service write transaction.
+ * Existing resources are reused by name; missing resources are created and the
+ * resulting records are returned for variant-resource join rows.
+ */
 async function ensureCalendarResources(tx: Prisma.TransactionClient, practiceId: string, names: string[]) {
   const resources = []
 
@@ -183,6 +200,7 @@ export async function createService(formData: FormData) {
   const color = fieldString(formData, "color")
   const variants = parseServiceVariants(formData)
   const resourceNames = parseResourceNames(formData)
+  const resultingActive = !fieldBoolean(formData, "inactive")
   const clinicalFields = sanitizeServiceClinicalTemplatePayload({
     modality: fieldString(formData, "modality"),
     bodyRegionFocus: parseBodyRegions(formData),
@@ -203,7 +221,7 @@ export async function createService(formData: FormData) {
   })
 
   await assertPracticeAccess(practiceId, userId, STAFF_ROLES)
-  await assertServiceCatalogLimits({ practiceId, userId, variantCount: variants.length })
+  await assertServiceCatalogLimits({ practiceId, userId, variantCount: variants.length, resultingActive })
 
   if (!name) {
     throw new Error("Service name is required.")
@@ -224,7 +242,7 @@ export async function createService(formData: FormData) {
         countsTowardMassageCapacity,
         classEligible: fieldBoolean(formData, "classEligible"),
         supplies: String(policyFields.supplies ?? "") || null,
-        prepNotes: fieldString(formData, "prepNotes") || null,
+        prepNotes: String(policyFields.prepNotes ?? "") || null,
         intakeRequirements: String(policyFields.intakeRequirements ?? "") || null,
         contraindicationNotice: String(policyFields.contraindicationNotice ?? "") || null,
         modality: String(clinicalFields.modality ?? "") || null,
@@ -238,7 +256,7 @@ export async function createService(formData: FormData) {
         depositPolicy: String(policyFields.depositPolicy ?? "") || null,
         taxPolicy: String(policyFields.taxPolicy ?? "") || null,
         packagePolicy: String(policyFields.packagePolicy ?? "") || null,
-        active: !fieldBoolean(formData, "inactive"),
+        active: resultingActive,
         variants: {
           create: variants.map((variant) => ({
             name: variant.name,
@@ -289,6 +307,7 @@ export async function updateService(formData: FormData) {
   const color = fieldString(formData, "color")
   const variants = parseServiceVariants(formData)
   const resourceNames = parseResourceNames(formData)
+  const resultingActive = !fieldBoolean(formData, "inactive")
   const clinicalFields = sanitizeServiceClinicalTemplatePayload({
     modality: fieldString(formData, "modality"),
     bodyRegionFocus: parseBodyRegions(formData),
@@ -309,11 +328,20 @@ export async function updateService(formData: FormData) {
   })
 
   await assertPracticeAccess(practiceId, userId, STAFF_ROLES)
-  await assertServiceCatalogLimits({ practiceId, userId, variantCount: variants.length, updatingServiceId: serviceId })
 
-  if (!serviceId || !name) {
+  if (!serviceId) {
+    throw new Error("Choose a valid service.")
+  }
+  if (!name) {
     throw new Error("Service name is required.")
   }
+  await assertServiceCatalogLimits({
+    practiceId,
+    userId,
+    variantCount: variants.length,
+    resultingActive,
+    updatingServiceId: serviceId,
+  })
 
   const existingService = await prisma.serviceType.findFirst({
     where: { id: serviceId, practiceId },
@@ -339,7 +367,7 @@ export async function updateService(formData: FormData) {
         countsTowardMassageCapacity,
         classEligible: fieldBoolean(formData, "classEligible"),
         supplies: String(policyFields.supplies ?? "") || null,
-        prepNotes: fieldString(formData, "prepNotes") || null,
+        prepNotes: String(policyFields.prepNotes ?? "") || null,
         intakeRequirements: String(policyFields.intakeRequirements ?? "") || null,
         contraindicationNotice: String(policyFields.contraindicationNotice ?? "") || null,
         modality: String(clinicalFields.modality ?? "") || null,
@@ -353,7 +381,7 @@ export async function updateService(formData: FormData) {
         depositPolicy: String(policyFields.depositPolicy ?? "") || null,
         taxPolicy: String(policyFields.taxPolicy ?? "") || null,
         packagePolicy: String(policyFields.packagePolicy ?? "") || null,
-        active: !fieldBoolean(formData, "inactive"),
+        active: resultingActive,
       },
     })
 

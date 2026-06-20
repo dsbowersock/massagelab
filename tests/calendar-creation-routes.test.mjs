@@ -76,6 +76,18 @@ describe("calendar creation route wiring", () => {
     assert.match(serviceActions, /function parseServiceVariants\(formData: FormData\)/)
     assert.match(serviceActions, /async function ensureCalendarResources/)
     assert.match(serviceActions, /async function assertServiceCatalogLimits/)
+    assert.match(serviceActions, /resultingActive: boolean/)
+    assert.match(serviceActions, /id: \{ not: updatingServiceId \}/)
+    assert.match(serviceActions, /assertServiceCatalogLimits\(\{ practiceId, userId, variantCount: variants\.length, resultingActive \}\)/)
+    assert.match(serviceActions, /updatingServiceId: serviceId/)
+    assert.match(serviceActions, /prepNotes: String\(policyFields\.prepNotes \?\? ""\) \|\| null/)
+    assert.doesNotMatch(serviceActions, /if \(!serviceId \|\| !name\)/)
+
+    const updateServiceStart = serviceActions.indexOf("export async function updateService")
+    const updateServiceIdCheck = serviceActions.indexOf("if (!serviceId)", updateServiceStart)
+    const updateLimitCheck = serviceActions.indexOf("await assertServiceCatalogLimits({", updateServiceStart)
+    assert.ok(updateServiceIdCheck > updateServiceStart)
+    assert.ok(updateLimitCheck > updateServiceIdCheck)
   })
 
   it("keeps operator calendar chrome out of the public booking page", async () => {
