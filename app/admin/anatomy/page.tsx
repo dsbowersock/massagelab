@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { requireAnatomyAdminUser } from "@/lib/anatomy-admin-access"
 import { SOURCE_USAGE_SCOPES } from "@/lib/anatomy-admin-source-input"
+import { prisma } from "@/lib/prisma"
 import {
   ANATOMY_ADMIN_QUICK_QUERIES,
   buildAnatomyEntityHref,
@@ -22,7 +23,6 @@ import {
   normalizeBodyParts3dPartIds,
   safeBodyParts3dRenderableImageUrl,
 } from "@/lib/anatomy-media-review"
-import { prisma } from "@/lib/prisma"
 import {
   createAnatomyAliasAction,
   createAnatomyEntityRelationshipAction,
@@ -45,6 +45,33 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AnatomyBrowserStickyFrame } from "./anatomy-browser-sticky-frame"
 import { BodyParts3dImportFields } from "./bodyparts3d-import-fields"
+import {
+  getAnatomyBrowserDataForView,
+  getAnatomyFoundationCounts,
+  getAnatomyQuickResult,
+} from "./browser-data"
+import {
+  ADMIN_BROWSER_VIEWS,
+  BODY_SYSTEM_BROWSER_VIEWS,
+  DEFAULT_BROWSER_VIEW,
+  ENTITY_BROWSER_VIEWS,
+  TISSUE_TYPE_BROWSER_VIEWS,
+  bodySystemConfigForView,
+  browserViewFromParam,
+  entityKey,
+  isBodySystemBrowserView,
+  isTissueTypeBrowserView,
+  quickQueryFromParam,
+  tissueTypeConfigForView,
+  type AnatomyBrowserData,
+  type AnatomyBrowserView,
+  type AnatomyEntityDetailPayload,
+  type AnatomyFoundationCount,
+  type AnatomyQuickResult,
+  type BodySystemBrowserView,
+  type BrowserViewOption,
+  type TissueTypeBrowserView,
+} from "./browser-types"
 import { SyncedHorizontalScroll } from "./synced-horizontal-scroll"
 
 type AnatomyTermRow = {
@@ -80,7 +107,6 @@ const MEDIA_VIEW_REQUEST_VIEWS = [...ANATOMY_MEDIA_VIEW_REQUEST_VIEWS]
 const MEDIA_VIEW_REQUEST_REASONS = [...ANATOMY_MEDIA_VIEW_REQUEST_REASONS]
 const MEDIA_VIEW_REQUEST_STATUSES = [...ANATOMY_MEDIA_VIEW_REQUEST_STATUSES]
 const MEDIA_ROLES = ["PRIMARY", "REFERENCE", "REGION_CONTEXT", "GAME_PROMPT", "CLIENT_EDUCATION"]
-const ANATOMY_DETAIL_LOOKUP_TAKE = 2000
 
 type AnatomyAdminPageProps = {
   searchParams?: Promise<{
@@ -92,238 +118,11 @@ type AnatomyAdminPageProps = {
   }>
 }
 
-type AnatomyFoundationCount = {
-  label: string
-  value: number
-}
-
-type AnatomyQuickResult = {
-  title: string
-  description: string
-  rows: AnatomyQuickResultRow[]
-}
-
-type AnatomyQuickResultRow = {
-  title: string
-  subtitle?: string
-  meta?: string
-  detail?: string
-}
-
-type AnatomyBrowserView =
-  | "muscles"
-  | "structures"
-  | "concepts"
-  | "joints"
-  | "rom"
-  | "ligaments"
-  | "nerves"
-  | "vessels"
-  | "terms"
-  | "pain"
-  | "queries"
-  | "sources"
-  | "maintenance"
-  | BodySystemBrowserView
-  | TissueTypeBrowserView
-
-type BodySystemEntitySection = "muscles" | "bones" | "joints" | "ligaments" | "nerves" | "vessels"
-
-const BODY_SYSTEM_CONFIGS = [
-  {
-    view: "system-integumentary",
-    label: "Integumentary",
-    systemConceptSlugs: ["integumentary-system"],
-    entitySections: [],
-  },
-  {
-    view: "system-skeletal",
-    label: "Skeletal",
-    systemConceptSlugs: ["skeletal-system"],
-    entitySections: ["bones", "joints", "ligaments"],
-  },
-  {
-    view: "system-muscular",
-    label: "Muscular",
-    systemConceptSlugs: ["muscular-system"],
-    entitySections: ["muscles"],
-  },
-  {
-    view: "system-nervous",
-    label: "Nervous",
-    systemConceptSlugs: ["nervous-system"],
-    entitySections: ["nerves"],
-  },
-  {
-    view: "system-cardiovascular",
-    label: "Cardiovascular",
-    systemConceptSlugs: ["cardiovascular-system"],
-    entitySections: ["vessels"],
-  },
-  {
-    view: "system-lymphatic",
-    label: "Lymphatic",
-    systemConceptSlugs: ["lymphatic-system"],
-    entitySections: [],
-  },
-  {
-    view: "system-respiratory",
-    label: "Respiratory",
-    systemConceptSlugs: ["respiratory-system"],
-    entitySections: [],
-  },
-  {
-    view: "system-digestive",
-    label: "Digestive",
-    systemConceptSlugs: ["digestive-system"],
-    entitySections: [],
-  },
-  {
-    view: "system-endocrine",
-    label: "Endocrine",
-    systemConceptSlugs: ["endocrine-system"],
-    entitySections: [],
-  },
-  {
-    view: "system-urinary",
-    label: "Urinary",
-    systemConceptSlugs: ["urinary-system"],
-    entitySections: [],
-  },
-  {
-    view: "system-reproductive",
-    label: "Reproductive",
-    systemConceptSlugs: ["reproductive-system"],
-    entitySections: [],
-  },
-] as const satisfies ReadonlyArray<{
-  view: string
-  label: string
-  systemConceptSlugs: readonly string[]
-  entitySections: readonly BodySystemEntitySection[]
-}>
-
-type BodySystemBrowserView = (typeof BODY_SYSTEM_CONFIGS)[number]["view"]
-
-const TISSUE_TYPE_CONFIGS = [
-  {
-    view: "tissue-epithelial",
-    label: "Epithelial",
-    tissueTypeConceptSlugs: ["epithelial-tissue"],
-  },
-  {
-    view: "tissue-connective",
-    label: "Connective",
-    tissueTypeConceptSlugs: ["connective-tissue"],
-  },
-  {
-    view: "tissue-muscle",
-    label: "Muscle tissue",
-    tissueTypeConceptSlugs: ["muscle-tissue"],
-  },
-  {
-    view: "tissue-nervous",
-    label: "Nervous tissue",
-    tissueTypeConceptSlugs: ["nervous-tissue"],
-  },
-] as const satisfies ReadonlyArray<{
-  view: string
-  label: string
-  tissueTypeConceptSlugs: readonly string[]
-}>
-
-type TissueTypeBrowserView = (typeof TISSUE_TYPE_CONFIGS)[number]["view"]
-
-type AnatomyBrowserData = {
-  regions: Record<string, unknown>[]
-  muscles: Record<string, unknown>[]
-  structures: Record<string, unknown>[]
-  concepts: Record<string, unknown>[]
-  bones: Record<string, unknown>[]
-  boneLandmarks: Record<string, unknown>[]
-  joints: Record<string, unknown>[]
-  jointMovements: Record<string, unknown>[]
-  rangesOfMotion: Record<string, unknown>[]
-  nerves: Record<string, unknown>[]
-  ligaments: Record<string, unknown>[]
-  bloodSupply: Record<string, unknown>[]
-  painRegions: Record<string, unknown>[]
-  clientTerms: Record<string, unknown>[]
-  entityTerms: Record<string, unknown>[]
-  sources: Record<string, unknown>[]
-  relationships: Record<string, unknown>[]
-  systemRelationships: Record<string, unknown>[]
-  citations: Record<string, unknown>[]
-  externalIdentifiers: Record<string, unknown>[]
-  mediaAssets: Record<string, unknown>[]
-  mediaViewRequests: Record<string, unknown>[]
-  spatialModels: Record<string, unknown>[]
-  spatialEntityMaps: Record<string, unknown>[]
-  movementVisualizations: Record<string, unknown>[]
-  entityNames: Record<string, string>
-  entityOptions: Array<{ entityType: string; entitySlug: string; label: string }>
-}
-
-type AnatomyEntityDetailPayload = Awaited<ReturnType<typeof anatomyQueries.getAnatomyEntityDetail>> | null
-
 type DataTableColumn<T> = {
   header: string
   className?: string
   render: (row: T) => React.ReactNode
 }
-
-type BrowserViewOption = { key: AnatomyBrowserView; label: string }
-
-const ENTITY_BROWSER_VIEWS: BrowserViewOption[] = [
-  { key: "structures", label: "Structures" },
-  { key: "concepts", label: "Concepts" },
-  { key: "joints", label: "Joints" },
-  { key: "rom", label: "ROM" },
-  { key: "terms", label: "Terms" },
-  { key: "pain", label: "Pain" },
-]
-
-const SYSTEM_REDUNDANT_ENTITY_BROWSER_VIEWS: BrowserViewOption[] = [
-  { key: "muscles", label: "Muscles" },
-  { key: "ligaments", label: "Ligaments" },
-  { key: "nerves", label: "Nerves" },
-  { key: "vessels", label: "Vessels" },
-]
-
-const BODY_SYSTEM_BROWSER_VIEWS: BrowserViewOption[] = BODY_SYSTEM_CONFIGS.map((config) => ({
-  key: config.view,
-  label: config.label,
-}))
-
-const TISSUE_TYPE_BROWSER_VIEWS: BrowserViewOption[] = TISSUE_TYPE_CONFIGS.map((config) => ({
-  key: config.view,
-  label: config.label,
-}))
-
-const ADMIN_BROWSER_VIEWS: BrowserViewOption[] = [
-  { key: "queries", label: "Queries" },
-  { key: "sources", label: "Sources" },
-  { key: "maintenance", label: "Maintenance" },
-]
-
-const BROWSER_VIEWS: BrowserViewOption[] = [
-  ...ENTITY_BROWSER_VIEWS,
-  ...SYSTEM_REDUNDANT_ENTITY_BROWSER_VIEWS,
-  ...BODY_SYSTEM_BROWSER_VIEWS,
-  ...TISSUE_TYPE_BROWSER_VIEWS,
-  ...ADMIN_BROWSER_VIEWS,
-]
-
-const DEFAULT_BROWSER_VIEW: AnatomyBrowserView = "system-muscular"
-
-const LEGACY_BROWSER_VIEW_REDIRECTS = new Map<string, AnatomyBrowserView>([
-  ["movement", "joints"],
-  ["neurovascular", "nerves"],
-  ["language", "terms"],
-  ["system-lymphatic-immune", "system-lymphatic"],
-  ["system-musculoskeletal", "system-muscular"],
-  ["system-sensory", "system-nervous"],
-])
 
 export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPageProps) {
   await requireAnatomyAdminUser()
@@ -333,9 +132,10 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
   const quickQueryKey = quickQueryFromParam(params?.quick)
   const selectedView = browserViewFromParam(params?.view, quickQueryKey, searchQuery)
   const selectedEntity = parseAnatomyEntitySelection(params?.entityType, params?.entitySlug)
+  const needsMaintenanceData = selectedView === "maintenance"
 
   const [termRows, flagRows, foundationCounts, browserData, searchResults, quickResult, selectedEntityDetail] = await Promise.all([
-    prisma.anatomyTerm.findMany({
+    needsMaintenanceData ? prisma.anatomyTerm.findMany({
       select: {
         id: true,
         slug: true,
@@ -349,8 +149,8 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
       },
       orderBy: { updatedAt: "desc" },
       take: 30,
-    }),
-    prisma.anatomyCorrectionFlag.findMany({
+    }) : Promise.resolve([]),
+    needsMaintenanceData ? prisma.anatomyCorrectionFlag.findMany({
       include: {
         term: {
           select: { preferredName: true },
@@ -358,9 +158,9 @@ export default async function AnatomyAdminPage({ searchParams }: AnatomyAdminPag
       },
       orderBy: { createdAt: "desc" },
       take: 20,
-    }),
-    getAnatomyFoundationCounts(),
-    getAnatomyBrowserData(),
+    }) : Promise.resolve([]),
+    needsMaintenanceData ? getAnatomyFoundationCounts() : Promise.resolve([]),
+    getAnatomyBrowserDataForView({ view: selectedView, searchQuery, selectedEntity }),
     searchQuery ? anatomyQueries.searchAnatomyEntities(searchQuery, 18) : Promise.resolve([]),
     getAnatomyQuickResult(quickQueryKey),
     selectedEntity
@@ -2380,40 +2180,6 @@ function viewForEntityType(entityType: string): AnatomyBrowserView {
   }
 }
 
-function browserViewFromParam(value: string | undefined, quickQueryKey?: AnatomyQuickQueryKey, searchQuery?: string): AnatomyBrowserView {
-  const normalizedValue = value ? LEGACY_BROWSER_VIEW_REDIRECTS.get(value) ?? value : value
-
-  if (BROWSER_VIEWS.some((view) => view.key === normalizedValue)) {
-    return normalizedValue as AnatomyBrowserView
-  }
-
-  if (quickQueryKey) {
-    return "queries"
-  }
-
-  if (searchQuery) {
-    return DEFAULT_BROWSER_VIEW
-  }
-
-  return DEFAULT_BROWSER_VIEW
-}
-
-function isBodySystemBrowserView(view: AnatomyBrowserView): view is BodySystemBrowserView {
-  return BODY_SYSTEM_CONFIGS.some((config) => config.view === view)
-}
-
-function isTissueTypeBrowserView(view: AnatomyBrowserView): view is TissueTypeBrowserView {
-  return TISSUE_TYPE_CONFIGS.some((config) => config.view === view)
-}
-
-function bodySystemConfigForView(view: BodySystemBrowserView) {
-  return BODY_SYSTEM_CONFIGS.find((config) => config.view === view) ?? BODY_SYSTEM_CONFIGS[0]
-}
-
-function tissueTypeConfigForView(view: TissueTypeBrowserView) {
-  return TISSUE_TYPE_CONFIGS.find((config) => config.view === view) ?? TISSUE_TYPE_CONFIGS[0]
-}
-
 /**
  * Resolves browser row keys for a selected taxonomy bucket.
  *
@@ -2528,10 +2294,6 @@ function entityTermLabels(data: AnatomyBrowserData, entityType: string, entitySl
 
 function entityLabel(data: AnatomyBrowserData, entityType: string, entitySlug: string) {
   return data.entityNames[entityKey(entityType, entitySlug)] ?? entitySlug
-}
-
-function entityKey(entityType: string, entitySlug: string) {
-  return `${entityType}:${entitySlug}`
 }
 
 function relationshipLabels(
@@ -3108,611 +2870,6 @@ function TermSelect({ terms, id, label }: { terms: AnatomyTermRow[]; id: string;
   )
 }
 
-function quickQueryFromParam(value: string | undefined) {
-  return ANATOMY_ADMIN_QUICK_QUERIES.find((query) => query.key === value)?.key
-}
-
-async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
-  const [
-    regions,
-    bones,
-    landmarks,
-    joints,
-    movements,
-    rom,
-    muscles,
-    structures,
-    concepts,
-    nerves,
-    ligaments,
-    bloodSupply,
-    painRegions,
-    clientTerms,
-    entityTerms,
-    relationships,
-    citations,
-    externalIdentifiers,
-    mediaAssets,
-    mediaViewRequests,
-    spatialModels,
-    spatialEntityMaps,
-    movementVisualizations,
-  ] = await Promise.all([
-    prisma.anatomyRegion.count(),
-    prisma.bone.count(),
-    prisma.boneLandmark.count(),
-    prisma.joint.count(),
-    prisma.jointMovement.count(),
-    prisma.rangeOfMotion.count(),
-    prisma.muscle.count(),
-    prisma.anatomyStructure.count(),
-    prisma.anatomyConcept.count(),
-    prisma.nerve.count(),
-    prisma.ligament.count(),
-    prisma.bloodSupply.count(),
-    prisma.painMapRegion.count(),
-    prisma.clientTerm.count(),
-    prisma.anatomyEntityTerm.count(),
-    prisma.anatomyRelationship.count({ where: { sourceEntityType: { not: null } } }),
-    prisma.anatomyCitation.count(),
-    prisma.externalAnatomyIdentifier.count(),
-    prisma.anatomyMediaAsset.count(),
-    prisma.anatomyMediaViewRequest.count(),
-    prisma.anatomySpatialModel.count(),
-    prisma.anatomySpatialEntityMap.count(),
-    prisma.anatomyMovementVisualization.count(),
-  ])
-
-  return [
-    { label: "Regions", value: regions },
-    { label: "Bones", value: bones },
-    { label: "Landmarks", value: landmarks },
-    { label: "Joints", value: joints },
-    { label: "Movements", value: movements },
-    { label: "ROM values", value: rom },
-    { label: "Muscles", value: muscles },
-    { label: "Structures", value: structures },
-    { label: "Concepts", value: concepts },
-    { label: "Nerves", value: nerves },
-    { label: "Ligaments", value: ligaments },
-    { label: "Vessels", value: bloodSupply },
-    { label: "Pain regions", value: painRegions },
-    { label: "Client terms", value: clientTerms },
-    { label: "Entity terms", value: entityTerms },
-    { label: "Relationships", value: relationships },
-    { label: "Citations", value: citations },
-    { label: "External IDs", value: externalIdentifiers },
-    { label: "Media assets", value: mediaAssets },
-    { label: "Media requests", value: mediaViewRequests },
-    { label: "Spatial models", value: spatialModels },
-    { label: "Spatial maps", value: spatialEntityMaps },
-    { label: "Movement visuals", value: movementVisualizations },
-  ]
-}
-
-async function getAnatomyBrowserData(): Promise<AnatomyBrowserData> {
-  const [
-    regions,
-    muscles,
-    structures,
-    concepts,
-    bones,
-    boneLandmarks,
-    joints,
-    jointMovements,
-    rangesOfMotion,
-    nerves,
-    ligaments,
-    bloodSupply,
-    painRegions,
-    clientTerms,
-    entityTerms,
-    sources,
-    relationships,
-    systemRelationships,
-    citations,
-    externalIdentifiers,
-    mediaAssets,
-    mediaViewRequests,
-    spatialModels,
-    spatialEntityMaps,
-    movementVisualizations,
-  ] = await Promise.all([
-    prisma.anatomyRegion.findMany({
-      include: {
-        parentRegion: true,
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 120,
-    }),
-    prisma.muscle.findMany({
-      include: {
-        region: true,
-        source: true,
-        attachments: {
-          include: { bone: true, landmark: true },
-          orderBy: { type: "asc" },
-        },
-        innervations: {
-          include: { nerve: true },
-          orderBy: { slug: "asc" },
-        },
-        actions: {
-          include: { joint: true, movement: true },
-          orderBy: { slug: "asc" },
-        },
-      },
-      orderBy: { name: "asc" },
-      take: 80,
-    }),
-    prisma.anatomyStructure.findMany({
-      include: {
-        region: true,
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 120,
-    }),
-    prisma.anatomyConcept.findMany({
-      include: {
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 240,
-    }),
-    prisma.bone.findMany({
-      include: {
-        region: true,
-        source: true,
-        landmarks: { orderBy: { name: "asc" } },
-        attachments: {
-          include: { muscle: true, landmark: true },
-          orderBy: { type: "asc" },
-        },
-      },
-      orderBy: { name: "asc" },
-      take: 80,
-    }),
-    prisma.boneLandmark.findMany({
-      include: {
-        bone: true,
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 160,
-    }),
-    prisma.joint.findMany({
-      include: {
-        region: true,
-        source: true,
-        movements: { orderBy: { movementName: "asc" } },
-        rangesOfMotion: {
-          include: { movement: true, source: true },
-          orderBy: { slug: "asc" },
-        },
-        ligaments: { orderBy: { name: "asc" } },
-      },
-      orderBy: { name: "asc" },
-      take: 80,
-    }),
-    prisma.jointMovement.findMany({
-      include: {
-        joint: true,
-        source: true,
-      },
-      orderBy: { movementName: "asc" },
-      take: 160,
-    }),
-    prisma.rangeOfMotion.findMany({
-      include: {
-        joint: true,
-        movement: true,
-        source: true,
-      },
-      orderBy: { slug: "asc" },
-      take: 160,
-    }),
-    prisma.nerve.findMany({
-      include: {
-        region: true,
-        source: true,
-        innervations: {
-          include: { muscle: true },
-          orderBy: { slug: "asc" },
-        },
-      },
-      orderBy: { name: "asc" },
-      take: 80,
-    }),
-    prisma.ligament.findMany({
-      include: {
-        region: true,
-        joint: true,
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 160,
-    }),
-    prisma.bloodSupply.findMany({
-      include: {
-        region: true,
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 80,
-    }),
-    prisma.painMapRegion.findMany({
-      include: {
-        region: true,
-        source: true,
-      },
-      orderBy: { name: "asc" },
-      take: 80,
-    }),
-    prisma.clientTerm.findMany({
-      include: {
-        mappedRegion: true,
-        mappedMuscle: true,
-        mappedJoint: true,
-        mappedStructure: true,
-        source: true,
-      },
-      orderBy: { term: "asc" },
-      take: 80,
-    }),
-    prisma.anatomyEntityTerm.findMany({
-      include: { source: true },
-      orderBy: [{ anatomyEntityType: "asc" }, { anatomyEntitySlug: "asc" }, { termType: "asc" }],
-      take: 120,
-    }),
-    prisma.anatomySource.findMany({
-      orderBy: { label: "asc" },
-      take: 80,
-    }),
-    prisma.anatomyRelationship.findMany({
-      include: { source: true },
-      where: {
-        sourceEntityType: { not: null },
-        relationshipType: {
-          notIn: ["belongs_to_system", "belongs_to_tissue_type", "includes_structure", "subsystem_of"],
-        },
-      },
-      orderBy: [{ sourceEntityType: "asc" }, { sourceEntitySlug: "asc" }, { relationshipType: "asc" }],
-      take: ANATOMY_DETAIL_LOOKUP_TAKE,
-    }),
-    prisma.anatomyRelationship.findMany({
-      include: { source: true },
-      where: {
-        OR: [
-          { relationshipType: "belongs_to_system" },
-          { relationshipType: "belongs_to_tissue_type" },
-          {
-            sourceEntityType: "ANATOMY_CONCEPT",
-            relationshipType: "includes_structure",
-          },
-        ],
-      },
-      orderBy: [{ targetEntityType: "asc" }, { targetEntitySlug: "asc" }, { sourceEntitySlug: "asc" }],
-      take: 5000,
-    }),
-    prisma.anatomyCitation.findMany({
-      include: { source: true },
-      orderBy: [{ entityType: "asc" }, { entitySlug: "asc" }, { factType: "asc" }],
-      take: ANATOMY_DETAIL_LOOKUP_TAKE,
-    }),
-    prisma.externalAnatomyIdentifier.findMany({
-      include: { source: true },
-      orderBy: [{ entityType: "asc" }, { entitySlug: "asc" }, { provider: "asc" }],
-      take: ANATOMY_DETAIL_LOOKUP_TAKE,
-    }),
-    prisma.anatomyMediaAsset.findMany({
-      include: { source: true, entityLinks: true },
-      orderBy: [{ usageScope: "asc" }, { title: "asc" }],
-      take: 500,
-    }),
-    prisma.anatomyMediaViewRequest.findMany({
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-      take: 500,
-    }),
-    prisma.anatomySpatialModel.findMany({
-      include: { source: true, mediaAsset: true },
-      orderBy: [{ reviewStatus: "asc" }, { name: "asc" }],
-      take: 80,
-    }),
-    prisma.anatomySpatialEntityMap.findMany({
-      include: { model: true, source: true },
-      orderBy: [{ reviewStatus: "asc" }, { entityType: "asc" }, { entitySlug: "asc" }],
-      take: 160,
-    }),
-    prisma.anatomyMovementVisualization.findMany({
-      include: {
-        model: true,
-        joint: true,
-        movement: true,
-        rangeOfMotion: true,
-        source: true,
-      },
-      orderBy: [{ reviewStatus: "asc" }, { slug: "asc" }],
-      take: 80,
-    }),
-  ])
-
-  const entityNames: Record<string, string> = {}
-  const addEntityName = (entityType: string, slug: string, label: string) => {
-    entityNames[entityKey(entityType, slug)] = label
-  }
-
-  for (const region of regions) addEntityName("REGION", region.slug, region.name)
-  for (const muscle of muscles) addEntityName("MUSCLE", muscle.slug, muscle.name)
-  for (const structure of structures) addEntityName("ANATOMY_STRUCTURE", structure.slug, structure.name)
-  for (const concept of concepts) addEntityName("ANATOMY_CONCEPT", concept.slug, concept.name)
-  for (const bone of bones) {
-    addEntityName("BONE", bone.slug, bone.name)
-    for (const landmark of bone.landmarks) addEntityName("BONE_LANDMARK", landmark.slug, landmark.name)
-  }
-  for (const landmark of boneLandmarks) addEntityName("BONE_LANDMARK", landmark.slug, landmark.name)
-  for (const joint of joints) {
-    addEntityName("JOINT", joint.slug, joint.name)
-    for (const movement of joint.movements) addEntityName("JOINT_MOVEMENT", movement.slug, movement.movementName)
-    for (const ligament of joint.ligaments) addEntityName("LIGAMENT", ligament.slug, ligament.name)
-  }
-  for (const movement of jointMovements) addEntityName("JOINT_MOVEMENT", movement.slug, movement.movementName)
-  for (const rom of rangesOfMotion) addEntityName("RANGE_OF_MOTION", rom.slug, rom.slug)
-  for (const ligament of ligaments) addEntityName("LIGAMENT", ligament.slug, ligament.name)
-  for (const nerve of nerves) addEntityName("NERVE", nerve.slug, nerve.name)
-  for (const vessel of bloodSupply) addEntityName("BLOOD_SUPPLY", vessel.slug, vessel.name)
-  for (const painRegion of painRegions) addEntityName("PAIN_MAP_REGION", painRegion.slug, painRegion.name)
-  for (const clientTerm of clientTerms) addEntityName("CLIENT_TERM", clientTerm.slug, clientTerm.term)
-  const entityOptions = Object.entries(entityNames)
-    .map(([key, label]) => {
-      const [entityType, entitySlug] = key.split(":", 2)
-
-      return { entityType, entitySlug, label }
-    })
-    .sort((left, right) => left.label.localeCompare(right.label))
-
-  return {
-    regions: regions as Record<string, unknown>[],
-    muscles: muscles as Record<string, unknown>[],
-    structures: structures as Record<string, unknown>[],
-    concepts: concepts as Record<string, unknown>[],
-    bones: bones as Record<string, unknown>[],
-    boneLandmarks: boneLandmarks as Record<string, unknown>[],
-    joints: joints as Record<string, unknown>[],
-    jointMovements: jointMovements as Record<string, unknown>[],
-    rangesOfMotion: rangesOfMotion as Record<string, unknown>[],
-    nerves: nerves as Record<string, unknown>[],
-    ligaments: ligaments as Record<string, unknown>[],
-    bloodSupply: bloodSupply as Record<string, unknown>[],
-    painRegions: painRegions as Record<string, unknown>[],
-    clientTerms: clientTerms as Record<string, unknown>[],
-    entityTerms: entityTerms as Record<string, unknown>[],
-    sources: sources as Record<string, unknown>[],
-    relationships: relationships as Record<string, unknown>[],
-    systemRelationships: systemRelationships as Record<string, unknown>[],
-    citations: citations as Record<string, unknown>[],
-    externalIdentifiers: externalIdentifiers as Record<string, unknown>[],
-    mediaAssets: mediaAssets as Record<string, unknown>[],
-    mediaViewRequests: mediaViewRequests as Record<string, unknown>[],
-    spatialModels: spatialModels as Record<string, unknown>[],
-    spatialEntityMaps: spatialEntityMaps as Record<string, unknown>[],
-    movementVisualizations: movementVisualizations as Record<string, unknown>[],
-    entityNames,
-    entityOptions,
-  }
-}
-
-async function getAnatomyQuickResult(key: AnatomyQuickQueryKey | undefined): Promise<AnatomyQuickResult | null> {
-  switch (key) {
-    case "scapula-attachments": {
-      const rows = await anatomyQueries.getMusclesAttachedToBone("scapula")
-
-      return {
-        title: "Muscles attached to the scapula",
-        description: "Uses typed MuscleAttachment rows joined through Bone and BoneLandmark records.",
-        rows: rows.map((row) => ({
-          title: recordText(row, "name"),
-          subtitle: recordText(row, "formalName"),
-          meta: relationText(row, "region", "name"),
-          detail: attachmentSummary(row),
-        })),
-      }
-    }
-    case "accessory-nerve": {
-      const rows = await anatomyQueries.getMusclesByInnervation("accessory-nerve")
-
-      return {
-        title: "Accessory nerve innervation",
-        description: "Uses typed MuscleInnervation rows joined through Nerve records.",
-        rows: rows.map((row) => ({
-          title: recordText(row, "name"),
-          subtitle: recordText(row, "formalName"),
-          meta: relationText(row, "region", "name"),
-          detail: innervationSummary(row),
-        })),
-      }
-    }
-    case "shoulder-abduction": {
-      const rows = await anatomyQueries.getMusclesForMovement("shoulder-abduction")
-
-      return {
-        title: "Shoulder abduction contributors",
-        description: "Uses typed MuscleAction rows so role and contraction type remain queryable.",
-        rows: rows.map((row) => ({
-          title: relationText(row, "muscle", "name"),
-          subtitle: `${recordText(row, "role")} / ${recordText(row, "contractionType")}`,
-          meta: `${relationText(row, "joint", "name")} - ${relationText(row, "movement", "movementName")}`,
-          detail: recordText(row, "description"),
-        })),
-      }
-    }
-    case "cervical-rotation-rom": {
-      const row = await anatomyQueries.getRangeOfMotion("cervical-spine", "cervical-rotation")
-
-      return {
-        title: "Typical cervical rotation ROM",
-        description: "Uses a typed RangeOfMotion row joined through Joint and JointMovement.",
-        rows: row ? [{
-          title: `${relationText(row, "joint", "name")} - ${relationText(row, "movement", "movementName")}`,
-          subtitle: romLine(row),
-          meta: relationText(row, "source", "label"),
-          detail: `${recordText(row, "measurementPosition")} ${recordText(row, "notes")}`.trim(),
-        }] : [],
-      }
-    }
-    case "scapular-pain-overlaps": {
-      const rows = await anatomyQueries.getPainMapOverlaps("scapular-region")
-
-      return {
-        title: "Pain-map regions overlapping the scapular region",
-        description: "Uses generic AnatomyRelationship rows for cross-entity overlap relationships.",
-        rows: rows.map((row) => ({
-          title: recordText(row, "sourceEntitySlug"),
-          subtitle: `${recordText(row, "sourceEntityType")} -> ${recordText(row, "targetEntityType")}`,
-          meta: relationText(row, "source", "label"),
-          detail: recordText(row, "relationshipType"),
-        })),
-      }
-    }
-    case "between-shoulder-blades":
-    case "top-of-shoulder":
-    case "base-of-skull-client-language": {
-      const searchTerm = key === "base-of-skull-client-language" ? "base of skull" : key.replaceAll("-", " ")
-      const rows = await anatomyQueries.getClientTermMappings(searchTerm)
-
-      return {
-        title: `Client language: ${searchTerm}`,
-        description: "Uses ClientTerm rows mapped to normalized regions, muscles, and joints.",
-        rows: rows.map((row) => ({
-          title: recordText(row, "term"),
-          subtitle: recordText(row, "confidence"),
-          meta: [
-            relationText(row, "mappedRegion", "name"),
-            relationText(row, "mappedMuscle", "name"),
-            relationText(row, "mappedJoint", "name"),
-            relationText(row, "mappedStructure", "name"),
-          ].filter(Boolean).join(" / "),
-          detail: recordText(row, "plainLanguageDescription"),
-        })),
-      }
-    }
-    case "has-reviewed-citations": {
-      const rows = await prisma.anatomyCitation.findMany({
-        where: { reviewStatus: "REVIEWED" },
-        include: { source: true },
-        orderBy: [{ entityType: "asc" }, { entitySlug: "asc" }, { factType: "asc" }],
-        take: 40,
-      })
-
-      return {
-        title: "Reviewed citation records",
-        description: "Shows facts with explicit reviewed citation records.",
-        rows: rows.map((row) => ({
-          title: `${row.entityType} / ${row.entitySlug}`,
-          subtitle: row.factType,
-          meta: row.source.label,
-          detail: [row.sourceLocator, row.citationNote].filter(Boolean).join(" - "),
-        })),
-      }
-    }
-    case "missing-citations": {
-      const rows = await prisma.anatomyCitation.findMany({
-        where: { reviewStatus: { not: "REVIEWED" } },
-        include: { source: true },
-        orderBy: [{ reviewStatus: "asc" }, { entityType: "asc" }, { entitySlug: "asc" }],
-        take: 40,
-      })
-
-      return {
-        title: "Citation records needing review",
-        description: "Shows citation candidates that are not locked as reviewed yet.",
-        rows: rows.map((row) => ({
-          title: `${row.entityType} / ${row.entitySlug}`,
-          subtitle: row.factType,
-          meta: formatLabel(row.reviewStatus),
-          detail: [row.source.label, row.sourceLocator].filter(Boolean).join(" - "),
-        })),
-      }
-    }
-    case "has-open-media": {
-      const rows = await prisma.anatomyMediaAsset.findMany({
-        where: { usageScope: "OPEN_REUSE", reviewStatus: "REVIEWED" },
-        include: { source: true, entityLinks: true },
-        orderBy: { title: "asc" },
-        take: 40,
-      })
-
-      return {
-        title: "Reviewed open-license media",
-        description: "Shows media/model candidates safe for open-license reuse.",
-        rows: rows.map((row) => ({
-          title: row.title,
-          subtitle: `${row.mediaType} / ${row.license}`,
-          meta: row.source.label,
-          detail: row.entityLinks.map((link) => `${link.entityType}:${link.entitySlug}`).join("; "),
-        })),
-      }
-    }
-    case "spatial-review-queue": {
-      const [maps, visualizations] = await Promise.all([
-        prisma.anatomySpatialEntityMap.findMany({
-          where: { reviewStatus: { not: "REVIEWED" } },
-          include: { model: true, source: true },
-          orderBy: [{ entityType: "asc" }, { entitySlug: "asc" }],
-          take: 40,
-        }),
-        prisma.anatomyMovementVisualization.findMany({
-          where: { reviewStatus: { not: "REVIEWED" } },
-          include: {
-            model: true,
-            joint: true,
-            movement: true,
-            source: true,
-          },
-          orderBy: { slug: "asc" },
-          take: 40,
-        }),
-      ])
-
-      return {
-        title: "3D and spatial review queue",
-        description: "Shows body-map mappings and ROM visualization anchors that stay review-only until runtime mesh, node, and rig details are confirmed.",
-        rows: [
-          ...maps.map((row) => ({
-            title: `${row.entityType} / ${row.entitySlug}`,
-            subtitle: `${row.model.name} / ${formatLabel(row.mappingPrecision)}`,
-            meta: formatLabel(row.reviewStatus),
-            detail: [row.source.label, row.notes].filter(Boolean).join(" - "),
-          })),
-          ...visualizations.map((row) => ({
-            title: `${row.joint.name} / ${row.movement.movementName}`,
-            subtitle: row.model.name,
-            meta: formatLabel(row.reviewStatus),
-            detail: [row.source.label, row.notes].filter(Boolean).join(" - "),
-          })),
-        ],
-      }
-    }
-    case "game-ready-prompts": {
-      const rows = await anatomyQueries.getAnatomyGamePromptPool({ regionSlug: "shoulder-girdle", take: 40 })
-
-      return {
-        title: "Game-ready anatomy prompt pool",
-        description: "Shows structures with attachments, actions, and innervation ready for anatomy games.",
-        rows: rows.map((row) => ({
-          title: recordText(row, "name"),
-          subtitle: relationText(row, "region", "name"),
-          meta: `Actions ${recordArray(row, "actions").length} / Attachments ${recordArray(row, "attachments").length}`,
-          detail: actionLines(recordArray(row, "actions")).join("; "),
-        })),
-      }
-    }
-    default:
-      return null
-  }
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {}
 }
@@ -3767,29 +2924,4 @@ function recordArray(row: unknown, key: string) {
   const value = asRecord(row)[key]
 
   return Array.isArray(value) ? value : []
-}
-
-function attachmentSummary(row: unknown) {
-  return recordArray(row, "attachments")
-    .map((attachment) => {
-      const type = recordText(attachment, "type")
-      const bone = relationText(attachment, "bone", "name")
-      const landmark = relationText(attachment, "landmark", "name")
-
-      return [type, bone, landmark].filter(Boolean).join(": ")
-    })
-    .filter(Boolean)
-    .join("; ")
-}
-
-function innervationSummary(row: unknown) {
-  return recordArray(row, "innervations")
-    .map((innervation) => {
-      const nerve = relationText(innervation, "nerve", "name")
-      const description = recordText(innervation, "description")
-
-      return [nerve, description].filter(Boolean).join(": ")
-    })
-    .filter(Boolean)
-    .join("; ")
 }

@@ -62,6 +62,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Date | Decision | Notes |
 | --- | --- | --- |
+| 2026-06-20 | Make codebase refactor/optimization measurement-first and branch-sized. | The [codebase refactor optimization plan](superpowers/plans/2026-06-20-codebase-refactor-optimization.md) and [June 20 refactor baseline](audits/2026-06-20-refactor-baseline.md) record current validation, source-size, route-bundle, and hotspot evidence before behavior-preserving cleanup. The first pass splits `/admin/anatomy` browser types/data loading out of the page, scopes browser data loading by active view, splits `/education/flashcards` API parsing/fetch wrappers, active runner, setup builder, and progress dashboard into focused client modules, and adds cached sourced prompt catalog helpers for flashcard progress/session APIs while preserving the validation gate. |
 | 2026-06-13 | Link Anatomime name-recall progress to flashcard prompt progress. | Shared-session correct guesses use `anatomime_name_recall:<cardId>` under the flashcard progress tool namespace so signed-in Anatomime study does not fork anatomy mastery tracking into a second model. |
 | 2026-06-11 | Store anatomy media accuracy on the item-image link. | `AnatomyMediaEntity` carries approval/rejection state so an image can be valid for one anatomy item and rejected for another without deleting the media asset or its provenance. |
 | 2026-06-03 | Split initial intake and follow-up intake before SOAP handoff. | Initial intake should remain a fuller first-visit form. Follow-up intake should start from an existing local client, avoid re-asking stable profile basics, focus on medical changes/current symptoms/today's goals, and roll into therapist-reviewed SOAP drafting inside the encrypted local vault. |
@@ -96,6 +97,12 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-06-20
+
+- Created the measurement-first codebase refactor/optimization plan and baseline audit, then split `/admin/anatomy` browser types/data loading into focused modules and scoped maintenance data plus broad browser datasets so they load only when the active view needs them. Validation passed with `npm run prisma:validate`, `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, focused anatomy admin tests, and `npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-chromium`.
+- Split the `/education/flashcards` main client into focused API parsing/fetch, active runner, setup-builder, and progress-dashboard client modules without changing prompt/deck/progress behavior. Focused validation passed with `node --test tests/flashcard-community.test.mjs tests/flashcard-progress.test.mjs`, `npm run test:browser -- tests/browser/public-routes.spec.ts -g "Flashcards" --project=desktop-chromium`, `npm run typecheck`, and `npm run lint`.
+- Added a process-local sourced flashcard prompt catalog cache keyed by reviewed media option signatures, then routed flashcard progress and session-start APIs through cached catalog/deck selectors while preserving skip-mastered behavior and the existing scale guard. Focused validation passed with `node --test tests/flashcard-community.test.mjs tests/flashcard-progress.test.mjs`, `npm run test:browser -- tests/browser/public-routes.spec.ts -g "Flashcards" --project=desktop-chromium`, `npm run typecheck`, and `npm run lint`.
 
 ### 2026-06-19
 
