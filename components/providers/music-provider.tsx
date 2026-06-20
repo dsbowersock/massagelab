@@ -10,20 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { getAtmosphereStationById, getPlayableAtmosphereStations } from "@/lib/atmosphere/stations"
-import { createAtmosphereRuntimeController } from "@/lib/atmosphere/runtime-controller"
 import {
   ATMOSPHERE_STORAGE_KEY,
   createDefaultAtmosphereStorage,
   parseAtmosphereStorage,
   serializeAtmosphereStorage,
 } from "@/lib/atmosphere/storage"
-import {
-  prewarmGenerativeFmPiece,
-  setGenerativeFmPieceVolume,
-  startGenerativeFmPiece,
-} from "@/lib/atmosphere/generative-fm-runtime"
-import { setToneProofDroneVolume, startToneProofDrone } from "@/lib/atmosphere/tone-proof-runtime"
 
 type PlaybackState = "stopped" | "loading" | "playing" | "failed"
 
@@ -59,7 +51,15 @@ interface AtmosphereStorageState {
 interface RuntimeAdapterPayload {
   station: {
     id: string
+    title?: string
+    artist?: string
+    attribution?: {
+      artist?: string
+    }
+    enabled?: boolean
+    disabledReason?: string
     runtime?: {
+      adapterId?: string
       defaultOptions?: Record<string, number>
       hostedSampleIndexUrl?: string
       hostedSampleIndexFormatUrls?: Partial<Record<"opus" | "aac" | "mp3", string>>
@@ -84,8 +84,54 @@ interface AtmosphereMediaMetadataInit {
   artwork: Array<{ src: string; sizes: string; type: string }>
 }
 
+type AtmosphereStation = RuntimeAdapterPayload["station"] & {
+  id: string
+  title: string
+  artist: string
+  enabled: boolean
+  attribution: {
+    artist?: string
+  }
+}
+
+type AtmosphereRuntimeAdapter = (payload: RuntimeAdapterPayload) => Promise<void | (() => void)> | void | (() => void)
+
+type AtmosphereRuntimeController = {
+  start: (station: RuntimeAdapterPayload["station"]) => Promise<void>
+  stop: () => Promise<void>
+  getActiveStationId: () => string | null
+}
+
+type AtmosphereRuntimeModules = {
+  getAtmosphereStationById: (stationId: string) => AtmosphereStation
+  playableStationIds: string[]
+  createAtmosphereRuntimeController: (params: {
+    adapters: Record<string, AtmosphereRuntimeAdapter>
+  }) => AtmosphereRuntimeController
+  prewarmGenerativeFmPiece: (options: {
+    station: RuntimeAdapterPayload["station"]
+    includeSamplePayloads?: boolean
+  }) => Promise<void>
+  setGenerativeFmPieceVolume: (volume: number) => void
+  setToneProofDroneVolume: (volume: number) => void
+  startGenerativeFmPiece: (options: {
+    onLoadProgress?: (progress: number) => void
+    station: RuntimeAdapterPayload["station"]
+    volume?: number
+  }) => Promise<void | (() => void)>
+  startToneProofDrone: (options?: {
+    baseFrequency?: number
+    detuneCents?: number
+    fadeSeconds?: number
+    volume?: number
+  }) => Promise<void | (() => void)>
+}
+
+type LoadedAtmosphereRuntime = AtmosphereRuntimeModules & {
+  controller: AtmosphereRuntimeController
+}
+
 const defaultStorage = createDefaultAtmosphereStorage() as AtmosphereStorageState
-const playableStationIds = getPlayableAtmosphereStations().map((station) => station.id)
 const mediaSessionActions: AtmosphereMediaSessionAction[] = ["play", "pause", "stop", "previoustrack", "nexttrack"]
 
 const defaultMusicContext: MusicContextType = {
@@ -113,6 +159,8 @@ const MusicContext = createContext<MusicContextType>(defaultMusicContext)
 
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [activeStationId, setActiveStationId] = useState<string | null>(null)
+  const [activeStationTitle, setActiveStationTitle] = useState<string | null>(null)
+  const [activeStationArtist, setActiveStationArtist] = useState<string | null>(null)
   const [playbackState, setPlaybackState] = useState<PlaybackState>("stopped")
   const [loadingProgress, setLoadingProgress] = useState<number | null>(null)
   const [loadingStartedAt, setLoadingStartedAt] = useState<number | null>(null)
@@ -122,7 +170,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const playbackRequestIdRef = useRef(0)
   const loadingStationIdRef = useRef<string | null>(null)
   const volumeRef = useRef(defaultStorage.volume)
-  const controllerRef = useRef<ReturnType<typeof createAtmosphereRuntimeController> | null>(null)
+  const runtimeRef = useRef<LoadedAtmosphereRuntime | null>(null)
+  const runtimeLoadPromiseRef = useRef<Promise<LoadedAtmosphereRuntime> | null>(null)
 
   const reportStationLoadProgress = useCallback((stationId: string, progress: number) => {
     if (loadingStationIdRef.current !== stationId) {
@@ -132,32 +181,44 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setLoadingProgress((current) => Math.max(current ?? 0, clampLoadingProgress(progress)))
   }, [])
 
-  // Own one runtime controller for this provider lifetime; it is intentionally
-  // above route content so client-side navigation does not tear down playback.
-  useEffect(() => {
-    const controller = createAtmosphereRuntimeController({
-      adapters: {
-        "tone-proof-drone": async ({ station }: RuntimeAdapterPayload) => startToneProofDrone({
-          ...station.runtime?.defaultOptions,
-          volume: volumeRef.current,
-        }),
-        "generative-fm-piece": async ({ station }: RuntimeAdapterPayload) => startGenerativeFmPiece({
-          onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
-          station,
-          volume: volumeRef.current,
-        }),
-      },
+  const getRuntime = useCallback(() => {
+    if (runtimeRef.current) {
+      return Promise.resolve(runtimeRef.current)
+    }
+
+    runtimeLoadPromiseRef.current = runtimeLoadPromiseRef.current ?? loadAtmosphereRuntimeModules().then((modules) => {
+      const controller = modules.createAtmosphereRuntimeController({
+        adapters: {
+          "tone-proof-drone": async ({ station }) => modules.startToneProofDrone({
+            ...station.runtime?.defaultOptions,
+            volume: volumeRef.current,
+          }),
+          "generative-fm-piece": async ({ station }) => modules.startGenerativeFmPiece({
+            onLoadProgress: (progress) => reportStationLoadProgress(station.id, progress),
+            station,
+            volume: volumeRef.current,
+          }),
+        },
+      })
+      const runtime = { ...modules, controller }
+      runtimeRef.current = runtime
+      return runtime
+    }).catch((error) => {
+      runtimeLoadPromiseRef.current = null
+      throw error
     })
 
-    controllerRef.current = controller
-
-    return () => {
-      if (controllerRef.current === controller) {
-        controllerRef.current = null
-      }
-      void controller.stop()
-    }
+    return runtimeLoadPromiseRef.current
   }, [reportStationLoadProgress])
+
+  // Keep the provider mounted globally for route-persistent playback, but load
+  // the audio catalog/runtime only after a user plays or prewarms a station.
+  useEffect(() => () => {
+    const runtime = runtimeRef.current
+    runtimeRef.current = null
+    runtimeLoadPromiseRef.current = null
+    void runtime?.controller.stop()
+  }, [])
 
   // Hydrate non-PHI audio preferences after mount and tolerate storage-denied
   // browser modes without breaking the public workbench.
@@ -178,18 +239,48 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   // restarting the station or creating a second audio context.
   useEffect(() => {
     volumeRef.current = storageState.volume
-    setToneProofDroneVolume(storageState.volume)
-    setGenerativeFmPieceVolume(storageState.volume)
+    runtimeRef.current?.setToneProofDroneVolume(storageState.volume)
+    runtimeRef.current?.setGenerativeFmPieceVolume(storageState.volume)
   }, [storageState.volume])
 
   const playStation = useCallback(async (stationId: string) => {
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
-    const station = getAtmosphereStationById(stationId)
-    const controller = controllerRef.current
+    setActiveStationId(stationId)
+    setActiveStationTitle(null)
+    setActiveStationArtist(null)
+    setPlaybackState("loading")
+    setLoadingProgress(0.02)
+    setLoadingStartedAt(Date.now())
+    loadingStationIdRef.current = stationId
+    setError(null)
+
+    let runtime: LoadedAtmosphereRuntime
+    let station: AtmosphereStation
+    try {
+      runtime = await getRuntime()
+      station = runtime.getAtmosphereStationById(stationId)
+    } catch (caughtError) {
+      if (requestId !== playbackRequestIdRef.current) {
+        return
+      }
+
+      loadingStationIdRef.current = null
+      setLoadingProgress(null)
+      setLoadingStartedAt(null)
+      setPlaybackState("failed")
+      setError(caughtError instanceof Error ? caughtError.message : "Audio runtime could not load.")
+      return
+    }
+
+    if (requestId !== playbackRequestIdRef.current) {
+      return
+    }
 
     if (!station.enabled) {
       setActiveStationId(station.id)
+      setActiveStationTitle(station.title)
+      setActiveStationArtist(getStationArtist(station))
       setPlaybackState("failed")
       setLoadingProgress(null)
       setLoadingStartedAt(null)
@@ -198,17 +289,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (!controller) {
-      setActiveStationId(station.id)
-      setPlaybackState("failed")
-      setLoadingProgress(null)
-      setLoadingStartedAt(null)
-      loadingStationIdRef.current = null
-      setError("Audio runtime is still loading.")
-      return
-    }
-
     setActiveStationId(station.id)
+    setActiveStationTitle(station.title)
+    setActiveStationArtist(getStationArtist(station))
     setPlaybackState("loading")
     setLoadingProgress(0.05)
     setLoadingStartedAt(Date.now())
@@ -216,7 +299,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      await controller.start(station)
+      await runtime.controller.start(station)
       if (requestId !== playbackRequestIdRef.current) {
         return
       }
@@ -240,9 +323,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setPlaybackState("failed")
       setError(caughtError instanceof Error ? caughtError.message : "Audio could not start.")
     }
-  }, [])
+  }, [getRuntime])
 
   const playAdjacentStation = useCallback(async (direction: 1 | -1) => {
+    const runtime = await getRuntime()
+    const playableStationIds = runtime.playableStationIds
     if (playableStationIds.length === 0) {
       return
     }
@@ -252,7 +337,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const nextIndex = (currentIndex >= 0 ? currentIndex : fallbackIndex) + direction
     const normalizedIndex = (nextIndex + playableStationIds.length) % playableStationIds.length
     await playStation(playableStationIds[normalizedIndex])
-  }, [activeStationId, playStation])
+  }, [activeStationId, getRuntime, playStation])
 
   const playNextStation = useCallback(async () => {
     await playAdjacentStation(1)
@@ -267,24 +352,27 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     options: { includeSamplePayloads?: boolean } = {},
   ) => {
     try {
-      const station = getAtmosphereStationById(stationId)
+      const runtime = await getRuntime()
+      const station = runtime.getAtmosphereStationById(stationId)
       if (!station.enabled || station.runtime?.adapterId !== "generative-fm-piece") {
         return
       }
 
-      await prewarmGenerativeFmPiece({
+      await runtime.prewarmGenerativeFmPiece({
         station,
         includeSamplePayloads: options.includeSamplePayloads ?? false,
       })
     } catch {
       // Prewarm is opportunistic; playback should surface any real runtime error.
     }
-  }, [])
+  }, [getRuntime])
 
   const stopCurrent = useCallback(async () => {
     const requestId = playbackRequestIdRef.current + 1
     playbackRequestIdRef.current = requestId
     setActiveStationId(null)
+    setActiveStationTitle(null)
+    setActiveStationArtist(null)
     setPlaybackState("stopped")
     setLoadingProgress(null)
     setLoadingStartedAt(null)
@@ -292,7 +380,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      await controllerRef.current?.stop()
+      await runtimeRef.current?.controller.stop()
     } catch (caughtError) {
       if (requestId !== playbackRequestIdRef.current) {
         return
@@ -319,11 +407,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return undefined
     }
 
-    const station = getAtmosphereStationById(activeStationId)
     mediaSession.playbackState = "playing"
-    setAtmosphereMediaSessionMetadata(mediaSession, station)
+    setAtmosphereMediaSessionMetadata(mediaSession, {
+      artist: activeStationArtist,
+      title: activeStationTitle ?? "Atmosphere",
+    })
     setAtmosphereMediaSessionHandler(mediaSession, "play", () => {
-      void playStation(station.id)
+      void playStation(activeStationId)
     })
     setAtmosphereMediaSessionHandler(mediaSession, "pause", () => {
       void stopCurrent()
@@ -341,13 +431,22 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return () => {
       clearAtmosphereMediaSessionHandlers(mediaSession)
     }
-  }, [activeStationId, playNextStation, playPreviousStation, playStation, playbackState, stopCurrent])
+  }, [
+    activeStationArtist,
+    activeStationId,
+    activeStationTitle,
+    playNextStation,
+    playPreviousStation,
+    playStation,
+    playbackState,
+    stopCurrent,
+  ])
 
   const setVolume = useCallback((nextVolume: number) => {
     const clampedVolume = Math.min(1, Math.max(0, nextVolume))
     volumeRef.current = clampedVolume
-    setToneProofDroneVolume(clampedVolume)
-    setGenerativeFmPieceVolume(clampedVolume)
+    runtimeRef.current?.setToneProofDroneVolume(clampedVolume)
+    runtimeRef.current?.setGenerativeFmPieceVolume(clampedVolume)
     setStorageState((current) => ({
       ...current,
       volume: clampedVolume,
@@ -369,13 +468,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const setMiniPlayerCollapsed = useCallback((collapsed: boolean) => {
     setStorageState((current) => ({ ...current, miniPlayerCollapsed: collapsed }))
   }, [])
-
-  const activeStationTitle = useMemo(() => {
-    if (!activeStationId) {
-      return null
-    }
-    return getAtmosphereStationById(activeStationId).title
-  }, [activeStationId])
 
   const value = useMemo<MusicContextType>(() => ({
     activeStationId,
@@ -441,9 +533,42 @@ function clampLoadingProgress(progress: number) {
   return Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0))
 }
 
+/**
+ * Loads the station catalog and browser audio runtimes only after playback or
+ * prewarm needs them, keeping Tone and Generative.fm out of the global shell.
+ */
+async function loadAtmosphereRuntimeModules(): Promise<AtmosphereRuntimeModules> {
+  const [
+    stations,
+    runtimeController,
+    generativeRuntime,
+    toneProofRuntime,
+  ] = await Promise.all([
+    import("@/lib/atmosphere/stations"),
+    import("@/lib/atmosphere/runtime-controller"),
+    import("@/lib/atmosphere/generative-fm-runtime"),
+    import("@/lib/atmosphere/tone-proof-runtime"),
+  ])
+
+  return {
+    createAtmosphereRuntimeController: runtimeController.createAtmosphereRuntimeController,
+    getAtmosphereStationById: stations.getAtmosphereStationById as AtmosphereRuntimeModules["getAtmosphereStationById"],
+    playableStationIds: stations.getPlayableAtmosphereStations().map((station: AtmosphereStation) => station.id),
+    prewarmGenerativeFmPiece: generativeRuntime.prewarmGenerativeFmPiece,
+    setGenerativeFmPieceVolume: generativeRuntime.setGenerativeFmPieceVolume,
+    setToneProofDroneVolume: toneProofRuntime.setToneProofDroneVolume,
+    startGenerativeFmPiece: generativeRuntime.startGenerativeFmPiece,
+    startToneProofDrone: toneProofRuntime.startToneProofDrone,
+  }
+}
+
+function getStationArtist(station: AtmosphereStation) {
+  return station.artist || station.attribution?.artist || "MassageLab"
+}
+
 function setAtmosphereMediaSessionMetadata(
   mediaSession: AtmosphereMediaSession,
-  station: ReturnType<typeof getAtmosphereStationById>,
+  station: { artist?: string | null, title: string },
 ) {
   const MediaMetadataConstructor = (window as unknown as {
     MediaMetadata?: new (init: AtmosphereMediaMetadataInit) => unknown
@@ -455,7 +580,7 @@ function setAtmosphereMediaSessionMetadata(
   try {
     mediaSession.metadata = new MediaMetadataConstructor({
       title: station.title,
-      artist: station.artist || station.attribution.artist || "MassageLab",
+      artist: station.artist || "MassageLab",
       album: "MassageLab Atmosphere",
       artwork: [
         { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
