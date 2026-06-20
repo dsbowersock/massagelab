@@ -41,9 +41,11 @@ describe("calendar creation route wiring", () => {
   })
 
   it("exposes server actions for creation, rescheduling, preferences, availability, and request review", async () => {
-    const [actions, setupActions] = await Promise.all([
+    const [actions, setupActions, preferenceActions, rescheduleActions] = await Promise.all([
       readFile("app/calendar/actions.ts", "utf8"),
       readFile("app/calendar/actions/setup.ts", "utf8"),
+      readFile("app/calendar/actions/preferences.ts", "utf8"),
+      readFile("app/calendar/actions/reschedule.ts", "utf8"),
     ])
 
     assert.match(actions, /export async function createAppointmentAction/)
@@ -65,6 +67,13 @@ describe("calendar creation route wiring", () => {
     assert.match(setupActions, /export async function createAvailabilityOverride\(formData: FormData\)/)
     assert.match(setupActions, /export async function createPractice\(formData: FormData\)/)
     assert.match(setupActions, /export async function createAvailabilityRule\(formData: FormData\)/)
+    assert.match(actions, /^"use server"/)
+    assert.match(preferenceActions, /import "server-only"/)
+    assert.match(setupActions, /import "server-only"/)
+    assert.match(rescheduleActions, /import "server-only"/)
+    assert.doesNotMatch(preferenceActions, /^"use server"/)
+    assert.doesNotMatch(setupActions, /^"use server"/)
+    assert.doesNotMatch(rescheduleActions, /^"use server"/)
     assert.equal(actions.includes("sendMail"), false)
     assert.equal(actions.includes("sendVerificationEmail"), false)
   })

@@ -25,6 +25,7 @@
 1. Extract calendar preference action -- `8855458`.
 2. Extract practice and availability setup actions -- `2df41da`.
 3. Extract calendar reschedule action -- `3fcc010`.
+4. Keep extracted implementation modules server-only behind the public facade -- review-fix commit.
 
 ## Tests
 
@@ -33,6 +34,7 @@
 - After setup extraction: focused calendar/public-booking/service suite -- 71 passing; `npm run typecheck` passed.
 - After reschedule extraction: focused calendar/public-booking/service suite -- 71 passing; `npm run typecheck` passed.
 - Final branch validation: `npm run typecheck`, `npm run lint`, `npm run test` -- 643 passing, `npm run build`, and `git diff --check` passed.
+- Review hardening validation: `node --test tests/calendar-creation-routes.test.mjs`, `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` passed.
 
 ## Simplification Checks
 
