@@ -138,6 +138,12 @@ async function ensureBookingPracticeClient(tx: Prisma.TransactionClient, practic
   })
 }
 
+/**
+ * Enforces provider booking policy gates for a candidate booking interval.
+ * The same transaction context supplies provider limits, existing bookings,
+ * capacity rules, and practice-local timezone data; this throws when rest-gap,
+ * appointment-count, or massage-capacity constraints no longer allow the slot.
+ */
 async function assertProviderBookingPolicyLimits({
   tx,
   practiceId,
