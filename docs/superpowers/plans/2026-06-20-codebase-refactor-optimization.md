@@ -250,7 +250,47 @@ npm run lint
 
 Expected: no import-path behavior change, same server-action names, same form behavior, and lower per-file reasoning cost.
 
-### Task 6: Measure And Lazy-Load Heavy Client Workspaces
+### Task 6: Harden Calendar Mutation Concurrency
+
+**Files:**
+- Modify: `app/calendar/actions/preferences.ts`
+- Modify: `app/calendar/actions/reschedule.ts`
+- Modify: `app/calendar/actions/setup.ts`
+- Modify if shared locking helpers need tightening: `app/calendar/actions/availability.ts`
+- Test: `tests/calendar-creation-routes.test.mjs`
+- Test: `tests/calendar*.test.mjs`
+- Test: `tests/public-booking-*.test.mjs`
+
+- [ ] **Step 1: keep the action-facade split intact**
+
+Start from the decomposed calendar action modules. Do not re-merge implementation back into `app/calendar/actions.ts`; this branch should harden mutation semantics inside the focused modules created by Task 5.
+
+- [ ] **Step 2: serialize preference patch writes**
+
+Prevent lost updates when multiple calendar preference forms patch the same JSON preference row close together. Preserve `mergeCalendarPreferencePatch` sanitization, feature boundaries, and existing route revalidation while using a transaction, conditional retry, or database-side merge strategy that proves the final row includes both valid patches.
+
+- [ ] **Step 3: harden reschedule stale-row protection**
+
+Make reschedule writes re-check the current event state at update time so a concurrent cancel, status change, ownership change, or earlier reschedule cannot be overwritten by a stale form submission. Preserve the existing editability checks, conflict checks, audit logging, lock ordering, and calendar revalidation contract.
+
+- [ ] **Step 4: make free-practice quota enforcement atomic with creation**
+
+Ensure the free-practice count/quota check and practice creation cannot interleave across concurrent submissions for the same user. Keep entitlement decisions based on feature keys such as `calendar_practices`, preserve default service setup, and avoid plan-name branching.
+
+- [ ] **Step 5: validate**
+
+Run:
+
+```bash
+node --test tests/calendar-creation-routes.test.mjs tests/calendar*.test.mjs tests/public-booking-*.test.mjs
+npm run typecheck
+npm run lint
+npm run test
+```
+
+Expected: same calendar action names and user-visible behavior, no quota bypass under concurrent setup submissions, no lost preference patches, no stale reschedule overwrite, and no regression to public booking or calendar creation routes.
+
+### Task 7: Measure And Lazy-Load Heavy Client Workspaces
 
 **Files:**
 - Modify after measurement only: `app/calendar/page.tsx`
@@ -291,7 +331,7 @@ npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-ch
 
 Expected: lower or unchanged first-load JS for public routes, no broken audio persistence, no calendar workspace regressions, no booking wizard interaction regression.
 
-### Task 7: Harden Local-First Documentation Types
+### Task 8: Harden Local-First Documentation Types
 
 **Files:**
 - Modify: `app/notes/intake/client-page.tsx`
@@ -327,7 +367,7 @@ npm run lint
 
 Expected: no storage key changes, no hosted clinical network paths, no local document export schema change.
 
-### Task 8: Decide TS/JS Compatibility Policy Before Deleting Duplicates
+### Task 9: Decide TS/JS Compatibility Policy Before Deleting Duplicates
 
 **Files:**
 - Modify: `tsconfig.json` only if a chosen branch intentionally changes JS handling
