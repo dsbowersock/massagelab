@@ -41,7 +41,10 @@ describe("calendar creation route wiring", () => {
   })
 
   it("exposes server actions for creation, rescheduling, preferences, availability, and request review", async () => {
-    const actions = await readFile("app/calendar/actions.ts", "utf8")
+    const [actions, setupActions] = await Promise.all([
+      readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/setup.ts", "utf8"),
+    ])
 
     assert.match(actions, /export async function createAppointmentAction/)
     assert.match(actions, /export async function createPersonalEventAction/)
@@ -54,6 +57,14 @@ describe("calendar creation route wiring", () => {
     assert.match(actions, /export async function createAvailabilityOverrideAction/)
     assert.match(actions, /export async function rescheduleCalendarEventAction/)
     assert.match(actions, /export async function updateAppointmentRequestStatusAction/)
+    assert.match(actions, /return createAvailabilitySchedule\(formData\)/)
+    assert.match(actions, /return createAvailabilityOverride\(formData\)/)
+    assert.match(actions, /return createPractice\(formData\)/)
+    assert.match(actions, /return createAvailabilityRule\(formData\)/)
+    assert.match(setupActions, /export async function createAvailabilitySchedule\(formData: FormData\)/)
+    assert.match(setupActions, /export async function createAvailabilityOverride\(formData: FormData\)/)
+    assert.match(setupActions, /export async function createPractice\(formData: FormData\)/)
+    assert.match(setupActions, /export async function createAvailabilityRule\(formData: FormData\)/)
     assert.equal(actions.includes("sendMail"), false)
     assert.equal(actions.includes("sendVerificationEmail"), false)
   })
