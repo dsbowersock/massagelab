@@ -297,6 +297,105 @@ describe("calendar creation route wiring", () => {
         assert.match(transactionBody.slice(checkIndex, checkIndex + 120), /db:\s*tx/, `${label} should run ${check} with tx`)
       }
     }
+
+    assert.match(
+      await readFile("app/calendar/actions/availability.ts", "utf8"),
+      /SELECT id[\s\S]+FROM "CalendarEvent"[\s\S]+ORDER BY id[\s\S]+FOR UPDATE/,
+    )
+  })
+
+  it("serializes calendar preference patches before merging and upserting", async () => {
+    const preferenceActions = await readFile("app/calendar/actions/preferences.ts", "utf8")
+    const body = exportedActionBody(preferenceActions, "saveCalendarPreferences")
+
+    assert.match(preferenceActions, /function lockCalendarPreferenceOwner\(tx: Prisma\.TransactionClient,\s*userId: string\)/)
+    assert.match(preferenceActions, /FROM "User"[\s\S]+FOR UPDATE/)
+    assert.match(body, /await prisma\.\$transaction\(async \(tx\) => \{/)
+
+    const lockIndex = body.indexOf("await lockCalendarPreferenceOwner(tx, userId)")
+    const readIndex = body.indexOf("await tx.userPreference.findUnique")
+    const mergeIndex = body.indexOf("mergeCalendarPreferencePatch")
+    const writeIndex = body.indexOf("return tx.userPreference.upsert")
+
+    assert.notEqual(lockIndex, -1, "preference writes should lock the user before reading")
+    assert.notEqual(readIndex, -1, "preference writes should read inside the transaction")
+    assert.notEqual(mergeIndex, -1, "preference writes should merge after reading the locked row")
+    assert.notEqual(writeIndex, -1, "preference writes should upsert inside the transaction")
+    assert.ok(lockIndex < readIndex, "preference writes should lock before reading")
+    assert.ok(readIndex < mergeIndex, "preference writes should merge the latest locked preferences")
+    assert.ok(mergeIndex < writeIndex, "preference writes should write the merged patch")
+  })
+
+  it("rechecks reschedule editability against the locked current event", async () => {
+    const [rescheduleActions, availabilityActions] = await Promise.all([
+      readFile("app/calendar/actions/reschedule.ts", "utf8"),
+      readFile("app/calendar/actions/availability.ts", "utf8"),
+    ])
+    const body = exportedActionBody(rescheduleActions, "rescheduleCalendarEvent")
+
+    assert.match(rescheduleActions, /function hasStaleRescheduleSnapshot/)
+    assert.match(rescheduleActions, /currentEvent\.startsAt\.getTime\(\) !== snapshot\.startsAt\.getTime\(\)/)
+    assert.match(rescheduleActions, /currentEvent\.endsAt\.getTime\(\) !== snapshot\.endsAt\.getTime\(\)/)
+    assert.match(rescheduleActions, /currentEvent\.status !== snapshot\.status/)
+    assert.match(rescheduleActions, /currentEvent\.ownerUserId !== snapshot\.ownerUserId/)
+    assert.match(rescheduleActions, /currentResourceIds !== snapshotResourceIds/)
+    assert.match(availabilityActions, /eventIds = \[\]/)
+    assert.match(availabilityActions, /id IN \(\$\{Prisma\.join\(uniqueEventIds\)\}\)/)
+    assert.match(availabilityActions, /ORDER BY id[\s\S]+FOR UPDATE/)
+    assert.match(body, /const rescheduledEvent = await prisma\.\$transaction\(async \(tx\) => \{/)
+
+    const snapshotOwnerIndex = body.indexOf("const snapshotOwnerUserId = event.ownerUserId")
+    const schedulingLockIndex = body.indexOf("await lockAppointmentSchedulingRows(tx,")
+    const targetEventIdIndex = body.indexOf("eventIds: [event.id]")
+    const currentReadIndex = body.indexOf("const currentEvent = await getRescheduleEvent(tx, event.id)")
+    const membershipIndex = body.indexOf("const currentMembership = await tx.practiceMembership.findUnique")
+    const permissionIndex = body.indexOf("canRescheduleCalendarEvent({ role: currentMembership.role")
+    const staleCheckIndex = body.indexOf("hasStaleRescheduleSnapshot(currentEvent, event)")
+    const updateIndex = body.indexOf("where: { id: currentEvent.id }")
+
+    assert.notEqual(snapshotOwnerIndex, -1, "reschedule should keep the pre-transaction owner snapshot")
+    assert.notEqual(schedulingLockIndex, -1, "reschedule should keep schedule-window locks")
+    assert.notEqual(targetEventIdIndex, -1, "reschedule should lock the target event inside the scheduling lock phase")
+    assert.notEqual(currentReadIndex, -1, "reschedule should re-read the event inside the transaction")
+    assert.notEqual(membershipIndex, -1, "reschedule should re-read actor membership inside the transaction")
+    assert.notEqual(permissionIndex, -1, "reschedule should re-run editability and owner checks")
+    assert.notEqual(staleCheckIndex, -1, "reschedule should reject stale event snapshots")
+    assert.notEqual(updateIndex, -1, "reschedule should update the locked current event")
+    assert.ok(snapshotOwnerIndex < schedulingLockIndex, "reschedule should lock from the pre-transaction snapshot")
+    assert.ok(schedulingLockIndex < targetEventIdIndex, "reschedule should pass the target id into the scheduling lock phase")
+    assert.ok(targetEventIdIndex < currentReadIndex, "reschedule should read after locking the target row")
+    assert.ok(currentReadIndex < membershipIndex, "reschedule should use the locked current event for membership checks")
+    assert.ok(membershipIndex < permissionIndex, "reschedule should re-run permission after reading current membership")
+    assert.ok(permissionIndex < staleCheckIndex, "reschedule should check staleness after confirming current editability")
+    assert.ok(staleCheckIndex < updateIndex, "reschedule should update only after rejecting stale snapshots")
+  })
+
+  it("checks free-practice quota inside the locked creation transaction", async () => {
+    const setupActions = await readFile("app/calendar/actions/setup.ts", "utf8")
+    const body = exportedActionBody(setupActions, "createPractice")
+
+    assert.match(setupActions, /function lockPracticeCreationOwner\(tx: Prisma\.TransactionClient,\s*userId: string\)/)
+    assert.match(setupActions, /function lockPracticeSlugAllocation\(tx: Prisma\.TransactionClient\)/)
+    assert.match(setupActions, /FROM "User"[\s\S]+FOR UPDATE/)
+    assert.match(setupActions, /pg_advisory_xact_lock/)
+    assert.match(body, /await prisma\.\$transaction\(async \(tx\) => \{/)
+
+    const lockIndex = body.indexOf("await lockPracticeCreationOwner(tx, userId)")
+    const slugLockIndex = body.indexOf("await lockPracticeSlugAllocation(tx)")
+    const countIndex = body.indexOf("await tx.practiceMembership.count")
+    const slugReadIndex = body.indexOf("await tx.practice.findUnique")
+    const createIndex = body.indexOf("return tx.practice.create")
+
+    assert.notEqual(lockIndex, -1, "practice creation should lock the owner before quota checks")
+    assert.notEqual(slugLockIndex, -1, "practice creation should lock slug allocation")
+    assert.notEqual(countIndex, -1, "free-practice quota should be counted inside the transaction")
+    assert.notEqual(slugReadIndex, -1, "slug lookup should happen inside the slug allocation lock")
+    assert.notEqual(createIndex, -1, "practice creation should happen inside the transaction")
+    assert.ok(lockIndex < slugLockIndex, "practice creation should lock owner before global slug allocation")
+    assert.ok(slugLockIndex < countIndex, "practice creation should hold the slug lock before quota and slug checks")
+    assert.ok(countIndex < createIndex, "practice creation should create only after the quota check")
+    assert.ok(slugReadIndex < createIndex, "practice creation should create only after slug lookup")
+    assert.match(body, /FEATURE_KEYS\.calendarFullScheduling/)
   })
 
   it("uses unique availability time input ids without changing submitted field names", async () => {
