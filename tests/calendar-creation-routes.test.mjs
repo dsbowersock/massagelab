@@ -139,16 +139,17 @@ describe("calendar creation route wiring", () => {
   })
 
   it("warns before allowing manual appointment creation outside provider availability", async () => {
-    const [composer, actions] = await Promise.all([
+    const [composer, actions, availability] = await Promise.all([
       readFile("app/calendar/new/appointment/appointment-composer.tsx", "utf8"),
       readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/availability.ts", "utf8"),
     ])
 
     assert.match(composer, /useActionState\(createAppointmentFormAction/)
     assert.match(composer, /name="allowOutsideAvailability"/)
     assert.match(composer, /outside-availability/)
     assert.match(composer, /outsideAvailabilityReady \?/)
-    assert.match(actions, /class OutsideProviderAvailabilityError/)
+    assert.match(availability, /class OutsideProviderAvailabilityError/)
     assert.match(actions, /export async function createAppointmentFormAction/)
     assert.match(actions, /allowOutsideAvailability/)
   })
@@ -169,14 +170,17 @@ describe("calendar creation route wiring", () => {
   })
 
   it("rechecks appointment conflicts inside the write transaction and links the canonical client", async () => {
-    const actions = await readFile("app/calendar/actions.ts", "utf8")
+    const [actions, availability] = await Promise.all([
+      readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/availability.ts", "utf8"),
+    ])
 
     assert.match(actions, /lockAppointmentSchedulingRows\(tx/)
     assert.match(actions, /assertProviderAvailability\(\{\s*db:\s*tx/)
     assert.match(actions, /assertNoCalendarEventConflict\(\{\s*db:\s*tx/)
     assert.match(actions, /assertNoResourceConflict\(\{\s*db:\s*tx/)
     assert.match(actions, /practiceClientId:\s*practiceClient\.id/)
-    assert.match(actions, /SELECT[\s\S]+FOR UPDATE/)
+    assert.match(availability, /SELECT[\s\S]+FOR UPDATE/)
   })
 
   it("locks scheduling rows inside every blocking calendar mutation transaction", async () => {
