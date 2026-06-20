@@ -37,6 +37,7 @@ const themes: Array<{
 ]
 
 const compactThemeCollapseDelayMs = 5_000
+// Keep compact options temporarily expanded so touch and keyboard users can choose a theme without leaving the bar permanently wide.
 
 export function ThemeSwitcherMultiButton({
   className,
@@ -73,6 +74,7 @@ export function ThemeSwitcherMultiButton({
   }, [settings.themeMode])
 
   useEffect(() => {
+    // A pending compact-collapse timer should not fire after this shared top-bar control unmounts.
     return () => {
       if (collapseTimeoutRef.current) {
         window.clearTimeout(collapseTimeoutRef.current)
@@ -81,6 +83,7 @@ export function ThemeSwitcherMultiButton({
   }, [])
 
   function clearCompactCollapseTimer() {
+    // Cancel stale collapse work before rescheduling or forcing a manual close.
     if (!collapseTimeoutRef.current) return
 
     window.clearTimeout(collapseTimeoutRef.current)
@@ -88,6 +91,7 @@ export function ThemeSwitcherMultiButton({
   }
 
   function scheduleCompactCollapse() {
+    // Auto-close expanded compact options after a short idle window on narrow screens.
     clearCompactCollapseTimer()
     collapseTimeoutRef.current = window.setTimeout(() => {
       setCompactExpanded(false)
@@ -96,11 +100,13 @@ export function ThemeSwitcherMultiButton({
   }
 
   function expandCompactThemePicker() {
+    // Revealing hidden compact options also starts the idle countdown back to the single active icon.
     setCompactExpanded(true)
     scheduleCompactCollapse()
   }
 
   function collapseCompactThemePicker() {
+    // Manual collapse is used after selection or when focus leaves the whole switcher group.
     clearCompactCollapseTimer()
     setCompactExpanded(false)
   }
@@ -176,6 +182,7 @@ export function ThemeSwitcherMultiButton({
       aria-label="Theme"
       onFocusCapture={expandCompactThemePicker}
       onBlurCapture={(event) => {
+        // Moving between theme buttons should keep the compact picker open.
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           collapseCompactThemePicker()
         }
@@ -212,6 +219,7 @@ export function ThemeSwitcherMultiButton({
               data-state={isActive ? "on" : "off"}
               onPointerDown={(event) => {
                 rememberTransitionOrigin(event)
+                // Pointer users need the compact choices visible before the toggle group settles selection.
                 expandCompactThemePicker()
               }}
               className={cn(

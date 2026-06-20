@@ -60,7 +60,7 @@
     --ml-safe-bottom: env(safe-area-inset-bottom, 0px);
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
-    --ml-audio-toolbar-height: 4rem;
+    --ml-audio-toolbar-height: 5rem;
   }
 
   .light {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { Pause, Play, SkipBack, SkipForward, Square, Volume2 } from "lucide-react"
+import { Play, RefreshCw, SkipBack, SkipForward, Square, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
@@ -79,7 +79,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
                 }}
                 disabled={!music.activeStationId || isLoading}
               >
-                {music.playbackState === "playing" ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+                {music.playbackState === "playing" ? <RefreshCw aria-hidden="true" /> : <Play aria-hidden="true" />}
                 <span className="hidden sm:inline">{music.playbackState === "playing" ? "Restart" : "Play"}</span>
               </Button>
             ) : null}
@@ -117,7 +117,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
           <Button
             size="sm"
             variant="ghost"
-            className="hidden shrink-0 sm:inline-flex"
+            className={cn("shrink-0", !isCollapsed && "hidden sm:inline-flex")}
             onClick={() => music.setMiniPlayerCollapsed(!isCollapsed)}
           >
             {isCollapsed ? "Expand" : "Collapse"}
