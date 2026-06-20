@@ -58,6 +58,38 @@ describe("calendar creation route wiring", () => {
     assert.equal(actions.includes("sendVerificationEmail"), false)
   })
 
+  it("keeps service catalog mutations behind stable action exports", async () => {
+    const [actions, serviceActions, serviceForm] = await Promise.all([
+      readFile("app/calendar/actions.ts", "utf8"),
+      readFile("app/calendar/actions/services.ts", "utf8"),
+      readFile("app/calendar/services/service-form.tsx", "utf8"),
+    ])
+    const createServiceAction = exportedActionBody(actions, "createServiceAction")
+    const updateServiceAction = exportedActionBody(actions, "updateServiceAction")
+
+    assert.match(serviceForm, /import \{ createServiceAction, updateServiceAction \} from "@\/app\/calendar\/actions"/)
+    assert.match(actions, /from "\.\/actions\/services"/)
+    assert.match(createServiceAction, /return createService\(formData\)/)
+    assert.match(updateServiceAction, /return updateService\(formData\)/)
+    assert.match(serviceActions, /export async function createService\(formData: FormData\)/)
+    assert.match(serviceActions, /export async function updateService\(formData: FormData\)/)
+    assert.match(serviceActions, /function parseServiceVariants\(formData: FormData\)/)
+    assert.match(serviceActions, /async function ensureCalendarResources/)
+    assert.match(serviceActions, /async function assertServiceCatalogLimits/)
+    assert.match(serviceActions, /resultingActive: boolean/)
+    assert.match(serviceActions, /id: \{ not: updatingServiceId \}/)
+    assert.match(serviceActions, /assertServiceCatalogLimits\(\{ practiceId, userId, variantCount: variants\.length, resultingActive \}\)/)
+    assert.match(serviceActions, /updatingServiceId: serviceId/)
+    assert.match(serviceActions, /prepNotes: String\(policyFields\.prepNotes \?\? ""\) \|\| null/)
+    assert.doesNotMatch(serviceActions, /if \(!serviceId \|\| !name\)/)
+
+    const updateServiceStart = serviceActions.indexOf("export async function updateService")
+    const updateServiceIdCheck = serviceActions.indexOf("if (!serviceId)", updateServiceStart)
+    const updateLimitCheck = serviceActions.indexOf("await assertServiceCatalogLimits({", updateServiceStart)
+    assert.ok(updateServiceIdCheck > updateServiceStart)
+    assert.ok(updateLimitCheck > updateServiceIdCheck)
+  })
+
   it("keeps operator calendar chrome out of the public booking page", async () => {
     const [layoutWrapper, bookingPage, toolbarContext, topBar] = await Promise.all([
       readFile("components/layout-wrapper.tsx", "utf8"),
