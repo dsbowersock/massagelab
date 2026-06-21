@@ -5,13 +5,9 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
+import type { SoapNoteSectionProps } from "../types"
 
-interface IdentifyingInfoProps {
-  formData: any
-  setFormData: (data: any) => void
-}
-
-export function IdentifyingInfo({ formData, setFormData }: IdentifyingInfoProps) {
+export function IdentifyingInfo({ formData, setFormData }: SoapNoteSectionProps) {
   const { settings: therapistSettings } = useTherapistSettings()
 
   useEffect(() => {
@@ -19,7 +15,7 @@ export function IdentifyingInfo({ formData, setFormData }: IdentifyingInfoProps)
     const today = new Date().toISOString().split('T')[0]
     
     // Pre-populate therapist information from settings
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       date: today,
       therapistName: therapistSettings.name || prev.therapistName,
@@ -32,7 +28,7 @@ export function IdentifyingInfo({ formData, setFormData }: IdentifyingInfoProps)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData({ ...formData, [name]: value })
+    setFormData((current) => ({ ...current, [name]: value }))
   }
 
   return (

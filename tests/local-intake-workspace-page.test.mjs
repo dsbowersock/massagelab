@@ -50,6 +50,21 @@ describe("local intake workspace page source", () => {
     assert.match(source, /setActiveResponse\(blankResponse\(fallbackTemplateId, workspace\.templates\)\)/)
   })
 
+  it("keeps the intake client on named local workspace types instead of a broad record alias", async () => {
+    const source = await readFile(new URL("../app/notes/intake/client-page.tsx", import.meta.url), "utf8")
+    const typesSource = await readFile(new URL("../app/notes/intake/types.ts", import.meta.url), "utf8")
+
+    assert.match(source, /import type \{[\s\S]*IntakeWorkspace[\s\S]*IntakeTemplate[\s\S]*IntakeFormResponse/)
+    assert.match(source, /useState<IntakeWorkspace>/)
+    assert.match(source, /type DashboardPanelProps = \{/)
+    assert.match(source, /type TabletFillPanelProps = \{/)
+    assert.match(source, /type FormBuilderPanelProps = \{/)
+    assert.match(typesSource, /export type IntakeWorkspace = \{/)
+    assert.match(typesSource, /export type IntakeClinicalDocument = \{/)
+    assert.doesNotMatch(source, /type AnyRecord = Record<string, any>/)
+    assert.doesNotMatch(source, /: any\b| as any\b|useState<any>/)
+  })
+
   it("keeps built-in templates grounded in current intake and pain-map fields", async () => {
     const source = await readFile(new URL("../lib/local-intake-builder.js", import.meta.url), "utf8")
 

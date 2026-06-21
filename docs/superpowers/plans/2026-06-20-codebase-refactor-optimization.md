@@ -382,19 +382,19 @@ Keep anatomy browser media candidates and maintenance scripts on explicit media/
 - Test: `tests/local-intake-workspace-page.test.mjs`
 - Test: `tests/local-note-client-safety.test.mjs`
 
-- [ ] **Step 1: add local intake UI types**
+- [x] **Step 1: add local intake UI types**
 
 Replace `type AnyRecord = Record<string, any>` in the intake client with named workspace, template, response, document, and client profile types derived from the normalized local intake contract.
 
-- [ ] **Step 2: keep storage compatibility**
+- [x] **Step 2: keep storage compatibility**
 
 Do not change `massagelab-professional-record-vault-v1`, intake workspace schema versions, `.mlab` transfer format, or plaintext export warnings.
 
-- [ ] **Step 3: type SOAP component props**
+- [x] **Step 3: type SOAP component props**
 
 Replace broad `any` props in SOAP subcomponents with the existing `SoapNoteData` fields and narrow callback types.
 
-- [ ] **Step 4: validate**
+- [x] **Step 4: validate**
 
 Run:
 
@@ -406,7 +406,9 @@ npm run lint
 
 Expected: no storage key changes, no hosted clinical network paths, no local document export schema change.
 
-### Task 9: Decide TS/JS Compatibility Policy Before Deleting Duplicates
+2026-06-20 result: the local-first type-hardening branch added named intake workspace/template/response/document/client UI types, moved `SoapNoteData` and SOAP section state setter contracts into the shared SOAP type file, replaced broad intake/SOAP `any` prop bags in the touched local-first clients, and added source-contract tests that preserve the encrypted professional-record vault, plaintext export warnings, and no clinical upload/network path boundaries.
+
+### Task 10: Decide TS/JS Compatibility Policy Before Deleting Duplicates
 
 **Files:**
 - Modify: `tsconfig.json` only if a chosen branch intentionally changes JS handling

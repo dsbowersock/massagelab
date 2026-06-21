@@ -9,19 +9,49 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import type { ObjectiveEntryType } from "../types"
+import type { ObjectiveEntry, ObjectiveEntryType } from "../types"
 
 interface ObjectiveEntryFormProps {
   type: ObjectiveEntryType
-  onSave: (entry: any) => void
+  onSave: (entry: ObjectiveEntry) => void
   onCancel: () => void
 }
 
-export function ObjectiveEntryForm({ type, onSave, onCancel }: ObjectiveEntryFormProps) {
-  const [formData, setFormData] = useState<any>({ type })
+type ObjectiveEntryDraft = {
+  type: ObjectiveEntryType
+  area?: string
+  tissueQuality?: string
+  temperature?: string
+  tenderness?: number
+  notes?: string
+  joint?: string
+  movement?: string
+  activeROM?: string
+  passiveROM?: string
+  activeAssistiveROM?: string
+  resistedROM?: string
+  romDegrees?: string
+  endFeel?: string
+  pain?: boolean
+  view?: string
+  findings?: string
+  compensations?: string
+  phase?: string
+  observations?: string
+  deviations?: string
+  testName?: string
+  result?: string
+  texture?: string
+  mobility?: string
+  title?: string
+  description?: string
+}
 
-  const handleChange = (field: string, value: any) => {
-    setFormData((prev: any) => ({
+export function ObjectiveEntryForm({ type, onSave, onCancel }: ObjectiveEntryFormProps) {
+  const [formData, setFormData] = useState<ObjectiveEntryDraft>({ type })
+
+  const handleChange = <K extends keyof ObjectiveEntryDraft>(field: K, value: ObjectiveEntryDraft[K]) => {
+    setFormData((prev) => ({
       ...prev,
       [field]: value
     }))
@@ -29,7 +59,7 @@ export function ObjectiveEntryForm({ type, onSave, onCancel }: ObjectiveEntryFor
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
+    onSave(formData as ObjectiveEntry)
   }
 
   const renderPalpationForm = () => (

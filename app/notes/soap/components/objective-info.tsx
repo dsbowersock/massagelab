@@ -5,15 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, X, FileText, Activity, Ruler, FootprintsIcon, ClipboardList } from 'lucide-react'
-import { ObjectiveEntry, ObjectiveEntryType } from "../types"
+import { ObjectiveEntry, ObjectiveEntryType, SoapNoteSectionProps } from "../types"
 import { ObjectiveEntryForm } from "./objective-entry-form"
 
-interface ObjectiveInfoProps {
-  formData: any
-  setFormData: (data: any) => void
-}
-
-export function ObjectiveInfo({ formData, setFormData }: ObjectiveInfoProps) {
+export function ObjectiveInfo({ formData, setFormData }: SoapNoteSectionProps) {
   const [showEntryForm, setShowEntryForm] = useState(false)
   const [selectedType, setSelectedType] = useState<ObjectiveEntryType | null>(null)
 
@@ -29,7 +24,7 @@ export function ObjectiveInfo({ formData, setFormData }: ObjectiveInfoProps) {
   const handleRemoveEntry = (index: number) => {
     setFormData({
       ...formData,
-      objectiveEntries: formData.objectiveEntries.filter((_: any, i: number) => i !== index)
+      objectiveEntries: formData.objectiveEntries.filter((_: ObjectiveEntry, i: number) => i !== index)
     })
   }
 

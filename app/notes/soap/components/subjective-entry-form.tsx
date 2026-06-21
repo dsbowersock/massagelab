@@ -9,12 +9,46 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { SubjectiveEntryType } from "../types"
+import type { SubjectiveEntry, SubjectiveEntryType } from "../types"
 
 interface SubjectiveEntryFormProps {
   type: SubjectiveEntryType
-  onSave: (entry: any) => void
+  onSave: (entry: SubjectiveEntry) => void
   onCancel: () => void
+}
+
+type SubjectiveEntryDraft = {
+  type: SubjectiveEntryType
+  sensations: Record<string, boolean>
+  areas: Record<string, boolean>
+  incidents: Record<string, boolean>
+  preventedActivities: Record<string, boolean>
+  practitioners: Record<string, boolean>
+  briefDescription?: string
+  intensity?: string
+  otherSensation?: string
+  bodyRegion?: string
+  specificLocation?: string
+  timePattern?: string
+  painStart?: string
+  otherIncident?: string
+  painTriggers?: string
+  painRelief?: string
+  otherPreventedActivity?: string
+  otherPractitioner?: string
+  description?: string
+  timeframe?: string
+  priority?: "low" | "medium" | "high" | ""
+  relatedActivities?: string
+  name?: string
+  dosage?: string
+  frequency?: string
+  purpose?: string
+  physicianName?: string
+  specialty?: string
+  diagnosis?: string
+  recommendations?: string
+  title?: string
 }
 
 const painSensations = [
@@ -76,17 +110,18 @@ const practitioners = [
 ]
 
 export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryFormProps) {
-  const [formData, setFormData] = useState<any>({ 
+  const [formData, setFormData] = useState<SubjectiveEntryDraft>({
     type,
     sensations: {},
     areas: {},
+    incidents: {},
     preventedActivities: {},
     practitioners: {}
   })
   const [markingDetails, setMarkingDetails] = useState<Record<string, string>>({})
 
-  const handleChange = (field: string, value: any) => {
-    setFormData((prev: any) => ({
+  const handleChange = <K extends keyof SubjectiveEntryDraft>(field: K, value: SubjectiveEntryDraft[K]) => {
+    setFormData((prev) => ({
       ...prev,
       [field]: value
     }))
@@ -97,7 +132,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
     onSave({
       ...formData,
       markingDetails
-    })
+    } as SubjectiveEntry)
   }
 
   const renderPainForm = () => (
@@ -140,7 +175,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                   onCheckedChange={(checked) => {
                     handleChange("sensations", {
                       ...formData.sensations,
-                      [sensation.id]: checked
+                      [sensation.id]: checked === true
                     })
                   }}
                 />
@@ -154,7 +189,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                 onCheckedChange={(checked) => {
                   handleChange("sensations", {
                     ...formData.sensations,
-                    other: checked
+                    other: checked === true
                   })
                 }}
               />
@@ -230,7 +265,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                         onCheckedChange={(checked) => {
                           handleChange("areas", {
                             ...formData.areas,
-                            [area.id]: checked
+                            [area.id]: checked === true
                           })
                           if (!checked) {
                             const newDetails = { ...markingDetails }
@@ -296,7 +331,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                   onCheckedChange={(checked) => {
                     handleChange("incidents", {
                       ...formData.incidents,
-                      [incident.id]: checked
+                      [incident.id]: checked === true
                     })
                   }}
                 />
@@ -310,7 +345,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                 onCheckedChange={(checked) => {
                   handleChange("incidents", {
                     ...formData.incidents,
-                    other: checked
+                    other: checked === true
                   })
                 }}
               />
@@ -353,7 +388,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                   onCheckedChange={(checked) => {
                     handleChange("preventedActivities", {
                       ...formData.preventedActivities,
-                      [activity.id]: checked
+                      [activity.id]: checked === true
                     })
                   }}
                 />
@@ -367,7 +402,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                 onCheckedChange={(checked) => {
                   handleChange("preventedActivities", {
                     ...formData.preventedActivities,
-                    other: checked
+                    other: checked === true
                   })
                 }}
               />
@@ -392,7 +427,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                   onCheckedChange={(checked) => {
                     handleChange("practitioners", {
                       ...formData.practitioners,
-                      [practitioner.id]: checked
+                      [practitioner.id]: checked === true
                     })
                   }}
                 />
@@ -406,7 +441,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
                 onCheckedChange={(checked) => {
                   handleChange("practitioners", {
                     ...formData.practitioners,
-                    other: checked
+                    other: checked === true
                   })
                 }}
               />
@@ -448,7 +483,7 @@ export function SubjectiveEntryForm({ type, onSave, onCancel }: SubjectiveEntryF
           <Label>Priority</Label>
           <Select
             value={formData.priority || ""}
-            onValueChange={(value) => handleChange("priority", value)}
+            onValueChange={(value) => handleChange("priority", value as SubjectiveEntryDraft["priority"])}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select priority" />

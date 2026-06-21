@@ -24,9 +24,34 @@ describe("local note client safety guards", () => {
   it("normalizes imported SOAP arrays before merging them into local documents", async () => {
     const source = await readFile(new URL("../app/notes/soap/client-page.tsx", import.meta.url), "utf8")
 
-    assert.match(source, /subjectiveEntries: Array\.isArray\(data\.subjectiveEntries\)/)
-    assert.match(source, /objectiveEntries: Array\.isArray\(data\.objectiveEntries\)/)
-    assert.match(source, /techniques: Array\.isArray\(data\.assessment\?\.techniques\)/)
+    assert.match(source, /subjectiveEntries: Array\.isArray\(data\?\.subjectiveEntries\)/)
+    assert.match(source, /objectiveEntries: Array\.isArray\(data\?\.objectiveEntries\)/)
+    assert.match(source, /techniques: Array\.isArray\(data\?\.assessment\?\.techniques\)/)
+  })
+
+  it("keeps SOAP section components on the shared note type instead of broad any props", async () => {
+    const typesSource = await readFile(new URL("../app/notes/soap/types.ts", import.meta.url), "utf8")
+    const componentPaths = [
+      "../app/notes/soap/components/assessment.tsx",
+      "../app/notes/soap/components/body-diagram.tsx",
+      "../app/notes/soap/components/identifying-info.tsx",
+      "../app/notes/soap/components/informed-consent.tsx",
+      "../app/notes/soap/components/objective-entry-form.tsx",
+      "../app/notes/soap/components/objective-info.tsx",
+      "../app/notes/soap/components/plan.tsx",
+      "../app/notes/soap/components/review.tsx",
+      "../app/notes/soap/components/subjective-entry-form.tsx",
+      "../app/notes/soap/components/subjective-info.tsx",
+      "../app/notes/soap/components/transcript-review.tsx",
+    ]
+
+    assert.match(typesSource, /export interface SoapNoteData \{/)
+    assert.match(typesSource, /export type SoapNoteSectionProps = \{/)
+
+    for (const path of componentPaths) {
+      const source = await readFile(new URL(path, import.meta.url), "utf8")
+      assert.doesNotMatch(source, /formData: any|setFormData: \(data: any\)|: any\b|useState<any>/, `${path} should not use broad SOAP any props`)
+    }
   })
 
   it("shows member-supported roadmap signals without adding transcription capture", async () => {

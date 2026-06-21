@@ -4,16 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import type { SoapNoteData, SoapNoteSectionProps } from "../types"
 
-interface PlanProps {
-  formData: any
-  setFormData: (data: any) => void
-}
-
-export function Plan({ formData, setFormData }: PlanProps) {
+export function Plan({ formData, setFormData }: SoapNoteSectionProps) {
   const treatmentPlan = formData.treatmentPlan || {}
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof SoapNoteData["treatmentPlan"], value: string) => {
     setFormData({
       ...formData,
       treatmentPlan: {

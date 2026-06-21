@@ -11,7 +11,7 @@ import { Plan } from "./components/plan"
 import { Review } from "./components/review"
 import { SubjectiveInfo } from "./components/subjective-info"
 import { TranscriptReview } from "./components/transcript-review"
-import type { PainMapSelection, TranscriptSegment } from "./types"
+import type { SoapNoteData } from "./types"
 import { AppPageShell, appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,49 +29,6 @@ import {
   ProfessionalRecordVaultTransferControls,
   useProfessionalRecordVault,
 } from "../professional-record-vault-provider"
-
-interface SoapNoteData {
-  schemaVersion: number
-  noteType: "soap"
-  clientName: string
-  dateOfBirth: string
-  date: string
-  time: string
-  therapistName: string
-  location: string
-  licenseNumber: string
-  licenseOrganization: string
-  npiNumber: string
-  clientNumber: string
-  generalNotes: string
-  subjectiveEntries: unknown[]
-  generalObservations: string
-  objectiveEntries: unknown[]
-  consentName: string
-  consentDate: string
-  consentInitials: string
-  consentAcknowledged: boolean
-  assessment: {
-    overallAssessment: string
-    techniques: unknown[]
-    findings: string
-    clinicalNotes: string
-  }
-  treatmentPlan: {
-    nextSession: string
-    frequency: string
-    homeCare: string
-    referrals: string
-    notes: string
-  }
-  bodyDiagram: {
-    regions: string
-    notes: string
-    painMapSelections: PainMapSelection[]
-    googleImportNotes: string
-  }
-  transcriptSegments: TranscriptSegment[]
-}
 
 const emptySoapNote: SoapNoteData = {
   schemaVersion: 2,
@@ -212,28 +169,36 @@ function generateSoapText(data: SoapNoteData) {
   ].join("\n")
 }
 
-function normalizeSoapNoteData(data: SoapNoteData): SoapNoteData {
+/**
+ * Normalizes partial or legacy SOAP draft data into the current local form state.
+ *
+ * The encrypted vault may contain older drafts, so this pins the v2 SOAP
+ * contract, reapplies defaults for missing sections, and coerces repeatable
+ * fields back to arrays before any section component renders or saves them.
+ */
+function normalizeSoapNoteData(data: Partial<SoapNoteData> | null | undefined): SoapNoteData {
   return {
     ...emptySoapNote,
-    ...data,
+    ...(data ?? {}),
     schemaVersion: 2,
-    subjectiveEntries: Array.isArray(data.subjectiveEntries) ? data.subjectiveEntries : [],
-    objectiveEntries: Array.isArray(data.objectiveEntries) ? data.objectiveEntries : [],
+    noteType: "soap",
+    subjectiveEntries: Array.isArray(data?.subjectiveEntries) ? data.subjectiveEntries : [],
+    objectiveEntries: Array.isArray(data?.objectiveEntries) ? data.objectiveEntries : [],
     assessment: {
       ...emptySoapNote.assessment,
-      ...(data.assessment ?? {}),
-      techniques: Array.isArray(data.assessment?.techniques) ? data.assessment.techniques : [],
+      ...(data?.assessment ?? {}),
+      techniques: Array.isArray(data?.assessment?.techniques) ? data.assessment.techniques : [],
     },
     treatmentPlan: {
       ...emptySoapNote.treatmentPlan,
-      ...(data.treatmentPlan ?? {}),
+      ...(data?.treatmentPlan ?? {}),
     },
     bodyDiagram: {
       ...emptySoapNote.bodyDiagram,
-      ...(data.bodyDiagram ?? {}),
-      painMapSelections: Array.isArray(data.bodyDiagram?.painMapSelections) ? data.bodyDiagram.painMapSelections : [],
+      ...(data?.bodyDiagram ?? {}),
+      painMapSelections: Array.isArray(data?.bodyDiagram?.painMapSelections) ? data.bodyDiagram.painMapSelections : [],
     },
-    transcriptSegments: Array.isArray(data.transcriptSegments) ? data.transcriptSegments : [],
+    transcriptSegments: Array.isArray(data?.transcriptSegments) ? data.transcriptSegments : [],
   }
 }
 

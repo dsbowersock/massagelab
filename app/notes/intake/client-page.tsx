@@ -64,8 +64,24 @@ import {
   createSoapDraftFromIntakeDocument,
   hasMeaningfulSoapDraft,
 } from "@/lib/intake-soap-handoff"
-
-type AnyRecord = Record<string, any>
+import type {
+  IntakeAnswerValue,
+  IntakeBodyMapAnswer,
+  IntakeClientProfile,
+  IntakeClinicalDocument,
+  IntakeFormResponse,
+  IntakeQuestion,
+  IntakeTemplate,
+  IntakeTemplateKind,
+  IntakeTemplateSection,
+  IntakeWorkspace,
+  ManualClientDraft,
+} from "./types"
+import {
+  intakeStringAnswer,
+  intakeStringArrayAnswer,
+  isIntakeBodyMapAnswer,
+} from "./types"
 
 function nowIso() {
   return new Date().toISOString()
@@ -98,7 +114,7 @@ function openPrintDocument(html: string) {
   return true
 }
 
-function documentFilename(document: AnyRecord, client: AnyRecord | undefined, extension = "json") {
+function documentFilename(document: IntakeClinicalDocument, client: IntakeClientProfile | undefined, extension = "json") {
   return createLocalDocumentFilename({
     prefix: `massagelab-${document.kind || "intake"}`,
     subject: client?.displayName || document.title || "client",
@@ -106,15 +122,21 @@ function documentFilename(document: AnyRecord, client: AnyRecord | undefined, ex
   })
 }
 
-function templateOptions(templates: AnyRecord[]) {
+function templateOptions(templates: IntakeTemplate[]) {
   return templates.filter((template) => !template.archived)
 }
 
-function getTemplate(workspace: AnyRecord, templateId: string) {
-  return workspace.templates.find((template: AnyRecord) => template.id === templateId) ?? workspace.templates[0]
+function getTemplate(workspace: IntakeWorkspace, templateId: string) {
+  return workspace.templates.find((template) => template.id === templateId) ?? workspace.templates[0]
 }
 
-function blankResponse(templateId: string, templates: AnyRecord[], localClientId = ""): AnyRecord {
+type NormalizeFormTemplates = Parameters<typeof normalizeFormResponse>[1]
+
+function normalizeFormTemplates(templates: IntakeTemplate[]): NormalizeFormTemplates {
+  return templates as unknown as NormalizeFormTemplates
+}
+
+function blankResponse(templateId: string, templates: IntakeTemplate[], localClientId = ""): IntakeFormResponse {
   return (normalizeFormResponse({
     id: createUiId("response"),
     templateId,
@@ -122,39 +144,104 @@ function blankResponse(templateId: string, templates: AnyRecord[], localClientId
     answers: {},
     createdAt: nowIso(),
     updatedAt: nowIso(),
-  }, templates as any) ?? {
+  }, normalizeFormTemplates(templates)) ?? {
     id: createUiId("response"),
     schemaVersion: 1,
     templateId,
     templateTitle: "Local form",
+    intakeType: "",
     localClientId,
     answers: {},
     completedAt: "",
     createdAt: nowIso(),
     updatedAt: nowIso(),
-  }) as AnyRecord
+  }) as IntakeFormResponse
 }
 
-function replaceById(items: AnyRecord[], nextItem: AnyRecord) {
+function replaceById<T extends { id: string }>(items: T[], nextItem: T) {
   return items.map((item) => (item.id === nextItem.id ? nextItem : item))
+}
+
+function bodyMapAnswerFromValue(value: IntakeAnswerValue): IntakeBodyMapAnswer {
+  return isIntakeBodyMapAnswer(value) ? value : { selected: {}, notes: "" }
+}
+
+type SoapSeedMode = "append" | "replace"
+
+type DashboardPanelProps = {
+  workspace: IntakeWorkspace
+  selectedClientId: string
+  selectedDocumentId: string
+  manualClient: ManualClientDraft
+  message: string | null
+  onSelectClient: (clientId: string) => void
+  onSelectDocument: (documentId: string) => void
+  onManualClientChange: (next: ManualClientDraft) => void
+  onAddManualClient: () => void
+  onStartFollowUpIntake: (clientId: string) => void
+  onSaveWorkspace: () => void
+  onExportSelectedDocumentDoc: () => void
+  onPrintSelectedDocumentPdf: () => void
+  onUseSelectedDocumentInSoap: (mode: SoapSeedMode) => void
+  onClearLocalWorkspace: () => void
+  hasExistingSoapDraft: boolean
+}
+
+type TabletFillPanelProps = {
+  workspace: IntakeWorkspace
+  template: IntakeTemplate
+  selectedClientId: string
+  response: IntakeFormResponse
+  message: string | null
+  onSelectClient: (clientId: string) => void
+  onSelectTemplate: (templateId: string) => void
+  onAnswerChange: (questionId: string, value: IntakeAnswerValue) => void
+  onBodyMapSelectionChange: (questionId: string, key: string, checked: boolean) => void
+  onBodyMapNotesChange: (questionId: string, notes: string) => void
+  onSaveCompletedResponse: () => void
+  onClearForNextClient: () => void
+}
+
+type QuestionFieldProps = {
+  field: IntakeQuestion
+  value: IntakeAnswerValue
+  onChange: (value: IntakeAnswerValue) => void
+  onBodyMapSelectionChange: (key: string, checked: boolean) => void
+  onBodyMapNotesChange: (notes: string) => void
+}
+
+type FormBuilderPanelProps = {
+  workspace: IntakeWorkspace
+  template: IntakeTemplate
+  issues: string[]
+  onSelectTemplate: (templateId: string) => void
+  onCreateTemplate: () => void
+  onDuplicateTemplate: (template: IntakeTemplate) => void
+  onArchiveTemplate: (template: IntakeTemplate) => void
+  onUpdateTemplate: (next: Partial<IntakeTemplate>) => void
+  onAddSection: (templateId: string) => void
+  onUpdateSection: (templateId: string, sectionId: string, next: Partial<Pick<IntakeTemplateSection, "title" | "description">>) => void
+  onAddQuestion: (templateId: string, sectionId: string) => void
+  onUpdateQuestion: (templateId: string, sectionId: string, questionId: string, next: Partial<IntakeQuestion>) => void
+  onRemoveQuestion: (templateId: string, sectionId: string, questionId: string) => void
 }
 
 export default function IntakePage() {
   const router = useRouter()
   const vault = useProfessionalRecordVault()
-  const [workspace, setWorkspace] = useState<AnyRecord>(() => createDefaultIntakeWorkspace())
+  const [workspace, setWorkspace] = useState<IntakeWorkspace>(() => createDefaultIntakeWorkspace() as IntakeWorkspace)
   const [activeTab, setActiveTab] = useState("dashboard")
   const [selectedTemplateId, setSelectedTemplateId] = useState(starterIntakeTemplates[0].id)
   const [builderTemplateId, setBuilderTemplateId] = useState(starterIntakeTemplates[0].id)
   const [selectedClientId, setSelectedClientId] = useState("")
   const [selectedDocumentId, setSelectedDocumentId] = useState("")
-  const [activeResponse, setActiveResponse] = useState<AnyRecord>(() => blankResponse(starterIntakeTemplates[0].id, starterIntakeTemplates))
+  const [activeResponse, setActiveResponse] = useState<IntakeFormResponse>(() => blankResponse(starterIntakeTemplates[0].id, starterIntakeTemplates as IntakeTemplate[]))
   const [message, setMessage] = useState<string | null>(null)
   const [manualClient, setManualClient] = useState({ displayName: "", email: "", phone: "" })
   const loadedRevisionRef = useRef(-1)
 
-  const hydrateWorkspace = (nextWorkspace: AnyRecord) => {
-    const normalized = normalizeIntakeWorkspace(nextWorkspace)
+  const hydrateWorkspace = (nextWorkspace: unknown) => {
+    const normalized = normalizeIntakeWorkspace(nextWorkspace) as IntakeWorkspace
     setWorkspace(normalized)
     setSelectedTemplateId(normalized.activeTemplateId)
     setBuilderTemplateId(normalized.activeTemplateId)
@@ -175,19 +262,19 @@ export default function IntakePage() {
 
   const activeTemplate = useMemo(() => getTemplate(workspace, selectedTemplateId), [workspace, selectedTemplateId])
   const builderTemplate = useMemo(() => getTemplate(workspace, builderTemplateId), [workspace, builderTemplateId])
-  const selectedClient = workspace.clients.find((client: AnyRecord) => client.id === selectedClientId)
+  const selectedClient = workspace.clients.find((client) => client.id === selectedClientId)
   const selectedDocument = selectedDocumentId
-    ? workspace.documents.find((document: AnyRecord) => document.id === selectedDocumentId)
+    ? workspace.documents.find((document) => document.id === selectedDocumentId)
     : undefined
   const selectedDocumentClient = selectedDocument
-    ? workspace.clients.find((client: AnyRecord) => client.id === selectedDocument.localClientId)
+    ? workspace.clients.find((client) => client.id === selectedDocument.localClientId)
     : undefined
   const selectedDocumentTemplate = selectedDocument ? getTemplate(workspace, selectedDocument.templateId) : undefined
   const builderIssues = validateFormDefinition(builderTemplate)
   const hasExistingSoapDraft = hasMeaningfulSoapDraft(vault.payload.records?.soap?.draft)
 
   const persistWorkspace = async (nextWorkspace = workspace, successMessage = "Intake workspace saved in the encrypted professional-record vault.") => {
-    const normalized = normalizeIntakeWorkspace({ ...nextWorkspace, updatedAt: nowIso() })
+    const normalized = normalizeIntakeWorkspace({ ...nextWorkspace, updatedAt: nowIso() }) as IntakeWorkspace
     const saved = await vault.saveIntakeWorkspace(normalized, successMessage)
     if (saved) {
       loadedRevisionRef.current = vault.revision + 1
@@ -199,30 +286,30 @@ export default function IntakePage() {
     return null
   }
 
-  const updateWorkspace = (updater: (current: AnyRecord) => AnyRecord) => {
+  const updateWorkspace = (updater: (current: IntakeWorkspace) => IntakeWorkspace) => {
     setMessage(null)
-    setWorkspace((current) => normalizeIntakeWorkspace({ ...updater(current), updatedAt: nowIso() }))
+    setWorkspace((current) => normalizeIntakeWorkspace({ ...updater(current), updatedAt: nowIso() }) as IntakeWorkspace)
   }
 
   const chooseTemplate = (templateId: string) => {
     setSelectedTemplateId(templateId)
-    setWorkspace((current) => normalizeIntakeWorkspace({ ...current, activeTemplateId: templateId, updatedAt: nowIso() }))
+    setWorkspace((current) => normalizeIntakeWorkspace({ ...current, activeTemplateId: templateId, updatedAt: nowIso() }) as IntakeWorkspace)
     setActiveResponse(blankResponse(templateId, workspace.templates, selectedClientId))
     setMessage(null)
   }
 
-  const updateAnswer = (questionId: string, value: any) => {
+  const updateAnswer = (questionId: string, value: IntakeAnswerValue) => {
     setMessage(null)
     setActiveResponse((current) => (normalizeFormResponse({
       ...current,
       templateId: activeTemplate.id,
       answers: { ...current.answers, [questionId]: value },
       updatedAt: nowIso(),
-    }, workspace.templates as any) ?? current) as AnyRecord)
+    }, normalizeFormTemplates(workspace.templates)) ?? current) as IntakeFormResponse)
   }
 
   const updateBodyMapSelection = (questionId: string, key: string, checked: boolean) => {
-    const currentAnswer = activeResponse.answers[questionId] ?? { selected: {}, notes: "" }
+    const currentAnswer = bodyMapAnswerFromValue(activeResponse.answers[questionId])
     const nextSelected = { ...(currentAnswer.selected ?? {}) }
     if (checked) {
       nextSelected[key] = "Selected"
@@ -233,7 +320,7 @@ export default function IntakePage() {
   }
 
   const updateBodyMapNotes = (questionId: string, notes: string) => {
-    const currentAnswer = activeResponse.answers[questionId] ?? { selected: {}, notes: "" }
+    const currentAnswer = bodyMapAnswerFromValue(activeResponse.answers[questionId])
     updateAnswer(questionId, { ...currentAnswer, notes })
   }
 
@@ -245,15 +332,19 @@ export default function IntakePage() {
     }
 
     const now = nowIso()
-    const existingClient = workspace.clients.find((client: AnyRecord) => client.id === selectedClientId)
-    const client = existingClient ?? createClientProfileFromResponse(activeResponse, activeTemplate, new Date(now))
+    const existingClient = workspace.clients.find((client) => client.id === selectedClientId)
+    const client = (existingClient ?? createClientProfileFromResponse(activeResponse, activeTemplate, new Date(now))) as IntakeClientProfile
     const response = normalizeFormResponse({
       ...activeResponse,
       localClientId: client.id,
       completedAt: now,
       updatedAt: now,
-    }, workspace.templates as any)
-    const document = createClinicalDocumentFromResponse(response, client, activeTemplate, new Date(now))
+    }, normalizeFormTemplates(workspace.templates)) as IntakeFormResponse | null
+    if (!response) {
+      setMessage("Could not normalize the local form response.")
+      return
+    }
+    const document = createClinicalDocumentFromResponse(response, client, activeTemplate, new Date(now)) as IntakeClinicalDocument | null
     if (!document) {
       setMessage("Could not create the local clinical document.")
       return
@@ -265,7 +356,7 @@ export default function IntakePage() {
       documents: [document, ...workspace.documents],
       activeTemplateId: activeTemplate.id,
       updatedAt: now,
-    })
+    }) as IntakeWorkspace
 
     const savedWorkspace = await persistWorkspace(nextWorkspace, "Form response saved in the encrypted professional-record vault and linked to the local client.")
     if (!savedWorkspace) return
@@ -304,8 +395,8 @@ export default function IntakePage() {
   }
 
   const startFollowUpIntake = (clientId = selectedClientId) => {
-    const client = workspace.clients.find((item: AnyRecord) => item.id === clientId)
-    const followUpTemplate = workspace.templates.find((template: AnyRecord) => template.id === "template-follow-up-intake-v1")
+    const client = workspace.clients.find((item) => item.id === clientId)
+    const followUpTemplate = workspace.templates.find((template) => template.id === "template-follow-up-intake-v1")
     if (!client) {
       setMessage("Select or add a local client before starting a follow-up intake.")
       return
@@ -317,22 +408,22 @@ export default function IntakePage() {
 
     setSelectedClientId(client.id)
     setSelectedTemplateId(followUpTemplate.id)
-    setWorkspace((current) => normalizeIntakeWorkspace({ ...current, activeTemplateId: followUpTemplate.id, updatedAt: nowIso() }))
+    setWorkspace((current) => normalizeIntakeWorkspace({ ...current, activeTemplateId: followUpTemplate.id, updatedAt: nowIso() }) as IntakeWorkspace)
     setActiveResponse(blankResponse(followUpTemplate.id, workspace.templates, client.id))
     setActiveTab("fill")
     setMessage(`Start follow-up intake for ${client.displayName || "this local client"}.`)
   }
 
-  const updateTemplate = (templateId: string, updater: (template: AnyRecord) => AnyRecord) => {
+  const updateTemplate = (templateId: string, updater: (template: IntakeTemplate) => IntakeTemplate) => {
     updateWorkspace((current) => ({
       ...current,
-      templates: current.templates.map((template: AnyRecord) => (
+      templates: current.templates.map((template) => (
         template.id === templateId && !template.builtIn ? updater(template) : template
       )),
     }))
   }
 
-  const duplicateTemplate = (template: AnyRecord) => {
+  const duplicateTemplate = (template: IntakeTemplate) => {
     const copy = {
       ...JSON.parse(JSON.stringify(template)),
       id: createUiId("template"),
@@ -348,7 +439,7 @@ export default function IntakePage() {
   }
 
   const createCustomTemplate = () => {
-    const template = {
+    const template: IntakeTemplate = {
       id: createUiId("template"),
       schemaVersion: 1,
       title: "Custom intake template",
@@ -382,7 +473,7 @@ export default function IntakePage() {
     setMessage("Custom form template created.")
   }
 
-  const archiveTemplate = (template: AnyRecord) => {
+  const archiveTemplate = (template: IntakeTemplate) => {
     if (template.builtIn) {
       setMessage("Built-in starter templates cannot be archived. Duplicate one to customize it.")
       return
@@ -405,10 +496,10 @@ export default function IntakePage() {
     }))
   }
 
-  const updateSection = (templateId: string, sectionId: string, next: Partial<AnyRecord>) => {
+  const updateSection = (templateId: string, sectionId: string, next: Partial<Pick<IntakeTemplateSection, "title" | "description">>) => {
     updateTemplate(templateId, (template) => ({
       ...template,
-      sections: template.sections.map((section: AnyRecord) => (
+      sections: template.sections.map((section) => (
         section.id === sectionId ? { ...section, ...next } : section
       )),
     }))
@@ -417,7 +508,7 @@ export default function IntakePage() {
   const addQuestion = (templateId: string, sectionId: string) => {
     updateTemplate(templateId, (template) => ({
       ...template,
-      sections: template.sections.map((section: AnyRecord) => (
+      sections: template.sections.map((section) => (
         section.id === sectionId
           ? {
             ...section,
@@ -439,14 +530,14 @@ export default function IntakePage() {
     }))
   }
 
-  const updateQuestion = (templateId: string, sectionId: string, questionId: string, next: Partial<AnyRecord>) => {
+  const updateQuestion = (templateId: string, sectionId: string, questionId: string, next: Partial<IntakeQuestion>) => {
     updateTemplate(templateId, (template) => ({
       ...template,
-      sections: template.sections.map((section: AnyRecord) => (
+      sections: template.sections.map((section) => (
         section.id === sectionId
           ? {
             ...section,
-            questions: section.questions.map((question: AnyRecord) => (
+            questions: section.questions.map((question) => (
               question.id === questionId ? { ...question, ...next } : question
             )),
           }
@@ -458,9 +549,9 @@ export default function IntakePage() {
   const removeQuestion = (templateId: string, sectionId: string, questionId: string) => {
     updateTemplate(templateId, (template) => ({
       ...template,
-      sections: template.sections.map((section: AnyRecord) => (
+      sections: template.sections.map((section) => (
         section.id === sectionId
-          ? { ...section, questions: section.questions.filter((question: AnyRecord) => question.id !== questionId) }
+          ? { ...section, questions: section.questions.filter((question) => question.id !== questionId) }
           : section
       )),
     }))
@@ -544,7 +635,7 @@ export default function IntakePage() {
       >
         <div className="grid gap-3 md:grid-cols-3">
           <AppStatusTile label="Storage" value="Professional-record vault" description="Unlocked for this browser session; no clinical API upload." />
-          <AppStatusTile label="Templates" value={`${workspace.templates.filter((template: AnyRecord) => !template.archived).length}`} description="Built-in and local custom forms." />
+          <AppStatusTile label="Templates" value={`${workspace.templates.filter((template) => !template.archived).length}`} description="Built-in and local custom forms." />
           <AppStatusTile label="Documents" value={`${workspace.documents.length}`} description="Linked local form responses." />
         </div>
         <ProfessionalRecordVaultToolbar className="mt-4" />
@@ -617,7 +708,7 @@ export default function IntakePage() {
             onCreateTemplate={createCustomTemplate}
             onDuplicateTemplate={duplicateTemplate}
             onArchiveTemplate={archiveTemplate}
-            onUpdateTemplate={(next: AnyRecord) => updateTemplate(builderTemplate.id, (template) => ({ ...template, ...next }))}
+            onUpdateTemplate={(next: Partial<IntakeTemplate>) => updateTemplate(builderTemplate.id, (template) => ({ ...template, ...next }))}
             onAddSection={addSection}
             onUpdateSection={updateSection}
             onAddQuestion={addQuestion}
@@ -652,19 +743,19 @@ function DashboardPanel({
   onUseSelectedDocumentInSoap,
   onClearLocalWorkspace,
   hasExistingSoapDraft,
-}: AnyRecord) {
-  const selectedClient = workspace.clients.find((client: AnyRecord) => client.id === selectedClientId)
+}: DashboardPanelProps) {
+  const selectedClient = workspace.clients.find((client) => client.id === selectedClientId)
   const clientDocuments = selectedClient
-    ? workspace.documents.filter((document: AnyRecord) => document.localClientId === selectedClient.id)
+    ? workspace.documents.filter((document) => document.localClientId === selectedClient.id)
     : workspace.documents
   const selectedDocument = selectedDocumentId
-    ? workspace.documents.find((document: AnyRecord) => document.id === selectedDocumentId)
+    ? workspace.documents.find((document) => document.id === selectedDocumentId)
     : undefined
   const selectedDocumentTemplate = selectedDocument
-    ? workspace.templates.find((template: AnyRecord) => template.id === selectedDocument.templateId)
+    ? workspace.templates.find((template) => template.id === selectedDocument.templateId)
     : undefined
   const selectedDocumentClient = selectedDocument
-    ? workspace.clients.find((client: AnyRecord) => client.id === selectedDocument.localClientId)
+    ? workspace.clients.find((client) => client.id === selectedDocument.localClientId)
     : undefined
   const selectedDocumentPreview = selectedDocument && selectedDocumentTemplate
     ? createFormResponseExportText({
@@ -715,7 +806,7 @@ function DashboardPanel({
               <span className="text-sm text-muted-foreground">{workspace.clients.length}</span>
             </div>
             <div className="mt-4 grid gap-2">
-              {workspace.clients.length > 0 ? workspace.clients.map((client: AnyRecord) => (
+              {workspace.clients.length > 0 ? workspace.clients.map((client) => (
                 <button
                   key={client.id}
                   type="button"
@@ -760,7 +851,7 @@ function DashboardPanel({
               </div>
             ) : null}
             <div className="mt-4 grid gap-2">
-              {clientDocuments.length > 0 ? clientDocuments.map((document: AnyRecord) => (
+              {clientDocuments.length > 0 ? clientDocuments.map((document) => (
                 <button
                   key={document.id}
                   type="button"
@@ -854,7 +945,7 @@ function TabletFillPanel({
   onBodyMapNotesChange,
   onSaveCompletedResponse,
   onClearForNextClient,
-}: AnyRecord) {
+}: TabletFillPanelProps) {
   return (
     <AppSurface
       title="Tablet fill mode"
@@ -867,7 +958,7 @@ function TabletFillPanel({
           <Select value={template.id} onValueChange={onSelectTemplate}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {templateOptions(workspace.templates).map((item: AnyRecord) => (
+              {templateOptions(workspace.templates).map((item) => (
                 <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
               ))}
             </SelectContent>
@@ -879,7 +970,7 @@ function TabletFillPanel({
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__new__">Create from this response</SelectItem>
-              {workspace.clients.map((client: AnyRecord) => (
+              {workspace.clients.map((client) => (
                 <SelectItem key={client.id} value={client.id}>{client.displayName || client.email || client.phone}</SelectItem>
               ))}
             </SelectContent>
@@ -888,19 +979,19 @@ function TabletFillPanel({
       </div>
 
       <div className="grid gap-5">
-        {template.sections.map((section: AnyRecord) => (
+        {template.sections.map((section) => (
           <AppInset key={section.id} className="p-4">
             <div className="mb-4">
               <h2 className="text-lg font-semibold">{section.title}</h2>
               {section.description ? <p className="mt-1 text-sm text-muted-foreground">{section.description}</p> : null}
             </div>
             <div className="grid gap-4">
-              {section.questions.filter((field: AnyRecord) => shouldShowQuestion(field, response.answers)).map((field: AnyRecord) => (
+              {section.questions.filter((field) => shouldShowQuestion(field, response.answers)).map((field) => (
                 <QuestionField
                   key={field.id}
                   field={field}
                   value={response.answers[field.id]}
-                  onChange={(value: any) => onAnswerChange(field.id, value)}
+                  onChange={(value) => onAnswerChange(field.id, value)}
                   onBodyMapSelectionChange={(key: string, checked: boolean) => onBodyMapSelectionChange(field.id, key, checked)}
                   onBodyMapNotesChange={(notes: string) => onBodyMapNotesChange(field.id, notes)}
                 />
@@ -945,7 +1036,7 @@ function QuestionField({
   onChange,
   onBodyMapSelectionChange,
   onBodyMapNotesChange,
-}: AnyRecord) {
+}: QuestionFieldProps) {
   const inputId = `intake-${field.id}`
 
   if (field.type === "instruction") {
@@ -956,7 +1047,7 @@ function QuestionField({
     return (
       <div className="space-y-2">
         <Label htmlFor={inputId}>{field.label}{field.required ? " *" : ""}</Label>
-        <Textarea id={inputId} value={value || ""} onChange={(event) => onChange(event.target.value)} className="min-h-28" />
+        <Textarea id={inputId} value={intakeStringAnswer(value)} onChange={(event) => onChange(event.target.value)} className="min-h-28" />
       </div>
     )
   }
@@ -965,7 +1056,7 @@ function QuestionField({
     return (
       <div className="space-y-2">
         <Label>{field.label}{field.required ? " *" : ""}</Label>
-        <Select value={value || ""} onValueChange={onChange}>
+        <Select value={intakeStringAnswer(value)} onValueChange={onChange}>
           <SelectTrigger aria-label={field.label}><SelectValue placeholder="Choose one" /></SelectTrigger>
           <SelectContent>
             {(field.options ?? []).map((option: string) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
@@ -976,7 +1067,7 @@ function QuestionField({
   }
 
   if (field.type === "multiple_choice") {
-    const values = Array.isArray(value) ? value : []
+    const values = intakeStringArrayAnswer(value)
     return (
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">{field.label}{field.required ? " *" : ""}</legend>
@@ -1005,8 +1096,8 @@ function QuestionField({
   }
 
   if (field.type === "body_map") {
-    const answer = value ?? { selected: {}, notes: "" }
-    const selected = answer.selected ?? {}
+    const answer = bodyMapAnswerFromValue(value)
+    const selected = answer.selected
     return (
       <div className="space-y-3">
         <Label>{field.label}{field.required ? " *" : ""}</Label>
@@ -1054,7 +1145,7 @@ function QuestionField({
   return (
     <div className="space-y-2">
       <Label htmlFor={inputId}>{field.label}{field.required ? " *" : ""}</Label>
-      <Input id={inputId} type={inputType} value={value || ""} onChange={(event) => onChange(event.target.value)} />
+      <Input id={inputId} type={inputType} value={intakeStringAnswer(value)} onChange={(event) => onChange(event.target.value)} />
     </div>
   )
 }
@@ -1073,9 +1164,9 @@ function FormBuilderPanel({
   onAddQuestion,
   onUpdateQuestion,
   onRemoveQuestion,
-}: AnyRecord) {
+}: FormBuilderPanelProps) {
   const readOnly = template.builtIn
-  const allQuestions = template.sections.flatMap((section: AnyRecord) => section.questions)
+  const allQuestions = template.sections.flatMap((section) => section.questions)
 
   return (
     <AppSurface
@@ -1089,7 +1180,7 @@ function FormBuilderPanel({
           <Select value={template.id} onValueChange={onSelectTemplate}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {workspace.templates.map((item: AnyRecord) => (
+              {workspace.templates.map((item) => (
                 <SelectItem key={item.id} value={item.id}>{item.archived ? `${item.title} (archived)` : item.title}</SelectItem>
               ))}
             </SelectContent>
@@ -1115,7 +1206,7 @@ function FormBuilderPanel({
         </div>
         <div className="space-y-2">
           <Label>Template kind</Label>
-          <Select value={template.kind} disabled={readOnly} onValueChange={(value) => onUpdateTemplate({ kind: value })}>
+          <Select value={template.kind} disabled={readOnly} onValueChange={(value) => onUpdateTemplate({ kind: value as IntakeTemplateKind })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="intake">Intake</SelectItem>
@@ -1142,7 +1233,7 @@ function FormBuilderPanel({
       </div>
 
       <div className="grid gap-4">
-        {template.sections.map((section: AnyRecord) => (
+        {template.sections.map((section) => (
           <AppInset key={section.id} className="grid gap-4 p-4">
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -1155,7 +1246,7 @@ function FormBuilderPanel({
               </div>
             </div>
             <div className="grid gap-3">
-              {section.questions.map((field: AnyRecord) => (
+              {section.questions.map((field) => (
                 <AppInset key={field.id} className="grid gap-3 p-3">
                   <div className="grid gap-3 lg:grid-cols-[1.3fr_0.7fr_auto]">
                     <div className="space-y-2">
@@ -1164,7 +1255,7 @@ function FormBuilderPanel({
                     </div>
                     <div className="space-y-2">
                       <Label>Type</Label>
-                      <Select value={field.type} disabled={readOnly} onValueChange={(value) => onUpdateQuestion(template.id, section.id, field.id, { type: value, options: value.includes("choice") ? field.options : [] })}>
+                      <Select value={field.type} disabled={readOnly} onValueChange={(value) => onUpdateQuestion(template.id, section.id, field.id, { type: value as IntakeQuestion["type"], options: value.includes("choice") ? field.options : [] })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {FORM_QUESTION_TYPES.map((type: string) => <SelectItem key={type} value={type}>{type.replace("_", " ")}</SelectItem>)}
@@ -1201,7 +1292,7 @@ function FormBuilderPanel({
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__always__">Always show</SelectItem>
-                          {allQuestions.filter((question: AnyRecord) => question.id !== field.id).map((question: AnyRecord) => (
+                          {allQuestions.filter((question) => question.id !== field.id).map((question) => (
                             <SelectItem key={question.id} value={question.id}>{question.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -1236,7 +1327,7 @@ function FormBuilderPanel({
   )
 }
 
-function ClientAccountPanel({ client }: { client?: AnyRecord }) {
+function ClientAccountPanel({ client }: { client?: IntakeClientProfile }) {
   return (
     <AppSurface
       title="Client account contact page"
