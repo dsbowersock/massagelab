@@ -6,21 +6,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Plus, X } from 'lucide-react'
+import type { AssessmentTechniqueEntry, SoapNoteData, SoapNoteSectionProps } from "../types"
 
-interface AssessmentProps {
-  formData: any
-  setFormData: (data: any) => void
-}
-
-interface TechniqueEntry {
-  technique: string
-  area: string
-  reasoning: string
-  outcome: string
-}
-
-export function Assessment({ formData, setFormData }: AssessmentProps) {
-  const handleChange = (field: string, value: any) => {
+export function Assessment({ formData, setFormData }: SoapNoteSectionProps) {
+  const handleChange = <K extends keyof SoapNoteData["assessment"]>(field: K, value: SoapNoteData["assessment"][K]) => {
     setFormData({
       ...formData,
       assessment: {
@@ -38,7 +27,7 @@ export function Assessment({ formData, setFormData }: AssessmentProps) {
     ])
   }
 
-  const updateTechnique = (index: number, field: keyof TechniqueEntry, value: string) => {
+  const updateTechnique = (index: number, field: keyof AssessmentTechniqueEntry, value: string) => {
     const techniques = [...(formData.assessment?.techniques || [])]
     techniques[index] = {
       ...techniques[index],
@@ -49,7 +38,7 @@ export function Assessment({ formData, setFormData }: AssessmentProps) {
 
   const removeTechnique = (index: number) => {
     const techniques = formData.assessment?.techniques || []
-    handleChange('techniques', techniques.filter((_: any, i: number) => i !== index))
+    handleChange('techniques', techniques.filter((_: AssessmentTechniqueEntry, i: number) => i !== index))
   }
 
   return (
@@ -88,7 +77,7 @@ export function Assessment({ formData, setFormData }: AssessmentProps) {
             </div>
 
             <div className="space-y-4">
-              {(formData.assessment?.techniques || []).map((technique: TechniqueEntry, index: number) => (
+              {(formData.assessment?.techniques || []).map((technique: AssessmentTechniqueEntry, index: number) => (
                 <Card key={index}>
                   <CardContent className="pt-6">
                     <div className="relative space-y-4">

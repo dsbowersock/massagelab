@@ -1,11 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ObjectiveEntry, SubjectiveEntry } from "../types"
-
-interface ReviewProps {
-  formData: any
-}
+import type { AssessmentTechniqueEntry, ObjectiveEntry, PainMapSelection, SoapNoteData, SubjectiveEntry, TranscriptSegment } from "../types"
 
 function formatDate(dateString: string) {
   if (!dateString) return ""
@@ -16,12 +12,12 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-muted-foreground">{children}</p>
 }
 
-export function Review({ formData }: ReviewProps) {
-  const subjectiveEntries = formData.subjectiveEntries || []
-  const objectiveEntries = formData.objectiveEntries || []
-  const techniques = formData.assessment?.techniques || []
-  const painMapSelections = formData.bodyDiagram?.painMapSelections || []
-  const transcriptSegments = formData.transcriptSegments || []
+export function Review({ formData }: { formData: SoapNoteData }) {
+  const subjectiveEntries: SubjectiveEntry[] = formData.subjectiveEntries || []
+  const objectiveEntries: ObjectiveEntry[] = formData.objectiveEntries || []
+  const techniques: AssessmentTechniqueEntry[] = formData.assessment?.techniques || []
+  const painMapSelections: PainMapSelection[] = formData.bodyDiagram?.painMapSelections || []
+  const transcriptSegments: TranscriptSegment[] = formData.transcriptSegments || []
 
   return (
     <div className="space-y-6">

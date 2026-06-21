@@ -5,15 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, X } from 'lucide-react'
-import { SubjectiveEntry, SubjectiveEntryType } from "../types"
+import { SubjectiveEntry, SubjectiveEntryType, SoapNoteSectionProps } from "../types"
 import { SubjectiveEntryForm } from "./subjective-entry-form"
 
-interface SubjectiveInfoProps {
-  formData: any
-  setFormData: (data: any) => void
-}
-
-export function SubjectiveInfo({ formData, setFormData }: SubjectiveInfoProps) {
+export function SubjectiveInfo({ formData, setFormData }: SoapNoteSectionProps) {
   const [showEntryForm, setShowEntryForm] = useState(false)
   const [selectedType, setSelectedType] = useState<SubjectiveEntryType | null>(null)
 
@@ -29,7 +24,7 @@ export function SubjectiveInfo({ formData, setFormData }: SubjectiveInfoProps) {
   const handleRemoveEntry = (index: number) => {
     setFormData({
       ...formData,
-      subjectiveEntries: formData.subjectiveEntries.filter((_: any, i: number) => i !== index)
+      subjectiveEntries: formData.subjectiveEntries.filter((_: SubjectiveEntry, i: number) => i !== index)
     })
   }
 

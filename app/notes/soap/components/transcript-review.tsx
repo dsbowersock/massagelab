@@ -8,12 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { TranscriptSegment, TranscriptTargetSoapSection } from "../types"
-
-interface TranscriptReviewProps {
-  formData: any
-  setFormData: (data: any) => void
-}
+import type { SoapNoteData, SoapNoteSectionProps, TranscriptSegment, TranscriptTargetSoapSection } from "../types"
 
 const targetSections: Array<{ value: TranscriptTargetSoapSection; label: string }> = [
   { value: "generalNotes", label: "Subjective notes" },
@@ -46,7 +41,7 @@ function appendText(current: string | undefined, next: string) {
   return [current?.trim(), next.trim()].filter(Boolean).join("\n\n")
 }
 
-export function TranscriptReview({ formData, setFormData }: TranscriptReviewProps) {
+export function TranscriptReview({ formData, setFormData }: SoapNoteSectionProps) {
   const [draft, setDraft] = useState("")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const segments: TranscriptSegment[] = Array.isArray(formData.transcriptSegments) ? formData.transcriptSegments : []
@@ -89,13 +84,13 @@ export function TranscriptReview({ formData, setFormData }: TranscriptReviewProp
       return
     }
 
-    const nextData = {
+    const nextData: SoapNoteData = {
       ...formData,
       assessment: {
-        ...(formData.assessment ?? {}),
+        ...formData.assessment,
       },
       treatmentPlan: {
-        ...(formData.treatmentPlan ?? {}),
+        ...formData.treatmentPlan,
       },
       transcriptSegments: segments.map((segment) => ({ ...segment, selected: false })),
     }

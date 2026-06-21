@@ -9,12 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { getAnatomyTerms } from "@/lib/anatomy"
-import type { PainMapSelection, PainMapSide, PainMapView } from "../types"
+import type { PainMapSelection, PainMapSide, PainMapView, SoapNoteData, SoapNoteSectionProps } from "../types"
 
-interface BodyDiagramProps {
-  formData: any
-  setFormData: (data: any) => void
-}
+type AnatomyTermCandidate = ReturnType<typeof getAnatomyTerms>[number]
 
 const regionOptions = [
   { id: "head-neck", label: "Head / Neck", view: "front", anatomyRegion: "head" },
@@ -55,8 +52,8 @@ function createSelection(regionId: string): PainMapSelection {
   }
 }
 
-export function BodyDiagram({ formData, setFormData }: BodyDiagramProps) {
-  const bodyDiagram = formData.bodyDiagram || {}
+export function BodyDiagram({ formData, setFormData }: SoapNoteSectionProps) {
+  const bodyDiagram = formData.bodyDiagram
   const selections: PainMapSelection[] = Array.isArray(bodyDiagram.painMapSelections) ? bodyDiagram.painMapSelections : []
   const [selectedRegionId, setSelectedRegionId] = useState<string>(regionOptions[0].id)
 
@@ -73,14 +70,10 @@ export function BodyDiagram({ formData, setFormData }: BodyDiagramProps) {
     )
   }, [])
 
-  const updateBodyDiagram = (next: Partial<typeof bodyDiagram>) => {
+  const updateBodyDiagram = (next: Partial<SoapNoteData["bodyDiagram"]>) => {
     setFormData({
       ...formData,
       bodyDiagram: {
-        regions: "",
-        notes: "",
-        painMapSelections: [],
-        googleImportNotes: "",
         ...bodyDiagram,
         ...next,
       },
@@ -239,7 +232,7 @@ export function BodyDiagram({ formData, setFormData }: BodyDiagramProps) {
                   <div className="mt-4 space-y-2">
                     <Label>Likely muscles to assess</Label>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {anatomyCandidates.map((term: any) => (
+                      {anatomyCandidates.map((term: AnatomyTermCandidate) => (
                         <label key={term.id} className="flex items-center gap-2 rounded-md border border-neutral-800 bg-black/20 p-2 text-sm">
                           <Checkbox
                             checked={selection.anatomyTermIds.includes(term.id)}

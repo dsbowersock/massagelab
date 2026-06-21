@@ -7,13 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import type { SoapNoteSectionProps } from "../types"
 
-interface InformedConsentProps {
-  formData: any
-  setFormData: (data: any) => void
-}
-
-export function InformedConsent({ formData, setFormData }: InformedConsentProps) {
+export function InformedConsent({ formData, setFormData }: SoapNoteSectionProps) {
   const [clientName, setClientName] = useState(formData.clientName || "")
   const [date, setDate] = useState(formData.consentDate || new Date().toISOString().slice(0, 10))
   const [initials, setInitials] = useState(formData.consentInitials || "")
