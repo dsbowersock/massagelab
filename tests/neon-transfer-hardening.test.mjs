@@ -84,4 +84,16 @@ describe("Neon transfer hardening", () => {
     assert.doesNotMatch(source, /include:\s*\{\s*intervals: true/)
     assert.doesNotMatch(source, /email: true/)
   })
+
+  it("keeps the public booking page on explicit public projections", async () => {
+    const source = await readFile(new URL("../app/book/public-booking-page.tsx", import.meta.url), "utf8")
+
+    assert.match(source, /prisma\.practice\.findFirst\(\{[\s\S]*select: \{[\s\S]*bookingPolicy: \{[\s\S]*select: \{/)
+    assert.match(source, /providerBookingPolicies: \{[\s\S]*select: \{[\s\S]*providerUserId: true,[\s\S]*displayLabel: true/)
+    assert.match(source, /serviceTypes: \{[\s\S]*select: \{[\s\S]*variants: \{[\s\S]*select: \{[\s\S]*durationMinutes: true,[\s\S]*priceCents: true/)
+    assert.match(source, /memberships: \{[\s\S]*select: \{ userId: true, user: \{ select: \{ name: true \} \} \}/)
+    assert.doesNotMatch(source, /include:\s*\{[\s\S]*bookingPolicy: true/)
+    assert.doesNotMatch(source, /include:\s*\{\s*user: \{ select: \{ name: true, email: true \} \}/)
+    assert.doesNotMatch(source, /email: true/)
+  })
 })
