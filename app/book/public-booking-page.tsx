@@ -40,14 +40,59 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
   try {
     practice = await prisma.practice.findFirst({
       where: practiceWhere,
-      include: {
-        bookingPolicy: true,
-        providerBookingPolicies: true,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        timezone: true,
+        publicLocationLabel: true,
+        publicLatitude: true,
+        publicLongitude: true,
+        bookingPolicy: {
+          select: {
+            enabled: true,
+            approvalMode: true,
+            minNoticeMinutes: true,
+            maxAdvanceDays: true,
+            dailyAppointmentLimit: true,
+            anyProviderEnabled: true,
+            teamSequencingEnabled: true,
+            staffVisibility: true,
+            dualTimezoneDisplay: true,
+            proximityNoticeEnabled: true,
+            proximityRadiusMiles: true,
+            requireClientAccount: true,
+          },
+        },
+        providerBookingPolicies: {
+          select: {
+            providerUserId: true,
+            publiclyBookable: true,
+            displayLabel: true,
+            minRestMinutes: true,
+            dailyAppointmentLimit: true,
+            weeklyAppointmentLimit: true,
+            requireClientAccount: true,
+          },
+        },
         serviceTypes: {
           where: { active: true, clientVisible: true },
-          include: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            bookingRole: true,
             variants: {
               where: { active: true, clientVisible: true },
+              select: {
+                id: true,
+                name: true,
+                durationMinutes: true,
+                priceCents: true,
+                currency: true,
+                active: true,
+                clientVisible: true,
+              },
               orderBy: [{ sortOrder: "asc" }, { durationMinutes: "asc" }],
             },
           },
@@ -55,7 +100,7 @@ export async function renderPublicBookingPage({ lookup }: { lookup: PublicBookin
         },
         memberships: {
           where: { role: { in: ["OWNER", "THERAPIST"] } },
-          include: { user: { select: { name: true, email: true } } },
+          select: { userId: true, user: { select: { name: true } } },
           orderBy: { createdAt: "asc" },
         },
       },
