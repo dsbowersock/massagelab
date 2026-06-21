@@ -80,6 +80,27 @@
   color: hsl(var(--brand-orange-soft));
 }
 
+.anatomime-rejoin-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid hsl(var(--brand-orange) / 0.42);
+  border-radius: 0.5rem;
+  background: rgba(12, 12, 14, 0.72);
+  padding: 0.85rem;
+}
+
+.anatomime-rejoin-notice strong {
+  color: hsl(var(--brand-orange-soft));
+}
+
+.anatomime-rejoin-notice p {
+  margin: 0.2rem 0 0;
+  color: rgba(247, 247, 247, 0.72);
+  font-size: 0.9rem;
+}
+
 .anatomime-panel {
   display: grid;
   gap: 1.25rem;
@@ -619,6 +640,30 @@
   color: hsl(var(--brand-orange-soft));
 }
 
+.anatomime-role-callout {
+  display: grid;
+  gap: 0.25rem;
+  width: min(100%, 32rem);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.8rem;
+}
+
+.anatomime-role-callout[data-active="true"] {
+  border-color: hsl(var(--brand-orange) / 0.58);
+  background: hsl(var(--brand-orange) / 0.12);
+}
+
+.anatomime-role-callout strong {
+  color: hsl(var(--brand-orange-soft));
+}
+
+.anatomime-role-callout span {
+  color: rgba(247, 247, 247, 0.74);
+  font-size: 0.92rem;
+}
+
 .anatomime-host-room {
   align-content: start;
 }
@@ -839,6 +884,10 @@
   }
 
   .anatomime-round-control {
+    grid-template-columns: 1fr;
+  }
+
+  .anatomime-rejoin-notice {
     grid-template-columns: 1fr;
   }
 

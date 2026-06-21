@@ -872,6 +872,8 @@ test("anatomime player joins by code and submits typed guesses", async ({ page }
   await page.getByLabel("Display name").fill("Avery")
   await page.getByRole("button", { name: /Join Team/i }).click()
 
+  await expect(page.getByText("Your team's turn")).toBeVisible()
+  await expect(page.getByText("Submit a typed answer before time runs out.")).toBeVisible()
   await expect(page.getByLabel("Guess")).toBeVisible()
   await page.getByLabel("Guess").fill("wrong")
   await page.getByRole("button", { name: /Submit Guess/i }).click()
@@ -886,6 +888,115 @@ test("anatomime player joins by code and submits typed guesses", async ({ page }
   expect(health.consoleErrors, "browser console errors").toEqual([])
   expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("anatomime player sees steal guidance when another team is active", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
+      playerId: "player-2",
+      playerToken: "player-token",
+      teamId: "team-2",
+    }))
+    window.Ably = {
+      Realtime: class {
+        channels = { get: () => ({ subscribe() {}, unsubscribe() {} }) }
+        close() {}
+      },
+    } as any
+  })
+
+  const teams = [
+    { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
+    { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
+  ]
+  const currentSession = {
+    code: "TEST01",
+    status: "PLAYING",
+    phase: "ACTIVE_TERM",
+    config: { answerMode: "typed", clueLevel: "easy", roundSeconds: 30, termCount: 4, roundLimit: 3, hardcoreMode: false },
+    phaseEndsAt: new Date(Date.now() + 30_000).toISOString(),
+    reviewExpiresAt: null,
+    teams,
+    players: [
+      { id: "host-player", teamId: null, displayName: "Host", signedIn: false, isHost: true, lastSeenAt: new Date().toISOString() },
+      { id: "player-2", teamId: "team-2", displayName: "Blake", signedIn: false, isHost: false, lastSeenAt: new Date().toISOString() },
+    ],
+    viewer: { isHost: false, playerId: "player-2", teamId: "team-2" },
+    activeTeam: teams[0],
+    activeItem: {
+      index: 0,
+      total: 4,
+      prompt: { id: "term-key-1", categoryLabel: "Muscles", regionLabels: ["Upper Extremity"], difficulty: "easy" },
+      choices: [],
+      multipleChoiceUnlocksAt: null,
+      pendingSteal: false,
+    },
+    turnReview: [],
+    recap: [],
+  }
+
+  await page.route("**/api/anatomime/sessions/TEST01/realtime-token", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ keyName: "test", nonce: "nonce", mac: "mac" }) })
+  })
+  await page.route((url) => url.pathname === "/api/anatomime/sessions/TEST01", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ session: currentSession }) })
+  })
+
+  await page.goto("/anatomime/play/TEST01", { waitUntil: "domcontentloaded" })
+  await expect(page.getByText("Team 1's turn")).toBeVisible()
+  await expect(page.getByText("Steal/practice mode")).toBeVisible()
+  await expect(page.getByText("Type the answer first to queue a steal if Team 1 misses.")).toBeVisible()
+  await expect(page.getByLabel("Guess")).toBeVisible()
+})
+
+test("anatomime stale player pass offers rejoin recovery", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("massagelab-anatomime-player:TEST01", JSON.stringify({
+      playerId: "old-player",
+      playerToken: "old-token",
+      teamId: "team-1",
+    }))
+    window.Ably = {
+      Realtime: class {
+        channels = { get: () => ({ subscribe() {}, unsubscribe() {} }) }
+        close() {}
+      },
+    } as any
+  })
+
+  const teams = [
+    { id: "team-1", name: "Team 1", sortOrder: 0, score: 0 },
+    { id: "team-2", name: "Team 2", sortOrder: 1, score: 0 },
+  ]
+  const currentSession = {
+    code: "TEST01",
+    status: "LOBBY",
+    phase: "LOBBY",
+    config: { answerMode: "typed", clueLevel: "easy", roundSeconds: 30, termCount: 4, roundLimit: 3, hardcoreMode: false },
+    phaseEndsAt: null,
+    reviewExpiresAt: null,
+    teams,
+    players: [{ id: "host-player", teamId: null, displayName: "Host", signedIn: false, isHost: true, lastSeenAt: new Date().toISOString() }],
+    viewer: { isHost: false, playerId: null, teamId: null },
+    activeTeam: null,
+    activeItem: null,
+    turnReview: [],
+    recap: [],
+  }
+
+  await page.route("**/api/anatomime/sessions/TEST01/realtime-token", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ keyName: "test", nonce: "nonce", mac: "mac" }) })
+  })
+  await page.route((url) => url.pathname === "/api/anatomime/sessions/TEST01", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ session: currentSession }) })
+  })
+
+  await page.goto("/anatomime/play/TEST01", { waitUntil: "domcontentloaded" })
+  await expect(page.getByText("Rejoin needed on this device")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Clear Saved Player" })).toBeVisible()
+  await page.getByRole("button", { name: "Clear Saved Player" }).click()
+  await expect(page.getByText("Rejoin needed on this device")).toHaveCount(0)
+  await expect(page.getByLabel("Display name")).toBeVisible()
 })
 
 test("anatomime multiple-choice options unlock only on player devices", async ({ page }) => {
@@ -951,11 +1062,13 @@ test("anatomime multiple-choice options unlock only on player devices", async ({
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   await page.waitForTimeout(250)
   await expect(page.getByLabel("Guess")).toBeVisible()
+  await expect(page.getByText("Type a guess now; answer choices unlock near the end.")).toBeVisible()
   await expect(page.getByRole("group", { name: /Multiple choice answers/i })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Scapula" })).toHaveCount(0)
 
   currentSession = makeSession(true)
   await page.reload({ waitUntil: "domcontentloaded" })
+  await expect(page.getByText("Pick an answer choice before time runs out.")).toBeVisible()
   await expect(page.getByRole("group", { name: /Multiple choice answers/i })).toBeVisible()
   for (const choice of choices) {
     await expect(page.getByRole("button", { name: choice.label })).toBeVisible()
