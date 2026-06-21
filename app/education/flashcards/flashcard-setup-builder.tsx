@@ -78,6 +78,7 @@ type FlashcardSetupBuilderProps = {
   onStartDeck: () => void
   onSaveDeck: () => void | Promise<void>
   onPersistDraftAndPromptSignIn: () => void
+  onResetStudyFilters: () => void
 }
 
 const answerModeLabels: Record<FlashcardAnswerMode, string> = {
@@ -289,6 +290,7 @@ export function FlashcardSetupBuilder({
   onStartDeck,
   onSaveDeck,
   onPersistDraftAndPromptSignIn,
+  onResetStudyFilters,
 }: FlashcardSetupBuilderProps) {
   const categorySummary = selectionSummary(selectedCategories, categories, "All categories")
   const regionSummary = selectionSummary(selectedRegions, regions, "All regions")
@@ -297,6 +299,14 @@ export function FlashcardSetupBuilder({
   const promptTypeByPromptId = useMemo(() => new Map(promptSummaries.map((prompt) => [prompt.id, prompt.type])), [promptSummaries])
   const exactPromptSelectionActive = selectedPromptIds.length > 0
   const displayedDeckSize = eligiblePromptCount > 0 ? Math.min(Math.max(1, deckSize), eligiblePromptCount) : 0
+  const canStartOrSaveDeck = eligiblePromptCount > 0 && !isLoadingPromptCounts
+  const startButtonLabel = isStartingDeck
+    ? "Starting..."
+    : isLoadingPromptCounts
+      ? "Updating..."
+      : displayedDeckSize > 0
+        ? `Start ${displayedDeckSize}`
+        : "No cards to start"
 
   return (
     <div ref={builderRef} className="scroll-mt-6 rounded-md border border-border/80 bg-background/70 p-4">
@@ -407,7 +417,11 @@ export function FlashcardSetupBuilder({
               All
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">{displayedDeckSize} will be used from {eligiblePromptCount} eligible prompts.</p>
+          <p className="text-xs text-muted-foreground">
+            {isLoadingPromptCounts
+              ? "Refreshing eligible prompt counts before starting."
+              : `${displayedDeckSize} will be used from ${eligiblePromptCount} eligible prompts.`}
+          </p>
         </div>
       </div>
 
@@ -562,9 +576,9 @@ export function FlashcardSetupBuilder({
           <Input id="deck-title" value={deckTitle} onChange={(event) => onDeckTitleChange(event.target.value)} />
         </div>
         <div className="flex items-end">
-          <Button type="button" onClick={onStartDeck} disabled={eligiblePromptCount === 0 || isStartingDeck} className="w-full md:w-auto">
+          <Button type="button" onClick={onStartDeck} disabled={!canStartOrSaveDeck || isStartingDeck} className="w-full md:w-auto">
             <Shuffle className="mr-2 h-4 w-4" aria-hidden="true" />
-            {isStartingDeck ? "Starting..." : `Start ${displayedDeckSize}`}
+            {startButtonLabel}
           </Button>
         </div>
       </div>
@@ -582,7 +596,7 @@ export function FlashcardSetupBuilder({
           </select>
         </div>
         <div className="flex items-end">
-          <Button type="button" variant="outline" onClick={onSaveDeck} className="w-full md:w-auto">
+          <Button type="button" variant="outline" onClick={onSaveDeck} disabled={!canStartOrSaveDeck} className="w-full md:w-auto">
             <Save className="mr-2 h-4 w-4" aria-hidden="true" />
             Save
           </Button>
@@ -592,6 +606,14 @@ export function FlashcardSetupBuilder({
       <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
         <Badge variant="outline">{eligiblePromptCount} eligible prompts</Badge>
         {isLoadingPromptCounts ? <Badge variant="outline">Updating counts</Badge> : null}
+        {!isLoadingPromptCounts && eligiblePromptCount === 0 ? (
+          <span className="flex flex-wrap items-center gap-2 rounded-md border border-border/80 bg-card/60 px-3 py-2 text-sm text-muted-foreground">
+            No eligible cards match these filters.
+            <Button type="button" variant="link" className="h-auto p-0 text-sm" onClick={onResetStudyFilters}>
+              Reset filters
+            </Button>
+          </span>
+        ) : null}
         {!canPersistProgress ? (
           <Button asChild variant="link" className="h-auto p-0 text-sm">
             <Link href="/login?callbackUrl=/education/flashcards" onClick={onPersistDraftAndPromptSignIn}>Sign in to save progress</Link>

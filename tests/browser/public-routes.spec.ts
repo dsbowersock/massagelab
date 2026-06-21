@@ -1004,6 +1004,43 @@ test("flashcards can start from local sourced prompts when the prompt API is una
   expect(promptApiRequests).toBeGreaterThan(0)
 })
 
+test("flashcards setup explains empty prompt filters before study starts", async ({ page }) => {
+  let promptCatalogRequests = 0
+
+  await page.route("**/api/education/flashcards/prompts", async (route) => {
+    promptCatalogRequests += 1
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        promptTypeCounts: [
+          { id: "anatomime_name_recall", label: "Name Recall", promptCount: 0 },
+          { id: "identify_from_media", label: "Identify From Image", promptCount: 0 },
+          { id: "name_to_summary", label: "Recall Summary", promptCount: 0 },
+          { id: "name_to_region", label: "Identify Body Region", promptCount: 0 },
+          { id: "name_to_category", label: "Identify Structure Type", promptCount: 0 },
+          { id: "muscle_origin_insertion", label: "Muscle Origin/Insertion", promptCount: 0 },
+          { id: "muscle_action", label: "Muscle Action", promptCount: 0 },
+          { id: "muscle_innervation", label: "Muscle Innervation", promptCount: 0 },
+        ],
+        promptSummaries: [],
+      }),
+    })
+  })
+
+  await page.goto("/education/flashcards", { waitUntil: "domcontentloaded" })
+  await expect(page.getByRole("heading", { name: "Build A Deck" })).toBeVisible()
+  await expect.poll(() => promptCatalogRequests).toBeGreaterThan(0)
+  await expect(page.getByText("Updating counts")).toHaveCount(0, { timeout: 20_000 })
+
+  const startButton = page.getByRole("button", { name: "No cards to start" })
+  await expect(startButton).toBeVisible()
+  await expect(startButton).toBeDisabled()
+  await expect(page.getByText("No eligible cards match these filters.")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Save" })).toBeDisabled()
+})
+
 test("signed-in flashcards fall back to temporary study when progress session fails", async ({ page }) => {
   let sessionStartRequests = 0
 
