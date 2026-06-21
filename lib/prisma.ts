@@ -10,18 +10,29 @@ const globalForPrisma = globalThis as unknown as {
 neonConfig.webSocketConstructor = ws
 
 let prismaClient: PrismaClient | undefined
+const NEON_HOST_SUFFIX = ".neon.tech"
+const NEON_POOLED_HOST_MARKER = "-pooler."
 
-function databaseUrl() {
-  const value = process.env.DATABASE_URL?.trim()
+type DatabaseUrlValidationOptions = {
+  nodeEnv?: string
+}
 
-  if (!value) {
+/**
+ * Validates the runtime Prisma URL without echoing the candidate value. In
+ * production, Neon runtime traffic must use the pooled host; direct Neon URLs
+ * remain reserved for migrations, exports, and other one-off maintenance work.
+ */
+export function validatePrismaDatabaseUrl(value: string | undefined, options: DatabaseUrlValidationOptions = {}) {
+  const trimmedValue = value?.trim()
+
+  if (!trimmedValue) {
     throw new Error("DATABASE_URL is required. Use the pooled Neon connection string for Prisma Client.")
   }
 
   let url: URL
 
   try {
-    url = new URL(value)
+    url = new URL(trimmedValue)
   } catch {
     throw new Error("DATABASE_URL must be a valid postgres:// or postgresql:// URL. Check the Vercel Production DATABASE_URL value.")
   }
@@ -30,7 +41,16 @@ function databaseUrl() {
     throw new Error("DATABASE_URL must use the postgres:// or postgresql:// protocol. Check the Vercel Production DATABASE_URL value.")
   }
 
-  return value
+  const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV
+  if (nodeEnv === "production" && url.hostname.endsWith(NEON_HOST_SUFFIX) && !url.hostname.includes(NEON_POOLED_HOST_MARKER)) {
+    throw new Error("Production DATABASE_URL must use the Neon pooled host (-pooler) for Prisma Client. Use DIRECT_URL or DATABASE_URL_UNPOOLED for migrations and maintenance scripts.")
+  }
+
+  return trimmedValue
+}
+
+function databaseUrl() {
+  return validatePrismaDatabaseUrl(process.env.DATABASE_URL)
 }
 
 function createPrismaClient() {
