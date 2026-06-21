@@ -1062,11 +1062,13 @@ test("anatomime multiple-choice options unlock only on player devices", async ({
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
   await page.waitForTimeout(250)
   await expect(page.getByLabel("Guess")).toBeVisible()
+  await expect(page.getByText("Type a guess now; answer choices unlock near the end.")).toBeVisible()
   await expect(page.getByRole("group", { name: /Multiple choice answers/i })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Scapula" })).toHaveCount(0)
 
   currentSession = makeSession(true)
   await page.reload({ waitUntil: "domcontentloaded" })
+  await expect(page.getByText("Pick an answer choice before time runs out.")).toBeVisible()
   await expect(page.getByRole("group", { name: /Multiple choice answers/i })).toBeVisible()
   for (const choice of choices) {
     await expect(page.getByRole("button", { name: choice.label })).toBeVisible()

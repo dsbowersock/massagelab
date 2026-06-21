@@ -15,6 +15,11 @@ type StoredPlayer = {
   teamId: string | null
 }
 
+type StoredPlayerRecord = {
+  code: string
+  player: StoredPlayer | null
+}
+
 type TermAttemptState = {
   typedAttempts: number
   choiceAttempts: number
@@ -160,16 +165,20 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const [displayName, setDisplayName] = useState("")
   const [selectedTeamId, setSelectedTeamId] = useState("")
   const [answer, setAnswer] = useState("")
-  const [storedPlayer, setStoredPlayer] = useState<StoredPlayer | null>(null)
+  const [storedPlayerRecord, setStoredPlayerRecord] = useState<StoredPlayerRecord>({ code: "", player: null })
   const [session, setSession] = useState<AnatomimeRoomSummary | null>(null)
   const [message, setMessage] = useState("")
   const [attemptsByTerm, setAttemptsByTerm] = useState<Record<string, TermAttemptState>>({})
   const [rankedPlayerIds, setRankedPlayerIds] = useState<string[]>([])
   const [now, setNow] = useState(Date.now())
+  const storedPlayerReady = !lookupCode || storedPlayerRecord.code === lookupCode
+  const storedPlayer = storedPlayerReady ? storedPlayerRecord.player : null
 
   useEffect(() => {
-    if (!lookupCode) return
-    setStoredPlayer(readStoredPlayer(lookupCode))
+    setStoredPlayerRecord({
+      code: lookupCode,
+      player: lookupCode ? readStoredPlayer(lookupCode) : null,
+    })
   }, [lookupCode])
 
   const playerQuery = useMemo(() => {
@@ -191,7 +200,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   }, [rankedPlayerIds, session?.hostElection?.candidatePlayerIds])
 
   const refreshSession = useCallback(async () => {
-    if (!lookupCode) return
+    if (!lookupCode || !storedPlayerReady) return
 
     try {
       const response = await fetch(`/api/anatomime/sessions/${encodeURIComponent(lookupCode)}${playerQuery}`, {
@@ -212,7 +221,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
       setMessage("Could not refresh game.")
       setSession(null)
     }
-  }, [lookupCode, playerHeaders, playerQuery])
+  }, [lookupCode, playerHeaders, playerQuery, storedPlayerReady])
 
   useEffect(() => {
     void refreshSession()
@@ -283,6 +292,17 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const activeTeamName = session?.activeTeam?.name ?? ""
   const myTeam = session?.teams.find((team) => team.id === session.viewer.teamId || team.id === storedPlayer?.teamId)
   const me = currentPlayer(session)
+  const choicesUnlocked = Boolean(
+    session?.config.answerMode === "multiple-choice" &&
+    session.activeItem?.multipleChoiceUnlocksAt &&
+    new Date(session.activeItem.multipleChoiceUnlocksAt).getTime() <= now,
+  )
+  // Classroom turn messaging mirrors server room rules without changing them.
+  // A stored player can require rejoin when localStorage has a device pass but
+  // the server did not recognize this viewer; active-team ownership determines
+  // whether the UI frames answers as scoring now or as steal/practice help.
+  // Pending-steal state overrides both roles once another team has already
+  // found the term and is waiting to see whether the active team misses.
   const storedPlayerNeedsRejoin = Boolean(storedPlayer && session && !session.viewer.playerId)
   const isMyTeamActive = Boolean(session?.activeTeam?.id && session.viewer.teamId === session.activeTeam.id)
   const visibleActiveTeamName = activeTeamName || "the active team"
@@ -290,16 +310,21 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const activeTurnHelp = isMyTeamActive
     ? session?.activeItem?.pendingSteal
       ? "Another team has a steal ready. Answer before time runs out to keep the point."
-      : "Submit a typed answer before time runs out."
+      : session?.config.answerMode === "host-judged"
+        ? "The host is judging this turn. Watch the host screen for the call."
+        : choicesUnlocked
+          ? "Pick an answer choice before time runs out."
+          : session?.config.answerMode === "multiple-choice"
+            ? "Type a guess now; answer choices unlock near the end."
+            : "Submit a typed answer before time runs out."
     : session?.activeItem?.pendingSteal
       ? "A steal is already queued. Keep guessing for practice."
-      : `Type the answer first to queue a steal if ${visibleActiveTeamName} misses.`
+      : session?.config.answerMode === "host-judged"
+        ? "The host is judging this turn. Follow along for practice."
+        : choicesUnlocked
+          ? `Pick an answer choice first to queue a steal if ${visibleActiveTeamName} misses.`
+          : `Type the answer first to queue a steal if ${visibleActiveTeamName} misses.`
   const isAnonymousComplete = Boolean(joined && me && !me.signedIn && (session?.status === "GAME_COMPLETE" || session?.status === "REVIEW"))
-  const choicesUnlocked = Boolean(
-    session?.config.answerMode === "multiple-choice" &&
-    session.activeItem?.multipleChoiceUnlocksAt &&
-    new Date(session.activeItem.multipleChoiceUnlocksAt).getTime() <= now,
-  )
   const showTypedInput = Boolean(
     session?.activeItem &&
     !attempt.correct &&
@@ -347,7 +372,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
       writeStoredPlayer(nextLookupCode, player)
       setLookupCode(nextLookupCode)
-      setStoredPlayer(player)
+      setStoredPlayerRecord({ code: nextLookupCode, player })
       setSession(payload.session)
       setMessage("")
     } catch {
@@ -376,7 +401,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
       const nextPlayer = { ...storedPlayer, teamId }
       writeStoredPlayer(session.code, nextPlayer)
-      setStoredPlayer(nextPlayer)
+      setStoredPlayerRecord({ code: session.code, player: nextPlayer })
       setSelectedTeamId(teamId)
       setSession(payload.session)
       setMessage("Team updated.")
@@ -494,7 +519,7 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
 
   const clearStoredPlayer = () => {
     if (lookupCode) removeStoredPlayer(lookupCode)
-    setStoredPlayer(null)
+    setStoredPlayerRecord({ code: lookupCode, player: null })
     setSelectedTeamId(session?.teams[0]?.id ?? "")
     setMessage("")
   }
