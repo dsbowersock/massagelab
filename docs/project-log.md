@@ -102,6 +102,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ### 2026-06-21
 
 - Added the [launch Neon transfer hardening plan](superpowers/plans/2026-06-21-launch-neon-transfer-hardening.md) and [Neon transfer readiness audit](audits/2026-06-21-neon-transfer-readiness.md) after Neon project metadata showed about 8.16 GB of transfer before the wider student-share window. The branch adds production pooled-host validation for Prisma runtime `DATABASE_URL`, keeps direct Neon URLs reserved for migrations and maintenance, narrows signed-in homepage preference loading to `appSettings`, projects public booking sequence generation to fields used by slot generation and final booking validation, and updates deployment docs with launch transfer operating rules.
+- Removed the unused `lib/anatomime-session-server.js` compatibility wrapper after fresh reference checks found no direct `.js` consumer; the canonical TypeScript implementation remains `lib/anatomime-session-server.ts`, and the remaining TS/JS wrappers stay governed by the compatibility inventory.
 
 ### 2026-06-20
 
