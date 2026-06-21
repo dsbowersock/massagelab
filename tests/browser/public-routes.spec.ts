@@ -744,8 +744,9 @@ test("anatomime shared game starts from the default setup", async ({ page }) => 
   expect(postedCreatePayload?.config?.clueLevel).toBe("easy")
   expect(postedCreatePayload?.config?.answerMode).toBe("host-judged")
   expect(postedCreatePayload?.config?.termCount).toBe(4)
-  await expect(page.getByRole("group", { name: /Shared game code TEST01/i })).toBeVisible()
-  await expect(page.getByRole("link", { name: /Join Shared Game/i })).toHaveAttribute("href", "/anatomime/join")
+  await expect(page.getByRole("group", { name: /Shared game invite for room TEST01/i })).toBeVisible()
+  await expect(page.getByAltText("QR code for Anatomime room TEST01")).toBeVisible()
+  await expect(page.getByRole("link", { name: /Join Shared Game/i })).toHaveAttribute("href", "/anatomime/join?code=TEST01")
   await expect(page.getByRole("button", { name: /Start Shared Game/i })).toBeVisible()
 
   await page.getByRole("button", { name: /Start Shared Game/i }).click()
