@@ -16,6 +16,15 @@ DIRECT_URL=
 
 `DATABASE_URL_UNPOOLED` can be used as the direct-url fallback when Vercel's Neon integration provides it.
 
+Production startup validates that a Neon runtime `DATABASE_URL` uses the pooled `-pooler` host. If the app needs a direct Neon URL for migrations, `pg_dump`, Prisma Studio, or bounded maintenance scripts, keep that URL in `DIRECT_URL` or another script-only variable and do not use it as the runtime `DATABASE_URL`.
+
+For public-alpha sharing windows:
+
+- Monitor Neon transfer, compute, and connection graphs before and after the share.
+- Avoid running Prisma Studio, seed scripts, full-table exports, or anatomy/media maintenance scripts against production unless there is a specific need.
+- Keep runtime traffic on the pooled connection string. Neon documents pooled connections as the fit for serverless/web clients, and direct connections as the fit for migrations, exports, logical replication, and other session-level/admin work.
+- Treat a temporary plan upgrade as quota headroom, not a reason to browse or export large production tables.
+
 Auth configuration:
 
 ```text

@@ -62,6 +62,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 | Date | Decision | Notes |
 | --- | --- | --- |
+| 2026-06-21 | Prioritize launch Neon transfer hardening over compatibility-wrapper cleanup. | The next broad-share risk is avoidable production database transfer and connection churn, not deleting one-line TS/JS wrappers. The [launch Neon transfer hardening plan](superpowers/plans/2026-06-21-launch-neon-transfer-hardening.md) and [Neon transfer readiness audit](audits/2026-06-21-neon-transfer-readiness.md) record the pooled-runtime guard, public booking projections, signed-in homepage projection, and launch operating checklist. |
 | 2026-06-20 | Make codebase refactor/optimization measurement-first and branch-sized. | The [codebase refactor optimization plan](superpowers/plans/2026-06-20-codebase-refactor-optimization.md) and [June 20 refactor baseline](audits/2026-06-20-refactor-baseline.md) record current validation, source-size, route-bundle, and hotspot evidence before behavior-preserving cleanup. The first pass splits `/admin/anatomy` browser types/data loading out of the page, scopes browser data loading by active view, splits `/education/flashcards` API parsing/fetch wrappers, active runner, setup builder, and progress dashboard into focused client modules, adds cached sourced prompt catalog helpers for flashcard progress/session APIs, and decomposes calendar actions while preserving the validation gate. Calendar mutation concurrency hardening is staged immediately after action decomposition and before measured client lazy-loading. |
 | 2026-06-13 | Link Anatomime name-recall progress to flashcard prompt progress. | Shared-session correct guesses use `anatomime_name_recall:<cardId>` under the flashcard progress tool namespace so signed-in Anatomime study does not fork anatomy mastery tracking into a second model. |
 | 2026-06-11 | Store anatomy media accuracy on the item-image link. | `AnatomyMediaEntity` carries approval/rejection state so an image can be valid for one anatomy item and rejected for another without deleting the media asset or its provenance. |
@@ -97,6 +98,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 | 2026-05-20 | Legal-name public booking URLs stay permanent. | Optional branded public booking URLs use full state slugs plus normalized custom slugs, e.g. `/book/ohio/massagewithderrick`, while `/book/[practiceSlug]` remains available. |
 
 ## Change History
+
+### 2026-06-21
+
+- Added the [launch Neon transfer hardening plan](superpowers/plans/2026-06-21-launch-neon-transfer-hardening.md) and [Neon transfer readiness audit](audits/2026-06-21-neon-transfer-readiness.md) after Neon project metadata showed about 8.16 GB of transfer before the wider student-share window. The branch adds production pooled-host validation for Prisma runtime `DATABASE_URL`, keeps direct Neon URLs reserved for migrations and maintenance, narrows signed-in homepage preference loading to `appSettings`, projects public booking sequence generation to fields used by slot generation and final booking validation, and updates deployment docs with launch transfer operating rules.
 
 ### 2026-06-20
 

@@ -108,7 +108,10 @@ export default async function Home() {
 
   let visibleTools = baseHomeTools
   if (userId) {
-    const preference = await prisma.userPreference.findUnique({ where: { userId: userId } })
+    const preference = await prisma.userPreference.findUnique({
+      where: { userId },
+      select: { appSettings: true },
+    })
     const savedOnboarding = objectRecord(objectRecord(preference?.appSettings).onboarding)
     const preferenceHomeToolKeys = resolveOnboardingHomeToolKeys(savedOnboarding)
     const preferredKeys = new Set(preferenceHomeToolKeys)

@@ -53,4 +53,35 @@ describe("Neon transfer hardening", () => {
     assert.doesNotMatch(coverageSource, /include:\s*\{\s*entityLinks: true\s*\}/)
     assert.match(requestsSource, /select:\s*\{[\s\S]*entityType: true,[\s\S]*entitySlug: true,[\s\S]*requestedView: true/)
   })
+
+  it("requires pooled Neon hosts for production Prisma runtime connections", async () => {
+    const source = await readFile(new URL("../lib/prisma.ts", import.meta.url), "utf8")
+
+    assert.match(source, /export function validatePrismaDatabaseUrl/)
+    assert.match(source, /const NEON_HOST_SUFFIX = "\.neon\.tech"/)
+    assert.match(source, /const NEON_POOLED_HOST_MARKER = "-pooler\."/)
+    assert.match(source, /nodeEnv === "production"[\s\S]*url\.hostname\.endsWith\(NEON_HOST_SUFFIX\)[\s\S]*!url\.hostname\.includes\(NEON_POOLED_HOST_MARKER\)/)
+    assert.match(source, /Use DIRECT_URL or DATABASE_URL_UNPOOLED for migrations and maintenance scripts/)
+    assert.doesNotMatch(source, /throw new Error\(`[\s\S]*\$\{/)
+  })
+
+  it("keeps signed-in homepage preferences on the needed settings column", async () => {
+    const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8")
+
+    assert.match(source, /prisma\.userPreference\.findUnique\(\{[\s\S]*where: \{ userId \},[\s\S]*select: \{ appSettings: true \}/)
+    assert.doesNotMatch(source, /prisma\.userPreference\.findUnique\(\{\s*where: \{ userId: userId \ }\s*\}\)/)
+  })
+
+  it("keeps public booking option generation on explicit projections", async () => {
+    const source = await readFile(new URL("../lib/public-booking-sequences.js", import.meta.url), "utf8")
+
+    assert.match(source, /db\.practice\.findUnique\(\{[\s\S]*select: \{[\s\S]*publicBookingSlug: true,[\s\S]*providerBookingPolicies: \{[\s\S]*select: \{/)
+    assert.match(source, /db\.serviceVariant\.findMany\(\{[\s\S]*select: \{[\s\S]*serviceTypeId: true,[\s\S]*resourceRequirements: \{[\s\S]*resource: \{ select: \{ active: true \} \}/)
+    assert.match(source, /db\.calendarAvailabilitySchedule\.findMany\(\{[\s\S]*select: \{[\s\S]*intervals: \{[\s\S]*select: \{ dayOfWeek: true, startMinute: true, endMinute: true, active: true \}/)
+    assert.match(source, /db\.providerBookingCapacityRule\.findMany\(\{[\s\S]*select: \{[\s\S]*providerUserId: true,[\s\S]*maxMinutes: true,[\s\S]*active: true/)
+    assert.doesNotMatch(source, /include:\s*\{\s*bookingPolicy: true/)
+    assert.doesNotMatch(source, /include:\s*\{\s*serviceType: true/)
+    assert.doesNotMatch(source, /include:\s*\{\s*intervals: true/)
+    assert.doesNotMatch(source, /email: true/)
+  })
 })
