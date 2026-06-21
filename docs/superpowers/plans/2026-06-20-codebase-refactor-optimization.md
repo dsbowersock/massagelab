@@ -439,7 +439,9 @@ npm run test
 
 Expected: no runtime import breakage and no broad mechanical churn.
 
-2026-06-20 result: the compatibility-policy branch documented the current duplicate pair inventory in `docs/audits/2026-06-20-ts-js-compatibility-inventory.md`, confirmed the listed `.js` files are one-line wrappers over canonical `.ts` implementations, and added `tests/ts-js-compatibility.test.mjs` to prevent wrapper drift. No wrappers were deleted in this pass because current Node tests and a few runtime compatibility imports still use `.js` paths. Future cleanup should migrate one pair per branch, starting with `anatomime-session-server.js` only if a fresh `rg` still shows no direct `.js` consumers.
+2026-06-20 result: the compatibility-policy branch documented the current duplicate pair inventory in `docs/audits/2026-06-20-ts-js-compatibility-inventory.md`, confirmed the listed `.js` files are one-line wrappers over canonical `.ts` implementations, and added `tests/ts-js-compatibility.test.mjs` to prevent wrapper drift. No wrappers were deleted in this pass because current Node tests and a few runtime compatibility imports still use `.js` paths. Future cleanup should migrate one pair per branch.
+
+2026-06-21 follow-up: a fresh reference scan still showed no direct `.js` consumer for `anatomime-session-server`, so `lib/anatomime-session-server.js` was removed as the first low-risk wrapper migration.
 
 ## Acceptance For The Whole Series
 
