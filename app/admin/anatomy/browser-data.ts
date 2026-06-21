@@ -12,6 +12,41 @@ import {
 
 const ANATOMY_DETAIL_LOOKUP_TAKE = 2000
 const ANATOMY_ENTITY_NAME_LOOKUP_TAKE = 500
+const anatomySourceSnippetSelect = {
+  slug: true,
+  label: true,
+  usageScope: true,
+} as const
+const anatomyMediaEntitySnippetSelect = {
+  id: true,
+  entityType: true,
+  entitySlug: true,
+  role: true,
+  notes: true,
+  reviewStatus: true,
+  reviewReason: true,
+  reviewNote: true,
+  displayPriority: true,
+} as const
+const anatomyMediaAssetSnippetSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  mediaType: true,
+  sourceUrl: true,
+  remoteUrl: true,
+  thumbnailUrl: true,
+  license: true,
+  usageScope: true,
+  reviewStatus: true,
+  metadata: true,
+  source: {
+    select: anatomySourceSnippetSelect,
+  },
+  entityLinks: {
+    select: anatomyMediaEntitySnippetSelect,
+  },
+} as const
 
 export async function getAnatomyFoundationCounts(): Promise<AnatomyFoundationCount[]> {
   const [
@@ -443,7 +478,7 @@ export async function getAnatomyBrowserData(selectedView: AnatomyBrowserView, se
       take: ANATOMY_DETAIL_LOOKUP_TAKE,
     }) : emptyAnatomyRows(),
     shouldLoad("mediaAssets") ? prisma.anatomyMediaAsset.findMany({
-      include: { source: true, entityLinks: true },
+      select: anatomyMediaAssetSnippetSelect,
       orderBy: [{ usageScope: "asc" }, { title: "asc" }],
       take: 500,
     }) : emptyAnatomyRows(),
@@ -678,7 +713,7 @@ export async function getAnatomyQuickResult(key: AnatomyQuickQueryKey | undefine
     case "has-open-media": {
       const rows = await prisma.anatomyMediaAsset.findMany({
         where: { usageScope: "OPEN_REUSE", reviewStatus: "REVIEWED" },
-        include: { source: true, entityLinks: true },
+        select: anatomyMediaAssetSnippetSelect,
         orderBy: { title: "asc" },
         take: 40,
       })

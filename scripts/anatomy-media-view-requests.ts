@@ -27,6 +27,16 @@ const prisma = new PrismaClient({
 async function main() {
   const requests = await prisma.anatomyMediaViewRequest.findMany({
     where: { status: "OPEN" },
+    select: {
+      id: true,
+      entityType: true,
+      entitySlug: true,
+      requestedView: true,
+      reason: true,
+      requestNote: true,
+      sourceUrl: true,
+      createdAt: true,
+    },
     orderBy: [{ createdAt: "asc" }],
   })
 
