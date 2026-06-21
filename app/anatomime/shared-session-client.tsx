@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { LogIn, Send, Users } from "lucide-react"
+import { LogIn, RotateCcw, Send, Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
@@ -76,6 +76,10 @@ function readStoredPlayer(code: string): StoredPlayer | null {
 
 function writeStoredPlayer(code: string, player: StoredPlayer) {
   window.localStorage.setItem(storageKey(code), JSON.stringify(player))
+}
+
+function removeStoredPlayer(code: string) {
+  window.localStorage.removeItem(storageKey(code))
 }
 
 function secondsLeft(value: string | null, now: number) {
@@ -279,6 +283,17 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
   const activeTeamName = session?.activeTeam?.name ?? ""
   const myTeam = session?.teams.find((team) => team.id === session.viewer.teamId || team.id === storedPlayer?.teamId)
   const me = currentPlayer(session)
+  const storedPlayerNeedsRejoin = Boolean(storedPlayer && session && !session.viewer.playerId)
+  const isMyTeamActive = Boolean(session?.activeTeam?.id && session.viewer.teamId === session.activeTeam.id)
+  const visibleActiveTeamName = activeTeamName || "the active team"
+  const activeTurnHeading = isMyTeamActive ? "Your team's turn" : `${visibleActiveTeamName}'s turn`
+  const activeTurnHelp = isMyTeamActive
+    ? session?.activeItem?.pendingSteal
+      ? "Another team has a steal ready. Answer before time runs out to keep the point."
+      : "Submit a typed answer before time runs out."
+    : session?.activeItem?.pendingSteal
+      ? "A steal is already queued. Keep guessing for practice."
+      : `Type the answer first to queue a steal if ${visibleActiveTeamName} misses.`
   const isAnonymousComplete = Boolean(joined && me && !me.signedIn && (session?.status === "GAME_COMPLETE" || session?.status === "REVIEW"))
   const choicesUnlocked = Boolean(
     session?.config.answerMode === "multiple-choice" &&
@@ -477,6 +492,13 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
     ))
   }
 
+  const clearStoredPlayer = () => {
+    if (lookupCode) removeStoredPlayer(lookupCode)
+    setStoredPlayer(null)
+    setSelectedTeamId(session?.teams[0]?.id ?? "")
+    setMessage("")
+  }
+
   return (
     <div className="anatomime-page">
       <MovingBackground className="anatomime-background" testId="anatomime-moving-background" />
@@ -519,6 +541,18 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                 <p>{session.players.filter((player) => !player.isHost).length} players in lobby.</p>
               </div>
             </div>
+            {storedPlayerNeedsRejoin ? (
+              <div className="anatomime-rejoin-notice">
+                <div>
+                  <strong>Rejoin needed on this device</strong>
+                  <p>Your saved player pass no longer matches this room. Rejoin with your name below, or clear the saved pass first.</p>
+                </div>
+                <button type="button" className="anatomime-secondary-button" onClick={clearStoredPlayer}>
+                  <RotateCcw className="h-4 w-4" />
+                  Clear Saved Player
+                </button>
+              </div>
+            ) : null}
             <div className="anatomime-grid-2">
               <div className="anatomime-control-group">
                 <Label htmlFor="display-name">Display name</Label>
@@ -585,9 +619,12 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                 <div className="anatomime-timer">{secondsLeft(session.phaseEndsAt, now)}s</div>
                 <div className="anatomime-current-term">
                   <span>{session.activeItem.index + 1} of {session.activeItem.total}</span>
-                  <h2>{activeTeamName}</h2>
-                  <p>{activeTeamName} is guessing now.</p>
-                  {session.activeItem.pendingSteal ? <small>Someone found it. Keep helping your team.</small> : null}
+                  <h2>{activeTurnHeading}</h2>
+                  <p>{visibleActiveTeamName} is guessing now.</p>
+                  <div className="anatomime-role-callout" data-active={isMyTeamActive}>
+                    <strong>{isMyTeamActive ? "Active team" : "Steal/practice mode"}</strong>
+                    <span>{activeTurnHelp}</span>
+                  </div>
                 </div>
 
                 {attempt.feedback ? <div className="anatomime-message" role="status">{attempt.feedback}</div> : null}
