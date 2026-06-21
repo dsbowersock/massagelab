@@ -140,9 +140,44 @@
   color: rgba(247, 247, 247, 0.68);
 }
 
+.anatomime-room-invite {
+  display: grid;
+  grid-template-columns: minmax(9rem, 13.75rem) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.anatomime-qr-frame {
+  display: grid;
+  min-height: 13.75rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  padding: 0.65rem;
+}
+
+.anatomime-qr-frame img {
+  display: block;
+  width: 100%;
+  max-width: 12.5rem;
+  aspect-ratio: 1;
+}
+
+.anatomime-qr-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 0.45rem;
+  color: #111827;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 .anatomime-join-code-card {
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 0.35rem;
   border: 1px solid hsl(var(--brand-orange) / 0.52);
   border-radius: 0.5rem;
@@ -170,6 +205,21 @@
 .anatomime-join-code-card small {
   color: rgba(247, 247, 247, 0.68);
   font-weight: 700;
+}
+
+.anatomime-invite-link {
+  width: 100%;
+  max-width: 34rem;
+  margin-top: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(247, 247, 247, 0.78);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  padding: 0.55rem 0.65rem;
 }
 
 .anatomime-grid-2,
@@ -885,6 +935,14 @@
 
   .anatomime-round-control {
     grid-template-columns: 1fr;
+  }
+
+  .anatomime-room-invite {
+    grid-template-columns: 1fr;
+  }
+
+  .anatomime-qr-frame {
+    min-height: 12rem;
   }
 
   .anatomime-rejoin-notice {

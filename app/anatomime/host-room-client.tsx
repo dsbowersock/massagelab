@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { CheckCircle2, Copy, LogIn, Play, RefreshCw, RotateCcw, SkipForward, Timer, UserCog, X } from "lucide-react"
+import { CheckCircle2, Copy, LogIn, Play, QrCode, RefreshCw, RotateCcw, SkipForward, Timer, UserCog, X } from "lucide-react"
 import type { AnatomimePlayerSummary, AnatomimeRoomSummary } from "./shared-session-types"
 
 type HostCredentials = { playerId: string; token: string }
@@ -57,7 +57,11 @@ export function HostRoomClient({
   const [message, setMessage] = useState("")
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
+  const [joinUrl, setJoinUrl] = useState("")
+  const [qrDataUrl, setQrDataUrl] = useState("")
+  const [qrGenerationFailed, setQrGenerationFailed] = useState(false)
   const timeoutKeyRef = useRef("")
+  const joinPath = `/anatomime/join?code=${encodeURIComponent(session.code)}`
 
   useEffect(() => {
     setSession(initialSession)
@@ -67,6 +71,47 @@ export function HostRoomClient({
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    setJoinUrl(`${window.location.origin}${joinPath}`)
+  }, [joinPath])
+
+  useEffect(() => {
+    if (!joinUrl) {
+      setQrDataUrl("")
+      return
+    }
+
+    let cancelled = false
+    setQrDataUrl("")
+    setQrGenerationFailed(false)
+
+    // The host screen builds the absolute invite URL in-browser so local,
+    // preview, and production domains encode the origin students should open.
+    void import("qrcode")
+      .then(({ toDataURL }) => toDataURL(joinUrl, {
+        color: {
+          dark: "#111827",
+          light: "#ffffff",
+        },
+        errorCorrectionLevel: "M",
+        margin: 1,
+        width: 220,
+      }))
+      .then((dataUrl) => {
+        if (!cancelled) setQrDataUrl(dataUrl)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl("")
+          setQrGenerationFailed(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [joinUrl])
 
   const setSyncedSession = useCallback((nextSession: AnatomimeRoomSummary) => {
     setSession(nextSession)
@@ -169,14 +214,28 @@ export function HostRoomClient({
         </div>
       </div>
 
-      <div className="anatomime-join-code-card" role="group" aria-label={`Shared game code ${session.code}`}>
-        <span>Join code</span>
-        <strong>{session.code}</strong>
-        <small>Use Join Shared Game on the Anatomime page.</small>
+      <div className="anatomime-room-invite" role="group" aria-label={`Shared game invite for room ${session.code}`}>
+        <div className="anatomime-qr-frame" aria-live="polite">
+          {qrDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- QRCode returns a data URL for an on-screen invite code.
+            <img src={qrDataUrl} alt={`QR code for Anatomime room ${session.code}`} />
+          ) : (
+            <div className="anatomime-qr-placeholder">
+              <QrCode className="h-10 w-10" />
+              <span>{qrGenerationFailed ? "QR unavailable" : "Preparing QR"}</span>
+            </div>
+          )}
+        </div>
+        <div className="anatomime-join-code-card">
+          <span>Join code</span>
+          <strong>{session.code}</strong>
+          <small>{qrGenerationFailed ? "Use the code or copied link to join." : "Scan the QR or use the code."}</small>
+          <code className="anatomime-invite-link">{joinUrl || joinPath}</code>
+        </div>
       </div>
 
       <div className="anatomime-actions">
-        <Link className="anatomime-secondary-button" href="/anatomime/join">
+        <Link className="anatomime-secondary-button" href={joinPath}>
           <LogIn className="h-4 w-4" />
           Join Shared Game
         </Link>
@@ -184,9 +243,9 @@ export function HostRoomClient({
           <Copy className="h-4 w-4" />
           Copy Code
         </button>
-        <button type="button" className="anatomime-secondary-button" onClick={() => copyText(`${window.location.origin}/anatomime/join`, "Join page copied.")}>
+        <button type="button" className="anatomime-secondary-button" onClick={() => copyText(joinUrl || `${window.location.origin}${joinPath}`, "Join link copied.")}>
           <Copy className="h-4 w-4" />
-          Copy Join Page
+          Copy Join Link
         </button>
         <button type="button" className="anatomime-secondary-button" onClick={() => refreshSession().catch((error) => setMessage(error.message))}>
           <RefreshCw className="h-4 w-4" />
