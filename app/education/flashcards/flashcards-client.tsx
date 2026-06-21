@@ -379,6 +379,14 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
     })
   }
 
+  const resetStudyFilters = () => {
+    setSelectedCategories([...allCategoryIds])
+    setSelectedRegions([...allRegionIds])
+    setPromptTypes([...FLASHCARD_STATIC_PROMPT_TYPES])
+    setSelectedPromptIds([])
+    setExpandedPromptType(null)
+  }
+
   const showSetupSection = (section: "community" | "custom") => {
     const target = section === "community" ? communityDecksRef.current : customDeckBuilderRef.current
     target?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -1037,6 +1045,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
           onStartDeck={() => { void startDeck() }}
           onSaveDeck={saveDeck}
           onPersistDraftAndPromptSignIn={persistDraftAndPromptSignIn}
+          onResetStudyFilters={resetStudyFilters}
         />
       </section>
 
