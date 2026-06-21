@@ -415,11 +415,11 @@ Expected: no storage key changes, no hosted clinical network paths, no local doc
 - Modify: duplicated `lib/*.ts` / `lib/*.js` pairs only one pair per branch
 - Test: matching Node tests for each migrated helper
 
-- [ ] **Step 1: document current duplicate pairs**
+- [x] **Step 1: document current duplicate pairs**
 
 Start with these pairs: `anatomime-session-server`, `anatomime-shared`, `anatomy-admin-source-input`, `anatomy-foundation`, `anatomy-media-review`, `anatomy-queries`, `anatomy-study`, `flashcard-community`, `flashcard-progress`, and `mblex-content-outline`.
 
-- [ ] **Step 2: choose one compatibility strategy**
+- [x] **Step 2: choose one compatibility strategy**
 
 Preferred default: TypeScript source as the canonical implementation with JavaScript compatibility wrappers only where Node tests or runtime imports still require `.js`.
 
@@ -438,6 +438,8 @@ npm run test
 ```
 
 Expected: no runtime import breakage and no broad mechanical churn.
+
+2026-06-20 result: the compatibility-policy branch documented the current duplicate pair inventory in `docs/audits/2026-06-20-ts-js-compatibility-inventory.md`, confirmed the listed `.js` files are one-line wrappers over canonical `.ts` implementations, and added `tests/ts-js-compatibility.test.mjs` to prevent wrapper drift. No wrappers were deleted in this pass because current Node tests and a few runtime compatibility imports still use `.js` paths. Future cleanup should migrate one pair per branch, starting with `anatomime-session-server.js` only if a fresh `rg` still shows no direct `.js` consumers.
 
 ## Acceptance For The Whole Series
 
