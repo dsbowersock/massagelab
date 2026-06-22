@@ -31,4 +31,15 @@ describe("Support contact mailto helper", () => {
     assert.equal(url.includes("Contact%3A%20user%40example.com"), true)
     assert.equal(url.includes("Message%3A%0AHello"), true)
   })
+
+  it("adds a diagnostic report id when provided", () => {
+    const url = buildSupportMailtoUrl({
+      topic: "Problem report",
+      diagnosticId: "1234567890abcdef1234567890abcdef",
+      message: "Diagnostic follow-up.",
+    })
+
+    assert.equal(url.includes("Diagnostic%20report%20ID%3A%201234567890abcdef1234567890abcdef"), true)
+    assert.equal(url.includes("Message%3A%0ADiagnostic%20follow-up."), true)
+  })
 })
