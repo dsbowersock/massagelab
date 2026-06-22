@@ -120,18 +120,33 @@ export function MetricTile({
   )
 }
 
+/**
+ * Formats planner money metrics while making incomplete inputs obvious.
+ * Null and non-finite values return "Add numbers"; small values keep cents so
+ * startup/add-on tools do not hide low-cost worksheet assumptions.
+ */
 export function formatMoney(value: number | null) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "Add numbers"
 
   return Math.abs(value) >= 1_000 ? moneyFormatter.format(value) : preciseMoneyFormatter.format(value)
 }
 
+/**
+ * Formats compact numeric worksheet metrics for labels and summaries.
+ * Null and non-finite values return "0", so only call this where zero is an
+ * honest fallback; use explicit null checks for values that need a prompt.
+ */
 export function formatNumber(value: number | null) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "0"
 
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value)
 }
 
+/**
+ * Parses numeric form-control text from worksheet inputs.
+ * Blank or non-finite text becomes 0 so controlled number fields remain stable
+ * while users clear and retype values.
+ */
 export function numberFromInput(value: string) {
   if (value.trim() === "") return 0
 

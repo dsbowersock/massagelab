@@ -110,6 +110,15 @@ describe("Business plan template tools", () => {
     assert.match(plan.policySummary, /Keep records secure/)
   })
 
+  it("uses fallback policy copy when privacy steps are empty", () => {
+    const plan = calculateServiceMenuPlan({
+      privacySteps: [],
+    })
+
+    assert.deepEqual(plan.input.privacySteps, [])
+    assert.match(plan.policySummary, /Privacy steps still need to be written/)
+  })
+
   it("covers the template's launch checklist and outline sections", () => {
     assert.deepEqual(BUSINESS_LAUNCH_CHECKLIST_SECTIONS.map((section) => section.id), [
       "structure",

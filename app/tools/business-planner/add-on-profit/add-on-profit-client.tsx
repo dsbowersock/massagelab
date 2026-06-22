@@ -150,8 +150,8 @@ export function AddOnProfitClient() {
           description="Use this to decide whether an additional product or service is worth the space, money, and attention."
         >
           <div className="space-y-3">
-            {plan.rows.map((row) => (
-              <div key={row.name} className="rounded-md border border-border/80 bg-background/70 p-3">
+            {plan.rows.map((row, index) => (
+              <div key={`${row.name || "row"}-${index}`} className="rounded-md border border-border/80 bg-background/70 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium">{row.name}</p>

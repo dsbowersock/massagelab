@@ -49,6 +49,12 @@ export function BreakEvenPlannerClient() {
   const [input, setInput] = useState<BreakEvenInput>(() => normalizeBreakEvenInput({}))
   const [storageReady, setStorageReady] = useState(false)
   const plan = useMemo(() => calculateBreakEvenPlan(input), [input])
+  const breakEvenSessionLabel = plan.monthlyBreakEvenSessions === null
+    ? "Set service price"
+    : `${formatNumber(plan.monthlyBreakEvenSessions)} / month`
+  const breakEvenSessionDescription = plan.weeklyBreakEvenSessions === null
+    ? undefined
+    : `${formatNumber(plan.weeklyBreakEvenSessions)} each week`
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -117,7 +123,7 @@ export function BreakEvenPlannerClient() {
         <div className="grid gap-3 md:grid-cols-4">
           <MetricTile label="Startup funding gap" value={formatMoney(plan.startupFundingGap)} />
           <MetricTile label="Monthly operating cost" value={formatMoney(plan.monthlyOperatingCost)} />
-          <MetricTile label="Break-even sessions" value={`${formatNumber(plan.monthlyBreakEvenSessions)} / month`} description={`${formatNumber(plan.weeklyBreakEvenSessions)} each week`} />
+          <MetricTile label="Break-even sessions" value={breakEvenSessionLabel} description={breakEvenSessionDescription} />
           <MetricTile label="Projected yearly gross" value={formatMoney(plan.projectedAnnualGross)} />
         </div>
       </AppSurface>
@@ -152,7 +158,7 @@ export function BreakEvenPlannerClient() {
               <NumberField
                 id="break-even-tax-rate"
                 label="Tax set-aside percent"
-                value={Math.round(input.taxSetAsideRate * 100)}
+                value={Number((input.taxSetAsideRate * 100).toFixed(1))}
                 max={80}
                 step="0.5"
                 onChange={(value) => updateTopLevel("taxSetAsideRate", value)}
@@ -203,7 +209,10 @@ export function BreakEvenPlannerClient() {
             description="A concise sentence students can adapt into the Financial Analysis section."
           >
             <p className="text-sm leading-6 text-muted-foreground">
-              Based on a {formatMoney(input.servicePrice)} service price and {formatNumber(input.sessionsPerWeek)} sessions per week for {formatNumber(input.weeksPerYear)} weeks, this plan projects {formatMoney(plan.projectedAnnualGross)} in yearly gross income. Estimated operating costs are {formatMoney(plan.annualOperatingCost)} per year, with {formatMoney(plan.taxSetAside)} set aside for taxes. The practice needs about {formatNumber(plan.monthlyBreakEvenSessions)} sessions per month to cover monthly operating costs before owner income.
+              Based on a {formatMoney(input.servicePrice)} service price and {formatNumber(input.sessionsPerWeek)} sessions per week for {formatNumber(input.weeksPerYear)} weeks, this plan projects {formatMoney(plan.projectedAnnualGross)} in yearly gross income. Estimated operating costs are {formatMoney(plan.annualOperatingCost)} per year, with {formatMoney(plan.taxSetAside)} set aside for taxes.{" "}
+              {plan.monthlyBreakEvenSessions === null
+                ? "Set a non-zero service price to estimate break-even sessions."
+                : `The practice needs about ${formatNumber(plan.monthlyBreakEvenSessions)} sessions per month to cover monthly operating costs before owner income.`}
             </p>
           </AppSurface>
         </div>
