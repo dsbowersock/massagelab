@@ -2,6 +2,8 @@ import { expect, test, type Page, type Response } from "@playwright/test"
 
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
+  { path: "/about", expectedText: /Built from inside the massage profession/i },
+  { path: "/about/derrick", expectedText: /Therapist, educator, mentor/i },
   { path: "/notes", expectedText: /Therapist or Team\/Practice required/i },
   { path: "/notes/soap", expectedText: /Therapist membership required/i },
   { path: "/chimer", expectedText: /Chimer/i },

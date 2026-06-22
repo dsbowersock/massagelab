@@ -5,6 +5,7 @@ import {
   LEGAL_DOCUMENTS,
   findLegalDocumentBySlug,
 } from "@/lib/legal-documents"
+import { createNoindexPageMetadata, createPublicPageMetadata } from "@/lib/seo"
 import { AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 
@@ -17,15 +18,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const document = findLegalDocumentBySlug(slug)
 
   if (!document) {
-    return {
+    return createNoindexPageMetadata({
       title: "Legal Document | MassageLab",
-    }
+    })
   }
 
-  return {
-    title: `${document.label} | MassageLab`,
+  return createPublicPageMetadata(document.route, {
+    title: document.label,
     description: document.summary,
-  }
+  })
 }
 
 export default async function LegalDocumentPage({ params }: { params: Promise<{ slug: string }> }) {

@@ -3,6 +3,9 @@ import { Radio } from "lucide-react"
 import { AtmosphereBreathingGuide } from "@/components/atmosphere/breathing-guide"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/wellness/breathing")
 
 export default function WellnessBreathingPage() {
   return (

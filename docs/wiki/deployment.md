@@ -46,6 +46,15 @@ SMTP_PASSWORD=
 SMTP_FROM=MassageLab <no-reply@massagelab.app>
 ```
 
+## SEO And Indexing
+
+The app generates public SEO metadata, `robots.txt`, and `sitemap.xml` from `lib/seo.js`.
+
+- Production deployments are allowed to index public marketing, education, tool, wellness, legal, and trust pages.
+- Vercel preview deployments and local development return noindex metadata and disallow all crawling in `robots.txt`.
+- APIs, auth flows, account/admin surfaces, public booking links, shared Anatomime game-code URLs, and local professional-record subroutes stay out of the sitemap and are disallowed by `robots.txt`.
+- The canonical SEO host is `https://www.massagelab.app`, matching the production redirect target recorded in the launch audit.
+
 ## Stripe
 
 ```text

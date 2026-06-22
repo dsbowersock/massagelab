@@ -10,9 +10,27 @@ import {
   FLASHCARD_STATIC_STARTER_DECKS,
   getStaticStarterFlashcardDeck,
 } from "@/lib/flashcard-static-metadata"
+import { createNoindexPageMetadata, createPublicPageMetadata } from "@/lib/seo"
 import { FlashcardsClient } from "../../flashcards-client"
 
 export const dynamic = "force-dynamic"
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const starterDeck = getStaticStarterFlashcardDeck(slug)
+
+  if (!starterDeck) {
+    return createNoindexPageMetadata({
+      title: "Flashcard Deck | MassageLab",
+      description: "MassageLab flashcard deck.",
+    })
+  }
+
+  return createPublicPageMetadata(`/education/flashcards/decks/${starterDeck.slug}`, {
+    title: starterDeck.title,
+    description: starterDeck.description,
+  })
+}
 
 function displayName(owner: { name: string | null; profile?: { displayName: string | null } | null } | null) {
   return owner?.profile?.displayName ?? owner?.name ?? "MassageLab learner"

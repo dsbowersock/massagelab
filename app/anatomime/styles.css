@@ -50,6 +50,45 @@
   color: rgba(247, 247, 247, 0.72);
 }
 
+.anatomime-landing-proof {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.anatomime-proof-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(16, 16, 18, 0.72);
+  padding: 0.85rem;
+  backdrop-filter: blur(14px);
+}
+
+.anatomime-proof-card svg {
+  margin-top: 0.1rem;
+  color: hsl(var(--brand-orange-soft));
+}
+
+.anatomime-proof-card h2 {
+  margin: 0;
+  color: #f7f7f7;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.anatomime-proof-card p {
+  margin: 0.25rem 0 0;
+  color: rgba(247, 247, 247, 0.68);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .anatomime-status {
   display: flex;
   flex-wrap: wrap;
@@ -911,6 +950,7 @@
 
 @media (max-width: 760px) {
   .anatomime-header,
+  .anatomime-landing-proof,
   .anatomime-section-heading,
   .anatomime-grid-2,
   .anatomime-filter-columns,

@@ -5,6 +5,9 @@ import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/pricing")
 
 export default async function PricingPage() {
   const [catalog, session] = await Promise.all([

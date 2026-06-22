@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, Play } from "lucide-react"
+import { BellRing, Clock, MonitorSmartphone, Play, SlidersHorizontal } from "lucide-react"
 import { PageHeading } from "@/components/ui/page-heading"
 import styles from "./set-timer.module.css"
 
@@ -40,6 +40,24 @@ interface SetTimerProps {
   onUseSavedSettings: () => void
 }
 
+const timerProofs = [
+  {
+    title: "Treatment-room intervals",
+    description: "Set a massage session length and choose preset, custom, or body-area alert pacing.",
+    icon: BellRing,
+  },
+  {
+    title: "Full-screen clock mode",
+    description: "Switch from a session timer to a simple clock when visibility matters more than alerts.",
+    icon: MonitorSmartphone,
+  },
+  {
+    title: "Device-first settings",
+    description: "Use Chimer locally, then sign in when you want favorite timer settings to sync.",
+    icon: SlidersHorizontal,
+  },
+] as const
+
 export function SetTimer({
   settings,
   totalDurationMs,
@@ -66,7 +84,7 @@ export function SetTimer({
     <section className={styles.container} aria-labelledby="chimer-heading">
       <div className={styles.header}>
         <PageHeading>Chimer</PageHeading>
-        <p className={styles.subtitle}>Session timer for treatment pacing.</p>
+        <p className={styles.subtitle}>Massage session timer for treatment pacing, interval chimes, and full-screen clock visibility.</p>
       </div>
 
       <div className={styles.syncNotice}>
@@ -81,6 +99,21 @@ export function SetTimer({
             </button>
           </div>
         )}
+      </div>
+
+      <div className={styles.proofGrid} aria-label="Chimer massage session timer features">
+        {timerProofs.map((proof) => {
+          const Icon = proof.icon
+          return (
+            <div key={proof.title} className={styles.proofCard}>
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              <div>
+                <p className={styles.proofTitle}>{proof.title}</p>
+                <p className={styles.proofDescription}>{proof.description}</p>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <button

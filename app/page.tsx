@@ -23,6 +23,9 @@ import { FlipWords } from "@/components/home/flip-words"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { homeToolCatalog, objectRecord, resolveOnboardingHomeToolKeys } from "@/lib/onboarding-preferences"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/")
 
 const homeToolIconByName = {
   Timer,
@@ -43,44 +46,44 @@ const flipWords = ["therapists", "students", "educators", "clients", "curious pe
 
 const proofLanes = [
   {
-    title: "Learn anatomy with sourced prompts",
-    description: "Build anatomy decks, practice from reviewed prompts, and keep progress when you create an account.",
+    title: "Massage anatomy flashcards",
+    description: "Build sourced anatomy decks, practice reviewed image and recall prompts, and save mastery after creating an account.",
     href: "/education/flashcards",
     action: "Study flashcards",
     icon: BookOpen,
     badge: "Public study",
   },
   {
-    title: "Teach with a room code",
-    description: "Turn anatomy review into a room-code game for study groups, classrooms, and solo practice.",
+    title: "Anatomime classroom game",
+    description: "Turn massage anatomy review into a room-code game for study groups, classrooms, and solo practice.",
     href: "/anatomime",
     action: "Open Anatomime",
     icon: Brain,
     badge: "Classroom play",
   },
   {
-    title: "Keep session pacing simple",
-    description: "Use Chimer for treatment-room intervals, clock mode, and practical timing without setup friction.",
+    title: "Massage session timer",
+    description: "Use Chimer for treatment-room intervals, full-screen clock mode, and practical timing without setup friction.",
     href: "/chimer",
     action: "Start Chimer",
     icon: Timer,
     badge: "Alpha ready",
   },
   {
-    title: "Document under local control",
-    description: "Create SOAP, intake, journal, and ROM records in a private browser vault.",
+    title: "Local-first massage documentation",
+    description: "Review the local browser vault for SOAP notes, intake forms, journals, and ROM records.",
     href: "/notes",
     action: "Review notes",
     icon: ShieldCheck,
     badge: "Local-first",
   },
   {
-    title: "Organize care workflows",
-    description: "Set up services, availability, booking links, waitlists, and provider capacity.",
-    href: "/calendar",
-    action: "Open calendar",
-    icon: CalendarDays,
-    badge: "Signed-in",
+    title: "Massage wellness tools",
+    description: "Use public breathing, music, quick check-ins, body-sensation tracking, and non-diagnostic reflection tools.",
+    href: "/wellness",
+    action: "Open wellness",
+    icon: Radio,
+    badge: "Public tools",
   },
   {
     title: "Support what comes next",
@@ -130,19 +133,19 @@ export default async function Home() {
   const actionRouter = [
     {
       title: "Study anatomy",
-      description: "Build a deck, try public prompts, and save mastery once signed in.",
+      description: "Open massage anatomy flashcards, try public prompts, and save mastery once signed in.",
       href: "/education/flashcards",
       icon: GraduationCap,
     },
     {
       title: "Teach or play",
-      description: "Start Anatomime for solo review or shared classroom play.",
+      description: "Start Anatomime for solo review or a massage anatomy classroom game.",
       href: "/anatomime",
       icon: Brain,
     },
     {
       title: "Run a session",
-      description: "Open a practical treatment-room timer without account setup.",
+      description: "Open a practical massage session timer without account setup.",
       href: "/chimer",
       icon: Timer,
     },
@@ -194,10 +197,10 @@ export default async function Home() {
           </div>
 
           <h2 className="max-w-4xl text-4xl font-semibold leading-tight text-foreground sm:text-5xl lg:text-6xl">
-            MassageLab helps <FlipWords words={flipWords} duration={2200} className="align-baseline" /> make anatomy, care, and practice tools more useful.
+            MassageLab helps <FlipWords words={flipWords} duration={2200} className="align-baseline" /> use massage anatomy flashcards, a massage session timer, classroom games, and local-first practice tools.
           </h2>
           <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-            A practical toolkit for learning anatomy, teaching body concepts, timing sessions, organizing care, and keeping your work under your control.
+            Start with public study and timing tools. Create an account when you want saved flashcard progress, remembered timer settings, and a more personal workspace.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg" className="bg-primary hover:bg-brand-orange-glow">
@@ -218,11 +221,11 @@ export default async function Home() {
           <div className="grid gap-3 text-sm text-muted-foreground">
             <div className="rounded-md border border-primary/30 bg-background/60 p-3">
               <p className="font-medium text-foreground">Learn the body</p>
-              <p className="mt-1">Study with flashcards, play Anatomime, and revisit the concepts that need work.</p>
+              <p className="mt-1">Study with massage anatomy flashcards, play Anatomime, and revisit the concepts that need work.</p>
             </div>
             <div className="rounded-md border border-primary/30 bg-background/60 p-3">
               <p className="font-medium text-foreground">Run your day</p>
-              <p className="mt-1">Use Chimer, calendar tools, and local records to keep practice work organized.</p>
+              <p className="mt-1">Use a massage session timer, calendar tools, wellness tools, and local records to keep practice work organized.</p>
             </div>
           </div>
         </AppSurface>
@@ -232,7 +235,7 @@ export default async function Home() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium text-primary">Useful before the pitch</p>
-            <h2 id="home-proof-heading" className="text-2xl font-semibold sm:text-3xl">Concrete tools for different reasons to visit</h2>
+            <h2 id="home-proof-heading" className="text-2xl font-semibold sm:text-3xl">Focused tools for common massage searches</h2>
           </div>
           <Button asChild variant="outline">
             <Link href={membershipHref}>{signedIn ? "Review membership" : "See pricing"}</Link>
@@ -260,7 +263,7 @@ export default async function Home() {
 
       <AppSurface
         title={<h2 className="text-xl font-semibold">What are you here for today?</h2>}
-        description="Pick a shortcut. You can ignore this and keep browsing."
+        description="Pick a shortcut for anatomy study, timing, wellness, or local-first documentation. You can ignore this and keep browsing."
         icon={<LayoutDashboard className="h-5 w-5" aria-hidden="true" />}
         contentClassName="gap-4"
       >
@@ -339,7 +342,7 @@ export default async function Home() {
 
       <section className="grid gap-4 md:grid-cols-2">
         <AppSurface
-          title="Local-first clinical boundary"
+          title="Local-first massage documentation boundary"
           description={
             <>
               Notes, journals, intake forms, ROM sessions, and treatment details stay on your device in this alpha. Exported files stay under your control.

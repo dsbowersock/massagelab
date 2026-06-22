@@ -4,6 +4,9 @@ import { getCurrentSession } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { SupportContactForm } from "@/app/support/support-contact-form"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/support")
 
 async function getSupportDefaults() {
   const session = await getCurrentSession()
