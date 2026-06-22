@@ -8,9 +8,12 @@ import type {
   WellnessAppointmentSummary,
 } from "@/components/wellness/wellness-calendar-companion"
 import { Button } from "@/components/ui/button"
-import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { normalizeClientWellnessReminderSchedules } from "@/lib/client-wellness-reminders"
 import { prisma } from "@/lib/prisma"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/wellness")
 
 const wellnessAppointmentInclude = {
   practice: { select: { name: true, timezone: true } },
@@ -25,6 +28,24 @@ const wellnessAppointmentInclude = {
     orderBy: { sortOrder: "asc" },
   },
 } satisfies Prisma.AppointmentInclude
+
+const wellnessProofs = [
+  {
+    title: "Public practice tools",
+    description: "Open the breathing guide, music stations, and anonymous check-in practice without creating an account.",
+    icon: Wind,
+  },
+  {
+    title: "Client-owned self-tracking",
+    description: "Signed-in entries belong to the client wellness domain, separate from therapist professional records.",
+    icon: HeartPulse,
+  },
+  {
+    title: "Non-diagnostic reflection",
+    description: "Pattern reports summarize logged trends without replacing clinical assessment or treatment decisions.",
+    icon: Radio,
+  },
+] as const
 
 export default async function WellnessPage() {
   const session = await getCurrentSession()
@@ -72,6 +93,29 @@ export default async function WellnessPage() {
   return (
     <AppPageShell width="wide" contentClassName="gap-5">
       <AppSurface
+        title="Massage wellness tools"
+        description="MassageLab's wellness page brings breathing, music, quick check-ins, body-sensation tracking, range-of-motion practice, reminders, and reflection tools into one public-friendly surface."
+        icon={<HeartPulse className="h-5 w-5" aria-hidden="true" />}
+        badge={userId ? "Signed in" : "Practice mode"}
+        className={appCalloutClassName}
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          {wellnessProofs.map((proof) => {
+            const Icon = proof.icon
+            return (
+              <AppInset key={proof.title} className="space-y-2 p-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 font-medium text-foreground">
+                  <Icon className="h-4 w-4 text-brand-orange" aria-hidden="true" />
+                  <span>{proof.title}</span>
+                </div>
+                <p>{proof.description}</p>
+              </AppInset>
+            )
+          })}
+        </div>
+      </AppSurface>
+
+      <AppSurface
         title="Music"
         description="Public audio stations for massage-room pacing, study, and personal focus."
         icon={<Radio className="h-5 w-5" aria-hidden="true" />}
@@ -98,7 +142,6 @@ export default async function WellnessPage() {
         description="Client-owned self-tracking for quick check-ins, context notes, and range-of-motion measurements."
         icon={<HeartPulse className="h-5 w-5" aria-hidden="true" />}
         badge={userId ? "Signed in" : "Practice mode"}
-        className={appCalloutClassName}
       >
         <WellnessHubClient
           isSignedIn={Boolean(userId)}

@@ -5,12 +5,10 @@ import {
   LEGAL_DOCUMENTS,
   LEGAL_DOCUMENT_VERSION,
 } from "@/lib/legal-documents"
+import { createPublicPageMetadata } from "@/lib/seo"
 import { AppActionLink, AppInset, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 
-export const metadata = {
-  title: "Legal | MassageLab",
-  description: "MassageLab legal and trust documents.",
-}
+export const metadata = createPublicPageMetadata("/legal")
 
 export default function LegalIndexPage() {
   return (
@@ -33,7 +31,7 @@ export default function LegalIndexPage() {
           ))}
         </div>
         <AppInset className="p-3 text-sm text-muted-foreground">
-          MassageLab is in private alpha. These documents describe the current product posture and should be reviewed by a licensed attorney before broader public reliance.
+          These documents describe MassageLab&apos;s current product posture, privacy boundaries, membership terms, and local-first health and wellness data practices. They may change as the product develops.
         </AppInset>
       </AppSurface>
 

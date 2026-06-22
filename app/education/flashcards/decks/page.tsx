@@ -7,9 +7,11 @@ import {
   FLASHCARD_STATIC_REGIONS,
   FLASHCARD_STATIC_STARTER_DECKS,
 } from "@/lib/flashcard-static-metadata"
+import { createPublicPageMetadata } from "@/lib/seo"
 import { FlashcardsClient } from "../flashcards-client"
 
 export const dynamic = "force-dynamic"
+export const metadata = createPublicPageMetadata("/education/flashcards/decks")
 
 export default async function FlashcardDecksPage() {
   const session = await getCurrentSession()

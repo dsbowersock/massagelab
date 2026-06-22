@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { LogIn, Play } from "lucide-react"
+import { GraduationCap, LogIn, Play, ShieldCheck, UsersRound } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
@@ -28,6 +28,24 @@ const AnatomimeGameClient = dynamic(
 )
 
 const TEAM_OPTIONS = [2, 3, 4]
+
+const anatomimeProofs = [
+  {
+    title: "Massage anatomy classroom game",
+    description: "Teams act out or answer sourced anatomy terms with body-region and clue-level controls.",
+    icon: GraduationCap,
+  },
+  {
+    title: "Shared room-code play",
+    description: "Use the join route for classroom devices, team steals, host judging, and same-code next games.",
+    icon: UsersRound,
+  },
+  {
+    title: "Reviewed study adapter",
+    description: "Anatomime uses the same reviewed anatomy foundation as MassageLab flashcards.",
+    icon: ShieldCheck,
+  },
+] as const
 
 function normalizeTeamNames(names: string[], count: number) {
   return Array.from({ length: count }, (_, index) => {
@@ -107,10 +125,25 @@ export default function AnatomimePage() {
           <div>
             <PageHeading>Anatomime</PageHeading>
             <p className="anatomime-subtitle">
-              Classroom anatomy practice for teams. Choose anatomy categories, regions, and clue level, then race the timer.
+              A massage anatomy classroom game for teams, study groups, and solo review. Choose anatomy categories, body regions, and clue level, then race the timer.
             </p>
           </div>
         </header>
+
+        <section className="anatomime-landing-proof" aria-label="Anatomime product proof">
+          {anatomimeProofs.map((proof) => {
+            const Icon = proof.icon
+            return (
+              <article key={proof.title} className="anatomime-proof-card">
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                <div>
+                  <h2>{proof.title}</h2>
+                  <p>{proof.description}</p>
+                </div>
+              </article>
+            )
+          })}
+        </section>
 
         {message ? (
           <div className="anatomime-message" role="status">
@@ -214,6 +247,10 @@ export default function AnatomimePage() {
           <summary>Game info</summary>
           <dl>
             <div>
+              <dt>Mode</dt>
+              <dd>Team anatomy review</dd>
+            </div>
+            <div>
               <dt>Terms per round</dt>
               <dd>4 terms</dd>
             </div>
@@ -228,6 +265,10 @@ export default function AnatomimePage() {
             <div>
               <dt>Rounds</dt>
               <dd>{hardcoreMode ? "Hardcore" : roundLimit}</dd>
+            </div>
+            <div>
+              <dt>Source</dt>
+              <dd>Reviewed anatomy prompts</dd>
             </div>
           </dl>
         </details>

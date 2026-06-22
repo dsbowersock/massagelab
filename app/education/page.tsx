@@ -1,6 +1,9 @@
 import { BookOpen, Brain, Layers3, ShieldCheck } from "lucide-react"
 import { AppActionLink, AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { getAnatomyStudyCards, getAnatomyStudyCategories, getAnatomyStudySources } from "@/lib/anatomy-study"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/education")
 
 export default function EducationPage() {
   const cards = getAnatomyStudyCards()

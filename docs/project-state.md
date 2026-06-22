@@ -52,7 +52,7 @@ This is the read-first source of truth for MassageLab's current project state. U
 - P3: Plan a repo-wide docstring pass for shared helpers, domain rules, server actions, data adapters, and non-obvious UI components so code is easier to understand in-place.
 - P3: Revisit anatomy 3D/spatial runtime tooling after the core local-first practice tools are more useful.
 - P3: Revisit voice notes, intake conversation transcription, and SOAP-assist later, after a separate feasibility branch proves local/on-device options and any hosted path passes legal, BAA, security, consent, audit, and retention review.
-- P3: Prepare the public SEO launch checklist before changing private-alpha `noindex`.
+- P2: Land the technical SEO foundation and focused public landing-page copy before the broad public-alpha share window: production public pages can become indexable, preview/development builds stay noindex, private/auth/API/booking/shared-code/local-record routes stay out of the sitemap and robots allowlist, and the homepage plus flashcards, Anatomime, Chimer, notes, and wellness routes carry clear search-aligned product proof without weakening the local-first PHI boundary.
 
 ## Documentation Rules
 

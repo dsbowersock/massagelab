@@ -9,14 +9,15 @@ import { TherapistSettingsProvider } from "@/components/providers/therapist-sett
 import { MusicProvider } from "@/components/providers/music-provider"
 import { LayoutWrapper } from "@/components/layout-wrapper"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { createPublicPageMetadata, createSeoJsonLd } from "@/lib/seo"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
+const rootMetadata = createPublicPageMetadata("/")
+delete rootMetadata.alternates
 
 export const metadata: Metadata = {
-  title: "MassageLab",
-  description: "Private-alpha tools for massage therapists and students",
-  applicationName: "MassageLab",
+  ...rootMetadata,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -30,10 +31,6 @@ export const metadata: Metadata = {
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
-  robots: {
-    index: false,
-    follow: false,
   },
 }
 
@@ -49,10 +46,15 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const { user, canSyncAccountSettings, navigation } = await getAppSidebarData()
+  const seoJsonLd = createSeoJsonLd()
 
   return (
     <html lang="en" className="dark h-full overflow-hidden">
       <body className={`${inter.className} h-full bg-background overflow-hidden`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(seoJsonLd) }}
+        />
         <ServiceWorkerProvider />
         <SettingsProvider syncEnabled={canSyncAccountSettings}>
           <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>

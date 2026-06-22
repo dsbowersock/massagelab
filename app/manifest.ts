@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "MassageLab",
     short_name: "MassageLab",
-    description: "Private-alpha tools for massage therapists and students.",
+    description: "Anatomy study, session timing, wellness, and local-first practice tools for massage students, educators, therapists, and small practices.",
     start_url: "/",
     scope: "/",
     display: "standalone",

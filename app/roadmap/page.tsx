@@ -2,6 +2,9 @@ import Link from "next/link"
 import { CalendarDays, Clock, FileText, HeartHandshake, ShieldCheck, UserRound } from "lucide-react"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/roadmap")
 
 const recentlyShipped = [
   {

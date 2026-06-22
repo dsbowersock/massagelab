@@ -3,6 +3,9 @@ import { Activity, ClipboardCheck, ClipboardList, FileText, Footprints, HeartPul
 import { getCurrentSession } from "@/auth"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Badge } from "@/components/ui/badge"
+import { createPublicPageMetadata } from "@/lib/seo"
+
+export const metadata = createPublicPageMetadata("/notes")
 
 const noteTypes = [
   {
@@ -50,6 +53,24 @@ const plannedTools = [
   { title: "Orthopedic Tests", description: "Therapist-entered test notes with review prompts.", icon: Activity },
 ]
 
+const documentationProofs = [
+  {
+    title: "One encrypted browser vault",
+    description: "SOAP, intake, journal, and ROM records use the shared local professional-record vault.",
+    icon: LockKeyhole,
+  },
+  {
+    title: "Massage intake to SOAP continuity",
+    description: "Selected intake responses can seed a therapist-reviewed SOAP draft on the same device.",
+    icon: ClipboardList,
+  },
+  {
+    title: "Hosted clinical sync is not active",
+    description: "MassageLab does not upload therapist professional records in this alpha.",
+    icon: ShieldCheck,
+  },
+] as const
+
 export default async function NotesPage() {
   const session = await getCurrentSession()
   const canUseLocalClinicalTools = Boolean(session?.user?.capabilities?.canUseLocalClinicalTools)
@@ -58,6 +79,33 @@ export default async function NotesPage() {
 
   return (
     <AppPageShell title="Local-First Documentation">
+        <AppSurface
+          title="Local-first massage documentation"
+          description={
+            <>
+              MassageLab&apos;s alpha documentation tools are built for therapist-controlled local records: SOAP notes, massage intake forms, client journals, and range-of-motion records stay in an encrypted browser vault unless you explicitly export them.
+            </>
+          }
+          icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />}
+          badge="Local-first alpha"
+          className={appCalloutClassName}
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            {documentationProofs.map((proof) => {
+              const Icon = proof.icon
+              return (
+                <AppInset key={proof.title} className="space-y-2 p-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 font-medium text-foreground">
+                    <Icon className="h-4 w-4 text-brand-orange" aria-hidden="true" />
+                    <span>{proof.title}</span>
+                  </div>
+                  <p>{proof.description}</p>
+                </AppInset>
+              )
+            })}
+          </div>
+        </AppSurface>
+
         <AppSurface
           title={canUseLocalClinicalTools ? "PHI stays under user control" : "Therapist or Team/Practice required"}
           description={
