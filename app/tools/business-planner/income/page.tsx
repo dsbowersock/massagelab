@@ -16,13 +16,17 @@ export default async function BusinessIncomePlannerPage() {
   let initialAccountPlanner = null
 
   if (userId) {
-    const preference = await prisma.userPreference.findUnique({
-      where: { userId },
-      select: { appSettings: true },
-    })
-    const appSettings = objectRecord(preference?.appSettings)
-    if (BUSINESS_INCOME_APP_SETTINGS_KEY in appSettings) {
-      initialAccountPlanner = sanitizeBusinessIncomePlannerPreference(appSettings[BUSINESS_INCOME_APP_SETTINGS_KEY])
+    try {
+      const preference = await prisma.userPreference.findUnique({
+        where: { userId },
+        select: { appSettings: true },
+      })
+      const appSettings = objectRecord(preference?.appSettings)
+      if (BUSINESS_INCOME_APP_SETTINGS_KEY in appSettings) {
+        initialAccountPlanner = sanitizeBusinessIncomePlannerPreference(appSettings[BUSINESS_INCOME_APP_SETTINGS_KEY])
+      }
+    } catch {
+      initialAccountPlanner = null
     }
   }
 

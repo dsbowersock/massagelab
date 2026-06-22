@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { BadgeDollarSign, BriefcaseBusiness, CalendarDays, Clock3, Percent, Save, WalletCards } from "lucide-react"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
@@ -64,6 +64,10 @@ const preciseMoneyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 })
 
+function serializePlannerInput(value: PlannerInput) {
+  return JSON.stringify(sanitizeBusinessIncomePlannerPreference(value))
+}
+
 export function IncomePlannerClient({
   isSignedIn,
   displayName,
@@ -74,6 +78,7 @@ export function IncomePlannerClient({
   ))
   const [storageReady, setStorageReady] = useState(false)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const lastSyncedPlannerRef = useRef<string | null>(null)
   const plan = useMemo(() => calculateBusinessIncomePlan(input), [input])
   const chartData = useMemo(() => plan.workloadScenarios.map((scenario) => ({
     capacity: `${scenario.capacityPercent}%`,
@@ -81,7 +86,10 @@ export function IncomePlannerClient({
   })), [plan])
 
   useEffect(() => {
+    let nextInput = normalizeBusinessIncomePlannerInput(initialAccountPlanner ?? presetPayload("growing_solo_practice"))
+
     if (initialAccountPlanner) {
+      lastSyncedPlannerRef.current = serializePlannerInput(nextInput)
       setStorageReady(true)
       return
     }
@@ -89,11 +97,13 @@ export function IncomePlannerClient({
     const stored = window.localStorage.getItem(BUSINESS_INCOME_LOCAL_STORAGE_KEY)
     if (stored) {
       try {
-        setInput(normalizeBusinessIncomePlannerInput(JSON.parse(stored)))
+        nextInput = normalizeBusinessIncomePlannerInput(JSON.parse(stored))
+        setInput(nextInput)
       } catch {
         window.localStorage.removeItem(BUSINESS_INCOME_LOCAL_STORAGE_KEY)
       }
     }
+    lastSyncedPlannerRef.current = serializePlannerInput(nextInput)
     setStorageReady(true)
   }, [initialAccountPlanner])
 
@@ -106,13 +116,21 @@ export function IncomePlannerClient({
     )
   }, [input, storageReady])
 
+  // Debounced account sync starts after hydration, cancels stale requests, and stores one current worksheet in appSettings.
   useEffect(() => {
     if (!isSignedIn) return
     if (!storageReady) return
+    const serializedInput = serializePlannerInput(input)
+    if (lastSyncedPlannerRef.current === serializedInput) return
 
     const controller = new AbortController()
     const timeoutId = window.setTimeout(async () => {
       setSaveState("saving")
+      let requestTimedOut = false
+      const requestTimeoutId = window.setTimeout(() => {
+        requestTimedOut = true
+        controller.abort()
+      }, 30_000)
       try {
         const response = await fetch("/api/account/preferences", {
           method: "PUT",
@@ -126,11 +144,14 @@ export function IncomePlannerClient({
         })
 
         if (!response.ok) throw new Error("Unable to save planner preferences.")
+        lastSyncedPlannerRef.current = serializedInput
         setSaveState("saved")
       } catch {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted || requestTimedOut) {
           setSaveState("error")
         }
+      } finally {
+        window.clearTimeout(requestTimeoutId)
       }
     }, 700)
 
@@ -141,6 +162,8 @@ export function IncomePlannerClient({
   }, [input, isSignedIn, storageReady])
 
   function applyPreset(key: PlannerPresetKey) {
+    if (key === "custom" && input.presetKey === "custom") return
+
     setInput(normalizeBusinessIncomePlannerInput(presetPayload(key)))
   }
 

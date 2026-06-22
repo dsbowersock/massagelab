@@ -11,6 +11,7 @@ describe("Business income planner source guards", () => {
     const source = readProjectFile("app/tools/business-planner/income/page.tsx")
 
     assert.match(source, /prisma\.userPreference\.findUnique\(\{[\s\S]*where: \{ userId \},[\s\S]*select: \{ appSettings: true \}/)
+    assert.match(source, /try \{[\s\S]*prisma\.userPreference\.findUnique/)
   })
 
   it("keeps anonymous users away from account preference sync", () => {
@@ -21,6 +22,8 @@ describe("Business income planner source guards", () => {
     assert.notEqual(guardIndex, -1)
     assert.notEqual(fetchIndex, -1)
     assert.ok(guardIndex < fetchIndex, "signed-in guard must appear before account preference fetch")
+    assert.match(source, /lastSyncedPlannerRef/)
+    assert.match(source, /requestTimeoutId/)
   })
 
   it("does not add a dedicated Prisma model for planner worksheets", () => {
