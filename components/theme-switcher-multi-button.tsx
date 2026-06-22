@@ -48,6 +48,7 @@ export function ThemeSwitcherMultiButton({
   const [compactExpanded, setCompactExpanded] = useState(false)
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedThemeMode>("dark")
   const collapseTimeoutRef = useRef<number | null>(null)
+  const suppressCompactActivationRef = useRef(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
 
@@ -109,6 +110,32 @@ export function ThemeSwitcherMultiButton({
     // Manual collapse is used after selection or when focus leaves the whole switcher group.
     clearCompactCollapseTimer()
     setCompactExpanded(false)
+  }
+
+  function shouldOpenCompactPickerOnly(isSelected: boolean) {
+    if (!isSelected || compactExpanded) {
+      return false
+    }
+
+    const inactiveOption = rootRef.current?.querySelector<HTMLElement>("[data-theme-selected='false']")
+
+    return inactiveOption ? window.getComputedStyle(inactiveOption).display === "none" : false
+  }
+
+  function suppressCompactActivation() {
+    suppressCompactActivationRef.current = true
+    window.setTimeout(() => {
+      suppressCompactActivationRef.current = false
+    }, 500)
+  }
+
+  function stopSuppressedCompactActivation(event: React.SyntheticEvent<HTMLElement>) {
+    if (!suppressCompactActivationRef.current) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   function rememberTransitionOrigin(event: React.PointerEvent<HTMLElement>) {
@@ -181,6 +208,16 @@ export function ThemeSwitcherMultiButton({
       role="group"
       aria-label="Theme"
       onFocusCapture={expandCompactThemePicker}
+      onPointerMoveCapture={() => {
+        if (compactExpanded) {
+          scheduleCompactCollapse()
+        }
+      }}
+      onKeyDownCapture={() => {
+        if (compactExpanded) {
+          scheduleCompactCollapse()
+        }
+      }}
       onBlurCapture={(event) => {
         // Moving between theme buttons should keep the compact picker open.
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -197,6 +234,10 @@ export function ThemeSwitcherMultiButton({
         type="single"
         value={settings.themeMode}
         onValueChange={(value) => {
+          if (suppressCompactActivationRef.current) {
+            return
+          }
+
           if (value) {
             setTheme(value as ThemeMode)
             collapseCompactThemePicker()
@@ -213,18 +254,32 @@ export function ThemeSwitcherMultiButton({
             <ToggleGroupItem
               key={value}
               value={value}
+              data-theme-selected={isSelected ? "true" : "false"}
               aria-label={label}
               title={label}
               aria-pressed={isActive}
               data-state={isActive ? "on" : "off"}
-              onPointerDown={(event) => {
+              onPointerDownCapture={(event) => {
                 rememberTransitionOrigin(event)
+                if (shouldOpenCompactPickerOnly(isSelected)) {
+                  // Opening hidden compact options changes button positions; cancel this tap so it cannot land on another theme.
+                  suppressCompactActivation()
+                  event.preventDefault()
+                  event.stopPropagation()
+                  expandCompactThemePicker()
+                  return
+                }
                 // Pointer users need the compact choices visible before the toggle group settles selection.
                 expandCompactThemePicker()
               }}
+              onPointerUpCapture={stopSuppressedCompactActivation}
+              onClickCapture={(event) => {
+                stopSuppressedCompactActivation(event)
+                suppressCompactActivationRef.current = false
+              }}
               className={cn(
                 "relative size-8 min-w-0 rounded-full p-0 text-muted-foreground transition-[background-color,color,box-shadow,transform] hover:bg-transparent hover:text-foreground active:translate-y-px data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--brand-orange-glow)/0.34)]",
-                !isSelected && !compactExpanded && "max-sm:hidden",
+                !isSelected && !compactExpanded && "max-md:hidden",
                 !mounted && "pointer-events-none animate-pulse bg-muted/70",
               )}
             >

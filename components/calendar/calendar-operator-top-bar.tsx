@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -20,14 +20,6 @@ import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { useSidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
 import { ThemeSwitcherMultiButton } from "@/components/theme-switcher-multi-button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -155,37 +147,6 @@ function routeBreadcrumbs(pathname: string): TopbarBreadcrumb[] {
   }
 
   return crumbs
-}
-
-function TopbarBreadcrumbs({ pathname }: { pathname: string }) {
-  const breadcrumbs = routeBreadcrumbs(pathname)
-
-  return (
-    <Breadcrumb className="min-w-0 max-w-[min(34rem,55vw)] shrink-0">
-      <BreadcrumbList className="flex-nowrap gap-1.5 overflow-hidden text-sm sm:gap-2">
-        {breadcrumbs.map((breadcrumb, index) => {
-          const isLast = index === breadcrumbs.length - 1
-
-          return (
-            <Fragment key={`${breadcrumb.href ?? breadcrumb.label}-${index}`}>
-              {index > 0 && <BreadcrumbSeparator className="shrink-0 text-muted-foreground/70" />}
-              <BreadcrumbItem className="min-w-0">
-                {isLast || !breadcrumb.href ? (
-                  <BreadcrumbPage className="truncate font-semibold">
-                    {breadcrumb.label}
-                  </BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink asChild className="truncate font-medium text-muted-foreground">
-                    <Link href={breadcrumb.href}>{breadcrumb.label}</Link>
-                  </BreadcrumbLink>
-                )}
-              </BreadcrumbItem>
-            </Fragment>
-          )
-        })}
-      </BreadcrumbList>
-    </Breadcrumb>
-  )
 }
 
 function compactCount(count: number) {
@@ -420,7 +381,7 @@ export function CalendarOperatorTopBar({
       : primaryToolbar.scrollWidth
     const rowWidth = primaryRow.clientWidth
     const primaryToolbarFits = primaryToolbar.scrollWidth <= primaryToolbar.clientWidth + 4
-    const restoreWidth = leadingWidth + actionsWidth + toolbarContentWidth + 196
+    const restoreWidth = leadingWidth + actionsWidth + toolbarContentWidth + 32
 
     setControlsOverflowing((current) => {
       if (current) {
@@ -524,8 +485,8 @@ export function CalendarOperatorTopBar({
     </Tooltip>
   )
   const oppositeControls = (
-    <div className="flex shrink-0 items-center gap-2">
-      <ThemeSwitcherMultiButton className="max-[360px]:hidden" />
+    <div className="flex shrink-0 items-center gap-1 min-[361px]:gap-2">
+      <ThemeSwitcherMultiButton />
       {musicControl}
       {clockControl}
       {calendarControl}
@@ -564,9 +525,7 @@ export function CalendarOperatorTopBar({
 
           <span className="sr-only">{pageLabel}</span>
 
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <TopbarBreadcrumbs pathname={pathname} />
-
+          <div className="flex min-w-0 flex-1 items-center">
             <div ref={primaryToolbarMeasureRef} className="flex min-w-0 flex-1 items-center overflow-hidden">
               {controlsOverflowing ? null : toolbarSlot}
             </div>

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { BookOpen, Camera, Hammer, UserRound } from "lucide-react"
 import { AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { SocialLinksSurface } from "@/components/social-links"
 import { createPublicPageMetadata } from "@/lib/seo"
 
 export const metadata = createPublicPageMetadata("/about/derrick")
@@ -103,6 +104,11 @@ export default function AboutDerrickPage() {
           ))}
         </div>
       </AppSurface>
+
+      <SocialLinksSurface
+        title="Follow Derrick and MassageLab"
+        description="Connect with Derrick's massage work and MassageLab project updates."
+      />
     </AppPageShell>
   )
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   accountMenuRoutes,
@@ -62,6 +63,15 @@ describe("Navigation IA model", () => {
     const primaryHrefs = primaryNavigationGroups.flatMap((group) => group.routes.map((route) => route.href))
     assert.equal(primaryHrefs.includes("/support"), false)
     assert.equal(primaryHrefs.includes("/roadmap"), true)
+  })
+
+  it("keeps sidebar section headings visually stronger than nested routes", () => {
+    const sidebarSource = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+
+    assert.match(sidebarSource, /const sidebarSectionTriggerClass = cn\([\s\S]*text-sm[\s\S]*font-semibold/)
+    assert.match(sidebarSource, /const primaryChildRouteListClass = cn\([\s\S]*border-l[\s\S]*pl-2/)
+    assert.match(sidebarSource, /const primaryChildRouteButtonClass = cn\([\s\S]*text-\[0\.8125rem\][\s\S]*font-normal/)
+    assert.match(sidebarSource, /<SidebarRoute key=\{route.id\} nested route=\{route\}/)
   })
 
   it("matches the root route exactly and nested routes by path segment", () => {
