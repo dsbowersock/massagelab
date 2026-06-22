@@ -51,18 +51,20 @@ describe("SEO route contract", () => {
     assert.equal(entries.length, PUBLIC_SEO_ROUTES.length)
     assert.equal(createSitemapEntries(previewEnv).length, 0)
 
-    for (const url of urls) {
+    for (const [index, url] of urls.entries()) {
+      const entry = entries[index]
+
       assert.equal(url.search, "")
       assert.equal(url.hostname, "www.massagelab.app")
       assert.equal(url.pathname.startsWith("/api/"), false)
       assert.equal(url.pathname.startsWith("/account"), false)
       assert.equal(url.pathname.startsWith("/admin"), false)
-      assert.equal(url.pathname.startsWith("/book/"), false)
+      assert.equal(url.pathname === "/book" || url.pathname.startsWith("/book/"), false)
       assert.equal(url.pathname.startsWith("/calendar"), false)
-      assert.equal(url.pathname.startsWith("/anatomime/play/"), false)
+      assert.equal(url.pathname === "/anatomime/play" || url.pathname.startsWith("/anatomime/play/"), false)
       assert.equal(url.pathname.startsWith("/notes/soap"), false)
-      assert.equal("priority" in entries[0], false)
-      assert.equal("changeFrequency" in entries[0], false)
+      assert.equal("priority" in entry, false)
+      assert.equal("changeFrequency" in entry, false)
     }
   })
 
@@ -74,7 +76,8 @@ describe("SEO route contract", () => {
     assert.deepEqual(disallow, [...ROBOTS_PRIVATE_DISALLOW_PATHS])
     assert.ok(disallow.includes("/api/"))
     assert.ok(disallow.includes("/account"))
-    assert.ok(disallow.includes("/anatomime/play/"))
+    assert.ok(disallow.includes("/anatomime/play"))
+    assert.ok(disallow.includes("/book"))
     assert.ok(disallow.includes("/notes/soap"))
   })
 
