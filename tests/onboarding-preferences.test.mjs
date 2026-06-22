@@ -61,8 +61,25 @@ describe("Onboarding preference helpers", () => {
     })
 
     assert.equal(payload.homeShortcuts.length, 6)
-    assert.equal(payload.homeShortcuts[0], "calendar_booking")
-    assert.equal(payload.homeShortcuts[1], "account_memberships")
+    assert.equal(payload.homeShortcuts[0], "business_income_planner")
+    assert.equal(payload.homeShortcuts[1], "calendar_booking")
+    assert.equal(payload.homeShortcuts[2], "account_memberships")
+  })
+
+  it("promotes the business income planner for practice planning", () => {
+    const therapistPayload = buildOnboardingPreference({
+      primaryRole: "therapist",
+      useCases: ["manage_practice"],
+      jurisdiction: "OH",
+    })
+    const studentTools = resolveOnboardingHomeToolKeys({
+      primaryRole: "student",
+      useCases: ["manage_practice", "run_sessions"],
+    })
+
+    assert.equal(therapistPayload.homeShortcuts[0], "business_income_planner")
+    assert.equal(studentTools[0], "business_income_planner")
+    assert.ok(studentTools.includes("chimer"))
   })
 
   it("resolves personalized tool order for persisted onboarding payloads", () => {

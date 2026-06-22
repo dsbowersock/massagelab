@@ -28,6 +28,8 @@ describe("Navigation IA model", () => {
     assert.deepEqual(groups.map((group) => group.id), ["tools", "atmosphere", "documentation", "education", "games", "about"])
     assert.deepEqual(groups.flatMap((group) => group.routes.map((route) => route.href)), [
       "/chimer",
+      "/tools/business-planner",
+      "/tools/business-planner/income",
       "/wellness",
       "/wellness/breathing",
       "/calendar",
@@ -135,6 +137,8 @@ describe("Navigation IA model", () => {
     assert.deepEqual(primaryGroupIds(navigation), ["tools", "atmosphere", "documentation", "education", "games", "about"])
     assert.deepEqual(primaryHrefs(navigation), [
       "/chimer",
+      "/tools/business-planner",
+      "/tools/business-planner/income",
       "/wellness",
       "/wellness/breathing",
       "/calendar",

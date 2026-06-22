@@ -16,7 +16,7 @@
 - Create: `lib/business-income-planner.js`
 - Create: `tests/business-income-planner.test.mjs`
 
-- [ ] **Step 1: Write failing calculator tests**
+- [x] **Step 1: Write failing calculator tests**
 
 Create `tests/business-income-planner.test.mjs` with tests importing `BUSINESS_INCOME_PRESETS`, `calculateBusinessIncomePlan`, and `normalizeBusinessIncomePlannerInput` from `../lib/business-income-planner.js`.
 
@@ -37,7 +37,7 @@ node --test tests/business-income-planner.test.mjs
 
 Expected: fail because `lib/business-income-planner.js` does not exist yet.
 
-- [ ] **Step 2: Implement calculator helper**
+- [x] **Step 2: Implement calculator helper**
 
 Create `lib/business-income-planner.js` with:
 - `BUSINESS_INCOME_PRESETS`
@@ -75,7 +75,7 @@ Expected: pass.
 - Create: `app/tools/business-planner/income/income-planner-client.tsx`
 - Test: `tests/browser/public-routes.spec.ts`
 
-- [ ] **Step 1: Add failing route coverage**
+- [x] **Step 1: Add failing route coverage**
 
 Modify `tests/browser/public-routes.spec.ts` to include:
 - `{ path: "/tools/business-planner", expectedText: /Business Planner/i }`
@@ -89,7 +89,7 @@ npm run test:browser -- tests/browser/public-routes.spec.ts -g "anonymous public
 
 Expected: fail because the routes do not exist yet.
 
-- [ ] **Step 2: Build hub and income pages**
+- [x] **Step 2: Build hub and income pages**
 
 Create the hub with `AppPageShell`, a live Income Planner card linking to `/tools/business-planner/income`, and planned non-clickable cards for future business planner tools.
 
@@ -128,7 +128,7 @@ Expected: pass.
 - Modify: `tests/navigation-model.test.mjs`
 - Modify: `tests/onboarding-preferences.test.mjs`
 
-- [ ] **Step 1: Add failing source-contract tests**
+- [x] **Step 1: Add failing source-contract tests**
 
 Update tests so they expect:
 - `/tools/business-planner` and `/tools/business-planner/income` in `PUBLIC_SEO_ROUTES`.
@@ -145,7 +145,7 @@ node --test tests/seo.test.mjs tests/navigation-model.test.mjs tests/onboarding-
 
 Expected: fail until route metadata, navigation, and catalog entries are added.
 
-- [ ] **Step 2: Wire discovery and metadata**
+- [x] **Step 2: Wire discovery and metadata**
 
 Update:
 - `lib/seo.js` with public route metadata for `/tools/business-planner` and `/tools/business-planner/income`.
@@ -169,7 +169,7 @@ Expected: pass.
 - Modify: `tests/account-preferences.test.mjs`
 - Create or modify: `tests/business-income-planner-source.test.mjs`
 
-- [ ] **Step 1: Add failing guard tests**
+- [x] **Step 1: Add failing guard tests**
 
 Add tests asserting:
 - `removeForbiddenPreferenceFields()` removes business planner nested forbidden keys when a planner payload accidentally includes PHI-shaped names.
@@ -185,7 +185,7 @@ node --test tests/account-preferences.test.mjs tests/business-income-planner-sou
 
 Expected: fail until source guards or forbidden-key coverage are present.
 
-- [ ] **Step 2: Satisfy guard tests**
+- [x] **Step 2: Satisfy guard tests**
 
 Add any missing forbidden-key test coverage and keep implementation scoped to `UserPreference.appSettings`. Do not modify `prisma/schema.prisma` for this feature.
 
@@ -205,11 +205,11 @@ Expected: pass.
 - Modify: `docs/project-state.md`
 - Modify: `docs/project-log.md`
 
-- [ ] **Step 1: Update project docs**
+- [x] **Step 1: Update project docs**
 
 Update project state and log to mention the business planner income tool as a branch outcome or active implementation, preserving local-first and no-PHI boundaries.
 
-- [ ] **Step 2: Run focused validation**
+- [x] **Step 2: Run focused validation**
 
 Run:
 
@@ -224,7 +224,7 @@ git diff --check
 
 Expected: all pass.
 
-- [ ] **Step 3: Commit implementation**
+- [x] **Step 3: Commit implementation**
 
 Stage implementation files and commit:
 
