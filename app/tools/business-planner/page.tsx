@@ -1,27 +1,28 @@
 import Link from "next/link"
-import { BriefcaseBusiness, Calculator, ClipboardList, Megaphone, NotebookPen } from "lucide-react"
+import {
+  BadgeDollarSign,
+  BriefcaseBusiness,
+  Calculator,
+  ClipboardList,
+  ListChecks,
+  NotebookPen,
+  PackagePlus,
+  type LucideIcon,
+} from "lucide-react"
 import { AppActionLink, AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { BUSINESS_PLAN_TOOL_ROUTES } from "@/lib/business-plan-template-tools"
 import { createPublicPageMetadata } from "@/lib/seo"
 
 export const metadata = createPublicPageMetadata("/tools/business-planner")
 
-const plannedTools = [
-  {
-    title: "Service menu planner",
-    description: "Compare session lengths, add-ons, and pricing patterns before publishing a menu.",
-    icon: ClipboardList,
-  },
-  {
-    title: "Practice launch checklist",
-    description: "Turn business-plan homework into concrete setup, licensing, and operations steps.",
-    icon: NotebookPen,
-  },
-  {
-    title: "Marketing rhythm planner",
-    description: "Plan simple outreach, retention, and referral habits without turning massage into busywork.",
-    icon: Megaphone,
-  },
-] as const
+const toolIcons = {
+  BadgeDollarSign,
+  Calculator,
+  ClipboardList,
+  ListChecks,
+  NotebookPen,
+  PackagePlus,
+} satisfies Record<string, LucideIcon>
 
 export default function BusinessPlannerHubPage() {
   return (
@@ -35,12 +36,12 @@ export default function BusinessPlannerHubPage() {
       >
         <div className="grid gap-3 md:grid-cols-3">
           <AppInset className="p-3">
-            <p className="text-xs uppercase tracking-normal text-muted-foreground">First Tool</p>
-            <p className="mt-1 text-lg font-semibold">Income Planner</p>
+            <p className="text-xs uppercase tracking-normal text-muted-foreground">Live tools</p>
+            <p className="mt-1 text-lg font-semibold">{BUSINESS_PLAN_TOOL_ROUTES.length}</p>
           </AppInset>
           <AppInset className="p-3">
             <p className="text-xs uppercase tracking-normal text-muted-foreground">Saved Work</p>
-            <p className="mt-1 text-lg font-semibold">One current worksheet</p>
+            <p className="mt-1 text-lg font-semibold">Browser worksheets</p>
           </AppInset>
           <AppInset className="p-3">
             <p className="text-xs uppercase tracking-normal text-muted-foreground">Boundary</p>
@@ -49,29 +50,22 @@ export default function BusinessPlannerHubPage() {
         </div>
       </AppSurface>
 
-      <AppActionLink
-        href="/tools/business-planner/income"
-        icon={<Calculator className="h-5 w-5" aria-hidden="true" />}
-        title="Business Income Planner"
-        description="Estimate take-home goals, session pricing, time off, workload capacity, and wage comparisons without doing the math by hand."
-        badge="Live"
-      />
-
-      <section aria-labelledby="planned-business-tools-heading" className="space-y-3">
+      <section aria-labelledby="business-tools-heading" className="space-y-3">
         <div>
-          <p className="text-sm font-medium text-primary">Planned next</p>
-          <h2 id="planned-business-tools-heading" className="text-2xl font-semibold">Future business planner tools</h2>
+          <p className="text-sm font-medium text-primary">From the student template</p>
+          <h2 id="business-tools-heading" className="text-2xl font-semibold">Business planner tools</h2>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {plannedTools.map((tool) => {
-            const Icon = tool.icon
+        <div className="grid gap-4 lg:grid-cols-2">
+          {BUSINESS_PLAN_TOOL_ROUTES.map((tool) => {
+            const Icon = toolIcons[tool.icon as keyof typeof toolIcons] ?? BriefcaseBusiness
             return (
-              <AppSurface
+              <AppActionLink
+                href={tool.href}
                 key={tool.title}
+                icon={<Icon className="h-5 w-5" aria-hidden="true" />}
                 title={tool.title}
                 description={tool.description}
-                icon={<Icon className="h-5 w-5" aria-hidden="true" />}
-                badge="Planned"
+                badge={tool.status}
               />
             )
           })}

@@ -15,7 +15,7 @@ const toolLinks = [
   {
     href: "/tools/business-planner",
     title: "Business Planner",
-    description: "Estimate massage session pricing, time off, workload, and take-home planning.",
+    description: "Open business-plan tools for income, break-even, startup costs, service menus, policies, and launch planning.",
     icon: BriefcaseBusiness,
     badge: "Public",
   },
