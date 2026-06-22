@@ -36,6 +36,12 @@ Encrypted `.mlab` full-vault bundles are the normal user-controlled transfer and
 
 Client wellness entries must stay out of account preferences, calendar payloads, notification payloads, Sentry metadata, analytics, email/SMS bodies, and the therapist professional-record vault. A future therapist sharing bridge requires explicit consent scope, revocation, audit language, and a deliberate professional-record reference step before any shared wellness data is used in treatment planning or notes.
 
+## Support And Diagnostics Boundary
+
+Sentry may receive sanitized automatic errors, traces, and user-initiated diagnostic reports. The approved diagnostic report path is `/api/support/problem-report`; it sends only predefined issue categories, coarse tool areas, safe route buckets, browser family, display mode, network state, viewport bucket, and an optional linked Sentry event id.
+
+Diagnostic reports must not upload screenshots, Session Replay, typed support messages, full URLs, query strings, SOAP text, intake answers, journal text, ROM notes, local professional-record vault contents, wellness entries, account contact details, or user-provided freeform descriptions. Human support messages remain in the user-controlled email flow, with repeated PHI warnings in the support UI.
+
 ## PWA Cache Boundary
 
 The PWA service worker may cache anonymous public shell/tool route documents for home, Chimer, Anatomime, and local-first documentation tools. It must not cache account, auth, billing, calendar, booking, admin, hosted clinical sync, client, or other `/api/*` responses.

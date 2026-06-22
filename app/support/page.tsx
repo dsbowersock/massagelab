@@ -3,7 +3,9 @@ import { Mail, Map, ShieldCheck } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { normalizeLinkedSentryEventId } from "@/lib/problem-report"
 import { SupportContactForm } from "@/app/support/support-contact-form"
+import { SupportDiagnosticReport } from "@/app/support/support-diagnostic-report"
 import { createPublicPageMetadata } from "@/lib/seo"
 
 export const metadata = createPublicPageMetadata("/support")
@@ -29,8 +31,16 @@ async function getSupportDefaults() {
   }
 }
 
-export default async function SupportPage() {
+type SupportPageProps = {
+  searchParams?: Promise<{
+    eventId?: string
+  }>
+}
+
+export default async function SupportPage({ searchParams }: SupportPageProps) {
   const defaults = await getSupportDefaults()
+  const params = await searchParams
+  const linkedEventId = normalizeLinkedSentryEventId(params?.eventId) ?? ""
 
   return (
     <AppPageShell title="User Support" width="standard">
@@ -45,6 +55,8 @@ export default async function SupportPage() {
         />
 
         <SupportContactForm initialName={defaults.name} initialContact={defaults.contact} />
+
+        <SupportDiagnosticReport linkedEventId={linkedEventId} />
 
         <div className="grid gap-4 md:grid-cols-3">
           <Link href="/roadmap">

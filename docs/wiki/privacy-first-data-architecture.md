@@ -95,6 +95,7 @@ Re-verify vendor pricing, BAA availability, and product scope before any hosted 
 - Keep `/notes/intake`, SOAP, journal, ROM, and future therapist documentation routes local-first unless the hosted PHI gate passes.
 - Keep browser QA and source-guard tests that block clinical content from `/api/clinical/sync`, `/api/clients/`, `/api/account/preferences`, Prisma writes, logs, analytics, and other hosted routes.
 - Keep client wellness source guards that block raw wellness entries from account preferences, calendar payloads, notifications, Sentry metadata, analytics, and the therapist professional-record vault.
+- Keep user-initiated diagnostics on `/api/support/problem-report` limited to predefined issue categories, coarse route/tool areas, safe browser/display hints, and optional Sentry event ids. Do not route screenshots, replay, support message text, clinical note content, intake answers, wellness entries, full URLs, query strings, account contact details, or local vault data into Sentry.
 - Do not expose remote client wellness dashboards to therapists until `SharingConsent` has been designed, reviewed, tested, and intentionally enabled.
 - When encrypted local vault behavior is added to a professional-record route, test offline unlock, wrong-passphrase rejection, session-only unlock, export/import, no plaintext persistence, and malformed import rejection.
 - Public and client-facing copy should avoid diagnosis, emergency monitoring, continuous therapist monitoring, or medical-device style claims.

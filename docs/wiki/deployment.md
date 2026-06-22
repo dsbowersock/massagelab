@@ -82,7 +82,7 @@ Before enabling subscription checkout, confirm:
 
 ## Sentry
 
-Sentry captures sanitized errors and traces only.
+Sentry captures sanitized errors, traces, and privacy-safe diagnostic reports only.
 
 ```text
 NEXT_PUBLIC_SENTRY_DSN=
@@ -93,7 +93,16 @@ SENTRY_AUTH_TOKEN=
 MASSAGELAB_ENABLE_SENTRY_TEST_ROUTE=false
 ```
 
-Do not enable Session Replay, User Feedback, or Logs until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
+Production Sentry setup should keep alerting focused on:
+
+- New production issues.
+- Production regressions.
+- Error or failure-rate spikes on important product routes.
+- Release/deploy issues once source-map uploads and releases are configured.
+
+`/api/support/problem-report` is the approved user-initiated diagnostic path. It sends only known issue categories, coarse product areas, safe route buckets, browser family, display mode, network state, viewport bucket, and an optional linked Sentry event id. It must not send screenshots, typed support messages, full URLs, query strings, local vault contents, SOAP text, intake answers, journal text, ROM notes, wellness entries, account contact details, or user-provided freeform descriptions.
+
+Do not enable Session Replay, the standard Sentry User Feedback widget, screenshots, attachment uploads, or Logs until MassageLab has route-by-route privacy review, Sentry project scrubbing rules, and a written policy for clinical/local-first pages.
 
 ## Public Media R2
 
