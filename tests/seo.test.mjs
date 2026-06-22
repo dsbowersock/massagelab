@@ -93,11 +93,14 @@ describe("SEO route contract", () => {
 
   it("publishes social profiles as organization sameAs links", () => {
     const organization = createSeoJsonLd()["@graph"].find((node) => node["@type"] === "Organization")
+    assert.ok(organization, "Organization node missing from SEO JSON-LD graph")
 
     assert.deepEqual(organization.sameAs, [...MASSAGELAB_SOCIAL_URLS])
-    assert.ok(organization.sameAs.includes("https://www.instagram.com/massagelab/"))
-    assert.ok(organization.sameAs.includes("https://www.youtube.com/@massagelabtv"))
-    assert.ok(organization.sameAs.includes("https://www.facebook.com/massagewithderrick"))
+    assert.deepEqual([...MASSAGELAB_SOCIAL_URLS], [
+      "https://www.instagram.com/massagelab/",
+      "https://www.youtube.com/@massagelabtv",
+      "https://www.facebook.com/massagewithderrick",
+    ])
   })
 
   it("disallows all crawling outside production", () => {

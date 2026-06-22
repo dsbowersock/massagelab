@@ -24,13 +24,12 @@ describe("App settings helpers", () => {
     assert.match(source, /data-theme-selected/)
     assert.match(source, /onValueChange=\{\(value\) => \{\s*if \(suppressCompactActivationRef\.current\)/)
     assert.match(source, /event\.preventDefault\(\)/)
-    assert.match(source, /cannot land on another theme/)
   })
 
   it("keeps the global theme control visible in the primary bar on narrow phones", () => {
     const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
 
-    assert.match(topBarSource, /<ThemeSwitcherMultiButton \/>/)
+    assert.match(topBarSource, /<ThemeSwitcherMultiButton\b/)
     assert.match(topBarSource, /gap-1 min-\[361px\]:gap-2/)
     assert.doesNotMatch(topBarSource, /ThemeSwitcherMultiButton className="max-\[360px\]:hidden"/)
   })

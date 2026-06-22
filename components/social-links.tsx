@@ -10,15 +10,22 @@ const socialIconById: Record<string, LucideIcon> = {
   facebook: Facebook,
 }
 
+type SocialLinksSurfaceProps = {
+  title?: string
+  description?: string
+  /**
+   * Optional allow-list of canonical social ids.
+   * Unknown ids are ignored, and rendered links keep MASSAGELAB_SOCIAL_LINKS order.
+   */
+  linkIds?: string[]
+}
+
+/** Renders MassageLab's canonical social profiles with optional page-level filtering. */
 export function SocialLinksSurface({
   title = "Follow MassageLab",
   description = "Find MassageLab updates, demos, and community posts on social media.",
   linkIds,
-}: {
-  title?: string
-  description?: string
-  linkIds?: string[]
-}) {
+}: SocialLinksSurfaceProps) {
   const links = linkIds?.length
     ? MASSAGELAB_SOCIAL_LINKS.filter((link) => linkIds.includes(link.id))
     : MASSAGELAB_SOCIAL_LINKS

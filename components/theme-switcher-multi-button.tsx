@@ -37,6 +37,8 @@ const themes: Array<{
 ]
 
 const compactThemeCollapseDelayMs = 5_000
+// Absorb follow-up events from the first compact tap so it only reveals hidden choices.
+const compactActivationSuppressionDelayMs = 500
 // Keep compact options temporarily expanded so touch and keyboard users can choose a theme without leaving the bar permanently wide.
 
 export function ThemeSwitcherMultiButton({
@@ -126,7 +128,7 @@ export function ThemeSwitcherMultiButton({
     suppressCompactActivationRef.current = true
     window.setTimeout(() => {
       suppressCompactActivationRef.current = false
-    }, 500)
+    }, compactActivationSuppressionDelayMs)
   }
 
   function stopSuppressedCompactActivation(event: React.SyntheticEvent<HTMLElement>) {
