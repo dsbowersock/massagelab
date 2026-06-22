@@ -177,14 +177,14 @@ export default async function Home() {
         <div className="min-w-0">
           <h1 className="sr-only">MassageLab</h1>
           <div aria-hidden="true" className="relative mb-5 flex w-full justify-start py-3 sm:py-4">
-            <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-full bg-brand-orange-glow/28 blur-3xl dark:bg-brand-orange-glow/20 sm:inset-x-10" />
+            <div className="absolute inset-x-6 top-1/2 h-10 -translate-y-1/2 rounded-full bg-brand-orange-glow/8 blur-2xl dark:bg-brand-orange-glow/6 sm:inset-x-20" />
             <span
               className="ml-brand-asset-frame relative inline-block aspect-[10/3] w-full max-w-[32rem] overflow-visible rounded-2xl align-top"
               data-testid="home-brand-wordmark"
               style={{ viewTransitionName: "massagelab-wordmark" }}
             >
               <Image
-                src="/brand/massagelab-home-logo-badge-padded-20260615.png"
+                src="/brand/massagelab-home-logo-badge-padded-20260622.png"
                 alt=""
                 width={1536}
                 height={760}

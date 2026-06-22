@@ -150,16 +150,20 @@ test("primary bar exposes music and clock shortcuts beside calendar controls", a
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("mobile primary bar prioritizes music controls and auto-collapses the theme picker", async ({ page }) => {
+test("mobile primary bar keeps lighting controls available and auto-collapses the theme picker", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 319, height: 932 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
+  const narrowThemePicker = page.getByRole("group", { name: /^Theme$/i })
+  const narrowLightTheme = narrowThemePicker.getByRole("radio", { name: /^Use light theme$/i })
+
+  await expect(narrowThemePicker).toBeVisible()
+  await expect(narrowLightTheme).toBeHidden()
   await expect(page.getByRole("link", { name: /^Open music$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toBeVisible()
   await expect(page.getByRole("button", { name: /^Open calendar$/i })).toBeVisible()
-  await expect(page.getByRole("group", { name: /^Theme$/i })).toBeHidden()
 
   await page.setViewportSize({ width: 390, height: 932 })
 
@@ -549,7 +553,7 @@ test("homepage uses one logo artwork for light and dark themes", async ({ page }
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
   const logo = page.getByTestId("home-brand-wordmark-image")
-  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-padded-20260615/)
+  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-padded-20260622/)
   const initialSrc = await logo.getAttribute("src")
 
   await page.evaluate(() => {
@@ -565,6 +569,35 @@ test("homepage uses one logo artwork for light and dark themes", async ({ page }
   })
   await expect(logo).toBeVisible()
   await expect(logo).toHaveAttribute("src", initialSrc ?? "")
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("theme switcher collapses inactive choices after idle on tablet widths", async ({ page }) => {
+  await page.setViewportSize({ width: 757, height: 682 })
+  const health = capturePageHealth(page)
+
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const themeGroup = page.getByRole("group", { name: "Theme" })
+  const activeTheme = themeGroup.locator("[role='radio'][data-state='on']").first()
+  await expect(activeTheme).toBeVisible()
+
+  await activeTheme.click()
+
+  await expect(themeGroup.getByRole("radio", { name: "Use system theme" })).toBeVisible()
+  await expect(themeGroup.getByRole("radio", { name: "Use light theme" })).toBeVisible()
+  await expect(themeGroup.getByRole("radio", { name: "Use dark theme" })).toBeVisible()
+
+  await expect
+    .poll(async () => themeGroup.locator("[role='radio']:visible").count(), {
+      message: "expected inactive theme choices to auto-collapse after five seconds of idle time",
+      timeout: 6_500,
+    })
+    .toBe(1)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])

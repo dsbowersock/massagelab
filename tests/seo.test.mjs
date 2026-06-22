@@ -6,10 +6,12 @@ import {
   PUBLIC_SEO_ROUTES,
   ROBOTS_PRIVATE_DISALLOW_PATHS,
   buildCanonicalUrl,
+  createSeoJsonLd,
   createSitemapEntries,
   getRobotsRouteConfig,
   publicSeoIndexingEnabled,
 } from "../lib/seo.js"
+import { MASSAGELAB_SOCIAL_URLS } from "../lib/social-links.js"
 
 const productionEnv = Object.freeze({ NODE_ENV: "production", VERCEL_ENV: "production" })
 const previewEnv = Object.freeze({ NODE_ENV: "production", VERCEL_ENV: "preview" })
@@ -87,6 +89,18 @@ describe("SEO route contract", () => {
     assert.ok(disallow.includes("/anatomime/play"))
     assert.ok(disallow.includes("/book"))
     assert.ok(disallow.includes("/notes/soap"))
+  })
+
+  it("publishes social profiles as organization sameAs links", () => {
+    const organization = createSeoJsonLd()["@graph"].find((node) => node["@type"] === "Organization")
+    assert.ok(organization, "Organization node missing from SEO JSON-LD graph")
+
+    assert.deepEqual(organization.sameAs, [...MASSAGELAB_SOCIAL_URLS])
+    assert.deepEqual([...MASSAGELAB_SOCIAL_URLS], [
+      "https://www.instagram.com/massagelab/",
+      "https://www.youtube.com/@massagelabtv",
+      "https://www.facebook.com/massagewithderrick",
+    ])
   })
 
   it("disallows all crawling outside production", () => {

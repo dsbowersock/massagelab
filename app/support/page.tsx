@@ -3,6 +3,7 @@ import { Mail, Map, ShieldCheck } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { SocialLinksSurface } from "@/components/social-links"
 import { normalizeLinkedSentryEventId } from "@/lib/problem-report"
 import { SupportContactForm } from "@/app/support/support-contact-form"
 import { SupportDiagnosticReport } from "@/app/support/support-diagnostic-report"
@@ -57,6 +58,11 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
         <SupportContactForm initialName={defaults.name} initialContact={defaults.contact} />
 
         <SupportDiagnosticReport linkedEventId={linkedEventId} />
+
+        <SocialLinksSurface
+          title="Social updates"
+          description="Follow MassageLab for public updates and videos outside the support inbox."
+        />
 
         <div className="grid gap-4 md:grid-cols-3">
           <Link href="/roadmap">

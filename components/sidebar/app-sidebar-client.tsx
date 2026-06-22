@@ -122,9 +122,18 @@ const primaryGroupIcons: Record<string, LucideIcon> = {
 }
 
 const sidebarSectionTriggerClass = cn(
-  "cursor-pointer gap-2",
-  "group-data-[collapsible=icon]:!mt-0 group-data-[collapsible=icon]:!h-8 group-data-[collapsible=icon]:!w-8",
+  "h-9 cursor-pointer gap-2 px-2 text-sm font-semibold text-sidebar-foreground",
+  "hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent/60",
+  "group-data-[collapsible=icon]:!mt-0 group-data-[collapsible=icon]:!h-9 group-data-[collapsible=icon]:!w-9",
   "group-data-[collapsible=icon]:!px-0 group-data-[collapsible=icon]:!opacity-100 group-data-[collapsible=icon]:justify-center",
+)
+const primaryChildRouteListClass = cn(
+  "ml-4 mt-1 border-l border-sidebar-border/70 pl-2",
+  "group-data-[collapsible=icon]:hidden",
+)
+const primaryChildRouteButtonClass = cn(
+  "h-8 rounded-md px-2 text-[0.8125rem] font-normal text-sidebar-foreground/85",
+  "data-[active=true]:font-medium [&>svg]:size-3.5",
 )
 
 function SidebarSectionTrigger({
@@ -231,10 +240,12 @@ function useSidebarNavigation() {
 }
 
 function SidebarRoute({
+  nested = false,
   route,
   pathname,
   tooltipSide,
 }: {
+  nested?: boolean
   route: NavigationRoute
   pathname: string
   tooltipSide: "left" | "right"
@@ -248,6 +259,7 @@ function SidebarRoute({
         asChild
         isActive={isNavigationRouteActive(pathname, route.href)}
         tooltip={{ children: route.label, side: tooltipSide }}
+        className={cn(nested && primaryChildRouteButtonClass)}
       >
         <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
           <Icon />
@@ -349,13 +361,13 @@ function NavPrimary({
                 onRailOpen={() => expandGroup(group.id)}
               />
               <CollapsibleContent className="group-data-[collapsible=icon]:hidden">
-                <SidebarGroupContent>
-                  <SidebarMenu>
+                <SidebarGroupContent className={primaryChildRouteListClass}>
+                  <SidebarMenu className="gap-0.5">
                     {group.routes.map((route) => (
                       route.id === "calendar" ? (
-                        <CalendarSidebarRoute key={route.id} calendarMenuRoutes={calendarMenuRoutes} pathname={pathname} tooltipSide={tooltipSide} />
+                        <CalendarSidebarRoute key={route.id} nested calendarMenuRoutes={calendarMenuRoutes} pathname={pathname} tooltipSide={tooltipSide} />
                     ) : (
-                        <SidebarRoute key={route.id} route={route} pathname={pathname} tooltipSide={tooltipSide} />
+                        <SidebarRoute key={route.id} nested route={route} pathname={pathname} tooltipSide={tooltipSide} />
                       )
                     ))}
                   </SidebarMenu>
@@ -423,10 +435,12 @@ function CalendarRequestBadges({
 
 function CalendarSidebarRoute({
   calendarMenuRoutes,
+  nested = false,
   pathname,
   tooltipSide,
 }: {
   calendarMenuRoutes: NavigationRoute[]
+  nested?: boolean
   pathname: string
   tooltipSide: "left" | "right"
 }) {
@@ -445,7 +459,7 @@ function CalendarSidebarRoute({
         asChild
         isActive={isNavigationRouteActive(pathname, "/calendar")}
         tooltip={{ children: "Calendar", side: tooltipSide }}
-        className="group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]"
+        className={cn("group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
       >
         <Link href="/calendar" onClick={(event) => navigateFromSidebar(event, "/calendar")}>
           <CalendarDays />
@@ -676,13 +690,13 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
               title="MassageLab home"
               onClick={(event) => navigateFromSidebar(event, "/")}
               className={cn(
-                "ml-sidebar-brand-frame flex h-10 w-full items-center justify-center rounded-lg border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
+                "ml-sidebar-brand-frame flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                 "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
               )}
             >
               <Image
-                src="/brand/massagelab-mark-square-tight.png"
+                src="/brand/massagelab-mark-square-tight-20260622.png"
                 alt=""
                 width={32}
                 height={32}
@@ -692,7 +706,7 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
                 loading="eager"
               />
               <Image
-                src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
+                src="/brand/massagelab-wordmark-uppercase-tight-20260622.png"
                 alt=""
                 width={180}
                 height={54}
@@ -747,9 +761,9 @@ export function AppSidebarClient({
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="lg" className="justify-center data-[state=open]:bg-sidebar-accent">
                 <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
-                  <span className="ml-sidebar-brand-frame hidden aspect-square size-8 items-center justify-center rounded-lg border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
+                  <span className="ml-sidebar-brand-frame hidden aspect-square size-8 items-center justify-center rounded-full border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
                     <Image
-                      src="/brand/massagelab-mark-square-tight.png"
+                      src="/brand/massagelab-mark-square-tight-20260622.png"
                       alt=""
                       width={28}
                       height={28}
@@ -760,7 +774,7 @@ export function AppSidebarClient({
                     />
                   </span>
                   <Image
-                    src="/brand/massagelab-wordmark-uppercase-tight-20260522.png"
+                    src="/brand/massagelab-wordmark-uppercase-tight-20260622.png"
                     alt="MassageLab"
                     width={180}
                     height={54}

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   defaultAppSettings,
@@ -14,6 +15,25 @@ import {
 } from "../lib/sidebar-layout.js"
 
 describe("App settings helpers", () => {
+  it("opens compact theme choices without changing theme on the first phone tap", () => {
+    const source = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
+
+    assert.match(source, /function shouldOpenCompactPickerOnly/)
+    assert.match(source, /suppressCompactActivationRef/)
+    assert.match(source, /getComputedStyle\(inactiveOption\)\.display === "none"/)
+    assert.match(source, /data-theme-selected/)
+    assert.match(source, /onValueChange=\{\(value\) => \{\s*if \(suppressCompactActivationRef\.current\)/)
+    assert.match(source, /event\.preventDefault\(\)/)
+  })
+
+  it("keeps the global theme control visible in the primary bar on narrow phones", () => {
+    const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
+
+    assert.match(topBarSource, /<ThemeSwitcherMultiButton\b/)
+    assert.match(topBarSource, /gap-1 min-\[361px\]:gap-2/)
+    assert.doesNotMatch(topBarSource, /ThemeSwitcherMultiButton className="max-\[360px\]:hidden"/)
+  })
+
   it("defaults the app to dark mode with the portrait sidebar button at bottom left", () => {
     assert.deepEqual(normalizeAppSettings(null), defaultAppSettings)
     assert.equal(defaultAppSettings.sidebarPosition, "left")

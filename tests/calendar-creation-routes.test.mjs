@@ -124,6 +124,8 @@ describe("calendar creation route wiring", () => {
     assert.match(toolbarContext, /useCalendarOperatorToolbarControls/)
     assert.match(topBar, /useCalendarOperatorToolbarSlot/)
     assert.match(topBar, /TooltipContent/)
+    assert.equal(topBar.includes("@/components/ui/breadcrumb"), false)
+    assert.equal(topBar.includes("<TopbarBreadcrumbs"), false)
     assert.equal(bookingPage.includes("CalendarOperatorTopBar"), false)
     assert.equal(bookingPage.includes("CalendarOperatorShell"), false)
   })
