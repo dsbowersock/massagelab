@@ -53,6 +53,31 @@ describe("Account preference helpers", () => {
     assert.deepEqual(removeForbiddenPreferenceFields([{ clientDob: "1990-01-01", safe: true }]), [{ safe: true }])
   })
 
+  it("removes PHI-shaped keys from business planner app settings", () => {
+    const payload = buildUserPreferencePayload({
+      appSettings: {
+        businessIncomePlannerIncome: {
+          desiredTakeHomeIncome: 60000,
+          clientName: "Jane Example",
+          soapDraft: "session details",
+          nested: {
+            safeAssumption: "monthly rent",
+            wellnessEntries: [{ summary: "neck pain" }],
+          },
+        },
+      },
+    })
+
+    assert.deepEqual(payload.app_settings, {
+      businessIncomePlannerIncome: {
+        desiredTakeHomeIncome: 60000,
+        nested: {
+          safeAssumption: "monthly rent",
+        },
+      },
+    })
+  })
+
   it("uses cloud preferences after login when they exist", () => {
     const result = choosePreferenceSource({
       cloudPreferences: { app_settings: { sidebarPosition: "left", sidebarTriggerPosition: "top" } },

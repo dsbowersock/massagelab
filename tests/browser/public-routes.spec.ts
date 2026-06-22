@@ -13,6 +13,14 @@ const publicRoutes = [
   { path: "/music", expectedText: /Treatment room starters/i },
   { path: "/wellness/breathing", expectedText: /Breathing guide/i },
   { path: "/calendar", expectedText: /Calendar/i },
+  { path: "/tools", expectedText: /MassageLab Tools/i },
+  { path: "/tools/business-planner", expectedText: /Business Planner/i },
+  { path: "/tools/business-planner/income", expectedText: /Business Income Planner/i },
+  { path: "/tools/business-planner/break-even", expectedText: /Startup Costs and Break-Even/i },
+  { path: "/tools/business-planner/launch-checklist", expectedText: /Practice Launch Checklist/i },
+  { path: "/tools/business-planner/service-menu", expectedText: /Service Menu and Policies/i },
+  { path: "/tools/business-planner/plan-outline", expectedText: /Business Plan Outline/i },
+  { path: "/tools/business-planner/add-on-profit", expectedText: /Add-On Profit Calculator/i },
   { path: "/education", expectedText: /Education/i },
   { path: "/education/flashcards", expectedText: /Flashcards/i },
   { path: "/education/flashcards/decks", expectedText: /Community Decks/i },
@@ -192,6 +200,7 @@ test("anonymous homepage presents the optional action router and available tools
   await expect(page.getByRole("heading", { name: "Available tools" })).toBeVisible()
   for (const name of [
     "Chimer",
+    "Business income planner",
     "Music",
     "Education flashcards",
     "Anatomime",
@@ -205,6 +214,7 @@ test("anonymous homepage presents the optional action router and available tools
 
   const availableTools = page.locator("#available-tools")
   await expect(availableTools.getByRole("link", { name: /Open Chimer/i })).toHaveAttribute("href", "/chimer")
+  await expect(availableTools.getByRole("link", { name: /Open planner/i })).toHaveAttribute("href", "/tools/business-planner/income")
   await expect(availableTools.getByRole("link", { name: /Open Music/i })).toHaveAttribute("href", "/music")
   await expect(availableTools.getByRole("link", { name: /Study flashcards/i })).toHaveAttribute("href", "/education/flashcards")
   await expect(availableTools.getByRole("link", { name: /Play Anatomime/i })).toHaveAttribute("href", "/anatomime")

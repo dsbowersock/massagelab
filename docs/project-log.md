@@ -99,6 +99,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-06-22
+
+- Added the [business income planner design spec](superpowers/specs/2026-06-22-business-income-planner-design.md) and [implementation plan](superpowers/plans/2026-06-22-business-income-planner.md), then implemented `/tools/business-planner` and `/tools/business-planner/income` as public student/therapist business-planning surfaces. The income planner turns worksheet-style assumptions into gross revenue, hourly target, 30/60/90/120-minute session prices, workload capacity scenarios, time-off math, and optional employee-wage comparisons.
+- Kept planner persistence intentionally narrow: anonymous users save one worksheet to browser storage, signed-in users save one overwritten current worksheet under `UserPreference.appSettings.businessIncomePlannerIncome`, and source guards confirm there is no dedicated Prisma planner model or account sync of PHI-shaped fields.
+- Wired the business income planner into public SEO metadata, the new `/tools` index, sidebar navigation, homepage tool discovery, and onboarding/home shortcut recommendations for therapist and student practice-planning use cases.
+- Added the [business plan template tools implementation plan](superpowers/plans/2026-06-22-business-plan-template-tools.md) and expanded `/tools/business-planner` with public browser-local tools derived from the student business plan template: startup costs and break-even, practice launch checklist, service menu and policy worksheet, business plan outline builder, and add-on profit calculator. These routes are wired into the business planner hub, public SEO route contract, sidebar model for the break-even calculator, and browser route coverage without adding Prisma storage or account preference writes for the new template tools.
+
 ### 2026-06-21
 
 - Added the [technical SEO foundation plan](superpowers/plans/2026-06-21-technical-seo-foundation.md) for the public-alpha share window, replacing the old sitewide private-alpha `noindex` posture with production-gated public metadata, sitemap, robots, and schema work while keeping preview/development builds and private route families blocked from indexing.
