@@ -157,6 +157,17 @@ test("main bar exposes home music clock quick create theme calendar and more con
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "massage-lab-settings",
+      JSON.stringify({
+        appBarPosition: "bottom",
+        sidebarPosition: "left",
+        sidebarTriggerPosition: "bottom",
+        themeMode: "dark",
+      }),
+    )
+  })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
   await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
@@ -167,6 +178,9 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await expect(page.getByRole("group", { name: /^Theme$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open calendar$/i })).toHaveAttribute("href", "/calendar")
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
+
+  const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
+  await expect(mainBar.locator(".ml-main-bar-button").first()).toHaveAccessibleName("Open navigation")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
