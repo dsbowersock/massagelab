@@ -7,6 +7,12 @@ import {
   missingRequiredLegalDocuments,
   recordLegalAcceptances,
 } from "../lib/legal-acceptance.js"
+import {
+  buildRegistrationLegalAcceptancePath,
+  buildRegistrationLegalProviderRedirectPath,
+  isRegistrationLegalAcceptancePath,
+  safePostLegalAcceptanceCallback,
+} from "../lib/legal-acceptance-gate.js"
 import { requiredLegalDocumentsForEvent } from "../lib/legal-documents.js"
 
 function createMockDb(initialRows = []) {
@@ -115,5 +121,29 @@ describe("legal acceptance helpers", () => {
       ipAddress: "203.0.113.10",
       userAgent: "legal-test",
     })
+  })
+
+  it("normalizes post-acceptance callback paths for the signed-in legal gate", () => {
+    assert.equal(safePostLegalAcceptanceCallback("/wellness"), "/wellness")
+    assert.equal(safePostLegalAcceptanceCallback("/calendar/new?startsAt=2026-06-23T10%3A00"), "/calendar/new?startsAt=2026-06-23T10%3A00")
+    assert.equal(safePostLegalAcceptanceCallback("https://example.com"), "/onboarding")
+    assert.equal(safePostLegalAcceptanceCallback("//example.com"), "/onboarding")
+    assert.equal(safePostLegalAcceptanceCallback("/legal/accept?callbackUrl=%2Fwellness"), "/onboarding")
+    assert.equal(safePostLegalAcceptanceCallback("/api/account/preferences"), "/onboarding")
+  })
+
+  it("builds the signed-in registration legal acceptance route with a safe callback", () => {
+    assert.equal(buildRegistrationLegalAcceptancePath("/wellness"), "/legal/accept?callbackUrl=%2Fwellness")
+    assert.equal(buildRegistrationLegalAcceptancePath("//example.com"), "/legal/accept?callbackUrl=%2Fonboarding")
+  })
+
+  it("preserves an existing legal gate callback for OAuth provider redirects", () => {
+    assert.equal(isRegistrationLegalAcceptancePath("/legal/accept?callbackUrl=%2Fwellness"), true)
+    assert.equal(isRegistrationLegalAcceptancePath("/legal/accept/extra"), false)
+    assert.equal(
+      buildRegistrationLegalProviderRedirectPath("/legal/accept?callbackUrl=%2Fwellness"),
+      "/legal/accept?callbackUrl=%2Fwellness",
+    )
+    assert.equal(buildRegistrationLegalProviderRedirectPath("/wellness"), "/legal/accept?callbackUrl=%2Fwellness")
   })
 })

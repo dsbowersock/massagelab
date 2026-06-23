@@ -79,6 +79,8 @@ Before enabling subscription checkout, confirm:
 - The Stripe Customer Portal is enabled and configured for subscription management.
 - `/api/billing/webhook` is registered with the Stripe webhook signing secret.
 - Local and Vercel environments contain the same required Stripe keys and Price IDs for their respective test or live mode.
+- Production uses a live `STRIPE_SECRET_KEY`, a live webhook signing secret, and live recurring Price IDs. Test-mode keys or empty production Price IDs are launch blockers.
+- Run `npm run stripe:readiness -- --live --verify-stripe` with production env values before public paid signup.
 
 ## Sentry
 

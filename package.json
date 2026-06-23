@@ -39,7 +39,9 @@
     "atmosphere:samples:generative:web-audio:r2:check": "node scripts/atmosphere-upload-generative-web-audio-r2.mjs check",
     "atmosphere:samples:generative:web-audio:r2:upload": "node scripts/atmosphere-upload-generative-web-audio-r2.mjs upload",
     "atmosphere:samples:web-audio:r2:check": "node scripts/atmosphere-upload-web-audio-format-r2.mjs check",
-    "atmosphere:samples:web-audio:r2:upload": "node scripts/atmosphere-upload-web-audio-format-r2.mjs upload"
+    "atmosphere:samples:web-audio:r2:upload": "node scripts/atmosphere-upload-web-audio-format-r2.mjs upload",
+    "stripe:readiness": "node scripts/stripe-readiness-check.mjs",
+    "stripe:live:setup": "node scripts/stripe-live-membership-setup.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

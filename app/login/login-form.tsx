@@ -9,6 +9,7 @@ import { AppInset, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 
 type LoginFormProps = {
   googleEnabled: boolean
@@ -30,7 +31,10 @@ function safeCallbackUrl(value: string | null) {
 export function LoginForm({ googleEnabled }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const hasCallbackUrl = searchParams.has("callbackUrl")
   const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"))
+  const googleCallbackUrl = hasCallbackUrl ? callbackUrl : "/onboarding"
+  const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(googleCallbackUrl)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [twoFactorCode, setTwoFactorCode] = useState("")
@@ -122,7 +126,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
         </form>
 
         {googleEnabled ? (
-          <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: callbackUrl })}>
+          <Button type="button" variant="outline" className="w-full" onClick={() => signIn("google", { redirectTo: googleRedirectTo })}>
             <ShieldCheck className="mr-2 h-4 w-4" />
             Continue with Google
           </Button>

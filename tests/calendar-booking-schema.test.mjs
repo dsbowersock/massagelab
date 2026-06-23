@@ -92,6 +92,9 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(loginForm, /safeCallbackUrl/)
     assert.match(loginForm, /value\.includes\("\\\\"\)/)
     assert.match(loginForm, /router\.push\(callbackUrl\)/)
+    assert.match(loginForm, /buildRegistrationLegalProviderRedirectPath/)
+    assert.match(loginForm, /const googleCallbackUrl = hasCallbackUrl \? callbackUrl : "\/onboarding"/)
+    assert.match(loginForm, /signIn\("google", \{ redirectTo: googleRedirectTo \}\)/)
     assert.match(registerPage, /callbackUrl/)
   })
 

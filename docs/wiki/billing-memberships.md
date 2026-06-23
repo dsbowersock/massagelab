@@ -87,5 +87,6 @@ Membership messaging can explain that paid support helps fund future compliance-
 - Configure the webhook endpoint at `/api/billing/webhook` and subscribe it to Checkout Session and customer subscription lifecycle events.
 - Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the configured price IDs in local development and Vercel.
 - Use the Stripe CLI in test mode to forward webhooks during local checkout testing.
+- Before public paid signup, run `npm run stripe:readiness -- --live --verify-stripe` against the production Stripe environment. The check must pass without printing secret values.
 
 Current local workspace note from May 15, 2026: `.env.local` did not contain Stripe keys or price IDs during implementation planning, so local Checkout and webhook testing will fail until those values are added.

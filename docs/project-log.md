@@ -99,6 +99,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-06-23
+
+- Added a Stripe production readiness checker (`npm run stripe:readiness`) that validates required membership billing environment variables without printing secret values and can retrieve configured Stripe Prices when run with `--verify-stripe`.
+- Verified that current local Stripe configuration is test/non-live ready, while live readiness fails because the configured production Stripe secret is not live and production membership webhook/Price values are empty or unavailable. Paid public signup remains blocked until live Stripe Products/Prices, webhook signing secret, and Vercel Production env values are configured and revalidated.
+- Created/reused live Stripe membership Products and recurring Prices matching the test pricing for Supporter, Therapist, and Practice, created the live Student-to-Therapist and Early Access coupons, configured the production billing webhook endpoint, enabled Stripe Customer Portal with the current legal URLs, updated Vercel Production Stripe env values, redeployed Production, verified `/pricing` renders configured prices, and confirmed the live webhook accepts an inert signed event. A real low-dollar live checkout and portal return remains the final end-to-end paid signup smoke test.
+- Closed the Google signup legal-acceptance gap: Google sign-in now redirects through `/legal/accept`, requires the current registration Terms/Privacy acceptance when missing, then continues to onboarding or the preserved callback. Email/password registration still records acceptance during account creation.
+
 ### 2026-06-22
 
 - Implemented the Big Visual Refresh: added a bottom-first responsive shell, bottom-stacked music player behavior, Radarr-style quick actions, rail-based homepage/tool discovery, compact grouped account settings, and shared visual-surface alignment across representative public routes while preserving local-first PHI boundaries, feature-key checks, drawer-side choice, and theme modes.
