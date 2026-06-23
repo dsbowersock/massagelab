@@ -261,10 +261,6 @@
       scrollbar-width: none;
     }
 
-    .ml-app-scroll:has(.ml-flashcards-page) .ml-app-content {
-      padding-bottom: var(--ml-safe-bottom);
-    }
-
     .ml-app-scroll:has(.ml-flashcards-page)::-webkit-scrollbar {
       width: 0;
       height: 0;
