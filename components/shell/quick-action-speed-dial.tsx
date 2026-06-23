@@ -34,6 +34,8 @@ const quickActionIcons = {
   Wind,
 } satisfies Record<string, LucideIcon>
 
+const quickActionTriggerSelector = 'button[data-quick-action-trigger="true"][aria-expanded="true"]'
+
 export function QuickActionSpeedDial({
   isSignedIn = false,
   onboarding,
@@ -58,7 +60,7 @@ export function QuickActionSpeedDial({
 
     const updateAnchor = () => {
       const button = returnFocusRef.current
-        ?? document.querySelector<HTMLButtonElement>('button[aria-label="Open quick actions"][aria-expanded="true"]')
+        ?? document.querySelector<HTMLButtonElement>(quickActionTriggerSelector)
       if (!button) {
         setAnchorStyle(undefined)
         return
