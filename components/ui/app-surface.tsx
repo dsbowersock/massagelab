@@ -28,6 +28,14 @@ export const appCalloutClassName =
 export const appActionRowClassName =
   "h-auto w-full items-start justify-start whitespace-normal border-border/80 bg-background/80 p-4 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent"
 
+// Shared media tiles keep image-heavy rails visually consistent without route-specific shadow or blur drift.
+export const appMediaTileClassName =
+  "rounded-md border border-border/80 bg-card/95 shadow-xl shadow-black/20 ring-1 ring-white/[0.03] backdrop-blur"
+
+// Shared rail scrollers use snap scrolling and hidden scrollbars for touch-friendly horizontal discovery rows.
+export const appRailScrollerClassName =
+  "-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
+
 export type AppPageWidth = keyof typeof appPageWidthClassNames
 
 export function AppPageShell({

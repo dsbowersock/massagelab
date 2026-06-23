@@ -9,6 +9,11 @@ import {
   resolveSidebarButtonSettings,
 } from "../lib/app-settings.js"
 import {
+  mainBarItemIds,
+  resolveMainBarItemOrder,
+  getMusicPlayerPlacement,
+} from "../lib/app-shell.js"
+import {
   getSidebarRenderMode,
   shouldCollapseSidebarFromOutsidePointer,
   shouldExpandSidebarFromRail,
@@ -64,10 +69,13 @@ describe("App settings helpers", () => {
     }), defaultAppSettings)
   })
 
-  it("places the audio player toolbar opposite the app bar", () => {
-    assert.equal(defaultAppSettings.appBarPosition, "top")
+  it("defaults to a bottom app bar and keeps the music player on the bottom", () => {
+    assert.equal(defaultAppSettings.appBarPosition, "bottom")
+    assert.equal(defaultAppSettings.sidebarPosition, "left")
+    assert.equal(defaultAppSettings.sidebarTriggerPosition, "bottom")
     assert.equal(getAudioPlayerToolbarPlacement(defaultAppSettings), "bottom")
-    assert.equal(getAudioPlayerToolbarPlacement({ appBarPosition: "bottom" }), "top")
+    assert.equal(getMusicPlayerPlacement(defaultAppSettings), "bottom")
+    assert.equal(getMusicPlayerPlacement({ appBarPosition: "top" }), "bottom")
   })
 
   it("maps persisted sidebar settings to a four-corner button position", () => {
@@ -94,6 +102,44 @@ describe("App settings helpers", () => {
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
     })
+  })
+
+  it("orders the main bar so More follows the selected drawer side", () => {
+    assert.deepEqual(mainBarItemIds, ["more", "music", "clock", "quick-create", "calendar", "home", "theme"])
+    assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "left" }), [
+      "more",
+      "music",
+      "clock",
+      "quick-create",
+      "calendar",
+      "home",
+      "theme",
+    ])
+    assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "right" }), [
+      "theme",
+      "home",
+      "calendar",
+      "quick-create",
+      "clock",
+      "music",
+      "more",
+    ])
+  })
+
+  it("renders the mobile main bar and quick-action speed dial from the layout shell", () => {
+    const layoutSource = readFileSync(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8")
+    const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
+    const speedDialSource = readFileSync(new URL("../components/shell/quick-action-speed-dial.tsx", import.meta.url), "utf8")
+    const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
+
+    assert.match(layoutSource, /<MobileMainBar\b/)
+    assert.match(mainBarSource, /resolveMainBarItemOrder/)
+    assert.match(mainBarSource, /aria-label="MassageLab main navigation"/)
+    assert.match(mainBarSource, /QuickActionSpeedDial/)
+    assert.match(speedDialSource, /aria-label="Quick create actions"/)
+    assert.match(speedDialSource, /Escape/)
+    assert.match(topBarSource, /QuickActionSpeedDial/)
+    assert.match(topBarSource, /aria-label="Open quick actions"/)
   })
 
   it("uses a drawer only in narrow portrait phone layouts", () => {

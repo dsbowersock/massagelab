@@ -29,6 +29,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { QuickActionSpeedDial } from "@/components/shell/quick-action-speed-dial"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { isNavigationRouteActive } from "@/lib/navigation"
@@ -355,7 +356,9 @@ export function CalendarOperatorTopBar({
   const primaryToolbarMeasureRef = useRef<HTMLDivElement | null>(null)
   const secondaryToolbarRef = useRef<HTMLDivElement | null>(null)
   const actionClusterRef = useRef<HTMLDivElement | null>(null)
+  const quickActionButtonRef = useRef<HTMLButtonElement | null>(null)
   const [controlsOverflowing, setControlsOverflowing] = useState(false)
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const toolbarSlot = useCalendarOperatorToolbarSlot()
   const hasToolbarSlot = Boolean(toolbarSlot)
   const sidebarIsRight = settings.sidebarPosition === "right"
@@ -484,9 +487,29 @@ export function CalendarOperatorTopBar({
       <TooltipContent>Clock</TooltipContent>
     </Tooltip>
   )
+  const quickActionControl = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          ref={quickActionButtonRef}
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="h-10 w-10 shrink-0"
+          aria-label="Open quick actions"
+          aria-expanded={quickActionsOpen}
+          onClick={() => setQuickActionsOpen((current) => !current)}
+        >
+          <Plus data-icon="inline-start" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Quick actions</TooltipContent>
+    </Tooltip>
+  )
   const oppositeControls = (
     <div className="flex shrink-0 items-center gap-1 min-[361px]:gap-2">
       <ThemeSwitcherMultiButton />
+      {quickActionControl}
       {musicControl}
       {clockControl}
       {calendarControl}
@@ -511,10 +534,17 @@ export function CalendarOperatorTopBar({
 
   return (
     <TooltipProvider delayDuration={150}>
+      <QuickActionSpeedDial
+        isSignedIn={Boolean(user)}
+        onboarding={user?.quickActionOnboarding}
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        returnFocusRef={quickActionButtonRef}
+      />
       <header
         ref={headerRef}
         className={cn(
-          "ml-app-topbar relative z-30 bg-background/95 shadow-sm backdrop-blur",
+          "ml-app-topbar relative z-30 hidden bg-background/95 shadow-sm backdrop-blur md:block",
           appBarIsBottom ? "border-t border-border/70" : "border-b border-border/70",
         )}
       >

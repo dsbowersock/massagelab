@@ -78,7 +78,7 @@ export default async function NotesPage() {
   const membershipHref = session?.user?.id ? "/account?tab=membership" : "/pricing"
 
   return (
-    <AppPageShell title="Local-First Documentation">
+    <AppPageShell title="Local-First Documentation" contentClassName="gap-6">
         <AppSurface
           title="Local-first massage documentation"
           description={

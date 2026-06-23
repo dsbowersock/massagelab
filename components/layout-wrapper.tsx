@@ -7,8 +7,9 @@ import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-
 import { MovingBackground } from "@/components/moving-background"
 import { MusicMiniPlayer } from "@/components/providers/music-mini-player"
 import { useSettings } from "@/components/providers/settings-provider"
+import { MobileMainBar } from "@/components/shell/mobile-main-bar"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
-import { getAudioPlayerToolbarPlacement } from "@/lib/app-settings"
+import { getMusicPlayerPlacement } from "@/lib/app-shell"
 import { cn } from "@/lib/utils"
 
 export function LayoutWrapper({
@@ -25,18 +26,18 @@ export function LayoutWrapper({
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
-  const isFlashcardsRoute = pathname === "/education/flashcards"
   const routeOwnsBackground = pathname.startsWith("/chimer")
     || pathname.startsWith("/clock")
     || pathname.startsWith("/anatomime")
   const appBarIsBottom = settings.appBarPosition === "bottom"
-  const musicPlayerPlacement = getAudioPlayerToolbarPlacement(settings)
+  const musicPlayerPlacement = getMusicPlayerPlacement(settings)
   const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
 
   const shell = (
     <div
       className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background"
       data-app-bar-position={settings.appBarPosition}
+      data-main-bar-visible={!routeOwnsBackground ? "true" : "false"}
     >
       {!routeOwnsBackground && (
         <>
@@ -62,13 +63,13 @@ export function LayoutWrapper({
             "ml-app-content mx-auto w-full",
             isCalendarOperatorRoute || isPublicBookingRoute ? "max-w-none" : "max-w-screen-2xl",
             isCalendarWorkspaceRoute && "h-full min-h-0 pb-0",
-            isFlashcardsRoute && "pb-0",
           )}
         >
           {children}
         </div>
       </div>
       {appBarIsBottom && appBar}
+      {!routeOwnsBackground && <MobileMainBar user={user} />}
       <MusicMiniPlayer placement={musicPlayerPlacement} />
     </div>
   )

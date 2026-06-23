@@ -135,14 +135,110 @@ for (const route of publicRoutes) {
   })
 }
 
-test("primary bar exposes music and clock shortcuts beside calendar controls", async ({ page }) => {
+test("core public tool surfaces keep shell spacing and visible primary content", async ({ page }) => {
   const health = capturePageHealth(page)
 
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const path of ["/", "/tools", "/education", "/notes", "/music", "/wellness"]) {
+    await page.goto(path, { waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
+    await expect(page.locator(".ml-app-content")).toBeVisible()
+    const contentBox = await page.locator(".ml-app-content").boundingBox()
+    expect(contentBox?.height ?? 0).toBeGreaterThan(240)
+  }
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("main bar exposes home music clock quick create theme calendar and more controls", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "massage-lab-settings",
+      JSON.stringify({
+        appBarPosition: "bottom",
+        sidebarPosition: "left",
+        sidebarTriggerPosition: "bottom",
+        themeMode: "dark",
+      }),
+    )
+  })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
+  await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
-  await expect(page.getByRole("button", { name: /^Open calendar$/i })).toBeVisible()
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
+  const quickCreateBox = await quickCreate.boundingBox()
+  expect(quickCreateBox?.width ?? 0).toBeGreaterThanOrEqual(44)
+  expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(45)
+  expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(44)
+  expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(45)
+  await expect(page.getByRole("group", { name: /^Theme$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Open calendar$/i })).toHaveAttribute("href", "/calendar")
+  await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
+
+  const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
+  await expect(mainBar.locator(".ml-main-bar-edge-start .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
+  await expect(mainBar.locator(".ml-main-bar-edge-end").getByRole("group", { name: /^Theme$/i })).toBeVisible()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("main bar edge controls stay clear of the compact sidebar rail", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 686, height: 682 })
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "massage-lab-settings",
+      JSON.stringify({
+        appBarPosition: "bottom",
+        sidebarPosition: "left",
+        sidebarTriggerPosition: "bottom",
+        themeMode: "dark",
+      }),
+    )
+  })
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const openNavigation = page.getByRole("button", { name: /^Open navigation$/i })
+  await expect(openNavigation).toBeVisible()
+  const openNavigationBox = await openNavigation.boundingBox()
+  expect(openNavigationBox?.x ?? 0).toBeGreaterThan(64)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("mobile quick-create button opens a vertical speed dial", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+  await page.getByRole("button", { name: /^Open quick actions$/i }).click()
+
+  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
+  await expect(quickActions).toBeVisible()
+  await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
+  await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")
+  await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
+  await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/register?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
+
+  await page.keyboard.press("Escape")
+  await expect(quickActions).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -163,7 +259,7 @@ test("mobile primary bar keeps lighting controls available and auto-collapses th
   await expect(narrowLightTheme).toBeHidden()
   await expect(page.getByRole("link", { name: /^Open music$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Open calendar$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Open calendar$/i })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 932 })
 
@@ -182,7 +278,7 @@ test("mobile primary bar keeps lighting controls available and auto-collapses th
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("anonymous homepage presents the optional action router and available tools catalog", async ({ page }) => {
+test("anonymous homepage presents landing copy and tool discovery rails", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
@@ -200,6 +296,12 @@ test("anonymous homepage presents the optional action router and available tools
   await expect(page.getByRole("link", { name: /Organize a practice/i })).toHaveAttribute("href", "/register?callbackUrl=%2Fcalendar")
   await expect(page.getByRole("link", { name: /Document locally/i })).toHaveAttribute("href", "/notes")
   await expect(page.getByRole("link", { name: /Just exploring/i })).toHaveAttribute("href", "#available-tools")
+
+  await expect(page.getByRole("region", { name: /^Practice tools$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Study tools$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Wellness tools$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Music and focus$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Business tools$/i })).toBeVisible()
 
   await expect(page.getByRole("heading", { name: "Available tools" })).toBeVisible()
   for (const name of [
@@ -547,13 +649,13 @@ test("register defaults new accounts toward post-account onboarding", async ({ p
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("homepage uses one logo artwork for light and dark themes", async ({ page }) => {
+test("homepage uses the final logo artwork for light and dark themes", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
   const logo = page.getByTestId("home-brand-wordmark-image")
-  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-padded-20260622/)
+  await expect(logo).toHaveAttribute("src", /massagelab-wordmark-final-20260622/)
   const initialSrc = await logo.getAttribute("src")
 
   await page.evaluate(() => {
