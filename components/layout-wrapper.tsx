@@ -29,10 +29,9 @@ export function LayoutWrapper({
   const routeOwnsBackground = pathname.startsWith("/chimer")
     || pathname.startsWith("/clock")
     || pathname.startsWith("/anatomime")
-  // Chimer and Clock own their immersive backgrounds, but still need the shared bottom controls.
+  // Chimer setup owns its background but still needs bottom controls; active Chimer states hide them by body class.
   const routeShowsMobileMainBar = !routeOwnsBackground
     || pathname.startsWith("/chimer")
-    || pathname.startsWith("/clock")
   const appBarIsBottom = settings.appBarPosition === "bottom"
   const musicPlayerPlacement = getMusicPlayerPlacement(settings)
   const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />

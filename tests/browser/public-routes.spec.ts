@@ -209,6 +209,25 @@ test("main bar exposes home music clock quick create theme calendar and more con
   expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(45)
   expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(44)
   expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(45)
+  const homeButtonStyle = await page.getByRole("link", { name: /^Home$/i }).evaluate((element) => {
+    const button = element.closest(".ml-main-bar-button")
+    const styles = button ? window.getComputedStyle(button) : null
+    return {
+      borderTopWidth: styles?.borderTopWidth ?? "",
+      backgroundColor: styles?.backgroundColor ?? "",
+    }
+  })
+  expect(homeButtonStyle.borderTopWidth).toBe("1px")
+  expect(homeButtonStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
+  const quickCreateStyle = await quickCreate.evaluate((element) => {
+    const styles = window.getComputedStyle(element)
+    return {
+      backgroundImage: styles.backgroundImage,
+      boxShadow: styles.boxShadow,
+    }
+  })
+  expect(quickCreateStyle.backgroundImage).toContain("gradient")
+  expect(quickCreateStyle.boxShadow).not.toBe("none")
   await expect(page.getByRole("group", { name: /^Theme$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open calendar$/i })).toHaveAttribute("href", "/calendar")
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
@@ -308,7 +327,11 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
   await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
   await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/register?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
 
-  await page.keyboard.press("Escape")
+  const quickActionsBox = await quickActions.boundingBox()
+  expect(quickActionsBox, "quick-action menu box before outside dismissal").not.toBeNull()
+  if (quickActionsBox) {
+    await page.mouse.click(quickActionsBox.x + 8, quickActionsBox.y + (quickActionsBox.height / 2))
+  }
   await expect(quickActions).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
@@ -331,6 +354,29 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
   const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
   await expect(quickCreate).toBeVisible()
   await openQuickActionsAboveTrigger(page, quickCreate)
+
+  await page.keyboard.press("Escape")
+  await expect(mainBar).toBeVisible()
+
+  await page.getByRole("button", { name: /^Clock Mode$/i }).click()
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeHidden()
+  await page.getByRole("button", { name: /^Close clock$/i }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeVisible()
+
+  await page.getByRole("button", { name: /^Set session length$/i }).click()
+  await page.getByRole("button", { name: "01" }).click()
+  await page.getByRole("button", { name: /^Start Timer$/i }).click()
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeHidden()
+  await page.getByRole("button", { name: /^End timer$/i }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeVisible()
+
+  await page.goto("/clock", { waitUntil: "domcontentloaded" })
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
+  await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])

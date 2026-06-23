@@ -166,7 +166,9 @@
   body.chimer-running .ml-route-wordmark,
   body.chimer-alerting .ml-route-wordmark,
   body.chimer-running .ml-app-topbar,
-  body.chimer-alerting .ml-app-topbar {
+  body.chimer-alerting .ml-app-topbar,
+  body.chimer-running .ml-mobile-main-bar,
+  body.chimer-alerting .ml-mobile-main-bar {
     display: none;
   }
 
@@ -210,8 +212,17 @@
 
   body.chimer-running .ml-app-shell,
   body.chimer-alerting .ml-app-shell {
+    --ml-bottom-stack-height: var(--ml-safe-bottom);
     --ml-page-top-safe: 0px;
     --ml-page-bottom-safe: 0px;
+    --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + 1.25rem);
+    --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + 0.75rem);
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom.chimer-running .ml-app-shell,
+  body.ml-music-player-active.ml-music-player-bottom.chimer-alerting .ml-app-shell {
+    --chimer-bottom-control-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-panel-bottom-offset: calc(var(--ml-safe-bottom) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
   .ml-app-scroll {
@@ -271,18 +282,35 @@
     min-width: 0;
     align-items: center;
     justify-content: center;
-    gap: 0.05rem;
+    gap: 0.18rem;
   }
 
   .ml-main-bar-button {
     height: 3.35rem;
-    width: 2.5rem;
+    width: 2.62rem;
     min-width: 0;
     flex-direction: column;
     gap: 0.12rem;
-    padding: 0.2rem 0.1rem;
+    border: 1px solid hsl(var(--border) / 0.62);
+    border-radius: 0.95rem;
+    background: hsl(var(--card) / 0.72);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.08),
+      0 0.35rem 0.95rem hsl(var(--background) / 0.2);
+    padding: 0.24rem 0.12rem;
     font-size: 0.58rem;
     line-height: 0.95;
+    color: hsl(var(--foreground) / 0.84);
+  }
+
+  .ml-main-bar-button:hover,
+  .ml-main-bar-button:focus-visible {
+    border-color: hsl(var(--primary) / 0.55);
+    background: hsl(var(--accent) / 0.9);
+    color: hsl(var(--foreground));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.1),
+      0 0.45rem 1.15rem hsl(var(--brand-orange-glow) / 0.18);
   }
 
   .ml-main-bar-button svg {
@@ -307,7 +335,25 @@
   .ml-mobile-main-bar .ml-main-bar-plus {
     width: 2.78125rem;
     height: 2.78125rem;
+    border: 1px solid hsl(var(--primary) / 0.58);
+    background:
+      linear-gradient(145deg, hsl(var(--brand-orange-soft) / 0.94) 0%, hsl(var(--primary) / 0.98) 54%, hsl(21 88% 43% / 0.98) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--primary-foreground) / 0.24),
+      0 0.18rem 0.45rem hsl(var(--background) / 0.28);
+    color: hsl(var(--primary-foreground));
     padding: 0;
+  }
+
+  .ml-mobile-main-bar .ml-main-bar-plus:hover,
+  .ml-mobile-main-bar .ml-main-bar-plus:focus-visible,
+  .ml-mobile-main-bar .ml-main-bar-plus[aria-expanded="true"] {
+    border-color: hsl(var(--primary) / 0.72);
+    background:
+      linear-gradient(145deg, hsl(var(--brand-orange-soft) / 1) 0%, hsl(var(--primary) / 1) 50%, hsl(21 88% 43% / 1) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--primary-foreground) / 0.28),
+      0 0.22rem 0.5rem hsl(var(--background) / 0.32);
   }
 
   @media (max-width: 767px) {

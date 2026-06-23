@@ -127,7 +127,6 @@ export function QuickActionSpeedDial({
         aria-label="Quick create actions"
         className="absolute flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-end gap-3 overflow-y-auto overscroll-contain"
         style={anchorStyle ?? { left: "50%", bottom: "calc(var(--ml-bottom-stack-height) + 4.75rem)" }}
-        onClick={(event) => event.stopPropagation()}
       >
         {groups.map((group) => (
           <section key={group.id} className="flex w-full flex-col items-end gap-2">
