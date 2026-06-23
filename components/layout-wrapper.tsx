@@ -29,6 +29,7 @@ export function LayoutWrapper({
   const routeOwnsBackground = pathname.startsWith("/chimer")
     || pathname.startsWith("/clock")
     || pathname.startsWith("/anatomime")
+  const routeShowsMobileMainBar = !pathname.startsWith("/anatomime")
   const appBarIsBottom = settings.appBarPosition === "bottom"
   const musicPlayerPlacement = getMusicPlayerPlacement(settings)
   const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
@@ -37,7 +38,7 @@ export function LayoutWrapper({
     <div
       className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background"
       data-app-bar-position={settings.appBarPosition}
-      data-main-bar-visible={!routeOwnsBackground ? "true" : "false"}
+      data-main-bar-visible={routeShowsMobileMainBar ? "true" : "false"}
     >
       {!routeOwnsBackground && (
         <>
@@ -69,7 +70,7 @@ export function LayoutWrapper({
         </div>
       </div>
       {appBarIsBottom && appBar}
-      {!routeOwnsBackground && <MobileMainBar user={user} />}
+      {routeShowsMobileMainBar && <MobileMainBar user={user} />}
       <MusicMiniPlayer placement={musicPlayerPlacement} />
     </div>
   )

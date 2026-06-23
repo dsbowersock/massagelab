@@ -189,12 +189,19 @@
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
   }
 
+  .ml-app-shell[data-main-bar-visible="true"] {
+    --chimer-bottom-control-offset: calc(var(--ml-bottom-stack-height) + 0.75rem);
+    --chimer-panel-bottom-offset: calc(var(--ml-bottom-stack-height) + 0.75rem);
+  }
+
   body.ml-music-player-active.ml-music-player-top .ml-app-shell {
     --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
   }
 
   body.ml-music-player-active.ml-music-player-bottom .ml-app-shell[data-main-bar-visible="true"] {
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
+    --chimer-bottom-control-offset: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height) + 0.75rem);
+    --chimer-panel-bottom-offset: calc(var(--ml-bottom-stack-height) + var(--ml-audio-toolbar-height) + 0.75rem);
   }
 
   body.ml-music-player-active.ml-music-player-bottom .ml-app-shell:not([data-main-bar-visible="true"]) {

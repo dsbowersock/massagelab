@@ -19,7 +19,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { resolveQuickActionGroups } from "@/lib/quick-actions"
-import { cn } from "@/lib/utils"
 
 const quickActionIcons = {
   BookOpen,
@@ -49,6 +48,48 @@ export function QuickActionSpeedDial({
   returnFocusRef: React.RefObject<HTMLButtonElement | null>
 }) {
   const groups = resolveQuickActionGroups({ signedIn: isSignedIn, onboarding })
+  const [anchorStyle, setAnchorStyle] = React.useState<React.CSSProperties | undefined>(undefined)
+
+  React.useLayoutEffect(() => {
+    if (!open) {
+      setAnchorStyle(undefined)
+      return undefined
+    }
+
+    const updateAnchor = () => {
+      const button = returnFocusRef.current
+      if (!button) {
+        setAnchorStyle(undefined)
+        return
+      }
+
+      const rect = button.getBoundingClientRect()
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+      // Anchor to the live trigger position so edge controls and bottom stacking cannot drift the dial away from +.
+      const menuWidth = Math.min(352, Math.max(0, viewportWidth - 24))
+      const anchorX = rect.left + rect.width / 2
+      const clampedX = Math.min(Math.max(anchorX, menuWidth / 2 + 12), viewportWidth - menuWidth / 2 - 12)
+
+      setAnchorStyle({
+        left: `${clampedX}px`,
+        bottom: `${Math.max(0, viewportHeight - rect.top + 12)}px`,
+      })
+    }
+
+    updateAnchor()
+    window.addEventListener("resize", updateAnchor)
+    window.addEventListener("scroll", updateAnchor, true)
+    window.visualViewport?.addEventListener("resize", updateAnchor)
+    window.visualViewport?.addEventListener("scroll", updateAnchor)
+
+    return () => {
+      window.removeEventListener("resize", updateAnchor)
+      window.removeEventListener("scroll", updateAnchor, true)
+      window.visualViewport?.removeEventListener("resize", updateAnchor)
+      window.visualViewport?.removeEventListener("scroll", updateAnchor)
+    }
+  }, [open, returnFocusRef])
 
   React.useEffect(() => {
     if (!open) return undefined
@@ -68,14 +109,15 @@ export function QuickActionSpeedDial({
   if (!open) return null
 
   return (
-    <div className="ml-quick-action-layer fixed inset-0 z-[10030]" onClick={() => onOpenChange(false)}>
+    <div
+      className="ml-quick-action-layer fixed inset-0 z-[10030] bg-background/35 backdrop-blur-md"
+      onClick={() => onOpenChange(false)}
+    >
       <div
         role="navigation"
         aria-label="Quick create actions"
-        className={cn(
-          "absolute bottom-[calc(var(--ml-bottom-stack-height)+4.75rem)] left-1/2 flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-end gap-3",
-          "sm:left-auto sm:right-[calc(var(--ml-page-edge-gap)+1rem)] sm:translate-x-0",
-        )}
+        className="absolute flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-end gap-3"
+        style={anchorStyle ?? { left: "50%", bottom: "calc(var(--ml-bottom-stack-height) + 4.75rem)" }}
         onClick={(event) => event.stopPropagation()}
       >
         {groups.map((group) => (

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Response } from "@playwright/test"
+import { expect, test, type Locator, type Page, type Response } from "@playwright/test"
 
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
@@ -119,6 +119,30 @@ async function waitForFilteredEligibleCount(page: Page) {
   await expect(page.getByRole("button", { name: /Start [1-9]\d*/ })).toBeEnabled({ timeout: 30_000 })
 }
 
+async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
+  const triggerBox = await quickCreate.boundingBox()
+  expect(triggerBox, "quick-create trigger box").not.toBeNull()
+
+  await quickCreate.click()
+
+  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
+  await expect(quickActions).toBeVisible()
+  const quickActionsBox = await quickActions.boundingBox()
+  expect(quickActionsBox, "quick-action menu box").not.toBeNull()
+
+  if (triggerBox && quickActionsBox) {
+    expect(quickActionsBox.y + quickActionsBox.height).toBeLessThanOrEqual(triggerBox.y - 8)
+  }
+
+  const backdropFilter = await page.locator(".ml-quick-action-layer").evaluate((element) => {
+    const styles = window.getComputedStyle(element)
+    return styles.getPropertyValue("backdrop-filter") || styles.getPropertyValue("-webkit-backdrop-filter")
+  })
+  expect(backdropFilter).toContain("blur")
+
+  return quickActions
+}
+
 for (const route of publicRoutes) {
   test(`anonymous public route ${route.path} renders without browser regressions`, async ({ page }) => {
     const health = capturePageHealth(page)
@@ -228,10 +252,10 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/", { waitUntil: "domcontentloaded" })
-  await page.getByRole("button", { name: /^Open quick actions$/i }).click()
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
 
-  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
-  await expect(quickActions).toBeVisible()
+  const quickActions = await openQuickActionsAboveTrigger(page, quickCreate)
   await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
   await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")
   await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
@@ -239,6 +263,27 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
 
   await page.keyboard.press("Escape")
   await expect(quickActions).toHaveCount(0)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("Chimer keeps the mobile main bar and opens quick actions above the plus button", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+
+  const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
+  await expect(mainBar).toBeVisible()
+  await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-main-bar-visible", "true")
+  await expect(page.getByTestId("app-moving-background")).toHaveCount(0)
+
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
+  await openQuickActionsAboveTrigger(page, quickCreate)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
