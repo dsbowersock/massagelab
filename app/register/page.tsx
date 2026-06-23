@@ -69,7 +69,7 @@ export default function RegisterPage() {
   return (
     <AppPageShell title="Create Account" width="narrow">
         <AppSurface
-          title="Create MassageLab account"
+          title={<h1>Create MassageLab account</h1>}
           description={
             <>
               Use email and password for a new account. Already used Google? Sign in first, then set an email password from Security.
