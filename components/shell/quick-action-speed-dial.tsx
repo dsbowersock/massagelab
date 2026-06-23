@@ -66,7 +66,7 @@ export function QuickActionSpeedDial({
   return (
     <div className="ml-quick-action-layer fixed inset-0 z-[10030]" onClick={() => onOpenChange(false)}>
       <div
-        role="menu"
+        role="navigation"
         aria-label="Quick create actions"
         className={cn(
           "absolute bottom-[calc(var(--ml-bottom-stack-height)+4.75rem)] left-1/2 flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-end gap-3",

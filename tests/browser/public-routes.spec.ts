@@ -181,7 +181,7 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
   await page.goto("/", { waitUntil: "domcontentloaded" })
   await page.getByRole("button", { name: /^Open quick actions$/i }).click()
 
-  const quickActions = page.getByRole("menu", { name: /^Quick create actions$/i })
+  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
   await expect(quickActions).toBeVisible()
   await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
   await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")

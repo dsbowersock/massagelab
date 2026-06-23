@@ -37,6 +37,7 @@ export function LayoutWrapper({
     <div
       className="ml-app-shell relative isolate flex h-full w-full flex-col overflow-hidden bg-background"
       data-app-bar-position={settings.appBarPosition}
+      data-main-bar-visible={!routeOwnsBackground ? "true" : "false"}
     >
       {!routeOwnsBackground && (
         <>

@@ -59,6 +59,16 @@ describe("Quick action model", () => {
     ])
   })
 
+  it("falls back safely when onboarding role names collide with inherited object properties", () => {
+    assert.deepEqual(resolveQuickActionKeys({
+      onboarding: { primaryRole: "__proto__", useCases: [] },
+    }).slice(0, 3), [
+      "start_public_music",
+      "wellness_quick_log",
+      "body_sensation_check_in",
+    ])
+  })
+
   it("preserves explicit quick-action picks separately from computed defaults", () => {
     const onboarding = {
       primaryRole: "therapist",

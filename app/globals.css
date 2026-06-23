@@ -184,7 +184,7 @@
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
   }
 
-  .ml-app-shell[data-app-bar-position="bottom"] {
+  .ml-app-shell[data-app-bar-position="bottom"][data-main-bar-visible="true"] {
     --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
   }
@@ -193,8 +193,12 @@
     --ml-page-top-safe: calc(var(--ml-safe-top) + var(--ml-audio-toolbar-height));
   }
 
-  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell {
+  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell[data-main-bar-visible="true"] {
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
+  }
+
+  body.ml-music-player-active.ml-music-player-bottom .ml-app-shell:not([data-main-bar-visible="true"]) {
+    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-audio-toolbar-height));
   }
 
   body.chimer-running .ml-app-shell,
