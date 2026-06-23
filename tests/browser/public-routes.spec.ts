@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Response } from "@playwright/test"
+import { expect, test, type Locator, type Page, type Response } from "@playwright/test"
 
 const publicRoutes = [
   { path: "/", expectedText: /MassageLab/i },
@@ -119,6 +119,34 @@ async function waitForFilteredEligibleCount(page: Page) {
   await expect(page.getByRole("button", { name: /Start [1-9]\d*/ })).toBeEnabled({ timeout: 30_000 })
 }
 
+/**
+ * Opens the bottom-bar quick-action dial and verifies it is visually anchored above the + trigger
+ * with the expected blurred backdrop.
+ */
+async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
+  const triggerBox = await quickCreate.boundingBox()
+  expect(triggerBox, "quick-create trigger box").not.toBeNull()
+
+  await quickCreate.click()
+
+  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
+  await expect(quickActions).toBeVisible()
+  const quickActionsBox = await quickActions.boundingBox()
+  expect(quickActionsBox, "quick-action menu box").not.toBeNull()
+
+  if (triggerBox && quickActionsBox) {
+    expect(quickActionsBox.y + quickActionsBox.height).toBeLessThanOrEqual(triggerBox.y - 8)
+  }
+
+  const backdropFilter = await page.locator(".ml-quick-action-layer").evaluate((element) => {
+    const styles = window.getComputedStyle(element)
+    return styles.getPropertyValue("backdrop-filter") || styles.getPropertyValue("-webkit-backdrop-filter")
+  })
+  expect(backdropFilter).toContain("blur")
+
+  return quickActions
+}
+
 for (const route of publicRoutes) {
   test(`anonymous public route ${route.path} renders without browser regressions`, async ({ page }) => {
     const health = capturePageHealth(page)
@@ -181,6 +209,25 @@ test("main bar exposes home music clock quick create theme calendar and more con
   expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(45)
   expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(44)
   expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(45)
+  const homeButtonStyle = await page.getByRole("link", { name: /^Home$/i }).evaluate((element) => {
+    const button = element.closest(".ml-main-bar-button")
+    const styles = button ? window.getComputedStyle(button) : null
+    return {
+      borderTopWidth: styles?.borderTopWidth ?? "",
+      backgroundColor: styles?.backgroundColor ?? "",
+    }
+  })
+  expect(homeButtonStyle.borderTopWidth).toBe("1px")
+  expect(homeButtonStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
+  const quickCreateStyle = await quickCreate.evaluate((element) => {
+    const styles = window.getComputedStyle(element)
+    return {
+      backgroundImage: styles.backgroundImage,
+      boxShadow: styles.boxShadow,
+    }
+  })
+  expect(quickCreateStyle.backgroundImage).toContain("gradient")
+  expect(quickCreateStyle.boxShadow).not.toBe("none")
   await expect(page.getByRole("group", { name: /^Theme$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open calendar$/i })).toHaveAttribute("href", "/calendar")
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
@@ -223,22 +270,118 @@ test("main bar edge controls stay clear of the compact sidebar rail", async ({ p
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("top app bar quick actions open inside the viewport below the plus button", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Top app bar placement is covered by the desktop shell.")
+
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "massage-lab-settings",
+      JSON.stringify({
+        appBarPosition: "top",
+        sidebarPosition: "left",
+        sidebarTriggerPosition: "top",
+        themeMode: "dark",
+      }),
+    )
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-app-bar-position", "top")
+
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
+  const triggerBox = await quickCreate.boundingBox()
+  expect(triggerBox, "top-bar quick-create trigger box").not.toBeNull()
+
+  await quickCreate.click()
+
+  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
+  await expect(quickActions).toBeVisible()
+  const quickActionsBox = await quickActions.boundingBox()
+  expect(quickActionsBox, "top-bar quick-action menu box").not.toBeNull()
+
+  if (triggerBox && quickActionsBox) {
+    expect(quickActionsBox.y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height + 8)
+    expect(quickActionsBox.y + quickActionsBox.height).toBeLessThanOrEqual(720)
+  }
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("mobile quick-create button opens a vertical speed dial", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/", { waitUntil: "domcontentloaded" })
-  await page.getByRole("button", { name: /^Open quick actions$/i }).click()
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
 
-  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
-  await expect(quickActions).toBeVisible()
+  const quickActions = await openQuickActionsAboveTrigger(page, quickCreate)
   await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
   await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")
   await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
   await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/register?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
 
-  await page.keyboard.press("Escape")
+  const quickActionsBox = await quickActions.boundingBox()
+  expect(quickActionsBox, "quick-action menu box before outside dismissal").not.toBeNull()
+  if (quickActionsBox) {
+    await page.mouse.click(quickActionsBox.x + 8, quickActionsBox.y + (quickActionsBox.height / 2))
+  }
   await expect(quickActions).toHaveCount(0)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("Chimer keeps the mobile main bar and opens quick actions above the plus button", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/chimer", { waitUntil: "domcontentloaded" })
+
+  const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
+  await expect(mainBar).toBeVisible()
+  await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-main-bar-visible", "true")
+  await expect(page.getByTestId("app-moving-background")).toHaveCount(0)
+
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
+  await openQuickActionsAboveTrigger(page, quickCreate)
+
+  await page.keyboard.press("Escape")
+  await expect(mainBar).toBeVisible()
+
+  await page.getByRole("button", { name: /^Clock Mode$/i }).click()
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeHidden()
+  await page.getByRole("button", { name: /^Close clock$/i }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeVisible()
+
+  await page.getByRole("button", { name: /^Set session length$/i }).click()
+  await page.getByRole("button", { name: "01" }).click()
+  await page.getByRole("button", { name: /^Start Timer$/i }).click()
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeHidden()
+  await page.getByRole("button", { name: /^End timer$/i }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  await expect(mainBar).toBeVisible()
+
+  await page.goto("/clock", { waitUntil: "domcontentloaded" })
+  await expect(page.locator("body")).toHaveClass(/chimer-running/)
+  await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toHaveCount(0)
+  await page.getByRole("button", { name: /^Close clock$/i }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  const clockSetupMainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
+  await expect(clockSetupMainBar).toBeVisible()
+  await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-main-bar-visible", "true")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])

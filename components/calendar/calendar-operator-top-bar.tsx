@@ -496,6 +496,7 @@ export function CalendarOperatorTopBar({
           variant="secondary"
           size="icon"
           className="h-10 w-10 shrink-0"
+          data-quick-action-trigger="true"
           aria-label="Open quick actions"
           aria-expanded={quickActionsOpen}
           onClick={() => setQuickActionsOpen((current) => !current)}

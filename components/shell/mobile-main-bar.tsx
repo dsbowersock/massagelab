@@ -70,6 +70,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
           variant="secondary"
           size="icon"
           className={cn("ml-main-bar-plus rounded-full shadow-lg", quickActionsOpen && "bg-primary text-primary-foreground")}
+          data-quick-action-trigger="true"
           aria-label="Open quick actions"
           aria-expanded={quickActionsOpen}
           onClick={() => setQuickActionsOpen((current) => !current)}
