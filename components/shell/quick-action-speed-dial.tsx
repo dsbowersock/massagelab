@@ -58,6 +58,7 @@ export function QuickActionSpeedDial({
 
     const updateAnchor = () => {
       const button = returnFocusRef.current
+        ?? document.querySelector<HTMLButtonElement>('button[aria-label="Open quick actions"][aria-expanded="true"]')
       if (!button) {
         setAnchorStyle(undefined)
         return
@@ -66,14 +67,22 @@ export function QuickActionSpeedDial({
       const rect = button.getBoundingClientRect()
       const viewportWidth = window.visualViewport?.width ?? window.innerWidth
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+      const gap = 12
       // Anchor to the live trigger position so edge controls and bottom stacking cannot drift the dial away from +.
       const menuWidth = Math.min(352, Math.max(0, viewportWidth - 24))
       const anchorX = rect.left + rect.width / 2
-      const clampedX = Math.min(Math.max(anchorX, menuWidth / 2 + 12), viewportWidth - menuWidth / 2 - 12)
+      const clampedX = Math.min(Math.max(anchorX, menuWidth / 2 + gap), viewportWidth - menuWidth / 2 - gap)
+      const spaceAbove = rect.top
+      const spaceBelow = viewportHeight - rect.bottom
+      const openAbove = spaceAbove >= spaceBelow
+      const availableHeight = Math.max(160, (openAbove ? spaceAbove : spaceBelow) - (gap * 2))
 
       setAnchorStyle({
         left: `${clampedX}px`,
-        bottom: `${Math.max(0, viewportHeight - rect.top + 12)}px`,
+        maxHeight: `${availableHeight}px`,
+        ...(openAbove
+          ? { bottom: `${Math.max(0, viewportHeight - rect.top + gap)}px` }
+          : { top: `${Math.max(gap, rect.bottom + gap)}px` }),
       })
     }
 
@@ -116,7 +125,7 @@ export function QuickActionSpeedDial({
       <div
         role="navigation"
         aria-label="Quick create actions"
-        className="absolute flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-end gap-3"
+        className="absolute flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-end gap-3 overflow-y-auto overscroll-contain"
         style={anchorStyle ?? { left: "50%", bottom: "calc(var(--ml-bottom-stack-height) + 4.75rem)" }}
         onClick={(event) => event.stopPropagation()}
       >

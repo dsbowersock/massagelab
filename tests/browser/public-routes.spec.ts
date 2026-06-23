@@ -119,6 +119,10 @@ async function waitForFilteredEligibleCount(page: Page) {
   await expect(page.getByRole("button", { name: /Start [1-9]\d*/ })).toBeEnabled({ timeout: 30_000 })
 }
 
+/**
+ * Opens the bottom-bar quick-action dial and verifies it is visually anchored above the + trigger
+ * with the expected blurred backdrop.
+ */
 async function openQuickActionsAboveTrigger(page: Page, quickCreate: Locator) {
   const triggerBox = await quickCreate.boundingBox()
   expect(triggerBox, "quick-create trigger box").not.toBeNull()
@@ -240,6 +244,49 @@ test("main bar edge controls stay clear of the compact sidebar rail", async ({ p
   await expect(openNavigation).toBeVisible()
   const openNavigationBox = await openNavigation.boundingBox()
   expect(openNavigationBox?.x ?? 0).toBeGreaterThan(64)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("top app bar quick actions open inside the viewport below the plus button", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Top app bar placement is covered by the desktop shell.")
+
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "massage-lab-settings",
+      JSON.stringify({
+        appBarPosition: "top",
+        sidebarPosition: "left",
+        sidebarTriggerPosition: "top",
+        themeMode: "dark",
+      }),
+    )
+  })
+  await page.goto("/music", { waitUntil: "domcontentloaded" })
+  await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-app-bar-position", "top")
+
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
+  const triggerBox = await quickCreate.boundingBox()
+  expect(triggerBox, "top-bar quick-create trigger box").not.toBeNull()
+
+  await quickCreate.click()
+
+  const quickActions = page.getByRole("navigation", { name: /^Quick create actions$/i })
+  await expect(quickActions).toBeVisible()
+  const quickActionsBox = await quickActions.boundingBox()
+  expect(quickActionsBox, "top-bar quick-action menu box").not.toBeNull()
+
+  if (triggerBox && quickActionsBox) {
+    expect(quickActionsBox.y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height + 8)
+    expect(quickActionsBox.y + quickActionsBox.height).toBeLessThanOrEqual(720)
+  }
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
