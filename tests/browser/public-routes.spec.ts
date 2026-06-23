@@ -211,7 +211,7 @@ test("mobile primary bar keeps lighting controls available and auto-collapses th
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("anonymous homepage presents the optional action router and available tools catalog", async ({ page }) => {
+test("anonymous homepage presents landing copy and tool discovery rails", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
@@ -229,6 +229,12 @@ test("anonymous homepage presents the optional action router and available tools
   await expect(page.getByRole("link", { name: /Organize a practice/i })).toHaveAttribute("href", "/register?callbackUrl=%2Fcalendar")
   await expect(page.getByRole("link", { name: /Document locally/i })).toHaveAttribute("href", "/notes")
   await expect(page.getByRole("link", { name: /Just exploring/i })).toHaveAttribute("href", "#available-tools")
+
+  await expect(page.getByRole("region", { name: /^Practice tools$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Study tools$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Wellness tools$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Music and focus$/i })).toBeVisible()
+  await expect(page.getByRole("region", { name: /^Business tools$/i })).toBeVisible()
 
   await expect(page.getByRole("heading", { name: "Available tools" })).toBeVisible()
   for (const name of [

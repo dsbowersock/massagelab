@@ -21,6 +21,7 @@ import {
 import { getCurrentSession } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { FlipWords } from "@/components/home/flip-words"
+import { HomeToolRails } from "@/components/home/home-tool-rails"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { homeToolCatalog, objectRecord, resolveOnboardingHomeToolKeys } from "@/lib/onboarding-preferences"
@@ -288,6 +289,17 @@ export default async function Home() {
           })}
         </div>
       </AppSurface>
+
+      <section aria-labelledby="tool-discovery-heading" className="space-y-4">
+        <div>
+          <p className="text-sm font-medium text-primary">Tool discovery</p>
+          <h2 id="tool-discovery-heading" className="text-2xl font-semibold sm:text-3xl">Pick up where MassageLab can help</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Browse practice, study, wellness, music, and business tools in a swipeable hub. Sign in when you want MassageLab to remember your shortcuts and progress.
+          </p>
+        </div>
+        <HomeToolRails />
+      </section>
 
       <AppSurface contentClassName="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
         <div className="flex items-start gap-3">
