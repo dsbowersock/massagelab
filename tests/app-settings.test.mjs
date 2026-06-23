@@ -105,23 +105,23 @@ describe("App settings helpers", () => {
   })
 
   it("orders the main bar so More follows the selected drawer side", () => {
-    assert.deepEqual(mainBarItemIds, ["more", "music", "clock", "quick-create", "theme", "calendar", "home"])
+    assert.deepEqual(mainBarItemIds, ["more", "music", "clock", "quick-create", "calendar", "home", "theme"])
     assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "left" }), [
       "more",
       "music",
       "clock",
       "quick-create",
-      "theme",
       "calendar",
       "home",
+      "theme",
     ])
     assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "right" }), [
-      "home",
-      "music",
-      "clock",
-      "quick-create",
       "theme",
+      "home",
       "calendar",
+      "quick-create",
+      "clock",
+      "music",
       "more",
     ])
   })

@@ -24,6 +24,9 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
   const [quickActionsOpen, setQuickActionsOpen] = React.useState(false)
   const quickCreateButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const order = resolveMainBarItemOrder(settings)
+  const edgeStartItemId = order[0]
+  const edgeEndItemId = order[order.length - 1]
+  const clusterItemIds = order.slice(1, -1)
   const itemById = new Map<string, MainBarRenderItem>([
     ["home", {
       id: "home",
@@ -111,13 +114,22 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
       />
       <nav
         aria-label="MassageLab main navigation"
-        className="ml-mobile-main-bar fixed inset-x-0 bottom-0 z-[10025] border-t border-border/80 bg-background/95 px-2 pb-[max(var(--ml-safe-bottom),0.35rem)] pt-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden"
+        data-sidebar-position={settings.sidebarPosition}
+        className="ml-mobile-main-bar fixed inset-x-0 bottom-0 z-[10025] border-t border-border/80 bg-background/95 px-1.5 pb-[max(var(--ml-safe-bottom),0.35rem)] pt-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-7 items-center gap-1">
-          {order.map((itemId) => {
-            const item = itemById.get(itemId)
-            return item ? <div key={item.id} className="flex justify-center">{item.node}</div> : null
-          })}
+        <div className="ml-main-bar-layout">
+          <div className="ml-main-bar-edge ml-main-bar-edge-start">
+            {edgeStartItemId ? itemById.get(edgeStartItemId)?.node : null}
+          </div>
+          <div className="ml-main-bar-cluster">
+            {clusterItemIds.map((itemId) => {
+              const item = itemById.get(itemId)
+              return item ? <div key={item.id} className="flex justify-center">{item.node}</div> : null
+            })}
+          </div>
+          <div className="ml-main-bar-edge ml-main-bar-edge-end">
+            {edgeEndItemId ? itemById.get(edgeEndItemId)?.node : null}
+          </div>
         </div>
       </nav>
     </TooltipProvider>

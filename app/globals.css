@@ -238,9 +238,38 @@
     padding-bottom: var(--ml-safe-bottom);
   }
 
+  .ml-main-bar-layout {
+    display: grid;
+    grid-template-columns: minmax(2.5rem, 1fr) auto minmax(2.5rem, 1fr);
+    align-items: center;
+    gap: 0.1rem;
+    width: 100%;
+  }
+
+  .ml-main-bar-edge {
+    display: flex;
+    min-width: 0;
+  }
+
+  .ml-main-bar-edge-start {
+    justify-content: flex-start;
+  }
+
+  .ml-main-bar-edge-end {
+    justify-content: flex-end;
+  }
+
+  .ml-main-bar-cluster {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.05rem;
+  }
+
   .ml-main-bar-button {
     height: 3.35rem;
-    width: 2.75rem;
+    width: 2.5rem;
     min-width: 0;
     flex-direction: column;
     gap: 0.12rem;
@@ -256,7 +285,7 @@
 
   .ml-main-bar-button span:not(.sr-only) {
     display: block;
-    max-width: 2.65rem;
+    max-width: 2.4rem;
     overflow: hidden;
     text-align: center;
     text-overflow: ellipsis;

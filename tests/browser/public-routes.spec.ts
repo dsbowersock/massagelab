@@ -180,7 +180,8 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
 
   const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
-  await expect(mainBar.locator(".ml-main-bar-button").first()).toHaveAccessibleName("Open navigation")
+  await expect(mainBar.locator(".ml-main-bar-edge-start .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
+  await expect(mainBar.locator(".ml-main-bar-edge-end").getByRole("group", { name: /^Theme$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
