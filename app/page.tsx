@@ -173,26 +173,24 @@ export default async function Home() {
   ] as const
 
   return (
-    <AppPageShell width="full" contentClassName="gap-8">
-      <section className="grid gap-8 py-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.55fr)] lg:items-center lg:py-8">
+    <AppPageShell width="full" className="pt-0 sm:pt-0 lg:pt-0" contentClassName="gap-8">
+      <section className="grid gap-8 pb-4 pt-px lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.55fr)] lg:items-center lg:py-8">
         <div className="min-w-0">
           <h1 className="sr-only">MassageLab</h1>
-          <div aria-hidden="true" className="relative mb-5 flex w-full justify-start py-3 sm:py-4">
-            <div className="absolute inset-x-6 top-1/2 h-10 -translate-y-1/2 rounded-full bg-brand-orange-glow/8 blur-2xl dark:bg-brand-orange-glow/6 sm:inset-x-20" />
+          <div aria-hidden="true" className="relative mb-1 flex w-full justify-start pb-0 pt-1 sm:pb-0 sm:pt-2">
             <span
-              className="ml-brand-asset-frame relative inline-block aspect-[10/3] w-full max-w-[32rem] overflow-visible rounded-2xl align-top"
+              className="ml-brand-asset-frame relative inline-block w-full max-w-[34rem] overflow-visible align-top"
               data-testid="home-brand-wordmark"
               style={{ viewTransitionName: "massagelab-wordmark" }}
             >
               <Image
-                src="/brand/massagelab-home-logo-badge-padded-20260622.png"
+                src="/brand/massagelab-wordmark-final-20260622.png"
                 alt=""
-                width={1536}
-                height={760}
-                className="absolute h-auto w-[128%] max-w-none object-contain"
-                style={{ left: "-10%", top: "-58.333%" }}
+                width={1518}
+                height={593}
+                className="relative h-auto w-full object-contain"
                 data-testid="home-brand-wordmark-image"
-                sizes="(max-width: 640px) 105vw, 655px"
+                sizes="(max-width: 640px) 92vw, 544px"
                 loading="eager"
                 priority
               />

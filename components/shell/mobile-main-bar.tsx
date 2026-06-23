@@ -68,7 +68,8 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
           ref={quickCreateButtonRef}
           type="button"
           variant="secondary"
-          className={cn("ml-main-bar-plus size-12 rounded-full shadow-lg", quickActionsOpen && "bg-primary text-primary-foreground")}
+          size="icon"
+          className={cn("ml-main-bar-plus rounded-full shadow-lg", quickActionsOpen && "bg-primary text-primary-foreground")}
           aria-label="Open quick actions"
           aria-expanded={quickActionsOpen}
           onClick={() => setQuickActionsOpen((current) => !current)}

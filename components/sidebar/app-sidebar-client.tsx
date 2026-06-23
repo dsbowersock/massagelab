@@ -701,20 +701,20 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
               )}
             >
               <Image
-                src="/brand/massagelab-mark-square-tight-20260622.png"
+                src="/brand/massagelab-mark-final-20260622.png"
                 alt=""
-                width={32}
-                height={32}
+                width={500}
+                height={500}
                 className="hidden object-contain group-data-[collapsible=icon]:block"
                 data-testid="sidebar-brand-mark-trigger"
                 sizes="32px"
                 loading="eager"
               />
               <Image
-                src="/brand/massagelab-wordmark-uppercase-tight-20260622.png"
+                src="/brand/massagelab-wordmark-final-20260622.png"
                 alt=""
-                width={180}
-                height={54}
+                width={1518}
+                height={593}
                 className="h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden"
                 data-testid="sidebar-brand-wordmark-trigger"
                 sizes="180px"
@@ -768,10 +768,10 @@ export function AppSidebarClient({
                 <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
                   <span className="ml-sidebar-brand-frame hidden aspect-square size-8 items-center justify-center rounded-full border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
                     <Image
-                      src="/brand/massagelab-mark-square-tight-20260622.png"
+                      src="/brand/massagelab-mark-final-20260622.png"
                       alt=""
-                      width={28}
-                      height={28}
+                      width={500}
+                      height={500}
                       className="object-contain"
                       data-testid="sidebar-brand-mark"
                       sizes="28px"
@@ -779,10 +779,10 @@ export function AppSidebarClient({
                     />
                   </span>
                   <Image
-                    src="/brand/massagelab-wordmark-uppercase-tight-20260622.png"
+                    src="/brand/massagelab-wordmark-final-20260622.png"
                     alt="MassageLab"
-                    width={180}
-                    height={54}
+                    width={1518}
+                    height={593}
                     className={cn("h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden")}
                     data-testid="sidebar-brand-wordmark"
                     sizes="180px"

@@ -174,7 +174,13 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await expect(page.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
-  await expect(page.getByRole("button", { name: /^Open quick actions$/i })).toBeVisible()
+  const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
+  await expect(quickCreate).toBeVisible()
+  const quickCreateBox = await quickCreate.boundingBox()
+  expect(quickCreateBox?.width ?? 0).toBeGreaterThanOrEqual(44)
+  expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(45)
+  expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(44)
+  expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(45)
   await expect(page.getByRole("group", { name: /^Theme$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open calendar$/i })).toHaveAttribute("href", "/calendar")
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
@@ -643,13 +649,13 @@ test("register defaults new accounts toward post-account onboarding", async ({ p
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("homepage uses one logo artwork for light and dark themes", async ({ page }) => {
+test("homepage uses the final logo artwork for light and dark themes", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
   const logo = page.getByTestId("home-brand-wordmark-image")
-  await expect(logo).toHaveAttribute("src", /massagelab-home-logo-badge-padded-20260622/)
+  await expect(logo).toHaveAttribute("src", /massagelab-wordmark-final-20260622/)
   const initialSrc = await logo.getAttribute("src")
 
   await page.evaluate(() => {

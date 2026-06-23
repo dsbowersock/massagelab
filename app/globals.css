@@ -297,6 +297,12 @@
     height: 1.45rem;
   }
 
+  .ml-mobile-main-bar .ml-main-bar-plus {
+    width: 2.78125rem;
+    height: 2.78125rem;
+    padding: 0;
+  }
+
   @media (max-width: 767px) {
     .ml-app-shell[data-main-bar-visible="true"] {
       --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
@@ -355,38 +361,6 @@
     box-shadow: none;
   }
 
-  .ml-brand-asset-frame::before {
-    content: "";
-    position: absolute;
-    inset: -2.25rem -3.5rem -2rem -3.5rem;
-    z-index: -1;
-    border-radius: 999px;
-    opacity: 0.58;
-    background:
-      radial-gradient(ellipse at 76% 48%, hsl(var(--brand-orange-glow) / 0.48), transparent 54%),
-      radial-gradient(ellipse at 44% 54%, hsl(var(--brand-orange-glow) / 0.2), transparent 62%);
-    filter: blur(32px);
-    transition: opacity 180ms ease;
-  }
-
-  .ml-brand-asset-frame::after {
-    content: "";
-    position: absolute;
-    inset: 0.6rem 1.2rem -1.25rem -2rem;
-    z-index: -2;
-    border-radius: 999px;
-    opacity: 0;
-    background: radial-gradient(
-      ellipse at 42% 62%,
-      hsl(var(--foreground) / 0.16),
-      hsl(var(--foreground) / 0.07) 42%,
-      transparent 78%
-    );
-    filter: blur(26px);
-    transform: translate(-1.35rem, 1.15rem);
-    transition: opacity 180ms ease;
-  }
-
   .ml-brand-asset-frame > img {
     filter:
       drop-shadow(-1.15rem 1rem 1.25rem hsl(0 0% 0% / 0.28))
@@ -396,14 +370,6 @@
 
   .light .ml-brand-asset-frame {
     filter: none;
-  }
-
-  .light .ml-brand-asset-frame::before {
-    opacity: 0.74;
-  }
-
-  .light .ml-brand-asset-frame::after {
-    opacity: 0.5;
   }
 
   .light .ml-brand-asset-frame > img {
