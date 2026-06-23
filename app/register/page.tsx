@@ -15,11 +15,12 @@ import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib
  * @returns A safe callback path for in-app redirects.
  *
  * Allowed: non-null, non-empty strings beginning with "/".
- * Blocked: null/empty values and protocol-relative paths (for example "//evil.com").
+ * Blocked: null/empty values, protocol-relative paths (for example "//evil.com"),
+ * and backslash-containing paths.
  * Falls back to "/onboarding" when validation fails.
  */
 function safeCallbackUrl(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/onboarding"
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/onboarding"
   return value
 }
 
@@ -68,10 +69,10 @@ export default function RegisterPage() {
   return (
     <AppPageShell title="Create Account" width="narrow">
         <AppSurface
-          title="Email account"
+          title={<h1>Create MassageLab account</h1>}
           description={
             <>
-              Verify your email before signing in. If you already used Google, sign in and set an email password from Security.
+              Use email and password for a new account. Already used Google? Sign in first, then set an email password from Security.
             </>
           }
           contentClassName="gap-5"
@@ -125,7 +126,7 @@ export default function RegisterPage() {
             )}
             <div className="flex flex-wrap gap-4 text-sm text-brand-orange">
               <Link href={loginHref} className="underline-offset-4 hover:underline">
-                Back to login
+                Sign in instead
               </Link>
               <Link href="/forgot-password" className="underline-offset-4 hover:underline">
                 Set or reset password

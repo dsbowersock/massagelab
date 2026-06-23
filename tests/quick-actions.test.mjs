@@ -32,6 +32,19 @@ describe("Quick action model", () => {
     assert.equal(groups.some((group) => /membership/i.test(group.label)), false)
   })
 
+  it("routes anonymous save-gated actions through login with callback destinations", () => {
+    const groups = resolveAnonymousQuickActionGroups()
+    const signInToSave = groups.find((group) => group.id === "sign_in_to_save")
+
+    assert.ok(signInToSave)
+    assert.deepEqual(signInToSave.actions.map((action) => [action.id, action.href]), [
+      ["create_calendar_item", "/login?callbackUrl=%2Fcalendar%2Fnew"],
+      ["save_wellness_history", "/login?callbackUrl=%2Fwellness"],
+      ["customize_home_shortcuts", "/login?callbackUrl=%2Fonboarding"],
+      ["customize_quick_actions", "/login?callbackUrl=%2Faccount%3Ftab%3Dapp-settings"],
+    ])
+  })
+
   it("keeps every quick action route-backed and icon-backed", () => {
     assert.equal(quickActionCatalog.every((action) => action.id && action.label && action.href && action.icon), true)
   })

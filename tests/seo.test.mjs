@@ -88,6 +88,7 @@ describe("SEO route contract", () => {
     assert.ok(disallow.includes("/account"))
     assert.ok(disallow.includes("/anatomime/play"))
     assert.ok(disallow.includes("/book"))
+    assert.ok(disallow.includes("/legal/accept"))
     assert.ok(disallow.includes("/notes/soap"))
   })
 

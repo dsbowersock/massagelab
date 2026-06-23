@@ -1,9 +1,12 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import {
   formatMembershipPrice,
   getMembershipPricingCatalog,
 } from "../lib/membership-pricing.js"
+
+const stripeLiveSetupScript = readFileSync(new URL("../scripts/stripe-live-membership-setup.mjs", import.meta.url), "utf8")
 
 function stripePrice({ id, amount, currency = "usd", interval }) {
   return {
@@ -55,6 +58,15 @@ describe("Membership pricing catalog", () => {
     assert.equal(therapist.prices.year.displayPrice, "$279")
     assert.equal(therapist.prices.year.yearlySavings.displayAmount, "$69")
     assert.equal(therapist.prices.year.yearlySavings.description, "Save $69 per year vs monthly")
+  })
+
+  it("keeps live Stripe setup script amounts aligned with the pricing catalog", () => {
+    assert.match(stripeLiveSetupScript, /STRIPE_SUPPORTER_MONTHLY_PRICE_ID", interval: "month", unitAmount: 900/)
+    assert.match(stripeLiveSetupScript, /STRIPE_SUPPORTER_YEARLY_PRICE_ID", interval: "year", unitAmount: 9000/)
+    assert.match(stripeLiveSetupScript, /STRIPE_THERAPIST_MONTHLY_PRICE_ID", interval: "month", unitAmount: 2900/)
+    assert.match(stripeLiveSetupScript, /STRIPE_THERAPIST_YEARLY_PRICE_ID", interval: "year", unitAmount: 27900/)
+    assert.match(stripeLiveSetupScript, /STRIPE_PRACTICE_MONTHLY_PRICE_ID", interval: "month", unitAmount: 7900/)
+    assert.match(stripeLiveSetupScript, /STRIPE_PRACTICE_YEARLY_PRICE_ID", interval: "year", unitAmount: 75900/)
   })
 
   it("falls back safely when Stripe is not configured", async () => {

@@ -325,7 +325,8 @@ test("mobile quick-create button opens a vertical speed dial", async ({ page }) 
   await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
   await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")
   await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
-  await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/register?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
+  await expect(quickActions.getByRole("link", { name: /^Create calendar item$/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fcalendar%2Fnew")
+  await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/login?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
 
   const quickActionsBox = await quickActions.boundingBox()
   expect(quickActionsBox, "quick-action menu box before outside dismissal").not.toBeNull()
@@ -778,13 +779,34 @@ test("anonymous onboarding routes through login with an onboarding callback", as
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("anonymous registration legal gate routes through login before acceptance", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.goto("/legal/accept?callbackUrl=%2Fwellness", { waitUntil: "domcontentloaded" })
+
+  await expect(page).toHaveURL(/\/login\?callbackUrl=/)
+  const loginUrl = new URL(page.url())
+  expect(loginUrl.searchParams.get("callbackUrl")).toBe("/legal/accept?callbackUrl=%2Fwellness")
+  await expect(page.getByRole("button", { name: /Sign in with email/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Create an account/i })).toHaveAttribute(
+    "href",
+    "/register?callbackUrl=%2Flegal%2Faccept%3FcallbackUrl%3D%252Fwellness",
+  )
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("register defaults new accounts toward post-account onboarding", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.goto("/register", { waitUntil: "domcontentloaded" })
 
+  await expect(page.getByRole("heading", { name: /Create MassageLab account/i })).toBeVisible()
   await expect(page.getByRole("button", { name: /Create account/i })).toBeVisible()
-  await expect(page.getByRole("link", { name: /Back to login/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fonboarding")
+  await expect(page.getByRole("link", { name: /Sign in instead/i })).toHaveAttribute("href", "/login?callbackUrl=%2Fonboarding")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
