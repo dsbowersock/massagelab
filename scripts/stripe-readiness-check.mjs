@@ -28,13 +28,13 @@ const liveMode = args.has("--live")
 const verifyStripe = args.has("--verify-stripe")
 const noDotenv = args.has("--no-dotenv")
 
-if (!noDotenv) {
-  loadEnvironment(explicitEnvFile)
-}
-
 const failures = []
 const warnings = []
 const priceIds = new Map()
+
+if (!noDotenv) {
+  loadEnvironment(explicitEnvFile)
+}
 
 function addFailure(message) {
   failures.push(message)
@@ -52,6 +52,14 @@ function loadEnvironment(envFile) {
   const candidates = envFile
     ? [envFile]
     : [".env.local", ".env"]
+
+  if (envFile) {
+    const absolutePath = path.resolve(envFile)
+    if (!fs.existsSync(absolutePath)) {
+      addFailure(`Env file not found: ${absolutePath}`)
+      return
+    }
+  }
 
   for (const candidate of candidates) {
     const absolutePath = path.resolve(candidate)

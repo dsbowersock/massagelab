@@ -16,6 +16,9 @@ import {
 import { requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 import { prisma } from "@/lib/prisma"
 
+/**
+ * Records registration acceptance after preserving the login -> legal gate -> final callback chain.
+ */
 export async function acceptRegistrationLegalDocumentsAction(formData: FormData) {
   const callbackUrl = safePostLegalAcceptanceCallback(formData.get("callbackUrl"))
   const session = await getCurrentSession()

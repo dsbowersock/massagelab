@@ -35,8 +35,8 @@ const PLANS = Object.freeze([
     name: "MassageLab Supporter",
     description: "Alpha supporter membership for MassageLab.",
     prices: [
-      { envKey: "STRIPE_SUPPORTER_MONTHLY_PRICE_ID", interval: "month", unitAmount: 100 },
-      { envKey: "STRIPE_SUPPORTER_YEARLY_PRICE_ID", interval: "year", unitAmount: 1000 },
+      { envKey: "STRIPE_SUPPORTER_MONTHLY_PRICE_ID", interval: "month", unitAmount: 900 },
+      { envKey: "STRIPE_SUPPORTER_YEARLY_PRICE_ID", interval: "year", unitAmount: 9000 },
     ],
   },
   {
@@ -44,8 +44,8 @@ const PLANS = Object.freeze([
     name: "MassageLab Therapist",
     description: "Individual therapist membership for MassageLab.",
     prices: [
-      { envKey: "STRIPE_THERAPIST_MONTHLY_PRICE_ID", interval: "month", unitAmount: 200 },
-      { envKey: "STRIPE_THERAPIST_YEARLY_PRICE_ID", interval: "year", unitAmount: 2000 },
+      { envKey: "STRIPE_THERAPIST_MONTHLY_PRICE_ID", interval: "month", unitAmount: 2900 },
+      { envKey: "STRIPE_THERAPIST_YEARLY_PRICE_ID", interval: "year", unitAmount: 27900 },
     ],
   },
   {
@@ -53,8 +53,8 @@ const PLANS = Object.freeze([
     name: "MassageLab Practice",
     description: "Team and practice membership for MassageLab.",
     prices: [
-      { envKey: "STRIPE_PRACTICE_MONTHLY_PRICE_ID", interval: "month", unitAmount: 500 },
-      { envKey: "STRIPE_PRACTICE_YEARLY_PRICE_ID", interval: "year", unitAmount: 5000 },
+      { envKey: "STRIPE_PRACTICE_MONTHLY_PRICE_ID", interval: "month", unitAmount: 7900 },
+      { envKey: "STRIPE_PRACTICE_YEARLY_PRICE_ID", interval: "year", unitAmount: 75900 },
     ],
   },
 ])
@@ -141,8 +141,7 @@ function loadEnvironment(file) {
 }
 
 async function listAll(listPromise) {
-  const page = await listPromise
-  return page.data
+  return listPromise.autoPagingToArray({ limit: 10_000 })
 }
 
 async function ensureProduct(plan) {
@@ -256,7 +255,8 @@ function writeOutputFile(file, values) {
   const body = [...values.entries()]
     .map(([key, value]) => `${key}=${quoteEnvValue(value)}`)
     .join("\n")
-  fs.writeFileSync(absolutePath, `${body}\n`, { encoding: "utf8", flag: "w" })
+  fs.writeFileSync(absolutePath, `${body}\n`, { encoding: "utf8", flag: "w", mode: 0o600 })
+  fs.chmodSync(absolutePath, 0o600)
 }
 
 function quoteEnvValue(value) {

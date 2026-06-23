@@ -33,6 +33,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
   const searchParams = useSearchParams()
   const hasCallbackUrl = searchParams.has("callbackUrl")
   const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"))
+  // Google OAuth defaults to onboarding only when no callback was requested.
   const googleCallbackUrl = hasCallbackUrl ? callbackUrl : "/onboarding"
   const googleRedirectTo = buildRegistrationLegalProviderRedirectPath(googleCallbackUrl)
   const [email, setEmail] = useState("")
