@@ -353,7 +353,7 @@ function AccountNavGroups({
         <section key={group.id} className={cn(variant === "mobile" && cn("rounded-lg", settingsSurfaceClassName))}>
           <div className={cn("flex flex-col gap-1", variant === "mobile" ? "p-4 pb-2" : "pb-2")}>
             <h3 className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{group.label}</h3>
-            {variant === "mobile" ? <p className="text-sm text-muted-foreground">{group.description}</p> : null}
+            {variant === "mobile" ? <p className="text-xs leading-5 text-muted-foreground">{group.description}</p> : null}
           </div>
           <div className="flex flex-col">
             {group.items.map((item, index) => (
@@ -423,7 +423,7 @@ function AccountNavItem({
       ? "border-primary/60 bg-primary/15 text-foreground shadow-sm shadow-primary/10"
       : "border-transparent text-foreground hover:border-border/80 hover:bg-accent hover:text-accent-foreground",
     item.status === "planned" && "cursor-default opacity-80 hover:bg-transparent hover:text-foreground",
-    variant === "mobile" && "rounded-none px-4 py-4",
+    variant === "mobile" && "rounded-none border-transparent px-4 py-4 shadow-none",
   )
 
   if (item.href) {

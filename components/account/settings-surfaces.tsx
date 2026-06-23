@@ -81,3 +81,26 @@ export function SettingsActionLink({
 export function SettingsSectionSeparator() {
   return <Separator className="bg-border/80" />
 }
+
+export function SettingsCompactRow({
+  icon,
+  title,
+  description,
+  trailing,
+}: {
+  icon?: React.ReactNode
+  title: string
+  description?: string
+  trailing?: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      {icon ? <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border/70 text-primary">{icon}</span> : null}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{title}</span>
+        {description ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{description}</span> : null}
+      </span>
+      {trailing}
+    </div>
+  )
+}

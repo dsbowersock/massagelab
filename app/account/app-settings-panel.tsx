@@ -80,7 +80,7 @@ export function AccountAppSettingsPanel() {
       <SettingsSurface
         id="app-layout-settings"
         title="Layout and sidebar"
-        description="Choose the app bar edge, audio player edge, and portrait sidebar button placement."
+        description="Choose the main bar edge, drawer side, theme behavior, and quick-action defaults."
         icon={<Layout data-icon="inline-start" aria-hidden="true" />}
       >
         <div className="flex flex-col gap-3">
@@ -138,6 +138,13 @@ export function AccountAppSettingsPanel() {
               </label>
             ))}
           </RadioGroup>
+        </div>
+
+        <div className="rounded-md border border-border/80 bg-background/80 p-3 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Quick actions</p>
+          <p className="mt-1">
+            The global plus button starts with role-aware defaults from onboarding. Full drag-and-drop customization can build on the saved quick-action keys in app preferences.
+          </p>
         </div>
       </SettingsSurface>
 

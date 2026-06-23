@@ -14,46 +14,52 @@ import {
 describe("Account page tab model", () => {
   it("groups existing account sections into stable account navigation without dropping current features", () => {
     assert.deepEqual(accountPageGroups.map((group) => group.id), [
-      "personal",
-      "payments",
+      "general",
+      "account",
+      "preferences",
       "practice",
+      "support",
+      "legal",
     ])
     assert.deepEqual(accountPageGroups.map((group) => group.label), [
-      "Personal account",
-      "Payments & plans",
-      "Practice management",
+      "General",
+      "Account",
+      "Preferences",
+      "Practice",
+      "Support",
+      "Legal",
     ])
     assert.deepEqual(accountPageTabs.map((tab) => tab.id), [
       "overview",
+      "app-settings",
       "profile",
       "security",
       "credentials",
-      "app-settings",
       "therapist-defaults",
       "sync",
-      "membership",
       "tools",
+      "membership",
     ])
-    assert.equal(accountPageTabs[2].id, "security")
+    assert.equal(accountPageTabs[3].id, "security")
 
     assert.deepEqual(accountPageSectionIds, [
       "account-summary",
       "quick-actions",
+      "app-layout-settings",
+      "app-theme-settings",
       "profile-defaults",
       "security-settings",
       "role-verification",
-      "app-layout-settings",
-      "app-theme-settings",
       "local-therapist-defaults",
       "preference-sync",
       "clinical-sync",
+      "anatomy-feedback",
+      "anatomy-browser-access",
+      "account-session",
       "membership",
       "membership-pricing",
       "subscription-status",
       "billing-portal",
-      "anatomy-feedback",
-      "anatomy-browser-access",
-      "account-session",
     ])
   })
 
@@ -70,9 +76,9 @@ describe("Account page tab model", () => {
     assert.deepEqual(plannedIds, [
       "accessibility",
       "notifications",
-      "orders-invoices",
       "practice-profile",
       "people",
+      "orders-invoices",
     ])
     assert.equal(accountPageNavigationItems.every((item) => item.status !== "planned" || item.sections.length === 0), true)
     assert.equal(accountPageNavigationItems.every((item) => item.status !== "planned" || !item.href), true)
@@ -112,6 +118,14 @@ describe("Account page tab model", () => {
     )
     assert.deepEqual(
       filterAccountPageGroups("app bar").flatMap((group) => group.items.map((item) => item.id)),
+      ["app-settings"],
+    )
+    assert.deepEqual(
+      filterAccountPageGroups("quick actions").flatMap((group) => group.items.map((item) => item.id)),
+      ["app-settings"],
+    )
+    assert.deepEqual(
+      filterAccountPageGroups("drawer side").flatMap((group) => group.items.map((item) => item.id)),
       ["app-settings"],
     )
     assert.deepEqual(
