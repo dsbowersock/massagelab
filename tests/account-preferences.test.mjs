@@ -78,6 +78,25 @@ describe("Account preference helpers", () => {
     })
   })
 
+  it("keeps quick-action preferences while stripping PHI-shaped app settings", () => {
+    const payload = buildUserPreferencePayload({
+      appSettings: {
+        onboarding: {
+          primaryRole: "client",
+          quickActions: ["wellness_quick_log", "start_public_music"],
+          clientName: "Jane Example",
+        },
+      },
+    })
+
+    assert.deepEqual(payload.app_settings, {
+      onboarding: {
+        primaryRole: "client",
+        quickActions: ["wellness_quick_log", "start_public_music"],
+      },
+    })
+  })
+
   it("uses cloud preferences after login when they exist", () => {
     const result = choosePreferenceSource({
       cloudPreferences: { app_settings: { sidebarPosition: "left", sidebarTriggerPosition: "top" } },

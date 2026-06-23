@@ -4,7 +4,9 @@ import {
   ONBOARDING_VERSION,
   buildOnboardingPreference,
   resolveExplicitOnboardingHomeToolKeys,
+  resolveExplicitOnboardingQuickActionKeys,
   resolveOnboardingHomeToolKeys,
+  resolveOnboardingQuickActionKeys,
   getOnboardingRecommendedPath,
 } from "../lib/onboarding-preferences.js"
 
@@ -64,6 +66,28 @@ describe("Onboarding preference helpers", () => {
     assert.equal(payload.homeShortcuts[0], "business_income_planner")
     assert.equal(payload.homeShortcuts[1], "calendar_booking")
     assert.equal(payload.homeShortcuts[2], "account_memberships")
+  })
+
+  it("prepopulates role-aware quick actions without treating computed defaults as explicit picks", () => {
+    const therapistPayload = buildOnboardingPreference({
+      primaryRole: "therapist",
+      useCases: ["manage_practice", "run_sessions"],
+      jurisdiction: "OH",
+    })
+
+    assert.deepEqual(therapistPayload.quickActions.slice(0, 4), [
+      "create_calendar_item",
+      "start_chimer",
+      "start_public_music",
+      "customize_quick_actions",
+    ])
+    assert.deepEqual(resolveExplicitOnboardingQuickActionKeys(therapistPayload), therapistPayload.quickActions)
+    assert.deepEqual(resolveExplicitOnboardingQuickActionKeys({ primaryRole: "therapist" }), [])
+    assert.deepEqual(resolveOnboardingQuickActionKeys({
+      primaryRole: "student",
+      useCases: ["learn_anatomy"],
+      quickActions: [],
+    }).slice(0, 3), ["start_flashcards", "play_anatomime", "start_chimer"])
   })
 
   it("promotes the business income planner for practice planning", () => {
