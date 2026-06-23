@@ -44,6 +44,11 @@ export async function AppSidebar() {
   return <AppSidebarClient user={user} navigation={navigation} />
 }
 
+/**
+ * Loads signed-in quick-action onboarding preferences for shell hydration.
+ * Returns undefined for anonymous users, empty onboarding payloads, or read
+ * failures so navigation can fall back to catalog defaults.
+ */
 async function loadSidebarQuickActionOnboarding(userId?: string) {
   if (!userId) {
     return undefined
@@ -55,6 +60,7 @@ async function loadSidebarQuickActionOnboarding(userId?: string) {
       select: { appSettings: true },
     })
     const appSettings = objectRecord(preference?.appSettings)
+    // Preference JSON may be absent or malformed; normalize before projection.
     const onboarding = objectRecord(appSettings.onboarding)
 
     if (Object.keys(onboarding).length === 0) {
@@ -98,6 +104,7 @@ async function getSidebarNavigationContext(sessionUser?: {
   }
 }
 
+/** Coerces JSON-ish values into object records; arrays and primitives become empty objects. */
 function objectRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
