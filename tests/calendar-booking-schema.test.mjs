@@ -97,7 +97,8 @@ describe("calendar booking settings schema and route surface", () => {
     assert.match(loginForm, /const googleCallbackUrl = hasCallbackUrl \? callbackUrl : "\/onboarding"/)
     assert.match(loginForm, /signIn\("google", \{ redirectTo: googleRedirectTo \}\)/)
     assert.match(authRoute, /GOOGLE_SIGN_IN_PATH = "\/api\/auth\/signin\/google"/)
-    assert.match(authRoute, /buildRegistrationLegalAcceptancePath\("\/onboarding"\)/)
+    assert.match(authRoute, /buildRegistrationLegalProviderRedirectPath\(url\.searchParams\.get\("callbackUrl"\) \?\? "\/onboarding"\)/)
+    assert.match(authRoute, /buildRegistrationLegalProviderRedirectPath\(body\.get\("callbackUrl"\) \?\? "\/onboarding"\)/)
     assert.match(registerPage, /callbackUrl/)
   })
 
