@@ -9,6 +9,11 @@ import {
   resolveSidebarButtonSettings,
 } from "../lib/app-settings.js"
 import {
+  mainBarItemIds,
+  resolveMainBarItemOrder,
+  getMusicPlayerPlacement,
+} from "../lib/app-shell.js"
+import {
   getSidebarRenderMode,
   shouldCollapseSidebarFromOutsidePointer,
   shouldExpandSidebarFromRail,
@@ -64,10 +69,13 @@ describe("App settings helpers", () => {
     }), defaultAppSettings)
   })
 
-  it("places the audio player toolbar opposite the app bar", () => {
-    assert.equal(defaultAppSettings.appBarPosition, "top")
+  it("defaults to a bottom app bar and keeps the music player on the bottom", () => {
+    assert.equal(defaultAppSettings.appBarPosition, "bottom")
+    assert.equal(defaultAppSettings.sidebarPosition, "left")
+    assert.equal(defaultAppSettings.sidebarTriggerPosition, "bottom")
     assert.equal(getAudioPlayerToolbarPlacement(defaultAppSettings), "bottom")
-    assert.equal(getAudioPlayerToolbarPlacement({ appBarPosition: "bottom" }), "top")
+    assert.equal(getMusicPlayerPlacement(defaultAppSettings), "bottom")
+    assert.equal(getMusicPlayerPlacement({ appBarPosition: "top" }), "bottom")
   })
 
   it("maps persisted sidebar settings to a four-corner button position", () => {
@@ -94,6 +102,28 @@ describe("App settings helpers", () => {
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
     })
+  })
+
+  it("orders the main bar so More follows the selected drawer side", () => {
+    assert.deepEqual(mainBarItemIds, ["home", "music", "clock", "quick-create", "theme", "calendar", "more"])
+    assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "left" }), [
+      "home",
+      "music",
+      "clock",
+      "quick-create",
+      "theme",
+      "calendar",
+      "more",
+    ])
+    assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "right" }), [
+      "more",
+      "music",
+      "clock",
+      "quick-create",
+      "theme",
+      "calendar",
+      "home",
+    ])
   })
 
   it("uses a drawer only in narrow portrait phone layouts", () => {
