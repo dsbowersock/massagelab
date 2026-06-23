@@ -535,6 +535,8 @@ export function CalendarOperatorTopBar({
   return (
     <TooltipProvider delayDuration={150}>
       <QuickActionSpeedDial
+        isSignedIn={Boolean(user)}
+        onboarding={user?.quickActionOnboarding}
         open={quickActionsOpen}
         onOpenChange={setQuickActionsOpen}
         returnFocusRef={quickActionButtonRef}

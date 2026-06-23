@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useSettings } from "@/components/providers/settings-provider"
+import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { resolveMainBarItemOrder } from "@/lib/app-shell"
 import { cn } from "@/lib/utils"
 import { QuickActionSpeedDial } from "./quick-action-speed-dial"
@@ -17,7 +18,7 @@ type MainBarRenderItem = {
   node: React.ReactNode
 }
 
-export function MobileMainBar() {
+export function MobileMainBar({ user }: { user: SidebarUser }) {
   const { settings } = useSettings()
   const { toggleSidebar } = useSidebar()
   const [quickActionsOpen, setQuickActionsOpen] = React.useState(false)
@@ -101,7 +102,13 @@ export function MobileMainBar() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <QuickActionSpeedDial open={quickActionsOpen} onOpenChange={setQuickActionsOpen} returnFocusRef={quickCreateButtonRef} />
+      <QuickActionSpeedDial
+        isSignedIn={Boolean(user)}
+        onboarding={user?.quickActionOnboarding}
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        returnFocusRef={quickCreateButtonRef}
+      />
       <nav
         aria-label="MassageLab main navigation"
         className="ml-mobile-main-bar fixed inset-x-0 bottom-0 z-[10025] border-t border-border/80 bg-background/95 px-2 pb-[max(var(--ml-safe-bottom),0.35rem)] pt-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden"

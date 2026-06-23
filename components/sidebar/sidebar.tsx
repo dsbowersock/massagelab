@@ -20,15 +20,19 @@ export async function getAppSidebarData() {
       capabilities?: Record<string, boolean> | null
     }
     | undefined
+  const [quickActionOnboarding, navigationContext] = await Promise.all([
+    loadSidebarQuickActionOnboarding(sessionUser?.id),
+    getSidebarNavigationContext(sessionUser),
+  ])
   const user: SidebarUser = sessionUser
     ? {
       name: sessionUser.name ?? "MassageLab user",
       email: sessionUser.email ?? "",
       image: sessionUser.image ?? "",
+      quickActionOnboarding,
     }
     : null
   const canSyncAccountSettings = canSyncAccountPreferences(sessionUser)
-  const navigationContext = await getSidebarNavigationContext(sessionUser)
   const navigation = resolveNavigation(navigationContext) as SidebarNavigation
 
   return { user, canSyncAccountSettings, navigation }
@@ -38,6 +42,34 @@ export async function AppSidebar() {
   const { user, navigation } = await getAppSidebarData()
 
   return <AppSidebarClient user={user} navigation={navigation} />
+}
+
+async function loadSidebarQuickActionOnboarding(userId?: string) {
+  if (!userId) {
+    return undefined
+  }
+
+  try {
+    const preference = await prisma.userPreference.findUnique({
+      where: { userId },
+      select: { appSettings: true },
+    })
+    const appSettings = objectRecord(preference?.appSettings)
+    const onboarding = objectRecord(appSettings.onboarding)
+
+    if (Object.keys(onboarding).length === 0) {
+      return undefined
+    }
+
+    return {
+      primaryRole: onboarding.primaryRole,
+      useCases: onboarding.useCases,
+      quickActions: onboarding.quickActions,
+    }
+  } catch (error) {
+    logSidebarContextLoadError("Failed to load sidebar quick-action preferences", error)
+    return undefined
+  }
 }
 
 async function getSidebarNavigationContext(sessionUser?: {
@@ -64,6 +96,12 @@ async function getSidebarNavigationContext(sessionUser?: {
     capabilities: sessionUser.capabilities ?? {},
     practiceRoles,
   }
+}
+
+function objectRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 }
 
 async function loadSidebarFeatureKeys(userId: string, capabilities?: Record<string, boolean> | null) {

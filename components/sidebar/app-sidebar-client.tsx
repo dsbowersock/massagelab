@@ -80,6 +80,11 @@ export type SidebarUser = {
   name: string
   email: string
   image: string
+  quickActionOnboarding?: {
+    primaryRole?: unknown
+    useCases?: unknown
+    quickActions?: unknown
+  }
 } | null
 
 const routeIcons = {

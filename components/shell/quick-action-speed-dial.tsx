@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { resolveAnonymousQuickActionGroups } from "@/lib/quick-actions"
+import { resolveQuickActionGroups } from "@/lib/quick-actions"
 import { cn } from "@/lib/utils"
 
 const quickActionIcons = {
@@ -36,15 +36,19 @@ const quickActionIcons = {
 } satisfies Record<string, LucideIcon>
 
 export function QuickActionSpeedDial({
+  isSignedIn = false,
+  onboarding,
   open,
   onOpenChange,
   returnFocusRef,
 }: {
+  isSignedIn?: boolean
+  onboarding?: { primaryRole?: unknown; useCases?: unknown; quickActions?: unknown }
   open: boolean
   onOpenChange: (open: boolean) => void
   returnFocusRef: React.RefObject<HTMLButtonElement | null>
 }) {
-  const groups = resolveAnonymousQuickActionGroups()
+  const groups = resolveQuickActionGroups({ signedIn: isSignedIn, onboarding })
 
   React.useEffect(() => {
     if (!open) return undefined

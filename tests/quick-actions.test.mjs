@@ -5,6 +5,7 @@ import {
   quickActionCatalog,
   resolveAnonymousQuickActionGroups,
   resolveExplicitQuickActionKeys,
+  resolveQuickActionGroups,
   resolveQuickActionKeys,
 } from "../lib/quick-actions.js"
 
@@ -66,6 +67,19 @@ describe("Quick action model", () => {
       "start_public_music",
       "wellness_quick_log",
       "body_sensation_check_in",
+    ])
+  })
+
+  it("uses signed-in quick-action groups and signed-in destinations", () => {
+    const groups = resolveQuickActionGroups({
+      signedIn: true,
+      onboarding: { quickActions: ["create_calendar_item", "customize_quick_actions"] },
+    })
+
+    assert.deepEqual(groups.map((group) => group.id), ["quick_actions"])
+    assert.deepEqual(groups[0].actions.map((action) => [action.id, action.href]), [
+      ["create_calendar_item", "/calendar/new"],
+      ["customize_quick_actions", "/account?tab=app-settings"],
     ])
   })
 

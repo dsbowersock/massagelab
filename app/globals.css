@@ -259,6 +259,17 @@
     height: 1.45rem;
   }
 
+  @media (max-width: 767px) {
+    .ml-app-shell[data-main-bar-visible="true"] {
+      --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
+    }
+
+    body.ml-music-player-active.ml-music-player-bottom .ml-app-shell[data-main-bar-visible="true"] {
+      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
+    }
+  }
+
   @supports selector(:has(*)) {
     .ml-app-scroll:has(.ml-flashcards-page) {
       scrollbar-gutter: auto;

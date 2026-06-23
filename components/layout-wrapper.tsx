@@ -69,7 +69,7 @@ export function LayoutWrapper({
         </div>
       </div>
       {appBarIsBottom && appBar}
-      {!routeOwnsBackground && <MobileMainBar />}
+      {!routeOwnsBackground && <MobileMainBar user={user} />}
       <MusicMiniPlayer placement={musicPlayerPlacement} />
     </div>
   )
