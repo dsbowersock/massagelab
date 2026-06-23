@@ -61,6 +61,8 @@
     --ml-page-edge-gap: clamp(1rem, 3vw, 2rem);
     --ml-scroll-end-buffer: 1.5rem;
     --ml-audio-toolbar-height: 5rem;
+    --ml-main-bar-height: 4.75rem;
+    --ml-bottom-stack-height: var(--ml-safe-bottom);
   }
 
   .light {
@@ -178,7 +180,13 @@
 @layer components {
   .ml-app-shell {
     --ml-page-top-safe: 0px;
+    --ml-bottom-stack-height: var(--ml-safe-bottom);
     --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
+  }
+
+  .ml-app-shell[data-app-bar-position="bottom"] {
+    --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
+    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
   }
 
   body.ml-music-player-active.ml-music-player-top .ml-app-shell {
@@ -186,7 +194,7 @@
   }
 
   body.ml-music-player-active.ml-music-player-bottom .ml-app-shell {
-    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-audio-toolbar-height));
+    --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
   }
 
   body.chimer-running .ml-app-shell,
@@ -213,7 +221,7 @@
   }
 
   .ml-music-player-toolbar[data-placement="bottom"] {
-    bottom: 0;
+    bottom: var(--ml-bottom-stack-height);
   }
 
   .ml-music-player-toolbar[data-placement="top"] .ml-music-player-toolbar-surface {
@@ -224,6 +232,27 @@
   .ml-music-player-toolbar[data-placement="bottom"] .ml-music-player-toolbar-surface {
     border-top: 1px solid hsl(var(--border) / 0.82);
     padding-bottom: var(--ml-safe-bottom);
+  }
+
+  .ml-main-bar-button {
+    height: 3.75rem;
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.25rem 0.15rem;
+    font-size: 0.68rem;
+    line-height: 1;
+  }
+
+  .ml-main-bar-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .ml-main-bar-plus svg {
+    width: 1.45rem;
+    height: 1.45rem;
   }
 
   @supports selector(:has(*)) {

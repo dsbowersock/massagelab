@@ -7,8 +7,9 @@ import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-
 import { MovingBackground } from "@/components/moving-background"
 import { MusicMiniPlayer } from "@/components/providers/music-mini-player"
 import { useSettings } from "@/components/providers/settings-provider"
+import { MobileMainBar } from "@/components/shell/mobile-main-bar"
 import type { SidebarNavigation, SidebarUser } from "@/components/sidebar/app-sidebar-client"
-import { getAudioPlayerToolbarPlacement } from "@/lib/app-settings"
+import { getMusicPlayerPlacement } from "@/lib/app-shell"
 import { cn } from "@/lib/utils"
 
 export function LayoutWrapper({
@@ -30,7 +31,7 @@ export function LayoutWrapper({
     || pathname.startsWith("/clock")
     || pathname.startsWith("/anatomime")
   const appBarIsBottom = settings.appBarPosition === "bottom"
-  const musicPlayerPlacement = getAudioPlayerToolbarPlacement(settings)
+  const musicPlayerPlacement = getMusicPlayerPlacement(settings)
   const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
 
   const shell = (
@@ -69,6 +70,7 @@ export function LayoutWrapper({
         </div>
       </div>
       {appBarIsBottom && appBar}
+      {!routeOwnsBackground && <MobileMainBar />}
       <MusicMiniPlayer placement={musicPlayerPlacement} />
     </div>
   )

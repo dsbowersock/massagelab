@@ -135,14 +135,43 @@ for (const route of publicRoutes) {
   })
 }
 
-test("primary bar exposes music and clock shortcuts beside calendar controls", async ({ page }) => {
+test("main bar exposes home music clock quick create theme calendar and more controls", async ({ page }) => {
   const health = capturePageHealth(page)
 
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
+  await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
-  await expect(page.getByRole("button", { name: /^Open calendar$/i })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Open quick actions$/i })).toBeVisible()
+  await expect(page.getByRole("group", { name: /^Theme$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Open calendar$/i })).toHaveAttribute("href", "/calendar")
+  await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
+test("mobile quick-create button opens a vertical speed dial", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+  await page.getByRole("button", { name: /^Open quick actions$/i }).click()
+
+  const quickActions = page.getByRole("menu", { name: /^Quick create actions$/i })
+  await expect(quickActions).toBeVisible()
+  await expect(quickActions.getByRole("link", { name: /^Start Chimer$/i })).toHaveAttribute("href", "/chimer")
+  await expect(quickActions.getByRole("link", { name: /^Start flashcards$/i })).toHaveAttribute("href", "/education/flashcards")
+  await expect(quickActions.getByRole("link", { name: /^Play Anatomime$/i })).toHaveAttribute("href", "/anatomime")
+  await expect(quickActions.getByRole("link", { name: /^Customize quick actions$/i })).toHaveAttribute("href", "/register?callbackUrl=%2Faccount%3Ftab%3Dapp-settings")
+
+  await page.keyboard.press("Escape")
+  await expect(quickActions).toHaveCount(0)
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -163,7 +192,7 @@ test("mobile primary bar keeps lighting controls available and auto-collapses th
   await expect(narrowLightTheme).toBeHidden()
   await expect(page.getByRole("link", { name: /^Open music$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^Open calendar$/i })).toBeVisible()
+  await expect(page.getByRole("link", { name: /^Open calendar$/i })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 932 })
 

@@ -126,6 +126,22 @@ describe("App settings helpers", () => {
     ])
   })
 
+  it("renders the mobile main bar and quick-action speed dial from the layout shell", () => {
+    const layoutSource = readFileSync(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8")
+    const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
+    const speedDialSource = readFileSync(new URL("../components/shell/quick-action-speed-dial.tsx", import.meta.url), "utf8")
+    const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
+
+    assert.match(layoutSource, /<MobileMainBar\b/)
+    assert.match(mainBarSource, /resolveMainBarItemOrder/)
+    assert.match(mainBarSource, /aria-label="MassageLab main navigation"/)
+    assert.match(mainBarSource, /QuickActionSpeedDial/)
+    assert.match(speedDialSource, /aria-label="Quick create actions"/)
+    assert.match(speedDialSource, /Escape/)
+    assert.match(topBarSource, /QuickActionSpeedDial/)
+    assert.match(topBarSource, /aria-label="Open quick actions"/)
+  })
+
   it("uses a drawer only in narrow portrait phone layouts", () => {
     assert.equal(getSidebarRenderMode({ width: 390, height: 844 }), "drawer")
     assert.equal(getSidebarRenderMode({ width: 655, height: 681 }), "desktop")
