@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Heart, Play, Radio, Square, Wind } from "lucide-react"
-import { AppNotice, AppPageShell, AppSurface } from "@/components/ui/app-surface"
+import { AppNotice, AppPageShell, AppSurface, appMediaTileClassName, appRailScrollerClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { useMusic } from "@/components/providers/music-provider"
 import { MusicLoadingProgress } from "@/components/providers/music-loading-progress"
@@ -330,7 +330,7 @@ function AtmosphereStationRail({
         <div
           ref={railRef}
           aria-label={`${group.title} stations`}
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 scroll-smooth [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
+          className={cn(appRailScrollerClassName, "scroll-smooth")}
         >
           {group.stations.map((station) => (
             <AtmosphereStationCard
@@ -367,7 +367,8 @@ function AtmosphereStationCard({
     <article
       id={`station-${station.id}`}
       className={cn(
-        "flex min-w-[min(58vw,10.75rem)] snap-start flex-col overflow-hidden rounded-md border border-border/80 bg-card shadow-sm transition-colors sm:min-w-[10.875rem] lg:min-w-[11.25rem] xl:min-w-[11.625rem]",
+        appMediaTileClassName,
+        "flex min-w-[min(58vw,10.75rem)] snap-start flex-col overflow-hidden transition-colors sm:min-w-[10.875rem] lg:min-w-[11.25rem] xl:min-w-[11.625rem]",
         isActive && "border-primary/80 shadow-lg shadow-primary/15",
       )}
       onFocus={() => prewarmStation(station.id)}

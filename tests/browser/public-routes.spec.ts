@@ -135,6 +135,24 @@ for (const route of publicRoutes) {
   })
 }
 
+test("core public tool surfaces keep shell spacing and visible primary content", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const path of ["/", "/tools", "/education", "/notes", "/music", "/wellness"]) {
+    await page.goto(path, { waitUntil: "domcontentloaded" })
+    await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
+    await expect(page.locator(".ml-app-content")).toBeVisible()
+    const contentBox = await page.locator(".ml-app-content").boundingBox()
+    expect(contentBox?.height ?? 0).toBeGreaterThan(240)
+  }
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("main bar exposes home music clock quick create theme calendar and more controls", async ({ page }) => {
   const health = capturePageHealth(page)
 
