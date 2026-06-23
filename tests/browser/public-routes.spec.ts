@@ -377,6 +377,11 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
   await page.goto("/clock", { waitUntil: "domcontentloaded" })
   await expect(page.locator("body")).toHaveClass(/chimer-running/)
   await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toHaveCount(0)
+  await page.getByRole("button", { name: /^Close clock$/i }).click()
+  await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
+  const clockSetupMainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
+  await expect(clockSetupMainBar).toBeVisible()
+  await expect(page.locator(".ml-app-shell")).toHaveAttribute("data-main-bar-visible", "true")
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
