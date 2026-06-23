@@ -189,6 +189,34 @@ test("main bar exposes home music clock quick create theme calendar and more con
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
+test("main bar edge controls stay clear of the compact sidebar rail", async ({ page }) => {
+  const health = capturePageHealth(page)
+
+  await page.setViewportSize({ width: 686, height: 682 })
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "massage-lab-settings",
+      JSON.stringify({
+        appBarPosition: "bottom",
+        sidebarPosition: "left",
+        sidebarTriggerPosition: "bottom",
+        themeMode: "dark",
+      }),
+    )
+  })
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+
+  const openNavigation = page.getByRole("button", { name: /^Open navigation$/i })
+  await expect(openNavigation).toBeVisible()
+  const openNavigationBox = await openNavigation.boundingBox()
+  expect(openNavigationBox?.x ?? 0).toBeGreaterThan(64)
+
+  expect(health.pageErrors, "uncaught page errors").toEqual([])
+  expect(health.consoleErrors, "browser console errors").toEqual([])
+  expect(health.failedLocalResponses, "local 4xx/5xx responses").toEqual([])
+  expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
+})
+
 test("mobile quick-create button opens a vertical speed dial", async ({ page }) => {
   const health = capturePageHealth(page)
 

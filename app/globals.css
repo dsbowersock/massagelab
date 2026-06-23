@@ -308,6 +308,16 @@
     }
   }
 
+  @media (min-width: 601px) and (max-width: 767px) {
+    .ml-mobile-main-bar[data-sidebar-position="left"] {
+      padding-left: calc(var(--sidebar-width-icon, 3.25rem) + 1.25rem);
+    }
+
+    .ml-mobile-main-bar[data-sidebar-position="right"] {
+      padding-right: calc(var(--sidebar-width-icon, 3.25rem) + 1.25rem);
+    }
+  }
+
   @supports selector(:has(*)) {
     .ml-app-scroll:has(.ml-flashcards-page) {
       scrollbar-gutter: auto;
