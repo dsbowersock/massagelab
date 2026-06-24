@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn } from "@/lib/auth-security"
+import { hashPassword, generateRandomToken, hashToken, normalizeEmail, tokenExpiresIn, verifyPassword } from "@/lib/auth-security"
+import { registrationVerificationResponse } from "@/lib/auth-registration"
 import { sendVerificationEmail } from "@/lib/auth-mail"
 import { ensureUserRole } from "@/lib/auth-users"
 import { assertRateLimit, rateLimitKey, recordFailedAttempt } from "@/lib/auth-rate-limit"
@@ -39,8 +40,55 @@ export async function POST(request: Request) {
     }, { status: 400 })
   }
 
-  const existingUser = await prisma.user.findUnique({ where: { email } })
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+    include: { passwordCredential: true },
+  })
   if (existingUser) {
+    if (!existingUser.emailVerified && existingUser.passwordCredential) {
+      const passwordIsValid = await verifyPassword(existingUser.passwordCredential.passwordHash, password)
+
+      if (passwordIsValid) {
+        const verificationToken = generateRandomToken()
+        const resendRequestedAt = new Date()
+        const emailVerificationToken = await prisma.emailVerificationToken.create({
+          data: {
+            userId: existingUser.id,
+            email,
+            tokenHash: hashToken(verificationToken),
+            expiresAt: tokenExpiresIn(24 * 60),
+          },
+        })
+        await recordLegalAcceptances({
+          prismaClient: prisma,
+          userId: existingUser.id,
+          documents: requiredDocuments,
+          metadata: legalRequestMetadata(request),
+        })
+        const resendResult = registrationVerificationResponse(await sendVerificationEmail(email, verificationToken))
+
+        // Preserve usable links from overlapping resend requests; a successful resend only clears expired tokens.
+        if (resendResult.status === 200) {
+          await prisma.emailVerificationToken.deleteMany({
+            where: {
+              userId: existingUser.id,
+              consumedAt: null,
+              id: { not: emailVerificationToken.id },
+              expiresAt: { lt: resendRequestedAt },
+            },
+          })
+        } else {
+          await prisma.emailVerificationToken.deleteMany({
+            where: {
+              id: emailVerificationToken.id,
+            },
+          })
+        }
+
+        return NextResponse.json(resendResult.body, { status: resendResult.status })
+      }
+    }
+
     await recordFailedAttempt("REGISTER", key)
     return NextResponse.json(
       { message: "An account already exists for that email. Sign in instead, or use forgot password to set or reset an email password." },
@@ -83,9 +131,7 @@ export async function POST(request: Request) {
     metadata: legalRequestMetadata(request),
   })
   const mailResult = await sendVerificationEmail(email, verificationToken)
+  const response = registrationVerificationResponse(mailResult)
 
-  return NextResponse.json({
-    message: "Check your email to verify your account.",
-    devLink: mailResult.devLink,
-  })
+  return NextResponse.json(response.body, { status: response.status })
 }
