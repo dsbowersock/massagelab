@@ -104,7 +104,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ### 2026-06-24
 
 - Investigated a live Supporter monthly Checkout 500 from production Vercel runtime logs. The failure was not a Stripe dashboard issue; production was missing the `LegalAcceptance` table expected by the deployed checkout route.
-- Applied the five pending production Prisma migrations through the repo migration deploy path: shared Anatomime room/game-run tables, flashcard progress null-tool uniqueness, open host-election uniqueness, client wellness tables, and legal acceptance records. Prisma now reports the production schema is up to date, and an unauthenticated production checkout POST returns the expected login redirect instead of HTTP 500.
+- Applied the five pending production Prisma migrations through the repo migration deploy path: shared Anatomime room/game-run tables, flashcard progress null-tool uniqueness, open host-election uniqueness, client wellness tables, and legal acceptance records. The checkout 500 root cause was the missing `LegalAcceptance` table; Prisma now reports the production schema is up to date, and an unauthenticated production checkout POST returns the expected login redirect instead of HTTP 500.
 - The real authenticated low-dollar Stripe checkout plus Customer Portal return smoke remains pending because the schema issue was fixed before completing the payment flow.
 
 ### 2026-06-23
