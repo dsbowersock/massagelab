@@ -59,6 +59,12 @@ export async function POST(request: Request) {
             expiresAt: tokenExpiresIn(24 * 60),
           },
         })
+        await recordLegalAcceptances({
+          prismaClient: prisma,
+          userId: existingUser.id,
+          documents: requiredDocuments,
+          metadata: legalRequestMetadata(request),
+        })
         const resendResult = registrationVerificationResponse(await sendVerificationEmail(email, verificationToken))
 
         // Preserve usable links from overlapping resend requests; a successful resend only clears expired tokens.

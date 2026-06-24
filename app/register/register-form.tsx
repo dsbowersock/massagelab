@@ -42,6 +42,8 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
+
     setIsSubmitting(true)
     setStatus("")
     setStatusIsError(false)
