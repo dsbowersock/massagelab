@@ -63,9 +63,9 @@ export async function POST(request: Request) {
       ? NextResponse.redirect(checkoutSession.url, 303)
       : NextResponse.json({ url: checkoutSession.url })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to start donation checkout."
+    console.error("Unable to start donation checkout", error)
     return input.isForm
       ? pricingRedirect("checkout-error")
-      : NextResponse.json({ error: message }, { status: 500 })
+      : NextResponse.json({ error: "Unable to start donation checkout." }, { status: 500 })
   }
 }

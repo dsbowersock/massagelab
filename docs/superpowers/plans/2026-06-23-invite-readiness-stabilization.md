@@ -46,7 +46,7 @@ Get MassageLab to a stable, explicit checkpoint for inviting a small first cohor
 ## Non-Goals
 
 - Avoid adding Stripe Connect, external calendar sync, Payload CMS, hosted clinical storage, voice transcription, SOAP AI, or 3D/spatial runtime tooling in this stabilization pass.
-- Do not document or commit secrets, database rows, connection strings, Stripe keys, webhook secrets, or production env files.
+- Do not document or commit secret values, database rows, connection strings, Stripe keys, webhook secrets, concrete production env file locations, or actual production env file contents.
 - Keep local-first therapist records out of account-synced data.
 
 ## Acceptance
