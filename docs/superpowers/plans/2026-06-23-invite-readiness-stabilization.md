@@ -54,7 +54,7 @@ Get MassageLab to a stable, explicit checkpoint for inviting a small first cohor
 - The release checklist is current for invited-user readiness.
 - The repo-owned automated checks pass on the stabilization branch.
 - Production Stripe readiness is verified from a user-provided production env file.
-- The final low-dollar live checkout and portal smoke is completed and recorded without storing card or secret details.
+- The low-dollar live Supporter checkout and portal cancellation smoke is completed and recorded without storing card, customer, or secret details.
 - Remaining blockers are explicit external confirmations, such as attorney review or user-run payment smoke steps, not hidden repo gaps.
 
 ## Branch Progress
@@ -65,4 +65,5 @@ Get MassageLab to a stable, explicit checkpoint for inviting a small first cohor
 - 2026-06-23: After live values were supplied in a local env file, the production Stripe readiness check passed against Stripe. The only readiness warning was that the early-access discount is enabled in live mode and should be intentional before public signups.
 - 2026-06-23: Confirmed the early-access discount should remain enabled for now, added an app-owned one-time donation Checkout path on `/pricing`, and strengthened membership/legal copy so current benefits are separated from roadmap funding goals, no advertising, and no data-sale funding.
 - 2026-06-24: Investigated the live Supporter monthly checkout 500 in Vercel runtime logs and found production was missing pending Prisma migrations, including `LegalAcceptance`. Applied the pending production migrations, verified Prisma migration status is up to date, confirmed an unauthenticated checkout POST now redirects to login instead of returning HTTP 500, and left the authenticated low-dollar Stripe checkout smoke pending.
-- Pending: one real low-dollar checkout plus Customer Portal return smoke, one live donation checkout smoke, attorney review of legal/trust documents, and first-cohort production monitoring.
+- 2026-06-24: After the registration hardening PR was merged and redeployed, a new email/password account completed a live Supporter subscription, verified Chimer custom-color entitlement access, opened Stripe Customer Portal, and canceled the subscription.
+- Pending: one live donation checkout smoke, attorney review of legal/trust documents, and first-cohort production monitoring.

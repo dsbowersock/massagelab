@@ -167,7 +167,7 @@ function PlanCard({
             <p className="text-xs text-brand-orange">{price.yearlySavings.description}</p>
           ) : null}
           {price.isConfigured && !price.isLookupAvailable ? (
-            <p className="text-xs text-muted-foreground">Stripe Price ID is configured, but live lookup is unavailable here.</p>
+            <p className="text-xs text-muted-foreground">This price is temporarily unavailable.</p>
           ) : null}
         </div>
       </CardHeader>
@@ -246,7 +246,7 @@ function PlanAction({
   if (!price.isConfigured) {
     return (
       <Button disabled className="w-full">
-        Price not configured
+        Pricing temporarily unavailable
       </Button>
     )
   }

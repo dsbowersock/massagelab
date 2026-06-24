@@ -144,11 +144,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
   const canUseChimerCustomColors = Boolean(session.user.capabilities?.canUseChimerCustomColors)
   const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
+  const roleSummary = roleLabels.length > 0 ? roleLabels.map(formatRole).join(", ") : "User"
   const accountItemStatuses = {
     overview: "Summary",
     profile: "Defaults",
     security: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
-    credentials: roleLabels.map(formatRole).join(", "),
+    credentials: roleSummary,
     sync: "Local-first",
     accessibility: "Coming later",
     notifications: "Coming later",
@@ -161,6 +162,28 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
     "orders-invoices": "Coming later",
   }
+  const accountSummaryLinks = [
+    {
+      id: "security",
+      label: "Security",
+      value: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
+    },
+    {
+      id: "membership",
+      label: "Membership",
+      value: canUseChimerCustomColors ? "Custom colors unlocked" : "Review plans",
+    },
+    {
+      id: "credentials",
+      label: "Roles",
+      value: roleSummary,
+    },
+    {
+      id: "sync",
+      label: "Data",
+      value: "Local-first only",
+    },
+  ]
 
   return (
     <AccountShell>
@@ -171,47 +194,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         portal={params?.portal}
       />
 
-      <Card className={settingsSurfaceClassName}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserRound className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-            Account home
-          </CardTitle>
-          <CardDescription>
-            Signed in as {session.user.email}. Cloud sync is limited to non-PHI account data in this alpha.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatusTile
-              label="Security"
-              value={session.user.twoFactorEnabled ? "2FA enabled" : "2FA available"}
-              href="/account?tab=security"
-            />
-            <StatusTile
-              label="Membership"
-              value={canUseChimerCustomColors ? "Custom colors unlocked" : "Review plans"}
-              href="/account?tab=membership"
-            />
-            <StatusTile
-              label="Roles"
-              value={roleLabels.map(formatRole).join(", ")}
-              href="/account?tab=credentials"
-            />
-            <StatusTile
-              label="Clinical sync"
-              value="Local-first only"
-              href="/account?tab=sync"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       <AccountSettingsShell
         defaultValue={defaultTab}
         groups={accountPageGroups}
         itemStatuses={accountItemStatuses}
         showMobileIndexFirst={showMobileIndexFirst}
+        summaryLinks={accountSummaryLinks}
         user={{
           name: accountDisplayName,
           email: session.user.email ?? "Signed in",
@@ -629,7 +617,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-3">
             <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
-            <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
+            <StatusTile label="Billing profile" value={membershipSummary.stripeCustomer ? "Connected" : "Not started"} />
             <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
           </div>
 
@@ -652,7 +640,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
       <Card id="subscription-status" className={settingsSurfaceClassName}>
         <CardHeader>
           <CardTitle>Subscription status</CardTitle>
-          <CardDescription>Stripe billing status, recent subscriptions, and the customer portal.</CardDescription>
+          <CardDescription>Membership status, recent subscriptions, and billing management.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {membershipSummary.subscriptions.length > 0 ? (
@@ -684,7 +672,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             ) : null}
             {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                You do not have a Stripe-managed subscription yet.
+                You do not have a paid subscription yet.
               </p>
             ) : null}
           </div>
@@ -900,7 +888,7 @@ function accountNotice({
   if (checkout === "success") {
     return {
       title: "Checkout complete",
-      description: "Stripe is syncing your membership. If the status has not updated yet, refresh after the webhook finishes.",
+      description: "Your membership is being updated. If it does not appear right away, refresh this page in a minute.",
       tone: "accent" as const,
     }
   }
@@ -916,7 +904,7 @@ function accountNotice({
   if (portal === "returned") {
     return {
       title: "Billing portal closed",
-      description: "Any subscription changes made in Stripe will appear here after the webhook syncs.",
+      description: "Any subscription changes you made may take a moment to appear here. Refresh this page if they do not show right away.",
       tone: "accent" as const,
     }
   }
@@ -924,7 +912,7 @@ function accountNotice({
   if (portal === "customer-not-found") {
     return {
       title: "Billing portal unavailable",
-      description: "There is no Stripe customer connected to this account yet.",
+      description: "This account does not have a paid subscription to manage yet.",
       tone: "default" as const,
     }
   }
@@ -932,7 +920,7 @@ function accountNotice({
   if (portal === "error") {
     return {
       title: "Billing portal unavailable",
-      description: "Stripe could not start the billing portal. Check the Stripe Customer Portal and secret key configuration.",
+      description: "We could not open billing management right now. Please try again or contact support if this continues.",
       tone: "destructive" as const,
     }
   }
@@ -957,12 +945,12 @@ function accountNotice({
 }
 
 function billingMessage(code: string) {
-  if (code === "unsupported-plan") return "That membership level is not supported for Stripe Checkout."
-  if (code === "price-not-configured") return "Stripe prices are not configured for that membership option yet."
+  if (code === "unsupported-plan") return "That membership option is not available yet."
+  if (code === "price-not-configured") return "That membership option is not available yet."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
-  if (code === "checkout-error") return "Stripe Checkout could not be started. Please try again or contact support if this continues."
-  return "Stripe Checkout could not be started."
+  if (code === "checkout-error") return "We could not open checkout right now. Please try again or contact support if this continues."
+  return "We could not open checkout right now."
 }
 
 function StatusTile({ label, value, href }: { label: string; value: string; href?: string }) {

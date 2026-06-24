@@ -37,6 +37,8 @@ The command must pass without printing secret values. Then complete one real low
 - The subscription is canceled or refunded as appropriate after the smoke test.
 - The one-time donation path starts Stripe Checkout, returns to `/pricing`, and does not create a membership entitlement.
 
+Latest status, 2026-06-24: the live Supporter subscription smoke passed with a new email/password account, Chimer custom-color entitlement access, Stripe Customer Portal access, and subscription cancellation. The one-time donation checkout smoke remains pending.
+
 ## Manual Focus Areas
 
 - Account registration, Google sign-in, Terms/Privacy acceptance, onboarding, verification, password reset, 2FA, and preference sync.
