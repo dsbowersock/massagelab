@@ -60,11 +60,19 @@ type AccountSettingsShellProps = {
   groups: AccountNavigationGroup[]
   itemStatuses: Record<string, string>
   showMobileIndexFirst: boolean
+  summaryLinks?: AccountSummaryLink[]
   user: {
     name: string
     email: string
     image?: string | null
   }
+}
+
+type AccountSummaryLink = {
+  id: string
+  label: string
+  value: string
+  href?: string
 }
 
 const accountShellIcons = {
@@ -88,6 +96,7 @@ export function AccountSettingsShell({
   groups,
   itemStatuses,
   showMobileIndexFirst,
+  summaryLinks = [],
   user,
 }: AccountSettingsShellProps) {
   const router = useRouter()
@@ -164,6 +173,7 @@ export function AccountSettingsShell({
             onPrefetchSection={prefetchSection}
             query={query}
             setQuery={setQuery}
+            summaryLinks={summaryLinks}
             user={user}
           />
 
@@ -190,6 +200,7 @@ export function AccountSettingsShell({
             onPrefetchSection={prefetchSection}
             query={query}
             setQuery={setQuery}
+            summaryLinks={summaryLinks}
             user={user}
           />
         </div>
@@ -206,6 +217,7 @@ function AccountRail({
   onPrefetchSection,
   query,
   setQuery,
+  summaryLinks,
   user,
 }: {
   activeSection: string
@@ -215,6 +227,7 @@ function AccountRail({
   onPrefetchSection: (id: string) => void
   query: string
   setQuery: (query: string) => void
+  summaryLinks: AccountSummaryLink[]
   user: AccountSettingsShellProps["user"]
 }) {
   return (
@@ -234,6 +247,7 @@ function AccountRail({
         </CardHeader>
         <CardContent className="flex flex-col gap-4 p-4 pt-0">
           <AccountSearchInput query={query} setQuery={setQuery} />
+          <AccountSummaryLinks links={summaryLinks} variant="rail" />
           <ScrollArea className="max-h-[calc(100vh-13rem)] pr-3">
             <AccountNavGroups
               activeSection={activeSection}
@@ -258,6 +272,7 @@ function MobileAccountIndex({
   onPrefetchSection,
   query,
   setQuery,
+  summaryLinks,
   user,
 }: {
   activeSection: string
@@ -267,6 +282,7 @@ function MobileAccountIndex({
   onPrefetchSection: (id: string) => void
   query: string
   setQuery: (query: string) => void
+  summaryLinks: AccountSummaryLink[]
   user: AccountSettingsShellProps["user"]
 }) {
   return (
@@ -284,8 +300,9 @@ function MobileAccountIndex({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-0">
+        <CardContent className="flex flex-col gap-4 p-4 pt-0">
           <AccountSearchInput query={query} setQuery={setQuery} />
+          <AccountSummaryLinks links={summaryLinks} variant="mobile" />
         </CardContent>
       </Card>
 
@@ -298,6 +315,36 @@ function MobileAccountIndex({
         variant="mobile"
       />
     </div>
+  )
+}
+
+function AccountSummaryLinks({
+  links,
+  variant,
+}: {
+  links: AccountSummaryLink[]
+  variant: "rail" | "mobile"
+}) {
+  if (links.length === 0) {
+    return null
+  }
+
+  return (
+    <nav aria-label="Account shortcuts" className={cn("grid gap-2", variant === "mobile" && "grid-cols-2")}>
+      {links.map((link) => (
+        <Link
+          key={link.id}
+          href={link.href ?? getAccountTabHref(link.id)}
+          className={cn(
+            "min-w-0 rounded-md border border-border/70 bg-background/50 px-3 py-2 text-left transition hover:border-primary/60 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            variant === "mobile" && "min-h-16",
+          )}
+        >
+          <span className="block truncate text-xs font-medium uppercase tracking-normal text-muted-foreground">{link.label}</span>
+          <span className="mt-1 block text-sm font-medium leading-snug text-foreground">{link.value}</span>
+        </Link>
+      ))}
+    </nav>
   )
 }
 

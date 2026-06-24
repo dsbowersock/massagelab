@@ -144,11 +144,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const canManageAnatomy = Boolean(session.user.capabilities?.canManageAnatomyContent)
   const canUseChimerCustomColors = Boolean(session.user.capabilities?.canUseChimerCustomColors)
   const accountDisplayName = session.user.name || session.user.email || "MassageLab account"
+  const roleSummary = roleLabels.length > 0 ? roleLabels.map(formatRole).join(", ") : "User"
   const accountItemStatuses = {
     overview: "Summary",
     profile: "Defaults",
     security: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
-    credentials: roleLabels.map(formatRole).join(", "),
+    credentials: roleSummary,
     sync: "Local-first",
     accessibility: "Coming later",
     notifications: "Coming later",
@@ -161,6 +162,28 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     membership: canUseChimerCustomColors ? "Paid features active" : "Billing",
     "orders-invoices": "Coming later",
   }
+  const accountSummaryLinks = [
+    {
+      id: "security",
+      label: "Security",
+      value: session.user.twoFactorEnabled ? "2FA enabled" : "2FA available",
+    },
+    {
+      id: "membership",
+      label: "Membership",
+      value: canUseChimerCustomColors ? "Custom colors unlocked" : "Review plans",
+    },
+    {
+      id: "credentials",
+      label: "Roles",
+      value: roleSummary,
+    },
+    {
+      id: "sync",
+      label: "Data",
+      value: "Local-first only",
+    },
+  ]
 
   return (
     <AccountShell>
@@ -171,47 +194,12 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         portal={params?.portal}
       />
 
-      <Card className={settingsSurfaceClassName}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserRound className="h-5 w-5 text-brand-orange" aria-hidden="true" />
-            Account home
-          </CardTitle>
-          <CardDescription>
-            Signed in as {session.user.email}. Cloud sync is limited to non-PHI account data in this alpha.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatusTile
-              label="Security"
-              value={session.user.twoFactorEnabled ? "2FA enabled" : "2FA available"}
-              href="/account?tab=security"
-            />
-            <StatusTile
-              label="Membership"
-              value={canUseChimerCustomColors ? "Custom colors unlocked" : "Review plans"}
-              href="/account?tab=membership"
-            />
-            <StatusTile
-              label="Roles"
-              value={roleLabels.map(formatRole).join(", ")}
-              href="/account?tab=credentials"
-            />
-            <StatusTile
-              label="Clinical sync"
-              value="Local-first only"
-              href="/account?tab=sync"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       <AccountSettingsShell
         defaultValue={defaultTab}
         groups={accountPageGroups}
         itemStatuses={accountItemStatuses}
         showMobileIndexFirst={showMobileIndexFirst}
+        summaryLinks={accountSummaryLinks}
         user={{
           name: accountDisplayName,
           email: session.user.email ?? "Signed in",

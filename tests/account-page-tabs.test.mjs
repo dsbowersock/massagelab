@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { describe, it } from "node:test"
 import {
   accountPageGroups,
@@ -145,5 +146,16 @@ describe("Account page tab model", () => {
       ["security"],
     )
     assert.deepEqual(filterAccountPageGroups("not-a-real-setting"), [])
+  })
+
+  it("keeps the signed-in account page led by navigation instead of a duplicate home card", async () => {
+    const [accountPage, accountShell] = await Promise.all([
+      readFile(new URL("../app/account/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/account/account-settings-shell.tsx", import.meta.url), "utf8"),
+    ])
+
+    assert.doesNotMatch(accountPage, /Account home/)
+    assert.match(accountPage, /summaryLinks=\{accountSummaryLinks\}/)
+    assert.match(accountShell, /aria-label="Account shortcuts"/)
   })
 })
