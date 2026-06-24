@@ -15,7 +15,7 @@ export const POST = apiErrorMapper(async (request: Request) => {
 
   if (!sharedSessionDatabaseReady()) {
     return NextResponse.json({
-      error: "Shared games need database access in this Vercel environment before they can be created.",
+      error: "Shared games are not available right now. Please try again later.",
     }, { status: 503 })
   }
 

@@ -86,7 +86,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
         </Button>
       ) : (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
-          Set the Google OAuth environment variables in Vercel to enable Google registration.
+          Google registration is not available right now. Use email and password, or try Google again later.
         </div>
       )}
 

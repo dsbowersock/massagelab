@@ -141,7 +141,7 @@ function pricingDonationNotice(code?: string) {
     return {
       tone: "destructive" as const,
       title: "Donation checkout unavailable",
-      description: "Stripe could not start the one-time support checkout.",
+      description: "We could not open one-time support checkout right now. Please try again or contact support if this continues.",
     }
   }
 

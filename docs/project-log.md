@@ -106,6 +106,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - Investigated a live Supporter monthly Checkout 500 from production Vercel runtime logs. The failure was not a Stripe dashboard issue; production was missing the `LegalAcceptance` table expected by the deployed checkout route.
 - Applied the five pending production Prisma migrations through the repo migration deploy path: shared Anatomime room/game-run tables, flashcard progress null-tool uniqueness, open host-election uniqueness, client wellness tables, and legal acceptance records. The checkout 500 root cause was the missing `LegalAcceptance` table; Prisma now reports the production schema is up to date, and an unauthenticated production checkout POST returns the expected login redirect instead of HTTP 500.
 - After the registration hardening PR was merged and deployed, a new email/password account successfully completed a live Supporter subscription, unlocked Chimer custom colors through the `chimer_custom_colors` entitlement, opened the Stripe Customer Portal, and canceled the subscription.
+- Replaced invite-facing billing, pricing, Google sign-in, and shared-game unavailable messages that exposed implementation details such as webhooks, secret-key configuration, Price IDs, Vercel environment setup, or database access with user-facing recovery language.
 
 ### 2026-06-23
 

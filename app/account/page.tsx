@@ -629,7 +629,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-3">
             <StatusTile label="Current level" value={formatMembershipLevel(membershipSummary.entitlements.level)} />
-            <StatusTile label="Stripe customer" value={membershipSummary.stripeCustomer ? "Connected" : "Not connected"} />
+            <StatusTile label="Billing profile" value={membershipSummary.stripeCustomer ? "Connected" : "Not started"} />
             <StatusTile label="Custom colors" value={canUseChimerCustomColors ? "Available" : "Membership required"} />
           </div>
 
@@ -652,7 +652,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
       <Card id="subscription-status" className={settingsSurfaceClassName}>
         <CardHeader>
           <CardTitle>Subscription status</CardTitle>
-          <CardDescription>Stripe billing status, recent subscriptions, and the customer portal.</CardDescription>
+          <CardDescription>Membership status, recent subscriptions, and billing management.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {membershipSummary.subscriptions.length > 0 ? (
@@ -684,7 +684,7 @@ async function MembershipTab({ userId, sessionUser }: { userId: string; sessionU
             ) : null}
             {!canOpenBillingPortal && membershipSummary.subscriptions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                You do not have a Stripe-managed subscription yet.
+                You do not have a paid subscription yet.
               </p>
             ) : null}
           </div>
@@ -900,7 +900,7 @@ function accountNotice({
   if (checkout === "success") {
     return {
       title: "Checkout complete",
-      description: "Stripe is syncing your membership. If the status has not updated yet, refresh after the webhook finishes.",
+      description: "Your membership is being updated. If it does not appear right away, refresh this page in a minute.",
       tone: "accent" as const,
     }
   }
@@ -916,7 +916,7 @@ function accountNotice({
   if (portal === "returned") {
     return {
       title: "Billing portal closed",
-      description: "Any subscription changes made in Stripe will appear here after the webhook syncs.",
+      description: "Any subscription changes you made may take a moment to appear here. Refresh this page if they do not show right away.",
       tone: "accent" as const,
     }
   }
@@ -924,7 +924,7 @@ function accountNotice({
   if (portal === "customer-not-found") {
     return {
       title: "Billing portal unavailable",
-      description: "There is no Stripe customer connected to this account yet.",
+      description: "This account does not have a paid subscription to manage yet.",
       tone: "default" as const,
     }
   }
@@ -932,7 +932,7 @@ function accountNotice({
   if (portal === "error") {
     return {
       title: "Billing portal unavailable",
-      description: "Stripe could not start the billing portal. Check the Stripe Customer Portal and secret key configuration.",
+      description: "We could not open billing management right now. Please try again or contact support if this continues.",
       tone: "destructive" as const,
     }
   }
@@ -957,12 +957,12 @@ function accountNotice({
 }
 
 function billingMessage(code: string) {
-  if (code === "unsupported-plan") return "That membership level is not supported for Stripe Checkout."
-  if (code === "price-not-configured") return "Stripe prices are not configured for that membership option yet."
+  if (code === "unsupported-plan") return "That membership option is not available yet."
+  if (code === "price-not-configured") return "That membership option is not available yet."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
-  if (code === "checkout-error") return "Stripe Checkout could not be started. Please try again or contact support if this continues."
-  return "Stripe Checkout could not be started."
+  if (code === "checkout-error") return "We could not open checkout right now. Please try again or contact support if this continues."
+  return "We could not open checkout right now."
 }
 
 function StatusTile({ label, value, href }: { label: string; value: string; href?: string }) {

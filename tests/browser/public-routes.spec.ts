@@ -1078,7 +1078,7 @@ test("anatomime shared game create failures stay visible in setup", async ({ pag
       status: 503,
       contentType: "application/json",
       body: JSON.stringify({
-        error: "Shared games need database access in this Vercel environment before they can be created.",
+        error: "Shared games are not available right now. Please try again later.",
       }),
     })
   })
@@ -1088,7 +1088,7 @@ test("anatomime shared game create failures stay visible in setup", async ({ pag
   await page.getByRole("button", { name: /Create Shared Game/i }).click()
 
   await expect(page.getByRole("button", { name: /Create Shared Game/i })).toBeVisible()
-  await expect(page.getByText(/Shared games need database access in this Vercel environment/i)).toBeVisible()
+  await expect(page.getByText(/Shared games are not available right now/i)).toBeVisible()
 })
 
 test("anatomime player joins by code and submits typed guesses", async ({ page }) => {
