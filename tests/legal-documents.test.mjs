@@ -49,4 +49,17 @@ describe("legal document registry", () => {
       ["therapist-agreement"],
     )
   })
+
+  it("states the no-ads/data-sale posture and one-time support boundary", () => {
+    const privacyBody = getLegalDocumentByKey("privacy")
+      .sections.flatMap((section) => section.body)
+      .join(" ")
+    const billingBody = getLegalDocumentByKey("membership-billing-refunds")
+      .sections.flatMap((section) => section.body)
+      .join(" ")
+
+    assert.match(privacyBody, /does not sell user data/)
+    assert.match(privacyBody, /does not use advertising/)
+    assert.match(billingBody, /One-time support payments do not create a membership/)
+  })
 })

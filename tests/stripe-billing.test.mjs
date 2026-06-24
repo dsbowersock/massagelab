@@ -2,6 +2,8 @@ import assert from "node:assert/strict"
 import { createHmac } from "node:crypto"
 import { describe, it } from "node:test"
 import {
+  createStripeDonationCheckoutSession,
+  isDonationCheckoutSession,
   normalizeStripeSubscription,
   stripeTimestampToDate,
   upsertMembershipSubscriptionFromStripe,
@@ -202,6 +204,64 @@ describe("Stripe billing helpers", () => {
 
     assert.deepEqual(capturedPayload.discounts, [{ coupon: "E6lYinBx" }])
     assert.equal(Object.hasOwn(capturedPayload, "allow_promotion_codes"), false)
+  })
+
+  it("creates one-time donation Checkout Sessions without subscription entitlement metadata", async () => {
+    let capturedPayload = null
+
+    const session = await createStripeDonationCheckoutSession({
+      amountCents: 1500,
+      customerEmail: "supporter@example.com",
+      userId: "user_123",
+      successUrl: "https://massagelab.app/pricing?donation=thanks",
+      cancelUrl: "https://massagelab.app/pricing?donation=cancelled",
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: async (payload) => {
+              capturedPayload = payload
+              return { id: "cs_donation", url: "https://checkout.stripe.com/c/donation" }
+            },
+          },
+        },
+      },
+    })
+
+    assert.equal(session.url, "https://checkout.stripe.com/c/donation")
+    assert.equal(capturedPayload.mode, "payment")
+    assert.equal(capturedPayload.submit_type, "donate")
+    assert.equal(capturedPayload.customer_email, "supporter@example.com")
+    assert.equal(capturedPayload.line_items[0].price_data.unit_amount, 1500)
+    assert.equal(capturedPayload.metadata.purpose, "massagelab_project_support")
+    assert.equal(capturedPayload.payment_intent_data.metadata.purpose, "massagelab_project_support")
+    assert.equal(Object.hasOwn(capturedPayload, "subscription_data"), false)
+  })
+
+  it("ignores donation Checkout Sessions during membership reconciliation", async () => {
+    const writes = []
+    const prismaClient = {
+      stripeCustomer: {
+        upsert: async (args) => {
+          writes.push(["customer", args])
+          return args.create
+        },
+      },
+      membershipSubscription: {
+        upsert: async (args) => {
+          writes.push(["subscription", args])
+          return args.create
+        },
+      },
+    }
+    const donationSession = {
+      client_reference_id: "user_123",
+      customer: "cus_123",
+      metadata: { purpose: "massagelab_project_support", userId: "user_123" },
+    }
+
+    assert.equal(isDonationCheckoutSession(donationSession), true)
+    assert.equal(await stripeBilling.recordCheckoutSessionCompleted(prismaClient, donationSession), null)
+    assert.deepEqual(writes, [])
   })
 
   it("reconciles a Checkout Session subscription immediately after checkout completion", async () => {
