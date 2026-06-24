@@ -961,7 +961,7 @@ function billingMessage(code: string) {
   if (code === "price-not-configured") return "Stripe prices are not configured for that membership option yet."
   if (code === "billing-terms-required") return "Accept the membership billing and refund terms before starting checkout."
   if (code === "account-not-found") return "The signed-in account could not be found."
-  if (code === "checkout-error") return "Stripe Checkout could not be started. Check the Stripe secret key and price configuration."
+  if (code === "checkout-error") return "Stripe Checkout could not be started. Please try again or contact support if this continues."
   return "Stripe Checkout could not be started."
 }
 
