@@ -132,7 +132,13 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
           Create account with email
         </Button>
       </form>
-      {status && <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>{status}</AppInset>}
+      {status && (
+        <AppInset className={`p-3 text-sm ${statusIsError ? "text-amber-100" : "text-muted-foreground"}`}>
+          <p role={statusIsError ? "alert" : "status"} aria-live={statusIsError ? "assertive" : "polite"}>
+            {status}
+          </p>
+        </AppInset>
+      )}
       {devLink && (
         <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
           Development verification link: <Link className="underline" href={devLink}>{devLink}</Link>

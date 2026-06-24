@@ -61,5 +61,7 @@ describe("registration email delivery policy", () => {
     assert.match(registerForm, /REGISTRATION_REQUEST_FAILED_MESSAGE/)
     assert.match(registerForm, /if \(isSubmitting\) return/)
     assert.match(registerForm, /finally \{\s*setIsSubmitting\(false\)/)
+    assert.match(registerForm, /role=\{statusIsError \? "alert" : "status"\}/)
+    assert.match(registerForm, /aria-live=\{statusIsError \? "assertive" : "polite"\}/)
   })
 })
