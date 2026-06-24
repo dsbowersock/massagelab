@@ -2,17 +2,25 @@ import { hasGoogleAuthConfig } from "@/lib/auth-env"
 import { AppPageShell } from "@/components/ui/app-surface"
 import { RegisterForm } from "./register-form"
 
+type RegisterSearchParams = {
+  callbackUrl?: string | string[]
+}
+
 function safeCallbackUrl(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/onboarding"
   return value
 }
 
+function firstQueryValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null
+}
+
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>
+  searchParams: Promise<RegisterSearchParams>
 }) {
-  const callbackUrl = safeCallbackUrl((await searchParams).callbackUrl ?? null)
+  const callbackUrl = safeCallbackUrl(firstQueryValue((await searchParams).callbackUrl))
 
   return (
     <AppPageShell title="Create Account" width="narrow">

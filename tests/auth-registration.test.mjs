@@ -34,8 +34,12 @@ describe("registration email delivery policy", () => {
 
     assert.match(registerRoute, /!existingUser\.emailVerified/)
     assert.match(registerRoute, /verifyPassword\(existingUser\.passwordCredential\.passwordHash, password\)/)
-    assert.match(registerRoute, /emailVerificationToken\.deleteMany/)
+    assert.match(registerRoute, /const emailVerificationToken = await prisma\.emailVerificationToken\.create/)
     assert.match(registerRoute, /registrationVerificationResponse\(await sendVerificationEmail\(email, verificationToken\)\)/)
+    assert.match(registerRoute, /Preserve any older usable link/)
+    assert.match(registerRoute, /if \(resendResult\.status === 200\)/)
+    assert.match(registerRoute, /id: \{ not: emailVerificationToken\.id \}/)
+    assert.match(registerRoute, /id: emailVerificationToken\.id/)
   })
 
   it("presents Google registration and email-password registration on the register page", async () => {
@@ -44,6 +48,8 @@ describe("registration email delivery policy", () => {
 
     assert.match(registerPage, /hasGoogleAuthConfig/)
     assert.match(registerPage, /initialCallbackUrl=\{callbackUrl\}/)
+    assert.match(registerPage, /callbackUrl\?: string \| string\[\]/)
+    assert.match(registerPage, /firstQueryValue\(\(await searchParams\)\.callbackUrl\)/)
     assert.match(registerForm, /Continue with Google/)
     assert.match(registerForm, /signIn\("google", \{ redirectTo: googleRedirectTo \}\)/)
     assert.match(registerForm, /Create account with email/)

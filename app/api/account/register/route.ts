@@ -50,23 +50,32 @@ export async function POST(request: Request) {
 
       if (passwordIsValid) {
         const verificationToken = generateRandomToken()
-        await prisma.$transaction([
-          prisma.emailVerificationToken.deleteMany({
+        const emailVerificationToken = await prisma.emailVerificationToken.create({
+          data: {
+            userId: existingUser.id,
+            email,
+            tokenHash: hashToken(verificationToken),
+            expiresAt: tokenExpiresIn(24 * 60),
+          },
+        })
+        const resendResult = registrationVerificationResponse(await sendVerificationEmail(email, verificationToken))
+
+        // Preserve any older usable link unless this resend has a deliverable verification path.
+        if (resendResult.status === 200) {
+          await prisma.emailVerificationToken.deleteMany({
             where: {
               userId: existingUser.id,
               consumedAt: null,
+              id: { not: emailVerificationToken.id },
             },
-          }),
-          prisma.emailVerificationToken.create({
-            data: {
-              userId: existingUser.id,
-              email,
-              tokenHash: hashToken(verificationToken),
-              expiresAt: tokenExpiresIn(24 * 60),
+          })
+        } else {
+          await prisma.emailVerificationToken.deleteMany({
+            where: {
+              id: emailVerificationToken.id,
             },
-          }),
-        ])
-        const resendResult = registrationVerificationResponse(await sendVerificationEmail(email, verificationToken))
+          })
+        }
 
         return NextResponse.json(resendResult.body, { status: resendResult.status })
       }
