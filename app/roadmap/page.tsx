@@ -96,8 +96,6 @@ const upfrontNeeds = [
 ]
 
 export default function RoadmapPage() {
-  const donationUrl = process.env.NEXT_PUBLIC_STRIPE_DONATION_URL?.trim()
-
   return (
     <AppPageShell title="MassageLab Roadmap" contentClassName="gap-8">
         <AppSurface
@@ -217,17 +215,11 @@ export default function RoadmapPage() {
                 Memberships and donations are separate from the local-first alpha tools. Notes, intake forms, journals, and ROM data remain under user control.
               </p>
               <div className="flex flex-wrap gap-3">
-                {donationUrl ? (
-                  <Button asChild className="bg-primary hover:bg-brand-orange-glow">
-                    <Link href={donationUrl}>Donate with Stripe</Link>
-                  </Button>
-                ) : (
-                  <Button disabled className="bg-primary">
-                    Donation link not configured
-                  </Button>
-                )}
+                <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                  <Link href="/pricing#donate">Donate with Stripe</Link>
+                </Button>
                 <Button asChild variant="outline">
-                  <Link href="/account">View memberships</Link>
+                  <Link href="/pricing">View memberships</Link>
                 </Button>
               </div>
           </AppSurface>

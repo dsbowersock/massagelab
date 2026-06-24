@@ -1,28 +1,45 @@
 import Link from "next/link"
-import { ShieldCheck, Sparkles } from "lucide-react"
+import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { getCurrentSession } from "@/auth"
+import { DONATION_OPTIONS } from "@/lib/donations"
 import { getMembershipPricingCatalog } from "@/lib/membership-pricing"
 import { MembershipPricingCards } from "@/components/membership/pricing-cards"
-import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { AppNotice, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { createPublicPageMetadata } from "@/lib/seo"
 
 export const metadata = createPublicPageMetadata("/pricing")
 
-export default async function PricingPage() {
+type PricingPageProps = {
+  searchParams?: Promise<{
+    donation?: string
+  }>
+}
+
+export default async function PricingPage({ searchParams }: PricingPageProps) {
   const [catalog, session] = await Promise.all([
     getMembershipPricingCatalog(),
     getCurrentSession(),
   ])
+  const params = await searchParams
+  const donationNotice = pricingDonationNotice(params?.donation)
   const signedIn = Boolean(session?.user?.id)
 
   return (
     <AppPageShell title="Pricing">
+        {donationNotice ? (
+          <AppNotice
+            title={donationNotice.title}
+            description={donationNotice.description}
+            tone={donationNotice.tone}
+          />
+        ) : null}
+
         <AppSurface
-          title="Memberships fund the alpha without removing free access"
+          title="Memberships and donations fund the alpha without ads"
           description={
             <>
-                Basic Chimer and the local-first alpha tools remain available. Paid memberships currently unlock saved custom Chimer colors and help fund careful work toward future account-backed, compliance-ready features.
+                Basic Chimer and the local-first alpha tools remain available. Paid memberships currently unlock the features listed below and help fund careful work toward account-backed, compliance-ready features.
             </>
           }
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
@@ -41,6 +58,43 @@ export default async function PricingPage() {
         <MembershipPricingCards catalog={catalog} mode={signedIn ? "checkout" : "auth"} />
 
         <AppSurface
+          id="donate"
+          title="One-time project support"
+          description={
+            <>
+              Use this path if you want to support MassageLab without starting a subscription.
+            </>
+          }
+          icon={<HeartHandshake className="h-5 w-5" aria-hidden="true" />}
+          contentClassName="gap-4"
+        >
+          <p className="text-sm text-muted-foreground">
+            Donations are one-time Stripe payments. They do not create a membership, unlock paid features, or replace the subscription options above.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {DONATION_OPTIONS.map((option) => (
+              <form key={option.amountCents} action="/api/billing/donation" method="post">
+                <input type="hidden" name="amountCents" value={option.amountCents} />
+                <Button type="submit" variant="outline" className="h-full w-full flex-col gap-1 py-4">
+                  <span className="text-lg font-semibold">{option.label}</span>
+                  <span className="text-center text-xs font-normal text-muted-foreground">{option.description}</span>
+                </Button>
+              </form>
+            ))}
+          </div>
+        </AppSurface>
+
+        <AppSurface
+          title="How MassageLab is funded"
+          description={
+            <>
+              MassageLab does not sell user data and does not use advertising to fund the project. Memberships and donations support product development, secure infrastructure, compliance review, BAA/vendor work, audit controls, and the operating costs needed before hosted PHI storage can responsibly exist.
+            </>
+          }
+          className={appCalloutClassName}
+        />
+
+        <AppSurface
           title="Clinical data boundary"
           description={
             <>
@@ -52,4 +106,44 @@ export default async function PricingPage() {
         />
     </AppPageShell>
   )
+}
+
+/**
+ * Maps donation Checkout return codes from `/api/billing/donation` to pricing-page notices.
+ * Supported codes are `thanks`, `cancelled`, `invalid-amount`, and `checkout-error`.
+ */
+function pricingDonationNotice(code?: string) {
+  if (code === "thanks") {
+    return {
+      tone: "accent" as const,
+      title: "Donation checkout completed",
+      description: "Thank you for supporting MassageLab. Stripe will send the payment receipt when available.",
+    }
+  }
+
+  if (code === "cancelled") {
+    return {
+      tone: "default" as const,
+      title: "Donation checkout cancelled",
+      description: "No donation payment was completed.",
+    }
+  }
+
+  if (code === "invalid-amount") {
+    return {
+      tone: "destructive" as const,
+      title: "Donation amount unavailable",
+      description: "Choose one of the listed one-time support amounts.",
+    }
+  }
+
+  if (code === "checkout-error") {
+    return {
+      tone: "destructive" as const,
+      title: "Donation checkout unavailable",
+      description: "Stripe could not start the one-time support checkout.",
+    }
+  }
+
+  return null
 }

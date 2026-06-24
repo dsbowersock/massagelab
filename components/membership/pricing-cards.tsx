@@ -76,7 +76,10 @@ export function MembershipPricingCards({
               {catalog.earlyAccess.label}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{catalog.earlyAccess.description}</p>
+          <p className="text-sm text-muted-foreground">
+            Current benefits are available now. Roadmap items are funding goals and are not active subscription features yet.{" "}
+            {catalog.earlyAccess.description}
+          </p>
         </div>
       </div>
 

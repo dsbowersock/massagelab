@@ -29,6 +29,15 @@ if (features.includes("chimer_custom_colors")) {
 - Stripe subscription records grant membership only when their Price ID matches one of the configured Supporter, Therapist, or Practice price environment variables.
 - Student, donation, unknown, archived, or otherwise unmapped Stripe products and prices must not grant a paid membership.
 
+## One-Time Support
+
+The `/pricing` page offers fixed one-time support amounts through `/api/billing/donation`.
+
+- Donations use Stripe Checkout `mode=payment`, not subscription mode.
+- Donations do not create a membership, unlock paid features, or change entitlements.
+- Donation Checkout metadata uses `massagelab_project_support` so webhook reconciliation can ignore it for membership grants.
+- Donation copy should explain that one-time support funds development, secure infrastructure, compliance review, BAA/vendor work, audit controls, and operating costs for future privacy-preserving storage.
+
 ## Student Access
 
 Student access lasts 18 months from the student's first day of class.
@@ -50,6 +59,8 @@ Students can upgrade to Therapist during or after the student window with the St
 - `E6lYinBx`: Early Access 10% Discount, forever.
 
 The early access discount is controlled by `MASSAGELAB_EARLY_ACCESS_DISCOUNT_ENABLED`. When the site is production-ready, turn this flag off so new subscribers no longer receive the early access discount. Existing subscribers who used it keep it until they cancel.
+
+Current invite-window decision: keep the early access discount enabled for now.
 
 ## Feature Keys
 
@@ -77,7 +88,9 @@ Frontend copy may call the `PRACTICE` membership tier `Team/Practice` for clarit
 
 Therapist documentation surfaces should remain visible in the app so users can see what is available, but creating or viewing SOAP, intake, journal, ROM, and similar therapist note-taking records requires the `therapist_documentation_tools` entitlement. Supporter and Student access do not unlock these tools.
 
-Membership messaging can explain that paid support helps fund future compliance-heavy documentation work, including voice notes, local transcription experiments, therapist-reviewed SOAP assistance, managed sync planning, BAAs, and audit controls. Keep that language separate from current benefits: memberships do not currently unlock hosted transcription, cloud SOAP drafting, HIPAA-ready sync, or any server-side PHI processing.
+Membership messaging can explain that paid support helps fund future compliance-heavy documentation work, including voice notes, local transcription experiments, therapist-reviewed SOAP assistance, managed sync planning, BAAs, audit controls, and secure operating infrastructure. Keep that language separate from current benefits: memberships do not currently unlock hosted transcription, cloud SOAP drafting, HIPAA-ready sync, or any server-side PHI processing.
+
+Pricing and legal copy should also say that MassageLab does not sell user data and does not use advertising to fund the project. The current funding posture is memberships, optional one-time support, and product revenue.
 
 ## Stripe Setup Checklist
 

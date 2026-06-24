@@ -80,7 +80,7 @@ describe("legal acceptance helpers", () => {
 
     assert.deepEqual(
       missingRequiredLegalDocuments({
-        acceptedDocumentIds: new Set(["terms:2026-06-legal-v1"]),
+        acceptedDocumentIds: new Set(["terms:2026-06-legal-v2"]),
         documents,
       }).map((document) => document.key),
       ["privacy"],
@@ -103,10 +103,14 @@ describe("legal acceptance helpers", () => {
 
   it("checks current document acceptance coverage", async () => {
     const documents = requiredLegalDocumentsForEvent("checkout")
-    const db = createMockDb([{ userId: "user_1", documentKey: "membership-billing-refunds", documentVersion: "2026-06-legal-v1" }])
+    const db = createMockDb([
+      { userId: "user_1", documentKey: "membership-billing-refunds", documentVersion: "2026-06-legal-v1" },
+      { userId: "user_2", documentKey: "membership-billing-refunds", documentVersion: documents[0].version },
+    ])
 
-    assert.equal(await hasAcceptedCurrentDocuments({ prismaClient: db, userId: "user_1", documents }), true)
-    assert.equal(await hasAcceptedCurrentDocuments({ prismaClient: db, userId: "user_2", documents }), false)
+    assert.equal(await hasAcceptedCurrentDocuments({ prismaClient: db, userId: "user_1", documents }), false)
+    assert.equal(await hasAcceptedCurrentDocuments({ prismaClient: db, userId: "user_2", documents }), true)
+    assert.equal(await hasAcceptedCurrentDocuments({ prismaClient: db, userId: "user_3", documents }), false)
   })
 
   it("extracts request metadata without query strings or bodies", () => {

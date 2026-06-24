@@ -86,9 +86,9 @@ describe("Membership pricing catalog", () => {
     const therapist = catalog.plans.find((plan) => plan.membershipLevel === "THERAPIST")
     const practice = catalog.plans.find((plan) => plan.membershipLevel === "PRACTICE")
 
-    assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance groundwork")))
-    assert.ok(therapist.roadmapNotes.some((note) => note.includes("local transcription experiments and SOAP drafting support")))
-    assert.ok(practice.roadmapNotes.some((note) => note.includes("BAAs, audit controls, and practice-ready documentation infrastructure")))
+    assert.ok(supporter.roadmapNotes.some((note) => note.includes("compliance review")))
+    assert.ok(therapist.roadmapNotes.some((note) => note.includes("local transcription experiments")))
+    assert.ok(practice.roadmapNotes.some((note) => note.includes("BAAs, audit controls")))
 
     for (const plan of [supporter, therapist, practice]) {
       assert.equal(plan.currentFeatures.some((feature) => /BAA|transcription|SOAP drafting|managed sync/i.test(feature)), false)
