@@ -148,9 +148,9 @@ export async function POST(request: Request) {
       ? NextResponse.redirect(checkoutSession.url, 303)
       : NextResponse.json({ url: checkoutSession.url })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to start checkout."
+    console.error("Unable to start membership checkout", error)
     return input.isForm
       ? accountRedirect("checkout-error")
-      : NextResponse.json({ error: message }, { status: 500 })
+      : NextResponse.json({ error: "Unable to start checkout." }, { status: 500 })
   }
 }

@@ -179,6 +179,143 @@ describe("Stripe billing helpers", () => {
     assert.equal(session.url, "https://billing.stripe.com/p/session/test")
   })
 
+  it("reuses stored Stripe customers that exist in the active Stripe account", async () => {
+    const existingCustomer = { userId: "user_123", stripeCustomerId: "cus_live_existing" }
+    const writes = []
+    let retrievedCustomerId = null
+    let createCalled = false
+    const prismaClient = {
+      stripeCustomer: {
+        findUnique: async (args) => {
+          assert.deepEqual(args, { where: { userId: "user_123" } })
+          return existingCustomer
+        },
+        upsert: async (args) => {
+          writes.push(args)
+          return args.update
+        },
+      },
+    }
+
+    const result = await stripeBilling.ensureStripeCustomerForUser(
+      prismaClient,
+      { id: "user_123", email: "supporter@example.com", name: "Supporter" },
+      "sk_live_unused",
+      {
+        customers: {
+          retrieve: async (customerId) => {
+            retrievedCustomerId = customerId
+            return { id: customerId, deleted: false }
+          },
+          create: async () => {
+            createCalled = true
+            return { id: "cus_live_new" }
+          },
+        },
+      },
+    )
+
+    assert.equal(result, existingCustomer)
+    assert.equal(retrievedCustomerId, "cus_live_existing")
+    assert.equal(createCalled, false)
+    assert.deepEqual(writes, [])
+  })
+
+  it("replaces missing stored Stripe customers before Checkout reuse", async () => {
+    const writes = []
+    let createdCustomerPayload = null
+    let createdCustomerOptions = null
+    const prismaClient = {
+      stripeCustomer: {
+        findUnique: async () => ({ userId: "user_123", stripeCustomerId: "cus_test_stale" }),
+        upsert: async (args) => {
+          writes.push(args)
+          return { userId: args.where.userId, stripeCustomerId: args.update.stripeCustomerId }
+        },
+      },
+    }
+
+    const result = await stripeBilling.ensureStripeCustomerForUser(
+      prismaClient,
+      { id: "user_123", email: "supporter@example.com", name: "Supporter" },
+      "sk_live_unused",
+      {
+        customers: {
+          retrieve: async (customerId) => {
+            assert.equal(customerId, "cus_test_stale")
+            throw Object.assign(new Error("No such customer"), {
+              type: "StripeInvalidRequestError",
+              code: "resource_missing",
+            })
+          },
+          create: async (payload, options) => {
+            createdCustomerPayload = payload
+            createdCustomerOptions = options
+            return { id: "cus_live_new" }
+          },
+        },
+      },
+    )
+
+    assert.deepEqual(createdCustomerPayload, {
+      email: "supporter@example.com",
+      name: "Supporter",
+      metadata: { userId: "user_123" },
+    })
+    assert.deepEqual(createdCustomerOptions, {
+      idempotencyKey: "massagelab-customer:user_123:cus_test_stale",
+    })
+    assert.deepEqual(writes, [
+      {
+        where: { userId: "user_123" },
+        create: { userId: "user_123", stripeCustomerId: "cus_live_new" },
+        update: { stripeCustomerId: "cus_live_new" },
+      },
+    ])
+    assert.deepEqual(result, { userId: "user_123", stripeCustomerId: "cus_live_new" })
+  })
+
+  it("replaces deleted stored Stripe customers before Checkout reuse", async () => {
+    const writes = []
+    let createdCustomerOptions = null
+    const prismaClient = {
+      stripeCustomer: {
+        findUnique: async () => ({ userId: "user_123", stripeCustomerId: "cus_deleted" }),
+        upsert: async (args) => {
+          writes.push(args)
+          return { userId: args.where.userId, stripeCustomerId: args.update.stripeCustomerId }
+        },
+      },
+    }
+
+    const result = await stripeBilling.ensureStripeCustomerForUser(
+      prismaClient,
+      { id: "user_123", email: "supporter@example.com", name: "Supporter" },
+      "sk_live_unused",
+      {
+        customers: {
+          retrieve: async (customerId) => ({ id: customerId, deleted: true }),
+          create: async (_payload, options) => {
+            createdCustomerOptions = options
+            return { id: "cus_live_new" }
+          },
+        },
+      },
+    )
+
+    assert.deepEqual(createdCustomerOptions, {
+      idempotencyKey: "massagelab-customer:user_123:cus_deleted",
+    })
+    assert.deepEqual(writes, [
+      {
+        where: { userId: "user_123" },
+        create: { userId: "user_123", stripeCustomerId: "cus_live_new" },
+        update: { stripeCustomerId: "cus_live_new" },
+      },
+    ])
+    assert.deepEqual(result, { userId: "user_123", stripeCustomerId: "cus_live_new" })
+  })
+
   it("does not combine a configured checkout coupon with promotion code entry", async () => {
     let capturedPayload = null
 
