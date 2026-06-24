@@ -12,6 +12,8 @@ import { REGISTRATION_VERIFICATION_SENT_MESSAGE } from "@/lib/auth-registration"
 import { buildRegistrationLegalProviderRedirectPath } from "@/lib/legal-acceptance-gate"
 import { legalDocumentAcceptanceId, requiredLegalDocumentsForEvent } from "@/lib/legal-documents"
 
+const REGISTRATION_REQUEST_FAILED_MESSAGE = "We could not create your account right now. Please try again."
+
 type RegisterFormProps = {
   googleEnabled: boolean
   initialCallbackUrl: string
@@ -45,17 +47,24 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
     setStatusIsError(false)
     setDevLink("")
 
-    const response = await fetch("/api/account/register", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, email, password, acceptedLegalDocuments }),
-    })
-    const result = await response.json()
+    try {
+      const response = await fetch("/api/account/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, email, password, acceptedLegalDocuments }),
+      })
+      const result = (await response.json().catch(() => ({}))) as { message?: string; devLink?: string }
 
-    setIsSubmitting(false)
-    setStatus(result.message ?? REGISTRATION_VERIFICATION_SENT_MESSAGE)
-    setStatusIsError(!response.ok)
-    setDevLink(result.devLink ?? "")
+      setStatus(result.message ?? (response.ok ? REGISTRATION_VERIFICATION_SENT_MESSAGE : REGISTRATION_REQUEST_FAILED_MESSAGE))
+      setStatusIsError(!response.ok)
+      setDevLink(result.devLink ?? "")
+    } catch {
+      setStatus(REGISTRATION_REQUEST_FAILED_MESSAGE)
+      setStatusIsError(true)
+      setDevLink("")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

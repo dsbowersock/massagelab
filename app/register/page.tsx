@@ -6,6 +6,7 @@ type RegisterSearchParams = {
   callbackUrl?: string | string[]
 }
 
+// Only allow same-origin, root-relative post-registration redirects.
 function safeCallbackUrl(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/onboarding"
   return value
