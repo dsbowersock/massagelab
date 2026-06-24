@@ -108,6 +108,10 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
   )
 }
 
+/**
+ * Maps donation Checkout return codes from `/api/billing/donation` to pricing-page notices.
+ * Supported codes are `thanks`, `cancelled`, `invalid-amount`, and `checkout-error`.
+ */
 function pricingDonationNotice(code?: string) {
   if (code === "thanks") {
     return {

@@ -12,7 +12,7 @@ import {
 
 describe("legal document registry", () => {
   it("defines the Branch 1 legal documents with one version source", () => {
-    assert.equal(LEGAL_DOCUMENT_VERSION, "2026-06-legal-v1")
+    assert.equal(LEGAL_DOCUMENT_VERSION, "2026-06-legal-v2")
     assert.deepEqual(LEGAL_DOCUMENT_KEYS, [
       "terms",
       "privacy",
@@ -32,7 +32,7 @@ describe("legal document registry", () => {
     assert.equal(terms.route, "/legal/terms")
     assert.equal(privacy.key, "privacy")
     assert.equal(privacy.version, LEGAL_DOCUMENT_VERSION)
-    assert.equal(legalDocumentAcceptanceId(terms), "terms:2026-06-legal-v1")
+    assert.equal(legalDocumentAcceptanceId(terms), "terms:2026-06-legal-v2")
   })
 
   it("maps acceptance events to the required current documents", () => {

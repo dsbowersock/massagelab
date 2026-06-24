@@ -45,9 +45,9 @@ Get MassageLab to a stable, explicit checkpoint for inviting a small first cohor
 
 ## Non-Goals
 
-- Do not add Stripe Connect, external calendar sync, Payload CMS, hosted clinical storage, voice transcription, SOAP AI, or 3D/spatial runtime tooling in this stabilization pass.
+- Avoid adding Stripe Connect, external calendar sync, Payload CMS, hosted clinical storage, voice transcription, SOAP AI, or 3D/spatial runtime tooling in this stabilization pass.
 - Do not document or commit secrets, database rows, connection strings, Stripe keys, webhook secrets, or production env files.
-- Do not convert local-first therapist records into account-synced data.
+- Keep local-first therapist records out of account-synced data.
 
 ## Acceptance
 
@@ -61,7 +61,7 @@ Get MassageLab to a stable, explicit checkpoint for inviting a small first cohor
 
 - 2026-06-23: Created the invite-readiness stabilization branch and refreshed the release checklist, project state, and project log around the current invited-user gate.
 - 2026-06-23: Passed repo-owned local validation with `npm run prisma:validate`, `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, `npm run test:browser -- tests/browser/public-routes.spec.ts --project=desktop-chromium`, and `git diff --check`.
-- 2026-06-23: With user approval, pulled Vercel Production env names into `C:\tmp\massagelab-production.env`, but Vercel CLI exposed zero-length values for all checked Production variables. `vercel env run -e production` from a temporary linked directory showed the same local CLI behavior. Vercel Production variables may be sensitive/non-viewable while still being available to Vercel build/runtime, so local Stripe readiness remains blocked until live values are supplied in a usable local env file or verified from inside the deployment environment.
-- 2026-06-23: After live values were supplied in `C:\tmp\massagelab-production.env`, `npm run stripe:readiness -- --env-file=C:\tmp\massagelab-production.env --live --verify-stripe` passed against Stripe. The only readiness warning was that the early-access discount is enabled in live mode and should be intentional before public signups.
+- 2026-06-23: With user approval, pulled Vercel Production env names into a local env file, but Vercel CLI exposed zero-length values for all checked Production variables. `vercel env run -e production` from a temporary linked directory showed the same local CLI behavior. Vercel Production variables may be sensitive/non-viewable while still being available to Vercel build/runtime, so local Stripe readiness remained blocked until live values were supplied in a usable local env file or verified from inside the deployment environment.
+- 2026-06-23: After live values were supplied in a local env file, the production Stripe readiness check passed against Stripe. The only readiness warning was that the early-access discount is enabled in live mode and should be intentional before public signups.
 - 2026-06-23: Confirmed the early-access discount should remain enabled for now, added an app-owned one-time donation Checkout path on `/pricing`, and strengthened membership/legal copy so current benefits are separated from roadmap funding goals, no advertising, and no data-sale funding.
 - Pending: one real low-dollar checkout plus Customer Portal return smoke, one live donation checkout smoke, attorney review of legal/trust documents, and first-cohort production monitoring.

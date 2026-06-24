@@ -6,6 +6,10 @@ import { createStripeDonationCheckoutSession } from "@/lib/stripe-billing"
 
 export const runtime = "nodejs"
 
+/**
+ * Parses donation payloads from either HTML form submissions or JSON clients.
+ * The returned `isForm` flag controls whether failures redirect or return JSON.
+ */
 async function donationRequest(request: Request) {
   const contentType = request.headers.get("content-type") ?? ""
 
@@ -24,6 +28,9 @@ async function donationRequest(request: Request) {
   }
 }
 
+/**
+ * Sends form submissions back to pricing with a donation status code for UI notices.
+ */
 function pricingRedirect(code: string) {
   return NextResponse.redirect(`${getSiteUrl()}/pricing?donation=${encodeURIComponent(code)}`, 303)
 }
@@ -38,9 +45,8 @@ export async function POST(request: Request) {
       : NextResponse.json({ error: "Unsupported donation amount" }, { status: 400 })
   }
 
-  const session = await getCurrentSession()
-
   try {
+    const session = await getCurrentSession()
     const checkoutSession = await createStripeDonationCheckoutSession({
       amountCents: donation.amountCents,
       customerEmail: session?.user?.email ?? "",
