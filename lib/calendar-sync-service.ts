@@ -138,6 +138,7 @@ export async function syncGoogleConnectionSources({
           connectionId: connection.id,
           sourceId: source.id,
           providerCalendarId: source.providerCalendarId,
+          sourceTimezone: source.timezone,
           event,
         }))
         .filter((block): block is NonNullable<typeof block> => Boolean(block))
@@ -248,6 +249,13 @@ export function outboundSyncActionForStatus(status?: string | null) {
   return "UPSERT" as const
 }
 
+export function outboundSyncFailurePatch(error: unknown) {
+  return {
+    lastErrorCode: "PUSH_FAILED",
+    lastErrorMessage: sanitizeCalendarSyncError(error),
+  }
+}
+
 export async function pushCalendarEventToGoogle(
   calendarEventId: string,
   adapter: GoogleCalendarAdapter = createGoogleCalendarAdapter(),
@@ -330,6 +338,58 @@ export async function pushCalendarEventToGoogle(
   })
 
   return { pushed: true }
+}
+
+/**
+ * Best-effort outbound sync wrapper for already-committed calendar mutations.
+ * Google failures are recorded on existing links when possible, but they do not
+ * make the primary MassageLab save look failed to the user.
+ */
+export async function pushCalendarEventToGoogleBestEffort(
+  calendarEventId: string,
+  adapter: GoogleCalendarAdapter = createGoogleCalendarAdapter(),
+) {
+  try {
+    return await pushCalendarEventToGoogle(calendarEventId, adapter)
+  } catch (error) {
+    await recordGoogleCalendarEventPushFailure({ calendarEventId, error })
+    return { pushed: false, error: sanitizeCalendarSyncError(error) }
+  }
+}
+
+async function recordGoogleCalendarEventPushFailure({
+  calendarEventId,
+  error,
+}: {
+  calendarEventId: string
+  error: unknown
+}) {
+  try {
+    const event = await prisma.calendarEvent.findUnique({
+      where: { id: calendarEventId },
+      include: { externalCalendarLinks: true },
+    })
+    if (!event?.ownerUserId) return
+
+    const connection = await prisma.calendarConnection.findFirst({
+      where: {
+        userId: event.ownerUserId,
+        provider: GOOGLE_CALENDAR_PROVIDER,
+        status: "ACTIVE",
+        dedicatedCalendarId: { not: null },
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+    const existingLink = event.externalCalendarLinks.find((link) => link.connectionId === connection?.id)
+    if (!existingLink) return
+
+    await prisma.externalCalendarEventLink.update({
+      where: { id: existingLink.id },
+      data: outboundSyncFailurePatch(error),
+    })
+  } catch {
+    // Preserve the primary calendar action even if failure bookkeeping fails.
+  }
 }
 
 export async function saveGoogleCalendarConnection({

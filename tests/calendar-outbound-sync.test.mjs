@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   calendarEventShouldPushToGoogle,
+  outboundSyncFailurePatch,
   outboundSyncActionForStatus,
 } from "../lib/calendar-sync-service.ts"
 
@@ -21,5 +22,16 @@ describe("calendar outbound sync", () => {
     assert.equal(outboundSyncActionForStatus("CANCELLED"), "DELETE")
     assert.equal(outboundSyncActionForStatus("COMPLETED"), "SKIP")
     assert.equal(outboundSyncActionForStatus("NO_SHOW"), "SKIP")
+  })
+
+  it("builds sanitized outbound failure patches", () => {
+    assert.deepEqual(outboundSyncFailurePatch(new Error("Google Calendar request failed with status 401.")), {
+      lastErrorCode: "PUSH_FAILED",
+      lastErrorMessage: "Google Calendar request failed with status 401.",
+    })
+    assert.deepEqual(outboundSyncFailurePatch(new Error("Authorization: Bearer secret failed")), {
+      lastErrorCode: "PUSH_FAILED",
+      lastErrorMessage: "Calendar sync failed.",
+    })
   })
 })

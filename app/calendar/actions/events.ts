@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client"
 import { normalizeEmail } from "@/lib/auth-security"
 import { localDateTimeToUtc } from "@/lib/calendar"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
-import { pushCalendarEventToGoogle } from "@/lib/calendar-sync-service"
+import { pushCalendarEventToGoogleBestEffort } from "@/lib/calendar-sync-service"
 import {
   buildCalendarCreationPlan,
   sanitizeCalendarAuditMetadata,
@@ -267,7 +267,7 @@ async function createAppointmentMutation(formData: FormData) {
   })
 
   if (createdEventId) {
-    await pushCalendarEventToGoogle(createdEventId)
+    await pushCalendarEventToGoogleBestEffort(createdEventId)
   }
 
   revalidateCalendarRoutes(practice.slug)
@@ -366,7 +366,7 @@ export async function createPersonalEvent(formData: FormData) {
   })
 
   if (createdEventId) {
-    await pushCalendarEventToGoogle(createdEventId)
+    await pushCalendarEventToGoogleBestEffort(createdEventId)
   }
 
   revalidateCalendarRoutes(practice.slug)
@@ -459,7 +459,7 @@ export async function createClass(formData: FormData) {
   })
 
   if (createdEventId) {
-    await pushCalendarEventToGoogle(createdEventId)
+    await pushCalendarEventToGoogleBestEffort(createdEventId)
   }
 
   revalidateCalendarRoutes(practice.slug)
@@ -654,7 +654,7 @@ export async function requestAppointment(formData: FormData) {
   })
 
   if (createdEventId) {
-    await pushCalendarEventToGoogle(createdEventId)
+    await pushCalendarEventToGoogleBestEffort(createdEventId)
   }
 
   revalidateCalendarRoutes(practice.slug)
@@ -744,7 +744,7 @@ export async function updateAppointmentRequestStatus(formData: FormData) {
     })
   })
 
-  await pushCalendarEventToGoogle(appointment.eventId)
+  await pushCalendarEventToGoogleBestEffort(appointment.eventId)
 
   revalidateCalendarRoutes(appointment.practice.slug)
   redirect("/calendar/requests")

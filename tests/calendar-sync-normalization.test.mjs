@@ -63,6 +63,26 @@ describe("calendar sync normalization", () => {
     assert.ok(cancelled.cancelledAt instanceof Date)
   })
 
+  it("normalizes Google all-day dates in the source calendar timezone", () => {
+    const block = normalizeGoogleBusyBlock({
+      ownerUserId: "user_1",
+      connectionId: "connection_1",
+      sourceId: "source_1",
+      providerCalendarId: "primary",
+      sourceTimezone: "America/New_York",
+      event: {
+        id: "all_day_event",
+        start: { date: "2026-07-01" },
+        end: { date: "2026-07-02" },
+      },
+    })
+
+    assert.equal(block.allDay, true)
+    assert.equal(block.timezone, "America/New_York")
+    assert.equal(block.startsAt.toISOString(), "2026-07-01T04:00:00.000Z")
+    assert.equal(block.endsAt.toISOString(), "2026-07-02T04:00:00.000Z")
+  })
+
   it("builds safe outbound MassageLab payloads", () => {
     const payload = buildGoogleOutboundEventPayload({
       calendarEventId: "event_1",

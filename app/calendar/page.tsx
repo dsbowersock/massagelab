@@ -166,6 +166,7 @@ export default async function CalendarPage({
         ownerUserId: { in: providerIds },
         status: "BUSY",
         connection: { status: "ACTIVE" },
+        source: { selectedForBusySync: true },
         startsAt: { lt: windowEnd },
         endsAt: { gt: windowStart },
       },

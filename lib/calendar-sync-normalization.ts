@@ -1,4 +1,5 @@
 import type { GoogleCalendarEvent, GoogleOutboundEventPayload } from "./google-calendar-adapter.ts"
+import { dateAtMinute } from "./calendar.js"
 import { GOOGLE_CALENDAR_PROVIDER } from "./calendar-sync-constants.ts"
 
 const SAFE_SYNC_ERROR_MESSAGES = new Set([
@@ -17,17 +18,20 @@ export function normalizeGoogleBusyBlock({
   connectionId,
   sourceId,
   providerCalendarId,
+  sourceTimezone,
   event,
 }: {
   ownerUserId: string
   connectionId: string
   sourceId: string
   providerCalendarId: string
+  sourceTimezone?: string | null
   event: GoogleCalendarEvent
 }) {
   const allDay = Boolean(event.start?.date || event.end?.date)
-  const startsAt = new Date(event.start?.dateTime ?? `${event.start?.date}T00:00:00.000Z`)
-  const endsAt = new Date(event.end?.dateTime ?? `${event.end?.date}T00:00:00.000Z`)
+  const timezone = event.start?.timeZone ?? event.end?.timeZone ?? sourceTimezone ?? null
+  const startsAt = googleEventDateToUtc(event.start, timezone)
+  const endsAt = googleEventDateToUtc(event.end, timezone)
   const cancelled = event.status === "cancelled"
   const free = event.transparency === "transparent"
 
@@ -45,12 +49,24 @@ export function normalizeGoogleBusyBlock({
     providerEventEtag: event.etag ?? null,
     startsAt,
     endsAt,
-    timezone: event.start?.timeZone ?? event.end?.timeZone ?? null,
+    timezone,
     allDay,
     transparency: event.transparency ?? null,
     status: cancelled ? "CANCELLED" as const : free ? "FREE" as const : "BUSY" as const,
     cancelledAt: cancelled ? new Date() : null,
   }
+}
+
+function googleEventDateToUtc(value: GoogleCalendarEvent["start"], timezone: string | null) {
+  if (value?.dateTime) return new Date(value.dateTime)
+  if (value?.date) {
+    try {
+      return dateAtMinute(value.date, 0, timezone ?? "UTC")
+    } catch {
+      return new Date(Number.NaN)
+    }
+  }
+  return new Date(Number.NaN)
 }
 
 export function buildGoogleOutboundEventPayload({

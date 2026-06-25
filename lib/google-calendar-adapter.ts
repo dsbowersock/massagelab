@@ -26,6 +26,12 @@ export type GoogleCalendarEvent = {
   updated?: string
 }
 
+type GoogleCalendarEventsPage = {
+  items?: GoogleCalendarEvent[]
+  nextPageToken?: string
+  nextSyncToken?: string
+}
+
 export type GoogleOutboundEventPayload = {
   summary: string
   start: { dateTime: string; timeZone: string }
@@ -180,9 +186,23 @@ export function createGoogleCalendarAdapter({ fetchImpl = fetch }: { fetchImpl?:
       if (timeMax) url.searchParams.set("timeMax", timeMax)
     }
 
-    return googleJson<{ items?: GoogleCalendarEvent[]; nextSyncToken?: string }>(url.toString(), {
-      headers: authHeaders(accessToken),
-    })
+    const items: GoogleCalendarEvent[] = []
+    let pageToken: string | undefined
+    let nextSyncToken: string | undefined
+
+    do {
+      const pageUrl = new URL(url)
+      if (pageToken) pageUrl.searchParams.set("pageToken", pageToken)
+
+      const page = await googleJson<GoogleCalendarEventsPage>(pageUrl.toString(), {
+        headers: authHeaders(accessToken),
+      })
+      items.push(...(page.items ?? []))
+      pageToken = page.nextPageToken
+      nextSyncToken = page.nextSyncToken ?? nextSyncToken
+    } while (pageToken)
+
+    return { items, nextSyncToken }
   }
 
   async function upsertEvent({

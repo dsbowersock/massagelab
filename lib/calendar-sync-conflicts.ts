@@ -19,6 +19,7 @@ export function externalBusyBlocksWhere({
     startsAt: { lt: endsAt },
     endsAt: { gt: startsAt },
     connection: { status: "ACTIVE" },
+    source: { selectedForBusySync: true },
   } satisfies Prisma.ExternalCalendarBusyBlockWhereInput
 }
 

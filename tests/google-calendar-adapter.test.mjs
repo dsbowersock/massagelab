@@ -84,6 +84,38 @@ describe("Google Calendar adapter", () => {
     assert.equal(body.attendees, undefined)
   })
 
+  it("follows paginated Google event results before returning the sync token", async () => {
+    const calls = []
+    const adapter = createGoogleCalendarAdapter({
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init })
+        const requestUrl = new URL(String(url))
+        if (!requestUrl.searchParams.has("pageToken")) {
+          return jsonResponse({
+            items: [{ id: "event_1" }],
+            nextPageToken: "next-page",
+          })
+        }
+        return jsonResponse({
+          items: [{ id: "event_2" }],
+          nextSyncToken: "next-sync",
+        })
+      },
+    })
+
+    const payload = await adapter.listEvents({
+      accessToken: "access-token",
+      calendarId: "primary",
+      timeMin: "2026-07-01T00:00:00.000Z",
+      timeMax: "2026-07-02T00:00:00.000Z",
+    })
+
+    assert.deepEqual(payload.items.map((event) => event.id), ["event_1", "event_2"])
+    assert.equal(payload.nextSyncToken, "next-sync")
+    assert.equal(new URL(calls[1].url).searchParams.get("pageToken"), "next-page")
+    assert.equal(calls[1].init.headers.Authorization, "Bearer access-token")
+  })
+
   it("sanitizes Google API errors", async () => {
     const adapter = createGoogleCalendarAdapter({
       fetchImpl: async () => jsonResponse({ error: { message: "invalid token payload with secret-token" } }, 401),

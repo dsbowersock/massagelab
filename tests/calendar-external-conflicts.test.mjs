@@ -39,5 +39,6 @@ describe("external calendar busy conflicts", () => {
     assert.deepEqual(where.startsAt, { lt: new Date("2026-07-01T14:00:00.000Z") })
     assert.deepEqual(where.endsAt, { gt: new Date("2026-07-01T13:00:00.000Z") })
     assert.deepEqual(where.connection.status, "ACTIVE")
+    assert.deepEqual(where.source.selectedForBusySync, true)
   })
 })
