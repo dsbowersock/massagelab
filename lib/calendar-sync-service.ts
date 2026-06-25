@@ -3,7 +3,11 @@ import { calendarSyncWindow, GOOGLE_CALENDAR_PROVIDER } from "./calendar-sync-co
 import { getGoogleCalendarSyncConfig } from "./calendar-sync-env.ts"
 import { decryptCalendarSyncSecret, encryptCalendarSyncSecret } from "./calendar-sync-secrets.ts"
 import { createGoogleCalendarAdapter, type GoogleCalendarAdapter } from "./google-calendar-adapter.ts"
-import { normalizeGoogleBusyBlock, sanitizeCalendarSyncError } from "./calendar-sync-normalization.ts"
+import {
+  buildGoogleOutboundEventPayload,
+  normalizeGoogleBusyBlock,
+  sanitizeCalendarSyncError,
+} from "./calendar-sync-normalization.ts"
 import { prisma } from "./prisma.ts"
 
 type CalendarDb = typeof prisma | Prisma.TransactionClient
@@ -232,4 +236,98 @@ export async function upsertGoogleCalendarSources({
       },
     })
   }
+}
+
+export function calendarEventShouldPushToGoogle(event: { kind?: string | null; ownerUserId?: string | null; status?: string | null }) {
+  return Boolean(event.ownerUserId && ["APPOINTMENT", "CLASS", "PERSONAL"].includes(String(event.kind ?? "")))
+}
+
+export function outboundSyncActionForStatus(status?: string | null) {
+  if (status === "CANCELLED") return "DELETE" as const
+  if (status === "COMPLETED" || status === "NO_SHOW") return "SKIP" as const
+  return "UPSERT" as const
+}
+
+export async function pushCalendarEventToGoogle(
+  calendarEventId: string,
+  adapter: GoogleCalendarAdapter = createGoogleCalendarAdapter(),
+) {
+  const event = await prisma.calendarEvent.findUnique({
+    where: { id: calendarEventId },
+    include: { externalCalendarLinks: true },
+  })
+  if (!event || !calendarEventShouldPushToGoogle(event) || !event.ownerUserId) return { skipped: true }
+
+  const connection = await prisma.calendarConnection.findFirst({
+    where: {
+      userId: event.ownerUserId,
+      provider: GOOGLE_CALENDAR_PROVIDER,
+      status: "ACTIVE",
+      dedicatedCalendarId: { not: null },
+    },
+    orderBy: { updatedAt: "desc" },
+  })
+  if (!connection?.dedicatedCalendarId) return { skipped: true }
+
+  const accessToken = await refreshGoogleAccessToken(connection.id, adapter)
+  const existingLink = event.externalCalendarLinks.find((link) => link.connectionId === connection.id) ?? null
+  const action = outboundSyncActionForStatus(event.status)
+
+  if (action === "SKIP") return { skipped: true }
+
+  if (action === "DELETE" && existingLink) {
+    await adapter.deleteEvent({
+      accessToken,
+      calendarId: connection.dedicatedCalendarId,
+      eventId: existingLink.providerEventId,
+    })
+    await prisma.externalCalendarEventLink.delete({ where: { id: existingLink.id } })
+    return { deleted: true }
+  }
+
+  if (action === "DELETE") return { skipped: true }
+
+  const payload = buildGoogleOutboundEventPayload({
+    calendarEventId: event.id,
+    kind: event.kind,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    timezone: event.timezone,
+  })
+  const pushed = await adapter.upsertEvent({
+    accessToken,
+    calendarId: connection.dedicatedCalendarId,
+    eventId: existingLink?.providerEventId ?? null,
+    payload,
+  })
+
+  await prisma.externalCalendarEventLink.upsert({
+    where: {
+      connectionId_calendarEventId: {
+        connectionId: connection.id,
+        calendarEventId: event.id,
+      },
+    },
+    create: {
+      connectionId: connection.id,
+      calendarEventId: event.id,
+      provider: GOOGLE_CALENDAR_PROVIDER,
+      providerCalendarId: connection.dedicatedCalendarId,
+      providerEventId: pushed.id,
+      providerEventEtag: pushed.etag ?? null,
+      lastPushedAt: new Date(),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    },
+    update: {
+      providerCalendarId: connection.dedicatedCalendarId,
+      providerEventId: pushed.id,
+      providerEventEtag: pushed.etag ?? null,
+      lastPushedAt: new Date(),
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    },
+  })
+
+  return { pushed: true }
 }

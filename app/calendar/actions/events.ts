@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client"
 import { normalizeEmail } from "@/lib/auth-security"
 import { localDateTimeToUtc } from "@/lib/calendar"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
+import { pushCalendarEventToGoogle } from "@/lib/calendar-sync-service"
 import {
   buildCalendarCreationPlan,
   sanitizeCalendarAuditMetadata,
@@ -177,6 +178,7 @@ async function createAppointmentMutation(formData: FormData) {
     timezone: practice.timezone,
     visibility: "PRACTICE",
   })
+  let createdEventId = ""
 
   await prisma.$transaction(async (tx) => {
     await lockAppointmentSchedulingRows(tx, { practiceId, therapistId, resourceIds, startsAt, endsAt })
@@ -203,6 +205,7 @@ async function createAppointmentMutation(formData: FormData) {
     const event = await tx.calendarEvent.create({
       data: plan.event as Prisma.CalendarEventUncheckedCreateInput,
     })
+    createdEventId = event.id
 
     await tx.appointment.create({
       data: {
@@ -262,6 +265,10 @@ async function createAppointmentMutation(formData: FormData) {
       payload: { title, serviceCount: composition.items.length, therapistId, practiceClientId: practiceClient.id, resourceIds },
     })
   })
+
+  if (createdEventId) {
+    await pushCalendarEventToGoogle(createdEventId)
+  }
 
   revalidateCalendarRoutes(practice.slug)
   return "/calendar"
@@ -328,12 +335,14 @@ export async function createPersonalEvent(formData: FormData) {
     timezone: practice.timezone,
     visibility: "PRIVATE",
   })
+  let createdEventId = ""
 
   await prisma.$transaction(async (tx) => {
     await lockAppointmentSchedulingRows(tx, { practiceId, therapistId, resourceIds: [], startsAt, endsAt })
     await assertNoCalendarEventConflict({ db: tx, practiceId, ownerUserId: therapistId, startsAt, endsAt })
 
     const event = await tx.calendarEvent.create({ data: plan.event as Prisma.CalendarEventUncheckedCreateInput })
+    createdEventId = event.id
 
     await tx.calendarBlock.create({
       data: {
@@ -355,6 +364,10 @@ export async function createPersonalEvent(formData: FormData) {
       payload: { title, therapistId },
     })
   })
+
+  if (createdEventId) {
+    await pushCalendarEventToGoogle(createdEventId)
+  }
 
   revalidateCalendarRoutes(practice.slug)
   redirect(returnTo)
@@ -399,6 +412,7 @@ export async function createClass(formData: FormData) {
     timezone: practice.timezone,
     visibility: clientVisible ? "CLIENT_VISIBLE" : "PRACTICE",
   })
+  let createdEventId = ""
 
   await prisma.$transaction(async (tx) => {
     await lockAppointmentSchedulingRows(tx, { practiceId, therapistId: instructorId, resourceIds, startsAt, endsAt })
@@ -407,6 +421,7 @@ export async function createClass(formData: FormData) {
     await assertNoResourceConflict({ db: tx, resourceIds, startsAt, endsAt })
 
     const event = await tx.calendarEvent.create({ data: plan.event as Prisma.CalendarEventUncheckedCreateInput })
+    createdEventId = event.id
 
     await tx.calendarClass.create({
       data: {
@@ -442,6 +457,10 @@ export async function createClass(formData: FormData) {
       payload: { title, instructorId, capacity, roomResource, serviceTypeId: serviceVariant.serviceTypeId, serviceVariantId: serviceVariant.id, resourceIds },
     })
   })
+
+  if (createdEventId) {
+    await pushCalendarEventToGoogle(createdEventId)
+  }
 
   revalidateCalendarRoutes(practice.slug)
   redirect("/calendar")
@@ -545,6 +564,7 @@ export async function requestAppointment(formData: FormData) {
     },
     select: { userId: true },
   })
+  let createdEventId = ""
 
   await prisma.$transaction(async (tx) => {
     await lockAppointmentSchedulingRows(tx, { practiceId, therapistId, resourceIds, startsAt, endsAt })
@@ -584,6 +604,7 @@ export async function requestAppointment(formData: FormData) {
     })
 
     const event = await tx.calendarEvent.create({ data: plan.event as Prisma.CalendarEventUncheckedCreateInput })
+    createdEventId = event.id
 
     await tx.appointment.create({
       data: {
@@ -631,6 +652,10 @@ export async function requestAppointment(formData: FormData) {
       payload: { title: snapshot.serviceName, serviceTypeId: serviceVariant.serviceTypeId, serviceVariantId: serviceVariant.id, therapistId, practiceClientId: practiceClient.id, resourceIds },
     })
   })
+
+  if (createdEventId) {
+    await pushCalendarEventToGoogle(createdEventId)
+  }
 
   revalidateCalendarRoutes(practice.slug)
   redirect("/calendar")
@@ -718,6 +743,8 @@ export async function updateAppointmentRequestStatus(formData: FormData) {
       payload: { action: notificationAction, title: appointment.serviceName ?? appointment.serviceType.name, appointmentId: appointment.id },
     })
   })
+
+  await pushCalendarEventToGoogle(appointment.eventId)
 
   revalidateCalendarRoutes(appointment.practice.slug)
   redirect("/calendar/requests")

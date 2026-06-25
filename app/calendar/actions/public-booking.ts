@@ -12,6 +12,7 @@ import {
 } from "@/lib/booking-policy"
 import { dateValue, localDateTimeToUtc } from "@/lib/calendar"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
+import { pushCalendarEventToGoogle } from "@/lib/calendar-sync-service"
 import { buildCalendarCreationPlan } from "@/lib/calendar-flows"
 import { prisma } from "@/lib/prisma"
 import { PUBLIC_SEQUENCE_PICKER_MAX_OPTIONS, publicBookingSequenceOptions } from "@/lib/public-booking-sequences"
@@ -290,6 +291,7 @@ async function createBookingSequenceMutation({
     },
     select: { userId: true },
   })
+  const createdEventIds: string[] = []
 
   await prisma.$transaction(async (tx) => {
     const practiceClient = await ensureBookingPracticeClient(tx, practiceId, clientIdentity ?? { userId, practiceClientId })
@@ -369,6 +371,7 @@ async function createBookingSequenceMutation({
           status,
         },
       })
+      createdEventIds.push(event.id)
 
       const appointment = await tx.appointment.create({
         data: {
@@ -433,6 +436,10 @@ async function createBookingSequenceMutation({
       })
     }
   })
+
+  for (const eventId of createdEventIds) {
+    await pushCalendarEventToGoogle(eventId)
+  }
 
   const publicBookingPath = publicBookingPathForPractice(context.practice)
   revalidateCalendarRoutes(context.practice.slug, publicBookingPath)

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { dateValue } from "@/lib/calendar"
 import { assertCalendarDatabaseReady } from "@/lib/calendar-readiness"
+import { pushCalendarEventToGoogle } from "@/lib/calendar-sync-service"
 import { canRescheduleCalendarEvent } from "@/lib/calendar-workspace"
 import {
   assertNoCalendarEventConflict,
@@ -213,6 +214,8 @@ export async function rescheduleCalendarEvent(input: FormData | Record<string, u
 
     return currentEvent
   })
+
+  await pushCalendarEventToGoogle(rescheduledEvent.id)
 
   revalidateCalendarRoutes(rescheduledEvent.practice.slug)
   return { ok: true }
