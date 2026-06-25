@@ -8,6 +8,7 @@ import {
   OUTSIDE_PROVIDER_AVAILABILITY_MESSAGE,
   resolveAvailabilityForDate,
 } from "@/lib/calendar-availability"
+import { assertNoExternalCalendarBusyConflict } from "@/lib/calendar-sync-conflicts"
 import { hasCalendarEventConflict } from "@/lib/calendar-flows"
 import { prisma } from "@/lib/prisma"
 import { hasResourceConflict } from "@/lib/service-catalog"
@@ -60,6 +61,13 @@ export async function assertNoCalendarEventConflict({
   if (hasCalendarEventConflict({ startsAt, endsAt, events })) {
     throw new Error("That calendar time is no longer available.")
   }
+
+  await assertNoExternalCalendarBusyConflict({
+    db,
+    ownerUserId,
+    startsAt,
+    endsAt,
+  })
 }
 
 export async function assertNoResourceConflict({
@@ -288,6 +296,20 @@ export async function lockAppointmentSchedulingRows(
       FOR UPDATE
     `
   }
+
+  await tx.$queryRaw`
+    SELECT b.id
+    FROM "ExternalCalendarBusyBlock" b
+    INNER JOIN "CalendarConnection" c
+      ON c.id = b."connectionId"
+    WHERE b."ownerUserId" = ${therapistId}
+      AND b."status" = 'BUSY'
+      AND c."status" = 'ACTIVE'
+      AND b."startsAt" < ${endsAt}
+      AND b."endsAt" > ${startsAt}
+    ORDER BY b.id
+    FOR UPDATE OF b
+  `
 
   if (uniqueResourceIds.length === 0) return
 
