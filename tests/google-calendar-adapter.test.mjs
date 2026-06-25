@@ -26,6 +26,7 @@ describe("Google Calendar adapter", () => {
     assert.equal(url.searchParams.get("prompt"), "consent")
     assert.equal(url.searchParams.get("state"), "state-token")
     assert.equal(url.searchParams.get("scope"), GOOGLE_CALENDAR_SCOPES.join(" "))
+    assert.ok(GOOGLE_CALENDAR_SCOPES.includes("https://www.googleapis.com/auth/calendar.events.readonly"))
   })
 
   it("lists calendars through the authenticated REST API", async () => {

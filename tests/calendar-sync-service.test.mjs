@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  cancelledGoogleEventIds,
+  googleCalendarSyncErrorStatus,
   selectedSourceUpdates,
+  syncSourceFailurePatch,
   syncRunFailurePatch,
   syncRunSuccessPatch,
 } from "../lib/calendar-sync-service.ts"
@@ -36,6 +39,29 @@ describe("calendar sync service pure helpers", () => {
       finishedAt,
       errorCode: "SYNC_FAILED",
       errorMessage: "Calendar sync failed.",
+    })
+  })
+
+  it("detects cancelled Google tombstones without valid times", () => {
+    assert.deepEqual(cancelledGoogleEventIds([
+      { id: "event_1", status: "cancelled" },
+      { id: "event_2", status: "cancelled", start: { dateTime: "2026-07-01T13:00:00.000Z" } },
+      { id: "event_3", status: "confirmed" },
+    ]), ["event_1"])
+  })
+
+  it("clears stale sync tokens after Google 410 failures", () => {
+    const error = new Error("Google Calendar request failed with status 410.")
+
+    assert.equal(googleCalendarSyncErrorStatus(error), 410)
+    assert.deepEqual(syncSourceFailurePatch(error), {
+      lastErrorCode: "SYNC_FAILED",
+      lastErrorMessage: "Google Calendar request failed with status 410.",
+      syncToken: null,
+    })
+    assert.deepEqual(syncSourceFailurePatch(new Error("network token leak")), {
+      lastErrorCode: "SYNC_FAILED",
+      lastErrorMessage: "Calendar sync failed.",
     })
   })
 })

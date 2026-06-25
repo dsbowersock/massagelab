@@ -41,6 +41,44 @@ describe("calendar sync environment", () => {
       restoreEnv(previous)
     }
   })
+
+  it("accepts incidental placeholder words but rejects exact placeholder values", () => {
+    const previous = snapshotEnv()
+    try {
+      process.env.GOOGLE_CALENDAR_CLIENT_ID = "calendar-example-client-id.apps.googleusercontent.com"
+      process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "secret-for-your-practice"
+      process.env.GOOGLE_CALENDAR_REDIRECT_URI = "https://massagelab.test/api/calendar/google/callback"
+      process.env.AUTH_URL = "https://massagelab.test"
+      delete process.env.NEXTAUTH_URL
+
+      assert.deepEqual(getGoogleCalendarSyncConfig(), {
+        clientId: "calendar-example-client-id.apps.googleusercontent.com",
+        clientSecret: "secret-for-your-practice",
+        redirectUri: "https://massagelab.test/api/calendar/google/callback",
+      })
+
+      process.env.GOOGLE_CALENDAR_CLIENT_ID = "replace-with-google-calendar-client-id"
+      assert.equal(getGoogleCalendarSyncConfig(), null)
+    } finally {
+      restoreEnv(previous)
+    }
+  })
+
+  it("rejects malformed explicit redirect URLs", () => {
+    const previous = snapshotEnv()
+    try {
+      process.env.GOOGLE_CALENDAR_CLIENT_ID = "client-id"
+      process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "client-secret"
+      process.env.GOOGLE_CALENDAR_REDIRECT_URI = "/api/calendar/google/callback"
+      process.env.AUTH_URL = "https://massagelab.test"
+      delete process.env.NEXTAUTH_URL
+
+      assert.equal(getGoogleCalendarSyncConfig(), null)
+      assert.equal(hasGoogleCalendarSyncConfig(), false)
+    } finally {
+      restoreEnv(previous)
+    }
+  })
 })
 
 function snapshotEnv() {

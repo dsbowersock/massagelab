@@ -13,6 +13,11 @@ const SAFE_SYNC_ERROR_MESSAGES = new Set([
   "Google Calendar request failed with status 503.",
 ])
 
+/**
+ * Converts one Google event into the minimal busy-block shape MassageLab stores.
+ * Personal event details are intentionally dropped; status is reduced to
+ * BUSY/FREE/CANCELLED, with transparent events treated as non-blocking.
+ */
 export function normalizeGoogleBusyBlock({
   ownerUserId,
   connectionId,
@@ -69,6 +74,11 @@ function googleEventDateToUtc(value: GoogleCalendarEvent["start"], timezone: str
   return new Date(Number.NaN)
 }
 
+/**
+ * Builds a generic outbound Google event without client, note, location, or
+ * clinical fields. The private property is only a MassageLab event identifier
+ * used to reconcile future pushes.
+ */
 export function buildGoogleOutboundEventPayload({
   calendarEventId,
   kind,
@@ -98,6 +108,10 @@ export function buildGoogleOutboundEventPayload({
   }
 }
 
+/**
+ * Returns a persistable sync error. Only known Google status messages are kept;
+ * arbitrary provider errors are replaced so tokens/account data are not stored.
+ */
 export function sanitizeCalendarSyncError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "")
   return SAFE_SYNC_ERROR_MESSAGES.has(message) ? message : "Calendar sync failed."

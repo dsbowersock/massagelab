@@ -4,6 +4,10 @@ import { prisma } from "./prisma.ts"
 
 type CalendarDb = typeof prisma | Prisma.TransactionClient
 
+/**
+ * Builds the shared busy-block predicate for scheduling checks.
+ * Only active, selected Google sources with BUSY status block MassageLab time.
+ */
 export function externalBusyBlocksWhere({
   ownerUserId,
   startsAt,
@@ -23,6 +27,10 @@ export function externalBusyBlocksWhere({
   } satisfies Prisma.ExternalCalendarBusyBlockWhereInput
 }
 
+/**
+ * Applies the same strict interval-overlap rule used by internal calendar
+ * conflicts: adjacent blocks are allowed, overlapping BUSY blocks are not.
+ */
 export function externalBusyBlockConflicts({
   startsAt,
   endsAt,
@@ -37,6 +45,11 @@ export function externalBusyBlockConflicts({
   ))
 }
 
+/**
+ * Throws when selected Google busy time overlaps a proposed provider window.
+ * Pass a transaction client when booking writes need this check in the same
+ * database transaction.
+ */
 export async function assertNoExternalCalendarBusyConflict({
   db = prisma,
   ownerUserId,

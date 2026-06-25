@@ -11,7 +11,12 @@ import {
 import { prisma } from "./prisma.ts"
 
 type CalendarDb = typeof prisma | Prisma.TransactionClient
+const GOOGLE_API_STATUS_ERROR_PATTERN = /^Google Calendar request failed with status (\d+)\.$/
 
+/**
+ * Produces source selection updates without deleting source rows.
+ * Existing calendars remain available for later re-selection.
+ */
 export function selectedSourceUpdates({
   existingSources,
   selectedProviderCalendarIds,
@@ -26,6 +31,7 @@ export function selectedSourceUpdates({
   }))
 }
 
+/** Builds the successful CalendarSyncRun patch shared by inbound sync writes. */
 export function syncRunSuccessPatch({
   finishedAt,
   itemsSeen,
@@ -45,6 +51,7 @@ export function syncRunSuccessPatch({
   }
 }
 
+/** Builds the failed CalendarSyncRun patch with a sanitized provider error. */
 export function syncRunFailurePatch({ finishedAt, error }: { finishedAt: Date; error: unknown }) {
   return {
     status: "FAILED" as const,
@@ -54,6 +61,44 @@ export function syncRunFailurePatch({ finishedAt, error }: { finishedAt: Date; e
   }
 }
 
+/** Extracts the sanitized Google API status code from adapter errors. */
+export function googleCalendarSyncErrorStatus(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "")
+  const match = GOOGLE_API_STATUS_ERROR_PATTERN.exec(message)
+  return match ? Number(match[1]) : null
+}
+
+/**
+ * Builds the source failure patch. Google 410 means the incremental sync token
+ * is stale, so the next run must fall back to a time-windowed full import.
+ */
+export function syncSourceFailurePatch(error: unknown) {
+  const patch = {
+    lastErrorCode: "SYNC_FAILED" as const,
+    lastErrorMessage: sanitizeCalendarSyncError(error),
+  }
+  return googleCalendarSyncErrorStatus(error) === 410
+    ? { ...patch, syncToken: null }
+    : patch
+}
+
+/**
+ * Returns cancelled Google tombstones that no longer include usable event times.
+ * These must delete existing busy rows because they cannot be normalized.
+ */
+export function cancelledGoogleEventIds(
+  events: Array<{ id?: string | null; status?: string | null; start?: unknown; end?: unknown }>,
+) {
+  return events
+    .filter((event) => event.status === "cancelled" && Boolean(event.id) && !event.start && !event.end)
+    .map((event) => String(event.id))
+}
+
+/**
+ * Returns a usable access token for an active Google connection.
+ * Cached encrypted access tokens are reused until near expiry; otherwise the
+ * stored refresh token is exchanged and the refreshed token is persisted.
+ */
 export async function refreshGoogleAccessToken(
   connectionId: string,
   adapter: GoogleCalendarAdapter = createGoogleCalendarAdapter(),
@@ -92,6 +137,11 @@ export async function refreshGoogleAccessToken(
   return token.access_token
 }
 
+/**
+ * Imports selected Google calendars into generic busy blocks for one connection.
+ * It locks the parent connection row while writing busy data so scheduling
+ * transactions can coordinate against concurrent inbound sync writes.
+ */
 export async function syncGoogleConnectionSources({
   connectionId,
   adapter = createGoogleCalendarAdapter(),
@@ -132,7 +182,9 @@ export async function syncGoogleConnectionSources({
         timeMax: source.syncToken ? undefined : window.endsAt.toISOString(),
         syncToken: source.syncToken,
       })
-      const blocks = (payload.items ?? [])
+      const events = payload.items ?? []
+      const deletedProviderEventIds = cancelledGoogleEventIds(events)
+      const blocks = events
         .map((event) => normalizeGoogleBusyBlock({
           ownerUserId: connection.userId,
           connectionId: connection.id,
@@ -143,16 +195,25 @@ export async function syncGoogleConnectionSources({
         }))
         .filter((block): block is NonNullable<typeof block> => Boolean(block))
 
-      itemsSeen += payload.items?.length ?? 0
-      itemsChanged += blocks.length
+      itemsSeen += events.length
 
-      await prisma.$transaction(async (tx) => {
+      const { sourceItemsChanged } = await prisma.$transaction(async (tx) => {
         await tx.$queryRaw`
           SELECT id
           FROM "CalendarConnection"
           WHERE id = ${connection.id}
           FOR UPDATE
         `
+        const deletedBusyBlocks = deletedProviderEventIds.length
+          ? await tx.externalCalendarBusyBlock.deleteMany({
+              where: {
+                sourceId: source.id,
+                providerEventId: { in: deletedProviderEventIds },
+              },
+            })
+          : { count: 0 }
+        const sourceItemsChanged = blocks.length + deletedBusyBlocks.count
+
         for (const block of blocks) {
           await tx.externalCalendarBusyBlock.upsert({
             where: {
@@ -188,11 +249,13 @@ export async function syncGoogleConnectionSources({
           where: { id: run.id },
           data: syncRunSuccessPatch({
             finishedAt: new Date(),
-            itemsSeen: payload.items?.length ?? 0,
-            itemsChanged: blocks.length,
+            itemsSeen: events.length,
+            itemsChanged: sourceItemsChanged,
           }),
         })
+        return { sourceItemsChanged }
       })
+      itemsChanged += sourceItemsChanged
     } catch (error) {
       await prisma.calendarSyncRun.update({
         where: { id: run.id },
@@ -200,7 +263,7 @@ export async function syncGoogleConnectionSources({
       })
       await prisma.externalCalendarSource.update({
         where: { id: source.id },
-        data: { lastErrorCode: "SYNC_FAILED", lastErrorMessage: sanitizeCalendarSyncError(error) },
+        data: syncSourceFailurePatch(error),
       })
     }
   }
@@ -213,6 +276,7 @@ export async function syncGoogleConnectionSources({
   return { itemsSeen, itemsChanged }
 }
 
+/** Upserts available Google calendars without changing existing selections. */
 export async function upsertGoogleCalendarSources({
   db = prisma,
   connectionId,
@@ -245,16 +309,19 @@ export async function upsertGoogleCalendarSources({
   }
 }
 
+/** Returns whether a MassageLab calendar event should be mirrored to Google. */
 export function calendarEventShouldPushToGoogle(event: { kind?: string | null; ownerUserId?: string | null; status?: string | null }) {
   return Boolean(event.ownerUserId && ["APPOINTMENT", "CLASS", "PERSONAL"].includes(String(event.kind ?? "")))
 }
 
+/** Maps MassageLab event status to the Google outbound operation. */
 export function outboundSyncActionForStatus(status?: string | null) {
   if (status === "CANCELLED") return "DELETE" as const
   if (status === "COMPLETED" || status === "NO_SHOW") return "SKIP" as const
   return "UPSERT" as const
 }
 
+/** Builds the error patch stored on existing outbound event links. */
 export function outboundSyncFailurePatch(error: unknown) {
   return {
     lastErrorCode: "PUSH_FAILED",
@@ -262,6 +329,10 @@ export function outboundSyncFailurePatch(error: unknown) {
   }
 }
 
+/**
+ * Pushes one eligible MassageLab calendar event into the dedicated Google
+ * calendar and stores the Google event link for future reconciliation.
+ */
 export async function pushCalendarEventToGoogle(
   calendarEventId: string,
   adapter: GoogleCalendarAdapter = createGoogleCalendarAdapter(),
@@ -398,6 +469,11 @@ async function recordGoogleCalendarEventPushFailure({
   }
 }
 
+/**
+ * Persists a single active Google connection for the provider.
+ * Connecting another Google account deletes older Google sync state so outbound
+ * sync never chooses between multiple active calendars.
+ */
 export async function saveGoogleCalendarConnection({
   userId,
   providerAccountId,

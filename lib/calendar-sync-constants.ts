@@ -12,8 +12,13 @@ export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.app.created",
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
   "https://www.googleapis.com/auth/calendar.events.freebusy",
+  "https://www.googleapis.com/auth/calendar.events.readonly",
 ] as const
 
+/**
+ * Returns the rolling Google import window relative to `now`.
+ * The boundaries are exact timestamps, not local-day edges.
+ */
 export function calendarSyncWindow(now = new Date()) {
   return {
     startsAt: new Date(now.getTime() - CALENDAR_SYNC_WINDOW_PAST_DAYS * 24 * 60 * 60 * 1000),
