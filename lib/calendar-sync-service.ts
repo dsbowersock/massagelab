@@ -331,3 +331,62 @@ export async function pushCalendarEventToGoogle(
 
   return { pushed: true }
 }
+
+export async function saveGoogleCalendarConnection({
+  userId,
+  providerAccountId,
+  accountEmail,
+  accessToken,
+  refreshToken,
+  expiresIn,
+  grantedScopes,
+  dedicatedCalendarId,
+  dedicatedCalendarSummary,
+}: {
+  userId: string
+  providerAccountId: string
+  accountEmail?: string | null
+  accessToken: string
+  refreshToken: string
+  expiresIn?: number | null
+  grantedScopes?: string | null
+  dedicatedCalendarId?: string | null
+  dedicatedCalendarSummary?: string | null
+}) {
+  const accessTokenExpiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null
+
+  return prisma.calendarConnection.upsert({
+    where: {
+      userId_provider_providerAccountId: {
+        userId,
+        provider: GOOGLE_CALENDAR_PROVIDER,
+        providerAccountId,
+      },
+    },
+    create: {
+      userId,
+      provider: GOOGLE_CALENDAR_PROVIDER,
+      providerAccountId,
+      accountEmail,
+      encryptedRefreshToken: encryptCalendarSyncSecret(refreshToken),
+      encryptedAccessToken: encryptCalendarSyncSecret(accessToken),
+      accessTokenExpiresAt,
+      grantedScopes: grantedScopes ?? "",
+      status: "ACTIVE",
+      statusReason: null,
+      dedicatedCalendarId,
+      dedicatedCalendarSummary,
+    },
+    update: {
+      accountEmail,
+      encryptedRefreshToken: encryptCalendarSyncSecret(refreshToken),
+      encryptedAccessToken: encryptCalendarSyncSecret(accessToken),
+      accessTokenExpiresAt,
+      grantedScopes: grantedScopes ?? "",
+      status: "ACTIVE",
+      statusReason: null,
+      dedicatedCalendarId,
+      dedicatedCalendarSummary,
+    },
+  })
+}
