@@ -111,6 +111,7 @@ describe("Navigation IA model", () => {
       "/calendar/availability",
       "/calendar/services",
       "/calendar/booking",
+      "/calendar/sync",
       "/calendar/requests",
     ])
     assert.deepEqual(calendarSidebarActions.map((route) => route.id), [
@@ -119,6 +120,7 @@ describe("Navigation IA model", () => {
       "calendar-availability",
       "calendar-services",
       "calendar-booking",
+      "calendar-sync",
       "calendar-requests",
     ])
   })
@@ -278,6 +280,7 @@ describe("Navigation IA model", () => {
       "calendar-availability",
       "calendar-services",
       "calendar-booking",
+      "calendar-sync",
       "calendar-requests",
     ])
     assert.deepEqual(ownerNavigation.calendarMenuActions.map((route) => route.id), [
