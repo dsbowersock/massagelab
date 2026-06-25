@@ -74,7 +74,11 @@ export async function GET(request: NextRequest) {
       dedicatedCalendarSummary: dedicatedCalendar.summary,
     })
 
-    await upsertGoogleCalendarSources({ connectionId: connection.id, calendars })
+    await upsertGoogleCalendarSources({
+      connectionId: connection.id,
+      calendars,
+      excludedProviderCalendarIds: [dedicatedCalendar.id],
+    })
     await syncGoogleConnectionSources({ connectionId: connection.id, adapter })
   } catch {
     return redirectToCalendarSync(baseUrl, "error")

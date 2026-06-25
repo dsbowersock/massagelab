@@ -58,7 +58,7 @@ export function normalizeGoogleBusyBlock({
     allDay,
     transparency: event.transparency ?? null,
     status: cancelled ? "CANCELLED" as const : free ? "FREE" as const : "BUSY" as const,
-    cancelledAt: cancelled ? new Date() : null,
+    cancelledAt: cancelled ? googleEventUpdatedAt(event.updated) : null,
   }
 }
 
@@ -72,6 +72,12 @@ function googleEventDateToUtc(value: GoogleCalendarEvent["start"], timezone: str
     }
   }
   return new Date(Number.NaN)
+}
+
+function googleEventUpdatedAt(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 /**

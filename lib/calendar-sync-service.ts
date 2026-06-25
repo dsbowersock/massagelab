@@ -231,7 +231,7 @@ export async function syncGoogleConnectionSources({
               allDay: block.allDay,
               transparency: block.transparency,
               status: block.status,
-              cancelledAt: block.cancelledAt,
+              cancelledAt: block.status === "CANCELLED" ? block.cancelledAt ?? undefined : null,
             },
           })
         }
@@ -276,17 +276,35 @@ export async function syncGoogleConnectionSources({
   return { itemsSeen, itemsChanged }
 }
 
-/** Upserts available Google calendars without changing existing selections. */
+/**
+ * Upserts available Google calendars without changing existing selections.
+ * Excluded calendars are removed first so outbound-only calendars never appear
+ * as selectable inbound busy sources after reconnects.
+ */
 export async function upsertGoogleCalendarSources({
   db = prisma,
   connectionId,
   calendars,
+  excludedProviderCalendarIds = [],
 }: {
   db?: CalendarDb
   connectionId: string
   calendars: Array<{ id: string; summary?: string; timeZone?: string; primary?: boolean }>
+  excludedProviderCalendarIds?: string[]
 }) {
+  const excludedIds = new Set(excludedProviderCalendarIds.filter(Boolean))
+  if (excludedIds.size > 0) {
+    await db.externalCalendarSource.deleteMany({
+      where: {
+        connectionId,
+        providerCalendarId: { in: [...excludedIds] },
+      },
+    })
+  }
+
   for (const calendar of calendars) {
+    if (excludedIds.has(calendar.id)) continue
+
     await db.externalCalendarSource.upsert({
       where: {
         connectionId_providerCalendarId: {
@@ -360,12 +378,17 @@ export async function pushCalendarEventToGoogle(
 
   if (action === "SKIP") return { skipped: true }
 
-  if (action === "DELETE" && existingLink) {
+  if (action === "DELETE" && existingLink?.providerEventId) {
     await adapter.deleteEvent({
       accessToken,
       calendarId: connection.dedicatedCalendarId,
       eventId: existingLink.providerEventId,
     })
+    await prisma.externalCalendarEventLink.delete({ where: { id: existingLink.id } })
+    return { deleted: true }
+  }
+
+  if (action === "DELETE" && existingLink) {
     await prisma.externalCalendarEventLink.delete({ where: { id: existingLink.id } })
     return { deleted: true }
   }
@@ -457,12 +480,24 @@ async function recordGoogleCalendarEventPushFailure({
       },
       orderBy: { updatedAt: "desc" },
     })
-    const existingLink = event.externalCalendarLinks.find((link) => link.connectionId === connection?.id)
-    if (!existingLink) return
+    if (!connection?.dedicatedCalendarId) return
 
-    await prisma.externalCalendarEventLink.update({
-      where: { id: existingLink.id },
-      data: outboundSyncFailurePatch(error),
+    await prisma.externalCalendarEventLink.upsert({
+      where: {
+        connectionId_calendarEventId: {
+          connectionId: connection.id,
+          calendarEventId: event.id,
+        },
+      },
+      create: {
+        connectionId: connection.id,
+        calendarEventId: event.id,
+        provider: GOOGLE_CALENDAR_PROVIDER,
+        providerCalendarId: connection.dedicatedCalendarId,
+        providerEventId: null,
+        ...outboundSyncFailurePatch(error),
+      },
+      update: outboundSyncFailurePatch(error),
     })
   } catch {
     // Preserve the primary calendar action even if failure bookkeeping fails.
@@ -498,6 +533,12 @@ export async function saveGoogleCalendarConnection({
   const accessTokenExpiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT id
+      FROM "User"
+      WHERE id = ${userId}
+      FOR UPDATE
+    `
     await tx.calendarConnection.deleteMany({
       where: {
         userId,

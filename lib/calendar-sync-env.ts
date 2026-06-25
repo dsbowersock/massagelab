@@ -1,5 +1,8 @@
-import { getSiteUrl } from "./auth-env.ts"
-
+/**
+ * Known sample credentials are treated as missing config, but matching is exact
+ * so real Google values are not rejected because they contain words like
+ * "example" incidentally.
+ */
 const PLACEHOLDER_ENV_VALUES = new Set([
   "replace-with-google-calendar-client-id",
   "replace-with-google-calendar-client-secret",
@@ -42,6 +45,11 @@ function validAbsoluteUrl(value: string) {
   }
 }
 
+function configuredSiteUrl() {
+  const siteUrl = normalizedEnv(process.env.AUTH_URL) || normalizedEnv(process.env.NEXTAUTH_URL)
+  return configuredEnv(siteUrl) ? siteUrl : ""
+}
+
 export function getGoogleCalendarSyncConfig() {
   const clientId = normalizedEnv(process.env.GOOGLE_CALENDAR_CLIENT_ID)
   const clientSecret = normalizedEnv(process.env.GOOGLE_CALENDAR_CLIENT_SECRET)
@@ -51,9 +59,12 @@ export function getGoogleCalendarSyncConfig() {
     return null
   }
 
+  const fallbackSiteUrl = configuredSiteUrl()
   const redirectUri = configuredEnv(configuredRedirectUri)
     ? configuredRedirectUri
-    : `${getSiteUrl().replace(/\/$/, "")}/api/calendar/google/callback`
+    : fallbackSiteUrl
+      ? `${fallbackSiteUrl.replace(/\/$/, "")}/api/calendar/google/callback`
+      : ""
   if (!validAbsoluteUrl(redirectUri)) return null
 
   return {

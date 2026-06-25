@@ -2517,6 +2517,7 @@ model CalendarConnection {
   syncRuns                   CalendarSyncRun[]
 
   @@unique([userId, provider, providerAccountId])
+  @@unique([userId, provider], where: { status: "ACTIVE" }, map: "CalendarConnection_one_active_provider_key")
   @@index([userId, status])
   @@index([provider, status])
 }
@@ -2576,7 +2577,7 @@ model ExternalCalendarEventLink {
   calendarEventId     String
   provider            ExternalCalendarProvider
   providerCalendarId  String
-  providerEventId     String
+  providerEventId     String?
   providerEventEtag   String?
   lastPushedAt        DateTime?
   lastErrorCode       String?

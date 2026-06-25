@@ -17,7 +17,7 @@ import {
   saveGoogleCalendarSourceSelectionAction,
 } from "./actions"
 
-const GOOGLE_SYNC_STATUS_MESSAGES: Record<string, string> = {
+const GOOGLE_SYNC_STATUS_MESSAGES = {
   access: "Calendar sync is available to provider accounts with external sync access.",
   connected: "Google Calendar is connected.",
   error: "Google Calendar could not be connected. Try again from this page.",
@@ -25,7 +25,7 @@ const GOOGLE_SYNC_STATUS_MESSAGES: Record<string, string> = {
   refresh: "Google did not return a refresh token. Reconnect and approve offline calendar access.",
   state: "Google Calendar connection expired. Start the connection again.",
   unconfigured: "Google Calendar sync is not configured for this environment.",
-}
+} as const
 
 export default async function CalendarSyncPage({
   searchParams,
@@ -45,7 +45,9 @@ export default async function CalendarSyncPage({
   }
 
   const params = await searchParams
-  const googleStatus = params?.google ? GOOGLE_SYNC_STATUS_MESSAGES[params.google] : null
+  const googleStatus = typeof params?.google === "string" && Object.hasOwn(GOOGLE_SYNC_STATUS_MESSAGES, params.google)
+    ? GOOGLE_SYNC_STATUS_MESSAGES[params.google as keyof typeof GOOGLE_SYNC_STATUS_MESSAGES]
+    : null
   const [connection, access] = await Promise.all([
     prisma.calendarConnection.findFirst({
       where: { userId: session.user.id, provider: "GOOGLE", status: "ACTIVE" },

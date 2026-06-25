@@ -437,9 +437,7 @@ async function createBookingSequenceMutation({
     }
   })
 
-  for (const eventId of createdEventIds) {
-    await pushCalendarEventToGoogleBestEffort(eventId)
-  }
+  await Promise.all(createdEventIds.map((eventId) => pushCalendarEventToGoogleBestEffort(eventId)))
 
   const publicBookingPath = publicBookingPathForPractice(context.practice)
   revalidateCalendarRoutes(context.practice.slug, publicBookingPath)

@@ -79,6 +79,22 @@ describe("calendar sync environment", () => {
       restoreEnv(previous)
     }
   })
+
+  it("requires an explicit site URL when no redirect URL is configured", () => {
+    const previous = snapshotEnv()
+    try {
+      process.env.GOOGLE_CALENDAR_CLIENT_ID = "client-id"
+      process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "client-secret"
+      delete process.env.GOOGLE_CALENDAR_REDIRECT_URI
+      delete process.env.AUTH_URL
+      delete process.env.NEXTAUTH_URL
+
+      assert.equal(getGoogleCalendarSyncConfig(), null)
+      assert.equal(hasGoogleCalendarSyncConfig(), false)
+    } finally {
+      restoreEnv(previous)
+    }
+  })
 })
 
 function snapshotEnv() {

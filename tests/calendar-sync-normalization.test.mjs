@@ -53,6 +53,7 @@ describe("calendar sync normalization", () => {
       event: {
         id: "cancelled_event",
         status: "cancelled",
+        updated: "2026-07-01T12:30:00.000Z",
         start: { dateTime: "2026-07-01T13:00:00.000Z" },
         end: { dateTime: "2026-07-01T14:00:00.000Z" },
       },
@@ -60,7 +61,7 @@ describe("calendar sync normalization", () => {
 
     assert.equal(free.status, "FREE")
     assert.equal(cancelled.status, "CANCELLED")
-    assert.ok(cancelled.cancelledAt instanceof Date)
+    assert.equal(cancelled.cancelledAt.toISOString(), "2026-07-01T12:30:00.000Z")
   })
 
   it("normalizes Google all-day dates in the source calendar timezone", () => {
