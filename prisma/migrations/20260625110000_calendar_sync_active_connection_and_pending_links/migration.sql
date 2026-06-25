@@ -1,4 +1,8 @@
-DELETE FROM "CalendarConnection"
+UPDATE "CalendarConnection"
+SET
+  status = 'DISCONNECTED',
+  "statusReason" = 'duplicate_active_connection_superseded',
+  "updatedAt" = CURRENT_TIMESTAMP
 WHERE id IN (
   SELECT id
   FROM (

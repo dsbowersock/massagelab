@@ -95,6 +95,25 @@ describe("calendar sync environment", () => {
       restoreEnv(previous)
     }
   })
+
+  it("falls back to NEXTAUTH_URL when AUTH_URL is only a placeholder", () => {
+    const previous = snapshotEnv()
+    try {
+      process.env.GOOGLE_CALENDAR_CLIENT_ID = "client-id"
+      process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "client-secret"
+      delete process.env.GOOGLE_CALENDAR_REDIRECT_URI
+      process.env.AUTH_URL = "example-google-calendar-redirect-uri"
+      process.env.NEXTAUTH_URL = "https://massagelab-nextauth.test"
+
+      assert.deepEqual(getGoogleCalendarSyncConfig(), {
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        redirectUri: "https://massagelab-nextauth.test/api/calendar/google/callback",
+      })
+    } finally {
+      restoreEnv(previous)
+    }
+  })
 })
 
 function snapshotEnv() {

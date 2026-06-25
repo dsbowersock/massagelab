@@ -46,8 +46,11 @@ function validAbsoluteUrl(value: string) {
 }
 
 function configuredSiteUrl() {
-  const siteUrl = normalizedEnv(process.env.AUTH_URL) || normalizedEnv(process.env.NEXTAUTH_URL)
-  return configuredEnv(siteUrl) ? siteUrl : ""
+  const authUrl = normalizedEnv(process.env.AUTH_URL)
+  if (configuredEnv(authUrl)) return authUrl
+
+  const nextAuthUrl = normalizedEnv(process.env.NEXTAUTH_URL)
+  return configuredEnv(nextAuthUrl) ? nextAuthUrl : ""
 }
 
 export function getGoogleCalendarSyncConfig() {
