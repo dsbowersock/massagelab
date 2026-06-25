@@ -16,7 +16,6 @@ import {
   Layers,
   ListFilter,
   Settings2,
-  SlidersHorizontal,
   UserRound,
 } from "lucide-react"
 import { rescheduleCalendarEventAction, saveCalendarPreferencesAction } from "@/app/calendar/actions"
@@ -36,7 +35,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
 import {
   deriveCalendarVisibleBounds,
@@ -590,7 +588,6 @@ function CalendarToolbarControls({
 }) {
   const rangeLabel = RANGE_LABELS.find(([value]) => value === range)?.[1] ?? "Week"
   const providerViewLabel = PROVIDER_VIEW_LABELS.find(([value]) => value === providerViewMode)?.[1] ?? "Only me"
-  const selectedProvider = providers.find((provider) => provider.id === selectedProviderId)
   const settingsProps = {
     showCancelledEvents,
     showStatusBadges,
@@ -607,92 +604,49 @@ function CalendarToolbarControls({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
-      <div className="hidden min-w-0 items-center gap-2 md:flex">
-        <Button type="button" variant="outline" size="icon" onClick={() => onNavigate("prev")} aria-label="Previous range">
-          <ChevronLeft data-icon="inline-start" />
-        </Button>
-        <DatePickerControl viewTitle={viewTitle} selectedDate={selectedDate} onGotoDate={onGotoDate} />
-        <Button type="button" variant="outline" size="icon" onClick={() => onNavigate("next")} aria-label="Next range">
-          <ChevronRight data-icon="inline-start" />
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => onNavigate("today")}>Today</Button>
-        <DropdownControl label="Range" value={rangeLabel}>
-          {RANGE_LABELS.map(([value, label]) => (
-            <DropdownMenuItem key={value} onClick={() => onRangeChange(value)}>
-              {label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownControl>
-        {showProviderControls ? (
-          <>
-            <DropdownControl label="View" value={providerViewLabel}>
-              {PROVIDER_VIEW_LABELS.map(([value, label]) => (
-                <DropdownMenuItem key={value} onClick={() => onProviderViewModeChange(value)}>
-                  {label}
-                </DropdownMenuItem>
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => onNavigate("prev")} aria-label="Previous range">
+        <ChevronLeft data-icon="inline-start" />
+      </Button>
+      <DatePickerControl
+        viewTitle={viewTitle}
+        selectedDate={selectedDate}
+        onGotoDate={onGotoDate}
+        className="min-w-0 flex-[1_1_13rem] justify-between"
+      />
+      <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => onNavigate("next")} aria-label="Next range">
+        <ChevronRight data-icon="inline-start" />
+      </Button>
+      <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 px-3" onClick={() => onNavigate("today")}>Today</Button>
+      <DropdownControl label="Range" value={rangeLabel}>
+        {RANGE_LABELS.map(([value, label]) => (
+          <DropdownMenuItem key={value} onClick={() => onRangeChange(value)}>
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownControl>
+      {showProviderControls ? (
+        <>
+          <DropdownControl label="View" value={providerViewLabel}>
+            {PROVIDER_VIEW_LABELS.map(([value, label]) => (
+              <DropdownMenuItem key={value} onClick={() => onProviderViewModeChange(value)}>
+                {label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownControl>
+          <Select value={selectedProviderId} onValueChange={onSelectedProviderChange}>
+            <SelectTrigger className="h-10 w-44 max-w-full shrink-0 bg-background/70">
+              <SelectValue placeholder="Provider" />
+            </SelectTrigger>
+            <SelectContent>
+              {providers.map((provider) => (
+                <SelectItem key={provider.id} value={provider.id}>{provider.label}</SelectItem>
               ))}
-            </DropdownControl>
-            <Select value={selectedProviderId} onValueChange={onSelectedProviderChange}>
-              <SelectTrigger className="h-10 w-44 bg-background/70">
-                <SelectValue placeholder="Provider" />
-              </SelectTrigger>
-              <SelectContent>
-                {providers.map((provider) => (
-                  <SelectItem key={provider.id} value={provider.id}>{provider.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
-        ) : null}
-      </div>
-
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button type="button" variant="outline" size="icon" className="md:hidden" aria-label="Calendar controls">
-            <SlidersHorizontal data-icon="inline-start" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="top" className="max-h-[85dvh] overflow-y-auto border-border bg-card">
-          <SheetHeader>
-            <SheetTitle>Calendar controls</SheetTitle>
-            <SheetDescription>Current range: {viewTitle || rangeLabel}</SheetDescription>
-          </SheetHeader>
-          <div className="mt-4 grid gap-4">
-            <div className="grid grid-cols-[auto_1fr_auto] gap-2">
-              <Button type="button" variant="outline" size="icon" onClick={() => onNavigate("prev")} aria-label="Previous range">
-                <ChevronLeft data-icon="inline-start" />
-              </Button>
-              <Button type="button" variant="outline" onClick={() => onNavigate("today")}>Today</Button>
-              <Button type="button" variant="outline" size="icon" onClick={() => onNavigate("next")} aria-label="Next range">
-                <ChevronRight data-icon="inline-start" />
-              </Button>
-            </div>
-            <DatePickerControl viewTitle={viewTitle} selectedDate={selectedDate} onGotoDate={onGotoDate} className="w-full justify-between" />
-            <ToolbarSelect label="Range" value={range} onValueChange={onRangeChange} options={RANGE_LABELS} />
-            {showProviderControls ? (
-              <>
-                <ToolbarSelect label="View" value={providerViewMode} onValueChange={onProviderViewModeChange} options={PROVIDER_VIEW_LABELS} />
-                <ToolbarSelect
-                  label="Provider"
-                  value={selectedProviderId}
-                  onValueChange={onSelectedProviderChange}
-                  options={providers.map((provider) => [provider.id, provider.label] as const)}
-                />
-              </>
-            ) : (
-              <div className="rounded-md border border-border/70 bg-background/60 p-3 text-sm text-muted-foreground">
-                Provider: {selectedProvider?.label ?? "Only me"}
-              </div>
-            )}
-            <CalendarDisplaySettings {...settingsProps} />
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <div className="hidden md:block">
-        <CalendarDisplaySettings {...settingsProps} />
-      </div>
+            </SelectContent>
+          </Select>
+        </>
+      ) : null}
+      <CalendarDisplaySettings {...settingsProps} />
     </div>
   )
 }
@@ -729,7 +683,7 @@ function DropdownControl({ label, value, children }: { label: string; value: str
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-10 gap-2 bg-background/70">
+        <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-2 bg-background/70">
           <span className="text-muted-foreground">{label}</span>
           <span className="font-semibold">{value}</span>
           <ChevronDown data-icon="inline-end" />
