@@ -23,6 +23,7 @@ export async function disconnectGoogleCalendarAction(formData: FormData) {
 
   revalidatePath("/calendar/sync")
   revalidatePath("/calendar")
+  redirect("/calendar/sync?google=disconnected")
 }
 
 export async function refreshGoogleCalendarAction(formData: FormData) {
@@ -38,6 +39,7 @@ export async function refreshGoogleCalendarAction(formData: FormData) {
   await syncGoogleConnectionSources({ connectionId: connection.id })
   revalidatePath("/calendar/sync")
   revalidatePath("/calendar")
+  redirect("/calendar/sync?google=refreshed")
 }
 
 export async function saveGoogleCalendarSourceSelectionAction(formData: FormData) {
@@ -61,6 +63,7 @@ export async function saveGoogleCalendarSourceSelectionAction(formData: FormData
   await syncGoogleConnectionSources({ connectionId: connection.id })
   revalidatePath("/calendar/sync")
   revalidatePath("/calendar")
+  redirect("/calendar/sync?google=saved")
 }
 
 export async function connectGoogleCalendarAction() {
