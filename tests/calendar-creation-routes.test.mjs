@@ -157,10 +157,11 @@ describe("calendar creation route wiring", () => {
     assert.match(eventActions, /ensureAppointmentPracticeClient/)
   })
 
-  it("moves calendar controls into the operator toolbar and hides team controls for solo providers", async () => {
+  it("keeps calendar controls inside the workspace and hides team controls for solo providers", async () => {
     const workspace = await readFile("app/calendar/calendar-workspace.tsx", "utf8")
 
-    assert.match(workspace, /useCalendarOperatorToolbarControls/)
+    assert.doesNotMatch(workspace, /useCalendarOperatorToolbarControls/)
+    assert.match(workspace, /\{toolbarControls\}/)
     assert.match(workspace, /CalendarDisplaySettings/)
     assert.match(workspace, /const hasMultipleProviders = providers\.length > 1/)
     assert.match(workspace, /showProviderControls=\{hasMultipleProviders\}/)

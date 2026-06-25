@@ -20,7 +20,6 @@ import {
   UserRound,
 } from "lucide-react"
 import { rescheduleCalendarEventAction, saveCalendarPreferencesAction } from "@/app/calendar/actions"
-import { useCalendarOperatorToolbarControls } from "@/components/calendar/calendar-operator-toolbar-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -510,7 +509,6 @@ export function CalendarWorkspace({
     viewTitle,
     visibleBounds,
   ])
-  useCalendarOperatorToolbarControls(toolbarControls)
 
   useEffect(() => {
     scrollCalendarsToUsefulTime()
@@ -523,6 +521,9 @@ export function CalendarWorkspace({
       style={calendarSurfaceStyle}
     >
       <CardContent className="flex h-full flex-col p-0">
+        <div className="flex shrink-0 items-center border-b border-border/70 bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
+          {toolbarControls}
+        </div>
         <p className={cn("border-b border-border/60 px-3 py-1.5 text-xs text-muted-foreground", !(message || isPending) && "sr-only")}>
           {isPending ? "Saving preferences..." : message || "Click a time to create. Drag existing items to reschedule."}
         </p>
