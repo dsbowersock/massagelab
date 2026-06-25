@@ -1,0 +1,88 @@
+import type { GoogleCalendarEvent, GoogleOutboundEventPayload } from "./google-calendar-adapter.ts"
+import { GOOGLE_CALENDAR_PROVIDER } from "./calendar-sync-constants.ts"
+
+const SAFE_SYNC_ERROR_MESSAGES = new Set([
+  "Google Calendar request failed with status 400.",
+  "Google Calendar request failed with status 401.",
+  "Google Calendar request failed with status 403.",
+  "Google Calendar request failed with status 404.",
+  "Google Calendar request failed with status 410.",
+  "Google Calendar request failed with status 429.",
+  "Google Calendar request failed with status 500.",
+  "Google Calendar request failed with status 503.",
+])
+
+export function normalizeGoogleBusyBlock({
+  ownerUserId,
+  connectionId,
+  sourceId,
+  providerCalendarId,
+  event,
+}: {
+  ownerUserId: string
+  connectionId: string
+  sourceId: string
+  providerCalendarId: string
+  event: GoogleCalendarEvent
+}) {
+  const allDay = Boolean(event.start?.date || event.end?.date)
+  const startsAt = new Date(event.start?.dateTime ?? `${event.start?.date}T00:00:00.000Z`)
+  const endsAt = new Date(event.end?.dateTime ?? `${event.end?.date}T00:00:00.000Z`)
+  const cancelled = event.status === "cancelled"
+  const free = event.transparency === "transparent"
+
+  if (!event.id || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+    return null
+  }
+
+  return {
+    connectionId,
+    sourceId,
+    ownerUserId,
+    provider: GOOGLE_CALENDAR_PROVIDER,
+    providerCalendarId,
+    providerEventId: event.id,
+    providerEventEtag: event.etag ?? null,
+    startsAt,
+    endsAt,
+    timezone: event.start?.timeZone ?? event.end?.timeZone ?? null,
+    allDay,
+    transparency: event.transparency ?? null,
+    status: cancelled ? "CANCELLED" as const : free ? "FREE" as const : "BUSY" as const,
+    cancelledAt: cancelled ? new Date() : null,
+  }
+}
+
+export function buildGoogleOutboundEventPayload({
+  calendarEventId,
+  kind,
+  startsAt,
+  endsAt,
+  timezone,
+}: {
+  calendarEventId: string
+  kind: string
+  startsAt: Date
+  endsAt: Date
+  timezone: string
+}): GoogleOutboundEventPayload {
+  const summary = kind === "CLASS"
+    ? "MassageLab class"
+    : kind === "PERSONAL"
+      ? "MassageLab blocked time"
+      : "MassageLab appointment"
+
+  return {
+    summary,
+    start: { dateTime: startsAt.toISOString(), timeZone: timezone },
+    end: { dateTime: endsAt.toISOString(), timeZone: timezone },
+    extendedProperties: {
+      private: { massagelabEventId: calendarEventId },
+    },
+  }
+}
+
+export function sanitizeCalendarSyncError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "")
+  return SAFE_SYNC_ERROR_MESSAGES.has(message) ? message : "Calendar sync failed."
+}
