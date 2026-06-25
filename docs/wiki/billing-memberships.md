@@ -26,6 +26,7 @@ if (features.includes("chimer_custom_colors")) {
 - Supporter, Therapist, and Practice are paid Stripe-backed membership levels.
 - The first paid feature key is `chimer_custom_colors`.
 - Therapist note-taking tools use the `therapist_documentation_tools` feature key and are unlocked only by active Therapist or Practice memberships.
+- External provider calendar sync uses the `external_calendar_sync` feature key and is unlocked only by active Therapist or Practice memberships.
 - Stripe subscription records grant membership only when their Price ID matches one of the configured Supporter, Therapist, or Practice price environment variables.
 - Student, donation, unknown, archived, or otherwise unmapped Stripe products and prices must not grant a paid membership.
 
@@ -70,6 +71,7 @@ Current:
 - `calendar_basic_scheduling`
 - `calendar_full_scheduling`
 - `calendar_team_scheduling`
+- `external_calendar_sync`
 - `therapist_documentation_tools`
 
 Reserved for later:
@@ -78,7 +80,6 @@ Reserved for later:
 - `anatomy_saved_progress`
 - `education_premium_content`
 - `practice_management`
-- `external_calendar_sync`
 - `cloud_storage`
 - `phi_storage_tools`
 

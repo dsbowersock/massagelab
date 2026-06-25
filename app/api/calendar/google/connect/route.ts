@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentSession } from "@/auth"
 import { generateRandomToken } from "@/lib/auth-security"
+import { getGoogleCalendarSyncAccess } from "@/lib/calendar-sync-access"
 import { getGoogleCalendarSyncConfig } from "@/lib/calendar-sync-env"
 import { buildGoogleCalendarAuthUrl } from "@/lib/google-calendar-adapter"
 import { getSiteUrl } from "@/lib/auth-env"
@@ -10,6 +11,10 @@ export async function GET() {
   const session = await getCurrentSession()
   if (!session?.user?.id) {
     return NextResponse.redirect(new URL("/login", baseUrl))
+  }
+  const access = await getGoogleCalendarSyncAccess(session.user.id)
+  if (!access.allowed) {
+    return NextResponse.redirect(new URL("/calendar/sync?google=access", baseUrl))
   }
 
   const config = getGoogleCalendarSyncConfig()

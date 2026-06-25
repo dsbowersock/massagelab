@@ -266,6 +266,15 @@ export async function lockAppointmentSchedulingRows(
       AND o."therapistId" = ${therapistId}
     FOR UPDATE OF oi
   `
+  await tx.$queryRaw`
+    SELECT id
+    FROM "CalendarConnection"
+    WHERE "userId" = ${therapistId}
+      AND "provider" = 'GOOGLE'
+      AND "status" = 'ACTIVE'
+    ORDER BY id
+    FOR UPDATE
+  `
   if (uniqueEventIds.length > 0) {
     await tx.$queryRaw(Prisma.sql`
       SELECT id

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict"
+import { Buffer } from "node:buffer"
 import { describe, it } from "node:test"
 import {
   buildGoogleCalendarAuthUrl,
   createGoogleCalendarAdapter,
+  decodeGoogleCalendarIdTokenClaims,
   googleCalendarApiErrorMessage,
 } from "../lib/google-calendar-adapter.ts"
 import { GOOGLE_CALENDAR_SCOPES } from "../lib/calendar-sync-constants.ts"
@@ -54,6 +56,31 @@ describe("Google Calendar adapter", () => {
       primary: true,
       accessRole: "owner",
     }])
+  })
+
+  it("exposes the Google account identity from the token response", async () => {
+    const idToken = testJwt({ sub: "google-subject", email: "provider@example.com" })
+    const adapter = createGoogleCalendarAdapter({
+      fetchImpl: async () => jsonResponse({
+        access_token: "access-token",
+        refresh_token: "refresh-token",
+        id_token: idToken,
+      }),
+    })
+
+    const token = await adapter.exchangeCode({
+      clientId: "client-id",
+      clientSecret: "client-secret",
+      redirectUri: "https://app.example/api/calendar/google/callback",
+      code: "oauth-code",
+    })
+
+    assert.deepEqual(decodeGoogleCalendarIdTokenClaims(idToken), {
+      sub: "google-subject",
+      email: "provider@example.com",
+    })
+    assert.equal(token.googleUserId, "google-subject")
+    assert.equal(token.googleUserEmail, "provider@example.com")
   })
 
   it("creates generic outbound events without client or clinical fields", async () => {
@@ -134,4 +161,12 @@ function jsonResponse(body, status = 200) {
     status,
     headers: { "content-type": "application/json" },
   })
+}
+
+function testJwt(payload) {
+  return [
+    Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url"),
+    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    "signature",
+  ].join(".")
 }

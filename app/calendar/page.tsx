@@ -99,8 +99,8 @@ export default async function CalendarPage({
     prisma.calendarEvent.findMany({
       where: {
         practiceId: practice.id,
-        startsAt: { gte: windowStart },
-        endsAt: { lte: windowEnd },
+        startsAt: { lt: windowEnd },
+        endsAt: { gt: windowStart },
       },
       include: {
         owner: { select: { name: true, email: true } },

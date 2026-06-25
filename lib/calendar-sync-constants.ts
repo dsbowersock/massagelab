@@ -7,6 +7,8 @@ export const CALENDAR_SYNC_WINDOW_PAST_DAYS = 30
 export const CALENDAR_SYNC_WINDOW_FUTURE_DAYS = 180
 
 export const GOOGLE_CALENDAR_SCOPES = [
+  "openid",
+  "email",
   "https://www.googleapis.com/auth/calendar.app.created",
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
   "https://www.googleapis.com/auth/calendar.events.freebusy",

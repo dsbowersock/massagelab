@@ -53,9 +53,11 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(active.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
+    assert.equal(active.hasFeature(FEATURE_KEYS.externalCalendarSync), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarTeamScheduling), false)
     assert.equal(teamPractice.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
+    assert.equal(teamPractice.hasFeature(FEATURE_KEYS.externalCalendarSync), true)
     assert.equal(teamPractice.hasFeature(FEATURE_KEYS.calendarTeamScheduling), true)
     assert.equal(pastDue.level, "FREE")
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
@@ -82,8 +84,10 @@ describe("Membership and entitlement helpers", () => {
 
     assert.equal(supporter.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
     assert.equal(supporter.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
+    assert.equal(supporter.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
     assert.equal(student.level, "STUDENT")
     assert.equal(student.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
+    assert.equal(student.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
   })
 
   it("models internal student access without requiring Stripe", () => {

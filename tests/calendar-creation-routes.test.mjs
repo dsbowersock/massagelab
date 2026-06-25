@@ -304,6 +304,14 @@ describe("calendar creation route wiring", () => {
       await readFile("app/calendar/actions/availability.ts", "utf8"),
       /SELECT id[\s\S]+FROM "CalendarEvent"[\s\S]+ORDER BY id[\s\S]+FOR UPDATE/,
     )
+    assert.match(
+      await readFile("app/calendar/actions/availability.ts", "utf8"),
+      /FROM "CalendarConnection"[\s\S]+"provider" = 'GOOGLE'[\s\S]+FOR UPDATE/,
+    )
+    assert.match(
+      await readFile("lib/calendar-sync-service.ts", "utf8"),
+      /FROM "CalendarConnection"[\s\S]+WHERE id = \$\{connection\.id\}[\s\S]+FOR UPDATE/,
+    )
   })
 
   it("serializes calendar preference patches before merging and upserting", async () => {

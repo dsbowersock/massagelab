@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { getGoogleCalendarSyncAccess } from "@/lib/calendar-sync-access"
 import { hasGoogleCalendarSyncConfig } from "@/lib/calendar-sync-env"
 import { prisma } from "@/lib/prisma"
 import {
@@ -16,7 +17,21 @@ import {
   saveGoogleCalendarSourceSelectionAction,
 } from "./actions"
 
-export default async function CalendarSyncPage() {
+const GOOGLE_SYNC_STATUS_MESSAGES: Record<string, string> = {
+  access: "Calendar sync is available to provider accounts with external sync access.",
+  connected: "Google Calendar is connected.",
+  error: "Google Calendar could not be connected. Try again from this page.",
+  identity: "Google did not return the account identity needed to store this connection.",
+  refresh: "Google did not return a refresh token. Reconnect and approve offline calendar access.",
+  state: "Google Calendar connection expired. Start the connection again.",
+  unconfigured: "Google Calendar sync is not configured for this environment.",
+}
+
+export default async function CalendarSyncPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ google?: string }>
+}) {
   const session = await getCurrentSession()
 
   if (!session?.user?.id) {
@@ -29,12 +44,16 @@ export default async function CalendarSyncPage() {
     )
   }
 
-  const [connection] = await prisma.calendarConnection.findMany({
-    where: { userId: session.user.id, provider: "GOOGLE" },
-    include: { sources: { orderBy: [{ selectedForBusySync: "desc" }, { label: "asc" }] } },
-    orderBy: { updatedAt: "desc" },
-    take: 1,
-  })
+  const params = await searchParams
+  const googleStatus = params?.google ? GOOGLE_SYNC_STATUS_MESSAGES[params.google] : null
+  const [connection, access] = await Promise.all([
+    prisma.calendarConnection.findFirst({
+      where: { userId: session.user.id, provider: "GOOGLE", status: "ACTIVE" },
+      include: { sources: { orderBy: [{ selectedForBusySync: "desc" }, { label: "asc" }] } },
+      orderBy: { updatedAt: "desc" },
+    }),
+    getGoogleCalendarSyncAccess(session.user.id),
+  ])
   const configured = hasGoogleCalendarSyncConfig()
 
   return (
@@ -64,14 +83,33 @@ export default async function CalendarSyncPage() {
                 Google calendar sync is not configured for this environment.
               </AppInset>
             )}
+            {googleStatus && (
+              <AppInset className="p-4 text-sm text-muted-foreground">
+                {googleStatus}
+              </AppInset>
+            )}
+            {!access.allowed && (
+              <AppInset className="p-4 text-sm text-muted-foreground">
+                Calendar sync is available to provider accounts with external calendar sync access.
+              </AppInset>
+            )}
+            {!access.allowed && connection && (
+              <form action={disconnectGoogleCalendarAction}>
+                <input type="hidden" name="connectionId" value={connection.id} />
+                <Button type="submit" variant="outline">
+                  <Unplug className="mr-2 size-4" aria-hidden="true" />
+                  Disconnect Google Calendar
+                </Button>
+              </form>
+            )}
 
-            {configured && !connection && (
+            {configured && access.allowed && !connection && (
               <form action={connectGoogleCalendarAction}>
                 <Button type="submit">Connect Google Calendar</Button>
               </form>
             )}
 
-            {connection && (
+            {access.allowed && connection && (
               <>
                 <div className="grid gap-2 text-sm">
                   <p><span className="font-medium">Account:</span> {connection.accountEmail ?? "Google account"}</p>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { getCurrentSession } from "@/auth"
+import { assertGoogleCalendarSyncAccess } from "@/lib/calendar-sync-access"
 import { syncGoogleConnectionSources } from "@/lib/calendar-sync-service"
 import { prisma } from "@/lib/prisma"
 
@@ -16,16 +17,17 @@ export async function disconnectGoogleCalendarAction(formData: FormData) {
   const userId = await currentUserId()
   const connectionId = String(formData.get("connectionId") ?? "")
 
-  await prisma.calendarConnection.updateMany({
+  await prisma.calendarConnection.deleteMany({
     where: { id: connectionId, userId, provider: "GOOGLE" },
-    data: { status: "DISCONNECTED", statusReason: "Disconnected by user" },
   })
 
   revalidatePath("/calendar/sync")
+  revalidatePath("/calendar")
 }
 
 export async function refreshGoogleCalendarAction(formData: FormData) {
   const userId = await currentUserId()
+  await assertGoogleCalendarSyncAccess(userId)
   const connectionId = String(formData.get("connectionId") ?? "")
   const connection = await prisma.calendarConnection.findFirst({
     where: { id: connectionId, userId, provider: "GOOGLE", status: "ACTIVE" },
@@ -40,13 +42,14 @@ export async function refreshGoogleCalendarAction(formData: FormData) {
 
 export async function saveGoogleCalendarSourceSelectionAction(formData: FormData) {
   const userId = await currentUserId()
+  await assertGoogleCalendarSyncAccess(userId)
   const connectionId = String(formData.get("connectionId") ?? "")
   const selected = new Set(formData.getAll("sourceId").map(String))
   const connection = await prisma.calendarConnection.findFirst({
-    where: { id: connectionId, userId, provider: "GOOGLE" },
+    where: { id: connectionId, userId, provider: "GOOGLE", status: "ACTIVE" },
     include: { sources: { select: { id: true } } },
   })
-  if (!connection) throw new Error("Choose a Google calendar connection.")
+  if (!connection) throw new Error("Choose an active Google calendar connection.")
 
   await prisma.$transaction(connection.sources.map((source) => (
     prisma.externalCalendarSource.update({

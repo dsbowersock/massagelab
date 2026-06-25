@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer"
+
 import { GOOGLE_CALENDAR_SCOPES, MASSAGELAB_GOOGLE_CALENDAR_SUMMARY } from "./calendar-sync-constants.ts"
 
 type FetchImpl = typeof fetch
@@ -41,10 +43,20 @@ export type GoogleOutboundEventPayload = {
 
 export type GoogleCalendarAdapter = ReturnType<typeof createGoogleCalendarAdapter>
 
+export type GoogleCalendarIdTokenClaims = {
+  sub: string
+  email?: string
+}
+
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 
+/**
+ * Builds the explicit Google OAuth URL for provider calendar sync.
+ * This requests offline Calendar API scopes and keeps calendar consent separate
+ * from sign-in so MassageLab can store a provider-owned refresh token.
+ */
 export function buildGoogleCalendarAuthUrl({
   clientId,
   redirectUri,
@@ -66,10 +78,35 @@ export function buildGoogleCalendarAuthUrl({
   return url.toString()
 }
 
+/**
+ * Returns the safe, persisted error message for Google API status failures.
+ * Response bodies may contain account or token details, so callers only keep
+ * the HTTP status in stored sync errors.
+ */
 export function googleCalendarApiErrorMessage(status: number) {
   return `Google Calendar request failed with status ${status}.`
 }
 
+export function decodeGoogleCalendarIdTokenClaims(idToken?: string | null): GoogleCalendarIdTokenClaims | null {
+  const payload = idToken?.split(".")[1]
+  if (!payload) return null
+
+  try {
+    const value = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"))
+    return typeof value?.sub === "string" && value.sub
+      ? { sub: value.sub, email: typeof value.email === "string" ? value.email : undefined }
+      : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Creates a small Google Calendar REST adapter.
+ * Methods throw sanitized status errors for non-expected responses and return
+ * only the fields MassageLab needs for token storage, busy-time import, and
+ * generic outbound event writes.
+ */
 export function createGoogleCalendarAdapter({ fetchImpl = fetch }: { fetchImpl?: FetchImpl } = {}) {
   async function googleJson<T>(url: string, init: RequestInit, expectedStatuses = [200]) {
     const response = await fetchImpl(url, init)
@@ -102,7 +139,7 @@ export function createGoogleCalendarAdapter({ fetchImpl = fetch }: { fetchImpl?:
     redirectUri: string
     code: string
   }) {
-    return googleJson<{
+    const token = await googleJson<{
       access_token: string
       expires_in?: number
       refresh_token?: string
@@ -120,6 +157,12 @@ export function createGoogleCalendarAdapter({ fetchImpl = fetch }: { fetchImpl?:
         grant_type: "authorization_code",
       }),
     })
+    const claims = decodeGoogleCalendarIdTokenClaims(token.id_token)
+    return {
+      ...token,
+      googleUserId: claims?.sub,
+      googleUserEmail: claims?.email,
+    }
   }
 
   async function refreshAccessToken({

@@ -21,6 +21,14 @@ describe("external calendar busy conflicts", () => {
       startsAt,
       endsAt,
       busyBlocks: [
+        { startsAt: new Date("2026-07-01T12:00:00.000Z"), endsAt: new Date("2026-07-01T13:00:00.000Z"), status: "BUSY" },
+        { startsAt: new Date("2026-07-01T14:00:00.000Z"), endsAt: new Date("2026-07-01T14:30:00.000Z"), status: "BUSY" },
+      ],
+    }), false)
+    assert.equal(externalBusyBlockConflicts({
+      startsAt,
+      endsAt,
+      busyBlocks: [
         { startsAt: new Date("2026-07-01T12:00:00.000Z"), endsAt: new Date("2026-07-01T13:30:00.000Z"), status: "FREE" },
         { startsAt: new Date("2026-07-01T13:15:00.000Z"), endsAt: new Date("2026-07-01T13:45:00.000Z"), status: "CANCELLED" },
       ],

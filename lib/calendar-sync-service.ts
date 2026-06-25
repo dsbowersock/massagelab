@@ -147,6 +147,12 @@ export async function syncGoogleConnectionSources({
       itemsChanged += blocks.length
 
       await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM "CalendarConnection"
+          WHERE id = ${connection.id}
+          FOR UPDATE
+        `
         for (const block of blocks) {
           await tx.externalCalendarBusyBlock.upsert({
             where: {
@@ -415,38 +421,48 @@ export async function saveGoogleCalendarConnection({
 }) {
   const accessTokenExpiresAt = expiresIn ? new Date(Date.now() + expiresIn * 1000) : null
 
-  return prisma.calendarConnection.upsert({
-    where: {
-      userId_provider_providerAccountId: {
+  return prisma.$transaction(async (tx) => {
+    await tx.calendarConnection.deleteMany({
+      where: {
+        userId,
+        provider: GOOGLE_CALENDAR_PROVIDER,
+        providerAccountId: { not: providerAccountId },
+      },
+    })
+
+    return tx.calendarConnection.upsert({
+      where: {
+        userId_provider_providerAccountId: {
+          userId,
+          provider: GOOGLE_CALENDAR_PROVIDER,
+          providerAccountId,
+        },
+      },
+      create: {
         userId,
         provider: GOOGLE_CALENDAR_PROVIDER,
         providerAccountId,
+        accountEmail,
+        encryptedRefreshToken: encryptCalendarSyncSecret(refreshToken),
+        encryptedAccessToken: encryptCalendarSyncSecret(accessToken),
+        accessTokenExpiresAt,
+        grantedScopes: grantedScopes ?? "",
+        status: "ACTIVE",
+        statusReason: null,
+        dedicatedCalendarId,
+        dedicatedCalendarSummary,
       },
-    },
-    create: {
-      userId,
-      provider: GOOGLE_CALENDAR_PROVIDER,
-      providerAccountId,
-      accountEmail,
-      encryptedRefreshToken: encryptCalendarSyncSecret(refreshToken),
-      encryptedAccessToken: encryptCalendarSyncSecret(accessToken),
-      accessTokenExpiresAt,
-      grantedScopes: grantedScopes ?? "",
-      status: "ACTIVE",
-      statusReason: null,
-      dedicatedCalendarId,
-      dedicatedCalendarSummary,
-    },
-    update: {
-      accountEmail,
-      encryptedRefreshToken: encryptCalendarSyncSecret(refreshToken),
-      encryptedAccessToken: encryptCalendarSyncSecret(accessToken),
-      accessTokenExpiresAt,
-      grantedScopes: grantedScopes ?? "",
-      status: "ACTIVE",
-      statusReason: null,
-      dedicatedCalendarId,
-      dedicatedCalendarSummary,
-    },
+      update: {
+        accountEmail,
+        encryptedRefreshToken: encryptCalendarSyncSecret(refreshToken),
+        encryptedAccessToken: encryptCalendarSyncSecret(accessToken),
+        accessTokenExpiresAt,
+        grantedScopes: grantedScopes ?? "",
+        status: "ACTIVE",
+        statusReason: null,
+        dedicatedCalendarId,
+        dedicatedCalendarSummary,
+      },
+    })
   })
 }

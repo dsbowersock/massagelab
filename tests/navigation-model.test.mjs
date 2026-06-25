@@ -261,11 +261,13 @@ describe("Navigation IA model", () => {
     const ownerNavigation = resolveNavigation({
       authState: "signed-in",
       roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.externalCalendarSync],
       practiceRoles: [{ practiceId: "practice-1", role: "OWNER" }],
     })
     const therapistNavigation = resolveNavigation({
       authState: "signed-in",
       roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.externalCalendarSync],
       practiceRoles: [{ practiceId: "practice-1", role: "THERAPIST" }],
     })
     const staffNavigation = resolveNavigation({
@@ -295,6 +297,24 @@ describe("Navigation IA model", () => {
     assert.equal(staffNavigation.calendarSidebarActions.some((route) => route.id === "calendar-availability"), false)
     assert.equal(staffNavigation.calendarMenuActions.some((route) => route.id === "calendar-new-personal"), false)
     assert.equal(staffNavigation.calendarMenuActions.some((route) => route.id === "calendar-new-class"), true)
+  })
+
+  it("hides calendar sync unless the external sync feature is present", () => {
+    const withoutSyncFeature = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarFullScheduling],
+      practiceRoles: [{ practiceId: "practice-1", role: "THERAPIST" }],
+    })
+    const withSyncFeature = resolveNavigation({
+      authState: "signed-in",
+      roleAssignments: [{ role: "LICENSED_THERAPIST", status: "VERIFIED" }],
+      featureKeys: [FEATURE_KEYS.calendarFullScheduling, FEATURE_KEYS.externalCalendarSync],
+      practiceRoles: [{ practiceId: "practice-1", role: "THERAPIST" }],
+    })
+
+    assert.equal(withoutSyncFeature.calendarSidebarActions.some((route) => route.id === "calendar-sync"), false)
+    assert.equal(withSyncFeature.calendarSidebarActions.some((route) => route.id === "calendar-sync"), true)
   })
 
   it("resolves admin navigation only for verified admin-capable roles", () => {
