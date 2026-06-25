@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   buildCalendarWorkspaceEvent,
+  buildExternalCalendarBusyWorkspaceEvent,
   canRescheduleCalendarEvent,
   calendarEventEditable,
 } from "../lib/calendar-workspace.js"
@@ -49,5 +50,22 @@ describe("operator calendar workspace helpers", () => {
     assert.equal(event.extendedProps.clientLabel, "Client One")
     assert.equal(event.editable, true)
     assert.equal(event.durationEditable, false)
+  })
+
+  it("maps external busy blocks to read-only generic workspace events", () => {
+    const event = buildExternalCalendarBusyWorkspaceEvent({
+      id: "busy_1",
+      startsAt: "2026-07-01T13:00:00.000Z",
+      endsAt: "2026-07-01T14:00:00.000Z",
+      ownerUserId: "therapist_1",
+    })
+
+    assert.equal(event.id, "external-busy_1")
+    assert.equal(event.title, "Google busy")
+    assert.equal(event.editable, false)
+    assert.equal(event.durationEditable, false)
+    assert.equal(event.extendedProps.kind, "EXTERNAL_BUSY")
+    assert.equal(event.extendedProps.clientLabel, null)
+    assert.equal(event.extendedProps.providerLabel, null)
   })
 })

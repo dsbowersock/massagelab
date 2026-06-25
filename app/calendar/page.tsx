@@ -4,7 +4,7 @@ import { getCurrentSession } from "@/auth"
 import { createPracticeAction } from "@/app/calendar/actions"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { normalizeCalendarPreferences } from "@/lib/calendar-preferences"
-import { buildCalendarWorkspaceEvent } from "@/lib/calendar-workspace"
+import { buildCalendarWorkspaceEvent, buildExternalCalendarBusyWorkspaceEvent } from "@/lib/calendar-workspace"
 import { prisma } from "@/lib/prisma"
 import { AppSurface, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
@@ -93,12 +93,14 @@ export default async function CalendarPage({
 
   const membership = memberships.find((row) => row.practiceId === selectedPracticeId) ?? memberships[0]
   const practice = membership.practice
+  const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const windowEnd = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000)
   const [events, therapists, preferenceRow, availabilityRules, scheduleIntervals] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: {
         practiceId: practice.id,
-        startsAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        endsAt: { lte: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) },
+        startsAt: { gte: windowStart },
+        endsAt: { lte: windowEnd },
       },
       include: {
         owner: { select: { name: true, email: true } },
@@ -157,7 +159,30 @@ export default async function CalendarPage({
     id: therapist.userId,
     label: therapist.user.name ?? therapist.user.email ?? "Provider",
   }))
-  const workspaceEvents = events.map((event) => buildCalendarWorkspaceEvent(event, preferences))
+  const providerIds = providers.map((provider) => provider.id)
+  const externalBusyBlocks = providerIds.length > 0
+    ? await prisma.externalCalendarBusyBlock.findMany({
+      where: {
+        ownerUserId: { in: providerIds },
+        status: "BUSY",
+        connection: { status: "ACTIVE" },
+        startsAt: { lt: windowEnd },
+        endsAt: { gt: windowStart },
+      },
+      select: {
+        id: true,
+        startsAt: true,
+        endsAt: true,
+        ownerUserId: true,
+      },
+      take: 500,
+      orderBy: { startsAt: "asc" },
+    })
+    : []
+  const workspaceEvents = [
+    ...events.map((event) => buildCalendarWorkspaceEvent(event, preferences)),
+    ...externalBusyBlocks.map((busyBlock) => buildExternalCalendarBusyWorkspaceEvent(busyBlock)),
+  ]
   const providerAvailability = [
     ...availabilityRules.map((rule) => ({
       providerId: rule.therapistId,
