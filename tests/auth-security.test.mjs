@@ -81,6 +81,23 @@ describe("Auth security helpers", () => {
     }
   })
 
+  it("names custom encryption keys in production errors", () => {
+    const previousNodeEnv = process.env.NODE_ENV
+
+    try {
+      process.env.NODE_ENV = "production"
+
+      assert.throws(() => encryptSecret("secret", "", "CALENDAR_SYNC_ENCRYPTION_KEY"), /CALENDAR_SYNC_ENCRYPTION_KEY/)
+      assert.throws(() => decryptSecret("iv.tag.payload", "", "CALENDAR_SYNC_ENCRYPTION_KEY"), /CALENDAR_SYNC_ENCRYPTION_KEY/)
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV
+      } else {
+        process.env.NODE_ENV = previousNodeEnv
+      }
+    }
+  })
+
   it("generates and verifies single-use backup code material", async () => {
     const [backupCode] = generateBackupCodes(1)
     const codeHash = await hashBackupCode(backupCode)
