@@ -142,6 +142,23 @@ describe("App settings helpers", () => {
     assert.match(topBarSource, /aria-label="Open quick actions"/)
   })
 
+  it("keeps the mobile main bar controls styled as physical buttons", () => {
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const themeSwitcherSource = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
+
+    assert.match(globalsSource, /--ml-site-blue:\s*225 73% 57%/)
+    assert.match(globalsSource, /\.ml-main-bar-layout \{[\s\S]*align-items: center/)
+    assert.match(globalsSource, /\.ml-main-bar-edge \{[\s\S]*align-items: center/)
+    assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*border: 1px solid hsl\(var\(--input\)\)/)
+    assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*background: hsl\(var\(--background\)\)/)
+    assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*inset 0 -2px 0/)
+    assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-main-bar-plus \{[\s\S]*width: 2\.625rem/)
+    assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-main-bar-plus \{[\s\S]*outline-offset: -2px/)
+    assert.match(themeSwitcherSource, /data-theme-value=\{value\}/)
+    assert.match(themeSwitcherSource, /value === "dark"/)
+    assert.match(themeSwitcherSource, /--ml-site-blue/)
+  })
+
   it("uses a drawer only in narrow portrait phone layouts", () => {
     assert.equal(getSidebarRenderMode({ width: 390, height: 844 }), "drawer")
     assert.equal(getSidebarRenderMode({ width: 655, height: 681 }), "desktop")
