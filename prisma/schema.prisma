@@ -317,6 +317,36 @@ enum CalendarAvailabilityOverrideKind {
   HOLIDAY
 }
 
+enum ExternalCalendarProvider {
+  GOOGLE
+}
+
+enum CalendarConnectionStatus {
+  ACTIVE
+  NEEDS_REAUTH
+  DISCONNECTED
+  ERROR
+}
+
+enum ExternalCalendarBusyStatus {
+  BUSY
+  FREE
+  CANCELLED
+}
+
+enum CalendarSyncRunDirection {
+  INBOUND
+  OUTBOUND
+  WEBHOOK_REFRESH
+}
+
+enum CalendarSyncRunStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  PARTIAL
+}
+
 enum BookingApprovalMode {
   MANUAL
   AUTO_CONFIRM
@@ -419,6 +449,8 @@ model User {
   ownedCalendarEvents   CalendarEvent[]          @relation("CalendarEventOwner")
   createdCalendarEvents CalendarEvent[]          @relation("CalendarEventCreator")
   calendarBlocks        CalendarBlock[]          @relation("CalendarBlockTherapist")
+  calendarConnections   CalendarConnection[]     @relation("CalendarConnectionUser")
+  externalCalendarBusyBlocks ExternalCalendarBusyBlock[] @relation("ExternalCalendarBusyBlockOwner")
   appointmentsAsTherapist Appointment[]           @relation("AppointmentTherapist")
   createdAppointments   Appointment[]            @relation("AppointmentCreator")
   createdBookingGroups  BookingGroup[]           @relation("BookingGroupCreator")
@@ -2358,6 +2390,7 @@ model CalendarEvent {
   resourceBookings   CalendarResourceBooking[]
   auditLogs          CalendarAuditLog[]
   notificationIntents CalendarNotificationIntent[]
+  externalCalendarLinks ExternalCalendarEventLink[]
 
   @@index([practiceId, startsAt])
   @@index([ownerUserId, startsAt])
@@ -2458,6 +2491,127 @@ model CalendarNotificationIntent {
   @@index([eventId, createdAt])
   @@index([recipientUserId, deliveryStatus])
   @@index([actorUserId, createdAt])
+}
+
+model CalendarConnection {
+  id                         String                   @id @default(cuid())
+  userId                     String
+  provider                   ExternalCalendarProvider
+  providerAccountId          String
+  accountEmail               String?
+  encryptedRefreshToken      String                   @db.Text
+  encryptedAccessToken       String?                  @db.Text
+  accessTokenExpiresAt       DateTime?
+  grantedScopes              String                   @default("")
+  status                     CalendarConnectionStatus @default(ACTIVE)
+  statusReason               String?
+  dedicatedCalendarId        String?
+  dedicatedCalendarSummary   String?
+  lastSyncedAt               DateTime?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  user                       User                     @relation("CalendarConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
+  sources                    ExternalCalendarSource[]
+  busyBlocks                 ExternalCalendarBusyBlock[]
+  eventLinks                 ExternalCalendarEventLink[]
+  syncRuns                   CalendarSyncRun[]
+
+  @@unique([userId, provider, providerAccountId])
+  @@unique([userId, provider], where: { status: "ACTIVE" }, map: "CalendarConnection_one_active_provider_key")
+  @@index([userId, status])
+  @@index([provider, status])
+}
+
+model ExternalCalendarSource {
+  id                       String             @id @default(cuid())
+  connectionId             String
+  providerCalendarId       String
+  label                    String?
+  timezone                 String?
+  selectedForBusySync      Boolean            @default(false)
+  syncToken                String?            @db.Text
+  lastFullSyncAt           DateTime?
+  lastIncrementalSyncAt    DateTime?
+  lastErrorCode            String?
+  lastErrorMessage         String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  connection               CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  busyBlocks               ExternalCalendarBusyBlock[]
+  syncRuns                 CalendarSyncRun[]
+
+  @@unique([connectionId, providerCalendarId])
+  @@index([connectionId, selectedForBusySync])
+}
+
+model ExternalCalendarBusyBlock {
+  id                  String                     @id @default(cuid())
+  connectionId        String
+  sourceId            String
+  ownerUserId         String
+  provider            ExternalCalendarProvider
+  providerCalendarId  String
+  providerEventId     String
+  providerEventEtag   String?
+  startsAt            DateTime
+  endsAt              DateTime
+  timezone            String?
+  allDay              Boolean                    @default(false)
+  transparency        String?
+  status              ExternalCalendarBusyStatus @default(BUSY)
+  cancelledAt         DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  connection          CalendarConnection         @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  source              ExternalCalendarSource     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  owner               User                       @relation("ExternalCalendarBusyBlockOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, providerEventId])
+  @@index([ownerUserId, startsAt, endsAt, status])
+  @@index([connectionId, updatedAt])
+}
+
+model ExternalCalendarEventLink {
+  id                  String                   @id @default(cuid())
+  connectionId        String
+  calendarEventId     String
+  provider            ExternalCalendarProvider
+  providerCalendarId  String
+  providerEventId     String?
+  providerEventEtag   String?
+  lastPushedAt        DateTime?
+  lastErrorCode       String?
+  lastErrorMessage    String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  connection          CalendarConnection       @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  calendarEvent       CalendarEvent            @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, calendarEventId])
+  @@unique([provider, providerCalendarId, providerEventId])
+  @@index([calendarEventId])
+}
+
+model CalendarSyncRun {
+  id                String                   @id @default(cuid())
+  connectionId      String
+  sourceId          String?
+  direction         CalendarSyncRunDirection
+  status            CalendarSyncRunStatus
+  startedAt         DateTime                 @default(now())
+  finishedAt        DateTime?
+  windowStart       DateTime?
+  windowEnd         DateTime?
+  itemsSeen         Int                      @default(0)
+  itemsChanged      Int                      @default(0)
+  errorCode         String?
+  errorMessage      String?
+  connection        CalendarConnection       @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  source            ExternalCalendarSource?  @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([connectionId, startedAt])
+  @@index([sourceId, startedAt])
+  @@index([status, startedAt])
 }
 
 model StripeCustomer {

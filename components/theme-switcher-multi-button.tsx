@@ -251,11 +251,15 @@ export function ThemeSwitcherMultiButton({
         {themes.map(({ value, icon: Icon, label, shortLabel }) => {
           const isActive = mounted && settings.themeMode === value
           const isSelected = settings.themeMode === value
+          const activeToneClass = value === "dark"
+            ? "data-[state=on]:bg-[hsl(var(--ml-site-blue))] data-[state=on]:text-[hsl(var(--ml-site-blue-foreground))] data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--ml-site-blue-glow)/0.34)]"
+            : "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--brand-orange-glow)/0.34)]"
 
           return (
             <ToggleGroupItem
               key={value}
               value={value}
+              data-theme-value={value}
               data-theme-selected={isSelected ? "true" : "false"}
               aria-label={label}
               title={label}
@@ -280,7 +284,8 @@ export function ThemeSwitcherMultiButton({
                 suppressCompactActivationRef.current = false
               }}
               className={cn(
-                "relative size-8 min-w-0 rounded-full p-0 text-muted-foreground transition-[background-color,color,box-shadow,transform] hover:bg-transparent hover:text-foreground active:translate-y-px data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--brand-orange-glow)/0.34)]",
+                "relative size-8 min-w-0 rounded-full p-0 text-muted-foreground transition-[background-color,color,box-shadow,transform] hover:bg-transparent hover:text-foreground active:translate-y-px",
+                activeToneClass,
                 !isSelected && !compactExpanded && "max-md:hidden",
                 !mounted && "pointer-events-none animate-pulse bg-muted/70",
               )}

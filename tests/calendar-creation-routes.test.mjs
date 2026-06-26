@@ -157,13 +157,17 @@ describe("calendar creation route wiring", () => {
     assert.match(eventActions, /ensureAppointmentPracticeClient/)
   })
 
-  it("moves calendar controls into the operator toolbar and hides team controls for solo providers", async () => {
+  it("keeps calendar controls inside the workspace and hides team controls for solo providers", async () => {
     const workspace = await readFile("app/calendar/calendar-workspace.tsx", "utf8")
 
-    assert.match(workspace, /useCalendarOperatorToolbarControls/)
+    assert.doesNotMatch(workspace, /useCalendarOperatorToolbarControls/)
+    assert.match(workspace, /\{toolbarControls\}/)
     assert.match(workspace, /CalendarDisplaySettings/)
     assert.match(workspace, /const hasMultipleProviders = providers\.length > 1/)
     assert.match(workspace, /showProviderControls=\{hasMultipleProviders\}/)
+    assert.match(workspace, /flex-wrap/)
+    assert.doesNotMatch(workspace, /SheetTrigger/)
+    assert.doesNotMatch(workspace, /SlidersHorizontal/)
     assert.equal(workspace.includes("<CardHeader"), false)
     assert.equal(workspace.includes("CardTitle"), false)
   })
@@ -303,6 +307,14 @@ describe("calendar creation route wiring", () => {
     assert.match(
       await readFile("app/calendar/actions/availability.ts", "utf8"),
       /SELECT id[\s\S]+FROM "CalendarEvent"[\s\S]+ORDER BY id[\s\S]+FOR UPDATE/,
+    )
+    assert.match(
+      await readFile("app/calendar/actions/availability.ts", "utf8"),
+      /FROM "CalendarConnection"[\s\S]+"provider" = 'GOOGLE'[\s\S]+FOR UPDATE/,
+    )
+    assert.match(
+      await readFile("lib/calendar-sync-service.ts", "utf8"),
+      /FROM "CalendarConnection"[\s\S]+WHERE id = \$\{connection\.id\}[\s\S]+FOR UPDATE/,
     )
   })
 

@@ -205,10 +205,10 @@ test("main bar exposes home music clock quick create theme calendar and more con
   const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
   await expect(quickCreate).toBeVisible()
   const quickCreateBox = await quickCreate.boundingBox()
-  expect(quickCreateBox?.width ?? 0).toBeGreaterThanOrEqual(44)
-  expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(45)
-  expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(44)
-  expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(45)
+  expect(quickCreateBox?.width ?? 0).toBeGreaterThanOrEqual(42)
+  expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(43)
+  expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(42)
+  expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(43)
   const homeButtonStyle = await page.getByRole("link", { name: /^Home$/i }).evaluate((element) => {
     const button = element.closest(".ml-main-bar-button")
     const styles = button ? window.getComputedStyle(button) : null

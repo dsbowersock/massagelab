@@ -17,6 +17,9 @@
     --brand-orange: 25.2 100% 55.1%;
     --brand-orange-glow: 27.6 100% 58.2%;
     --brand-orange-soft: 21.8 100% 87.1%;
+    --ml-site-blue: 225 73% 57%;
+    --ml-site-blue-glow: 225 90% 64%;
+    --ml-site-blue-foreground: 0 0% 100%;
 
     /* Core theme colors */
     --background: 0 0% 10%;
@@ -71,6 +74,9 @@
     --brand-orange: 25.2 100% 55.1%;
     --brand-orange-glow: 27.6 100% 58.2%;
     --brand-orange-soft: 21.8 100% 87.1%;
+    --ml-site-blue: 225 73% 57%;
+    --ml-site-blue-glow: 225 90% 64%;
+    --ml-site-blue-foreground: 0 0% 100%;
 
     --background: 30 18% 97%;
     --foreground: 0 0% 9%;
@@ -261,11 +267,14 @@
     grid-template-columns: minmax(2.5rem, 1fr) auto minmax(2.5rem, 1fr);
     align-items: center;
     gap: 0.1rem;
+    min-height: 3.6rem;
     width: 100%;
   }
 
   .ml-main-bar-edge {
     display: flex;
+    height: 100%;
+    align-items: center;
     min-width: 0;
   }
 
@@ -285,19 +294,26 @@
     gap: 0.18rem;
   }
 
+  .ml-main-bar-cluster > div {
+    display: flex;
+    align-items: center;
+  }
+
   .ml-main-bar-button {
-    height: 3.35rem;
+    height: 3.1rem;
     width: 2.62rem;
     min-width: 0;
+    align-items: center;
+    justify-content: center;
     flex-direction: column;
-    gap: 0.12rem;
-    border: 1px solid hsl(var(--border) / 0.62);
-    border-radius: 0.95rem;
-    background: hsl(var(--card) / 0.72);
+    gap: 0;
+    border: 1px solid hsl(var(--input));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
     box-shadow:
-      inset 0 1px 0 hsl(var(--foreground) / 0.08),
-      0 0.35rem 0.95rem hsl(var(--background) / 0.2);
-    padding: 0.24rem 0.12rem;
+      inset 0 -2.5px 0 hsl(var(--foreground) / 0.08),
+      0 1px 6px hsl(var(--background) / 0.28);
+    padding: 0;
     font-size: 0.58rem;
     line-height: 0.95;
     color: hsl(var(--foreground) / 0.84);
@@ -305,12 +321,19 @@
 
   .ml-main-bar-button:hover,
   .ml-main-bar-button:focus-visible {
-    border-color: hsl(var(--primary) / 0.55);
-    background: hsl(var(--accent) / 0.9);
-    color: hsl(var(--foreground));
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
     box-shadow:
-      inset 0 1px 0 hsl(var(--foreground) / 0.1),
-      0 0.45rem 1.15rem hsl(var(--brand-orange-glow) / 0.18);
+      inset 0 -2.5px 0 hsl(var(--foreground) / 0.08),
+      0 2px 8px hsl(var(--background) / 0.32);
+  }
+
+  .ml-main-bar-button:active {
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--background) / 0.45),
+      inset 0 -1px 0 hsl(var(--foreground) / 0.08),
+      0 0.12rem 0.32rem hsl(var(--background) / 0.28);
   }
 
   .ml-main-bar-button svg {
@@ -319,7 +342,7 @@
   }
 
   .ml-main-bar-button span:not(.sr-only) {
-    display: block;
+    display: none;
     max-width: 2.4rem;
     overflow: hidden;
     text-align: center;
@@ -333,14 +356,20 @@
   }
 
   .ml-mobile-main-bar .ml-main-bar-plus {
-    width: 2.78125rem;
-    height: 2.78125rem;
-    border: 1px solid hsl(var(--primary) / 0.58);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.625rem;
+    height: 2.625rem;
+    border: 0.75px solid hsl(var(--primary-foreground) / 0.28);
+    outline: 1px solid hsl(var(--primary) / 0.58);
+    outline-offset: -2px;
     background:
       linear-gradient(145deg, hsl(var(--brand-orange-soft) / 0.94) 0%, hsl(var(--primary) / 0.98) 54%, hsl(21 88% 43% / 0.98) 100%);
     box-shadow:
-      inset 0 1px 0 hsl(var(--primary-foreground) / 0.24),
-      0 0.18rem 0.45rem hsl(var(--background) / 0.28);
+      inset 0 1px 0 hsl(var(--primary-foreground) / 0.32),
+      inset 0 -2px 0 hsl(21 88% 31% / 0.44),
+      0 0.16rem 0.38rem hsl(var(--background) / 0.3);
     color: hsl(var(--primary-foreground));
     padding: 0;
   }
@@ -348,12 +377,14 @@
   .ml-mobile-main-bar .ml-main-bar-plus:hover,
   .ml-mobile-main-bar .ml-main-bar-plus:focus-visible,
   .ml-mobile-main-bar .ml-main-bar-plus[aria-expanded="true"] {
-    border-color: hsl(var(--primary) / 0.72);
+    border-color: hsl(var(--primary-foreground) / 0.34);
+    outline-color: hsl(var(--primary) / 0.72);
     background:
       linear-gradient(145deg, hsl(var(--brand-orange-soft) / 1) 0%, hsl(var(--primary) / 1) 50%, hsl(21 88% 43% / 1) 100%);
     box-shadow:
-      inset 0 1px 0 hsl(var(--primary-foreground) / 0.28),
-      0 0.22rem 0.5rem hsl(var(--background) / 0.32);
+      inset 0 1px 0 hsl(var(--primary-foreground) / 0.34),
+      inset 0 -2px 0 hsl(21 88% 31% / 0.5),
+      0 0.2rem 0.46rem hsl(var(--background) / 0.34);
   }
 
   @media (max-width: 767px) {

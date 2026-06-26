@@ -117,7 +117,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
       <nav
         aria-label="MassageLab main navigation"
         data-sidebar-position={settings.sidebarPosition}
-        className="ml-mobile-main-bar fixed inset-x-0 bottom-0 z-[10025] border-t border-border/80 bg-background/95 px-1.5 pb-[max(var(--ml-safe-bottom),0.35rem)] pt-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden"
+        className="ml-mobile-main-bar fixed inset-x-0 bottom-0 z-[10025] border-t border-border/80 bg-background/95 px-1.5 pb-[var(--ml-safe-bottom)] pt-0 shadow-2xl shadow-black/35 backdrop-blur md:hidden"
       >
         <div className="ml-main-bar-layout">
           <div className="ml-main-bar-edge ml-main-bar-edge-start">

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarDays, CalendarOff, ClipboardList, Plus, Settings2, UsersRound } from "lucide-react"
+import { CalendarClock, CalendarDays, CalendarOff, ClipboardList, Plus, Settings2, UsersRound } from "lucide-react"
 import { getCurrentSession } from "@/auth"
 import { isCalendarDatabaseReady } from "@/lib/calendar-readiness"
 import { prisma } from "@/lib/prisma"
@@ -43,6 +43,12 @@ const flowCards = [
     description: "Review client appointment requests and confirm or decline them.",
     href: "/calendar/requests",
     icon: CalendarDays,
+  },
+  {
+    title: "Calendar sync",
+    description: "Connect provider Google calendars for busy-time conflict checks.",
+    href: "/calendar/sync",
+    icon: CalendarClock,
   },
 ]
 
