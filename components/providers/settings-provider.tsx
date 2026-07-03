@@ -9,11 +9,13 @@ type SidebarTriggerPosition = "top" | "bottom"
 export type AppBarPosition = "top" | "bottom"
 export type ThemeMode = "dark" | "light" | "system"
 export type ResolvedThemeMode = "dark" | "light"
+export type AmbientMotionMode = "system" | "reduced"
 
 interface Settings {
   appBarPosition: AppBarPosition
   sidebarPosition: SidebarPosition
   sidebarTriggerPosition: SidebarTriggerPosition
+  ambientMotionMode: AmbientMotionMode
   themeMode: ThemeMode
 }
 

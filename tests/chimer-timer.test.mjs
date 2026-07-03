@@ -13,6 +13,12 @@ import {
   normalizeInteger,
   sanitizeChimerSettings,
 } from "../lib/chimer-timer.js"
+import {
+  combineTileGridFadeParts,
+  formatTileGridFadeDuration,
+  splitTileGridFadeSeconds,
+  TILE_GRID_FADE_SECONDS_MAX,
+} from "../lib/tile-grid-background.js"
 
 describe("Chimer timer helpers", () => {
   it("converts selected hours and minutes into milliseconds", () => {
@@ -247,5 +253,461 @@ describe("Chimer timer helpers", () => {
       movingBackgroundMainColor: "#123abc",
       movingBackgroundOrbColor: "bad",
     }).movingBackgroundOrbColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor)
+  })
+
+  it("normalizes Spotlight New background controls", () => {
+    const settings = sanitizeChimerSettings({
+      spotlightColor: "#aabbcc",
+      spotlightOpacity: 9,
+      spotlightWidth: 120,
+      spotlightHeight: 3000,
+      spotlightSmallWidth: 500,
+      spotlightTranslateY: -900,
+      spotlightDuration: 99,
+      spotlightXOffset: -10,
+    })
+
+    assert.equal(settings.spotlightColor, "#AABBCC")
+    assert.equal(settings.spotlightOpacity, 1.5)
+    assert.equal(settings.spotlightWidth, 240)
+    assert.equal(settings.spotlightHeight, 1800)
+    assert.equal(settings.spotlightSmallWidth, 420)
+    assert.equal(settings.spotlightTranslateY, -650)
+    assert.equal(settings.spotlightDuration, 16)
+    assert.equal(settings.spotlightXOffset, 0)
+  })
+
+  it("normalizes Animate UI Gradient background controls", () => {
+    const settings = sanitizeChimerSettings({
+      animateUiGradientPrimaryColor: "#112233",
+      animateUiGradientHarmony: "triad",
+      animateUiGradientOpacity: 99,
+    })
+
+    assert.equal(settings.animateUiGradientPrimaryColor, "#112233")
+    assert.equal(settings.animateUiGradientHarmony, "triad")
+    assert.equal(settings.animateUiGradientOpacity, 1)
+    assert.equal(
+      sanitizeChimerSettings({ animateUiGradientFromColor: "#445566" }).animateUiGradientPrimaryColor,
+      "#445566",
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiGradientPrimaryColor: "bad" }).animateUiGradientPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.animateUiGradientPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiGradientHarmony: "rainbow" }).animateUiGradientHarmony,
+      DEFAULT_CHIMER_SETTINGS.animateUiGradientHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiGradientOpacity: "clear" }).animateUiGradientOpacity,
+      DEFAULT_CHIMER_SETTINGS.animateUiGradientOpacity,
+    )
+  })
+
+  it("normalizes Animate UI Stars background controls", () => {
+    const settings = sanitizeChimerSettings({
+      animateUiStarsColor: "#aabbcc",
+      animateUiStarsSpeed: 999,
+      animateUiStarsDensity: 0,
+      animateUiStarsParallax: 9,
+    })
+
+    assert.equal(settings.animateUiStarsColor, "#AABBCC")
+    assert.equal(settings.animateUiStarsSpeed, 120)
+    assert.equal(settings.animateUiStarsDensity, 0.25)
+    assert.equal(settings.animateUiStarsParallax, 0.12)
+    assert.equal(
+      sanitizeChimerSettings({ animateUiStarsColor: "white" }).animateUiStarsColor,
+      DEFAULT_CHIMER_SETTINGS.animateUiStarsColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiStarsSpeed: "fast" }).animateUiStarsSpeed,
+      DEFAULT_CHIMER_SETTINGS.animateUiStarsSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiStarsDensity: "dense" }).animateUiStarsDensity,
+      DEFAULT_CHIMER_SETTINGS.animateUiStarsDensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiStarsParallax: "more" }).animateUiStarsParallax,
+      DEFAULT_CHIMER_SETTINGS.animateUiStarsParallax,
+    )
+  })
+
+  it("normalizes Animate UI Hole background controls", () => {
+    const settings = sanitizeChimerSettings({
+      animateUiHoleStrokeColor: "#112233",
+      animateUiHoleParticleColor: "#aabbcc",
+      animateUiHoleLineCount: 999,
+      animateUiHoleDiscCount: 0,
+    })
+
+    assert.equal(settings.animateUiHoleStrokeColor, "#112233")
+    assert.equal(settings.animateUiHoleParticleColor, "#AABBCC")
+    assert.equal(settings.animateUiHoleLineCount, 96)
+    assert.equal(settings.animateUiHoleDiscCount, 12)
+    assert.equal(
+      sanitizeChimerSettings({ animateUiHoleStrokeColor: "gray" }).animateUiHoleStrokeColor,
+      DEFAULT_CHIMER_SETTINGS.animateUiHoleStrokeColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiHoleParticleColor: "white" }).animateUiHoleParticleColor,
+      DEFAULT_CHIMER_SETTINGS.animateUiHoleParticleColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiHoleLineCount: "many" }).animateUiHoleLineCount,
+      DEFAULT_CHIMER_SETTINGS.animateUiHoleLineCount,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ animateUiHoleDiscCount: "few" }).animateUiHoleDiscCount,
+      DEFAULT_CHIMER_SETTINGS.animateUiHoleDiscCount,
+    )
+  })
+
+  it("normalizes Chamaac Light Speed background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacLightSpeedWarpSpeed: 0,
+      chamaacLightSpeedWarpSpeedVersion: 2,
+      chamaacLightSpeedParticleCount: 9999,
+      chamaacLightSpeedLightColor: "#33b2ff",
+      chamaacLightSpeedIntensity: 99,
+      chamaacLightSpeedRadius: 0,
+      chamaacLightSpeedCylinderLength: 999,
+    })
+
+    assert.equal(settings.chamaacLightSpeedWarpSpeed, 0.1)
+    assert.equal(settings.chamaacLightSpeedWarpSpeedVersion, 2)
+    assert.equal(settings.chamaacLightSpeedParticleCount, 200)
+    assert.equal(settings.chamaacLightSpeedLightColor, "#33B2FF")
+    assert.equal(settings.chamaacLightSpeedIntensity, 6)
+    assert.equal(settings.chamaacLightSpeedRadius, 6)
+    assert.equal(settings.chamaacLightSpeedCylinderLength, 300)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLightSpeedWarpSpeed: 0.1 }).chamaacLightSpeedWarpSpeed,
+      1,
+    )
+    assert.equal(
+      sanitizeChimerSettings({
+        chamaacLightSpeedWarpSpeed: 1,
+        chamaacLightSpeedWarpSpeedVersion: 2,
+      }).chamaacLightSpeedWarpSpeed,
+      1,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLightSpeedWarpSpeed: "warp" }).chamaacLightSpeedWarpSpeed,
+      DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedWarpSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLightSpeedParticleCount: "many" }).chamaacLightSpeedParticleCount,
+      DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedParticleCount,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLightSpeedLightColor: "purple" }).chamaacLightSpeedLightColor,
+      DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedLightColor,
+    )
+  })
+
+  it("normalizes Chamaac Electric Mist background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacElectricMistColor: "#33b2ff",
+      chamaacElectricMistSpeed: 999,
+      chamaacElectricMistControlVersion: 2,
+      chamaacElectricMistDetail: 0,
+      chamaacElectricMistDistortion: 99,
+      chamaacElectricMistBrightness: 0,
+    })
+
+    assert.equal(settings.chamaacElectricMistColor, "#33B2FF")
+    assert.equal(settings.chamaacElectricMistSpeed, 400)
+    assert.equal(settings.chamaacElectricMistControlVersion, 2)
+    assert.equal(settings.chamaacElectricMistDetail, 0.5)
+    assert.equal(settings.chamaacElectricMistDistortion, 8)
+    assert.equal(settings.chamaacElectricMistBrightness, 1)
+    const legacySettings = sanitizeChimerSettings({
+      chamaacElectricMistSpeed: 3.5,
+      chamaacElectricMistBrightness: 0.5,
+    })
+    assert.equal(legacySettings.chamaacElectricMistSpeed, 350)
+    assert.equal(legacySettings.chamaacElectricMistBrightness, 50)
+    assert.equal(legacySettings.chamaacElectricMistControlVersion, 2)
+    assert.equal(
+      sanitizeChimerSettings({
+        chamaacElectricMistControlVersion: 2,
+        chamaacElectricMistBrightness: 1,
+      }).chamaacElectricMistBrightness,
+      1,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacElectricMistColor: "blue" }).chamaacElectricMistColor,
+      DEFAULT_CHIMER_SETTINGS.chamaacElectricMistColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacElectricMistSpeed: "fast" }).chamaacElectricMistSpeed,
+      DEFAULT_CHIMER_SETTINGS.chamaacElectricMistSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacElectricMistDetail: "dense" }).chamaacElectricMistDetail,
+      DEFAULT_CHIMER_SETTINGS.chamaacElectricMistDetail,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacElectricMistDistortion: "warp" }).chamaacElectricMistDistortion,
+      DEFAULT_CHIMER_SETTINGS.chamaacElectricMistDistortion,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacElectricMistBrightness: "bright" }).chamaacElectricMistBrightness,
+      DEFAULT_CHIMER_SETTINGS.chamaacElectricMistBrightness,
+    )
+  })
+
+  it("normalizes Chamaac Synthesis background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacSynthesisPaletteMode: "harmony",
+      chamaacSynthesisPrimaryColor: "#0ea5e9",
+      chamaacSynthesisHarmony: "triad",
+      chamaacSynthesisColorOne: "#0f172a",
+      chamaacSynthesisColorTwo: "purple",
+      chamaacSynthesisColorThree: "#0ea5e9",
+      chamaacSynthesisSpeed: 99,
+      chamaacSynthesisComplexity: 999,
+      chamaacSynthesisScale: 0,
+      chamaacSynthesisDistortion: -1,
+      chamaacSynthesisGlowIntensity: 99,
+      chamaacSynthesisFlowFrequency: 999,
+    })
+
+    assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
+    assert.equal(settings.chamaacSynthesisPrimaryColor, "#0EA5E9")
+    assert.equal(settings.chamaacSynthesisHarmony, "triad")
+    assert.equal(settings.chamaacSynthesisColorOne, "#0F172A")
+    assert.equal(settings.chamaacSynthesisColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisColorTwo)
+    assert.equal(settings.chamaacSynthesisColorThree, "#0EA5E9")
+    assert.equal(settings.chamaacSynthesisSpeed, 2)
+    assert.equal(settings.chamaacSynthesisComplexity, 20)
+    assert.equal(settings.chamaacSynthesisScale, 0.1)
+    assert.equal(settings.chamaacSynthesisDistortion, 0)
+    assert.equal(settings.chamaacSynthesisGlowIntensity, 2)
+    assert.equal(settings.chamaacSynthesisFlowFrequency, 10)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacSynthesisSpeed: "fast" }).chamaacSynthesisSpeed,
+      DEFAULT_CHIMER_SETTINGS.chamaacSynthesisSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ chamaacSynthesisSpeed: 0 }).chamaacSynthesisSpeed, 0.004)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacSynthesisPaletteMode: "demo" }).chamaacSynthesisPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacSynthesisPrimaryColor: "cyan" }).chamaacSynthesisPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacSynthesisHarmony: "rainbow" }).chamaacSynthesisHarmony,
+      DEFAULT_CHIMER_SETTINGS.chamaacSynthesisHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacSynthesisComplexity: "many" }).chamaacSynthesisComplexity,
+      DEFAULT_CHIMER_SETTINGS.chamaacSynthesisComplexity,
+    )
+  })
+
+  it("normalizes Lamp Section Header background controls", () => {
+    const settings = sanitizeChimerSettings({
+      lampBackgroundColor: "navy",
+      lampColor: "#22d3ee",
+      lampGlowOpacity: 9,
+      lampBeamWidth: 120,
+      lampGlowWidth: 1200,
+      lampVerticalOffset: -900,
+      lampPulseSpeed: 99,
+    })
+
+    assert.equal(settings.lampBackgroundColor, DEFAULT_CHIMER_SETTINGS.lampBackgroundColor)
+    assert.equal(settings.lampColor, "#22D3EE")
+    assert.equal(settings.lampGlowOpacity, 0.95)
+    assert.equal(settings.lampBeamWidth, 240)
+    assert.equal(settings.lampGlowWidth, 900)
+    assert.equal(settings.lampVerticalOffset, -320)
+    assert.equal(settings.lampPulseSpeed, 18)
+  })
+
+  it("normalizes Pixel Liquid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      pixelLiquidBackgroundColor: "#0a0b0c",
+      pixelLiquidBaseColor: "#123abc",
+      pixelLiquidAccentColor: "not-a-color",
+      pixelLiquidHighlightColor: "#fedcba",
+      pixelLiquidPixelSize: 999,
+      pixelLiquidDetail: "ultra",
+      pixelLiquidMotionSpeed: 99,
+    })
+
+    assert.equal(settings.pixelLiquidBackgroundColor, "#0A0B0C")
+    assert.equal(settings.pixelLiquidBaseColor, "#123ABC")
+    assert.equal(settings.pixelLiquidAccentColor, DEFAULT_CHIMER_SETTINGS.pixelLiquidAccentColor)
+    assert.equal(settings.pixelLiquidHighlightColor, "#FEDCBA")
+    assert.equal(settings.pixelLiquidPixelSize, 18)
+    assert.equal(settings.pixelLiquidDetail, DEFAULT_CHIMER_SETTINGS.pixelLiquidDetail)
+    assert.equal(settings.pixelLiquidMotionSpeed, 1.4)
+
+    const legacyPaletteSettings = sanitizeChimerSettings({
+      pixelLiquidPalette: "ember",
+    })
+
+    assert.equal(legacyPaletteSettings.pixelLiquidBackgroundColor, "#110603")
+    assert.equal(legacyPaletteSettings.pixelLiquidBaseColor, "#A4360C")
+    assert.equal(legacyPaletteSettings.pixelLiquidAccentColor, "#FF7A1A")
+    assert.equal(legacyPaletteSettings.pixelLiquidHighlightColor, "#FFE2AB")
+  })
+
+  it("normalizes Aurora Bars background controls", () => {
+    const settings = sanitizeChimerSettings({
+      auroraBarsBackgroundColor: "#010203",
+      auroraBarsPaletteMode: "custom",
+      auroraBarsPrimaryColor: "#334455",
+      auroraBarsColorOne: "#aabbcc",
+      auroraBarsColorTwo: "bad",
+      auroraBarsColorThree: "#123abc",
+      auroraBarsColorFour: "#fedcba",
+      auroraBarsColorFive: "#112233",
+      auroraBarsBarCount: 999,
+      auroraBarsSpeed: 99,
+      auroraBarsBlur: 99,
+      auroraBarsGap: -1,
+      auroraBarsMaxHeightRatio: 99,
+      auroraBarsMinHeightRatio: 99,
+    })
+
+    assert.equal(settings.auroraBarsBackgroundColor, "#010203")
+    assert.equal(settings.auroraBarsPaletteMode, "custom")
+    assert.equal(settings.auroraBarsPrimaryColor, "#334455")
+    assert.equal(settings.auroraBarsColorOne, "#AABBCC")
+    assert.equal(settings.auroraBarsColorTwo, DEFAULT_CHIMER_SETTINGS.auroraBarsColorTwo)
+    assert.equal(settings.auroraBarsColorThree, "#123ABC")
+    assert.equal(settings.auroraBarsColorFour, "#FEDCBA")
+    assert.equal(settings.auroraBarsColorFive, "#112233")
+    assert.equal(settings.auroraBarsBarCount, 80)
+    assert.equal(settings.auroraBarsSpeed, 2)
+    assert.equal(settings.auroraBarsBlur, 18)
+    assert.equal(settings.auroraBarsGap, 0)
+    assert.equal(settings.auroraBarsMaxHeightRatio, 1)
+    assert.equal(settings.auroraBarsMinHeightRatio, 0.78)
+    assert.equal(
+      sanitizeChimerSettings({ auroraBarsPaletteMode: "rainbow" }).auroraBarsPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.auroraBarsPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ auroraBarsPrimaryColor: "bad" }).auroraBarsPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.auroraBarsPrimaryColor,
+    )
+  })
+
+  it("normalizes MassageLab Tile Grid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      tileGridPaletteMode: "custom",
+      tileGridPrimaryColor: "#112233",
+      tileGridColorOne: "#aabbcc",
+      tileGridColorTwo: "bad",
+      tileGridColorThree: "#123abc",
+      tileGridColorFour: "#fedcba",
+      tileGridColorFive: "#010203",
+      tileGridTileSize: 999,
+      tileGridJointSize: 0,
+      tileGridChangeFrequency: 99,
+      tileGridActivePercent: 0,
+      tileGridOpacity: 99,
+    })
+
+    assert.equal(settings.tileGridPaletteMode, "custom")
+    assert.equal(settings.tileGridPrimaryColor, "#112233")
+    assert.equal(settings.tileGridColorOne, "#AABBCC")
+    assert.equal(settings.tileGridColorTwo, DEFAULT_CHIMER_SETTINGS.tileGridColorTwo)
+    assert.equal(settings.tileGridColorThree, "#123ABC")
+    assert.equal(settings.tileGridColorFour, "#FEDCBA")
+    assert.equal(settings.tileGridColorFive, "#010203")
+    assert.equal(settings.tileGridTileSize, 120)
+    assert.equal(settings.tileGridJointSize, 1)
+    assert.equal(settings.tileGridChangeFrequency, 99)
+    assert.equal(settings.tileGridActivePercent, 1)
+    assert.equal(settings.tileGridOpacity, 1)
+
+    assert.equal(
+      sanitizeChimerSettings({ tileGridPaletteMode: "palette" }).tileGridPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.tileGridPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ tileGridOpacity: "faint" }).tileGridOpacity,
+      DEFAULT_CHIMER_SETTINGS.tileGridOpacity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ tileGridChangeFrequency: 900_000 }).tileGridChangeFrequency,
+      TILE_GRID_FADE_SECONDS_MAX,
+    )
+  })
+
+  it("normalizes MassageLab Hex Grid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      hexGridPrimaryColor: "#112233",
+      hexGridHarmony: "split-complementary",
+      hexGridHexSize: 999,
+      hexGridJointSize: 0,
+      hexGridChangeFrequency: 99,
+      hexGridActivePercent: 0,
+      hexGridOpacity: 99,
+    })
+
+    assert.equal(settings.hexGridPrimaryColor, "#112233")
+    assert.equal(settings.hexGridHarmony, "split-complementary")
+    assert.equal(settings.hexGridHexSize, 120)
+    assert.equal(settings.hexGridJointSize, 1)
+    assert.equal(settings.hexGridChangeFrequency, 99)
+    assert.equal(settings.hexGridActivePercent, 1)
+    assert.equal(settings.hexGridOpacity, 1)
+
+    assert.equal(
+      sanitizeChimerSettings({ hexGridHarmony: "random" }).hexGridHarmony,
+      DEFAULT_CHIMER_SETTINGS.hexGridHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ hexGridPrimaryColor: "bad" }).hexGridPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.hexGridPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ hexGridChangeFrequency: 900_000 }).hexGridChangeFrequency,
+      TILE_GRID_FADE_SECONDS_MAX,
+    )
+  })
+
+  it("formats and combines MassageLab Tile Grid fade durations", () => {
+    assert.deepEqual(splitTileGridFadeSeconds(3661.5), {
+      hours: 1,
+      minutes: 1,
+      seconds: 1.5,
+    })
+    assert.equal(combineTileGridFadeParts({ hours: 1, minutes: 2, seconds: 3.4 }), 3723.4)
+    assert.equal(formatTileGridFadeDuration(1.2), "1.2s")
+    assert.equal(formatTileGridFadeDuration(125), "2m 5s")
+    assert.equal(formatTileGridFadeDuration(3661.5), "1h 01m 1.5s")
+  })
+
+  it("migrates the first Canvas reveal dot-grid defaults to the source-matched defaults", () => {
+    const settings = sanitizeChimerSettings({
+      canvasRevealDotsBackgroundColor: "#000000",
+      canvasRevealDotsDotColor: "#00FFFF",
+      canvasRevealDotsAccentColor: "#FF7A1A",
+      canvasRevealDotsDotSize: 1.6,
+      canvasRevealDotsDotSpacing: 8,
+      canvasRevealDotsOpacity: 0.34,
+      canvasRevealDotsAnimationSpeed: 0.4,
+      canvasRevealDotsShowGradient: true,
+    })
+
+    assert.equal(settings.canvasRevealDotsBackgroundColor, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsBackgroundColor)
+    assert.equal(settings.canvasRevealDotsDotColor, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsDotColor)
+    assert.equal(settings.canvasRevealDotsAccentColor, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsAccentColor)
+    assert.equal(settings.canvasRevealDotsDotSize, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsDotSize)
+    assert.equal(settings.canvasRevealDotsDotSpacing, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsDotSpacing)
+    assert.equal(settings.canvasRevealDotsOpacity, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsOpacity)
+    assert.equal(settings.canvasRevealDotsShowGradient, DEFAULT_CHIMER_SETTINGS.canvasRevealDotsShowGradient)
   })
 })

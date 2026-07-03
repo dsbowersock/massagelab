@@ -21,6 +21,8 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(entitlements.level, "FREE")
     assert.deepEqual(entitlements.features, [FEATURE_KEYS.calendarBasicScheduling])
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
+    assert.equal(entitlements.hasFeature(FEATURE_KEYS.premiumBackgrounds), false)
+    assert.equal(membership.hasPremiumBackgroundAccess(entitlements.features), false)
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarBasicScheduling), true)
     assert.equal(entitlements.hasFeature(FEATURE_KEYS.calendarFullScheduling), false)
   })
@@ -51,6 +53,8 @@ describe("Membership and entitlement helpers", () => {
 
     assert.equal(active.level, "THERAPIST")
     assert.equal(active.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
+    assert.equal(active.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
+    assert.equal(membership.hasPremiumBackgroundAccess([FEATURE_KEYS.chimerCustomColors]), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.therapistDocumentationTools), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.calendarFullScheduling), true)
     assert.equal(active.hasFeature(FEATURE_KEYS.externalCalendarSync), true)
@@ -62,6 +66,7 @@ describe("Membership and entitlement helpers", () => {
     assert.equal(pastDue.level, "FREE")
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(pastDue.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
+    assert.equal(pastDue.hasFeature(FEATURE_KEYS.premiumBackgrounds), false)
     assert.equal(canceled.level, "FREE")
     assert.equal(canceled.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(canceled.hasFeature(FEATURE_KEYS.chimerCustomColors), false)
@@ -83,6 +88,7 @@ describe("Membership and entitlement helpers", () => {
     })
 
     assert.equal(supporter.hasFeature(FEATURE_KEYS.chimerCustomColors), true)
+    assert.equal(supporter.hasFeature(FEATURE_KEYS.premiumBackgrounds), true)
     assert.equal(supporter.hasFeature(FEATURE_KEYS.therapistDocumentationTools), false)
     assert.equal(supporter.hasFeature(FEATURE_KEYS.externalCalendarSync), false)
     assert.equal(student.level, "STUDENT")

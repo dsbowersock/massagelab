@@ -43,6 +43,7 @@ describe("App settings helpers", () => {
     assert.deepEqual(normalizeAppSettings(null), defaultAppSettings)
     assert.equal(defaultAppSettings.sidebarPosition, "left")
     assert.equal(defaultAppSettings.sidebarTriggerPosition, "bottom")
+    assert.equal(defaultAppSettings.ambientMotionMode, "system")
     assert.equal(getSidebarButtonPosition(defaultAppSettings), "bottom-left")
   })
 
@@ -52,11 +53,13 @@ describe("App settings helpers", () => {
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
       themeMode: "system",
+      ambientMotionMode: "reduced",
     }), {
       appBarPosition: "bottom",
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
       themeMode: "system",
+      ambientMotionMode: "reduced",
     })
   })
 
@@ -66,6 +69,7 @@ describe("App settings helpers", () => {
       sidebarTriggerPosition: "middle",
       appBarPosition: "middle",
       themeMode: "high-contrast",
+      ambientMotionMode: "full-motion",
     }), defaultAppSettings)
   })
 
@@ -140,6 +144,17 @@ describe("App settings helpers", () => {
     assert.match(speedDialSource, /Escape/)
     assert.match(topBarSource, /QuickActionSpeedDial/)
     assert.match(topBarSource, /aria-label="Open quick actions"/)
+  })
+
+  it("clears Chimer-only body classes off non-Chimer routes so app bars stay visible", () => {
+    const layoutSource = readFileSync(new URL("../components/layout-wrapper.tsx", import.meta.url), "utf8")
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+
+    assert.match(layoutSource, /const isChimerRoute = pathname\.startsWith\("\/chimer"\) \|\| pathname\.startsWith\("\/clock"\)/)
+    assert.match(layoutSource, /if \(!isChimerRoute\) \{[\s\S]*document\.body\.classList\.remove\("chimer-running", "chimer-alerting"\)/)
+    assert.match(layoutSource, /pathname\.startsWith\("\/anatomime"\)/)
+    assert.match(globalsSource, /body\.chimer-running \.ml-app-topbar/)
+    assert.match(globalsSource, /body\.chimer-running \.ml-mobile-main-bar/)
   })
 
   it("keeps the mobile main bar controls styled as physical buttons", () => {

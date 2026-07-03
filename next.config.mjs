@@ -3,10 +3,12 @@ import { fileURLToPath } from "node:url"
 import { withSentryConfig } from "@sentry/nextjs"
 
 const root = dirname(fileURLToPath(import.meta.url))
+const buildCpuOverride = Number.parseInt(process.env.NEXT_BUILD_CPUS ?? (process.env.CI ? "" : "4"), 10)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  ...(buildCpuOverride > 0 ? { experimental: { cpus: buildCpuOverride } } : {}),
   async headers() {
     return [
       {

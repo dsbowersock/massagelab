@@ -20,7 +20,6 @@ import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { FEATURE_KEYS } from "@/lib/membership"
 import { SetTimer, type ChimerSettings } from "./set-timer"
-import { MovingBackground } from "./moving-background"
 import { RunningTimer } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
@@ -807,15 +806,10 @@ export default function ChimerPage() {
   const timeDisplay = formatDurationParts(timerState.remainingMs, { showTimerSeconds: settings.showTimerSeconds })
   const isTimerActive = timerState.status !== "idle"
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
+  const backgroundCategory = startsInClockMode ? "clock" : "chimer"
 
   return (
     <div className="relative min-h-full bg-background p-4 sm:p-6 lg:p-8">
-      {settings.movingBackgroundEnabled && !isTimerActive && (
-        <MovingBackground
-          mainColor={settings.movingBackgroundMainColor}
-          orbColor={settings.movingBackgroundOrbColor}
-        />
-      )}
       <div className="relative z-10 mx-auto max-w-5xl">
         {!isTimerActive ? (
           <SetTimer
@@ -824,6 +818,8 @@ export default function ChimerPage() {
             error={error}
             syncStatus={accountSyncStatus}
             isResolvingSync={isResolvingSync}
+            featureKeys={featureKeys}
+            backgroundCategory={backgroundCategory}
             onTimeClick={openTimeModal}
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}
@@ -842,6 +838,7 @@ export default function ChimerPage() {
             isAlerting={isAlerting}
             fontSize={fontSize}
             movingBackgroundEnabled={settings.movingBackgroundEnabled}
+            backgroundId={settings.backgroundId}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
             showTimerSeconds={settings.showTimerSeconds}
             showCurrentTimeSeconds={settings.showCurrentTimeSeconds}
@@ -851,7 +848,146 @@ export default function ChimerPage() {
             clockModeFontColor={settings.clockModeFontColor}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
+            sparklesMaxSize={settings.sparklesMaxSize}
+            sparklesMinSize={settings.sparklesMinSize}
+            sparklesParticleColor={settings.sparklesParticleColor}
+            sparklesParticleDensity={settings.sparklesParticleDensity}
+            sparklesSpeed={settings.sparklesSpeed}
+            gradientAnimationBackgroundStartColor={settings.gradientAnimationBackgroundStartColor}
+            gradientAnimationBackgroundEndColor={settings.gradientAnimationBackgroundEndColor}
+            gradientAnimationFirstColor={settings.gradientAnimationFirstColor}
+            gradientAnimationSecondColor={settings.gradientAnimationSecondColor}
+            gradientAnimationThirdColor={settings.gradientAnimationThirdColor}
+            gradientAnimationFourthColor={settings.gradientAnimationFourthColor}
+            gradientAnimationFifthColor={settings.gradientAnimationFifthColor}
+            gradientAnimationSpeed={settings.gradientAnimationSpeed}
+            gradientAnimationSize={settings.gradientAnimationSize}
+            animateUiGradientPrimaryColor={settings.animateUiGradientPrimaryColor}
+            animateUiGradientHarmony={settings.animateUiGradientHarmony}
+            animateUiGradientOpacity={settings.animateUiGradientOpacity}
+            animateUiStarsColor={settings.animateUiStarsColor}
+            animateUiStarsSpeed={settings.animateUiStarsSpeed}
+            animateUiStarsDensity={settings.animateUiStarsDensity}
+            animateUiStarsParallax={settings.animateUiStarsParallax}
+            animateUiHoleStrokeColor={settings.animateUiHoleStrokeColor}
+            animateUiHoleParticleColor={settings.animateUiHoleParticleColor}
+            animateUiHoleLineCount={settings.animateUiHoleLineCount}
+            animateUiHoleDiscCount={settings.animateUiHoleDiscCount}
+            chamaacLightSpeedWarpSpeed={settings.chamaacLightSpeedWarpSpeed}
+            chamaacLightSpeedParticleCount={settings.chamaacLightSpeedParticleCount}
+            chamaacLightSpeedLightColor={settings.chamaacLightSpeedLightColor}
+            chamaacLightSpeedIntensity={settings.chamaacLightSpeedIntensity}
+            chamaacLightSpeedRadius={settings.chamaacLightSpeedRadius}
+            chamaacLightSpeedCylinderLength={settings.chamaacLightSpeedCylinderLength}
+            chamaacElectricMistColor={settings.chamaacElectricMistColor}
+            chamaacElectricMistSpeed={settings.chamaacElectricMistSpeed}
+            chamaacElectricMistDetail={settings.chamaacElectricMistDetail}
+            chamaacElectricMistDistortion={settings.chamaacElectricMistDistortion}
+            chamaacElectricMistBrightness={settings.chamaacElectricMistBrightness}
+            chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
+            chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
+            chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}
+            chamaacSynthesisColorOne={settings.chamaacSynthesisColorOne}
+            chamaacSynthesisColorTwo={settings.chamaacSynthesisColorTwo}
+            chamaacSynthesisColorThree={settings.chamaacSynthesisColorThree}
+            chamaacSynthesisSpeed={settings.chamaacSynthesisSpeed}
+            chamaacSynthesisComplexity={settings.chamaacSynthesisComplexity}
+            chamaacSynthesisScale={settings.chamaacSynthesisScale}
+            chamaacSynthesisDistortion={settings.chamaacSynthesisDistortion}
+            chamaacSynthesisGlowIntensity={settings.chamaacSynthesisGlowIntensity}
+            chamaacSynthesisFlowFrequency={settings.chamaacSynthesisFlowFrequency}
+            backgroundLinesDuration={settings.backgroundLinesDuration}
+            shootingStarsStarColor={settings.shootingStarsStarColor}
+            shootingStarsTrailColor={settings.shootingStarsTrailColor}
+            shootingStarsShootingStarColor={settings.shootingStarsShootingStarColor}
+            shootingStarsDensity={settings.shootingStarsDensity}
+            shootingStarsTwinkle={settings.shootingStarsTwinkle}
+            shootingStarsTwinkleSpeed={settings.shootingStarsTwinkleSpeed}
+            shootingStarsShootingSpeed={settings.shootingStarsShootingSpeed}
+            shootingStarsFrequency={settings.shootingStarsFrequency}
+            canvasRevealDotsBackgroundColor={settings.canvasRevealDotsBackgroundColor}
+            canvasRevealDotsDotColor={settings.canvasRevealDotsDotColor}
+            canvasRevealDotsAccentColor={settings.canvasRevealDotsAccentColor}
+            canvasRevealDotsDotSize={settings.canvasRevealDotsDotSize}
+            canvasRevealDotsDotSpacing={settings.canvasRevealDotsDotSpacing}
+            canvasRevealDotsOpacity={settings.canvasRevealDotsOpacity}
+            canvasRevealDotsAnimationSpeed={settings.canvasRevealDotsAnimationSpeed}
+            canvasRevealDotsShowGradient={settings.canvasRevealDotsShowGradient}
+            spotlightColor={settings.spotlightColor}
+            spotlightOpacity={settings.spotlightOpacity}
+            spotlightWidth={settings.spotlightWidth}
+            spotlightHeight={settings.spotlightHeight}
+            spotlightSmallWidth={settings.spotlightSmallWidth}
+            spotlightTranslateY={settings.spotlightTranslateY}
+            spotlightDuration={settings.spotlightDuration}
+            spotlightXOffset={settings.spotlightXOffset}
+            lampBackgroundColor={settings.lampBackgroundColor}
+            lampColor={settings.lampColor}
+            lampGlowOpacity={settings.lampGlowOpacity}
+            lampBeamWidth={settings.lampBeamWidth}
+            lampGlowWidth={settings.lampGlowWidth}
+            lampVerticalOffset={settings.lampVerticalOffset}
+            lampPulseSpeed={settings.lampPulseSpeed}
+            vortexBackgroundColor={settings.vortexBackgroundColor}
+            vortexBaseHue={settings.vortexBaseHue}
+            vortexParticleCount={settings.vortexParticleCount}
+            vortexRangeY={settings.vortexRangeY}
+            vortexBaseSpeed={settings.vortexBaseSpeed}
+            vortexRangeSpeed={settings.vortexRangeSpeed}
+            vortexBaseRadius={settings.vortexBaseRadius}
+            vortexRangeRadius={settings.vortexRangeRadius}
+            wavyBackgroundFill={settings.wavyBackgroundFill}
+            wavyColorOne={settings.wavyColorOne}
+            wavyColorTwo={settings.wavyColorTwo}
+            wavyColorThree={settings.wavyColorThree}
+            wavyColorFour={settings.wavyColorFour}
+            wavyColorFive={settings.wavyColorFive}
+            wavyWaveWidth={settings.wavyWaveWidth}
+            wavyBlur={settings.wavyBlur}
+            wavySpeed={settings.wavySpeed}
+            wavyWaveOpacity={settings.wavyWaveOpacity}
+            auroraBarsBackgroundColor={settings.auroraBarsBackgroundColor}
+            auroraBarsPaletteMode={settings.auroraBarsPaletteMode}
+            auroraBarsPrimaryColor={settings.auroraBarsPrimaryColor}
+            auroraBarsColorOne={settings.auroraBarsColorOne}
+            auroraBarsColorTwo={settings.auroraBarsColorTwo}
+            auroraBarsColorThree={settings.auroraBarsColorThree}
+            auroraBarsColorFour={settings.auroraBarsColorFour}
+            auroraBarsColorFive={settings.auroraBarsColorFive}
+            auroraBarsBarCount={settings.auroraBarsBarCount}
+            auroraBarsSpeed={settings.auroraBarsSpeed}
+            auroraBarsBlur={settings.auroraBarsBlur}
+            auroraBarsGap={settings.auroraBarsGap}
+            auroraBarsMaxHeightRatio={settings.auroraBarsMaxHeightRatio}
+            auroraBarsMinHeightRatio={settings.auroraBarsMinHeightRatio}
+            pixelLiquidBackgroundColor={settings.pixelLiquidBackgroundColor}
+            pixelLiquidBaseColor={settings.pixelLiquidBaseColor}
+            pixelLiquidAccentColor={settings.pixelLiquidAccentColor}
+            pixelLiquidHighlightColor={settings.pixelLiquidHighlightColor}
+            pixelLiquidPixelSize={settings.pixelLiquidPixelSize}
+            pixelLiquidDetail={settings.pixelLiquidDetail}
+            pixelLiquidMotionSpeed={settings.pixelLiquidMotionSpeed}
+            tileGridPaletteMode={settings.tileGridPaletteMode}
+            tileGridPrimaryColor={settings.tileGridPrimaryColor}
+            tileGridColorOne={settings.tileGridColorOne}
+            tileGridColorTwo={settings.tileGridColorTwo}
+            tileGridColorThree={settings.tileGridColorThree}
+            tileGridColorFour={settings.tileGridColorFour}
+            tileGridColorFive={settings.tileGridColorFive}
+            tileGridTileSize={settings.tileGridTileSize}
+            tileGridJointSize={settings.tileGridJointSize}
+            tileGridChangeFrequency={settings.tileGridChangeFrequency}
+            tileGridActivePercent={settings.tileGridActivePercent}
+            tileGridOpacity={settings.tileGridOpacity}
+            hexGridPrimaryColor={settings.hexGridPrimaryColor}
+            hexGridHarmony={settings.hexGridHarmony}
+            hexGridHexSize={settings.hexGridHexSize}
+            hexGridJointSize={settings.hexGridJointSize}
+            hexGridChangeFrequency={settings.hexGridChangeFrequency}
+            hexGridActivePercent={settings.hexGridActivePercent}
+            hexGridOpacity={settings.hexGridOpacity}
             canUseCustomColors={canUseCustomColors}
+            featureKeys={featureKeys}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
             onClose={endTimer}
             onPause={togglePause}
