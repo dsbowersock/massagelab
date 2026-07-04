@@ -28,6 +28,7 @@ export type ChamaacLiquidChromePaletteMode = "harmony" | "custom"
 export type ChamaacWavesPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
+export type EldoraHackerPaletteMode = "harmony" | "custom"
 
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3
@@ -69,6 +70,11 @@ export const ELDORA_NOVATRIX_SOURCE_AMPLITUDE_MAX = 0.45
 export const ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN = 1
 export const ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX = 100
 export const ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP = 1
+export const ELDORA_HACKER_SOURCE_SPEED_MIN = 0.05
+export const ELDORA_HACKER_SOURCE_SPEED_MAX = 3
+export const ELDORA_HACKER_DISPLAY_SPEED_MIN = 1
+export const ELDORA_HACKER_DISPLAY_SPEED_MAX = 100
+export const ELDORA_HACKER_DISPLAY_SPEED_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
@@ -315,6 +321,36 @@ export function getEldoraNovatrixSourceAmplitude(displayAmplitude: number) {
   ) / 1000
 }
 
+// Hacker Background stores Eldora's source speed multiplier; the UI maps it to
+// a 1%-100% slider with a deliberately slow low end.
+export function getEldoraHackerDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    ELDORA_HACKER_SOURCE_SPEED_MAX,
+    Math.max(ELDORA_HACKER_SOURCE_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange = ELDORA_HACKER_SOURCE_SPEED_MAX - ELDORA_HACKER_SOURCE_SPEED_MIN
+  const displayRange = ELDORA_HACKER_DISPLAY_SPEED_MAX - ELDORA_HACKER_DISPLAY_SPEED_MIN
+  return Math.round(
+    ELDORA_HACKER_DISPLAY_SPEED_MIN
+      + ((clampedSpeed - ELDORA_HACKER_SOURCE_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getEldoraHackerSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    ELDORA_HACKER_DISPLAY_SPEED_MAX,
+    Math.max(ELDORA_HACKER_DISPLAY_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange = ELDORA_HACKER_SOURCE_SPEED_MAX - ELDORA_HACKER_SOURCE_SPEED_MIN
+  const displayRange = ELDORA_HACKER_DISPLAY_SPEED_MAX - ELDORA_HACKER_DISPLAY_SPEED_MIN
+  return Math.round(
+    (
+      ELDORA_HACKER_SOURCE_SPEED_MIN
+      + ((clampedDisplay - ELDORA_HACKER_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
+
 // The source Chamaac demo defaults to 0.4; MassageLab presents that as 1x.
 export function getChamaacSynthesisDisplaySpeed(sourceSpeed: number) {
   return Math.round((sourceSpeed / CHAMAAC_SYNTHESIS_SPEED_BASE) * 100) / 100
@@ -427,6 +463,12 @@ export interface ChimerSettings {
   eldoraNovatrixColor: string
   eldoraNovatrixSpeed: number
   eldoraNovatrixAmplitude: number
+  eldoraHackerPaletteMode: EldoraHackerPaletteMode
+  eldoraHackerPrimaryColor: string
+  eldoraHackerHarmony: ColorHarmony
+  eldoraHackerColor: string
+  eldoraHackerSpeed: number
+  eldoraHackerFontSize: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -589,6 +631,14 @@ type EldoraNovatrixColorSettings = Pick<
   | "eldoraNovatrixColor"
 >
 
+type EldoraHackerColorSettings = Pick<
+  ChimerSettings,
+  | "eldoraHackerPaletteMode"
+  | "eldoraHackerPrimaryColor"
+  | "eldoraHackerHarmony"
+  | "eldoraHackerColor"
+>
+
 export function resolveChamaacAstralFlowColors(settings: ChamaacAstralFlowColorSettings): [string, string, string] {
   if (settings.chamaacAstralFlowPaletteMode === "harmony") {
     return createChamaacSynthesisHarmonyPalette(
@@ -675,6 +725,17 @@ export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings
   }
 
   return settings.eldoraNovatrixColor
+}
+
+export function resolveEldoraHackerColor(settings: EldoraHackerColorSettings): string {
+  if (settings.eldoraHackerPaletteMode === "harmony") {
+    return createEldoraHackerHarmonyColor(
+      settings.eldoraHackerPrimaryColor,
+      settings.eldoraHackerHarmony,
+    )
+  }
+
+  return settings.eldoraHackerColor
 }
 
 export function createChamaacDeepSpaceNebulaHarmonyPalette(
@@ -902,6 +963,13 @@ export function createEldoraNovatrixHarmonyColor(
     default:
       return hslToHex(hue + 32, Math.min(0.94, vividSaturation * 0.96), Math.min(0.88, balancedLightness + 0.02))
   }
+}
+
+export function createEldoraHackerHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+) {
+  return createEldoraNovatrixHarmonyColor(primaryColor, harmony)
 }
 
 export function createChamaacLiquidChromeHarmonyPalette(
@@ -2768,6 +2836,97 @@ export function SetTimer({
               value={settings.chamaacWavesAmplitude}
               onChange={(event) => onSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
               aria-label="Waves amplitude"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "eldora-hacker-background") {
+      const useCustomPalette = settings.eldoraHackerPaletteMode === "custom"
+      const hackerSpeed = getEldoraHackerDisplaySpeed(settings.eldoraHackerSpeed)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.eldoraHackerPaletteMode}
+              onChange={(event) => onSettingsChange({
+                eldoraHackerPaletteMode: event.target.value as EldoraHackerPaletteMode,
+              })}
+              aria-label="Hacker Background color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <label className={styles.colorRow}>
+              <span>Character color</span>
+              <input
+                type="color"
+                value={settings.eldoraHackerColor}
+                onChange={(event) => onSettingsChange({ eldoraHackerColor: event.target.value })}
+                aria-label="Hacker Background character color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.eldoraHackerPrimaryColor}
+                  onChange={(event) => onSettingsChange({ eldoraHackerPrimaryColor: event.target.value })}
+                  aria-label="Hacker Background primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.eldoraHackerHarmony}
+                  onChange={(event) => onSettingsChange({
+                    eldoraHackerHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Hacker Background color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({hackerSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_HACKER_DISPLAY_SPEED_MIN}
+              max={ELDORA_HACKER_DISPLAY_SPEED_MAX}
+              step={ELDORA_HACKER_DISPLAY_SPEED_STEP}
+              value={hackerSpeed}
+              onChange={(event) => onSettingsChange({
+                eldoraHackerSpeed: getEldoraHackerSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Hacker Background animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Font size ({settings.eldoraHackerFontSize}px)</span>
+            <input
+              type="range"
+              min="8"
+              max="28"
+              step="1"
+              value={settings.eldoraHackerFontSize}
+              onChange={(event) => onSettingsChange({ eldoraHackerFontSize: Number(event.target.value) })}
+              aria-label="Hacker Background font size"
             />
           </label>
         </div>

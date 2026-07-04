@@ -19,6 +19,7 @@ export type BackgroundId =
   | "chamaac-light-speed"
   | "chamaac-synthesis"
   | "eldora-novatrix-background"
+  | "eldora-hacker-background"
   | "aceternity-aurora"
   | "aceternity-dotted-glow"
   | "aceternity-sparkles"
@@ -80,6 +81,7 @@ const chamaacLiquidChrome = () => import("./effects/chamaac-liquid-chrome-backgr
 const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
+const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
 const aceternityVortex = () => import("./effects/aceternity-vortex-background")
@@ -400,6 +402,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), transparent 34%), radial-gradient(circle at 68% 34%, rgba(160,196,255,0.14), transparent 30%), linear-gradient(145deg, #02030a 0%, #070814 58%, #000000 100%)",
+    },
+  },
+  {
+    id: "eldora-hacker-background",
+    label: "Hacker Background",
+    provider: "Eldora UI",
+    sourceUrl: "https://www.eldoraui.site/docs/components/hacker-background",
+    license: "MIT; Eldora UI repository reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium Matrix-style falling-character background for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Character color, color harmony, font size, and falling speed; source 2D canvas behavior adapted with host sizing, reduced motion, and cleanup.",
+    component: () => eldoraHacker().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 44%, rgba(0,255,0,0.12), transparent 34%), linear-gradient(180deg, #000000 0%, #020802 100%)",
     },
   },
   {

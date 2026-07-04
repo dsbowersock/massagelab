@@ -39,6 +39,38 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.eldoraNovatrixAmplitude, 0.3)
   })
 
+  it("resets Eldora Hacker controls without premium background access", () => {
+    const input = {
+      backgroundId: "eldora-hacker-background",
+      eldoraHackerPaletteMode: "harmony",
+      eldoraHackerPrimaryColor: "#00D4FF",
+      eldoraHackerHarmony: "triad",
+      eldoraHackerColor: "#22D3EE",
+      eldoraHackerSpeed: 2.4,
+      eldoraHackerFontSize: 22,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.eldoraHackerPaletteMode, DEFAULT_CHIMER_SETTINGS.eldoraHackerPaletteMode)
+    assert.equal(freeSettings.eldoraHackerPrimaryColor, DEFAULT_CHIMER_SETTINGS.eldoraHackerPrimaryColor)
+    assert.equal(freeSettings.eldoraHackerHarmony, DEFAULT_CHIMER_SETTINGS.eldoraHackerHarmony)
+    assert.equal(freeSettings.eldoraHackerColor, DEFAULT_CHIMER_SETTINGS.eldoraHackerColor)
+    assert.equal(freeSettings.eldoraHackerSpeed, DEFAULT_CHIMER_SETTINGS.eldoraHackerSpeed)
+    assert.equal(freeSettings.eldoraHackerFontSize, DEFAULT_CHIMER_SETTINGS.eldoraHackerFontSize)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "eldora-hacker-background")
+    assert.equal(premiumSettings.eldoraHackerPaletteMode, "harmony")
+    assert.equal(premiumSettings.eldoraHackerPrimaryColor, "#00D4FF")
+    assert.equal(premiumSettings.eldoraHackerHarmony, "triad")
+    assert.equal(premiumSettings.eldoraHackerColor, "#22D3EE")
+    assert.equal(premiumSettings.eldoraHackerSpeed, 2.4)
+    assert.equal(premiumSettings.eldoraHackerFontSize, 22)
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

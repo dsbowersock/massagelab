@@ -59,6 +59,7 @@ describe("premium background registry", () => {
       "chamaac-waves",
       "chamaac-synthesis",
       "eldora-novatrix-background",
+      "eldora-hacker-background",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
       assert.equal(
@@ -138,6 +139,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Waves/)
     assert.match(sourceDoc, /Synthesis/)
     assert.match(sourceDoc, /Novatrix Background/)
+    assert.match(sourceDoc, /Hacker Background/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
@@ -145,9 +147,13 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /grid-bloom\.json/)
     assert.match(sourceDoc, /waves\.json/)
     assert.match(sourceDoc, /novatrix-background\.json/)
+    assert.match(sourceDoc, /hacker-background\.tsx/)
     assert.match(sourceDoc, /declares `ogl`/)
+    assert.match(sourceDoc, /Matrix-style falling characters background animation component/)
+    assert.match(sourceDoc, /`color`, `fontSize`, and `speed`/)
     assert.match(sourceDoc, /source `0\.02`-`3`/)
     assert.match(sourceDoc, /source `0\.01`-`0\.45`/)
+    assert.match(sourceDoc, /source `0\.05`-`3` internally while displaying `1%`-`100%`/)
     assert.match(sourceDoc, /Warp speed/)
     assert.match(sourceDoc, /high-energy glowing lightning shader/)
     assert.match(sourceDoc, /breathing radial shader/)
@@ -215,6 +221,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-waves"))
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
     assert.ok(chimerOptions.includes("eldora-novatrix-background"))
+    assert.ok(chimerOptions.includes("eldora-hacker-background"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -246,6 +253,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-waves"))
     assert.ok(clockOptions.includes("chamaac-synthesis"))
     assert.ok(clockOptions.includes("eldora-novatrix-background"))
+    assert.ok(clockOptions.includes("eldora-hacker-background"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -278,6 +286,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-waves"))
     assert.ok(musicOptions.includes("chamaac-synthesis"))
     assert.ok(musicOptions.includes("eldora-novatrix-background"))
+    assert.ok(musicOptions.includes("eldora-hacker-background"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -966,6 +975,82 @@ describe("premium background registry", () => {
       "eldoraNovatrixColor",
       "eldoraNovatrixSpeed",
       "eldoraNovatrixAmplitude",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Eldora Hacker source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/eldora-hacker-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /eldora-hacker-background/)
+    assert.match(registrySource, /Hacker Background/)
+    assert.match(registrySource, /https:\/\/www\.eldoraui\.site\/docs\/components\/hacker-background/)
+    assert.match(registrySource, /MIT; Eldora UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /EldoraHackerBackground/)
+    assert.match(effectSource, /DEFAULT_ELDORA_HACKER/)
+    assert.match(effectSource, /color: "#00FF00"/)
+    assert.match(effectSource, /fontSize: 14/)
+    assert.match(effectSource, /speed: 1/)
+    assert.match(effectSource, /HACKER_CHARACTERS/)
+    assert.match(effectSource, /SOURCE_FRAME_INTERVAL_MS = 33/)
+    assert.match(effectSource, /"rgba\(0, 0, 0, 0\.05\)"/)
+    assert.match(effectSource, /monospace/)
+    assert.match(effectSource, /drops/)
+    assert.match(effectSource, /fillText/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(stylesSource, /eldoraHackerBackground/)
+    assert.match(stylesSource, /eldoraHackerCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /eldoraHacker/)
+    assert.match(cssEffectsSource, /EldoraHackerOptions/)
+    assert.match(runningSource, /eldoraHacker=\{\{/)
+    assert.match(runningSource, /resolveEldoraHackerColor/)
+    assert.match(setupSource, /getEldoraHackerDisplaySpeed/)
+    assert.match(setupSource, /getEldoraHackerSourceSpeed/)
+    assert.match(setupSource, /ELDORA_HACKER_SOURCE_SPEED_MIN = 0\.05/)
+    assert.match(setupSource, /ELDORA_HACKER_SOURCE_SPEED_MAX = 3/)
+    assert.doesNotMatch(pageSource, /eldoraHacker=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    for (const settingKey of [
+      "eldoraHackerPaletteMode",
+      "eldoraHackerPrimaryColor",
+      "eldoraHackerHarmony",
+      "eldoraHackerColor",
+      "eldoraHackerSpeed",
+      "eldoraHackerFontSize",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

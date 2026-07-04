@@ -38,6 +38,9 @@ import {
   ELDORA_NOVATRIX_DISPLAY_SPEED_MAX,
   ELDORA_NOVATRIX_DISPLAY_SPEED_MIN,
   ELDORA_NOVATRIX_DISPLAY_SPEED_STEP,
+  ELDORA_HACKER_DISPLAY_SPEED_MAX,
+  ELDORA_HACKER_DISPLAY_SPEED_MIN,
+  ELDORA_HACKER_DISPLAY_SPEED_STEP,
   getChamaacAstralFlowDisplaySpeed,
   getChamaacAstralFlowSourceSpeed,
   getChamaacDeepSpaceNebulaDisplaySpeed,
@@ -56,11 +59,14 @@ import {
   getEldoraNovatrixDisplaySpeed,
   getEldoraNovatrixSourceAmplitude,
   getEldoraNovatrixSourceSpeed,
+  getEldoraHackerDisplaySpeed,
+  getEldoraHackerSourceSpeed,
   resolveChamaacAstralFlowColors,
   resolveChamaacDeepSpaceNebulaColors,
   resolveChamaacLiquidChromeColors,
   resolveChamaacWavesColors,
   resolveChamaacSynthesisColors,
+  resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
   type AnimateUiGradientHarmony,
   type ChamaacAstralFlowPaletteMode,
@@ -68,6 +74,7 @@ import {
   type ChamaacLiquidChromePaletteMode,
   type ChamaacWavesPaletteMode,
   type ChamaacSynthesisPaletteMode,
+  type EldoraHackerPaletteMode,
   type EldoraNovatrixPaletteMode,
   type ChimerSettings,
   type ColorHarmony,
@@ -202,6 +209,12 @@ interface RunningTimerProps {
   eldoraNovatrixColor: string
   eldoraNovatrixSpeed: number
   eldoraNovatrixAmplitude: number
+  eldoraHackerPaletteMode: EldoraHackerPaletteMode
+  eldoraHackerPrimaryColor: string
+  eldoraHackerHarmony: ColorHarmony
+  eldoraHackerColor: string
+  eldoraHackerSpeed: number
+  eldoraHackerFontSize: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -419,6 +432,12 @@ export function RunningTimer({
   eldoraNovatrixColor,
   eldoraNovatrixSpeed,
   eldoraNovatrixAmplitude,
+  eldoraHackerPaletteMode,
+  eldoraHackerPrimaryColor,
+  eldoraHackerHarmony,
+  eldoraHackerColor,
+  eldoraHackerSpeed,
+  eldoraHackerFontSize,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -587,6 +606,13 @@ export function RunningTimer({
     eldoraNovatrixPrimaryColor,
     eldoraNovatrixHarmony,
     eldoraNovatrixColor,
+  })
+  const hackerSpeed = getEldoraHackerDisplaySpeed(eldoraHackerSpeed)
+  const hackerColor = resolveEldoraHackerColor({
+    eldoraHackerPaletteMode,
+    eldoraHackerPrimaryColor,
+    eldoraHackerHarmony,
+    eldoraHackerColor,
   })
   const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
   const synthesisColors = resolveChamaacSynthesisColors({
@@ -2039,6 +2065,93 @@ export function RunningTimer({
               value={chamaacWavesAmplitude}
               onChange={(event) => handleSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
               aria-label="Waves amplitude"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "eldora-hacker-background" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={eldoraHackerPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                eldoraHackerPaletteMode: event.target.value as EldoraHackerPaletteMode,
+              })}
+              aria-label="Hacker Background color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {eldoraHackerPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Character color</span>
+              <input
+                type="color"
+                value={eldoraHackerColor}
+                onChange={(event) => handleSettingsChange({ eldoraHackerColor: event.target.value })}
+                aria-label="Hacker Background character color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={eldoraHackerPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ eldoraHackerPrimaryColor: event.target.value })}
+                  aria-label="Hacker Background primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={eldoraHackerHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    eldoraHackerHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Hacker Background color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({hackerSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_HACKER_DISPLAY_SPEED_MIN}
+              max={ELDORA_HACKER_DISPLAY_SPEED_MAX}
+              step={ELDORA_HACKER_DISPLAY_SPEED_STEP}
+              value={hackerSpeed}
+              onChange={(event) => handleSettingsChange({
+                eldoraHackerSpeed: getEldoraHackerSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Hacker Background animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Font size ({eldoraHackerFontSize}px)</span>
+            <input
+              type="range"
+              min="8"
+              max="28"
+              step="1"
+              value={eldoraHackerFontSize}
+              onChange={(event) => handleSettingsChange({ eldoraHackerFontSize: Number(event.target.value) })}
+              aria-label="Hacker Background font size"
             />
           </label>
         </>
@@ -3634,6 +3747,11 @@ export function RunningTimer({
             color: novatrixColor,
             speed: eldoraNovatrixSpeed,
             amplitude: eldoraNovatrixAmplitude,
+          }}
+          eldoraHacker={{
+            color: hackerColor,
+            speed: eldoraHackerSpeed,
+            fontSize: eldoraHackerFontSize,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

@@ -704,6 +704,46 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Eldora Hacker background controls", () => {
+    const settings = sanitizeChimerSettings({
+      eldoraHackerPaletteMode: "harmony",
+      eldoraHackerPrimaryColor: "#00d4ff",
+      eldoraHackerHarmony: "triad",
+      eldoraHackerColor: "green",
+      eldoraHackerSpeed: 99,
+      eldoraHackerFontSize: 4,
+    })
+
+    assert.equal(settings.eldoraHackerPaletteMode, "harmony")
+    assert.equal(settings.eldoraHackerPrimaryColor, "#00D4FF")
+    assert.equal(settings.eldoraHackerHarmony, "triad")
+    assert.equal(settings.eldoraHackerColor, DEFAULT_CHIMER_SETTINGS.eldoraHackerColor)
+    assert.equal(settings.eldoraHackerSpeed, 3)
+    assert.equal(settings.eldoraHackerFontSize, 8)
+    assert.equal(
+      sanitizeChimerSettings({ eldoraHackerSpeed: "fast" }).eldoraHackerSpeed,
+      DEFAULT_CHIMER_SETTINGS.eldoraHackerSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraHackerFontSize: "wide" }).eldoraHackerFontSize,
+      DEFAULT_CHIMER_SETTINGS.eldoraHackerFontSize,
+    )
+    assert.equal(sanitizeChimerSettings({ eldoraHackerSpeed: 0 }).eldoraHackerSpeed, 0.05)
+    assert.equal(sanitizeChimerSettings({ eldoraHackerFontSize: 99 }).eldoraHackerFontSize, 28)
+    assert.equal(
+      sanitizeChimerSettings({ eldoraHackerPaletteMode: "demo" }).eldoraHackerPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.eldoraHackerPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraHackerPrimaryColor: "blue" }).eldoraHackerPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.eldoraHackerPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraHackerHarmony: "rainbow" }).eldoraHackerHarmony,
+      DEFAULT_CHIMER_SETTINGS.eldoraHackerHarmony,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

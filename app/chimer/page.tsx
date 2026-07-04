@@ -931,6 +931,12 @@ export default function ChimerPage() {
             eldoraNovatrixColor={settings.eldoraNovatrixColor}
             eldoraNovatrixSpeed={settings.eldoraNovatrixSpeed}
             eldoraNovatrixAmplitude={settings.eldoraNovatrixAmplitude}
+            eldoraHackerPaletteMode={settings.eldoraHackerPaletteMode}
+            eldoraHackerPrimaryColor={settings.eldoraHackerPrimaryColor}
+            eldoraHackerHarmony={settings.eldoraHackerHarmony}
+            eldoraHackerColor={settings.eldoraHackerColor}
+            eldoraHackerSpeed={settings.eldoraHackerSpeed}
+            eldoraHackerFontSize={settings.eldoraHackerFontSize}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}
