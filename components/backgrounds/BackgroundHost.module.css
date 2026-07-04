@@ -147,7 +147,8 @@
     var(--ml-aceternity-globe-background, #020617);
 }
 
-.aceternity3dGlobeCanvas {
+.aceternity3dGlobeCanvas,
+.aceternity3dGlobeMarkerCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -155,6 +156,14 @@
   height: 100%;
   pointer-events: none;
   transform: translateZ(0);
+}
+
+.aceternity3dGlobeCanvas {
+  z-index: 0;
+}
+
+.aceternity3dGlobeMarkerCanvas {
+  z-index: 1;
 }
 
 .chamaacAstralFlow {

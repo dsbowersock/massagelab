@@ -212,13 +212,24 @@ export interface MagicLightRaysOptions {
 }
 
 export interface Aceternity3DGlobeOptions {
+  viewStyle?: "realistic" | "graphic"
   backgroundColor?: string
   globeColor?: string
+  graphicMapColor?: string
+  graphicGlowColor?: string
+  graphicMarkerColor?: string
+  graphicMapSamples?: number
   autoRotateSpeed?: number
+  reverseSpin?: boolean
   globeScale?: number
   bumpScale?: number
   ambientIntensity?: number
   pointLightIntensity?: number
+  lightingMode?: "manual" | "sun"
+  enablePan?: boolean
+  panX?: number
+  panY?: number
+  showTilt?: boolean
   showAtmosphere?: boolean
   atmosphereColor?: string
   atmosphereIntensity?: number
@@ -229,7 +240,7 @@ export interface Aceternity3DGlobeOptions {
   markerLat?: number
   markerLng?: number
   markerLabel?: string
-  markerAvatarUrl?: string
+  markerIcon?: "pin" | "person" | "heart" | "star" | "home"
   markerSize?: number
 }
 

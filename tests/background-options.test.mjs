@@ -160,8 +160,8 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /3d-globe\.json/)
     assert.match(sourceDoc, /realistic globe component with tooltips and avatar tips/)
     assert.match(sourceDoc, /@react-three\/drei/)
-    assert.match(sourceDoc, /marker avatar URLs are sanitized to HTTP\(S\)/)
-    assert.match(sourceDoc, /dependency-free 2D canvas renderer/)
+    assert.match(sourceDoc, /icon-based user marker/)
+    assert.match(sourceDoc, /dependency-free native WebGL sphere renderer/)
     assert.match(sourceDoc, /`count`, `color`, `blur`, `opacity`, `speed`, and `length`/)
     assert.match(sourceDoc, /dependency-free CSS keyframes/)
     assert.match(sourceDoc, /declares `ogl`/)
@@ -1249,35 +1249,103 @@ describe("premium background registry", () => {
     assert.match(effectSource, /earth-topology\.png/)
     assert.match(effectSource, /autoRotateSpeed: 0\.3/)
     assert.match(effectSource, /globeColor: "#1A1A2E"/)
+    assert.match(effectSource, /lightingMode: "manual"/)
+    assert.match(effectSource, /EARTH_AXIAL_TILT_DEGREES/)
+    assert.match(effectSource, /FIXED_SUN_LIGHT_VECTOR/)
+    assert.match(effectSource, /MASSAGELAB_MARKER/)
+    assert.match(effectSource, /MASSAGELAB_MARKER_ICON_SOURCE/)
+    assert.match(effectSource, /massagelab-mark-square-tight\.png/)
+    assert.match(effectSource, /label: ""/)
+    assert.match(effectSource, /panX: 0/)
+    assert.match(effectSource, /panY: 0/)
+    assert.match(effectSource, /showTilt: true/)
     assert.match(effectSource, /markerLat/)
     assert.match(effectSource, /markerLng/)
-    assert.match(effectSource, /markerAvatarUrl/)
-    assert.match(effectSource, /normalizeHttpUrl/)
-    assert.match(effectSource, /drawMarker/)
-    assert.match(effectSource, /latRad/)
-    assert.match(effectSource, /lngRad/)
+    assert.match(effectSource, /markerIcon: "pin"/)
+    assert.match(effectSource, /WEBGL_GLOBE_FRAGMENT_SHADER/)
+    assert.match(effectSource, /createGlobeRenderer/)
+    assert.match(effectSource, /uploadGlobeTexture/)
+    assert.match(effectSource, /UNPACK_FLIP_Y_WEBGL,\s*false/)
+    assert.match(effectSource, /getSunState/)
+    assert.match(effectSource, /getAxialTiltDegrees/)
+    assert.match(effectSource, /normal\.x \* c \+ normal\.y \* s/)
+    assert.match(effectSource, /u_sunLighting/)
+    assert.match(effectSource, /u_graphicMode/)
+    assert.match(effectSource, /u_graphicMapSamples/)
+    assert.match(effectSource, /createGraphicMapPoints/)
+    assert.match(effectSource, /drawGraphicMapDots/)
+    assert.match(effectSource, /new Path2D/)
+    assert.match(effectSource, /COBE_WORLD_MAP_MASK/)
+    assert.match(effectSource, /createGraphicMapPoints\(graphicMapMask, resolved\.graphicMapSamples, "cobe"\)/)
+    assert.match(effectSource, /graphicMapSamples: isGraphicMode \? 0 : resolved\.graphicMapSamples/)
+    assert.match(effectSource, /graphicMapSamples: 8000/)
+    assert.match(effectSource, /Math\.min\(10000/)
+    assert.match(effectSource, /GRAPHIC_FIBONACCI_GOLDEN_ANGLE/)
+    assert.match(effectSource, /densityBudget/)
+    assert.match(effectSource, /getGraphicMaskBrightness/)
+    assert.doesNotMatch(effectSource, /points\.length > targetCount/)
+    assert.doesNotMatch(effectSource, /hashUnit/)
+    assert.match(effectSource, /drawGraphicLocationMarker/)
+    assert.match(effectSource, /toGraphicMapLongitude/)
+    assert.match(effectSource, /useGraphicMapSpace/)
+    assert.match(effectSource, /overlayCenterLongitude/)
+    assert.match(effectSource, /viewStyle: "realistic"/)
+    assert.match(effectSource, /smoothstep\(-0\.035,\s*0\.035,\s*ndl\)/)
+    assert.match(effectSource, /sunNightShade/)
+    assert.match(effectSource, /projectLatLngToGlobe/)
+    assert.match(effectSource, /drawLocationMarker/)
+    assert.match(effectSource, /drawMarkerIcon/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
     assert.match(stylesSource, /aceternity3dGlobe/)
     assert.match(stylesSource, /aceternity3dGlobeCanvas/)
+    assert.match(stylesSource, /aceternity3dGlobeMarkerCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
     assert.match(hostSource, /aceternity3DGlobe/)
     assert.match(cssEffectsSource, /Aceternity3DGlobeOptions/)
     assert.match(runningSource, /aceternity3DGlobe=\{\{/)
+    assert.doesNotMatch(runningSource, /accountMarkerAvatarUrl/)
+    assert.doesNotMatch(pageSource, /sessionUserString/)
+    assert.doesNotMatch(pageSource, /accountMarkerAvatarUrl/)
     assert.match(runningSource, /navigator\.geolocation\.getCurrentPosition/)
     assert.match(setupSource, /navigator\.geolocation\.getCurrentPosition/)
     assert.match(setupSource, /Use my location/)
+    assert.match(setupSource, /Follow Sun/)
+    assert.match(runningSource, /Follow Sun/)
+    assert.doesNotMatch(setupSource, /Reverse spin/)
+    assert.doesNotMatch(runningSource, /Reverse spin/)
+    assert.doesNotMatch(setupSource, /Show Earth tilt/)
+    assert.doesNotMatch(runningSource, /Show Earth tilt/)
+    assert.match(setupSource, /Outer Glow/)
+    assert.match(runningSource, /Outer Glow/)
+    assert.match(setupSource, /Pan X Left\/Right/)
+    assert.match(setupSource, /Pan Y Up\/Down/)
+    assert.match(runningSource, /Pan X Left\/Right/)
+    assert.match(runningSource, /Pan Y Up\/Down/)
+    assert.match(setupSource, /settings\.aceternity3DGlobeEnablePan &&/)
+    assert.match(runningSource, /aceternity3DGlobeEnablePan &&/)
+    assert.match(setupSource, /max="10000"/)
+    assert.match(runningSource, /max="10000"/)
     assert.doesNotMatch(pageSource, /aceternity3DGlobe=\{\{/)
     assert.match(docsSource, /3D Globe \| https:\/\/ui\.aceternity\.com\/components\/3d-globe/)
     assert.match(docsSource, /3d-globe\.json/)
     assert.match(docsSource, /three`, `@react-three\/fiber`, `@react-three\/drei`, and `@types\/three`/)
     assert.match(docsSource, /avatar tips/)
-    assert.match(docsSource, /HTTP\(S\)/)
-    assert.match(docsSource, /dependency-free 2D canvas renderer/)
+    assert.match(docsSource, /icon-based user marker/)
+    assert.match(docsSource, /MassageLab Ashland, OH marker/)
+    assert.match(docsSource, /native WebGL sphere renderer/)
+    assert.match(docsSource, /cobe-globe\.json/)
+    assert.match(docsSource, /react-spring`, `cobe`, and `react`/)
+    assert.match(docsSource, /Graphic view style/)
+    assert.match(docsSource, /structured/)
+    assert.match(docsSource, /10k/)
+    assert.match(docsSource, /dependency-free/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "cobe"/)
+    assert.doesNotMatch(effectSource, /react-spring/)
     assert.doesNotMatch(effectSource, /@react-three\/fiber/)
     assert.doesNotMatch(effectSource, /@react-three\/drei/)
     assert.doesNotMatch(effectSource, /OrbitControls/)
@@ -1286,13 +1354,22 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
 
     for (const settingKey of [
+      "aceternity3DGlobeViewStyle",
       "aceternity3DGlobeBackgroundColor",
       "aceternity3DGlobeGlobeColor",
+      "aceternity3DGlobeGraphicMapColor",
+      "aceternity3DGlobeGraphicGlowColor",
+      "aceternity3DGlobeGraphicMarkerColor",
+      "aceternity3DGlobeGraphicMapSamples",
       "aceternity3DGlobeAutoRotateSpeed",
       "aceternity3DGlobeScale",
       "aceternity3DGlobeBumpScale",
       "aceternity3DGlobeAmbientIntensity",
       "aceternity3DGlobePointLightIntensity",
+      "aceternity3DGlobeLightingMode",
+      "aceternity3DGlobeEnablePan",
+      "aceternity3DGlobePanX",
+      "aceternity3DGlobePanY",
       "aceternity3DGlobeShowAtmosphere",
       "aceternity3DGlobeAtmosphereColor",
       "aceternity3DGlobeAtmosphereIntensity",
@@ -1303,7 +1380,7 @@ describe("premium background registry", () => {
       "aceternity3DGlobeMarkerLat",
       "aceternity3DGlobeMarkerLng",
       "aceternity3DGlobeMarkerLabel",
-      "aceternity3DGlobeMarkerAvatarUrl",
+      "aceternity3DGlobeMarkerIcon",
       "aceternity3DGlobeMarkerSize",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))

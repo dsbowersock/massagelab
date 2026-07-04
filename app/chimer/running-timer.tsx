@@ -64,6 +64,8 @@ import {
   getEldoraNovatrixSourceSpeed,
   getEldoraHackerDisplaySpeed,
   getEldoraHackerSourceSpeed,
+  getAceternity3DGlobeScaleDisplayPercent,
+  getAceternity3DGlobeScaleFromDisplayPercent,
   getEldoraPhotonBeamDisplaySpeed,
   getEldoraPhotonBeamSourceSpeed,
   resolveChamaacAstralFlowColors,
@@ -246,13 +248,24 @@ interface RunningTimerProps {
   eldoraPhotonBeamTrailLength: number
   eldoraPhotonBeamBloomStrength: number
   eldoraPhotonBeamBloomRadius: number
+  aceternity3DGlobeViewStyle: ChimerSettings["aceternity3DGlobeViewStyle"]
   aceternity3DGlobeBackgroundColor: string
   aceternity3DGlobeGlobeColor: string
+  aceternity3DGlobeGraphicMapColor: string
+  aceternity3DGlobeGraphicGlowColor: string
+  aceternity3DGlobeGraphicMarkerColor: string
+  aceternity3DGlobeGraphicMapSamples: number
   aceternity3DGlobeAutoRotateSpeed: number
+  aceternity3DGlobeReverseSpin: boolean
   aceternity3DGlobeScale: number
   aceternity3DGlobeBumpScale: number
   aceternity3DGlobeAmbientIntensity: number
   aceternity3DGlobePointLightIntensity: number
+  aceternity3DGlobeLightingMode: "manual" | "sun"
+  aceternity3DGlobeEnablePan: boolean
+  aceternity3DGlobePanX: number
+  aceternity3DGlobePanY: number
+  aceternity3DGlobeShowTilt: boolean
   aceternity3DGlobeShowAtmosphere: boolean
   aceternity3DGlobeAtmosphereColor: string
   aceternity3DGlobeAtmosphereIntensity: number
@@ -263,7 +276,7 @@ interface RunningTimerProps {
   aceternity3DGlobeMarkerLat: number
   aceternity3DGlobeMarkerLng: number
   aceternity3DGlobeMarkerLabel: string
-  aceternity3DGlobeMarkerAvatarUrl: string
+  aceternity3DGlobeMarkerIcon: "pin" | "person" | "heart" | "star" | "home"
   aceternity3DGlobeMarkerSize: number
   magicRetroGridBackgroundColor: string
   magicRetroGridLightLineColor: string
@@ -525,13 +538,24 @@ export function RunningTimer({
   eldoraPhotonBeamTrailLength,
   eldoraPhotonBeamBloomStrength,
   eldoraPhotonBeamBloomRadius,
+  aceternity3DGlobeViewStyle,
   aceternity3DGlobeBackgroundColor,
   aceternity3DGlobeGlobeColor,
+  aceternity3DGlobeGraphicMapColor,
+  aceternity3DGlobeGraphicGlowColor,
+  aceternity3DGlobeGraphicMarkerColor,
+  aceternity3DGlobeGraphicMapSamples,
   aceternity3DGlobeAutoRotateSpeed,
+  aceternity3DGlobeReverseSpin,
   aceternity3DGlobeScale,
   aceternity3DGlobeBumpScale,
   aceternity3DGlobeAmbientIntensity,
   aceternity3DGlobePointLightIntensity,
+  aceternity3DGlobeLightingMode,
+  aceternity3DGlobeEnablePan,
+  aceternity3DGlobePanX,
+  aceternity3DGlobePanY,
+  aceternity3DGlobeShowTilt,
   aceternity3DGlobeShowAtmosphere,
   aceternity3DGlobeAtmosphereColor,
   aceternity3DGlobeAtmosphereIntensity,
@@ -542,7 +566,7 @@ export function RunningTimer({
   aceternity3DGlobeMarkerLat,
   aceternity3DGlobeMarkerLng,
   aceternity3DGlobeMarkerLabel,
-  aceternity3DGlobeMarkerAvatarUrl,
+  aceternity3DGlobeMarkerIcon,
   aceternity3DGlobeMarkerSize,
   magicRetroGridBackgroundColor,
   magicRetroGridLightLineColor,
@@ -1152,6 +1176,10 @@ export function RunningTimer({
       })
     })
   }
+
+  const aceternity3DGlobeScaleDisplayPercent = getAceternity3DGlobeScaleDisplayPercent(aceternity3DGlobeScale)
+  const isGraphicGlobe = aceternity3DGlobeViewStyle === "graphic"
+  const followSun = aceternity3DGlobeLightingMode === "sun"
 
   const renderBackgroundControls = (option: BackgroundDefinition) => (
     <div className={styles.backgroundCardControls}>
@@ -2084,6 +2112,20 @@ export function RunningTimer({
 
       {option.id === "aceternity-3d-globe" && (
         <>
+          <label className={styles.selectRow}>
+            <span>View style</span>
+            <select
+              value={aceternity3DGlobeViewStyle}
+              onChange={(event) => handleSettingsChange({
+                aceternity3DGlobeViewStyle: event.target.value as ChimerSettings["aceternity3DGlobeViewStyle"],
+              })}
+              aria-label="3D Globe view style"
+            >
+              <option value="realistic">Realistic</option>
+              <option value="graphic">Graphic</option>
+            </select>
+          </label>
+
           <label className={styles.colorRow}>
             <span>Background</span>
             <input
@@ -2094,149 +2136,262 @@ export function RunningTimer({
             />
           </label>
 
-          <label className={styles.colorRow}>
-            <span>Globe tint</span>
-            <input
-              type="color"
-              value={aceternity3DGlobeGlobeColor}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeGlobeColor: event.target.value })}
-              aria-label="3D Globe tint color"
-            />
-          </label>
+          {isGraphicGlobe ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Map dots</span>
+                <input
+                  type="color"
+                  value={aceternity3DGlobeGraphicMapColor}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicMapColor: event.target.value })}
+                  aria-label="3D Globe graphic map dot color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Outer Glow</span>
+                <input
+                  type="color"
+                  value={aceternity3DGlobeGraphicGlowColor}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicGlowColor: event.target.value })}
+                  aria-label="3D Globe graphic outer glow color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Marker dots</span>
+                <input
+                  type="color"
+                  value={aceternity3DGlobeGraphicMarkerColor}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicMarkerColor: event.target.value })}
+                  aria-label="3D Globe graphic marker color"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Dot density ({Math.round(aceternity3DGlobeGraphicMapSamples / 1000)}k)</span>
+                <input
+                  type="range"
+                  min="1000"
+                  max="10000"
+                  step="1000"
+                  value={aceternity3DGlobeGraphicMapSamples}
+                  onChange={(event) => handleSettingsChange({
+                    aceternity3DGlobeGraphicMapSamples: Number(event.target.value),
+                  })}
+                  aria-label="3D Globe graphic dot density"
+                />
+              </label>
+            </>
+          ) : (
+            <label className={styles.colorRow}>
+              <span>Globe tint</span>
+              <input
+                type="color"
+                value={aceternity3DGlobeGlobeColor}
+                onChange={(event) => handleSettingsChange({ aceternity3DGlobeGlobeColor: event.target.value })}
+                aria-label="3D Globe tint color"
+              />
+            </label>
+          )}
 
-          <label className={styles.rangeRow}>
-            <span>Rotation speed ({aceternity3DGlobeAutoRotateSpeed.toFixed(2)}x)</span>
-            <input
-              type="range"
-              min="0"
-              max="3"
-              step="0.05"
-              value={aceternity3DGlobeAutoRotateSpeed}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeAutoRotateSpeed: Number(event.target.value) })}
-              aria-label="3D Globe rotation speed"
-            />
-          </label>
+          {!followSun && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Rotation speed ({aceternity3DGlobeAutoRotateSpeed.toFixed(2)}x)</span>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="2"
+                  step="0.01"
+                  value={aceternity3DGlobeAutoRotateSpeed}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAutoRotateSpeed: Number(event.target.value) })}
+                  aria-label="3D Globe rotation speed"
+                />
+              </label>
 
-          <label className={styles.rangeRow}>
-            <span>Globe size ({Math.round(aceternity3DGlobeScale * 100)}%)</span>
-            <input
-              type="range"
-              min="0.34"
-              max="0.84"
-              step="0.01"
-              value={aceternity3DGlobeScale}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeScale: Number(event.target.value) })}
-              aria-label="3D Globe size"
-            />
-          </label>
+            </>
+          )}
 
-          <label className={styles.rangeRow}>
-            <span>Bump scale ({aceternity3DGlobeBumpScale.toFixed(1)})</span>
+          <label className={styles.switchRow}>
+            <span>Follow Sun</span>
             <input
-              type="range"
-              min="0"
-              max="3"
-              step="0.1"
-              value={aceternity3DGlobeBumpScale}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeBumpScale: Number(event.target.value) })}
-              aria-label="3D Globe bump scale"
-            />
-          </label>
-
-          <label className={styles.rangeRow}>
-            <span>Ambient light ({aceternity3DGlobeAmbientIntensity.toFixed(1)})</span>
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={aceternity3DGlobeAmbientIntensity}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeAmbientIntensity: Number(event.target.value) })}
-              aria-label="3D Globe ambient light"
-            />
-          </label>
-
-          <label className={styles.rangeRow}>
-            <span>Point light ({aceternity3DGlobePointLightIntensity.toFixed(1)})</span>
-            <input
-              type="range"
-              min="0"
-              max="4"
-              step="0.1"
-              value={aceternity3DGlobePointLightIntensity}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobePointLightIntensity: Number(event.target.value) })}
-              aria-label="3D Globe point light"
+              type="checkbox"
+              checked={followSun}
+              onChange={(event) => handleSettingsChange({ aceternity3DGlobeLightingMode: event.target.checked ? "sun" : "manual" })}
+              aria-label="3D Globe follow sun"
             />
           </label>
 
           <label className={styles.switchRow}>
-            <span>Atmosphere</span>
+            <span>Pan controls</span>
             <input
               type="checkbox"
-              checked={aceternity3DGlobeShowAtmosphere}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowAtmosphere: event.target.checked })}
-              aria-label="3D Globe show atmosphere"
+              checked={aceternity3DGlobeEnablePan}
+              onChange={(event) => handleSettingsChange({ aceternity3DGlobeEnablePan: event.target.checked })}
+              aria-label="3D Globe pan controls"
             />
           </label>
 
-          {aceternity3DGlobeShowAtmosphere && (
+          {aceternity3DGlobeEnablePan && (
             <>
-              <label className={styles.colorRow}>
-                <span>Atmosphere color</span>
-                <input
-                  type="color"
-                  value={aceternity3DGlobeAtmosphereColor}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereColor: event.target.value })}
-                  aria-label="3D Globe atmosphere color"
-                />
-              </label>
               <label className={styles.rangeRow}>
-                <span>Atmosphere ({aceternity3DGlobeAtmosphereIntensity.toFixed(1)})</span>
+                <span>Pan X Left/Right ({Math.round(aceternity3DGlobePanX)}%)</span>
                 <input
                   type="range"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={aceternity3DGlobeAtmosphereIntensity}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereIntensity: Number(event.target.value) })}
-                  aria-label="3D Globe atmosphere intensity"
+                  min="-50"
+                  max="50"
+                  step="1"
+                  value={aceternity3DGlobePanX}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePanX: Number(event.target.value) })}
+                  aria-label="3D Globe pan X left right"
                 />
               </label>
+
               <label className={styles.rangeRow}>
-                <span>Atmosphere blur ({aceternity3DGlobeAtmosphereBlur.toFixed(1)})</span>
+                <span>Pan Y Up/Down ({Math.round(aceternity3DGlobePanY)}%)</span>
                 <input
                   type="range"
-                  min="0.5"
-                  max="5"
-                  step="0.1"
-                  value={aceternity3DGlobeAtmosphereBlur}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereBlur: Number(event.target.value) })}
-                  aria-label="3D Globe atmosphere blur"
+                  min="-50"
+                  max="50"
+                  step="1"
+                  value={aceternity3DGlobePanY}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePanY: Number(event.target.value) })}
+                  aria-label="3D Globe pan Y up down"
                 />
               </label>
             </>
           )}
 
-          <label className={styles.switchRow}>
-            <span>Wireframe</span>
+          <label className={styles.rangeRow}>
+            <span>Globe size ({aceternity3DGlobeScaleDisplayPercent}%)</span>
             <input
-              type="checkbox"
-              checked={aceternity3DGlobeShowWireframe}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowWireframe: event.target.checked })}
-              aria-label="3D Globe show wireframe"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value={aceternity3DGlobeScaleDisplayPercent}
+              onChange={(event) => handleSettingsChange({
+                aceternity3DGlobeScale: getAceternity3DGlobeScaleFromDisplayPercent(Number(event.target.value)),
+              })}
+              aria-label="3D Globe size"
             />
           </label>
 
-          {aceternity3DGlobeShowWireframe && (
-            <label className={styles.colorRow}>
-              <span>Wireframe color</span>
+          {!isGraphicGlobe && (
+            <label className={styles.rangeRow}>
+              <span>Bump scale ({aceternity3DGlobeBumpScale.toFixed(1)})</span>
               <input
-                type="color"
-                value={aceternity3DGlobeWireframeColor}
-                onChange={(event) => handleSettingsChange({ aceternity3DGlobeWireframeColor: event.target.value })}
-                aria-label="3D Globe wireframe color"
+                type="range"
+                min="0"
+                max="3"
+                step="0.1"
+                value={aceternity3DGlobeBumpScale}
+                onChange={(event) => handleSettingsChange({ aceternity3DGlobeBumpScale: Number(event.target.value) })}
+                aria-label="3D Globe bump scale"
               />
             </label>
+          )}
+
+          {!followSun && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Ambient light ({aceternity3DGlobeAmbientIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={aceternity3DGlobeAmbientIntensity}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAmbientIntensity: Number(event.target.value) })}
+                  aria-label="3D Globe ambient light"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Point light ({aceternity3DGlobePointLightIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="0.1"
+                  value={aceternity3DGlobePointLightIntensity}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePointLightIntensity: Number(event.target.value) })}
+                  aria-label="3D Globe point light"
+                />
+              </label>
+            </>
+          )}
+
+          {!isGraphicGlobe && (
+            <>
+              <label className={styles.switchRow}>
+                <span>Atmosphere</span>
+                <input
+                  type="checkbox"
+                  checked={aceternity3DGlobeShowAtmosphere}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowAtmosphere: event.target.checked })}
+                  aria-label="3D Globe show atmosphere"
+                />
+              </label>
+
+              {aceternity3DGlobeShowAtmosphere && (
+                <>
+                  <label className={styles.colorRow}>
+                    <span>Atmosphere color</span>
+                    <input
+                      type="color"
+                      value={aceternity3DGlobeAtmosphereColor}
+                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereColor: event.target.value })}
+                      aria-label="3D Globe atmosphere color"
+                    />
+                  </label>
+                  <label className={styles.rangeRow}>
+                    <span>Atmosphere ({aceternity3DGlobeAtmosphereIntensity.toFixed(1)})</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={aceternity3DGlobeAtmosphereIntensity}
+                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereIntensity: Number(event.target.value) })}
+                      aria-label="3D Globe atmosphere intensity"
+                    />
+                  </label>
+                  <label className={styles.rangeRow}>
+                    <span>Atmosphere blur ({aceternity3DGlobeAtmosphereBlur.toFixed(1)})</span>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5"
+                      step="0.1"
+                      value={aceternity3DGlobeAtmosphereBlur}
+                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereBlur: Number(event.target.value) })}
+                      aria-label="3D Globe atmosphere blur"
+                    />
+                  </label>
+                </>
+              )}
+
+              <label className={styles.switchRow}>
+                <span>Wireframe</span>
+                <input
+                  type="checkbox"
+                  checked={aceternity3DGlobeShowWireframe}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowWireframe: event.target.checked })}
+                  aria-label="3D Globe show wireframe"
+                />
+              </label>
+
+              {aceternity3DGlobeShowWireframe && (
+                <label className={styles.colorRow}>
+                  <span>Wireframe color</span>
+                  <input
+                    type="color"
+                    value={aceternity3DGlobeWireframeColor}
+                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeWireframeColor: event.target.value })}
+                    aria-label="3D Globe wireframe color"
+                  />
+                </label>
+              )}
+            </>
           )}
 
           <label className={styles.switchRow}>
@@ -2284,19 +2439,27 @@ export function RunningTimer({
                 <span>Marker label</span>
                 <input
                   type="text"
+                  placeholder="Optional"
                   value={aceternity3DGlobeMarkerLabel}
                   onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLabel: event.target.value })}
                   aria-label="3D Globe marker label"
                 />
               </label>
-              <label className={styles.textField}>
-                <span>Avatar URL</span>
-                <input
-                  type="url"
-                  value={aceternity3DGlobeMarkerAvatarUrl}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerAvatarUrl: event.target.value })}
-                  aria-label="3D Globe marker avatar URL"
-                />
+              <label className={styles.selectRow}>
+                <span>Marker icon</span>
+                <select
+                  value={aceternity3DGlobeMarkerIcon}
+                  onChange={(event) => handleSettingsChange({
+                    aceternity3DGlobeMarkerIcon: event.target.value as ChimerSettings["aceternity3DGlobeMarkerIcon"],
+                  })}
+                  aria-label="3D Globe marker icon"
+                >
+                  <option value="pin">Pin</option>
+                  <option value="person">Person</option>
+                  <option value="heart">Heart</option>
+                  <option value="star">Star</option>
+                  <option value="home">Home</option>
+                </select>
               </label>
               <label className={styles.rangeRow}>
                 <span>Marker size ({Math.round(aceternity3DGlobeMarkerSize * 100)}%)</span>
@@ -4621,13 +4784,24 @@ export function RunningTimer({
             bloomRadius: eldoraPhotonBeamBloomRadius,
           }}
           aceternity3DGlobe={{
+            viewStyle: aceternity3DGlobeViewStyle,
             backgroundColor: aceternity3DGlobeBackgroundColor,
             globeColor: aceternity3DGlobeGlobeColor,
+            graphicMapColor: aceternity3DGlobeGraphicMapColor,
+            graphicGlowColor: aceternity3DGlobeGraphicGlowColor,
+            graphicMarkerColor: aceternity3DGlobeGraphicMarkerColor,
+            graphicMapSamples: aceternity3DGlobeGraphicMapSamples,
             autoRotateSpeed: aceternity3DGlobeAutoRotateSpeed,
+            reverseSpin: aceternity3DGlobeReverseSpin,
             globeScale: aceternity3DGlobeScale,
             bumpScale: aceternity3DGlobeBumpScale,
             ambientIntensity: aceternity3DGlobeAmbientIntensity,
             pointLightIntensity: aceternity3DGlobePointLightIntensity,
+            lightingMode: aceternity3DGlobeLightingMode,
+            enablePan: aceternity3DGlobeEnablePan,
+            panX: aceternity3DGlobePanX,
+            panY: aceternity3DGlobePanY,
+            showTilt: aceternity3DGlobeShowTilt,
             showAtmosphere: aceternity3DGlobeShowAtmosphere,
             atmosphereColor: aceternity3DGlobeAtmosphereColor,
             atmosphereIntensity: aceternity3DGlobeAtmosphereIntensity,
@@ -4638,7 +4812,7 @@ export function RunningTimer({
             markerLat: aceternity3DGlobeMarkerLat,
             markerLng: aceternity3DGlobeMarkerLng,
             markerLabel: aceternity3DGlobeMarkerLabel,
-            markerAvatarUrl: aceternity3DGlobeMarkerAvatarUrl,
+            markerIcon: aceternity3DGlobeMarkerIcon,
             markerSize: aceternity3DGlobeMarkerSize,
           }}
           magicRetroGrid={{

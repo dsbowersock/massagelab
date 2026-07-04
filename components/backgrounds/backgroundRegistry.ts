@@ -730,7 +730,7 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     requiresSubscription: true,
     enabled: true,
     customizationSummary:
-      "Background, globe tint, rotation, scale, bump, lighting, atmosphere, wireframe, and optional manual/browser-location avatar marker; Aceternity Three.js source adapted with a dependency-free native canvas renderer.",
+      "Background, globe tint, manual or Follow Sun lighting, rotation speed with fixed reverse spin, screen pan, fixed axial tilt, scale, bump, atmosphere, wireframe, icon location markers, built-in MassageLab marker, and a Graphic view with structured stable map dots and Outer Glow; Aceternity Three.js source adapted with a dependency-free native WebGL sphere renderer and 2D marker overlay.",
     component: () => aceternity3DGlobe().then((module) => ({ default: module.default })),
     fallbackStyle: {
       background:
