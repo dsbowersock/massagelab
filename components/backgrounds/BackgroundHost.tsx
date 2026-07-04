@@ -28,6 +28,7 @@ import type {
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
+  Aceternity3DGlobeOptions,
   MagicLightRaysOptions,
   GradientAnimationOptions,
   HexGridOptions,
@@ -67,6 +68,7 @@ interface BackgroundHostProps {
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
+  aceternity3DGlobe?: Aceternity3DGlobeOptions
   magicRetroGrid?: MagicRetroGridOptions
   magicLightRays?: MagicLightRaysOptions
   backgroundLines?: BackgroundLinesOptions
@@ -122,6 +124,7 @@ export function BackgroundHost({
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
+  aceternity3DGlobe,
   magicRetroGrid,
   magicLightRays,
   backgroundLines,
@@ -202,6 +205,7 @@ export function BackgroundHost({
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}
+          aceternity3DGlobe={aceternity3DGlobe}
           magicRetroGrid={magicRetroGrid}
           magicLightRays={magicLightRays}
           backgroundLines={backgroundLines}

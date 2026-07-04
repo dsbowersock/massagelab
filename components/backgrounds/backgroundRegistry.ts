@@ -23,6 +23,7 @@ export type BackgroundId =
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
+  | "aceternity-3d-globe"
   | "aceternity-aurora"
   | "aceternity-dotted-glow"
   | "aceternity-sparkles"
@@ -86,6 +87,7 @@ const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
+const aceternity3DGlobe = () => import("./effects/aceternity-3d-globe-background")
 const magicRetroGrid = () => import("./effects/magicui-retro-grid-background")
 const magicLightRays = () => import("./effects/magicui-light-rays-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
@@ -712,6 +714,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 42%, rgba(0,255,255,0.1), transparent 34%), radial-gradient(circle at 74% 20%, rgba(34,211,238,0.08), transparent 30%), linear-gradient(145deg, #020617 0%, #07111b 52%, #050505 100%)",
+    },
+  },
+  {
+    id: "aceternity-3d-globe",
+    label: "3D Globe",
+    provider: "Aceternity UI",
+    sourceUrl: "https://ui.aceternity.com/components/3d-globe",
+    license: "Aceternity License; component registry reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium rotating globe background with optional location marker for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Background, globe tint, rotation, scale, bump, lighting, atmosphere, wireframe, and optional manual/browser-location avatar marker; Aceternity Three.js source adapted with a dependency-free native canvas renderer.",
+    component: () => aceternity3DGlobe().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 48%, rgba(77,166,255,0.24), transparent 34%), radial-gradient(circle at 36% 28%, rgba(255,255,255,0.12), transparent 24%), linear-gradient(145deg, #020617 0%, #06091a 54%, #000000 100%)",
     },
   },
   {

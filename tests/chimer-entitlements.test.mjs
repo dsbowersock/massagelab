@@ -157,6 +157,77 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.eldoraPhotonBeamBloomRadius, 1.1)
   })
 
+  it("resets Aceternity 3D Globe controls without premium background access", () => {
+    const input = {
+      backgroundId: "aceternity-3d-globe",
+      aceternity3DGlobeBackgroundColor: "#010203",
+      aceternity3DGlobeGlobeColor: "#123456",
+      aceternity3DGlobeAutoRotateSpeed: 1.2,
+      aceternity3DGlobeScale: 0.72,
+      aceternity3DGlobeBumpScale: 1.8,
+      aceternity3DGlobeAmbientIntensity: 1.1,
+      aceternity3DGlobePointLightIntensity: 2.4,
+      aceternity3DGlobeShowAtmosphere: true,
+      aceternity3DGlobeAtmosphereColor: "#AABBCC",
+      aceternity3DGlobeAtmosphereIntensity: 1.4,
+      aceternity3DGlobeAtmosphereBlur: 3.5,
+      aceternity3DGlobeShowWireframe: true,
+      aceternity3DGlobeWireframeColor: "#DDEEFF",
+      aceternity3DGlobeMarkerEnabled: true,
+      aceternity3DGlobeMarkerLat: 37.7749,
+      aceternity3DGlobeMarkerLng: -122.4194,
+      aceternity3DGlobeMarkerLabel: "San Francisco",
+      aceternity3DGlobeMarkerAvatarUrl: "https://example.com/avatar.png",
+      aceternity3DGlobeMarkerSize: 0.12,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.aceternity3DGlobeBackgroundColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeBackgroundColor)
+    assert.equal(freeSettings.aceternity3DGlobeGlobeColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGlobeColor)
+    assert.equal(freeSettings.aceternity3DGlobeAutoRotateSpeed, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAutoRotateSpeed)
+    assert.equal(freeSettings.aceternity3DGlobeScale, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeScale)
+    assert.equal(freeSettings.aceternity3DGlobeBumpScale, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeBumpScale)
+    assert.equal(freeSettings.aceternity3DGlobeAmbientIntensity, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAmbientIntensity)
+    assert.equal(freeSettings.aceternity3DGlobePointLightIntensity, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobePointLightIntensity)
+    assert.equal(freeSettings.aceternity3DGlobeShowAtmosphere, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeShowAtmosphere)
+    assert.equal(freeSettings.aceternity3DGlobeAtmosphereColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAtmosphereColor)
+    assert.equal(freeSettings.aceternity3DGlobeAtmosphereIntensity, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAtmosphereIntensity)
+    assert.equal(freeSettings.aceternity3DGlobeAtmosphereBlur, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAtmosphereBlur)
+    assert.equal(freeSettings.aceternity3DGlobeShowWireframe, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeShowWireframe)
+    assert.equal(freeSettings.aceternity3DGlobeWireframeColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeWireframeColor)
+    assert.equal(freeSettings.aceternity3DGlobeMarkerEnabled, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerEnabled)
+    assert.equal(freeSettings.aceternity3DGlobeMarkerLat, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLat)
+    assert.equal(freeSettings.aceternity3DGlobeMarkerLng, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLng)
+    assert.equal(freeSettings.aceternity3DGlobeMarkerLabel, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLabel)
+    assert.equal(freeSettings.aceternity3DGlobeMarkerAvatarUrl, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerAvatarUrl)
+    assert.equal(freeSettings.aceternity3DGlobeMarkerSize, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerSize)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "aceternity-3d-globe")
+    assert.equal(premiumSettings.aceternity3DGlobeBackgroundColor, "#010203")
+    assert.equal(premiumSettings.aceternity3DGlobeGlobeColor, "#123456")
+    assert.equal(premiumSettings.aceternity3DGlobeAutoRotateSpeed, 1.2)
+    assert.equal(premiumSettings.aceternity3DGlobeScale, 0.72)
+    assert.equal(premiumSettings.aceternity3DGlobeBumpScale, 1.8)
+    assert.equal(premiumSettings.aceternity3DGlobeAmbientIntensity, 1.1)
+    assert.equal(premiumSettings.aceternity3DGlobePointLightIntensity, 2.4)
+    assert.equal(premiumSettings.aceternity3DGlobeShowAtmosphere, true)
+    assert.equal(premiumSettings.aceternity3DGlobeAtmosphereColor, "#AABBCC")
+    assert.equal(premiumSettings.aceternity3DGlobeAtmosphereIntensity, 1.4)
+    assert.equal(premiumSettings.aceternity3DGlobeAtmosphereBlur, 3.5)
+    assert.equal(premiumSettings.aceternity3DGlobeShowWireframe, true)
+    assert.equal(premiumSettings.aceternity3DGlobeWireframeColor, "#DDEEFF")
+    assert.equal(premiumSettings.aceternity3DGlobeMarkerEnabled, true)
+    assert.equal(premiumSettings.aceternity3DGlobeMarkerLat, 37.7749)
+    assert.equal(premiumSettings.aceternity3DGlobeMarkerLng, -122.4194)
+    assert.equal(premiumSettings.aceternity3DGlobeMarkerLabel, "San Francisco")
+    assert.equal(premiumSettings.aceternity3DGlobeMarkerAvatarUrl, "https://example.com/avatar.png")
+    assert.equal(premiumSettings.aceternity3DGlobeMarkerSize, 0.12)
+  })
+
   it("resets Magic UI Retro Grid controls without premium background access", () => {
     const input = {
       backgroundId: "magicui-retro-grid",

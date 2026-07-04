@@ -814,6 +814,68 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Aceternity 3D Globe background controls", () => {
+    const longLabel = "A".repeat(96)
+    const settings = sanitizeChimerSettings({
+      aceternity3DGlobeBackgroundColor: "#aabbcc",
+      aceternity3DGlobeGlobeColor: "navy",
+      aceternity3DGlobeAutoRotateSpeed: 99,
+      aceternity3DGlobeScale: 0,
+      aceternity3DGlobeBumpScale: 99,
+      aceternity3DGlobeAmbientIntensity: -1,
+      aceternity3DGlobePointLightIntensity: 99,
+      aceternity3DGlobeShowAtmosphere: true,
+      aceternity3DGlobeAtmosphereColor: "#4da6ff",
+      aceternity3DGlobeAtmosphereIntensity: 99,
+      aceternity3DGlobeAtmosphereBlur: 0,
+      aceternity3DGlobeShowWireframe: true,
+      aceternity3DGlobeWireframeColor: "#4a9eff",
+      aceternity3DGlobeMarkerEnabled: true,
+      aceternity3DGlobeMarkerLat: 999,
+      aceternity3DGlobeMarkerLng: -999,
+      aceternity3DGlobeMarkerLabel: longLabel,
+      aceternity3DGlobeMarkerAvatarUrl: "javascript:alert(1)",
+      aceternity3DGlobeMarkerSize: 1,
+    })
+
+    assert.equal(settings.aceternity3DGlobeBackgroundColor, "#AABBCC")
+    assert.equal(settings.aceternity3DGlobeGlobeColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGlobeColor)
+    assert.equal(settings.aceternity3DGlobeAutoRotateSpeed, 3)
+    assert.equal(settings.aceternity3DGlobeScale, 0.34)
+    assert.equal(settings.aceternity3DGlobeBumpScale, 3)
+    assert.equal(settings.aceternity3DGlobeAmbientIntensity, 0)
+    assert.equal(settings.aceternity3DGlobePointLightIntensity, 4)
+    assert.equal(settings.aceternity3DGlobeShowAtmosphere, true)
+    assert.equal(settings.aceternity3DGlobeAtmosphereColor, "#4DA6FF")
+    assert.equal(settings.aceternity3DGlobeAtmosphereIntensity, 2)
+    assert.equal(settings.aceternity3DGlobeAtmosphereBlur, 0.5)
+    assert.equal(settings.aceternity3DGlobeShowWireframe, true)
+    assert.equal(settings.aceternity3DGlobeWireframeColor, "#4A9EFF")
+    assert.equal(settings.aceternity3DGlobeMarkerEnabled, true)
+    assert.equal(settings.aceternity3DGlobeMarkerLat, 90)
+    assert.equal(settings.aceternity3DGlobeMarkerLng, -180)
+    assert.equal(settings.aceternity3DGlobeMarkerLabel, longLabel.slice(0, 80))
+    assert.equal(settings.aceternity3DGlobeMarkerAvatarUrl, "")
+    assert.equal(settings.aceternity3DGlobeMarkerSize, 0.16)
+    assert.equal(
+      sanitizeChimerSettings({ aceternity3DGlobeMarkerAvatarUrl: "https://example.com/avatar.png" })
+        .aceternity3DGlobeMarkerAvatarUrl,
+      "https://example.com/avatar.png",
+    )
+    assert.equal(
+      sanitizeChimerSettings({ aceternity3DGlobeShowAtmosphere: "yes" }).aceternity3DGlobeShowAtmosphere,
+      DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeShowAtmosphere,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ aceternity3DGlobeMarkerEnabled: "yes" }).aceternity3DGlobeMarkerEnabled,
+      DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerEnabled,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ aceternity3DGlobeMarkerLabel: "" }).aceternity3DGlobeMarkerLabel,
+      DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLabel,
+    )
+  })
+
   it("normalizes Magic UI Retro Grid background controls", () => {
     const settings = sanitizeChimerSettings({
       magicRetroGridBackgroundColor: "black",

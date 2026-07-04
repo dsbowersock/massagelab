@@ -42,6 +42,7 @@ describe("premium background registry", () => {
       "aceternity-lamp-effect",
       "aceternity-vortex",
       "aceternity-wavy-background",
+      "aceternity-3d-globe",
       "unlumen-pixel-liquid",
       "massage-lab-tile-grid",
       "massage-lab-hex-grid",
@@ -127,6 +128,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Lamp Section Header/)
     assert.match(sourceDoc, /Vortex background/)
     assert.match(sourceDoc, /Wavy background/)
+    assert.match(sourceDoc, /3D Globe/)
     assert.match(sourceDoc, /Pixel liquid background/)
     assert.match(sourceDoc, /MassageLab tile grid/)
     assert.match(sourceDoc, /MassageLab hex grid/)
@@ -155,6 +157,11 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /hacker-background\.tsx/)
     assert.match(sourceDoc, /photon-beam\.tsx/)
     assert.match(sourceDoc, /light-rays\.tsx/)
+    assert.match(sourceDoc, /3d-globe\.json/)
+    assert.match(sourceDoc, /realistic globe component with tooltips and avatar tips/)
+    assert.match(sourceDoc, /@react-three\/drei/)
+    assert.match(sourceDoc, /marker avatar URLs are sanitized to HTTP\(S\)/)
+    assert.match(sourceDoc, /dependency-free 2D canvas renderer/)
     assert.match(sourceDoc, /`count`, `color`, `blur`, `opacity`, `speed`, and `length`/)
     assert.match(sourceDoc, /dependency-free CSS keyframes/)
     assert.match(sourceDoc, /declares `ogl`/)
@@ -219,6 +226,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("aceternity-lamp-effect"))
     assert.ok(chimerOptions.includes("aceternity-vortex"))
     assert.ok(chimerOptions.includes("aceternity-wavy-background"))
+    assert.ok(chimerOptions.includes("aceternity-3d-globe"))
     assert.ok(chimerOptions.includes("unlumen-pixel-liquid"))
     assert.ok(chimerOptions.includes("massage-lab-tile-grid"))
     assert.ok(chimerOptions.includes("massage-lab-hex-grid"))
@@ -254,6 +262,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("aceternity-lamp-effect"))
     assert.ok(clockOptions.includes("aceternity-vortex"))
     assert.ok(clockOptions.includes("aceternity-wavy-background"))
+    assert.ok(clockOptions.includes("aceternity-3d-globe"))
     assert.ok(clockOptions.includes("unlumen-pixel-liquid"))
     assert.ok(clockOptions.includes("massage-lab-tile-grid"))
     assert.ok(clockOptions.includes("massage-lab-hex-grid"))
@@ -290,6 +299,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("aceternity-lamp-effect"))
     assert.ok(musicOptions.includes("aceternity-vortex"))
     assert.ok(musicOptions.includes("aceternity-wavy-background"))
+    assert.ok(musicOptions.includes("aceternity-3d-globe"))
     assert.ok(musicOptions.includes("unlumen-pixel-liquid"))
     assert.ok(musicOptions.includes("massage-lab-tile-grid"))
     assert.ok(musicOptions.includes("massage-lab-hex-grid"))
@@ -1195,6 +1205,106 @@ describe("premium background registry", () => {
       "eldoraPhotonBeamTrailLength",
       "eldoraPhotonBeamBloomStrength",
       "eldoraPhotonBeamBloomRadius",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Aceternity 3D Globe source-shaped, marker-aware, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/aceternity-3d-globe-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /aceternity-3d-globe/)
+    assert.match(registrySource, /3D Globe/)
+    assert.match(registrySource, /https:\/\/ui\.aceternity\.com\/components\/3d-globe/)
+    assert.match(registrySource, /Aceternity License; component registry reviewed 2026-07-04/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /Aceternity3DGlobeBackground/)
+    assert.match(effectSource, /DEFAULT_EARTH_TEXTURE/)
+    assert.match(effectSource, /earth-blue-marble\.jpg/)
+    assert.match(effectSource, /DEFAULT_BUMP_TEXTURE/)
+    assert.match(effectSource, /earth-topology\.png/)
+    assert.match(effectSource, /autoRotateSpeed: 0\.3/)
+    assert.match(effectSource, /globeColor: "#1A1A2E"/)
+    assert.match(effectSource, /markerLat/)
+    assert.match(effectSource, /markerLng/)
+    assert.match(effectSource, /markerAvatarUrl/)
+    assert.match(effectSource, /normalizeHttpUrl/)
+    assert.match(effectSource, /drawMarker/)
+    assert.match(effectSource, /latRad/)
+    assert.match(effectSource, /lngRad/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(stylesSource, /aceternity3dGlobe/)
+    assert.match(stylesSource, /aceternity3dGlobeCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /aceternity3DGlobe/)
+    assert.match(cssEffectsSource, /Aceternity3DGlobeOptions/)
+    assert.match(runningSource, /aceternity3DGlobe=\{\{/)
+    assert.match(runningSource, /navigator\.geolocation\.getCurrentPosition/)
+    assert.match(setupSource, /navigator\.geolocation\.getCurrentPosition/)
+    assert.match(setupSource, /Use my location/)
+    assert.doesNotMatch(pageSource, /aceternity3DGlobe=\{\{/)
+    assert.match(docsSource, /3D Globe \| https:\/\/ui\.aceternity\.com\/components\/3d-globe/)
+    assert.match(docsSource, /3d-globe\.json/)
+    assert.match(docsSource, /three`, `@react-three\/fiber`, `@react-three\/drei`, and `@types\/three`/)
+    assert.match(docsSource, /avatar tips/)
+    assert.match(docsSource, /HTTP\(S\)/)
+    assert.match(docsSource, /dependency-free 2D canvas renderer/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three\/fiber/)
+    assert.doesNotMatch(effectSource, /@react-three\/drei/)
+    assert.doesNotMatch(effectSource, /OrbitControls/)
+    assert.doesNotMatch(effectSource, /useTexture/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+
+    for (const settingKey of [
+      "aceternity3DGlobeBackgroundColor",
+      "aceternity3DGlobeGlobeColor",
+      "aceternity3DGlobeAutoRotateSpeed",
+      "aceternity3DGlobeScale",
+      "aceternity3DGlobeBumpScale",
+      "aceternity3DGlobeAmbientIntensity",
+      "aceternity3DGlobePointLightIntensity",
+      "aceternity3DGlobeShowAtmosphere",
+      "aceternity3DGlobeAtmosphereColor",
+      "aceternity3DGlobeAtmosphereIntensity",
+      "aceternity3DGlobeAtmosphereBlur",
+      "aceternity3DGlobeShowWireframe",
+      "aceternity3DGlobeWireframeColor",
+      "aceternity3DGlobeMarkerEnabled",
+      "aceternity3DGlobeMarkerLat",
+      "aceternity3DGlobeMarkerLng",
+      "aceternity3DGlobeMarkerLabel",
+      "aceternity3DGlobeMarkerAvatarUrl",
+      "aceternity3DGlobeMarkerSize",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

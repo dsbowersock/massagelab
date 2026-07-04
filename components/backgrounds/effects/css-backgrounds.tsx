@@ -28,6 +28,7 @@ export interface BackgroundEffectProps {
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
   magicRetroGrid?: MagicRetroGridOptions
   magicLightRays?: MagicLightRaysOptions
+  aceternity3DGlobe?: Aceternity3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -208,6 +209,28 @@ export interface MagicLightRaysOptions {
   speed?: number
   length?: number
   opacity?: number
+}
+
+export interface Aceternity3DGlobeOptions {
+  backgroundColor?: string
+  globeColor?: string
+  autoRotateSpeed?: number
+  globeScale?: number
+  bumpScale?: number
+  ambientIntensity?: number
+  pointLightIntensity?: number
+  showAtmosphere?: boolean
+  atmosphereColor?: string
+  atmosphereIntensity?: number
+  atmosphereBlur?: number
+  showWireframe?: boolean
+  wireframeColor?: string
+  markerEnabled?: boolean
+  markerLat?: number
+  markerLng?: number
+  markerLabel?: string
+  markerAvatarUrl?: string
+  markerSize?: number
 }
 
 export type ColorHarmony =

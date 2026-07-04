@@ -529,6 +529,25 @@ export interface ChimerSettings {
   eldoraPhotonBeamTrailLength: number
   eldoraPhotonBeamBloomStrength: number
   eldoraPhotonBeamBloomRadius: number
+  aceternity3DGlobeBackgroundColor: string
+  aceternity3DGlobeGlobeColor: string
+  aceternity3DGlobeAutoRotateSpeed: number
+  aceternity3DGlobeScale: number
+  aceternity3DGlobeBumpScale: number
+  aceternity3DGlobeAmbientIntensity: number
+  aceternity3DGlobePointLightIntensity: number
+  aceternity3DGlobeShowAtmosphere: boolean
+  aceternity3DGlobeAtmosphereColor: string
+  aceternity3DGlobeAtmosphereIntensity: number
+  aceternity3DGlobeAtmosphereBlur: number
+  aceternity3DGlobeShowWireframe: boolean
+  aceternity3DGlobeWireframeColor: string
+  aceternity3DGlobeMarkerEnabled: boolean
+  aceternity3DGlobeMarkerLat: number
+  aceternity3DGlobeMarkerLng: number
+  aceternity3DGlobeMarkerLabel: string
+  aceternity3DGlobeMarkerAvatarUrl: string
+  aceternity3DGlobeMarkerSize: number
   magicRetroGridBackgroundColor: string
   magicRetroGridLightLineColor: string
   magicRetroGridDarkLineColor: string
@@ -1365,6 +1384,21 @@ export function SetTimer({
     synced: "You're signed in. Chimer settings sync across devices.",
     conflict: "You're signed in. Choose whether this device or your saved favorites should control Chimer settings.",
   }[syncStatus]
+
+  const useCurrentLocationForGlobe = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      onSettingsChange({
+        aceternity3DGlobeMarkerEnabled: true,
+        aceternity3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
+        aceternity3DGlobeMarkerLng: Number(coords.longitude.toFixed(4)),
+      })
+    })
+  }
+
   const renderBackgroundControls = (option: BackgroundDefinition) => {
     if (option.id === "aceternity-gradient-animation") {
       return (
@@ -2980,6 +3014,241 @@ export function SetTimer({
               aria-label="Retro Grid opacity"
             />
           </label>
+        </div>
+      )
+    }
+
+    if (option.id === "aceternity-3d-globe") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={settings.aceternity3DGlobeBackgroundColor}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeBackgroundColor: event.target.value })}
+              aria-label="3D Globe background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Globe tint</span>
+            <input
+              type="color"
+              value={settings.aceternity3DGlobeGlobeColor}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeGlobeColor: event.target.value })}
+              aria-label="3D Globe tint color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({settings.aceternity3DGlobeAutoRotateSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.aceternity3DGlobeAutoRotateSpeed}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeAutoRotateSpeed: Number(event.target.value) })}
+              aria-label="3D Globe rotation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Globe size ({Math.round(settings.aceternity3DGlobeScale * 100)}%)</span>
+            <input
+              type="range"
+              min="0.34"
+              max="0.84"
+              step="0.01"
+              value={settings.aceternity3DGlobeScale}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeScale: Number(event.target.value) })}
+              aria-label="3D Globe size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bump scale ({settings.aceternity3DGlobeBumpScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={settings.aceternity3DGlobeBumpScale}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeBumpScale: Number(event.target.value) })}
+              aria-label="3D Globe bump scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ambient light ({settings.aceternity3DGlobeAmbientIntensity.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={settings.aceternity3DGlobeAmbientIntensity}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeAmbientIntensity: Number(event.target.value) })}
+              aria-label="3D Globe ambient light"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Point light ({settings.aceternity3DGlobePointLightIntensity.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={settings.aceternity3DGlobePointLightIntensity}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobePointLightIntensity: Number(event.target.value) })}
+              aria-label="3D Globe point light"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Atmosphere</span>
+            <input
+              type="checkbox"
+              checked={settings.aceternity3DGlobeShowAtmosphere}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeShowAtmosphere: event.target.checked })}
+              aria-label="3D Globe show atmosphere"
+            />
+          </label>
+
+          {settings.aceternity3DGlobeShowAtmosphere && (
+            <>
+              <label className={styles.colorRow}>
+                <span>Atmosphere color</span>
+                <input
+                  type="color"
+                  value={settings.aceternity3DGlobeAtmosphereColor}
+                  onChange={(event) => onSettingsChange({ aceternity3DGlobeAtmosphereColor: event.target.value })}
+                  aria-label="3D Globe atmosphere color"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Atmosphere ({settings.aceternity3DGlobeAtmosphereIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={settings.aceternity3DGlobeAtmosphereIntensity}
+                  onChange={(event) => onSettingsChange({ aceternity3DGlobeAtmosphereIntensity: Number(event.target.value) })}
+                  aria-label="3D Globe atmosphere intensity"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Atmosphere blur ({settings.aceternity3DGlobeAtmosphereBlur.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="5"
+                  step="0.1"
+                  value={settings.aceternity3DGlobeAtmosphereBlur}
+                  onChange={(event) => onSettingsChange({ aceternity3DGlobeAtmosphereBlur: Number(event.target.value) })}
+                  aria-label="3D Globe atmosphere blur"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Wireframe</span>
+            <input
+              type="checkbox"
+              checked={settings.aceternity3DGlobeShowWireframe}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeShowWireframe: event.target.checked })}
+              aria-label="3D Globe show wireframe"
+            />
+          </label>
+
+          {settings.aceternity3DGlobeShowWireframe && (
+            <label className={styles.colorRow}>
+              <span>Wireframe color</span>
+              <input
+                type="color"
+                value={settings.aceternity3DGlobeWireframeColor}
+                onChange={(event) => onSettingsChange({ aceternity3DGlobeWireframeColor: event.target.value })}
+                aria-label="3D Globe wireframe color"
+              />
+            </label>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Location marker</span>
+            <input
+              type="checkbox"
+              checked={settings.aceternity3DGlobeMarkerEnabled}
+              onChange={(event) => onSettingsChange({ aceternity3DGlobeMarkerEnabled: event.target.checked })}
+              aria-label="3D Globe location marker"
+            />
+          </label>
+
+          {settings.aceternity3DGlobeMarkerEnabled && (
+            <>
+              <div className={styles.locationGrid}>
+                <label className={styles.textField}>
+                  <span>Latitude</span>
+                  <input
+                    type="number"
+                    min="-90"
+                    max="90"
+                    step="0.0001"
+                    value={settings.aceternity3DGlobeMarkerLat}
+                    onChange={(event) => onSettingsChange({ aceternity3DGlobeMarkerLat: Number(event.target.value) })}
+                    aria-label="3D Globe marker latitude"
+                  />
+                </label>
+                <label className={styles.textField}>
+                  <span>Longitude</span>
+                  <input
+                    type="number"
+                    min="-180"
+                    max="180"
+                    step="0.0001"
+                    value={settings.aceternity3DGlobeMarkerLng}
+                    onChange={(event) => onSettingsChange({ aceternity3DGlobeMarkerLng: Number(event.target.value) })}
+                    aria-label="3D Globe marker longitude"
+                  />
+                </label>
+              </div>
+              <button type="button" className={styles.inlineButton} onClick={useCurrentLocationForGlobe}>
+                Use my location
+              </button>
+              <label className={styles.textField}>
+                <span>Marker label</span>
+                <input
+                  type="text"
+                  value={settings.aceternity3DGlobeMarkerLabel}
+                  onChange={(event) => onSettingsChange({ aceternity3DGlobeMarkerLabel: event.target.value })}
+                  aria-label="3D Globe marker label"
+                />
+              </label>
+              <label className={styles.textField}>
+                <span>Avatar URL</span>
+                <input
+                  type="url"
+                  value={settings.aceternity3DGlobeMarkerAvatarUrl}
+                  onChange={(event) => onSettingsChange({ aceternity3DGlobeMarkerAvatarUrl: event.target.value })}
+                  aria-label="3D Globe marker avatar URL"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Marker size ({Math.round(settings.aceternity3DGlobeMarkerSize * 100)}%)</span>
+                <input
+                  type="range"
+                  min="0.03"
+                  max="0.16"
+                  step="0.005"
+                  value={settings.aceternity3DGlobeMarkerSize}
+                  onChange={(event) => onSettingsChange({ aceternity3DGlobeMarkerSize: Number(event.target.value) })}
+                  aria-label="3D Globe marker size"
+                />
+              </label>
+            </>
+          )}
         </div>
       )
     }
