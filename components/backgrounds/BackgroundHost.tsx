@@ -25,6 +25,7 @@ import type {
   ChamaacLiquidChromeOptions,
   ChamaacWavesOptions,
   ChamaacSynthesisOptions,
+  EldoraNovatrixOptions,
   GradientAnimationOptions,
   HexGridOptions,
   LampSectionOptions,
@@ -59,6 +60,7 @@ interface BackgroundHostProps {
   chamaacLiquidChrome?: ChamaacLiquidChromeOptions
   chamaacWaves?: ChamaacWavesOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
+  eldoraNovatrix?: EldoraNovatrixOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -109,6 +111,7 @@ export function BackgroundHost({
   chamaacLiquidChrome,
   chamaacWaves,
   chamaacSynthesis,
+  eldoraNovatrix,
   backgroundLines,
   shootingStars,
   canvasRevealDots,
@@ -184,6 +187,7 @@ export function BackgroundHost({
           chamaacLiquidChrome={chamaacLiquidChrome}
           chamaacWaves={chamaacWaves}
           chamaacSynthesis={chamaacSynthesis}
+          eldoraNovatrix={eldoraNovatrix}
           backgroundLines={backgroundLines}
           shootingStars={shootingStars}
           canvasRevealDots={canvasRevealDots}

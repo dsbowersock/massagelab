@@ -7,6 +7,38 @@ import {
 } from "../lib/chimer-timer.js"
 
 describe("Chimer entitlement-aware settings", () => {
+  it("resets Eldora Novatrix controls without premium background access", () => {
+    const input = {
+      backgroundId: "eldora-novatrix-background",
+      eldoraNovatrixPaletteMode: "harmony",
+      eldoraNovatrixPrimaryColor: "#AABBCC",
+      eldoraNovatrixHarmony: "triad",
+      eldoraNovatrixColor: "#DDEEFF",
+      eldoraNovatrixSpeed: 2.4,
+      eldoraNovatrixAmplitude: 0.3,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.eldoraNovatrixPaletteMode, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixPaletteMode)
+    assert.equal(freeSettings.eldoraNovatrixPrimaryColor, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixPrimaryColor)
+    assert.equal(freeSettings.eldoraNovatrixHarmony, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixHarmony)
+    assert.equal(freeSettings.eldoraNovatrixColor, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixColor)
+    assert.equal(freeSettings.eldoraNovatrixSpeed, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixSpeed)
+    assert.equal(freeSettings.eldoraNovatrixAmplitude, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixAmplitude)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "eldora-novatrix-background")
+    assert.equal(premiumSettings.eldoraNovatrixPaletteMode, "harmony")
+    assert.equal(premiumSettings.eldoraNovatrixPrimaryColor, "#AABBCC")
+    assert.equal(premiumSettings.eldoraNovatrixHarmony, "triad")
+    assert.equal(premiumSettings.eldoraNovatrixColor, "#DDEEFF")
+    assert.equal(premiumSettings.eldoraNovatrixSpeed, 2.4)
+    assert.equal(premiumSettings.eldoraNovatrixAmplitude, 0.3)
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

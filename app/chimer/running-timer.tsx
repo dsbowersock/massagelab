@@ -32,6 +32,12 @@ import {
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
   COLOR_HARMONY_OPTIONS,
+  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX,
+  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN,
+  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP,
+  ELDORA_NOVATRIX_DISPLAY_SPEED_MAX,
+  ELDORA_NOVATRIX_DISPLAY_SPEED_MIN,
+  ELDORA_NOVATRIX_DISPLAY_SPEED_STEP,
   getChamaacAstralFlowDisplaySpeed,
   getChamaacAstralFlowSourceSpeed,
   getChamaacDeepSpaceNebulaDisplaySpeed,
@@ -46,17 +52,23 @@ import {
   getChamaacWavesSourceSpeed,
   getChamaacSynthesisDisplaySpeed,
   getChamaacSynthesisSourceSpeed,
+  getEldoraNovatrixDisplayAmplitude,
+  getEldoraNovatrixDisplaySpeed,
+  getEldoraNovatrixSourceAmplitude,
+  getEldoraNovatrixSourceSpeed,
   resolveChamaacAstralFlowColors,
   resolveChamaacDeepSpaceNebulaColors,
   resolveChamaacLiquidChromeColors,
   resolveChamaacWavesColors,
   resolveChamaacSynthesisColors,
+  resolveEldoraNovatrixColor,
   type AnimateUiGradientHarmony,
   type ChamaacAstralFlowPaletteMode,
   type ChamaacDeepSpaceNebulaPaletteMode,
   type ChamaacLiquidChromePaletteMode,
   type ChamaacWavesPaletteMode,
   type ChamaacSynthesisPaletteMode,
+  type EldoraNovatrixPaletteMode,
   type ChimerSettings,
   type ColorHarmony,
 } from "./set-timer"
@@ -184,6 +196,12 @@ interface RunningTimerProps {
   chamaacWavesSpeedX: number
   chamaacWavesSpeedY: number
   chamaacWavesAmplitude: number
+  eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
+  eldoraNovatrixPrimaryColor: string
+  eldoraNovatrixHarmony: ColorHarmony
+  eldoraNovatrixColor: string
+  eldoraNovatrixSpeed: number
+  eldoraNovatrixAmplitude: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -395,6 +413,12 @@ export function RunningTimer({
   chamaacWavesSpeedX,
   chamaacWavesSpeedY,
   chamaacWavesAmplitude,
+  eldoraNovatrixPaletteMode,
+  eldoraNovatrixPrimaryColor,
+  eldoraNovatrixHarmony,
+  eldoraNovatrixColor,
+  eldoraNovatrixSpeed,
+  eldoraNovatrixAmplitude,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -555,6 +579,14 @@ export function RunningTimer({
     chamaacWavesColorOne,
     chamaacWavesColorTwo,
     chamaacWavesColorThree,
+  })
+  const novatrixSpeed = getEldoraNovatrixDisplaySpeed(eldoraNovatrixSpeed)
+  const novatrixAmplitude = getEldoraNovatrixDisplayAmplitude(eldoraNovatrixAmplitude)
+  const novatrixColor = resolveEldoraNovatrixColor({
+    eldoraNovatrixPaletteMode,
+    eldoraNovatrixPrimaryColor,
+    eldoraNovatrixHarmony,
+    eldoraNovatrixColor,
   })
   const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
   const synthesisColors = resolveChamaacSynthesisColors({
@@ -2007,6 +2039,95 @@ export function RunningTimer({
               value={chamaacWavesAmplitude}
               onChange={(event) => handleSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
               aria-label="Waves amplitude"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "eldora-novatrix-background" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={eldoraNovatrixPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                eldoraNovatrixPaletteMode: event.target.value as EldoraNovatrixPaletteMode,
+              })}
+              aria-label="Novatrix color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {eldoraNovatrixPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Animation color</span>
+              <input
+                type="color"
+                value={eldoraNovatrixColor}
+                onChange={(event) => handleSettingsChange({ eldoraNovatrixColor: event.target.value })}
+                aria-label="Novatrix animation color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={eldoraNovatrixPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ eldoraNovatrixPrimaryColor: event.target.value })}
+                  aria-label="Novatrix primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={eldoraNovatrixHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    eldoraNovatrixHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Novatrix color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({novatrixSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_NOVATRIX_DISPLAY_SPEED_MIN}
+              max={ELDORA_NOVATRIX_DISPLAY_SPEED_MAX}
+              step={ELDORA_NOVATRIX_DISPLAY_SPEED_STEP}
+              value={novatrixSpeed}
+              onChange={(event) => handleSettingsChange({
+                eldoraNovatrixSpeed: getEldoraNovatrixSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Novatrix animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({novatrixAmplitude}%)</span>
+            <input
+              type="range"
+              min={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN}
+              max={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX}
+              step={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP}
+              value={novatrixAmplitude}
+              onChange={(event) => handleSettingsChange({
+                eldoraNovatrixAmplitude: getEldoraNovatrixSourceAmplitude(Number(event.target.value)),
+              })}
+              aria-label="Novatrix amplitude"
             />
           </label>
         </>
@@ -3508,6 +3629,11 @@ export function RunningTimer({
             waveSpeedX: chamaacWavesSpeedX,
             waveSpeedY: chamaacWavesSpeedY,
             waveAmpX: chamaacWavesAmplitude,
+          }}
+          eldoraNovatrix={{
+            color: novatrixColor,
+            speed: eldoraNovatrixSpeed,
+            amplitude: eldoraNovatrixAmplitude,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

@@ -18,6 +18,7 @@ export type BackgroundId =
   | "chamaac-liquid-chrome"
   | "chamaac-light-speed"
   | "chamaac-synthesis"
+  | "eldora-novatrix-background"
   | "aceternity-aurora"
   | "aceternity-dotted-glow"
   | "aceternity-sparkles"
@@ -78,6 +79,7 @@ const chamaacGridBloom = () => import("./effects/chamaac-grid-bloom-background")
 const chamaacLiquidChrome = () => import("./effects/chamaac-liquid-chrome-background")
 const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
+const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
 const aceternityVortex = () => import("./effects/aceternity-vortex-background")
@@ -377,6 +379,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 55% 42%, rgba(14,165,233,0.18), transparent 40%), radial-gradient(circle at 42% 55%, rgba(59,7,100,0.2), transparent 44%), linear-gradient(145deg, #0f172a 0%, #070512 56%, #020617 100%)",
+    },
+  },
+  {
+    id: "eldora-novatrix-background",
+    label: "Novatrix Background",
+    provider: "Eldora UI",
+    sourceUrl: "https://www.eldoraui.site/docs/components/novatrix-background",
+    license: "MIT; Eldora UI repository reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium animated WebGL field for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Color, color harmony, animation speed, and passive drift amplitude; source WebGL shader adapted with native canvas to avoid adding the source ogl dependency.",
+    component: () => eldoraNovatrix().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), transparent 34%), radial-gradient(circle at 68% 34%, rgba(160,196,255,0.14), transparent 30%), linear-gradient(145deg, #02030a 0%, #070814 58%, #000000 100%)",
     },
   },
   {

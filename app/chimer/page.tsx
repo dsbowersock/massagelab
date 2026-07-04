@@ -925,6 +925,12 @@ export default function ChimerPage() {
             chamaacWavesSpeedX={settings.chamaacWavesSpeedX}
             chamaacWavesSpeedY={settings.chamaacWavesSpeedY}
             chamaacWavesAmplitude={settings.chamaacWavesAmplitude}
+            eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
+            eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
+            eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}
+            eldoraNovatrixColor={settings.eldoraNovatrixColor}
+            eldoraNovatrixSpeed={settings.eldoraNovatrixSpeed}
+            eldoraNovatrixAmplitude={settings.eldoraNovatrixAmplitude}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}

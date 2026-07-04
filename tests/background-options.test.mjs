@@ -58,6 +58,7 @@ describe("premium background registry", () => {
       "chamaac-liquid-chrome",
       "chamaac-waves",
       "chamaac-synthesis",
+      "eldora-novatrix-background",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
       assert.equal(
@@ -136,12 +137,17 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Grid Bloom/)
     assert.match(sourceDoc, /Waves/)
     assert.match(sourceDoc, /Synthesis/)
+    assert.match(sourceDoc, /Novatrix Background/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
     assert.match(sourceDoc, /nebula\.json/)
     assert.match(sourceDoc, /grid-bloom\.json/)
     assert.match(sourceDoc, /waves\.json/)
+    assert.match(sourceDoc, /novatrix-background\.json/)
+    assert.match(sourceDoc, /declares `ogl`/)
+    assert.match(sourceDoc, /source `0\.02`-`3`/)
+    assert.match(sourceDoc, /source `0\.01`-`0\.45`/)
     assert.match(sourceDoc, /Warp speed/)
     assert.match(sourceDoc, /high-energy glowing lightning shader/)
     assert.match(sourceDoc, /breathing radial shader/)
@@ -208,6 +214,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-liquid-chrome"))
     assert.ok(chimerOptions.includes("chamaac-waves"))
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
+    assert.ok(chimerOptions.includes("eldora-novatrix-background"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -238,6 +245,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-liquid-chrome"))
     assert.ok(clockOptions.includes("chamaac-waves"))
     assert.ok(clockOptions.includes("chamaac-synthesis"))
+    assert.ok(clockOptions.includes("eldora-novatrix-background"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -269,6 +277,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-liquid-chrome"))
     assert.ok(musicOptions.includes("chamaac-waves"))
     assert.ok(musicOptions.includes("chamaac-synthesis"))
+    assert.ok(musicOptions.includes("eldora-novatrix-background"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -876,6 +885,87 @@ describe("premium background registry", () => {
       "chamaacWavesSpeedX",
       "chamaacWavesSpeedY",
       "chamaacWavesAmplitude",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Eldora Novatrix source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/eldora-novatrix-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /eldora-novatrix-background/)
+    assert.match(registrySource, /Novatrix Background/)
+    assert.match(registrySource, /https:\/\/www\.eldoraui\.site\/docs\/components\/novatrix-background/)
+    assert.match(registrySource, /MIT; Eldora UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /EldoraNovatrixBackground/)
+    assert.match(effectSource, /DEFAULT_ELDORA_NOVATRIX/)
+    assert.match(effectSource, /color: "#FFFFFF"/)
+    assert.match(effectSource, /speed: 1/)
+    assert.match(effectSource, /amplitude: 0\.1/)
+    assert.match(effectSource, /uResolution/)
+    assert.match(effectSource, /uMouse/)
+    assert.match(effectSource, /uAmplitude/)
+    assert.match(effectSource, /uSpeed/)
+    assert.match(effectSource, /for \(float i = 0\.0; i < 8\.0; \+\+i\)/)
+    assert.match(effectSource, /passive drift/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(stylesSource, /eldoraNovatrixBackground/)
+    assert.match(stylesSource, /eldoraNovatrixCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /eldoraNovatrix/)
+    assert.match(cssEffectsSource, /EldoraNovatrixOptions/)
+    assert.match(runningSource, /eldoraNovatrix=\{\{/)
+    assert.match(runningSource, /resolveEldoraNovatrixColor/)
+    assert.match(setupSource, /getEldoraNovatrixDisplaySpeed/)
+    assert.match(setupSource, /getEldoraNovatrixSourceSpeed/)
+    assert.match(setupSource, /getEldoraNovatrixDisplayAmplitude/)
+    assert.match(setupSource, /getEldoraNovatrixSourceAmplitude/)
+    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_SPEED_MIN = 0\.02/)
+    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_SPEED_MAX = 3/)
+    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_AMPLITUDE_MIN = 0\.01/)
+    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_AMPLITUDE_MAX = 0\.45/)
+    assert.doesNotMatch(pageSource, /eldoraNovatrix=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    for (const settingKey of [
+      "eldoraNovatrixPaletteMode",
+      "eldoraNovatrixPrimaryColor",
+      "eldoraNovatrixHarmony",
+      "eldoraNovatrixColor",
+      "eldoraNovatrixSpeed",
+      "eldoraNovatrixAmplitude",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

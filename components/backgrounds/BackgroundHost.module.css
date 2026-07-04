@@ -234,6 +234,24 @@
   transform: translateZ(0);
 }
 
+.eldoraNovatrixBackground {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 68% 34%, rgba(160, 196, 255, 0.14), transparent 30%),
+    linear-gradient(145deg, #02030a 0%, #070814 58%, #000000 100%);
+}
+
+.eldoraNovatrixCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
 .electricMist {
   background:
     radial-gradient(circle at 50% 50%, rgba(86, 189, 255, 0.18), transparent 28%),

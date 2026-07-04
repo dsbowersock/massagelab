@@ -665,6 +665,45 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Eldora Novatrix background controls", () => {
+    const settings = sanitizeChimerSettings({
+      eldoraNovatrixPaletteMode: "harmony",
+      eldoraNovatrixPrimaryColor: "#ffffff",
+      eldoraNovatrixHarmony: "triad",
+      eldoraNovatrixColor: "white",
+      eldoraNovatrixSpeed: 99,
+      eldoraNovatrixAmplitude: 0,
+    })
+
+    assert.equal(settings.eldoraNovatrixPaletteMode, "harmony")
+    assert.equal(settings.eldoraNovatrixPrimaryColor, "#FFFFFF")
+    assert.equal(settings.eldoraNovatrixHarmony, "triad")
+    assert.equal(settings.eldoraNovatrixColor, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixColor)
+    assert.equal(settings.eldoraNovatrixSpeed, 3)
+    assert.equal(settings.eldoraNovatrixAmplitude, 0.01)
+    assert.equal(
+      sanitizeChimerSettings({ eldoraNovatrixSpeed: "fast" }).eldoraNovatrixSpeed,
+      DEFAULT_CHIMER_SETTINGS.eldoraNovatrixSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraNovatrixAmplitude: "wide" }).eldoraNovatrixAmplitude,
+      DEFAULT_CHIMER_SETTINGS.eldoraNovatrixAmplitude,
+    )
+    assert.equal(sanitizeChimerSettings({ eldoraNovatrixAmplitude: 10 }).eldoraNovatrixAmplitude, 0.45)
+    assert.equal(
+      sanitizeChimerSettings({ eldoraNovatrixPaletteMode: "demo" }).eldoraNovatrixPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.eldoraNovatrixPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraNovatrixPrimaryColor: "blue" }).eldoraNovatrixPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.eldoraNovatrixPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraNovatrixHarmony: "rainbow" }).eldoraNovatrixHarmony,
+      DEFAULT_CHIMER_SETTINGS.eldoraNovatrixHarmony,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

@@ -23,6 +23,7 @@ export interface BackgroundEffectProps {
   chamaacLiquidChrome?: ChamaacLiquidChromeOptions
   chamaacWaves?: ChamaacWavesOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
+  eldoraNovatrix?: EldoraNovatrixOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -148,6 +149,12 @@ export interface ChamaacSynthesisOptions {
   glowIntensity?: number
   flowFrequency?: number
   contrast?: number
+}
+
+export interface EldoraNovatrixOptions {
+  color?: string
+  speed?: number
+  amplitude?: number
 }
 
 export type ColorHarmony =
