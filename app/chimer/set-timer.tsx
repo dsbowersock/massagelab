@@ -24,6 +24,7 @@ export type ColorHarmony = typeof COLOR_HARMONY_OPTIONS[number]["value"]
 export type AnimateUiGradientHarmony = ColorHarmony
 export type ChamaacAstralFlowPaletteMode = "harmony" | "custom"
 export type ChamaacDeepSpaceNebulaPaletteMode = "harmony" | "custom"
+export type ChamaacLiquidChromePaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
@@ -41,6 +42,16 @@ export const CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX = 3
 export const CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN = 1
 export const CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX = 100
 export const CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP = 1
+export const CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN = 0.01
+export const CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX = 2
+export const CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN = 1
+export const CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX = 100
+export const CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP = 1
+export const CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN = 0.001
+export const CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1
+export const CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1
+export const CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX = 100
+export const CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
@@ -135,6 +146,71 @@ export function getChamaacGridBloomSourceSpeed(displaySpeed: number) {
   ) / 1000
 }
 
+// Liquid Chrome stores the source shader values; users see 1%-100% sliders.
+export function getChamaacLiquidChromeDisplayFlowSpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX,
+    Math.max(CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange =
+    CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX - CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN
+  const displayRange =
+    CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX - CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN
+  return Math.round(
+    CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN
+      + ((clampedSpeed - CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getChamaacLiquidChromeSourceFlowSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX,
+    Math.max(CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange =
+    CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX - CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN
+  const displayRange =
+    CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX - CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN
+  return Math.round(
+    (
+      CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN
+      + ((clampedDisplay - CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
+
+export function getChamaacLiquidChromeDisplayTimeScale(sourceTimeScale: number) {
+  const clampedTimeScale = Math.min(
+    CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX,
+    Math.max(CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN, sourceTimeScale),
+  )
+  const sourceRange =
+    CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX - CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN
+  const displayRange =
+    CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX - CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN
+  return Math.round(
+    CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN
+      + ((clampedTimeScale - CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getChamaacLiquidChromeSourceTimeScale(displayTimeScale: number) {
+  const clampedDisplay = Math.min(
+    CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX,
+    Math.max(CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN, displayTimeScale),
+  )
+  const sourceRange =
+    CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX - CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN
+  const displayRange =
+    CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX - CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN
+  return Math.round(
+    (
+      CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN
+      + ((clampedDisplay - CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
+
 // The source Chamaac demo defaults to 0.4; MassageLab presents that as 1x.
 export function getChamaacSynthesisDisplaySpeed(sourceSpeed: number) {
   return Math.round((sourceSpeed / CHAMAAC_SYNTHESIS_SPEED_BASE) * 100) / 100
@@ -224,6 +300,13 @@ export interface ChimerSettings {
   chamaacGridBloomDistortionAmount: number
   chamaacGridBloomFlowSpeedX: number
   chamaacGridBloomFlowSpeedY: number
+  chamaacLiquidChromePaletteMode: ChamaacLiquidChromePaletteMode
+  chamaacLiquidChromePrimaryColor: string
+  chamaacLiquidChromeHarmony: ColorHarmony
+  chamaacLiquidChromeColorOne: string
+  chamaacLiquidChromeColorTwo: string
+  chamaacLiquidChromeFlowSpeed: number
+  chamaacLiquidChromeTimeScale: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -358,6 +441,15 @@ type ChamaacSynthesisColorSettings = Pick<
   | "chamaacSynthesisColorThree"
 >
 
+type ChamaacLiquidChromeColorSettings = Pick<
+  ChimerSettings,
+  | "chamaacLiquidChromePaletteMode"
+  | "chamaacLiquidChromePrimaryColor"
+  | "chamaacLiquidChromeHarmony"
+  | "chamaacLiquidChromeColorOne"
+  | "chamaacLiquidChromeColorTwo"
+>
+
 export function resolveChamaacAstralFlowColors(settings: ChamaacAstralFlowColorSettings): [string, string, string] {
   if (settings.chamaacAstralFlowPaletteMode === "harmony") {
     return createChamaacSynthesisHarmonyPalette(
@@ -402,6 +494,20 @@ export function resolveChamaacSynthesisColors(settings: ChamaacSynthesisColorSet
     settings.chamaacSynthesisColorOne,
     settings.chamaacSynthesisColorTwo,
     settings.chamaacSynthesisColorThree,
+  ]
+}
+
+export function resolveChamaacLiquidChromeColors(settings: ChamaacLiquidChromeColorSettings): [string, string] {
+  if (settings.chamaacLiquidChromePaletteMode === "harmony") {
+    return createChamaacLiquidChromeHarmonyPalette(
+      settings.chamaacLiquidChromePrimaryColor,
+      settings.chamaacLiquidChromeHarmony,
+    )
+  }
+
+  return [
+    settings.chamaacLiquidChromeColorOne,
+    settings.chamaacLiquidChromeColorTwo,
   ]
 }
 
@@ -527,6 +633,60 @@ export function createChamaacSynthesisHarmonyPalette(
         hslToHex(hue - 36, richSaturation * 0.72, darkLightness),
         hslToHex(hue + 18, richSaturation * 0.88, midLightness),
         hslToHex(hue, richSaturation, accentLightness),
+      ]
+  }
+}
+
+export function createChamaacLiquidChromeHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const metalSaturation = Math.min(0.62, Math.max(0.04, saturation * 0.72))
+  const brightLightness = Math.min(0.82, Math.max(0.54, lightness + 0.16))
+  const darkLightness = Math.min(0.34, Math.max(0.08, lightness * 0.38))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, metalSaturation, brightLightness),
+        hslToHex(hue + 180, Math.min(0.68, metalSaturation * 1.18), darkLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue, metalSaturation, brightLightness),
+        hslToHex(hue + 150, Math.min(0.68, metalSaturation * 1.12), darkLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, metalSaturation, brightLightness),
+        hslToHex(hue + 120, Math.min(0.68, metalSaturation * 1.1), darkLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 90, metalSaturation, brightLightness),
+        hslToHex(hue + 180, Math.min(0.68, metalSaturation * 1.08), darkLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 18, metalSaturation, brightLightness),
+        hslToHex(hue + 18, Math.min(0.68, metalSaturation * 1.08), darkLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, metalSaturation * 0.7, brightLightness),
+        hslToHex(hue, metalSaturation * 0.9, darkLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, metalSaturation * 0.48, brightLightness),
+        hslToHex(hue, metalSaturation * 0.76, darkLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 16, metalSaturation, brightLightness),
+        hslToHex(hue + 24, Math.min(0.68, metalSaturation * 1.08), darkLightness),
       ]
   }
 }
@@ -2100,6 +2260,111 @@ export function SetTimer({
               value={settings.chamaacGridBloomFlowSpeedY}
               onChange={(event) => onSettingsChange({ chamaacGridBloomFlowSpeedY: Number(event.target.value) })}
               aria-label="Grid Bloom flow Y"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "chamaac-liquid-chrome") {
+      const useCustomPalette = settings.chamaacLiquidChromePaletteMode === "custom"
+      const liquidChromeFlowSpeed = getChamaacLiquidChromeDisplayFlowSpeed(settings.chamaacLiquidChromeFlowSpeed)
+      const liquidChromeTimeScale = getChamaacLiquidChromeDisplayTimeScale(settings.chamaacLiquidChromeTimeScale)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.chamaacLiquidChromePaletteMode}
+              onChange={(event) => onSettingsChange({
+                chamaacLiquidChromePaletteMode: event.target.value as ChamaacLiquidChromePaletteMode,
+              })}
+              aria-label="Liquid Chrome color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Chrome color</span>
+                <input
+                  type="color"
+                  value={settings.chamaacLiquidChromeColorOne}
+                  onChange={(event) => onSettingsChange({ chamaacLiquidChromeColorOne: event.target.value })}
+                  aria-label="Liquid Chrome chrome color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Shadow color</span>
+                <input
+                  type="color"
+                  value={settings.chamaacLiquidChromeColorTwo}
+                  onChange={(event) => onSettingsChange({ chamaacLiquidChromeColorTwo: event.target.value })}
+                  aria-label="Liquid Chrome shadow color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary chrome</span>
+                <input
+                  type="color"
+                  value={settings.chamaacLiquidChromePrimaryColor}
+                  onChange={(event) => onSettingsChange({ chamaacLiquidChromePrimaryColor: event.target.value })}
+                  aria-label="Liquid Chrome primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.chamaacLiquidChromeHarmony}
+                  onChange={(event) => onSettingsChange({
+                    chamaacLiquidChromeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Liquid Chrome color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Flow speed ({liquidChromeFlowSpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN}
+              max={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX}
+              step={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP}
+              value={liquidChromeFlowSpeed}
+              onChange={(event) => onSettingsChange({
+                chamaacLiquidChromeFlowSpeed: getChamaacLiquidChromeSourceFlowSpeed(Number(event.target.value)),
+              })}
+              aria-label="Liquid Chrome flow speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({liquidChromeTimeScale}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN}
+              max={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX}
+              step={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP}
+              value={liquidChromeTimeScale}
+              onChange={(event) => onSettingsChange({
+                chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
+              })}
+              aria-label="Liquid Chrome time scale"
             />
           </label>
         </div>

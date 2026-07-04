@@ -55,6 +55,7 @@ describe("premium background registry", () => {
       "chamaac-astral-flow",
       "chamaac-deep-space-nebula",
       "chamaac-grid-bloom",
+      "chamaac-liquid-chrome",
       "chamaac-synthesis",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
@@ -200,6 +201,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-astral-flow"))
     assert.ok(chimerOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(chimerOptions.includes("chamaac-grid-bloom"))
+    assert.ok(chimerOptions.includes("chamaac-liquid-chrome"))
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
@@ -228,6 +230,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-astral-flow"))
     assert.ok(clockOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(clockOptions.includes("chamaac-grid-bloom"))
+    assert.ok(clockOptions.includes("chamaac-liquid-chrome"))
     assert.ok(clockOptions.includes("chamaac-synthesis"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
@@ -257,6 +260,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-astral-flow"))
     assert.ok(musicOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(musicOptions.includes("chamaac-grid-bloom"))
+    assert.ok(musicOptions.includes("chamaac-liquid-chrome"))
     assert.ok(musicOptions.includes("chamaac-synthesis"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
@@ -705,6 +709,84 @@ describe("premium background registry", () => {
       "chamaacGridBloomDistortionAmount",
       "chamaacGridBloomFlowSpeedX",
       "chamaacGridBloomFlowSpeedY",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Chamaac Liquid Chrome source-shaped, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/chamaac-liquid-chrome-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /chamaac-liquid-chrome/)
+    assert.match(registrySource, /Liquid Chrome/)
+    assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
+    assert.match(effectSource, /ChamaacLiquidChromeBackground/)
+    assert.match(effectSource, /speed: 0\.35/)
+    assert.match(effectSource, /timeScale: 0\.225/)
+    assert.match(effectSource, /color: "#C0C0C0"/)
+    assert.match(effectSource, /color2: "#4A4A4A"/)
+    assert.match(effectSource, /Domain/)
+    assert.match(effectSource, /snoise/)
+    assert.match(effectSource, /uTimeScale/)
+    assert.match(effectSource, /uColor2/)
+    assert.match(effectSource, /reflect/)
+    assert.match(effectSource, /fresnel/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(stylesSource, /chamaacLiquidChrome/)
+    assert.match(hostSource, /chamaacLiquidChrome/)
+    assert.match(runningSource, /chamaacLiquidChrome=\{\{/)
+    assert.match(runningSource, /resolveChamaacLiquidChromeColors/)
+    assert.match(setupSource, /getChamaacLiquidChromeDisplayFlowSpeed/)
+    assert.match(setupSource, /getChamaacLiquidChromeSourceFlowSpeed/)
+    assert.match(setupSource, /getChamaacLiquidChromeDisplayTimeScale/)
+    assert.match(setupSource, /getChamaacLiquidChromeSourceTimeScale/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN = 0\.01/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX = 2/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN = 1/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX = 100/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN = 0\.001/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1/)
+    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX = 100/)
+    assert.doesNotMatch(pageSource, /chamaacLiquidChrome=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /createImageData/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    for (const settingKey of [
+      "chamaacLiquidChromePaletteMode",
+      "chamaacLiquidChromePrimaryColor",
+      "chamaacLiquidChromeHarmony",
+      "chamaacLiquidChromeColorOne",
+      "chamaacLiquidChromeColorTwo",
+      "chamaacLiquidChromeFlowSpeed",
+      "chamaacLiquidChromeTimeScale",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

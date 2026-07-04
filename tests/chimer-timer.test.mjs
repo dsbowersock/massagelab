@@ -577,6 +577,44 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Chamaac Liquid Chrome background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacLiquidChromePaletteMode: "harmony",
+      chamaacLiquidChromePrimaryColor: "#c0c0c0",
+      chamaacLiquidChromeHarmony: "triad",
+      chamaacLiquidChromeColorOne: "#c0c0c0",
+      chamaacLiquidChromeColorTwo: "silver",
+      chamaacLiquidChromeFlowSpeed: 99,
+      chamaacLiquidChromeTimeScale: 99,
+    })
+
+    assert.equal(settings.chamaacLiquidChromePaletteMode, "harmony")
+    assert.equal(settings.chamaacLiquidChromePrimaryColor, "#C0C0C0")
+    assert.equal(settings.chamaacLiquidChromeHarmony, "triad")
+    assert.equal(settings.chamaacLiquidChromeColorOne, "#C0C0C0")
+    assert.equal(settings.chamaacLiquidChromeColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeColorTwo)
+    assert.equal(settings.chamaacLiquidChromeFlowSpeed, 2)
+    assert.equal(settings.chamaacLiquidChromeTimeScale, 1)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLiquidChromeFlowSpeed: "fast" }).chamaacLiquidChromeFlowSpeed,
+      DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeFlowSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ chamaacLiquidChromeFlowSpeed: 0 }).chamaacLiquidChromeFlowSpeed, 0.01)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLiquidChromeTimeScale: "warp" }).chamaacLiquidChromeTimeScale,
+      DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeTimeScale,
+    )
+    assert.equal(sanitizeChimerSettings({ chamaacLiquidChromeTimeScale: 0 }).chamaacLiquidChromeTimeScale, 0.001)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLiquidChromePaletteMode: "demo" }).chamaacLiquidChromePaletteMode,
+      DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromePaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacLiquidChromeHarmony: "rainbow" }).chamaacLiquidChromeHarmony,
+      DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeHarmony,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

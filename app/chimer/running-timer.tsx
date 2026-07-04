@@ -19,6 +19,12 @@ import {
   CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX,
   CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN,
   CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
@@ -29,14 +35,20 @@ import {
   getChamaacDeepSpaceNebulaSourceSpeed,
   getChamaacGridBloomDisplaySpeed,
   getChamaacGridBloomSourceSpeed,
+  getChamaacLiquidChromeDisplayFlowSpeed,
+  getChamaacLiquidChromeDisplayTimeScale,
+  getChamaacLiquidChromeSourceFlowSpeed,
+  getChamaacLiquidChromeSourceTimeScale,
   getChamaacSynthesisDisplaySpeed,
   getChamaacSynthesisSourceSpeed,
   resolveChamaacAstralFlowColors,
   resolveChamaacDeepSpaceNebulaColors,
+  resolveChamaacLiquidChromeColors,
   resolveChamaacSynthesisColors,
   type AnimateUiGradientHarmony,
   type ChamaacAstralFlowPaletteMode,
   type ChamaacDeepSpaceNebulaPaletteMode,
+  type ChamaacLiquidChromePaletteMode,
   type ChamaacSynthesisPaletteMode,
   type ChimerSettings,
   type ColorHarmony,
@@ -148,6 +160,13 @@ interface RunningTimerProps {
   chamaacGridBloomDistortionAmount: number
   chamaacGridBloomFlowSpeedX: number
   chamaacGridBloomFlowSpeedY: number
+  chamaacLiquidChromePaletteMode: ChamaacLiquidChromePaletteMode
+  chamaacLiquidChromePrimaryColor: string
+  chamaacLiquidChromeHarmony: ColorHarmony
+  chamaacLiquidChromeColorOne: string
+  chamaacLiquidChromeColorTwo: string
+  chamaacLiquidChromeFlowSpeed: number
+  chamaacLiquidChromeTimeScale: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -342,6 +361,13 @@ export function RunningTimer({
   chamaacGridBloomDistortionAmount,
   chamaacGridBloomFlowSpeedX,
   chamaacGridBloomFlowSpeedY,
+  chamaacLiquidChromePaletteMode,
+  chamaacLiquidChromePrimaryColor,
+  chamaacLiquidChromeHarmony,
+  chamaacLiquidChromeColorOne,
+  chamaacLiquidChromeColorTwo,
+  chamaacLiquidChromeFlowSpeed,
+  chamaacLiquidChromeTimeScale,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -483,6 +509,15 @@ export function RunningTimer({
     chamaacDeepSpaceNebulaColorThree,
   })
   const gridBloomDisplaySpeed = getChamaacGridBloomDisplaySpeed(chamaacGridBloomSpeed)
+  const liquidChromeFlowSpeed = getChamaacLiquidChromeDisplayFlowSpeed(chamaacLiquidChromeFlowSpeed)
+  const liquidChromeTimeScale = getChamaacLiquidChromeDisplayTimeScale(chamaacLiquidChromeTimeScale)
+  const liquidChromeColors = resolveChamaacLiquidChromeColors({
+    chamaacLiquidChromePaletteMode,
+    chamaacLiquidChromePrimaryColor,
+    chamaacLiquidChromeHarmony,
+    chamaacLiquidChromeColorOne,
+    chamaacLiquidChromeColorTwo,
+  })
   const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
   const synthesisColors = resolveChamaacSynthesisColors({
     chamaacSynthesisPaletteMode,
@@ -1699,6 +1734,107 @@ export function RunningTimer({
               value={chamaacGridBloomFlowSpeedY}
               onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedY: Number(event.target.value) })}
               aria-label="Grid Bloom flow Y"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-liquid-chrome" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacLiquidChromePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacLiquidChromePaletteMode: event.target.value as ChamaacLiquidChromePaletteMode,
+              })}
+              aria-label="Liquid Chrome color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacLiquidChromePaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Chrome color</span>
+                <input
+                  type="color"
+                  value={chamaacLiquidChromeColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromeColorOne: event.target.value })}
+                  aria-label="Liquid Chrome chrome color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Shadow color</span>
+                <input
+                  type="color"
+                  value={chamaacLiquidChromeColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromeColorTwo: event.target.value })}
+                  aria-label="Liquid Chrome shadow color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary chrome</span>
+                <input
+                  type="color"
+                  value={chamaacLiquidChromePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromePrimaryColor: event.target.value })}
+                  aria-label="Liquid Chrome primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacLiquidChromeHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacLiquidChromeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Liquid Chrome color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Flow speed ({liquidChromeFlowSpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN}
+              max={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX}
+              step={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP}
+              value={liquidChromeFlowSpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacLiquidChromeFlowSpeed: getChamaacLiquidChromeSourceFlowSpeed(Number(event.target.value)),
+              })}
+              aria-label="Liquid Chrome flow speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({liquidChromeTimeScale}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN}
+              max={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX}
+              step={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP}
+              value={liquidChromeTimeScale}
+              onChange={(event) => handleSettingsChange({
+                chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
+              })}
+              aria-label="Liquid Chrome time scale"
             />
           </label>
         </>
@@ -3185,6 +3321,12 @@ export function RunningTimer({
             distortionAmount: chamaacGridBloomDistortionAmount,
             flowSpeedX: chamaacGridBloomFlowSpeedX,
             flowSpeedY: chamaacGridBloomFlowSpeedY,
+          }}
+          chamaacLiquidChrome={{
+            color: liquidChromeColors[0],
+            color2: liquidChromeColors[1],
+            speed: chamaacLiquidChromeFlowSpeed,
+            timeScale: chamaacLiquidChromeTimeScale,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

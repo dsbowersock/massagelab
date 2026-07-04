@@ -908,6 +908,13 @@ export default function ChimerPage() {
             chamaacGridBloomDistortionAmount={settings.chamaacGridBloomDistortionAmount}
             chamaacGridBloomFlowSpeedX={settings.chamaacGridBloomFlowSpeedX}
             chamaacGridBloomFlowSpeedY={settings.chamaacGridBloomFlowSpeedY}
+            chamaacLiquidChromePaletteMode={settings.chamaacLiquidChromePaletteMode}
+            chamaacLiquidChromePrimaryColor={settings.chamaacLiquidChromePrimaryColor}
+            chamaacLiquidChromeHarmony={settings.chamaacLiquidChromeHarmony}
+            chamaacLiquidChromeColorOne={settings.chamaacLiquidChromeColorOne}
+            chamaacLiquidChromeColorTwo={settings.chamaacLiquidChromeColorTwo}
+            chamaacLiquidChromeFlowSpeed={settings.chamaacLiquidChromeFlowSpeed}
+            chamaacLiquidChromeTimeScale={settings.chamaacLiquidChromeTimeScale}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}

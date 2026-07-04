@@ -15,6 +15,7 @@ export type BackgroundId =
   | "chamaac-astral-flow"
   | "chamaac-deep-space-nebula"
   | "chamaac-grid-bloom"
+  | "chamaac-liquid-chrome"
   | "chamaac-light-speed"
   | "chamaac-synthesis"
   | "aceternity-aurora"
@@ -74,6 +75,7 @@ const chamaacElectricMist = () => import("./effects/chamaac-electric-mist-backgr
 const chamaacAstralFlow = () => import("./effects/chamaac-astral-flow-background")
 const chamaacDeepSpaceNebula = () => import("./effects/chamaac-deep-space-nebula-background")
 const chamaacGridBloom = () => import("./effects/chamaac-grid-bloom-background")
+const chamaacLiquidChrome = () => import("./effects/chamaac-liquid-chrome-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
@@ -311,6 +313,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(224,64,251,0.2), transparent 40%), linear-gradient(145deg, #07010c 0%, #13051d 58%, #020104 100%)",
+    },
+  },
+  {
+    id: "chamaac-liquid-chrome",
+    label: "Liquid Chrome",
+    provider: "Chamaac UI",
+    sourceUrl: "https://www.chamaac.com/components/backgrounds/liquid-chrome",
+    license: "MIT; copyright 2026 Amarnath; reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium liquid-metal shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Primary chrome color, secondary chrome color, flow speed percentage, and time scale percentage; source shader model adapted with native canvas to avoid new dependencies, with optional primary-color harmony palettes.",
+    component: () => chamaacLiquidChrome().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 42% 34%, rgba(255,255,255,0.22), transparent 30%), radial-gradient(circle at 64% 56%, rgba(74,74,74,0.32), transparent 42%), linear-gradient(145deg, #111111 0%, #2e2e2e 52%, #070707 100%)",
     },
   },
   {
