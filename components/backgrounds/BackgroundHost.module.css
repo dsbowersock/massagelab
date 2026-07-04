@@ -181,6 +181,23 @@
   transform: translateZ(0);
 }
 
+.chamaacGridBloom {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(224, 64, 251, 0.2), transparent 42%),
+    linear-gradient(145deg, #07010c 0%, #13051d 58%, #020104 100%);
+}
+
+.chamaacGridBloomCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
 .electricMist {
   background:
     radial-gradient(circle at 50% 50%, rgba(86, 189, 255, 0.18), transparent 28%),

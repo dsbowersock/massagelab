@@ -36,6 +36,11 @@ export const CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX = 5
 export const CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN = 1
 export const CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX = 100
 export const CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP = 1
+export const CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN = 0.1
+export const CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX = 3
+export const CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN = 1
+export const CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX = 100
+export const CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
@@ -97,6 +102,35 @@ export function getChamaacDeepSpaceNebulaSourceSpeed(displaySpeed: number) {
     (
       CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN
       + ((clampedDisplay - CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
+
+// Grid Bloom stores the Chamaac shader multiplier, while users see 1%-100%.
+export function getChamaacGridBloomDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX,
+    Math.max(CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange = CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX - CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX - CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN
+  return Math.round(
+    CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN
+      + ((clampedSpeed - CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getChamaacGridBloomSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX,
+    Math.max(CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange = CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX - CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX - CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN
+  return Math.round(
+    (
+      CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN
+      + ((clampedDisplay - CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
     ) * 1000,
   ) / 1000
 }
@@ -182,6 +216,14 @@ export interface ChimerSettings {
   chamaacDeepSpaceNebulaColorTwo: string
   chamaacDeepSpaceNebulaColorThree: string
   chamaacDeepSpaceNebulaSpeed: number
+  chamaacGridBloomColor: string
+  chamaacGridBloomSpeed: number
+  chamaacGridBloomGridScale: number
+  chamaacGridBloomRotationSpeed: number
+  chamaacGridBloomFadeFalloff: number
+  chamaacGridBloomDistortionAmount: number
+  chamaacGridBloomFlowSpeedX: number
+  chamaacGridBloomFlowSpeedY: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -1952,6 +1994,112 @@ export function SetTimer({
                 chamaacDeepSpaceNebulaSpeed: getChamaacDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Deep Space Nebula animation speed"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "chamaac-grid-bloom") {
+      const gridBloomDisplaySpeed = getChamaacGridBloomDisplaySpeed(settings.chamaacGridBloomSpeed)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.colorRow}>
+            <span>Bloom color</span>
+            <input
+              type="color"
+              value={settings.chamaacGridBloomColor}
+              onChange={(event) => onSettingsChange({ chamaacGridBloomColor: event.target.value })}
+              aria-label="Grid Bloom bloom color"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP}
+              value={gridBloomDisplaySpeed}
+              onChange={(event) => onSettingsChange({
+                chamaacGridBloomSpeed: getChamaacGridBloomSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Grid Bloom animation speed"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Grid density ({settings.chamaacGridBloomGridScale.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="32"
+              step="1"
+              value={settings.chamaacGridBloomGridScale}
+              onChange={(event) => onSettingsChange({ chamaacGridBloomGridScale: Number(event.target.value) })}
+              aria-label="Grid Bloom grid density"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({settings.chamaacGridBloomRotationSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="-3"
+              max="3"
+              step="0.1"
+              value={settings.chamaacGridBloomRotationSpeed}
+              onChange={(event) => onSettingsChange({ chamaacGridBloomRotationSpeed: Number(event.target.value) })}
+              aria-label="Grid Bloom rotation speed"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Fade falloff ({settings.chamaacGridBloomFadeFalloff.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              step="0.5"
+              value={settings.chamaacGridBloomFadeFalloff}
+              onChange={(event) => onSettingsChange({ chamaacGridBloomFadeFalloff: Number(event.target.value) })}
+              aria-label="Grid Bloom fade falloff"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Distortion ({settings.chamaacGridBloomDistortionAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={settings.chamaacGridBloomDistortionAmount}
+              onChange={(event) => onSettingsChange({
+                chamaacGridBloomDistortionAmount: Number(event.target.value),
+              })}
+              aria-label="Grid Bloom distortion"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Flow X ({settings.chamaacGridBloomFlowSpeedX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.1"
+              value={settings.chamaacGridBloomFlowSpeedX}
+              onChange={(event) => onSettingsChange({ chamaacGridBloomFlowSpeedX: Number(event.target.value) })}
+              aria-label="Grid Bloom flow X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Flow Y ({settings.chamaacGridBloomFlowSpeedY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.1"
+              value={settings.chamaacGridBloomFlowSpeedY}
+              onChange={(event) => onSettingsChange({ chamaacGridBloomFlowSpeedY: Number(event.target.value) })}
+              aria-label="Grid Bloom flow Y"
             />
           </label>
         </div>

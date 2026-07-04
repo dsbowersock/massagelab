@@ -538,6 +538,45 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Chamaac Grid Bloom background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacGridBloomColor: "#e040fb",
+      chamaacGridBloomSpeed: 99,
+      chamaacGridBloomGridScale: 99,
+      chamaacGridBloomRotationSpeed: -99,
+      chamaacGridBloomFadeFalloff: 0,
+      chamaacGridBloomDistortionAmount: 99,
+      chamaacGridBloomFlowSpeedX: -99,
+      chamaacGridBloomFlowSpeedY: 99,
+    })
+
+    assert.equal(settings.chamaacGridBloomColor, "#E040FB")
+    assert.equal(settings.chamaacGridBloomSpeed, 3)
+    assert.equal(settings.chamaacGridBloomGridScale, 32)
+    assert.equal(settings.chamaacGridBloomRotationSpeed, -3)
+    assert.equal(settings.chamaacGridBloomFadeFalloff, 1)
+    assert.equal(settings.chamaacGridBloomDistortionAmount, 0.5)
+    assert.equal(settings.chamaacGridBloomFlowSpeedX, -2)
+    assert.equal(settings.chamaacGridBloomFlowSpeedY, 2)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacGridBloomColor: "purple" }).chamaacGridBloomColor,
+      DEFAULT_CHIMER_SETTINGS.chamaacGridBloomColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacGridBloomSpeed: "fast" }).chamaacGridBloomSpeed,
+      DEFAULT_CHIMER_SETTINGS.chamaacGridBloomSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ chamaacGridBloomSpeed: 0 }).chamaacGridBloomSpeed, 0.1)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacGridBloomGridScale: "dense" }).chamaacGridBloomGridScale,
+      DEFAULT_CHIMER_SETTINGS.chamaacGridBloomGridScale,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacGridBloomDistortionAmount: "warp" }).chamaacGridBloomDistortionAmount,
+      DEFAULT_CHIMER_SETTINGS.chamaacGridBloomDistortionAmount,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

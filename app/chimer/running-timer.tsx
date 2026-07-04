@@ -16,6 +16,9 @@ import {
   CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX,
   CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN,
   CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP,
+  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX,
+  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN,
+  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
@@ -24,6 +27,8 @@ import {
   getChamaacAstralFlowSourceSpeed,
   getChamaacDeepSpaceNebulaDisplaySpeed,
   getChamaacDeepSpaceNebulaSourceSpeed,
+  getChamaacGridBloomDisplaySpeed,
+  getChamaacGridBloomSourceSpeed,
   getChamaacSynthesisDisplaySpeed,
   getChamaacSynthesisSourceSpeed,
   resolveChamaacAstralFlowColors,
@@ -135,6 +140,14 @@ interface RunningTimerProps {
   chamaacDeepSpaceNebulaColorTwo: string
   chamaacDeepSpaceNebulaColorThree: string
   chamaacDeepSpaceNebulaSpeed: number
+  chamaacGridBloomColor: string
+  chamaacGridBloomSpeed: number
+  chamaacGridBloomGridScale: number
+  chamaacGridBloomRotationSpeed: number
+  chamaacGridBloomFadeFalloff: number
+  chamaacGridBloomDistortionAmount: number
+  chamaacGridBloomFlowSpeedX: number
+  chamaacGridBloomFlowSpeedY: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -321,6 +334,14 @@ export function RunningTimer({
   chamaacDeepSpaceNebulaColorTwo,
   chamaacDeepSpaceNebulaColorThree,
   chamaacDeepSpaceNebulaSpeed,
+  chamaacGridBloomColor,
+  chamaacGridBloomSpeed,
+  chamaacGridBloomGridScale,
+  chamaacGridBloomRotationSpeed,
+  chamaacGridBloomFadeFalloff,
+  chamaacGridBloomDistortionAmount,
+  chamaacGridBloomFlowSpeedX,
+  chamaacGridBloomFlowSpeedY,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -461,6 +482,7 @@ export function RunningTimer({
     chamaacDeepSpaceNebulaColorTwo,
     chamaacDeepSpaceNebulaColorThree,
   })
+  const gridBloomDisplaySpeed = getChamaacGridBloomDisplaySpeed(chamaacGridBloomSpeed)
   const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
   const synthesisColors = resolveChamaacSynthesisColors({
     chamaacSynthesisPaletteMode,
@@ -1568,6 +1590,115 @@ export function RunningTimer({
                 chamaacDeepSpaceNebulaSpeed: getChamaacDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Deep Space Nebula animation speed"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-grid-bloom" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Bloom color</span>
+            <input
+              type="color"
+              value={chamaacGridBloomColor}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomColor: event.target.value })}
+              aria-label="Grid Bloom bloom color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP}
+              value={gridBloomDisplaySpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacGridBloomSpeed: getChamaacGridBloomSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Grid Bloom animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid density ({chamaacGridBloomGridScale.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="32"
+              step="1"
+              value={chamaacGridBloomGridScale}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomGridScale: Number(event.target.value) })}
+              aria-label="Grid Bloom grid density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({chamaacGridBloomRotationSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="-3"
+              max="3"
+              step="0.1"
+              value={chamaacGridBloomRotationSpeed}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomRotationSpeed: Number(event.target.value) })}
+              aria-label="Grid Bloom rotation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fade falloff ({chamaacGridBloomFadeFalloff.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              step="0.5"
+              value={chamaacGridBloomFadeFalloff}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomFadeFalloff: Number(event.target.value) })}
+              aria-label="Grid Bloom fade falloff"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({chamaacGridBloomDistortionAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={chamaacGridBloomDistortionAmount}
+              onChange={(event) => handleSettingsChange({
+                chamaacGridBloomDistortionAmount: Number(event.target.value),
+              })}
+              aria-label="Grid Bloom distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow X ({chamaacGridBloomFlowSpeedX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.1"
+              value={chamaacGridBloomFlowSpeedX}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedX: Number(event.target.value) })}
+              aria-label="Grid Bloom flow X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow Y ({chamaacGridBloomFlowSpeedY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.1"
+              value={chamaacGridBloomFlowSpeedY}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedY: Number(event.target.value) })}
+              aria-label="Grid Bloom flow Y"
             />
           </label>
         </>
@@ -3044,6 +3175,16 @@ export function RunningTimer({
             color2: deepSpaceNebulaColors[1],
             color3: deepSpaceNebulaColors[2],
             speed: chamaacDeepSpaceNebulaSpeed,
+          }}
+          chamaacGridBloom={{
+            color: chamaacGridBloomColor,
+            speed: chamaacGridBloomSpeed,
+            gridScale: chamaacGridBloomGridScale,
+            rotationSpeed: chamaacGridBloomRotationSpeed,
+            fadeFalloff: chamaacGridBloomFadeFalloff,
+            distortionAmount: chamaacGridBloomDistortionAmount,
+            flowSpeedX: chamaacGridBloomFlowSpeedX,
+            flowSpeedY: chamaacGridBloomFlowSpeedY,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

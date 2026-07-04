@@ -54,6 +54,7 @@ describe("premium background registry", () => {
       "chamaac-electric-mist",
       "chamaac-astral-flow",
       "chamaac-deep-space-nebula",
+      "chamaac-grid-bloom",
       "chamaac-synthesis",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
@@ -131,18 +132,23 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Electric Mist/)
     assert.match(sourceDoc, /Astral Flow/)
     assert.match(sourceDoc, /Deep Space Nebula/)
+    assert.match(sourceDoc, /Grid Bloom/)
     assert.match(sourceDoc, /Synthesis/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
     assert.match(sourceDoc, /nebula\.json/)
+    assert.match(sourceDoc, /grid-bloom\.json/)
     assert.match(sourceDoc, /Warp speed/)
     assert.match(sourceDoc, /high-energy glowing lightning shader/)
     assert.match(sourceDoc, /breathing radial shader/)
     assert.match(sourceDoc, /deep-space nebula effect with fractional distortion/)
+    assert.match(sourceDoc, /shader-driven grid pattern with pulsing wave interference/)
     assert.match(sourceDoc, /multi-layer cosmic flow/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Flow Min, and Flow Max/)
     assert.match(sourceDoc, /source `0\.1`-`5` range internally while displaying it as `1%`-`100%`/)
+    assert.match(sourceDoc, /source `0\.1`-`3` range internally while displaying it as `1%`-`100%`/)
+    assert.match(sourceDoc, /cursor interaction and hover controls are intentionally omitted/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Complexity, Zoom Scale, Distortion, Glow Intensity, and Flow Frequency/)
     assert.match(sourceDoc, /Animate UI/)
     assert.match(sourceDoc, /MIT \+ Commons Clause/)
@@ -193,6 +199,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-electric-mist"))
     assert.ok(chimerOptions.includes("chamaac-astral-flow"))
     assert.ok(chimerOptions.includes("chamaac-deep-space-nebula"))
+    assert.ok(chimerOptions.includes("chamaac-grid-bloom"))
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
@@ -220,6 +227,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-electric-mist"))
     assert.ok(clockOptions.includes("chamaac-astral-flow"))
     assert.ok(clockOptions.includes("chamaac-deep-space-nebula"))
+    assert.ok(clockOptions.includes("chamaac-grid-bloom"))
     assert.ok(clockOptions.includes("chamaac-synthesis"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
@@ -248,6 +256,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-electric-mist"))
     assert.ok(musicOptions.includes("chamaac-astral-flow"))
     assert.ok(musicOptions.includes("chamaac-deep-space-nebula"))
+    assert.ok(musicOptions.includes("chamaac-grid-bloom"))
     assert.ok(musicOptions.includes("chamaac-synthesis"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
@@ -615,6 +624,87 @@ describe("premium background registry", () => {
       "chamaacDeepSpaceNebulaPrimaryColor",
       "chamaacDeepSpaceNebulaHarmony",
       "chamaacDeepSpaceNebulaSpeed",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Chamaac Grid Bloom source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/chamaac-grid-bloom-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /chamaac-grid-bloom/)
+    assert.match(registrySource, /Grid Bloom/)
+    assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
+    assert.match(registrySource, /cursor interaction intentionally omitted/)
+    assert.match(effectSource, /ChamaacGridBloomBackground/)
+    assert.match(effectSource, /color: "#E040FB"/)
+    assert.match(effectSource, /speed: 1/)
+    assert.match(effectSource, /gridScale: 12/)
+    assert.match(effectSource, /rotationSpeed: 0/)
+    assert.match(effectSource, /fadeFalloff: 10/)
+    assert.match(effectSource, /distortionAmount: 0\.05/)
+    assert.match(effectSource, /flowSpeedX: -0\.2/)
+    assert.match(effectSource, /flowSpeedY: -0\.4/)
+    assert.match(effectSource, /snoise/)
+    assert.match(effectSource, /uGridScale/)
+    assert.match(effectSource, /uRotationSpeed/)
+    assert.match(effectSource, /uFadeFalloff/)
+    assert.match(effectSource, /uDistortionAmount/)
+    assert.match(effectSource, /uFlowSpeedX/)
+    assert.match(effectSource, /uFlowSpeedY/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /blendFunc\(context\.SRC_ALPHA, context\.ONE\)/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(stylesSource, /chamaacGridBloom/)
+    assert.match(hostSource, /chamaacGridBloom/)
+    assert.match(runningSource, /chamaacGridBloom=\{\{/)
+    assert.match(setupSource, /getChamaacGridBloomDisplaySpeed/)
+    assert.match(setupSource, /getChamaacGridBloomSourceSpeed/)
+    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX = 3/)
+    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN = 1/)
+    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /chamaacGridBloom=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /createImageData/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    assert.doesNotMatch(effectSource, /iMouse/)
+    assert.doesNotMatch(effectSource, /uMouseActive/)
+    for (const settingKey of [
+      "chamaacGridBloomColor",
+      "chamaacGridBloomSpeed",
+      "chamaacGridBloomGridScale",
+      "chamaacGridBloomRotationSpeed",
+      "chamaacGridBloomFadeFalloff",
+      "chamaacGridBloomDistortionAmount",
+      "chamaacGridBloomFlowSpeedX",
+      "chamaacGridBloomFlowSpeedY",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

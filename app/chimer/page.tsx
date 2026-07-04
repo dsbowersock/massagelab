@@ -900,6 +900,14 @@ export default function ChimerPage() {
             chamaacDeepSpaceNebulaColorTwo={settings.chamaacDeepSpaceNebulaColorTwo}
             chamaacDeepSpaceNebulaColorThree={settings.chamaacDeepSpaceNebulaColorThree}
             chamaacDeepSpaceNebulaSpeed={settings.chamaacDeepSpaceNebulaSpeed}
+            chamaacGridBloomColor={settings.chamaacGridBloomColor}
+            chamaacGridBloomSpeed={settings.chamaacGridBloomSpeed}
+            chamaacGridBloomGridScale={settings.chamaacGridBloomGridScale}
+            chamaacGridBloomRotationSpeed={settings.chamaacGridBloomRotationSpeed}
+            chamaacGridBloomFadeFalloff={settings.chamaacGridBloomFadeFalloff}
+            chamaacGridBloomDistortionAmount={settings.chamaacGridBloomDistortionAmount}
+            chamaacGridBloomFlowSpeedX={settings.chamaacGridBloomFlowSpeedX}
+            chamaacGridBloomFlowSpeedY={settings.chamaacGridBloomFlowSpeedY}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}
