@@ -23,6 +23,7 @@ export const ANIMATE_UI_GRADIENT_HARMONY_OPTIONS = COLOR_HARMONY_OPTIONS
 export type ColorHarmony = typeof COLOR_HARMONY_OPTIONS[number]["value"]
 export type AnimateUiGradientHarmony = ColorHarmony
 export type ChamaacAstralFlowPaletteMode = "harmony" | "custom"
+export type ChamaacDeepSpaceNebulaPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
@@ -30,6 +31,11 @@ export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3
 export const CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN = 10
 export const CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX = 100
 export const CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP = 1
+export const CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN = 0.1
+export const CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX = 5
+export const CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN = 1
+export const CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX = 100
+export const CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
@@ -61,6 +67,36 @@ export function getChamaacAstralFlowSourceSpeed(displaySpeed: number) {
     (
       CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN
       + ((clampedDisplay - CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
+
+// Deep Space Nebula stores the source shader multiplier, while the UI maps the
+// Chamaac source range 0.1-5 to a 1%-100% slider.
+export function getChamaacDeepSpaceNebulaDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX,
+    Math.max(CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange = CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX - CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX - CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN
+  return Math.round(
+    CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN
+      + ((clampedSpeed - CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getChamaacDeepSpaceNebulaSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX,
+    Math.max(CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange = CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX - CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX - CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN
+  return Math.round(
+    (
+      CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN
+      + ((clampedDisplay - CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
     ) * 1000,
   ) / 1000
 }
@@ -139,6 +175,13 @@ export interface ChimerSettings {
   chamaacAstralFlowSpeed: number
   chamaacAstralFlowFlowMin: number
   chamaacAstralFlowFlowMax: number
+  chamaacDeepSpaceNebulaPaletteMode: ChamaacDeepSpaceNebulaPaletteMode
+  chamaacDeepSpaceNebulaPrimaryColor: string
+  chamaacDeepSpaceNebulaHarmony: ColorHarmony
+  chamaacDeepSpaceNebulaColorOne: string
+  chamaacDeepSpaceNebulaColorTwo: string
+  chamaacDeepSpaceNebulaColorThree: string
+  chamaacDeepSpaceNebulaSpeed: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -253,6 +296,16 @@ type ChamaacAstralFlowColorSettings = Pick<
   | "chamaacAstralFlowColorThree"
 >
 
+type ChamaacDeepSpaceNebulaColorSettings = Pick<
+  ChimerSettings,
+  | "chamaacDeepSpaceNebulaPaletteMode"
+  | "chamaacDeepSpaceNebulaPrimaryColor"
+  | "chamaacDeepSpaceNebulaHarmony"
+  | "chamaacDeepSpaceNebulaColorOne"
+  | "chamaacDeepSpaceNebulaColorTwo"
+  | "chamaacDeepSpaceNebulaColorThree"
+>
+
 type ChamaacSynthesisColorSettings = Pick<
   ChimerSettings,
   | "chamaacSynthesisPaletteMode"
@@ -278,6 +331,23 @@ export function resolveChamaacAstralFlowColors(settings: ChamaacAstralFlowColorS
   ]
 }
 
+export function resolveChamaacDeepSpaceNebulaColors(
+  settings: ChamaacDeepSpaceNebulaColorSettings,
+): [string, string, string] {
+  if (settings.chamaacDeepSpaceNebulaPaletteMode === "harmony") {
+    return createChamaacDeepSpaceNebulaHarmonyPalette(
+      settings.chamaacDeepSpaceNebulaPrimaryColor,
+      settings.chamaacDeepSpaceNebulaHarmony,
+    )
+  }
+
+  return [
+    settings.chamaacDeepSpaceNebulaColorOne,
+    settings.chamaacDeepSpaceNebulaColorTwo,
+    settings.chamaacDeepSpaceNebulaColorThree,
+  ]
+}
+
 export function resolveChamaacSynthesisColors(settings: ChamaacSynthesisColorSettings): [string, string, string] {
   if (settings.chamaacSynthesisPaletteMode === "harmony") {
     return createChamaacSynthesisHarmonyPalette(
@@ -291,6 +361,69 @@ export function resolveChamaacSynthesisColors(settings: ChamaacSynthesisColorSet
     settings.chamaacSynthesisColorTwo,
     settings.chamaacSynthesisColorThree,
   ]
+}
+
+export function createChamaacDeepSpaceNebulaHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const richSaturation = Math.min(0.95, Math.max(0.44, saturation))
+  const cloudLightness = Math.min(0.48, Math.max(0.25, lightness))
+  const highlightLightness = Math.min(0.78, Math.max(0.56, cloudLightness + 0.28))
+  const deepLightness = Math.min(0.16, Math.max(0.05, cloudLightness * 0.32))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue + 180, Math.min(0.96, richSaturation * 1.05), highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue + 12, richSaturation * 0.86, deepLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue + 150, Math.min(0.96, richSaturation * 1.04), highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue + 210, richSaturation * 0.84, deepLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue + 120, Math.min(0.96, richSaturation * 1.02), highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue + 240, richSaturation * 0.84, deepLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 90, Math.min(0.94, richSaturation * 0.98), highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue + 180, richSaturation * 0.84, deepLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue + 182, Math.min(0.96, richSaturation * 1.02), highlightLightness),
+        hslToHex(hue - 18, richSaturation * 0.94, cloudLightness),
+        hslToHex(hue + 18, richSaturation * 0.84, deepLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, richSaturation * 0.86, highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue, richSaturation * 0.9, deepLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, richSaturation * 0.68, highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue, richSaturation * 0.88, deepLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 34, Math.min(0.94, richSaturation * 0.96), highlightLightness),
+        hslToHex(hue, richSaturation, cloudLightness),
+        hslToHex(hue + 34, richSaturation * 0.84, deepLightness),
+      ]
+  }
 }
 
 export function createChamaacSynthesisHarmonyPalette(
@@ -1721,6 +1854,104 @@ export function SetTimer({
               value={settings.chamaacAstralFlowFlowMax}
               onChange={(event) => onSettingsChange({ chamaacAstralFlowFlowMax: Number(event.target.value) })}
               aria-label="Astral Flow flow max"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "chamaac-deep-space-nebula") {
+      const useCustomPalette = settings.chamaacDeepSpaceNebulaPaletteMode === "custom"
+      const nebulaDisplaySpeed = getChamaacDeepSpaceNebulaDisplaySpeed(settings.chamaacDeepSpaceNebulaSpeed)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.chamaacDeepSpaceNebulaPaletteMode}
+              onChange={(event) => onSettingsChange({
+                chamaacDeepSpaceNebulaPaletteMode: event.target.value as ChamaacDeepSpaceNebulaPaletteMode,
+              })}
+              aria-label="Deep Space Nebula color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Highlight</span>
+                <input
+                  type="color"
+                  value={settings.chamaacDeepSpaceNebulaColorOne}
+                  onChange={(event) => onSettingsChange({ chamaacDeepSpaceNebulaColorOne: event.target.value })}
+                  aria-label="Deep Space Nebula highlight color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Nebula cloud</span>
+                <input
+                  type="color"
+                  value={settings.chamaacDeepSpaceNebulaColorTwo}
+                  onChange={(event) => onSettingsChange({ chamaacDeepSpaceNebulaColorTwo: event.target.value })}
+                  aria-label="Deep Space Nebula cloud color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Deep space</span>
+                <input
+                  type="color"
+                  value={settings.chamaacDeepSpaceNebulaColorThree}
+                  onChange={(event) => onSettingsChange({ chamaacDeepSpaceNebulaColorThree: event.target.value })}
+                  aria-label="Deep Space Nebula deep-space color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Nebula color</span>
+                <input
+                  type="color"
+                  value={settings.chamaacDeepSpaceNebulaPrimaryColor}
+                  onChange={(event) => onSettingsChange({ chamaacDeepSpaceNebulaPrimaryColor: event.target.value })}
+                  aria-label="Deep Space Nebula primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.chamaacDeepSpaceNebulaHarmony}
+                  onChange={(event) => onSettingsChange({
+                    chamaacDeepSpaceNebulaHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Deep Space Nebula color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({nebulaDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP}
+              value={nebulaDisplaySpeed}
+              onChange={(event) => onSettingsChange({
+                chamaacDeepSpaceNebulaSpeed: getChamaacDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Deep Space Nebula animation speed"
             />
           </label>
         </div>

@@ -13,18 +13,25 @@ import {
   CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
   CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN,
   CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP,
+  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX,
+  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN,
+  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
   COLOR_HARMONY_OPTIONS,
   getChamaacAstralFlowDisplaySpeed,
   getChamaacAstralFlowSourceSpeed,
+  getChamaacDeepSpaceNebulaDisplaySpeed,
+  getChamaacDeepSpaceNebulaSourceSpeed,
   getChamaacSynthesisDisplaySpeed,
   getChamaacSynthesisSourceSpeed,
   resolveChamaacAstralFlowColors,
+  resolveChamaacDeepSpaceNebulaColors,
   resolveChamaacSynthesisColors,
   type AnimateUiGradientHarmony,
   type ChamaacAstralFlowPaletteMode,
+  type ChamaacDeepSpaceNebulaPaletteMode,
   type ChamaacSynthesisPaletteMode,
   type ChimerSettings,
   type ColorHarmony,
@@ -121,6 +128,13 @@ interface RunningTimerProps {
   chamaacAstralFlowSpeed: number
   chamaacAstralFlowFlowMin: number
   chamaacAstralFlowFlowMax: number
+  chamaacDeepSpaceNebulaPaletteMode: ChamaacDeepSpaceNebulaPaletteMode
+  chamaacDeepSpaceNebulaPrimaryColor: string
+  chamaacDeepSpaceNebulaHarmony: ColorHarmony
+  chamaacDeepSpaceNebulaColorOne: string
+  chamaacDeepSpaceNebulaColorTwo: string
+  chamaacDeepSpaceNebulaColorThree: string
+  chamaacDeepSpaceNebulaSpeed: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -300,6 +314,13 @@ export function RunningTimer({
   chamaacAstralFlowSpeed,
   chamaacAstralFlowFlowMin,
   chamaacAstralFlowFlowMax,
+  chamaacDeepSpaceNebulaPaletteMode,
+  chamaacDeepSpaceNebulaPrimaryColor,
+  chamaacDeepSpaceNebulaHarmony,
+  chamaacDeepSpaceNebulaColorOne,
+  chamaacDeepSpaceNebulaColorTwo,
+  chamaacDeepSpaceNebulaColorThree,
+  chamaacDeepSpaceNebulaSpeed,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -430,6 +451,15 @@ export function RunningTimer({
     chamaacAstralFlowColorOne,
     chamaacAstralFlowColorTwo,
     chamaacAstralFlowColorThree,
+  })
+  const deepSpaceNebulaDisplaySpeed = getChamaacDeepSpaceNebulaDisplaySpeed(chamaacDeepSpaceNebulaSpeed)
+  const deepSpaceNebulaColors = resolveChamaacDeepSpaceNebulaColors({
+    chamaacDeepSpaceNebulaPaletteMode,
+    chamaacDeepSpaceNebulaPrimaryColor,
+    chamaacDeepSpaceNebulaHarmony,
+    chamaacDeepSpaceNebulaColorOne,
+    chamaacDeepSpaceNebulaColorTwo,
+    chamaacDeepSpaceNebulaColorThree,
   })
   const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
   const synthesisColors = resolveChamaacSynthesisColors({
@@ -1442,6 +1472,102 @@ export function RunningTimer({
               value={chamaacAstralFlowFlowMax}
               onChange={(event) => handleSettingsChange({ chamaacAstralFlowFlowMax: Number(event.target.value) })}
               aria-label="Astral Flow flow max"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-deep-space-nebula" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacDeepSpaceNebulaPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacDeepSpaceNebulaPaletteMode: event.target.value as ChamaacDeepSpaceNebulaPaletteMode,
+              })}
+              aria-label="Deep Space Nebula color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacDeepSpaceNebulaPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Highlight</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorOne: event.target.value })}
+                  aria-label="Deep Space Nebula highlight color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Nebula cloud</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorTwo: event.target.value })}
+                  aria-label="Deep Space Nebula cloud color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Deep space</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaColorThree}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorThree: event.target.value })}
+                  aria-label="Deep Space Nebula deep-space color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Nebula color</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaPrimaryColor: event.target.value })}
+                  aria-label="Deep Space Nebula primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacDeepSpaceNebulaHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacDeepSpaceNebulaHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Deep Space Nebula color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({deepSpaceNebulaDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP}
+              value={deepSpaceNebulaDisplaySpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacDeepSpaceNebulaSpeed: getChamaacDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Deep Space Nebula animation speed"
             />
           </label>
         </>
@@ -2912,6 +3038,12 @@ export function RunningTimer({
             speed: chamaacAstralFlowSpeed,
             flowMin: chamaacAstralFlowFlowMin,
             flowMax: chamaacAstralFlowFlowMax,
+          }}
+          chamaacDeepSpaceNebula={{
+            color1: deepSpaceNebulaColors[0],
+            color2: deepSpaceNebulaColors[1],
+            color3: deepSpaceNebulaColors[2],
+            speed: chamaacDeepSpaceNebulaSpeed,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

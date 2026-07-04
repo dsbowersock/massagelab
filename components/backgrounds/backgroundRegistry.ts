@@ -13,6 +13,7 @@ export type BackgroundId =
   | "chamaac-waves"
   | "chamaac-electric-mist"
   | "chamaac-astral-flow"
+  | "chamaac-deep-space-nebula"
   | "chamaac-light-speed"
   | "chamaac-synthesis"
   | "aceternity-aurora"
@@ -70,6 +71,7 @@ const cssBackgrounds = () => import("./effects/css-backgrounds")
 const chamaacLightSpeed = () => import("./effects/chamaac-light-speed-background")
 const chamaacElectricMist = () => import("./effects/chamaac-electric-mist-background")
 const chamaacAstralFlow = () => import("./effects/chamaac-astral-flow-background")
+const chamaacDeepSpaceNebula = () => import("./effects/chamaac-deep-space-nebula-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
@@ -265,6 +267,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(160,118,154,0.22), transparent 42%), linear-gradient(145deg, #05070a 0%, #140b1b 54%, #02030a 100%)",
+    },
+  },
+  {
+    id: "chamaac-deep-space-nebula",
+    label: "Deep Space Nebula",
+    provider: "Chamaac UI",
+    sourceUrl: "https://www.chamaac.com/components/backgrounds/nebula",
+    license: "MIT; copyright 2026 Amarnath; reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium deep-space domain-warping shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Highlight color, nebula cloud color, deep-space color, and animation speed percentage; source shader model adapted with native canvas to avoid new dependencies, with optional primary-color harmony palettes.",
+    component: () => chamaacDeepSpaceNebula().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(118,59,101,0.24), transparent 42%), radial-gradient(circle at 62% 44%, rgba(94,255,244,0.12), transparent 26%), linear-gradient(145deg, #1a0b2e 0%, #090414 58%, #010104 100%)",
     },
   },
   {

@@ -53,6 +53,7 @@ describe("premium background registry", () => {
       "chamaac-light-speed",
       "chamaac-electric-mist",
       "chamaac-astral-flow",
+      "chamaac-deep-space-nebula",
       "chamaac-synthesis",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
@@ -129,15 +130,19 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Light Speed/)
     assert.match(sourceDoc, /Electric Mist/)
     assert.match(sourceDoc, /Astral Flow/)
+    assert.match(sourceDoc, /Deep Space Nebula/)
     assert.match(sourceDoc, /Synthesis/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
+    assert.match(sourceDoc, /nebula\.json/)
     assert.match(sourceDoc, /Warp speed/)
     assert.match(sourceDoc, /high-energy glowing lightning shader/)
     assert.match(sourceDoc, /breathing radial shader/)
+    assert.match(sourceDoc, /deep-space nebula effect with fractional distortion/)
     assert.match(sourceDoc, /multi-layer cosmic flow/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Flow Min, and Flow Max/)
+    assert.match(sourceDoc, /source `0\.1`-`5` range internally while displaying it as `1%`-`100%`/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Complexity, Zoom Scale, Distortion, Glow Intensity, and Flow Frequency/)
     assert.match(sourceDoc, /Animate UI/)
     assert.match(sourceDoc, /MIT \+ Commons Clause/)
@@ -187,6 +192,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-light-speed"))
     assert.ok(chimerOptions.includes("chamaac-electric-mist"))
     assert.ok(chimerOptions.includes("chamaac-astral-flow"))
+    assert.ok(chimerOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
@@ -213,6 +219,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-light-speed"))
     assert.ok(clockOptions.includes("chamaac-electric-mist"))
     assert.ok(clockOptions.includes("chamaac-astral-flow"))
+    assert.ok(clockOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(clockOptions.includes("chamaac-synthesis"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
@@ -240,6 +247,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-light-speed"))
     assert.ok(musicOptions.includes("chamaac-electric-mist"))
     assert.ok(musicOptions.includes("chamaac-astral-flow"))
+    assert.ok(musicOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(musicOptions.includes("chamaac-synthesis"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
@@ -537,6 +545,76 @@ describe("premium background registry", () => {
       "chamaacAstralFlowSpeed",
       "chamaacAstralFlowFlowMin",
       "chamaacAstralFlowFlowMax",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Chamaac Deep Space Nebula source-shaped, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/chamaac-deep-space-nebula-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /chamaac-deep-space-nebula/)
+    assert.match(registrySource, /Deep Space Nebula/)
+    assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
+    assert.match(effectSource, /ChamaacDeepSpaceNebulaBackground/)
+    assert.match(effectSource, /color1: "#5EFFF4"/)
+    assert.match(effectSource, /color2: "#763B65"/)
+    assert.match(effectSource, /color3: "#1A0B2E"/)
+    assert.match(effectSource, /speed: 2/)
+    assert.match(effectSource, /random/)
+    assert.match(effectSource, /noise/)
+    assert.match(effectSource, /fbm/)
+    assert.match(effectSource, /uSpeed/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /1000 \/ 30/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(stylesSource, /chamaacDeepSpaceNebula/)
+    assert.match(hostSource, /chamaacDeepSpaceNebula/)
+    assert.match(runningSource, /chamaacDeepSpaceNebula=\{\{/)
+    assert.match(runningSource, /resolveChamaacDeepSpaceNebulaColors/)
+    assert.match(setupSource, /getChamaacDeepSpaceNebulaDisplaySpeed/)
+    assert.match(setupSource, /getChamaacDeepSpaceNebulaSourceSpeed/)
+    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX = 5/)
+    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN = 1/)
+    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /chamaacDeepSpaceNebula=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /createImageData/)
+    for (const settingKey of [
+      "chamaacDeepSpaceNebulaColorOne",
+      "chamaacDeepSpaceNebulaColorTwo",
+      "chamaacDeepSpaceNebulaColorThree",
+      "chamaacDeepSpaceNebulaPaletteMode",
+      "chamaacDeepSpaceNebulaPrimaryColor",
+      "chamaacDeepSpaceNebulaHarmony",
+      "chamaacDeepSpaceNebulaSpeed",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

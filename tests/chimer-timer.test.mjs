@@ -501,6 +501,43 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Chamaac Deep Space Nebula background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacDeepSpaceNebulaPaletteMode: "harmony",
+      chamaacDeepSpaceNebulaPrimaryColor: "#763b65",
+      chamaacDeepSpaceNebulaHarmony: "triad",
+      chamaacDeepSpaceNebulaColorOne: "#5efff4",
+      chamaacDeepSpaceNebulaColorTwo: "purple",
+      chamaacDeepSpaceNebulaColorThree: "#1a0b2e",
+      chamaacDeepSpaceNebulaSpeed: 99,
+    })
+
+    assert.equal(settings.chamaacDeepSpaceNebulaPaletteMode, "harmony")
+    assert.equal(settings.chamaacDeepSpaceNebulaPrimaryColor, "#763B65")
+    assert.equal(settings.chamaacDeepSpaceNebulaHarmony, "triad")
+    assert.equal(settings.chamaacDeepSpaceNebulaColorOne, "#5EFFF4")
+    assert.equal(settings.chamaacDeepSpaceNebulaColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaColorTwo)
+    assert.equal(settings.chamaacDeepSpaceNebulaColorThree, "#1A0B2E")
+    assert.equal(settings.chamaacDeepSpaceNebulaSpeed, 5)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacDeepSpaceNebulaSpeed: "fast" }).chamaacDeepSpaceNebulaSpeed,
+      DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ chamaacDeepSpaceNebulaSpeed: 0 }).chamaacDeepSpaceNebulaSpeed, 0.1)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacDeepSpaceNebulaPaletteMode: "demo" }).chamaacDeepSpaceNebulaPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacDeepSpaceNebulaPrimaryColor: "mauve" }).chamaacDeepSpaceNebulaPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacDeepSpaceNebulaHarmony: "rainbow" }).chamaacDeepSpaceNebulaHarmony,
+      DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaHarmony,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

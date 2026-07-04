@@ -102,6 +102,10 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-07-04
+
+- Added Chamaac UI Nebula as `Deep Space Nebula`, a reviewed MIT premium background after checking `https://chamaac.com/r/nebula.json` and the component page's Customize controls. The source is a deep-space domain-warping shader with fractional distortion, exposes `color1`, `color2`, `color3`, and `speed`, and declares `three`, `@react-three/fiber`, `clsx`, and `tailwind-merge`; MassageLab ports the fragment shader into a native WebGL canvas renderer instead of adding that stack. Chimer/Clock controls expose custom source colors or a primary-color harmony palette, and animation speed is displayed as a `1%`-`100%` slider mapped to the source `0.1`-`5` range. The effect is premium-gated through `premium_backgrounds`, pointer-events disabled, reduced-motion aware, explicitly cleaned up on unmount, and internal-only.
+
 ### 2026-07-03
 
 - Added Chamaac UI Light Speed as a reviewed MIT premium background after checking the component page, registry payload, and Chamaac UI repository license. The source declares `three`, `@react-three/fiber`, and `@react-three/postprocessing`, so MassageLab adapts the source warp-cylinder particle model with a dependency-free 2D canvas renderer instead of adding that stack. Chimer/Clock controls expose light color, Warp speed, particle count, glow intensity, tunnel radius, and field length; the MassageLab default Warp speed is `0.10x` with a minimum of `0.01x`. The effect remains high-motion opt-in, premium-gated through `premium_backgrounds`, pointer-events disabled, reduced-motion aware, and internal-only.

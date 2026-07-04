@@ -893,6 +893,13 @@ export default function ChimerPage() {
             chamaacAstralFlowSpeed={settings.chamaacAstralFlowSpeed}
             chamaacAstralFlowFlowMin={settings.chamaacAstralFlowFlowMin}
             chamaacAstralFlowFlowMax={settings.chamaacAstralFlowFlowMax}
+            chamaacDeepSpaceNebulaPaletteMode={settings.chamaacDeepSpaceNebulaPaletteMode}
+            chamaacDeepSpaceNebulaPrimaryColor={settings.chamaacDeepSpaceNebulaPrimaryColor}
+            chamaacDeepSpaceNebulaHarmony={settings.chamaacDeepSpaceNebulaHarmony}
+            chamaacDeepSpaceNebulaColorOne={settings.chamaacDeepSpaceNebulaColorOne}
+            chamaacDeepSpaceNebulaColorTwo={settings.chamaacDeepSpaceNebulaColorTwo}
+            chamaacDeepSpaceNebulaColorThree={settings.chamaacDeepSpaceNebulaColorThree}
+            chamaacDeepSpaceNebulaSpeed={settings.chamaacDeepSpaceNebulaSpeed}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}
