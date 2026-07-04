@@ -157,6 +157,38 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.eldoraPhotonBeamBloomRadius, 1.1)
   })
 
+  it("resets Magic UI Retro Grid controls without premium background access", () => {
+    const input = {
+      backgroundId: "magicui-retro-grid",
+      magicRetroGridBackgroundColor: "#010203",
+      magicRetroGridLightLineColor: "#AABBCC",
+      magicRetroGridDarkLineColor: "#112233",
+      magicRetroGridAngle: 72,
+      magicRetroGridCellSize: 88,
+      magicRetroGridOpacity: 0.72,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.magicRetroGridBackgroundColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridBackgroundColor)
+    assert.equal(freeSettings.magicRetroGridLightLineColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridLightLineColor)
+    assert.equal(freeSettings.magicRetroGridDarkLineColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridDarkLineColor)
+    assert.equal(freeSettings.magicRetroGridAngle, DEFAULT_CHIMER_SETTINGS.magicRetroGridAngle)
+    assert.equal(freeSettings.magicRetroGridCellSize, DEFAULT_CHIMER_SETTINGS.magicRetroGridCellSize)
+    assert.equal(freeSettings.magicRetroGridOpacity, DEFAULT_CHIMER_SETTINGS.magicRetroGridOpacity)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "magicui-retro-grid")
+    assert.equal(premiumSettings.magicRetroGridBackgroundColor, "#010203")
+    assert.equal(premiumSettings.magicRetroGridLightLineColor, "#AABBCC")
+    assert.equal(premiumSettings.magicRetroGridDarkLineColor, "#112233")
+    assert.equal(premiumSettings.magicRetroGridAngle, 72)
+    assert.equal(premiumSettings.magicRetroGridCellSize, 88)
+    assert.equal(premiumSettings.magicRetroGridOpacity, 0.72)
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

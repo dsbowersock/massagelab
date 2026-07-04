@@ -45,6 +45,7 @@ describe("premium background registry", () => {
       "unlumen-pixel-liquid",
       "massage-lab-tile-grid",
       "massage-lab-hex-grid",
+      "magicui-retro-grid",
       "unlumen-aurora-bars",
       "animate-ui-bubble",
       "animate-ui-gradient",
@@ -216,6 +217,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("unlumen-pixel-liquid"))
     assert.ok(chimerOptions.includes("massage-lab-tile-grid"))
     assert.ok(chimerOptions.includes("massage-lab-hex-grid"))
+    assert.ok(chimerOptions.includes("magicui-retro-grid"))
     assert.ok(chimerOptions.includes("unlumen-aurora-bars"))
     assert.ok(chimerOptions.includes("animate-ui-bubble"))
     assert.ok(chimerOptions.includes("animate-ui-gradient"))
@@ -249,6 +251,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("unlumen-pixel-liquid"))
     assert.ok(clockOptions.includes("massage-lab-tile-grid"))
     assert.ok(clockOptions.includes("massage-lab-hex-grid"))
+    assert.ok(clockOptions.includes("magicui-retro-grid"))
     assert.ok(clockOptions.includes("unlumen-aurora-bars"))
     assert.ok(clockOptions.includes("animate-ui-bubble"))
     assert.ok(clockOptions.includes("animate-ui-gradient"))
@@ -283,6 +286,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("unlumen-pixel-liquid"))
     assert.ok(musicOptions.includes("massage-lab-tile-grid"))
     assert.ok(musicOptions.includes("massage-lab-hex-grid"))
+    assert.ok(musicOptions.includes("magicui-retro-grid"))
     assert.ok(musicOptions.includes("unlumen-aurora-bars"))
     assert.ok(musicOptions.includes("animate-ui-bubble"))
     assert.ok(musicOptions.includes("animate-ui-gradient"))
@@ -1183,6 +1187,85 @@ describe("premium background registry", () => {
       "eldoraPhotonBeamTrailLength",
       "eldoraPhotonBeamBloomStrength",
       "eldoraPhotonBeamBloomRadius",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Magic UI Retro Grid source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/magicui-retro-grid-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /magicui-retro-grid/)
+    assert.match(registrySource, /Retro Grid/)
+    assert.match(registrySource, /https:\/\/magicui\.design\/docs\/components\/retro-grid/)
+    assert.match(registrySource, /MIT; Magic UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /MagicRetroGridBackground/)
+    assert.match(effectSource, /DEFAULT_MAGIC_RETRO_GRID/)
+    assert.match(effectSource, /angle: 65/)
+    assert.match(effectSource, /cellSize: 60/)
+    assert.match(effectSource, /opacity: 0\.5/)
+    assert.match(effectSource, /lightLineColor: "#808080"/)
+    assert.match(effectSource, /darkLineColor: "#808080"/)
+    assert.match(effectSource, /ANIMATION_DURATION_SECONDS = 15/)
+    assert.match(effectSource, /PERSPECTIVE_PX = 200/)
+    assert.match(effectSource, /OES_standard_derivatives/)
+    assert.match(effectSource, /fwidth\(patternPosition\)/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /IntersectionObserver/)
+    assert.match(effectSource, /MutationObserver/)
+    assert.match(stylesSource, /magicRetroGridBackground/)
+    assert.match(stylesSource, /magicRetroGridCanvas/)
+    assert.match(stylesSource, /magicRetroGridFallbackGrid/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /magicRetroGrid/)
+    assert.match(cssEffectsSource, /MagicRetroGridOptions/)
+    assert.match(runningSource, /magicRetroGrid=\{\{/)
+    assert.doesNotMatch(pageSource, /magicRetroGrid=\{\{/)
+    assert.match(docsSource, /Retro Grid \| https:\/\/magicui\.design\/docs\/components\/retro-grid/)
+    assert.match(docsSource, /Magic UI repository reviewed 2026-07-04/)
+    assert.match(docsSource, /angle`, `cellSize`, `opacity`, `lightLineColor`, and `darkLineColor`/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "motion"/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+
+    for (const settingKey of [
+      "magicRetroGridBackgroundColor",
+      "magicRetroGridLightLineColor",
+      "magicRetroGridDarkLineColor",
+      "magicRetroGridAngle",
+      "magicRetroGridCellSize",
+      "magicRetroGridOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

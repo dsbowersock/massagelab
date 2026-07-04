@@ -246,6 +246,12 @@ interface RunningTimerProps {
   eldoraPhotonBeamTrailLength: number
   eldoraPhotonBeamBloomStrength: number
   eldoraPhotonBeamBloomRadius: number
+  magicRetroGridBackgroundColor: string
+  magicRetroGridLightLineColor: string
+  magicRetroGridDarkLineColor: string
+  magicRetroGridAngle: number
+  magicRetroGridCellSize: number
+  magicRetroGridOpacity: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -493,6 +499,12 @@ export function RunningTimer({
   eldoraPhotonBeamTrailLength,
   eldoraPhotonBeamBloomStrength,
   eldoraPhotonBeamBloomRadius,
+  magicRetroGridBackgroundColor,
+  magicRetroGridLightLineColor,
+  magicRetroGridDarkLineColor,
+  magicRetroGridAngle,
+  magicRetroGridCellSize,
+  magicRetroGridOpacity,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -1999,6 +2011,79 @@ export function RunningTimer({
                 chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
               })}
               aria-label="Liquid Chrome time scale"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "magicui-retro-grid" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={magicRetroGridBackgroundColor}
+              onChange={(event) => handleSettingsChange({ magicRetroGridBackgroundColor: event.target.value })}
+              aria-label="Retro Grid background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Light line color</span>
+            <input
+              type="color"
+              value={magicRetroGridLightLineColor}
+              onChange={(event) => handleSettingsChange({ magicRetroGridLightLineColor: event.target.value })}
+              aria-label="Retro Grid light line color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Dark line color</span>
+            <input
+              type="color"
+              value={magicRetroGridDarkLineColor}
+              onChange={(event) => handleSettingsChange({ magicRetroGridDarkLineColor: event.target.value })}
+              aria-label="Retro Grid dark line color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Angle ({magicRetroGridAngle.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="1"
+              max="89"
+              step="1"
+              value={magicRetroGridAngle}
+              onChange={(event) => handleSettingsChange({ magicRetroGridAngle: Number(event.target.value) })}
+              aria-label="Retro Grid angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cell size ({magicRetroGridCellSize.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="12"
+              max="160"
+              step="1"
+              value={magicRetroGridCellSize}
+              onChange={(event) => handleSettingsChange({ magicRetroGridCellSize: Number(event.target.value) })}
+              aria-label="Retro Grid cell size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid opacity ({Math.round(magicRetroGridOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={magicRetroGridOpacity}
+              onChange={(event) => handleSettingsChange({ magicRetroGridOpacity: Number(event.target.value) })}
+              aria-label="Retro Grid opacity"
             />
           </label>
         </>
@@ -4146,6 +4231,14 @@ export function RunningTimer({
             trailLength: eldoraPhotonBeamTrailLength,
             bloomStrength: eldoraPhotonBeamBloomStrength,
             bloomRadius: eldoraPhotonBeamBloomRadius,
+          }}
+          magicRetroGrid={{
+            backgroundColor: magicRetroGridBackgroundColor,
+            lightLineColor: magicRetroGridLightLineColor,
+            darkLineColor: magicRetroGridDarkLineColor,
+            angle: magicRetroGridAngle,
+            cellSize: magicRetroGridCellSize,
+            opacity: magicRetroGridOpacity,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

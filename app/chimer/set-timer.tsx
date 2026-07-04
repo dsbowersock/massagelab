@@ -529,6 +529,12 @@ export interface ChimerSettings {
   eldoraPhotonBeamTrailLength: number
   eldoraPhotonBeamBloomStrength: number
   eldoraPhotonBeamBloomRadius: number
+  magicRetroGridBackgroundColor: string
+  magicRetroGridLightLineColor: string
+  magicRetroGridDarkLineColor: string
+  magicRetroGridAngle: number
+  magicRetroGridCellSize: number
+  magicRetroGridOpacity: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -2890,6 +2896,81 @@ export function SetTimer({
                 chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
               })}
               aria-label="Liquid Chrome time scale"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "magicui-retro-grid") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={settings.magicRetroGridBackgroundColor}
+              onChange={(event) => onSettingsChange({ magicRetroGridBackgroundColor: event.target.value })}
+              aria-label="Retro Grid background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Light line color</span>
+            <input
+              type="color"
+              value={settings.magicRetroGridLightLineColor}
+              onChange={(event) => onSettingsChange({ magicRetroGridLightLineColor: event.target.value })}
+              aria-label="Retro Grid light line color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Dark line color</span>
+            <input
+              type="color"
+              value={settings.magicRetroGridDarkLineColor}
+              onChange={(event) => onSettingsChange({ magicRetroGridDarkLineColor: event.target.value })}
+              aria-label="Retro Grid dark line color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Angle ({settings.magicRetroGridAngle.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="1"
+              max="89"
+              step="1"
+              value={settings.magicRetroGridAngle}
+              onChange={(event) => onSettingsChange({ magicRetroGridAngle: Number(event.target.value) })}
+              aria-label="Retro Grid angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cell size ({settings.magicRetroGridCellSize.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="12"
+              max="160"
+              step="1"
+              value={settings.magicRetroGridCellSize}
+              onChange={(event) => onSettingsChange({ magicRetroGridCellSize: Number(event.target.value) })}
+              aria-label="Retro Grid cell size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid opacity ({Math.round(settings.magicRetroGridOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={settings.magicRetroGridOpacity}
+              onChange={(event) => onSettingsChange({ magicRetroGridOpacity: Number(event.target.value) })}
+              aria-label="Retro Grid opacity"
             />
           </label>
         </div>

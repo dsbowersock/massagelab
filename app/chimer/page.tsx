@@ -961,6 +961,12 @@ export default function ChimerPage() {
             eldoraPhotonBeamTrailLength={settings.eldoraPhotonBeamTrailLength}
             eldoraPhotonBeamBloomStrength={settings.eldoraPhotonBeamBloomStrength}
             eldoraPhotonBeamBloomRadius={settings.eldoraPhotonBeamBloomRadius}
+            magicRetroGridBackgroundColor={settings.magicRetroGridBackgroundColor}
+            magicRetroGridLightLineColor={settings.magicRetroGridLightLineColor}
+            magicRetroGridDarkLineColor={settings.magicRetroGridDarkLineColor}
+            magicRetroGridAngle={settings.magicRetroGridAngle}
+            magicRetroGridCellSize={settings.magicRetroGridCellSize}
+            magicRetroGridOpacity={settings.magicRetroGridOpacity}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}

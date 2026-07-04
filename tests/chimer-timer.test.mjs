@@ -814,6 +814,47 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Magic UI Retro Grid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      magicRetroGridBackgroundColor: "black",
+      magicRetroGridLightLineColor: "#aabbcc",
+      magicRetroGridDarkLineColor: "#112233",
+      magicRetroGridAngle: 99,
+      magicRetroGridCellSize: 2,
+      magicRetroGridOpacity: 0,
+    })
+
+    assert.equal(settings.magicRetroGridBackgroundColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridBackgroundColor)
+    assert.equal(settings.magicRetroGridLightLineColor, "#AABBCC")
+    assert.equal(settings.magicRetroGridDarkLineColor, "#112233")
+    assert.equal(settings.magicRetroGridAngle, 89)
+    assert.equal(settings.magicRetroGridCellSize, 12)
+    assert.equal(settings.magicRetroGridOpacity, 0.05)
+    assert.equal(
+      sanitizeChimerSettings({ magicRetroGridAngle: "steep" }).magicRetroGridAngle,
+      DEFAULT_CHIMER_SETTINGS.magicRetroGridAngle,
+    )
+    assert.equal(sanitizeChimerSettings({ magicRetroGridAngle: -10 }).magicRetroGridAngle, 1)
+    assert.equal(
+      sanitizeChimerSettings({ magicRetroGridCellSize: "wide" }).magicRetroGridCellSize,
+      DEFAULT_CHIMER_SETTINGS.magicRetroGridCellSize,
+    )
+    assert.equal(sanitizeChimerSettings({ magicRetroGridCellSize: 999 }).magicRetroGridCellSize, 160)
+    assert.equal(
+      sanitizeChimerSettings({ magicRetroGridOpacity: "solid" }).magicRetroGridOpacity,
+      DEFAULT_CHIMER_SETTINGS.magicRetroGridOpacity,
+    )
+    assert.equal(sanitizeChimerSettings({ magicRetroGridOpacity: 99 }).magicRetroGridOpacity, 1)
+    assert.equal(
+      sanitizeChimerSettings({ magicRetroGridLightLineColor: "gray" }).magicRetroGridLightLineColor,
+      DEFAULT_CHIMER_SETTINGS.magicRetroGridLightLineColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ magicRetroGridDarkLineColor: "gray" }).magicRetroGridDarkLineColor,
+      DEFAULT_CHIMER_SETTINGS.magicRetroGridDarkLineColor,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

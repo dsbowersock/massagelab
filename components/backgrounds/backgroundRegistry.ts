@@ -10,6 +10,7 @@ export type BackgroundId =
   | "magic-noise-texture"
   | "magic-grid-pattern"
   | "magic-animated-grid"
+  | "magicui-retro-grid"
   | "chamaac-waves"
   | "chamaac-electric-mist"
   | "chamaac-astral-flow"
@@ -84,6 +85,7 @@ const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
+const magicRetroGrid = () => import("./effects/magicui-retro-grid-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
 const aceternityVortex = () => import("./effects/aceternity-vortex-background")
@@ -215,6 +217,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 48% 42%, rgba(255,255,255,0.08), transparent 34%), linear-gradient(145deg, #050505, #101827)",
+    },
+  },
+  {
+    id: "magicui-retro-grid",
+    label: "Retro Grid",
+    provider: "Magic UI",
+    sourceUrl: "https://magicui.design/docs/components/retro-grid",
+    license: "MIT; Magic UI repository reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium scrolling perspective-grid background for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "subtle",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Background fill, light and dark grid line colors, source angle, cell size, and opacity; source WebGL grid adapted with CSS fallback, reduced motion, and cleanup.",
+    component: () => magicRetroGrid().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 72%, rgba(128,128,128,0.16), transparent 38%), linear-gradient(180deg, #020617 0%, #050505 100%)",
     },
   },
   {
