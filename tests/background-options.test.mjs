@@ -60,6 +60,7 @@ describe("premium background registry", () => {
       "chamaac-synthesis",
       "eldora-novatrix-background",
       "eldora-hacker-background",
+      "eldora-photon-beam",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
       assert.equal(
@@ -140,6 +141,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Synthesis/)
     assert.match(sourceDoc, /Novatrix Background/)
     assert.match(sourceDoc, /Hacker Background/)
+    assert.match(sourceDoc, /Photon Beam/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
@@ -148,10 +150,17 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /waves\.json/)
     assert.match(sourceDoc, /novatrix-background\.json/)
     assert.match(sourceDoc, /hacker-background\.tsx/)
+    assert.match(sourceDoc, /photon-beam\.tsx/)
     assert.match(sourceDoc, /declares `ogl`/)
     assert.match(sourceDoc, /Matrix-style falling characters background animation component/)
     assert.match(sourceDoc, /`color`, `fontSize`, and `speed`/)
+    assert.match(sourceDoc, /WebGL background with animated light trails, bloom, and customizable colors/)
+    assert.match(sourceDoc, /`colorBg`, `colorLine`, `colorSignal`/)
+    assert.match(sourceDoc, /`lineCount`, `spreadHeight`, `spreadDepth`/)
+    assert.match(sourceDoc, /`bloomStrength`, and `bloomRadius`/)
+    assert.match(sourceDoc, /importing `three` plus postprocessing passes/)
     assert.match(sourceDoc, /source `0\.02`-`3`/)
+    assert.match(sourceDoc, /source `0\.02`-`2` internally while displaying `1%`-`100%`/)
     assert.match(sourceDoc, /source `0\.01`-`0\.45`/)
     assert.match(sourceDoc, /source `0\.05`-`3` internally while displaying `1%`-`100%`/)
     assert.match(sourceDoc, /Warp speed/)
@@ -222,6 +231,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
     assert.ok(chimerOptions.includes("eldora-novatrix-background"))
     assert.ok(chimerOptions.includes("eldora-hacker-background"))
+    assert.ok(chimerOptions.includes("eldora-photon-beam"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -254,6 +264,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-synthesis"))
     assert.ok(clockOptions.includes("eldora-novatrix-background"))
     assert.ok(clockOptions.includes("eldora-hacker-background"))
+    assert.ok(clockOptions.includes("eldora-photon-beam"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -287,6 +298,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-synthesis"))
     assert.ok(musicOptions.includes("eldora-novatrix-background"))
     assert.ok(musicOptions.includes("eldora-hacker-background"))
+    assert.ok(musicOptions.includes("eldora-photon-beam"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1051,6 +1063,126 @@ describe("premium background registry", () => {
       "eldoraHackerColor",
       "eldoraHackerSpeed",
       "eldoraHackerFontSize",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Eldora Photon Beam source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/eldora-photon-beam-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /eldora-photon-beam/)
+    assert.match(registrySource, /Photon Beam/)
+    assert.match(registrySource, /https:\/\/www\.eldoraui\.site\/docs\/components\/photon-beam/)
+    assert.match(registrySource, /MIT; Eldora UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /EldoraPhotonBeamBackground/)
+    assert.match(effectSource, /DEFAULT_ELDORA_PHOTON_BEAM/)
+    assert.match(effectSource, /colorBg: "#080808"/)
+    assert.match(effectSource, /colorLine: "#005F6F"/)
+    assert.match(effectSource, /colorSignal: "#00D9FF"/)
+    assert.match(effectSource, /useColor2: false/)
+    assert.match(effectSource, /colorSignal2: "#00FFFF"/)
+    assert.match(effectSource, /useColor3: false/)
+    assert.match(effectSource, /colorSignal3: "#00B8D4"/)
+    assert.match(effectSource, /lineCount: 80/)
+    assert.match(effectSource, /spreadHeight: 30\.33/)
+    assert.match(effectSource, /spreadDepth: 0/)
+    assert.match(effectSource, /curveLength: 50/)
+    assert.match(effectSource, /straightLength: 100/)
+    assert.match(effectSource, /curvePower: 0\.8265/)
+    assert.match(effectSource, /waveSpeed: 2\.48/)
+    assert.match(effectSource, /waveHeight: 0\.145/)
+    assert.match(effectSource, /lineOpacity: 0\.557/)
+    assert.match(effectSource, /signalCount: 94/)
+    assert.match(effectSource, /speedGlobal: 0\.345/)
+    assert.match(effectSource, /trailLength: 3/)
+    assert.match(effectSource, /bloomStrength: 3/)
+    assert.match(effectSource, /bloomRadius: 0\.5/)
+    assert.match(effectSource, /SEGMENT_COUNT = 150/)
+    assert.match(effectSource, /getPathPoint/)
+    assert.match(effectSource, /options\.curveLength/)
+    assert.match(effectSource, /options\.straightLength/)
+    assert.match(effectSource, /options\.curvePower/)
+    assert.match(effectSource, /options\.waveSpeed/)
+    assert.match(effectSource, /options\.waveHeight/)
+    assert.match(effectSource, /globalCompositeOperation = "lighter"/)
+    assert.match(effectSource, /shadowBlur/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(stylesSource, /eldoraPhotonBeamBackground/)
+    assert.match(stylesSource, /eldoraPhotonBeamCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /eldoraPhotonBeam/)
+    assert.match(cssEffectsSource, /EldoraPhotonBeamOptions/)
+    assert.match(runningSource, /eldoraPhotonBeam=\{\{/)
+    assert.match(runningSource, /resolveEldoraPhotonBeamColors/)
+    assert.match(setupSource, /resolveEldoraPhotonBeamColors/)
+    assert.match(setupSource, /createEldoraPhotonBeamHarmonyPalette/)
+    assert.match(setupSource, /getEldoraPhotonBeamDisplaySpeed/)
+    assert.match(setupSource, /getEldoraPhotonBeamSourceSpeed/)
+    assert.match(setupSource, /ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN = 0\.02/)
+    assert.match(setupSource, /ELDORA_PHOTON_BEAM_SOURCE_SPEED_MAX = 2/)
+    assert.doesNotMatch(pageSource, /eldoraPhotonBeam=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /EffectComposer/)
+    assert.doesNotMatch(effectSource, /RenderPass/)
+    assert.doesNotMatch(effectSource, /UnrealBloomPass/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    for (const settingKey of [
+      "eldoraPhotonBeamPaletteMode",
+      "eldoraPhotonBeamPrimaryColor",
+      "eldoraPhotonBeamHarmony",
+      "eldoraPhotonBeamColorBg",
+      "eldoraPhotonBeamColorLine",
+      "eldoraPhotonBeamColorSignal",
+      "eldoraPhotonBeamUseColor2",
+      "eldoraPhotonBeamColorSignal2",
+      "eldoraPhotonBeamUseColor3",
+      "eldoraPhotonBeamColorSignal3",
+      "eldoraPhotonBeamLineCount",
+      "eldoraPhotonBeamSpreadHeight",
+      "eldoraPhotonBeamSpreadDepth",
+      "eldoraPhotonBeamCurveLength",
+      "eldoraPhotonBeamStraightLength",
+      "eldoraPhotonBeamCurvePower",
+      "eldoraPhotonBeamWaveSpeed",
+      "eldoraPhotonBeamWaveHeight",
+      "eldoraPhotonBeamLineOpacity",
+      "eldoraPhotonBeamSignalCount",
+      "eldoraPhotonBeamSpeedGlobal",
+      "eldoraPhotonBeamTrailLength",
+      "eldoraPhotonBeamBloomStrength",
+      "eldoraPhotonBeamBloomRadius",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

@@ -20,6 +20,7 @@ export type BackgroundId =
   | "chamaac-synthesis"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
+  | "eldora-photon-beam"
   | "aceternity-aurora"
   | "aceternity-dotted-glow"
   | "aceternity-sparkles"
@@ -82,6 +83,7 @@ const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
+const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
 const aceternityVortex = () => import("./effects/aceternity-vortex-background")
@@ -423,6 +425,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 44%, rgba(0,255,0,0.12), transparent 34%), linear-gradient(180deg, #000000 0%, #020802 100%)",
+    },
+  },
+  {
+    id: "eldora-photon-beam",
+    label: "Photon Beam",
+    provider: "Eldora UI",
+    sourceUrl: "https://www.eldoraui.site/docs/components/photon-beam",
+    license: "MIT; Eldora UI repository reviewed 2026-07-04",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium animated light-trail beam background for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Background, line, and signal colors with optional color harmony, plus source-shaped beam, signal, wave, trail, and bloom controls; adapted without adding Three.js.",
+    component: () => eldoraPhotonBeam().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 58% 50%, rgba(0,217,255,0.16), transparent 38%), linear-gradient(180deg, #080808 0%, #020405 100%)",
     },
   },
   {

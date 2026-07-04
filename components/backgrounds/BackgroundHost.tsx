@@ -27,6 +27,7 @@ import type {
   ChamaacSynthesisOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
+  EldoraPhotonBeamOptions,
   GradientAnimationOptions,
   HexGridOptions,
   LampSectionOptions,
@@ -63,6 +64,7 @@ interface BackgroundHostProps {
   chamaacSynthesis?: ChamaacSynthesisOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
+  eldoraPhotonBeam?: EldoraPhotonBeamOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -115,6 +117,7 @@ export function BackgroundHost({
   chamaacSynthesis,
   eldoraNovatrix,
   eldoraHacker,
+  eldoraPhotonBeam,
   backgroundLines,
   shootingStars,
   canvasRevealDots,
@@ -192,6 +195,7 @@ export function BackgroundHost({
           chamaacSynthesis={chamaacSynthesis}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
+          eldoraPhotonBeam={eldoraPhotonBeam}
           backgroundLines={backgroundLines}
           shootingStars={shootingStars}
           canvasRevealDots={canvasRevealDots}

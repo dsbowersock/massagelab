@@ -744,6 +744,76 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Eldora Photon Beam background controls", () => {
+    const settings = sanitizeChimerSettings({
+      eldoraPhotonBeamPaletteMode: "harmony",
+      eldoraPhotonBeamPrimaryColor: "#00d4ff",
+      eldoraPhotonBeamHarmony: "triad",
+      eldoraPhotonBeamColorBg: "black",
+      eldoraPhotonBeamColorLine: "#123456",
+      eldoraPhotonBeamColorSignal: "#abcdef",
+      eldoraPhotonBeamUseColor2: true,
+      eldoraPhotonBeamColorSignal2: "#fedcba",
+      eldoraPhotonBeamUseColor3: true,
+      eldoraPhotonBeamColorSignal3: "#00ffff",
+      eldoraPhotonBeamLineCount: 999,
+      eldoraPhotonBeamSpreadHeight: 0,
+      eldoraPhotonBeamSpreadDepth: 99,
+      eldoraPhotonBeamCurveLength: 0,
+      eldoraPhotonBeamStraightLength: 999,
+      eldoraPhotonBeamCurvePower: 9,
+      eldoraPhotonBeamWaveSpeed: -1,
+      eldoraPhotonBeamWaveHeight: 9,
+      eldoraPhotonBeamLineOpacity: 0,
+      eldoraPhotonBeamSignalCount: -12,
+      eldoraPhotonBeamSpeedGlobal: 99,
+      eldoraPhotonBeamTrailLength: 99,
+      eldoraPhotonBeamBloomStrength: 99,
+      eldoraPhotonBeamBloomRadius: 99,
+    })
+
+    assert.equal(settings.eldoraPhotonBeamPaletteMode, "harmony")
+    assert.equal(settings.eldoraPhotonBeamPrimaryColor, "#00D4FF")
+    assert.equal(settings.eldoraPhotonBeamHarmony, "triad")
+    assert.equal(settings.eldoraPhotonBeamColorBg, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorBg)
+    assert.equal(settings.eldoraPhotonBeamColorLine, "#123456")
+    assert.equal(settings.eldoraPhotonBeamColorSignal, "#ABCDEF")
+    assert.equal(settings.eldoraPhotonBeamUseColor2, true)
+    assert.equal(settings.eldoraPhotonBeamColorSignal2, "#FEDCBA")
+    assert.equal(settings.eldoraPhotonBeamUseColor3, true)
+    assert.equal(settings.eldoraPhotonBeamColorSignal3, "#00FFFF")
+    assert.equal(settings.eldoraPhotonBeamLineCount, 160)
+    assert.equal(settings.eldoraPhotonBeamSpreadHeight, 5)
+    assert.equal(settings.eldoraPhotonBeamSpreadDepth, 60)
+    assert.equal(settings.eldoraPhotonBeamCurveLength, 16)
+    assert.equal(settings.eldoraPhotonBeamStraightLength, 220)
+    assert.equal(settings.eldoraPhotonBeamCurvePower, 2)
+    assert.equal(settings.eldoraPhotonBeamWaveSpeed, 0)
+    assert.equal(settings.eldoraPhotonBeamWaveHeight, 1)
+    assert.equal(settings.eldoraPhotonBeamLineOpacity, 0.05)
+    assert.equal(settings.eldoraPhotonBeamSignalCount, 0)
+    assert.equal(settings.eldoraPhotonBeamSpeedGlobal, 2)
+    assert.equal(settings.eldoraPhotonBeamTrailLength, 16)
+    assert.equal(settings.eldoraPhotonBeamBloomStrength, 6)
+    assert.equal(settings.eldoraPhotonBeamBloomRadius, 1.5)
+    assert.equal(
+      sanitizeChimerSettings({ eldoraPhotonBeamPaletteMode: "demo" }).eldoraPhotonBeamPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraPhotonBeamHarmony: "rainbow" }).eldoraPhotonBeamHarmony,
+      DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraPhotonBeamUseColor2: "yes" }).eldoraPhotonBeamUseColor2,
+      DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamUseColor2,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ eldoraPhotonBeamSpeedGlobal: "fast" }).eldoraPhotonBeamSpeedGlobal,
+      DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpeedGlobal,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

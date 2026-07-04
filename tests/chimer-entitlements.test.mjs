@@ -71,6 +71,92 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.eldoraHackerFontSize, 22)
   })
 
+  it("resets Eldora Photon Beam controls without premium background access", () => {
+    const input = {
+      backgroundId: "eldora-photon-beam",
+      eldoraPhotonBeamPaletteMode: "harmony",
+      eldoraPhotonBeamPrimaryColor: "#00D4FF",
+      eldoraPhotonBeamHarmony: "triad",
+      eldoraPhotonBeamColorBg: "#010203",
+      eldoraPhotonBeamColorLine: "#123456",
+      eldoraPhotonBeamColorSignal: "#ABCDEF",
+      eldoraPhotonBeamUseColor2: true,
+      eldoraPhotonBeamColorSignal2: "#FEDCBA",
+      eldoraPhotonBeamUseColor3: true,
+      eldoraPhotonBeamColorSignal3: "#22D3EE",
+      eldoraPhotonBeamLineCount: 120,
+      eldoraPhotonBeamSpreadHeight: 64,
+      eldoraPhotonBeamSpreadDepth: 18,
+      eldoraPhotonBeamCurveLength: 80,
+      eldoraPhotonBeamStraightLength: 160,
+      eldoraPhotonBeamCurvePower: 1.25,
+      eldoraPhotonBeamWaveSpeed: 4.5,
+      eldoraPhotonBeamWaveHeight: 0.6,
+      eldoraPhotonBeamLineOpacity: 0.82,
+      eldoraPhotonBeamSignalCount: 140,
+      eldoraPhotonBeamSpeedGlobal: 1.4,
+      eldoraPhotonBeamTrailLength: 8,
+      eldoraPhotonBeamBloomStrength: 4.2,
+      eldoraPhotonBeamBloomRadius: 1.1,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.eldoraPhotonBeamPaletteMode, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamPaletteMode)
+    assert.equal(freeSettings.eldoraPhotonBeamPrimaryColor, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamPrimaryColor)
+    assert.equal(freeSettings.eldoraPhotonBeamHarmony, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamHarmony)
+    assert.equal(freeSettings.eldoraPhotonBeamColorBg, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorBg)
+    assert.equal(freeSettings.eldoraPhotonBeamColorLine, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorLine)
+    assert.equal(freeSettings.eldoraPhotonBeamColorSignal, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorSignal)
+    assert.equal(freeSettings.eldoraPhotonBeamUseColor2, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamUseColor2)
+    assert.equal(freeSettings.eldoraPhotonBeamColorSignal2, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorSignal2)
+    assert.equal(freeSettings.eldoraPhotonBeamUseColor3, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamUseColor3)
+    assert.equal(freeSettings.eldoraPhotonBeamColorSignal3, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorSignal3)
+    assert.equal(freeSettings.eldoraPhotonBeamLineCount, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamLineCount)
+    assert.equal(freeSettings.eldoraPhotonBeamSpreadHeight, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpreadHeight)
+    assert.equal(freeSettings.eldoraPhotonBeamSpreadDepth, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpreadDepth)
+    assert.equal(freeSettings.eldoraPhotonBeamCurveLength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamCurveLength)
+    assert.equal(freeSettings.eldoraPhotonBeamStraightLength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamStraightLength)
+    assert.equal(freeSettings.eldoraPhotonBeamCurvePower, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamCurvePower)
+    assert.equal(freeSettings.eldoraPhotonBeamWaveSpeed, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamWaveSpeed)
+    assert.equal(freeSettings.eldoraPhotonBeamWaveHeight, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamWaveHeight)
+    assert.equal(freeSettings.eldoraPhotonBeamLineOpacity, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamLineOpacity)
+    assert.equal(freeSettings.eldoraPhotonBeamSignalCount, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSignalCount)
+    assert.equal(freeSettings.eldoraPhotonBeamSpeedGlobal, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpeedGlobal)
+    assert.equal(freeSettings.eldoraPhotonBeamTrailLength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamTrailLength)
+    assert.equal(freeSettings.eldoraPhotonBeamBloomStrength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamBloomStrength)
+    assert.equal(freeSettings.eldoraPhotonBeamBloomRadius, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamBloomRadius)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
+
+    assert.equal(premiumSettings.backgroundId, "eldora-photon-beam")
+    assert.equal(premiumSettings.eldoraPhotonBeamPaletteMode, "harmony")
+    assert.equal(premiumSettings.eldoraPhotonBeamPrimaryColor, "#00D4FF")
+    assert.equal(premiumSettings.eldoraPhotonBeamHarmony, "triad")
+    assert.equal(premiumSettings.eldoraPhotonBeamColorBg, "#010203")
+    assert.equal(premiumSettings.eldoraPhotonBeamColorLine, "#123456")
+    assert.equal(premiumSettings.eldoraPhotonBeamColorSignal, "#ABCDEF")
+    assert.equal(premiumSettings.eldoraPhotonBeamUseColor2, true)
+    assert.equal(premiumSettings.eldoraPhotonBeamColorSignal2, "#FEDCBA")
+    assert.equal(premiumSettings.eldoraPhotonBeamUseColor3, true)
+    assert.equal(premiumSettings.eldoraPhotonBeamColorSignal3, "#22D3EE")
+    assert.equal(premiumSettings.eldoraPhotonBeamLineCount, 120)
+    assert.equal(premiumSettings.eldoraPhotonBeamSpreadHeight, 64)
+    assert.equal(premiumSettings.eldoraPhotonBeamSpreadDepth, 18)
+    assert.equal(premiumSettings.eldoraPhotonBeamCurveLength, 80)
+    assert.equal(premiumSettings.eldoraPhotonBeamStraightLength, 160)
+    assert.equal(premiumSettings.eldoraPhotonBeamCurvePower, 1.25)
+    assert.equal(premiumSettings.eldoraPhotonBeamWaveSpeed, 4.5)
+    assert.equal(premiumSettings.eldoraPhotonBeamWaveHeight, 0.6)
+    assert.equal(premiumSettings.eldoraPhotonBeamLineOpacity, 0.82)
+    assert.equal(premiumSettings.eldoraPhotonBeamSignalCount, 140)
+    assert.equal(premiumSettings.eldoraPhotonBeamSpeedGlobal, 1.4)
+    assert.equal(premiumSettings.eldoraPhotonBeamTrailLength, 8)
+    assert.equal(premiumSettings.eldoraPhotonBeamBloomStrength, 4.2)
+    assert.equal(premiumSettings.eldoraPhotonBeamBloomRadius, 1.1)
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

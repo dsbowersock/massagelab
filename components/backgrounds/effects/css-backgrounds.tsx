@@ -25,6 +25,7 @@ export interface BackgroundEffectProps {
   chamaacSynthesis?: ChamaacSynthesisOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
+  eldoraPhotonBeam?: EldoraPhotonBeamOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -162,6 +163,30 @@ export interface EldoraHackerOptions {
   color?: string
   fontSize?: number
   speed?: number
+}
+
+export interface EldoraPhotonBeamOptions {
+  colorBg?: string
+  colorLine?: string
+  colorSignal?: string
+  useColor2?: boolean
+  colorSignal2?: string
+  useColor3?: boolean
+  colorSignal3?: string
+  lineCount?: number
+  spreadHeight?: number
+  spreadDepth?: number
+  curveLength?: number
+  straightLength?: number
+  curvePower?: number
+  waveSpeed?: number
+  waveHeight?: number
+  lineOpacity?: number
+  signalCount?: number
+  speedGlobal?: number
+  trailLength?: number
+  bloomStrength?: number
+  bloomRadius?: number
 }
 
 export type ColorHarmony =

@@ -29,6 +29,7 @@ export type ChamaacWavesPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
+export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
 
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3
@@ -75,6 +76,11 @@ export const ELDORA_HACKER_SOURCE_SPEED_MAX = 3
 export const ELDORA_HACKER_DISPLAY_SPEED_MIN = 1
 export const ELDORA_HACKER_DISPLAY_SPEED_MAX = 100
 export const ELDORA_HACKER_DISPLAY_SPEED_STEP = 1
+export const ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN = 0.02
+export const ELDORA_PHOTON_BEAM_SOURCE_SPEED_MAX = 2
+export const ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN = 1
+export const ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX = 100
+export const ELDORA_PHOTON_BEAM_DISPLAY_SPEED_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
@@ -351,6 +357,36 @@ export function getEldoraHackerSourceSpeed(displaySpeed: number) {
   ) / 1000
 }
 
+// Photon Beam stores Eldora's source speed multiplier while users see a
+// consistent 1%-100% control alongside the other premium backgrounds.
+export function getEldoraPhotonBeamDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    ELDORA_PHOTON_BEAM_SOURCE_SPEED_MAX,
+    Math.max(ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange = ELDORA_PHOTON_BEAM_SOURCE_SPEED_MAX - ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN
+  const displayRange = ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX - ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN
+  return Math.round(
+    ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN
+      + ((clampedSpeed - ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getEldoraPhotonBeamSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX,
+    Math.max(ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange = ELDORA_PHOTON_BEAM_SOURCE_SPEED_MAX - ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN
+  const displayRange = ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX - ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN
+  return Math.round(
+    (
+      ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN
+      + ((clampedDisplay - ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
+
 // The source Chamaac demo defaults to 0.4; MassageLab presents that as 1x.
 export function getChamaacSynthesisDisplaySpeed(sourceSpeed: number) {
   return Math.round((sourceSpeed / CHAMAAC_SYNTHESIS_SPEED_BASE) * 100) / 100
@@ -469,6 +505,30 @@ export interface ChimerSettings {
   eldoraHackerColor: string
   eldoraHackerSpeed: number
   eldoraHackerFontSize: number
+  eldoraPhotonBeamPaletteMode: EldoraPhotonBeamPaletteMode
+  eldoraPhotonBeamPrimaryColor: string
+  eldoraPhotonBeamHarmony: ColorHarmony
+  eldoraPhotonBeamColorBg: string
+  eldoraPhotonBeamColorLine: string
+  eldoraPhotonBeamColorSignal: string
+  eldoraPhotonBeamUseColor2: boolean
+  eldoraPhotonBeamColorSignal2: string
+  eldoraPhotonBeamUseColor3: boolean
+  eldoraPhotonBeamColorSignal3: string
+  eldoraPhotonBeamLineCount: number
+  eldoraPhotonBeamSpreadHeight: number
+  eldoraPhotonBeamSpreadDepth: number
+  eldoraPhotonBeamCurveLength: number
+  eldoraPhotonBeamStraightLength: number
+  eldoraPhotonBeamCurvePower: number
+  eldoraPhotonBeamWaveSpeed: number
+  eldoraPhotonBeamWaveHeight: number
+  eldoraPhotonBeamLineOpacity: number
+  eldoraPhotonBeamSignalCount: number
+  eldoraPhotonBeamSpeedGlobal: number
+  eldoraPhotonBeamTrailLength: number
+  eldoraPhotonBeamBloomStrength: number
+  eldoraPhotonBeamBloomRadius: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -639,6 +699,20 @@ type EldoraHackerColorSettings = Pick<
   | "eldoraHackerColor"
 >
 
+type EldoraPhotonBeamColorSettings = Pick<
+  ChimerSettings,
+  | "eldoraPhotonBeamPaletteMode"
+  | "eldoraPhotonBeamPrimaryColor"
+  | "eldoraPhotonBeamHarmony"
+  | "eldoraPhotonBeamColorBg"
+  | "eldoraPhotonBeamColorLine"
+  | "eldoraPhotonBeamColorSignal"
+  | "eldoraPhotonBeamUseColor2"
+  | "eldoraPhotonBeamColorSignal2"
+  | "eldoraPhotonBeamUseColor3"
+  | "eldoraPhotonBeamColorSignal3"
+>
+
 export function resolveChamaacAstralFlowColors(settings: ChamaacAstralFlowColorSettings): [string, string, string] {
   if (settings.chamaacAstralFlowPaletteMode === "harmony") {
     return createChamaacSynthesisHarmonyPalette(
@@ -736,6 +810,27 @@ export function resolveEldoraHackerColor(settings: EldoraHackerColorSettings): s
   }
 
   return settings.eldoraHackerColor
+}
+
+export function resolveEldoraPhotonBeamColors(
+  settings: EldoraPhotonBeamColorSettings,
+): [string, string, string, boolean, string, boolean, string] {
+  if (settings.eldoraPhotonBeamPaletteMode === "harmony") {
+    return createEldoraPhotonBeamHarmonyPalette(
+      settings.eldoraPhotonBeamPrimaryColor,
+      settings.eldoraPhotonBeamHarmony,
+    )
+  }
+
+  return [
+    settings.eldoraPhotonBeamColorBg,
+    settings.eldoraPhotonBeamColorLine,
+    settings.eldoraPhotonBeamColorSignal,
+    settings.eldoraPhotonBeamUseColor2,
+    settings.eldoraPhotonBeamColorSignal2,
+    settings.eldoraPhotonBeamUseColor3,
+    settings.eldoraPhotonBeamColorSignal3,
+  ]
 }
 
 export function createChamaacDeepSpaceNebulaHarmonyPalette(
@@ -970,6 +1065,101 @@ export function createEldoraHackerHarmonyColor(
   harmony: ColorHarmony,
 ) {
   return createEldoraNovatrixHarmonyColor(primaryColor, harmony)
+}
+
+export function createEldoraPhotonBeamHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string, boolean, string, boolean, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const beamSaturation = Math.min(0.98, Math.max(0.48, saturation))
+  const signalLightness = Math.min(0.74, Math.max(0.5, lightness + 0.1))
+  const lineLightness = Math.min(0.34, Math.max(0.18, lightness * 0.5))
+  const backgroundLightness = Math.min(0.055, Math.max(0.015, lightness * 0.12))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue + 180, beamSaturation * 0.56, backgroundLightness),
+        hslToHex(hue, beamSaturation * 0.84, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue + 180, beamSaturation * 0.9, Math.min(0.78, signalLightness + 0.03)),
+        true,
+        hslToHex(hue + 12, beamSaturation, Math.max(0.44, signalLightness - 0.08)),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue + 210, beamSaturation * 0.54, backgroundLightness),
+        hslToHex(hue - 10, beamSaturation * 0.82, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue + 150, beamSaturation * 0.92, Math.min(0.78, signalLightness + 0.02)),
+        true,
+        hslToHex(hue + 210, beamSaturation * 0.9, Math.max(0.42, signalLightness - 0.05)),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue + 240, beamSaturation * 0.5, backgroundLightness),
+        hslToHex(hue, beamSaturation * 0.82, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue + 120, beamSaturation * 0.92, Math.min(0.78, signalLightness + 0.02)),
+        true,
+        hslToHex(hue + 240, beamSaturation * 0.92, Math.max(0.42, signalLightness - 0.05)),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 180, beamSaturation * 0.52, backgroundLightness),
+        hslToHex(hue + 90, beamSaturation * 0.8, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue + 90, beamSaturation * 0.9, Math.min(0.76, signalLightness + 0.02)),
+        true,
+        hslToHex(hue + 180, beamSaturation * 0.9, Math.max(0.42, signalLightness - 0.05)),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 24, beamSaturation * 0.52, backgroundLightness),
+        hslToHex(hue - 12, beamSaturation * 0.82, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue + 28, beamSaturation * 0.92, Math.min(0.78, signalLightness + 0.02)),
+        true,
+        hslToHex(hue + 180, beamSaturation * 0.82, Math.max(0.42, signalLightness - 0.07)),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, beamSaturation * 0.44, backgroundLightness),
+        hslToHex(hue, beamSaturation * 0.7, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue, beamSaturation * 0.86, Math.min(0.84, signalLightness + 0.16)),
+        true,
+        hslToHex(hue, beamSaturation, Math.max(0.36, signalLightness - 0.14)),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, beamSaturation * 0.42, backgroundLightness),
+        hslToHex(hue, beamSaturation * 0.68, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue, beamSaturation * 0.82, Math.min(0.8, signalLightness + 0.08)),
+        true,
+        hslToHex(hue, beamSaturation * 0.9, Math.max(0.38, signalLightness - 0.1)),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 28, beamSaturation * 0.52, backgroundLightness),
+        hslToHex(hue - 18, beamSaturation * 0.8, lineLightness),
+        hslToHex(hue, beamSaturation, signalLightness),
+        true,
+        hslToHex(hue + 26, beamSaturation * 0.94, Math.min(0.78, signalLightness + 0.02)),
+        true,
+        hslToHex(hue + 44, beamSaturation * 0.88, Math.max(0.42, signalLightness - 0.06)),
+      ]
+  }
 }
 
 export function createChamaacLiquidChromeHarmonyPalette(
@@ -2836,6 +3026,314 @@ export function SetTimer({
               value={settings.chamaacWavesAmplitude}
               onChange={(event) => onSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
               aria-label="Waves amplitude"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "eldora-photon-beam") {
+      const useCustomPalette = settings.eldoraPhotonBeamPaletteMode === "custom"
+      const photonSpeed = getEldoraPhotonBeamDisplaySpeed(settings.eldoraPhotonBeamSpeedGlobal)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.eldoraPhotonBeamPaletteMode}
+              onChange={(event) => onSettingsChange({
+                eldoraPhotonBeamPaletteMode: event.target.value as EldoraPhotonBeamPaletteMode,
+              })}
+              aria-label="Photon Beam color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Background</span>
+                <input
+                  type="color"
+                  value={settings.eldoraPhotonBeamColorBg}
+                  onChange={(event) => onSettingsChange({ eldoraPhotonBeamColorBg: event.target.value })}
+                  aria-label="Photon Beam background color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Beam lines</span>
+                <input
+                  type="color"
+                  value={settings.eldoraPhotonBeamColorLine}
+                  onChange={(event) => onSettingsChange({ eldoraPhotonBeamColorLine: event.target.value })}
+                  aria-label="Photon Beam line color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Signal 1</span>
+                <input
+                  type="color"
+                  value={settings.eldoraPhotonBeamColorSignal}
+                  onChange={(event) => onSettingsChange({ eldoraPhotonBeamColorSignal: event.target.value })}
+                  aria-label="Photon Beam signal color"
+                />
+              </label>
+              <label className={styles.switchRow}>
+                <span>Signal 2</span>
+                <input
+                  type="checkbox"
+                  checked={settings.eldoraPhotonBeamUseColor2}
+                  onChange={(event) => onSettingsChange({ eldoraPhotonBeamUseColor2: event.target.checked })}
+                  aria-label="Photon Beam use second signal color"
+                />
+              </label>
+              {settings.eldoraPhotonBeamUseColor2 && (
+                <label className={styles.colorRow}>
+                  <span>Signal 2 color</span>
+                  <input
+                    type="color"
+                    value={settings.eldoraPhotonBeamColorSignal2}
+                    onChange={(event) => onSettingsChange({ eldoraPhotonBeamColorSignal2: event.target.value })}
+                    aria-label="Photon Beam second signal color"
+                  />
+                </label>
+              )}
+              <label className={styles.switchRow}>
+                <span>Signal 3</span>
+                <input
+                  type="checkbox"
+                  checked={settings.eldoraPhotonBeamUseColor3}
+                  onChange={(event) => onSettingsChange({ eldoraPhotonBeamUseColor3: event.target.checked })}
+                  aria-label="Photon Beam use third signal color"
+                />
+              </label>
+              {settings.eldoraPhotonBeamUseColor3 && (
+                <label className={styles.colorRow}>
+                  <span>Signal 3 color</span>
+                  <input
+                    type="color"
+                    value={settings.eldoraPhotonBeamColorSignal3}
+                    onChange={(event) => onSettingsChange({ eldoraPhotonBeamColorSignal3: event.target.value })}
+                    aria-label="Photon Beam third signal color"
+                  />
+                </label>
+              )}
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.eldoraPhotonBeamPrimaryColor}
+                  onChange={(event) => onSettingsChange({ eldoraPhotonBeamPrimaryColor: event.target.value })}
+                  aria-label="Photon Beam primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.eldoraPhotonBeamHarmony}
+                  onChange={(event) => onSettingsChange({
+                    eldoraPhotonBeamHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Photon Beam color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({photonSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN}
+              max={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX}
+              step={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_STEP}
+              value={photonSpeed}
+              onChange={(event) => onSettingsChange({
+                eldoraPhotonBeamSpeedGlobal: getEldoraPhotonBeamSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Photon Beam animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Lines ({settings.eldoraPhotonBeamLineCount})</span>
+            <input
+              type="range"
+              min="12"
+              max="160"
+              step="1"
+              value={settings.eldoraPhotonBeamLineCount}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamLineCount: Number(event.target.value) })}
+              aria-label="Photon Beam line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Signals ({settings.eldoraPhotonBeamSignalCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="220"
+              step="1"
+              value={settings.eldoraPhotonBeamSignalCount}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamSignalCount: Number(event.target.value) })}
+              aria-label="Photon Beam signal count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({settings.eldoraPhotonBeamSpreadHeight.toFixed(0)})</span>
+            <input
+              type="range"
+              min="5"
+              max="90"
+              step="1"
+              value={settings.eldoraPhotonBeamSpreadHeight}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamSpreadHeight: Number(event.target.value) })}
+              aria-label="Photon Beam spread height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Depth ({settings.eldoraPhotonBeamSpreadDepth.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="60"
+              step="1"
+              value={settings.eldoraPhotonBeamSpreadDepth}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamSpreadDepth: Number(event.target.value) })}
+              aria-label="Photon Beam spread depth"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Trail length ({settings.eldoraPhotonBeamTrailLength})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={settings.eldoraPhotonBeamTrailLength}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamTrailLength: Number(event.target.value) })}
+              aria-label="Photon Beam trail length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line opacity ({Math.round(settings.eldoraPhotonBeamLineOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={settings.eldoraPhotonBeamLineOpacity}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamLineOpacity: Number(event.target.value) })}
+              aria-label="Photon Beam line opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom strength ({settings.eldoraPhotonBeamBloomStrength.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.1"
+              value={settings.eldoraPhotonBeamBloomStrength}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamBloomStrength: Number(event.target.value) })}
+              aria-label="Photon Beam bloom strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom radius ({settings.eldoraPhotonBeamBloomRadius.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={settings.eldoraPhotonBeamBloomRadius}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamBloomRadius: Number(event.target.value) })}
+              aria-label="Photon Beam bloom radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed ({settings.eldoraPhotonBeamWaveSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.05"
+              value={settings.eldoraPhotonBeamWaveSpeed}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamWaveSpeed: Number(event.target.value) })}
+              aria-label="Photon Beam wave speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave height ({settings.eldoraPhotonBeamWaveHeight.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.005"
+              value={settings.eldoraPhotonBeamWaveHeight}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamWaveHeight: Number(event.target.value) })}
+              aria-label="Photon Beam wave height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Curve length ({settings.eldoraPhotonBeamCurveLength.toFixed(0)})</span>
+            <input
+              type="range"
+              min="16"
+              max="120"
+              step="1"
+              value={settings.eldoraPhotonBeamCurveLength}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamCurveLength: Number(event.target.value) })}
+              aria-label="Photon Beam curve length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Straight length ({settings.eldoraPhotonBeamStraightLength.toFixed(0)})</span>
+            <input
+              type="range"
+              min="40"
+              max="220"
+              step="1"
+              value={settings.eldoraPhotonBeamStraightLength}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamStraightLength: Number(event.target.value) })}
+              aria-label="Photon Beam straight length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Curve power ({settings.eldoraPhotonBeamCurvePower.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="2"
+              step="0.01"
+              value={settings.eldoraPhotonBeamCurvePower}
+              onChange={(event) => onSettingsChange({ eldoraPhotonBeamCurvePower: Number(event.target.value) })}
+              aria-label="Photon Beam curve power"
             />
           </label>
         </div>
