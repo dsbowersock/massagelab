@@ -855,6 +855,55 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Magic UI Light Rays background controls", () => {
+    const settings = sanitizeChimerSettings({
+      magicLightRaysBackgroundColor: "black",
+      magicLightRaysColor: "#a0d2ff",
+      magicLightRaysCount: 99,
+      magicLightRaysBlur: 999,
+      magicLightRaysSpeed: 0,
+      magicLightRaysLength: 999,
+      magicLightRaysOpacity: 0,
+    })
+
+    assert.equal(settings.magicLightRaysBackgroundColor, DEFAULT_CHIMER_SETTINGS.magicLightRaysBackgroundColor)
+    assert.equal(settings.magicLightRaysColor, "#A0D2FF")
+    assert.equal(settings.magicLightRaysCount, 20)
+    assert.equal(settings.magicLightRaysBlur, 80)
+    assert.equal(settings.magicLightRaysSpeed, 2)
+    assert.equal(settings.magicLightRaysLength, 120)
+    assert.equal(settings.magicLightRaysOpacity, 0.05)
+    assert.equal(
+      sanitizeChimerSettings({ magicLightRaysColor: "blue" }).magicLightRaysColor,
+      DEFAULT_CHIMER_SETTINGS.magicLightRaysColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ magicLightRaysCount: "many" }).magicLightRaysCount,
+      DEFAULT_CHIMER_SETTINGS.magicLightRaysCount,
+    )
+    assert.equal(sanitizeChimerSettings({ magicLightRaysCount: 0 }).magicLightRaysCount, 1)
+    assert.equal(
+      sanitizeChimerSettings({ magicLightRaysBlur: "soft" }).magicLightRaysBlur,
+      DEFAULT_CHIMER_SETTINGS.magicLightRaysBlur,
+    )
+    assert.equal(sanitizeChimerSettings({ magicLightRaysBlur: -1 }).magicLightRaysBlur, 0)
+    assert.equal(
+      sanitizeChimerSettings({ magicLightRaysSpeed: "slow" }).magicLightRaysSpeed,
+      DEFAULT_CHIMER_SETTINGS.magicLightRaysSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ magicLightRaysSpeed: 999 }).magicLightRaysSpeed, 40)
+    assert.equal(
+      sanitizeChimerSettings({ magicLightRaysLength: "long" }).magicLightRaysLength,
+      DEFAULT_CHIMER_SETTINGS.magicLightRaysLength,
+    )
+    assert.equal(sanitizeChimerSettings({ magicLightRaysLength: 0 }).magicLightRaysLength, 24)
+    assert.equal(
+      sanitizeChimerSettings({ magicLightRaysOpacity: "bright" }).magicLightRaysOpacity,
+      DEFAULT_CHIMER_SETTINGS.magicLightRaysOpacity,
+    )
+    assert.equal(sanitizeChimerSettings({ magicLightRaysOpacity: 9 }).magicLightRaysOpacity, 1)
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

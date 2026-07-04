@@ -349,6 +349,82 @@
   }
 }
 
+.magicLightRaysBackground {
+  overflow: hidden;
+  background: var(--ml-light-rays-background, #020617);
+}
+
+.magicLightRaysGlowOne,
+.magicLightRaysGlowTwo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.magicLightRaysGlowOne {
+  opacity: 0.6;
+  background:
+    radial-gradient(
+      circle at 20% 15%,
+      color-mix(in srgb, var(--ml-light-rays-color, #a0d2ff) 45%, transparent),
+      transparent 70%
+    );
+}
+
+.magicLightRaysGlowTwo {
+  opacity: 0.6;
+  background:
+    radial-gradient(
+      circle at 80% 10%,
+      color-mix(in srgb, var(--ml-light-rays-color, #a0d2ff) 35%, transparent),
+      transparent 75%
+    );
+}
+
+.magicLightRaysRay {
+  position: absolute;
+  top: -12%;
+  left: var(--ml-light-rays-left, 50%);
+  width: var(--ml-light-rays-width, 220px);
+  height: var(--ml-light-rays-length, 70vh);
+  pointer-events: none;
+  transform: translateX(-50%) rotate(var(--ml-light-rays-rotate-start, 0deg));
+  transform-origin: top;
+  border-radius: 9999px;
+  opacity: 0;
+  filter: blur(var(--ml-light-rays-blur, 36px));
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--ml-light-rays-color, #a0d2ff) 70%, transparent),
+      transparent
+    );
+  animation: magicLightRaysDrift var(--ml-light-rays-duration, 14s) ease-in-out var(--ml-light-rays-delay, 0s) infinite;
+  will-change: opacity, transform;
+}
+
+@keyframes magicLightRaysDrift {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) rotate(var(--ml-light-rays-rotate-start, 0deg));
+  }
+
+  50% {
+    opacity: var(--ml-light-rays-peak-opacity, 0.65);
+    transform: translateX(-50%) rotate(var(--ml-light-rays-rotate-end, 0deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .magicLightRaysRay {
+    animation: none;
+    opacity: var(--ml-light-rays-static-opacity, 0.32);
+  }
+}
+
 .electricMist {
   background:
     radial-gradient(circle at 50% 50%, rgba(86, 189, 255, 0.18), transparent 28%),

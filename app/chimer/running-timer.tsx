@@ -252,6 +252,13 @@ interface RunningTimerProps {
   magicRetroGridAngle: number
   magicRetroGridCellSize: number
   magicRetroGridOpacity: number
+  magicLightRaysBackgroundColor: string
+  magicLightRaysColor: string
+  magicLightRaysCount: number
+  magicLightRaysBlur: number
+  magicLightRaysSpeed: number
+  magicLightRaysLength: number
+  magicLightRaysOpacity: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -505,6 +512,13 @@ export function RunningTimer({
   magicRetroGridAngle,
   magicRetroGridCellSize,
   magicRetroGridOpacity,
+  magicLightRaysBackgroundColor,
+  magicLightRaysColor,
+  magicLightRaysCount,
+  magicLightRaysBlur,
+  magicLightRaysSpeed,
+  magicLightRaysLength,
+  magicLightRaysOpacity,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -2084,6 +2098,95 @@ export function RunningTimer({
               value={magicRetroGridOpacity}
               onChange={(event) => handleSettingsChange({ magicRetroGridOpacity: Number(event.target.value) })}
               aria-label="Retro Grid opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "magicui-light-rays" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={magicLightRaysBackgroundColor}
+              onChange={(event) => handleSettingsChange({ magicLightRaysBackgroundColor: event.target.value })}
+              aria-label="Light Rays background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Ray color</span>
+            <input
+              type="color"
+              value={magicLightRaysColor}
+              onChange={(event) => handleSettingsChange({ magicLightRaysColor: event.target.value })}
+              aria-label="Light Rays color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray count ({magicLightRaysCount})</span>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={magicLightRaysCount}
+              onChange={(event) => handleSettingsChange({ magicLightRaysCount: Number(event.target.value) })}
+              aria-label="Light Rays count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blur ({magicLightRaysBlur.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="80"
+              step="1"
+              value={magicLightRaysBlur}
+              onChange={(event) => handleSettingsChange({ magicLightRaysBlur: Number(event.target.value) })}
+              aria-label="Light Rays blur"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({magicLightRaysSpeed.toFixed(1)}s)</span>
+            <input
+              type="range"
+              min="2"
+              max="40"
+              step="0.5"
+              value={magicLightRaysSpeed}
+              onChange={(event) => handleSettingsChange({ magicLightRaysSpeed: Number(event.target.value) })}
+              aria-label="Light Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray length ({magicLightRaysLength.toFixed(0)}vh)</span>
+            <input
+              type="range"
+              min="24"
+              max="120"
+              step="1"
+              value={magicLightRaysLength}
+              onChange={(event) => handleSettingsChange({ magicLightRaysLength: Number(event.target.value) })}
+              aria-label="Light Rays length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray opacity ({Math.round(magicLightRaysOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={magicLightRaysOpacity}
+              onChange={(event) => handleSettingsChange({ magicLightRaysOpacity: Number(event.target.value) })}
+              aria-label="Light Rays opacity"
             />
           </label>
         </>
@@ -4239,6 +4342,15 @@ export function RunningTimer({
             angle: magicRetroGridAngle,
             cellSize: magicRetroGridCellSize,
             opacity: magicRetroGridOpacity,
+          }}
+          magicLightRays={{
+            backgroundColor: magicLightRaysBackgroundColor,
+            color: magicLightRaysColor,
+            count: magicLightRaysCount,
+            blur: magicLightRaysBlur,
+            speed: magicLightRaysSpeed,
+            length: magicLightRaysLength,
+            opacity: magicLightRaysOpacity,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

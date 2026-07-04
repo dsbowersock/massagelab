@@ -189,6 +189,41 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.magicRetroGridOpacity, 0.72)
   })
 
+  it("resets Magic UI Light Rays controls without premium background access", () => {
+    const input = {
+      backgroundId: "magicui-light-rays",
+      magicLightRaysBackgroundColor: "#010203",
+      magicLightRaysColor: "#A0D2FF",
+      magicLightRaysCount: 12,
+      magicLightRaysBlur: 48,
+      magicLightRaysSpeed: 18,
+      magicLightRaysLength: 96,
+      magicLightRaysOpacity: 0.82,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.magicLightRaysBackgroundColor, DEFAULT_CHIMER_SETTINGS.magicLightRaysBackgroundColor)
+    assert.equal(freeSettings.magicLightRaysColor, DEFAULT_CHIMER_SETTINGS.magicLightRaysColor)
+    assert.equal(freeSettings.magicLightRaysCount, DEFAULT_CHIMER_SETTINGS.magicLightRaysCount)
+    assert.equal(freeSettings.magicLightRaysBlur, DEFAULT_CHIMER_SETTINGS.magicLightRaysBlur)
+    assert.equal(freeSettings.magicLightRaysSpeed, DEFAULT_CHIMER_SETTINGS.magicLightRaysSpeed)
+    assert.equal(freeSettings.magicLightRaysLength, DEFAULT_CHIMER_SETTINGS.magicLightRaysLength)
+    assert.equal(freeSettings.magicLightRaysOpacity, DEFAULT_CHIMER_SETTINGS.magicLightRaysOpacity)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "magicui-light-rays")
+    assert.equal(premiumSettings.magicLightRaysBackgroundColor, "#010203")
+    assert.equal(premiumSettings.magicLightRaysColor, "#A0D2FF")
+    assert.equal(premiumSettings.magicLightRaysCount, 12)
+    assert.equal(premiumSettings.magicLightRaysBlur, 48)
+    assert.equal(premiumSettings.magicLightRaysSpeed, 18)
+    assert.equal(premiumSettings.magicLightRaysLength, 96)
+    assert.equal(premiumSettings.magicLightRaysOpacity, 0.82)
+  })
+
   it("strips custom colors for users without the Chimer custom colors feature", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

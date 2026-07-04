@@ -46,6 +46,7 @@ describe("premium background registry", () => {
       "massage-lab-tile-grid",
       "massage-lab-hex-grid",
       "magicui-retro-grid",
+      "magicui-light-rays",
       "unlumen-aurora-bars",
       "animate-ui-bubble",
       "animate-ui-gradient",
@@ -129,6 +130,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Pixel liquid background/)
     assert.match(sourceDoc, /MassageLab tile grid/)
     assert.match(sourceDoc, /MassageLab hex grid/)
+    assert.match(sourceDoc, /Light Rays/)
     assert.match(sourceDoc, /Aurora bars/)
     assert.match(sourceDoc, /Bubble background/)
     assert.match(sourceDoc, /Gradient background/)
@@ -152,6 +154,9 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /novatrix-background\.json/)
     assert.match(sourceDoc, /hacker-background\.tsx/)
     assert.match(sourceDoc, /photon-beam\.tsx/)
+    assert.match(sourceDoc, /light-rays\.tsx/)
+    assert.match(sourceDoc, /`count`, `color`, `blur`, `opacity`, `speed`, and `length`/)
+    assert.match(sourceDoc, /dependency-free CSS keyframes/)
     assert.match(sourceDoc, /declares `ogl`/)
     assert.match(sourceDoc, /Matrix-style falling characters background animation component/)
     assert.match(sourceDoc, /`color`, `fontSize`, and `speed`/)
@@ -218,6 +223,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("massage-lab-tile-grid"))
     assert.ok(chimerOptions.includes("massage-lab-hex-grid"))
     assert.ok(chimerOptions.includes("magicui-retro-grid"))
+    assert.ok(chimerOptions.includes("magicui-light-rays"))
     assert.ok(chimerOptions.includes("unlumen-aurora-bars"))
     assert.ok(chimerOptions.includes("animate-ui-bubble"))
     assert.ok(chimerOptions.includes("animate-ui-gradient"))
@@ -252,6 +258,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("massage-lab-tile-grid"))
     assert.ok(clockOptions.includes("massage-lab-hex-grid"))
     assert.ok(clockOptions.includes("magicui-retro-grid"))
+    assert.ok(clockOptions.includes("magicui-light-rays"))
     assert.ok(clockOptions.includes("unlumen-aurora-bars"))
     assert.ok(clockOptions.includes("animate-ui-bubble"))
     assert.ok(clockOptions.includes("animate-ui-gradient"))
@@ -287,6 +294,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("massage-lab-tile-grid"))
     assert.ok(musicOptions.includes("massage-lab-hex-grid"))
     assert.ok(musicOptions.includes("magicui-retro-grid"))
+    assert.ok(musicOptions.includes("magicui-light-rays"))
     assert.ok(musicOptions.includes("unlumen-aurora-bars"))
     assert.ok(musicOptions.includes("animate-ui-bubble"))
     assert.ok(musicOptions.includes("animate-ui-gradient"))
@@ -1266,6 +1274,84 @@ describe("premium background registry", () => {
       "magicRetroGridAngle",
       "magicRetroGridCellSize",
       "magicRetroGridOpacity",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Magic UI Light Rays source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/magicui-light-rays-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /magicui-light-rays/)
+    assert.match(registrySource, /Light Rays/)
+    assert.match(registrySource, /https:\/\/magicui\.design\/docs\/components\/light-rays/)
+    assert.match(registrySource, /MIT; Magic UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /MagicLightRaysBackground/)
+    assert.match(effectSource, /DEFAULT_MAGIC_LIGHT_RAYS/)
+    assert.match(effectSource, /backgroundColor: "#020617"/)
+    assert.match(effectSource, /color: "#A0D2FF"/)
+    assert.match(effectSource, /count: 7/)
+    assert.match(effectSource, /blur: 36/)
+    assert.match(effectSource, /speed: 14/)
+    assert.match(effectSource, /length: 70/)
+    assert.match(effectSource, /opacity: 0\.65/)
+    assert.match(effectSource, /createRays/)
+    assert.match(effectSource, /randomUnit/)
+    assert.match(stylesSource, /magicLightRaysBackground/)
+    assert.match(stylesSource, /magicLightRaysRay/)
+    assert.match(stylesSource, /magicLightRaysDrift/)
+    assert.match(stylesSource, /mix-blend-mode: screen/)
+    assert.match(stylesSource, /prefers-reduced-motion/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /magicLightRays/)
+    assert.match(cssEffectsSource, /MagicLightRaysOptions/)
+    assert.match(runningSource, /magicLightRays=\{\{/)
+    assert.doesNotMatch(pageSource, /magicLightRays=\{\{/)
+    assert.match(docsSource, /Light Rays \| https:\/\/magicui\.design\/docs\/components\/light-rays/)
+    assert.match(docsSource, /light-rays\.tsx/)
+    assert.match(docsSource, /`count`, `color`, `blur`, `opacity`, `speed`, and `length`/)
+    assert.match(docsSource, /dependency-free CSS keyframes/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "motion"/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+
+    for (const settingKey of [
+      "magicLightRaysBackgroundColor",
+      "magicLightRaysColor",
+      "magicLightRaysCount",
+      "magicLightRaysBlur",
+      "magicLightRaysSpeed",
+      "magicLightRaysLength",
+      "magicLightRaysOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

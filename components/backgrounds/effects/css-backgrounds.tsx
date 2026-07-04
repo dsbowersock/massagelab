@@ -27,6 +27,7 @@ export interface BackgroundEffectProps {
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
   magicRetroGrid?: MagicRetroGridOptions
+  magicLightRays?: MagicLightRaysOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -197,6 +198,16 @@ export interface MagicRetroGridOptions {
   lightLineColor?: string
   darkLineColor?: string
   backgroundColor?: string
+}
+
+export interface MagicLightRaysOptions {
+  backgroundColor?: string
+  color?: string
+  count?: number
+  blur?: number
+  speed?: number
+  length?: number
+  opacity?: number
 }
 
 export type ColorHarmony =

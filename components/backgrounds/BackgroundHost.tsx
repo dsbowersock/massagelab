@@ -28,6 +28,7 @@ import type {
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
+  MagicLightRaysOptions,
   GradientAnimationOptions,
   HexGridOptions,
   LampSectionOptions,
@@ -67,6 +68,7 @@ interface BackgroundHostProps {
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
   magicRetroGrid?: MagicRetroGridOptions
+  magicLightRays?: MagicLightRaysOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -121,6 +123,7 @@ export function BackgroundHost({
   eldoraHacker,
   eldoraPhotonBeam,
   magicRetroGrid,
+  magicLightRays,
   backgroundLines,
   shootingStars,
   canvasRevealDots,
@@ -200,6 +203,7 @@ export function BackgroundHost({
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}
           magicRetroGrid={magicRetroGrid}
+          magicLightRays={magicLightRays}
           backgroundLines={backgroundLines}
           shootingStars={shootingStars}
           canvasRevealDots={canvasRevealDots}

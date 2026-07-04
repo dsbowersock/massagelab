@@ -967,6 +967,13 @@ export default function ChimerPage() {
             magicRetroGridAngle={settings.magicRetroGridAngle}
             magicRetroGridCellSize={settings.magicRetroGridCellSize}
             magicRetroGridOpacity={settings.magicRetroGridOpacity}
+            magicLightRaysBackgroundColor={settings.magicLightRaysBackgroundColor}
+            magicLightRaysColor={settings.magicLightRaysColor}
+            magicLightRaysCount={settings.magicLightRaysCount}
+            magicLightRaysBlur={settings.magicLightRaysBlur}
+            magicLightRaysSpeed={settings.magicLightRaysSpeed}
+            magicLightRaysLength={settings.magicLightRaysLength}
+            magicLightRaysOpacity={settings.magicLightRaysOpacity}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}

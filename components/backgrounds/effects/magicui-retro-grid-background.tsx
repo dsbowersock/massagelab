@@ -184,13 +184,13 @@ export default function MagicRetroGridBackground({
   className,
   magicRetroGrid,
 }: BackgroundEffectProps) {
+  const resolved = resolveRetroGridOptions(magicRetroGrid)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const optionsRef = useRef(resolveRetroGridOptions(magicRetroGrid))
+  const optionsRef = useRef(resolved)
   const syncSceneRef = useRef<(() => void) | null>(null)
   const [isWebGlReady, setIsWebGlReady] = useState(false)
-  const [activeLineColor, setActiveLineColor] = useState(optionsRef.current.darkLineColor)
-  const resolved = resolveRetroGridOptions(magicRetroGrid)
+  const [activeLineColor, setActiveLineColor] = useState(resolved.darkLineColor)
 
   useEffect(() => {
     optionsRef.current = resolved

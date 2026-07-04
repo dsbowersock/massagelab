@@ -535,6 +535,13 @@ export interface ChimerSettings {
   magicRetroGridAngle: number
   magicRetroGridCellSize: number
   magicRetroGridOpacity: number
+  magicLightRaysBackgroundColor: string
+  magicLightRaysColor: string
+  magicLightRaysCount: number
+  magicLightRaysBlur: number
+  magicLightRaysSpeed: number
+  magicLightRaysLength: number
+  magicLightRaysOpacity: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -2971,6 +2978,97 @@ export function SetTimer({
               value={settings.magicRetroGridOpacity}
               onChange={(event) => onSettingsChange({ magicRetroGridOpacity: Number(event.target.value) })}
               aria-label="Retro Grid opacity"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "magicui-light-rays") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={settings.magicLightRaysBackgroundColor}
+              onChange={(event) => onSettingsChange({ magicLightRaysBackgroundColor: event.target.value })}
+              aria-label="Light Rays background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Ray color</span>
+            <input
+              type="color"
+              value={settings.magicLightRaysColor}
+              onChange={(event) => onSettingsChange({ magicLightRaysColor: event.target.value })}
+              aria-label="Light Rays color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray count ({settings.magicLightRaysCount})</span>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={settings.magicLightRaysCount}
+              onChange={(event) => onSettingsChange({ magicLightRaysCount: Number(event.target.value) })}
+              aria-label="Light Rays count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blur ({settings.magicLightRaysBlur.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="80"
+              step="1"
+              value={settings.magicLightRaysBlur}
+              onChange={(event) => onSettingsChange({ magicLightRaysBlur: Number(event.target.value) })}
+              aria-label="Light Rays blur"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.magicLightRaysSpeed.toFixed(1)}s)</span>
+            <input
+              type="range"
+              min="2"
+              max="40"
+              step="0.5"
+              value={settings.magicLightRaysSpeed}
+              onChange={(event) => onSettingsChange({ magicLightRaysSpeed: Number(event.target.value) })}
+              aria-label="Light Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray length ({settings.magicLightRaysLength.toFixed(0)}vh)</span>
+            <input
+              type="range"
+              min="24"
+              max="120"
+              step="1"
+              value={settings.magicLightRaysLength}
+              onChange={(event) => onSettingsChange({ magicLightRaysLength: Number(event.target.value) })}
+              aria-label="Light Rays length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray opacity ({Math.round(settings.magicLightRaysOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={settings.magicLightRaysOpacity}
+              onChange={(event) => onSettingsChange({ magicLightRaysOpacity: Number(event.target.value) })}
+              aria-label="Light Rays opacity"
             />
           </label>
         </div>
