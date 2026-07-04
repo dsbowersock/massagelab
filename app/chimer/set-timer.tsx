@@ -22,12 +22,48 @@ export const ANIMATE_UI_GRADIENT_HARMONY_OPTIONS = COLOR_HARMONY_OPTIONS
 
 export type ColorHarmony = typeof COLOR_HARMONY_OPTIONS[number]["value"]
 export type AnimateUiGradientHarmony = ColorHarmony
+export type ChamaacAstralFlowPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 
+export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
+export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3
+export const CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN = 10
+export const CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX = 100
+export const CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP = 0.01
+
+// Astral Flow stores the source shader multiplier, but the UI uses a compact
+// percentage scale where the source range 0.1-3 maps to 10%-100%.
+export function getChamaacAstralFlowDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX,
+    Math.max(CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange = CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX - CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX - CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN
+  return Math.round(
+    CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN
+      + ((clampedSpeed - CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getChamaacAstralFlowSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
+    Math.max(CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange = CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX - CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX - CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN
+  return Math.round(
+    (
+      CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN
+      + ((clampedDisplay - CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
+    ) * 1000,
+  ) / 1000
+}
 
 // The source Chamaac demo defaults to 0.4; MassageLab presents that as 1x.
 export function getChamaacSynthesisDisplaySpeed(sourceSpeed: number) {
@@ -94,6 +130,15 @@ export interface ChimerSettings {
   chamaacElectricMistDetail: number
   chamaacElectricMistDistortion: number
   chamaacElectricMistBrightness: number
+  chamaacAstralFlowPaletteMode: ChamaacAstralFlowPaletteMode
+  chamaacAstralFlowPrimaryColor: string
+  chamaacAstralFlowHarmony: ColorHarmony
+  chamaacAstralFlowColorOne: string
+  chamaacAstralFlowColorTwo: string
+  chamaacAstralFlowColorThree: string
+  chamaacAstralFlowSpeed: number
+  chamaacAstralFlowFlowMin: number
+  chamaacAstralFlowFlowMax: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -198,6 +243,16 @@ export interface ChimerSettings {
   hexGridOpacity: number
 }
 
+type ChamaacAstralFlowColorSettings = Pick<
+  ChimerSettings,
+  | "chamaacAstralFlowPaletteMode"
+  | "chamaacAstralFlowPrimaryColor"
+  | "chamaacAstralFlowHarmony"
+  | "chamaacAstralFlowColorOne"
+  | "chamaacAstralFlowColorTwo"
+  | "chamaacAstralFlowColorThree"
+>
+
 type ChamaacSynthesisColorSettings = Pick<
   ChimerSettings,
   | "chamaacSynthesisPaletteMode"
@@ -207,6 +262,21 @@ type ChamaacSynthesisColorSettings = Pick<
   | "chamaacSynthesisColorTwo"
   | "chamaacSynthesisColorThree"
 >
+
+export function resolveChamaacAstralFlowColors(settings: ChamaacAstralFlowColorSettings): [string, string, string] {
+  if (settings.chamaacAstralFlowPaletteMode === "harmony") {
+    return createChamaacSynthesisHarmonyPalette(
+      settings.chamaacAstralFlowPrimaryColor,
+      settings.chamaacAstralFlowHarmony,
+    )
+  }
+
+  return [
+    settings.chamaacAstralFlowColorOne,
+    settings.chamaacAstralFlowColorTwo,
+    settings.chamaacAstralFlowColorThree,
+  ]
+}
 
 export function resolveChamaacSynthesisColors(settings: ChamaacSynthesisColorSettings): [string, string, string] {
   if (settings.chamaacSynthesisPaletteMode === "harmony") {
@@ -1531,6 +1601,126 @@ export function SetTimer({
               value={settings.chamaacElectricMistBrightness}
               onChange={(event) => onSettingsChange({ chamaacElectricMistBrightness: Number(event.target.value) })}
               aria-label="Electric Mist brightness"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "chamaac-astral-flow") {
+      const useCustomPalette = settings.chamaacAstralFlowPaletteMode === "custom"
+      const astralFlowDisplaySpeed = getChamaacAstralFlowDisplaySpeed(settings.chamaacAstralFlowSpeed)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.chamaacAstralFlowPaletteMode}
+              onChange={(event) => onSettingsChange({
+                chamaacAstralFlowPaletteMode: event.target.value as ChamaacAstralFlowPaletteMode,
+              })}
+              aria-label="Astral Flow color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1 (deep)</span>
+                <input
+                  type="color"
+                  value={settings.chamaacAstralFlowColorOne}
+                  onChange={(event) => onSettingsChange({ chamaacAstralFlowColorOne: event.target.value })}
+                  aria-label="Astral Flow color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2 (mid)</span>
+                <input
+                  type="color"
+                  value={settings.chamaacAstralFlowColorTwo}
+                  onChange={(event) => onSettingsChange({ chamaacAstralFlowColorTwo: event.target.value })}
+                  aria-label="Astral Flow color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3 (highlights)</span>
+                <input
+                  type="color"
+                  value={settings.chamaacAstralFlowColorThree}
+                  onChange={(event) => onSettingsChange({ chamaacAstralFlowColorThree: event.target.value })}
+                  aria-label="Astral Flow color 3"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.chamaacAstralFlowPrimaryColor}
+                  onChange={(event) => onSettingsChange({ chamaacAstralFlowPrimaryColor: event.target.value })}
+                  aria-label="Astral Flow primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.chamaacAstralFlowHarmony}
+                  onChange={(event) => onSettingsChange({
+                    chamaacAstralFlowHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Astral Flow color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({astralFlowDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP}
+              value={astralFlowDisplaySpeed}
+              onChange={(event) => onSettingsChange({
+                chamaacAstralFlowSpeed: getChamaacAstralFlowSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Astral Flow animation speed"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Flow min ({settings.chamaacAstralFlowFlowMin.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="10"
+              step="0.1"
+              value={settings.chamaacAstralFlowFlowMin}
+              onChange={(event) => onSettingsChange({ chamaacAstralFlowFlowMin: Number(event.target.value) })}
+              aria-label="Astral Flow flow min"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Flow max ({settings.chamaacAstralFlowFlowMax.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="12"
+              step="0.1"
+              value={settings.chamaacAstralFlowFlowMax}
+              onChange={(event) => onSettingsChange({ chamaacAstralFlowFlowMax: Number(event.target.value) })}
+              aria-label="Astral Flow flow max"
             />
           </label>
         </div>

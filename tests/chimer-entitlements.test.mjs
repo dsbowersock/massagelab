@@ -45,6 +45,15 @@ describe("Chimer entitlement-aware settings", () => {
       chamaacElectricMistDetail: 2.4,
       chamaacElectricMistDistortion: 5.5,
       chamaacElectricMistBrightness: 80,
+      chamaacAstralFlowPaletteMode: "harmony",
+      chamaacAstralFlowPrimaryColor: "#33B2FF",
+      chamaacAstralFlowHarmony: "split-complementary",
+      chamaacAstralFlowColorOne: "#112233",
+      chamaacAstralFlowColorTwo: "#445566",
+      chamaacAstralFlowColorThree: "#778899",
+      chamaacAstralFlowSpeed: 2.1,
+      chamaacAstralFlowFlowMin: 4.2,
+      chamaacAstralFlowFlowMax: 8.4,
       chamaacSynthesisPaletteMode: "harmony",
       chamaacSynthesisPrimaryColor: "#33B2FF",
       chamaacSynthesisHarmony: "split-complementary",
@@ -179,6 +188,15 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.chamaacElectricMistDetail, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistDetail)
     assert.equal(settings.chamaacElectricMistDistortion, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistDistortion)
     assert.equal(settings.chamaacElectricMistBrightness, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistBrightness)
+    assert.equal(settings.chamaacAstralFlowPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowPaletteMode)
+    assert.equal(settings.chamaacAstralFlowPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowPrimaryColor)
+    assert.equal(settings.chamaacAstralFlowHarmony, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowHarmony)
+    assert.equal(settings.chamaacAstralFlowColorOne, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowColorOne)
+    assert.equal(settings.chamaacAstralFlowColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowColorTwo)
+    assert.equal(settings.chamaacAstralFlowColorThree, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowColorThree)
+    assert.equal(settings.chamaacAstralFlowSpeed, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowSpeed)
+    assert.equal(settings.chamaacAstralFlowFlowMin, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowFlowMin)
+    assert.equal(settings.chamaacAstralFlowFlowMax, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowFlowMax)
     assert.equal(settings.chamaacSynthesisPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPaletteMode)
     assert.equal(settings.chamaacSynthesisPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPrimaryColor)
     assert.equal(settings.chamaacSynthesisHarmony, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisHarmony)
@@ -315,6 +333,15 @@ describe("Chimer entitlement-aware settings", () => {
       chamaacElectricMistDetail: 2.4,
       chamaacElectricMistDistortion: 5.5,
       chamaacElectricMistBrightness: 80,
+      chamaacAstralFlowPaletteMode: "harmony",
+      chamaacAstralFlowPrimaryColor: "#33B2FF",
+      chamaacAstralFlowHarmony: "split-complementary",
+      chamaacAstralFlowColorOne: "#112233",
+      chamaacAstralFlowColorTwo: "#445566",
+      chamaacAstralFlowColorThree: "#778899",
+      chamaacAstralFlowSpeed: 2.1,
+      chamaacAstralFlowFlowMin: 4.2,
+      chamaacAstralFlowFlowMax: 8.4,
       chamaacSynthesisPaletteMode: "harmony",
       chamaacSynthesisPrimaryColor: "#33B2FF",
       chamaacSynthesisHarmony: "split-complementary",
@@ -448,6 +475,15 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.chamaacElectricMistDetail, 2.4)
     assert.equal(settings.chamaacElectricMistDistortion, 5.5)
     assert.equal(settings.chamaacElectricMistBrightness, 80)
+    assert.equal(settings.chamaacAstralFlowPaletteMode, "harmony")
+    assert.equal(settings.chamaacAstralFlowPrimaryColor, "#33B2FF")
+    assert.equal(settings.chamaacAstralFlowHarmony, "split-complementary")
+    assert.equal(settings.chamaacAstralFlowColorOne, "#112233")
+    assert.equal(settings.chamaacAstralFlowColorTwo, "#445566")
+    assert.equal(settings.chamaacAstralFlowColorThree, "#778899")
+    assert.equal(settings.chamaacAstralFlowSpeed, 2.1)
+    assert.equal(settings.chamaacAstralFlowFlowMin, 4.2)
+    assert.equal(settings.chamaacAstralFlowFlowMax, 8.4)
     assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
     assert.equal(settings.chamaacSynthesisPrimaryColor, "#33B2FF")
     assert.equal(settings.chamaacSynthesisHarmony, "split-complementary")
@@ -579,6 +615,15 @@ describe("Chimer entitlement-aware settings", () => {
       chamaacElectricMistDetail: 2.4,
       chamaacElectricMistDistortion: 5.5,
       chamaacElectricMistBrightness: 80,
+      chamaacAstralFlowPaletteMode: "harmony",
+      chamaacAstralFlowPrimaryColor: "#33B2FF",
+      chamaacAstralFlowHarmony: "split-complementary",
+      chamaacAstralFlowColorOne: "#112233",
+      chamaacAstralFlowColorTwo: "#445566",
+      chamaacAstralFlowColorThree: "#778899",
+      chamaacAstralFlowSpeed: 2.1,
+      chamaacAstralFlowFlowMin: 4.2,
+      chamaacAstralFlowFlowMax: 8.4,
       chamaacSynthesisPaletteMode: "harmony",
       chamaacSynthesisPrimaryColor: "#33B2FF",
       chamaacSynthesisHarmony: "split-complementary",
@@ -676,6 +721,15 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.chamaacElectricMistDetail, 2.4)
     assert.equal(settings.chamaacElectricMistDistortion, 5.5)
     assert.equal(settings.chamaacElectricMistBrightness, 80)
+    assert.equal(settings.chamaacAstralFlowPaletteMode, "harmony")
+    assert.equal(settings.chamaacAstralFlowPrimaryColor, "#33B2FF")
+    assert.equal(settings.chamaacAstralFlowHarmony, "split-complementary")
+    assert.equal(settings.chamaacAstralFlowColorOne, "#112233")
+    assert.equal(settings.chamaacAstralFlowColorTwo, "#445566")
+    assert.equal(settings.chamaacAstralFlowColorThree, "#778899")
+    assert.equal(settings.chamaacAstralFlowSpeed, 2.1)
+    assert.equal(settings.chamaacAstralFlowFlowMin, 4.2)
+    assert.equal(settings.chamaacAstralFlowFlowMax, 8.4)
     assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
     assert.equal(settings.chamaacSynthesisPrimaryColor, "#33B2FF")
     assert.equal(settings.chamaacSynthesisHarmony, "split-complementary")

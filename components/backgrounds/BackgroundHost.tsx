@@ -19,6 +19,7 @@ import type {
   BackgroundEffectProps,
   ChamaacLightSpeedOptions,
   ChamaacElectricMistOptions,
+  ChamaacAstralFlowOptions,
   ChamaacSynthesisOptions,
   GradientAnimationOptions,
   HexGridOptions,
@@ -48,6 +49,7 @@ interface BackgroundHostProps {
   animateUiStars?: AnimateUiStarsOptions
   chamaacLightSpeed?: ChamaacLightSpeedOptions
   chamaacElectricMist?: ChamaacElectricMistOptions
+  chamaacAstralFlow?: ChamaacAstralFlowOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -93,6 +95,7 @@ export function BackgroundHost({
   animateUiStars,
   chamaacLightSpeed,
   chamaacElectricMist,
+  chamaacAstralFlow,
   chamaacSynthesis,
   backgroundLines,
   shootingStars,
@@ -163,6 +166,7 @@ export function BackgroundHost({
           animateUiStars={animateUiStars}
           chamaacLightSpeed={chamaacLightSpeed}
           chamaacElectricMist={chamaacElectricMist}
+          chamaacAstralFlow={chamaacAstralFlow}
           chamaacSynthesis={chamaacSynthesis}
           backgroundLines={backgroundLines}
           shootingStars={shootingStars}

@@ -12,6 +12,7 @@ export type BackgroundId =
   | "magic-animated-grid"
   | "chamaac-waves"
   | "chamaac-electric-mist"
+  | "chamaac-astral-flow"
   | "chamaac-light-speed"
   | "chamaac-synthesis"
   | "aceternity-aurora"
@@ -68,6 +69,7 @@ export interface BackgroundDefinition {
 const cssBackgrounds = () => import("./effects/css-backgrounds")
 const chamaacLightSpeed = () => import("./effects/chamaac-light-speed-background")
 const chamaacElectricMist = () => import("./effects/chamaac-electric-mist-background")
+const chamaacAstralFlow = () => import("./effects/chamaac-astral-flow-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
@@ -242,6 +244,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(86,189,255,0.18), transparent 28%), linear-gradient(135deg, #050505, #07111b)",
+    },
+  },
+  {
+    id: "chamaac-astral-flow",
+    label: "Astral Flow",
+    provider: "Chamaac UI",
+    sourceUrl: "https://www.chamaac.com/components/backgrounds/astral-flow",
+    license: "MIT; copyright 2026 Amarnath; reviewed 2026-07-03",
+    licenseStatus: "verified",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium breathing radial cosmic shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Color 1, Color 2, Color 3, animation speed percentage, Flow Min, and Flow Max; source shader model adapted with native canvas to avoid new dependencies, with optional primary-color harmony palettes.",
+    component: () => chamaacAstralFlow().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(160,118,154,0.22), transparent 42%), linear-gradient(145deg, #05070a 0%, #140b1b 54%, #02030a 100%)",
     },
   },
   {

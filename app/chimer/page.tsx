@@ -884,6 +884,15 @@ export default function ChimerPage() {
             chamaacElectricMistDetail={settings.chamaacElectricMistDetail}
             chamaacElectricMistDistortion={settings.chamaacElectricMistDistortion}
             chamaacElectricMistBrightness={settings.chamaacElectricMistBrightness}
+            chamaacAstralFlowPaletteMode={settings.chamaacAstralFlowPaletteMode}
+            chamaacAstralFlowPrimaryColor={settings.chamaacAstralFlowPrimaryColor}
+            chamaacAstralFlowHarmony={settings.chamaacAstralFlowHarmony}
+            chamaacAstralFlowColorOne={settings.chamaacAstralFlowColorOne}
+            chamaacAstralFlowColorTwo={settings.chamaacAstralFlowColorTwo}
+            chamaacAstralFlowColorThree={settings.chamaacAstralFlowColorThree}
+            chamaacAstralFlowSpeed={settings.chamaacAstralFlowSpeed}
+            chamaacAstralFlowFlowMin={settings.chamaacAstralFlowFlowMin}
+            chamaacAstralFlowFlowMax={settings.chamaacAstralFlowFlowMax}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}
