@@ -25,6 +25,7 @@ export type AnimateUiGradientHarmony = ColorHarmony
 export type ChamaacAstralFlowPaletteMode = "harmony" | "custom"
 export type ChamaacDeepSpaceNebulaPaletteMode = "harmony" | "custom"
 export type ChamaacLiquidChromePaletteMode = "harmony" | "custom"
+export type ChamaacWavesPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 
 export const CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0.1
@@ -52,6 +53,11 @@ export const CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1
 export const CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1
 export const CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX = 100
 export const CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP = 1
+export const CHAMAAC_WAVES_SOURCE_SPEED_MIN = 0.001
+export const CHAMAAC_WAVES_SOURCE_SPEED_MAX = 0.1
+export const CHAMAAC_WAVES_DISPLAY_SPEED_MIN = 1
+export const CHAMAAC_WAVES_DISPLAY_SPEED_MAX = 100
+export const CHAMAAC_WAVES_DISPLAY_SPEED_STEP = 1
 export const CHAMAAC_SYNTHESIS_SPEED_BASE = 0.4
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN = 0.01
 export const CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX = 5
@@ -211,6 +217,35 @@ export function getChamaacLiquidChromeSourceTimeScale(displayTimeScale: number) 
   ) / 1000
 }
 
+// Waves stores the Chamaac source speed values; users see 1%-100%.
+export function getChamaacWavesDisplaySpeed(sourceSpeed: number) {
+  const clampedSpeed = Math.min(
+    CHAMAAC_WAVES_SOURCE_SPEED_MAX,
+    Math.max(CHAMAAC_WAVES_SOURCE_SPEED_MIN, sourceSpeed),
+  )
+  const sourceRange = CHAMAAC_WAVES_SOURCE_SPEED_MAX - CHAMAAC_WAVES_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_WAVES_DISPLAY_SPEED_MAX - CHAMAAC_WAVES_DISPLAY_SPEED_MIN
+  return Math.round(
+    CHAMAAC_WAVES_DISPLAY_SPEED_MIN
+      + ((clampedSpeed - CHAMAAC_WAVES_SOURCE_SPEED_MIN) / sourceRange) * displayRange,
+  )
+}
+
+export function getChamaacWavesSourceSpeed(displaySpeed: number) {
+  const clampedDisplay = Math.min(
+    CHAMAAC_WAVES_DISPLAY_SPEED_MAX,
+    Math.max(CHAMAAC_WAVES_DISPLAY_SPEED_MIN, displaySpeed),
+  )
+  const sourceRange = CHAMAAC_WAVES_SOURCE_SPEED_MAX - CHAMAAC_WAVES_SOURCE_SPEED_MIN
+  const displayRange = CHAMAAC_WAVES_DISPLAY_SPEED_MAX - CHAMAAC_WAVES_DISPLAY_SPEED_MIN
+  return Math.round(
+    (
+      CHAMAAC_WAVES_SOURCE_SPEED_MIN
+      + ((clampedDisplay - CHAMAAC_WAVES_DISPLAY_SPEED_MIN) / displayRange) * sourceRange
+    ) * 10000,
+  ) / 10000
+}
+
 // The source Chamaac demo defaults to 0.4; MassageLab presents that as 1x.
 export function getChamaacSynthesisDisplaySpeed(sourceSpeed: number) {
   return Math.round((sourceSpeed / CHAMAAC_SYNTHESIS_SPEED_BASE) * 100) / 100
@@ -307,6 +342,16 @@ export interface ChimerSettings {
   chamaacLiquidChromeColorTwo: string
   chamaacLiquidChromeFlowSpeed: number
   chamaacLiquidChromeTimeScale: number
+  chamaacWavesPaletteMode: ChamaacWavesPaletteMode
+  chamaacWavesPrimaryColor: string
+  chamaacWavesHarmony: ColorHarmony
+  chamaacWavesBackgroundColor: string
+  chamaacWavesColorOne: string
+  chamaacWavesColorTwo: string
+  chamaacWavesColorThree: string
+  chamaacWavesSpeedX: number
+  chamaacWavesSpeedY: number
+  chamaacWavesAmplitude: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -450,6 +495,17 @@ type ChamaacLiquidChromeColorSettings = Pick<
   | "chamaacLiquidChromeColorTwo"
 >
 
+type ChamaacWavesColorSettings = Pick<
+  ChimerSettings,
+  | "chamaacWavesPaletteMode"
+  | "chamaacWavesPrimaryColor"
+  | "chamaacWavesHarmony"
+  | "chamaacWavesBackgroundColor"
+  | "chamaacWavesColorOne"
+  | "chamaacWavesColorTwo"
+  | "chamaacWavesColorThree"
+>
+
 export function resolveChamaacAstralFlowColors(settings: ChamaacAstralFlowColorSettings): [string, string, string] {
   if (settings.chamaacAstralFlowPaletteMode === "harmony") {
     return createChamaacSynthesisHarmonyPalette(
@@ -508,6 +564,22 @@ export function resolveChamaacLiquidChromeColors(settings: ChamaacLiquidChromeCo
   return [
     settings.chamaacLiquidChromeColorOne,
     settings.chamaacLiquidChromeColorTwo,
+  ]
+}
+
+export function resolveChamaacWavesColors(settings: ChamaacWavesColorSettings): [string, string, string, string] {
+  if (settings.chamaacWavesPaletteMode === "harmony") {
+    return createChamaacWavesHarmonyPalette(
+      settings.chamaacWavesPrimaryColor,
+      settings.chamaacWavesHarmony,
+    )
+  }
+
+  return [
+    settings.chamaacWavesBackgroundColor,
+    settings.chamaacWavesColorOne,
+    settings.chamaacWavesColorTwo,
+    settings.chamaacWavesColorThree,
   ]
 }
 
@@ -633,6 +705,78 @@ export function createChamaacSynthesisHarmonyPalette(
         hslToHex(hue - 36, richSaturation * 0.72, darkLightness),
         hslToHex(hue + 18, richSaturation * 0.88, midLightness),
         hslToHex(hue, richSaturation, accentLightness),
+      ]
+  }
+}
+
+export function createChamaacWavesHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const waveSaturation = Math.min(0.96, Math.max(0.5, saturation))
+  const primaryLightness = Math.min(0.42, Math.max(0.24, lightness))
+  const highlightLightness = Math.min(0.72, Math.max(0.52, primaryLightness + 0.3))
+  const valleyLightness = Math.min(0.12, Math.max(0.02, primaryLightness * 0.28))
+  const backgroundLightness = Math.min(0.08, Math.max(0.01, valleyLightness * 0.55))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue + 8, waveSaturation * 0.9, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue + 180, Math.min(0.98, waveSaturation * 1.08), highlightLightness),
+        hslToHex(hue + 12, waveSaturation * 0.86, valleyLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue + 18, waveSaturation * 0.86, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue + 150, Math.min(0.98, waveSaturation * 1.05), highlightLightness),
+        hslToHex(hue + 210, waveSaturation * 0.84, valleyLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue + 240, waveSaturation * 0.82, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue + 120, Math.min(0.96, waveSaturation * 1.02), highlightLightness),
+        hslToHex(hue + 240, waveSaturation * 0.84, valleyLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 180, waveSaturation * 0.82, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue + 90, Math.min(0.94, waveSaturation), highlightLightness),
+        hslToHex(hue + 270, waveSaturation * 0.84, valleyLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue + 18, waveSaturation * 0.84, backgroundLightness),
+        hslToHex(hue - 12, waveSaturation * 0.95, primaryLightness),
+        hslToHex(hue + 182, Math.min(0.98, waveSaturation * 1.04), highlightLightness),
+        hslToHex(hue + 24, waveSaturation * 0.84, valleyLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, waveSaturation * 0.86, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue, Math.min(0.95, waveSaturation * 0.95), highlightLightness),
+        hslToHex(hue, waveSaturation * 0.86, valleyLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, waveSaturation * 0.8, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue, Math.min(0.96, waveSaturation * 0.9), highlightLightness),
+        hslToHex(hue, waveSaturation * 0.82, valleyLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 18, waveSaturation * 0.82, backgroundLightness),
+        hslToHex(hue, waveSaturation, primaryLightness),
+        hslToHex(hue + 24, Math.min(0.96, waveSaturation * 1.02), highlightLightness),
+        hslToHex(hue - 28, waveSaturation * 0.84, valleyLightness),
       ]
   }
 }
@@ -2365,6 +2509,142 @@ export function SetTimer({
                 chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
               })}
               aria-label="Liquid Chrome time scale"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "chamaac-waves") {
+      const useCustomPalette = settings.chamaacWavesPaletteMode === "custom"
+      const wavesSpeedX = getChamaacWavesDisplaySpeed(settings.chamaacWavesSpeedX)
+      const wavesSpeedY = getChamaacWavesDisplaySpeed(settings.chamaacWavesSpeedY)
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.chamaacWavesPaletteMode}
+              onChange={(event) => onSettingsChange({
+                chamaacWavesPaletteMode: event.target.value as ChamaacWavesPaletteMode,
+              })}
+              aria-label="Waves color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Background</span>
+                <input
+                  type="color"
+                  value={settings.chamaacWavesBackgroundColor}
+                  onChange={(event) => onSettingsChange({ chamaacWavesBackgroundColor: event.target.value })}
+                  aria-label="Waves background color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Primary wave</span>
+                <input
+                  type="color"
+                  value={settings.chamaacWavesColorOne}
+                  onChange={(event) => onSettingsChange({ chamaacWavesColorOne: event.target.value })}
+                  aria-label="Waves primary wave color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Highlight</span>
+                <input
+                  type="color"
+                  value={settings.chamaacWavesColorTwo}
+                  onChange={(event) => onSettingsChange({ chamaacWavesColorTwo: event.target.value })}
+                  aria-label="Waves highlight color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Valley</span>
+                <input
+                  type="color"
+                  value={settings.chamaacWavesColorThree}
+                  onChange={(event) => onSettingsChange({ chamaacWavesColorThree: event.target.value })}
+                  aria-label="Waves valley color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary wave</span>
+                <input
+                  type="color"
+                  value={settings.chamaacWavesPrimaryColor}
+                  onChange={(event) => onSettingsChange({ chamaacWavesPrimaryColor: event.target.value })}
+                  aria-label="Waves primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.chamaacWavesHarmony}
+                  onChange={(event) => onSettingsChange({
+                    chamaacWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Waves color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Speed X ({wavesSpeedX}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              value={wavesSpeedX}
+              onChange={(event) => onSettingsChange({
+                chamaacWavesSpeedX: getChamaacWavesSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Waves speed X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed Y ({wavesSpeedY}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              value={wavesSpeedY}
+              onChange={(event) => onSettingsChange({
+                chamaacWavesSpeedY: getChamaacWavesSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Waves speed Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({settings.chamaacWavesAmplitude.toFixed(0)})</span>
+            <input
+              type="range"
+              min="8"
+              max="64"
+              step="1"
+              value={settings.chamaacWavesAmplitude}
+              onChange={(event) => onSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
+              aria-label="Waves amplitude"
             />
           </label>
         </div>

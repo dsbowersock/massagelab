@@ -25,6 +25,9 @@ import {
   CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX,
   CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN,
   CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP,
+  CHAMAAC_WAVES_DISPLAY_SPEED_MAX,
+  CHAMAAC_WAVES_DISPLAY_SPEED_MIN,
+  CHAMAAC_WAVES_DISPLAY_SPEED_STEP,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
   CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
@@ -39,16 +42,20 @@ import {
   getChamaacLiquidChromeDisplayTimeScale,
   getChamaacLiquidChromeSourceFlowSpeed,
   getChamaacLiquidChromeSourceTimeScale,
+  getChamaacWavesDisplaySpeed,
+  getChamaacWavesSourceSpeed,
   getChamaacSynthesisDisplaySpeed,
   getChamaacSynthesisSourceSpeed,
   resolveChamaacAstralFlowColors,
   resolveChamaacDeepSpaceNebulaColors,
   resolveChamaacLiquidChromeColors,
+  resolveChamaacWavesColors,
   resolveChamaacSynthesisColors,
   type AnimateUiGradientHarmony,
   type ChamaacAstralFlowPaletteMode,
   type ChamaacDeepSpaceNebulaPaletteMode,
   type ChamaacLiquidChromePaletteMode,
+  type ChamaacWavesPaletteMode,
   type ChamaacSynthesisPaletteMode,
   type ChimerSettings,
   type ColorHarmony,
@@ -167,6 +174,16 @@ interface RunningTimerProps {
   chamaacLiquidChromeColorTwo: string
   chamaacLiquidChromeFlowSpeed: number
   chamaacLiquidChromeTimeScale: number
+  chamaacWavesPaletteMode: ChamaacWavesPaletteMode
+  chamaacWavesPrimaryColor: string
+  chamaacWavesHarmony: ColorHarmony
+  chamaacWavesBackgroundColor: string
+  chamaacWavesColorOne: string
+  chamaacWavesColorTwo: string
+  chamaacWavesColorThree: string
+  chamaacWavesSpeedX: number
+  chamaacWavesSpeedY: number
+  chamaacWavesAmplitude: number
   chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
   chamaacSynthesisPrimaryColor: string
   chamaacSynthesisHarmony: ColorHarmony
@@ -368,6 +385,16 @@ export function RunningTimer({
   chamaacLiquidChromeColorTwo,
   chamaacLiquidChromeFlowSpeed,
   chamaacLiquidChromeTimeScale,
+  chamaacWavesPaletteMode,
+  chamaacWavesPrimaryColor,
+  chamaacWavesHarmony,
+  chamaacWavesBackgroundColor,
+  chamaacWavesColorOne,
+  chamaacWavesColorTwo,
+  chamaacWavesColorThree,
+  chamaacWavesSpeedX,
+  chamaacWavesSpeedY,
+  chamaacWavesAmplitude,
   chamaacSynthesisPaletteMode,
   chamaacSynthesisPrimaryColor,
   chamaacSynthesisHarmony,
@@ -517,6 +544,17 @@ export function RunningTimer({
     chamaacLiquidChromeHarmony,
     chamaacLiquidChromeColorOne,
     chamaacLiquidChromeColorTwo,
+  })
+  const wavesSpeedX = getChamaacWavesDisplaySpeed(chamaacWavesSpeedX)
+  const wavesSpeedY = getChamaacWavesDisplaySpeed(chamaacWavesSpeedY)
+  const wavesColors = resolveChamaacWavesColors({
+    chamaacWavesPaletteMode,
+    chamaacWavesPrimaryColor,
+    chamaacWavesHarmony,
+    chamaacWavesBackgroundColor,
+    chamaacWavesColorOne,
+    chamaacWavesColorTwo,
+    chamaacWavesColorThree,
   })
   const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
   const synthesisColors = resolveChamaacSynthesisColors({
@@ -1835,6 +1873,140 @@ export function RunningTimer({
                 chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
               })}
               aria-label="Liquid Chrome time scale"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-waves" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacWavesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacWavesPaletteMode: event.target.value as ChamaacWavesPaletteMode,
+              })}
+              aria-label="Waves color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacWavesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Background</span>
+                <input
+                  type="color"
+                  value={chamaacWavesBackgroundColor}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesBackgroundColor: event.target.value })}
+                  aria-label="Waves background color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Primary wave</span>
+                <input
+                  type="color"
+                  value={chamaacWavesColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesColorOne: event.target.value })}
+                  aria-label="Waves primary wave color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Highlight</span>
+                <input
+                  type="color"
+                  value={chamaacWavesColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesColorTwo: event.target.value })}
+                  aria-label="Waves highlight color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Valley</span>
+                <input
+                  type="color"
+                  value={chamaacWavesColorThree}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesColorThree: event.target.value })}
+                  aria-label="Waves valley color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary wave</span>
+                <input
+                  type="color"
+                  value={chamaacWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesPrimaryColor: event.target.value })}
+                  aria-label="Waves primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacWavesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Waves color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Speed X ({wavesSpeedX}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              value={wavesSpeedX}
+              onChange={(event) => handleSettingsChange({
+                chamaacWavesSpeedX: getChamaacWavesSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Waves speed X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed Y ({wavesSpeedY}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              value={wavesSpeedY}
+              onChange={(event) => handleSettingsChange({
+                chamaacWavesSpeedY: getChamaacWavesSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Waves speed Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({chamaacWavesAmplitude.toFixed(0)})</span>
+            <input
+              type="range"
+              min="8"
+              max="64"
+              step="1"
+              value={chamaacWavesAmplitude}
+              onChange={(event) => handleSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
+              aria-label="Waves amplitude"
             />
           </label>
         </>
@@ -3327,6 +3499,15 @@ export function RunningTimer({
             color2: liquidChromeColors[1],
             speed: chamaacLiquidChromeFlowSpeed,
             timeScale: chamaacLiquidChromeTimeScale,
+          }}
+          chamaacWaves={{
+            backgroundColor: wavesColors[0],
+            waveColor1: wavesColors[1],
+            waveColor2: wavesColors[2],
+            waveColor3: wavesColors[3],
+            waveSpeedX: chamaacWavesSpeedX,
+            waveSpeedY: chamaacWavesSpeedY,
+            waveAmpX: chamaacWavesAmplitude,
           }}
           chamaacSynthesis={{
             color1: synthesisColors[0],

@@ -915,6 +915,16 @@ export default function ChimerPage() {
             chamaacLiquidChromeColorTwo={settings.chamaacLiquidChromeColorTwo}
             chamaacLiquidChromeFlowSpeed={settings.chamaacLiquidChromeFlowSpeed}
             chamaacLiquidChromeTimeScale={settings.chamaacLiquidChromeTimeScale}
+            chamaacWavesPaletteMode={settings.chamaacWavesPaletteMode}
+            chamaacWavesPrimaryColor={settings.chamaacWavesPrimaryColor}
+            chamaacWavesHarmony={settings.chamaacWavesHarmony}
+            chamaacWavesBackgroundColor={settings.chamaacWavesBackgroundColor}
+            chamaacWavesColorOne={settings.chamaacWavesColorOne}
+            chamaacWavesColorTwo={settings.chamaacWavesColorTwo}
+            chamaacWavesColorThree={settings.chamaacWavesColorThree}
+            chamaacWavesSpeedX={settings.chamaacWavesSpeedX}
+            chamaacWavesSpeedY={settings.chamaacWavesSpeedY}
+            chamaacWavesAmplitude={settings.chamaacWavesAmplitude}
             chamaacSynthesisPaletteMode={settings.chamaacSynthesisPaletteMode}
             chamaacSynthesisPrimaryColor={settings.chamaacSynthesisPrimaryColor}
             chamaacSynthesisHarmony={settings.chamaacSynthesisHarmony}

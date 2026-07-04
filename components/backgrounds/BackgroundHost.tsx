@@ -23,6 +23,7 @@ import type {
   ChamaacDeepSpaceNebulaOptions,
   ChamaacGridBloomOptions,
   ChamaacLiquidChromeOptions,
+  ChamaacWavesOptions,
   ChamaacSynthesisOptions,
   GradientAnimationOptions,
   HexGridOptions,
@@ -56,6 +57,7 @@ interface BackgroundHostProps {
   chamaacDeepSpaceNebula?: ChamaacDeepSpaceNebulaOptions
   chamaacGridBloom?: ChamaacGridBloomOptions
   chamaacLiquidChrome?: ChamaacLiquidChromeOptions
+  chamaacWaves?: ChamaacWavesOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -105,6 +107,7 @@ export function BackgroundHost({
   chamaacDeepSpaceNebula,
   chamaacGridBloom,
   chamaacLiquidChrome,
+  chamaacWaves,
   chamaacSynthesis,
   backgroundLines,
   shootingStars,
@@ -179,6 +182,7 @@ export function BackgroundHost({
           chamaacDeepSpaceNebula={chamaacDeepSpaceNebula}
           chamaacGridBloom={chamaacGridBloom}
           chamaacLiquidChrome={chamaacLiquidChrome}
+          chamaacWaves={chamaacWaves}
           chamaacSynthesis={chamaacSynthesis}
           backgroundLines={backgroundLines}
           shootingStars={shootingStars}

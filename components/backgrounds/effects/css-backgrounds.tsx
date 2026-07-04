@@ -21,6 +21,7 @@ export interface BackgroundEffectProps {
   chamaacDeepSpaceNebula?: ChamaacDeepSpaceNebulaOptions
   chamaacGridBloom?: ChamaacGridBloomOptions
   chamaacLiquidChrome?: ChamaacLiquidChromeOptions
+  chamaacWaves?: ChamaacWavesOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
@@ -124,6 +125,16 @@ export interface ChamaacLiquidChromeOptions {
   timeScale?: number
   color?: string
   color2?: string
+}
+
+export interface ChamaacWavesOptions {
+  backgroundColor?: string
+  waveColor1?: string
+  waveColor2?: string
+  waveColor3?: string
+  waveSpeedX?: number
+  waveSpeedY?: number
+  waveAmpX?: number
 }
 
 export interface ChamaacSynthesisOptions {

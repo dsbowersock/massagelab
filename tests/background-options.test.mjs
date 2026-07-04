@@ -56,6 +56,7 @@ describe("premium background registry", () => {
       "chamaac-deep-space-nebula",
       "chamaac-grid-bloom",
       "chamaac-liquid-chrome",
+      "chamaac-waves",
       "chamaac-synthesis",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
@@ -77,7 +78,6 @@ describe("premium background registry", () => {
 
   it("keeps paused draft backgrounds unavailable even with premium access", () => {
     assert.equal(canUseBackgroundId("magic-noise-texture", [FEATURE_KEYS.premiumBackgrounds]), false)
-    assert.equal(canUseBackgroundId("chamaac-waves", [FEATURE_KEYS.premiumBackgrounds]), false)
   })
 
   it("keeps Aurora Bars active only for subscribed users after license review", () => {
@@ -134,21 +134,25 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Astral Flow/)
     assert.match(sourceDoc, /Deep Space Nebula/)
     assert.match(sourceDoc, /Grid Bloom/)
+    assert.match(sourceDoc, /Waves/)
     assert.match(sourceDoc, /Synthesis/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
     assert.match(sourceDoc, /nebula\.json/)
     assert.match(sourceDoc, /grid-bloom\.json/)
+    assert.match(sourceDoc, /waves\.json/)
     assert.match(sourceDoc, /Warp speed/)
     assert.match(sourceDoc, /high-energy glowing lightning shader/)
     assert.match(sourceDoc, /breathing radial shader/)
     assert.match(sourceDoc, /deep-space nebula effect with fractional distortion/)
     assert.match(sourceDoc, /shader-driven grid pattern with pulsing wave interference/)
+    assert.match(sourceDoc, /smooth shader-based wave animation/)
     assert.match(sourceDoc, /multi-layer cosmic flow/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Flow Min, and Flow Max/)
     assert.match(sourceDoc, /source `0\.1`-`5` range internally while displaying it as `1%`-`100%`/)
     assert.match(sourceDoc, /source `0\.1`-`3` range internally while displaying it as `1%`-`100%`/)
+    assert.match(sourceDoc, /source `0\.001`-`0\.1` range internally while displaying it as `1%`-`100%`/)
     assert.match(sourceDoc, /cursor interaction and hover controls are intentionally omitted/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Complexity, Zoom Scale, Distortion, Glow Intensity, and Flow Frequency/)
     assert.match(sourceDoc, /Animate UI/)
@@ -202,6 +206,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(chimerOptions.includes("chamaac-grid-bloom"))
     assert.ok(chimerOptions.includes("chamaac-liquid-chrome"))
+    assert.ok(chimerOptions.includes("chamaac-waves"))
     assert.ok(chimerOptions.includes("chamaac-synthesis"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
@@ -231,6 +236,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(clockOptions.includes("chamaac-grid-bloom"))
     assert.ok(clockOptions.includes("chamaac-liquid-chrome"))
+    assert.ok(clockOptions.includes("chamaac-waves"))
     assert.ok(clockOptions.includes("chamaac-synthesis"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
@@ -261,6 +267,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("chamaac-deep-space-nebula"))
     assert.ok(musicOptions.includes("chamaac-grid-bloom"))
     assert.ok(musicOptions.includes("chamaac-liquid-chrome"))
+    assert.ok(musicOptions.includes("chamaac-waves"))
     assert.ok(musicOptions.includes("chamaac-synthesis"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
@@ -787,6 +794,88 @@ describe("premium background registry", () => {
       "chamaacLiquidChromeColorTwo",
       "chamaacLiquidChromeFlowSpeed",
       "chamaacLiquidChromeTimeScale",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps Chamaac Waves source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/chamaac-waves-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+
+    assert.match(registrySource, /chamaac-waves/)
+    assert.match(registrySource, /Waves/)
+    assert.match(registrySource, /https:\/\/www\.chamaac\.com\/components\/backgrounds\/waves/)
+    assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ChamaacWavesBackground/)
+    assert.match(effectSource, /DEFAULT_CHAMAAC_WAVES/)
+    assert.match(effectSource, /backgroundColor: "#000000"/)
+    assert.match(effectSource, /waveColor1: "#071697"/)
+    assert.match(effectSource, /waveColor2: "#00D4FF"/)
+    assert.match(effectSource, /waveColor3: "#000000"/)
+    assert.match(effectSource, /waveSpeedX: 0\.0125/)
+    assert.match(effectSource, /waveSpeedY: 0\.005/)
+    assert.match(effectSource, /waveAmpX: 32/)
+    assert.match(effectSource, /WAVES_GRID_SEGMENTS = 128/)
+    assert.match(effectSource, /snoise\(vec3/)
+    assert.match(effectSource, /options\.waveSpeedX \* 10\.0/)
+    assert.match(effectSource, /options\.waveSpeedY \* 10\.0/)
+    assert.match(effectSource, /context\.drawElements/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(stylesSource, /chamaacWaves/)
+    assert.match(stylesSource, /chamaacWavesCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /chamaacWaves/)
+    assert.match(runningSource, /chamaacWaves=\{\{/)
+    assert.match(runningSource, /resolveChamaacWavesColors/)
+    assert.match(setupSource, /getChamaacWavesDisplaySpeed/)
+    assert.match(setupSource, /getChamaacWavesSourceSpeed/)
+    assert.match(setupSource, /CHAMAAC_WAVES_SOURCE_SPEED_MIN = 0\.001/)
+    assert.match(setupSource, /CHAMAAC_WAVES_SOURCE_SPEED_MAX = 0\.1/)
+    assert.match(setupSource, /CHAMAAC_WAVES_DISPLAY_SPEED_MIN = 1/)
+    assert.match(setupSource, /CHAMAAC_WAVES_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /chamaacWaves=\{\{/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /shaderMaterial/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    for (const settingKey of [
+      "chamaacWavesPaletteMode",
+      "chamaacWavesPrimaryColor",
+      "chamaacWavesHarmony",
+      "chamaacWavesBackgroundColor",
+      "chamaacWavesColorOne",
+      "chamaacWavesColorTwo",
+      "chamaacWavesColorThree",
+      "chamaacWavesSpeedX",
+      "chamaacWavesSpeedY",
+      "chamaacWavesAmplitude",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

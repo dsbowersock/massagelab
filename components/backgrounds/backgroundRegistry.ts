@@ -76,6 +76,7 @@ const chamaacAstralFlow = () => import("./effects/chamaac-astral-flow-background
 const chamaacDeepSpaceNebula = () => import("./effects/chamaac-deep-space-nebula-background")
 const chamaacGridBloom = () => import("./effects/chamaac-grid-bloom-background")
 const chamaacLiquidChrome = () => import("./effects/chamaac-liquid-chrome-background")
+const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const aceternitySparkles = () => import("./effects/aceternity-sparkles")
 const aceternityShootingStars = () => import("./effects/aceternity-shooting-stars-background")
@@ -213,22 +214,22 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
   {
     id: "chamaac-waves",
     label: "Waves",
-    provider: "MassageLab draft",
+    provider: "Chamaac UI",
     sourceUrl: "https://www.chamaac.com/components/backgrounds/waves",
-    license: "MassageLab internal draft; Chamaac UI MIT source candidate not imported",
+    license: "MIT; copyright 2026 Amarnath; reviewed 2026-07-04",
     licenseStatus: "verified",
-    category: ["music", "ambient"],
-    recommendedUse: "Draft placeholder for the Chamaac UI Waves candidate; review against the source demo before final activation.",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium shader-based wave surface for opt-in Chimer, Clock, Music, and future ambient mode.",
     motionIntensity: "medium",
-    performanceCost: "low",
+    performanceCost: "medium",
     requiresSubscription: true,
-    enabled: false,
-    customizationSummary: "Draft: review against source demo before finalizing.",
-    disabledReason: "Disabled during the background reset. Re-add only after source-matched implementation and user review.",
-    component: () => cssBackgrounds().then((module) => ({ default: module.ChamaacWavesBackground })),
+    enabled: true,
+    customizationSummary:
+      "Background, valley, primary, and highlight colors, Speed X/Y percentages, and wave amplitude; source shader plane adapted with native canvas to avoid new dependencies, with optional primary-color harmony palettes.",
+    component: () => chamaacWaves().then((module) => ({ default: module.default })),
     fallbackStyle: {
       background:
-        "radial-gradient(circle at 28% 28%, rgba(65,105,225,0.22), transparent 34%), linear-gradient(180deg, #050505, #0b1020)",
+        "radial-gradient(circle at 54% 36%, rgba(0,212,255,0.22), transparent 34%), radial-gradient(circle at 36% 64%, rgba(7,22,151,0.32), transparent 44%), #000000",
     },
   },
   {

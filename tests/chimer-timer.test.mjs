@@ -615,6 +615,56 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes Chamaac Waves background controls", () => {
+    const settings = sanitizeChimerSettings({
+      chamaacWavesPaletteMode: "harmony",
+      chamaacWavesPrimaryColor: "#071697",
+      chamaacWavesHarmony: "triad",
+      chamaacWavesBackgroundColor: "#000000",
+      chamaacWavesColorOne: "#071697",
+      chamaacWavesColorTwo: "#00d4ff",
+      chamaacWavesColorThree: "black",
+      chamaacWavesSpeedX: 9,
+      chamaacWavesSpeedY: 0,
+      chamaacWavesAmplitude: 128,
+    })
+
+    assert.equal(settings.chamaacWavesPaletteMode, "harmony")
+    assert.equal(settings.chamaacWavesPrimaryColor, "#071697")
+    assert.equal(settings.chamaacWavesHarmony, "triad")
+    assert.equal(settings.chamaacWavesBackgroundColor, "#000000")
+    assert.equal(settings.chamaacWavesColorOne, "#071697")
+    assert.equal(settings.chamaacWavesColorTwo, "#00D4FF")
+    assert.equal(settings.chamaacWavesColorThree, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorThree)
+    assert.equal(settings.chamaacWavesSpeedX, 0.1)
+    assert.equal(settings.chamaacWavesSpeedY, 0.001)
+    assert.equal(settings.chamaacWavesAmplitude, 64)
+    assert.equal(
+      sanitizeChimerSettings({ chamaacWavesSpeedX: "fast" }).chamaacWavesSpeedX,
+      DEFAULT_CHIMER_SETTINGS.chamaacWavesSpeedX,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacWavesSpeedY: "fast" }).chamaacWavesSpeedY,
+      DEFAULT_CHIMER_SETTINGS.chamaacWavesSpeedY,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacWavesAmplitude: "big" }).chamaacWavesAmplitude,
+      DEFAULT_CHIMER_SETTINGS.chamaacWavesAmplitude,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacWavesPaletteMode: "demo" }).chamaacWavesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.chamaacWavesPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacWavesPrimaryColor: "blue" }).chamaacWavesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.chamaacWavesPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ chamaacWavesHarmony: "rainbow" }).chamaacWavesHarmony,
+      DEFAULT_CHIMER_SETTINGS.chamaacWavesHarmony,
+    )
+  })
+
   it("normalizes Chamaac Synthesis background controls", () => {
     const settings = sanitizeChimerSettings({
       chamaacSynthesisPaletteMode: "harmony",

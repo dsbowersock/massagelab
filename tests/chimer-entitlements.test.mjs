@@ -76,6 +76,16 @@ describe("Chimer entitlement-aware settings", () => {
       chamaacLiquidChromeColorTwo: "#4A4A4A",
       chamaacLiquidChromeFlowSpeed: 1.4,
       chamaacLiquidChromeTimeScale: 0.4,
+      chamaacWavesPaletteMode: "harmony",
+      chamaacWavesPrimaryColor: "#071697",
+      chamaacWavesHarmony: "triad",
+      chamaacWavesBackgroundColor: "#000000",
+      chamaacWavesColorOne: "#071697",
+      chamaacWavesColorTwo: "#00D4FF",
+      chamaacWavesColorThree: "#000000",
+      chamaacWavesSpeedX: 0.08,
+      chamaacWavesSpeedY: 0.04,
+      chamaacWavesAmplitude: 48,
       chamaacSynthesisPaletteMode: "harmony",
       chamaacSynthesisPrimaryColor: "#33B2FF",
       chamaacSynthesisHarmony: "split-complementary",
@@ -241,6 +251,16 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.chamaacLiquidChromeColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeColorTwo)
     assert.equal(settings.chamaacLiquidChromeFlowSpeed, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeFlowSpeed)
     assert.equal(settings.chamaacLiquidChromeTimeScale, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeTimeScale)
+    assert.equal(settings.chamaacWavesPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacWavesPaletteMode)
+    assert.equal(settings.chamaacWavesPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacWavesPrimaryColor)
+    assert.equal(settings.chamaacWavesHarmony, DEFAULT_CHIMER_SETTINGS.chamaacWavesHarmony)
+    assert.equal(settings.chamaacWavesBackgroundColor, DEFAULT_CHIMER_SETTINGS.chamaacWavesBackgroundColor)
+    assert.equal(settings.chamaacWavesColorOne, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorOne)
+    assert.equal(settings.chamaacWavesColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorTwo)
+    assert.equal(settings.chamaacWavesColorThree, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorThree)
+    assert.equal(settings.chamaacWavesSpeedX, DEFAULT_CHIMER_SETTINGS.chamaacWavesSpeedX)
+    assert.equal(settings.chamaacWavesSpeedY, DEFAULT_CHIMER_SETTINGS.chamaacWavesSpeedY)
+    assert.equal(settings.chamaacWavesAmplitude, DEFAULT_CHIMER_SETTINGS.chamaacWavesAmplitude)
     assert.equal(settings.chamaacSynthesisPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPaletteMode)
     assert.equal(settings.chamaacSynthesisPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPrimaryColor)
     assert.equal(settings.chamaacSynthesisHarmony, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisHarmony)
@@ -408,6 +428,16 @@ describe("Chimer entitlement-aware settings", () => {
       chamaacLiquidChromeColorTwo: "#4A4A4A",
       chamaacLiquidChromeFlowSpeed: 1.4,
       chamaacLiquidChromeTimeScale: 0.4,
+      chamaacWavesPaletteMode: "harmony",
+      chamaacWavesPrimaryColor: "#071697",
+      chamaacWavesHarmony: "triad",
+      chamaacWavesBackgroundColor: "#000000",
+      chamaacWavesColorOne: "#071697",
+      chamaacWavesColorTwo: "#00D4FF",
+      chamaacWavesColorThree: "#000000",
+      chamaacWavesSpeedX: 0.08,
+      chamaacWavesSpeedY: 0.04,
+      chamaacWavesAmplitude: 48,
       chamaacSynthesisPaletteMode: "harmony",
       chamaacSynthesisPrimaryColor: "#33B2FF",
       chamaacSynthesisHarmony: "split-complementary",
@@ -572,6 +602,16 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.chamaacLiquidChromeColorTwo, "#4A4A4A")
     assert.equal(settings.chamaacLiquidChromeFlowSpeed, 1.4)
     assert.equal(settings.chamaacLiquidChromeTimeScale, 0.4)
+    assert.equal(settings.chamaacWavesPaletteMode, "harmony")
+    assert.equal(settings.chamaacWavesPrimaryColor, "#071697")
+    assert.equal(settings.chamaacWavesHarmony, "triad")
+    assert.equal(settings.chamaacWavesBackgroundColor, "#000000")
+    assert.equal(settings.chamaacWavesColorOne, "#071697")
+    assert.equal(settings.chamaacWavesColorTwo, "#00D4FF")
+    assert.equal(settings.chamaacWavesColorThree, "#000000")
+    assert.equal(settings.chamaacWavesSpeedX, 0.08)
+    assert.equal(settings.chamaacWavesSpeedY, 0.04)
+    assert.equal(settings.chamaacWavesAmplitude, 48)
     assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
     assert.equal(settings.chamaacSynthesisPrimaryColor, "#33B2FF")
     assert.equal(settings.chamaacSynthesisHarmony, "split-complementary")
@@ -734,6 +774,16 @@ describe("Chimer entitlement-aware settings", () => {
       chamaacLiquidChromeColorTwo: "#4A4A4A",
       chamaacLiquidChromeFlowSpeed: 1.4,
       chamaacLiquidChromeTimeScale: 0.4,
+      chamaacWavesPaletteMode: "harmony",
+      chamaacWavesPrimaryColor: "#071697",
+      chamaacWavesHarmony: "triad",
+      chamaacWavesBackgroundColor: "#000000",
+      chamaacWavesColorOne: "#071697",
+      chamaacWavesColorTwo: "#00D4FF",
+      chamaacWavesColorThree: "#000000",
+      chamaacWavesSpeedX: 0.08,
+      chamaacWavesSpeedY: 0.04,
+      chamaacWavesAmplitude: 48,
       chamaacSynthesisPaletteMode: "harmony",
       chamaacSynthesisPrimaryColor: "#33B2FF",
       chamaacSynthesisHarmony: "split-complementary",
@@ -862,6 +912,16 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.chamaacLiquidChromeColorTwo, "#4A4A4A")
     assert.equal(settings.chamaacLiquidChromeFlowSpeed, 1.4)
     assert.equal(settings.chamaacLiquidChromeTimeScale, 0.4)
+    assert.equal(settings.chamaacWavesPaletteMode, "harmony")
+    assert.equal(settings.chamaacWavesPrimaryColor, "#071697")
+    assert.equal(settings.chamaacWavesHarmony, "triad")
+    assert.equal(settings.chamaacWavesBackgroundColor, "#000000")
+    assert.equal(settings.chamaacWavesColorOne, "#071697")
+    assert.equal(settings.chamaacWavesColorTwo, "#00D4FF")
+    assert.equal(settings.chamaacWavesColorThree, "#000000")
+    assert.equal(settings.chamaacWavesSpeedX, 0.08)
+    assert.equal(settings.chamaacWavesSpeedY, 0.04)
+    assert.equal(settings.chamaacWavesAmplitude, 48)
     assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
     assert.equal(settings.chamaacSynthesisPrimaryColor, "#33B2FF")
     assert.equal(settings.chamaacSynthesisHarmony, "split-complementary")
