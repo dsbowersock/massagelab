@@ -498,6 +498,53 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsPrismTimeScale, 1.3)
   })
 
+  it("resets React Bits Dark Veil controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-dark-veil",
+      reactBitsDarkVeilHueShift: 72,
+      reactBitsDarkVeilNoiseIntensity: 0.24,
+      reactBitsDarkVeilScanlineIntensity: 0.42,
+      reactBitsDarkVeilSpeed: 1.3,
+      reactBitsDarkVeilScanlineFrequency: 18,
+      reactBitsDarkVeilWarpAmount: 0.7,
+      reactBitsDarkVeilResolutionScale: 0.65,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.reactBitsDarkVeilHueShift, DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilHueShift)
+    assert.equal(
+      freeSettings.reactBitsDarkVeilNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilNoiseIntensity,
+    )
+    assert.equal(
+      freeSettings.reactBitsDarkVeilScanlineIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilScanlineIntensity,
+    )
+    assert.equal(freeSettings.reactBitsDarkVeilSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilSpeed)
+    assert.equal(
+      freeSettings.reactBitsDarkVeilScanlineFrequency,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilScanlineFrequency,
+    )
+    assert.equal(freeSettings.reactBitsDarkVeilWarpAmount, DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilWarpAmount)
+    assert.equal(
+      freeSettings.reactBitsDarkVeilResolutionScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilResolutionScale,
+    )
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-dark-veil")
+    assert.equal(premiumSettings.reactBitsDarkVeilHueShift, 72)
+    assert.equal(premiumSettings.reactBitsDarkVeilNoiseIntensity, 0.24)
+    assert.equal(premiumSettings.reactBitsDarkVeilScanlineIntensity, 0.42)
+    assert.equal(premiumSettings.reactBitsDarkVeilSpeed, 1.3)
+    assert.equal(premiumSettings.reactBitsDarkVeilScanlineFrequency, 18)
+    assert.equal(premiumSettings.reactBitsDarkVeilWarpAmount, 0.7)
+    assert.equal(premiumSettings.reactBitsDarkVeilResolutionScale, 0.65)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

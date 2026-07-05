@@ -330,6 +330,24 @@
   transform: translateZ(0);
 }
 
+.reactBitsDarkVeil {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 46% 52%, rgba(124, 58, 237, 0.28), transparent 38%),
+    radial-gradient(circle at 64% 44%, rgba(236, 72, 153, 0.16), transparent 34%),
+    linear-gradient(145deg, #05010d 0%, #12051f 58%, #020007 100%);
+}
+
+.reactBitsDarkVeilCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
 .eldoraNovatrixBackground {
   overflow: hidden;
   background:

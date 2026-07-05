@@ -65,6 +65,7 @@ describe("premium background registry", () => {
       "react-bits-lightfall",
       "react-bits-liquid-ether",
       "react-bits-prism",
+      "react-bits-dark-veil",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -169,10 +170,13 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /LiquidEther\.css/)
     assert.match(sourceDoc, /Prism\.jsx/)
     assert.match(sourceDoc, /Prism\.css/)
+    assert.match(sourceDoc, /DarkVeil\.jsx/)
+    assert.match(sourceDoc, /DarkVeil\.css/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/lightfall/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/liquid-ether/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/prism/)
+    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/dark-veil/)
     assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
@@ -269,6 +273,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("eldora-photon-beam"))
     assert.ok(chimerOptions.includes("react-bits-liquid-ether"))
     assert.ok(chimerOptions.includes("react-bits-prism"))
+    assert.ok(chimerOptions.includes("react-bits-dark-veil"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -307,6 +312,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("eldora-photon-beam"))
     assert.ok(clockOptions.includes("react-bits-liquid-ether"))
     assert.ok(clockOptions.includes("react-bits-prism"))
+    assert.ok(clockOptions.includes("react-bits-dark-veil"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -346,6 +352,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("eldora-photon-beam"))
     assert.ok(musicOptions.includes("react-bits-liquid-ether"))
     assert.ok(musicOptions.includes("react-bits-prism"))
+    assert.ok(musicOptions.includes("react-bits-dark-veil"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1393,6 +1400,100 @@ describe("premium background registry", () => {
       "reactBitsPrismInertia",
       "reactBitsPrismBloom",
       "reactBitsPrismTimeScale",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Dark Veil source-shaped, raw WebGL, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-dark-veil-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-dark-veil/)
+    assert.match(registrySource, /Dark Veil/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dark-veil/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsDarkVeilBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_DARK_VEIL/)
+    assert.match(effectSource, /hueShift: 0/)
+    assert.match(effectSource, /noiseIntensity: 0/)
+    assert.match(effectSource, /scanlineIntensity: 0/)
+    assert.match(effectSource, /speed: 0\.5/)
+    assert.match(effectSource, /scanlineFrequency: 0/)
+    assert.match(effectSource, /warpAmount: 0/)
+    assert.match(effectSource, /resolutionScale: 1/)
+    assert.match(effectSource, /cppn_fn/)
+    assert.match(effectSource, /hueShiftRGB/)
+    assert.match(effectSource, /rgb2yiq/)
+    assert.match(effectSource, /yiq2rgb/)
+    assert.match(effectSource, /sigmoid/)
+    assert.match(effectSource, /uHueShift/)
+    assert.match(effectSource, /uNoise/)
+    assert.match(effectSource, /uScan/)
+    assert.match(effectSource, /uScanFreq/)
+    assert.match(effectSource, /uWarp/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("resize"/)
+    assert.match(effectSource, /window\.removeEventListener\("resize"/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(stylesSource, /reactBitsDarkVeil/)
+    assert.match(stylesSource, /reactBitsDarkVeilCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsDarkVeil/)
+    assert.match(cssEffectsSource, /ReactBitsDarkVeilOptions/)
+    assert.match(runningSource, /reactBitsDarkVeil=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsDarkVeil=\{\{/)
+    assert.match(docsSource, /Dark Veil \| https:\/\/reactbits\.dev\/backgrounds\/dark-veil/)
+    assert.match(docsSource, /DarkVeil\.jsx/)
+    assert.match(docsSource, /DarkVeil\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /CPPN/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    for (const settingKey of [
+      "reactBitsDarkVeilHueShift",
+      "reactBitsDarkVeilNoiseIntensity",
+      "reactBitsDarkVeilScanlineIntensity",
+      "reactBitsDarkVeilSpeed",
+      "reactBitsDarkVeilScanlineFrequency",
+      "reactBitsDarkVeilWarpAmount",
+      "reactBitsDarkVeilResolutionScale",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

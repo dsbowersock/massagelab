@@ -24,6 +24,7 @@ export type BackgroundId =
   | "react-bits-lightfall"
   | "react-bits-liquid-ether"
   | "react-bits-prism"
+  | "react-bits-dark-veil"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -92,6 +93,7 @@ const reactBitsFerrofluid = () => import("./effects/react-bits-ferrofluid-backgr
 const reactBitsLightfall = () => import("./effects/react-bits-lightfall-background")
 const reactBitsLiquidEther = () => import("./effects/react-bits-liquid-ether-background")
 const reactBitsPrism = () => import("./effects/react-bits-prism-background")
+const reactBitsDarkVeil = () => import("./effects/react-bits-dark-veil-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -502,6 +504,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 48%, rgba(190,145,255,0.22), transparent 36%), radial-gradient(circle at 64% 52%, rgba(255,90,198,0.14), transparent 32%), linear-gradient(145deg, #090214 0%, #17072f 58%, #02010a 100%)",
+    },
+  },
+  {
+    id: "react-bits-dark-veil",
+    label: "Dark Veil",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/dark-veil",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium neural veil shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source-shaped controls for hue shift, noise intensity, scanline intensity, speed, scanline frequency, warp amount, and resolution scale; source OGL CPPN shader adapted with native WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsDarkVeil().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 46% 52%, rgba(124,58,237,0.28), transparent 38%), radial-gradient(circle at 64% 44%, rgba(236,72,153,0.16), transparent 34%), linear-gradient(145deg, #05010d 0%, #12051f 58%, #020007 100%)",
     },
   },
   {

@@ -294,6 +294,13 @@ interface RunningTimerProps {
   reactBitsPrismInertia: number
   reactBitsPrismBloom: number
   reactBitsPrismTimeScale: number
+  reactBitsDarkVeilHueShift: number
+  reactBitsDarkVeilNoiseIntensity: number
+  reactBitsDarkVeilScanlineIntensity: number
+  reactBitsDarkVeilSpeed: number
+  reactBitsDarkVeilScanlineFrequency: number
+  reactBitsDarkVeilWarpAmount: number
+  reactBitsDarkVeilResolutionScale: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -659,6 +666,13 @@ export function RunningTimer({
   reactBitsPrismInertia,
   reactBitsPrismBloom,
   reactBitsPrismTimeScale,
+  reactBitsDarkVeilHueShift,
+  reactBitsDarkVeilNoiseIntensity,
+  reactBitsDarkVeilScanlineIntensity,
+  reactBitsDarkVeilSpeed,
+  reactBitsDarkVeilScanlineFrequency,
+  reactBitsDarkVeilWarpAmount,
+  reactBitsDarkVeilResolutionScale,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -3955,6 +3969,109 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-dark-veil" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Hue shift ({reactBitsDarkVeilHueShift.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsDarkVeilHueShift}
+              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilHueShift: Number(event.target.value) })}
+              aria-label="Dark Veil hue shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsDarkVeilSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsDarkVeilSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilSpeed: Number(event.target.value) })}
+              aria-label="Dark Veil animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsDarkVeilNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsDarkVeilNoiseIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilNoiseIntensity: Number(event.target.value),
+              })}
+              aria-label="Dark Veil noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanline intensity ({reactBitsDarkVeilScanlineIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsDarkVeilScanlineIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilScanlineIntensity: Number(event.target.value),
+              })}
+              aria-label="Dark Veil scanline intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanline frequency ({reactBitsDarkVeilScanlineFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="40"
+              step="0.5"
+              value={reactBitsDarkVeilScanlineFrequency}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilScanlineFrequency: Number(event.target.value),
+              })}
+              aria-label="Dark Veil scanline frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({reactBitsDarkVeilWarpAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsDarkVeilWarpAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilWarpAmount: Number(event.target.value) })}
+              aria-label="Dark Veil warp amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Resolution scale ({reactBitsDarkVeilResolutionScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="1"
+              step="0.05"
+              value={reactBitsDarkVeilResolutionScale}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilResolutionScale: Number(event.target.value),
+              })}
+              aria-label="Dark Veil resolution scale"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -5998,6 +6115,15 @@ export function RunningTimer({
             inertia: reactBitsPrismInertia,
             bloom: reactBitsPrismBloom,
             timeScale: reactBitsPrismTimeScale,
+          }}
+          reactBitsDarkVeil={{
+            hueShift: reactBitsDarkVeilHueShift,
+            noiseIntensity: reactBitsDarkVeilNoiseIntensity,
+            scanlineIntensity: reactBitsDarkVeilScanlineIntensity,
+            speed: reactBitsDarkVeilSpeed,
+            scanlineFrequency: reactBitsDarkVeilScanlineFrequency,
+            warpAmount: reactBitsDarkVeilWarpAmount,
+            resolutionScale: reactBitsDarkVeilResolutionScale,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

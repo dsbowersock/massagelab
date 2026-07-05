@@ -1105,6 +1105,57 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Dark Veil background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsDarkVeilHueShift: 999,
+      reactBitsDarkVeilNoiseIntensity: 99,
+      reactBitsDarkVeilScanlineIntensity: -1,
+      reactBitsDarkVeilSpeed: 99,
+      reactBitsDarkVeilScanlineFrequency: 99,
+      reactBitsDarkVeilWarpAmount: -1,
+      reactBitsDarkVeilResolutionScale: 0,
+    })
+
+    assert.equal(settings.reactBitsDarkVeilHueShift, 180)
+    assert.equal(settings.reactBitsDarkVeilNoiseIntensity, 1)
+    assert.equal(settings.reactBitsDarkVeilScanlineIntensity, 0)
+    assert.equal(settings.reactBitsDarkVeilSpeed, 2)
+    assert.equal(settings.reactBitsDarkVeilScanlineFrequency, 40)
+    assert.equal(settings.reactBitsDarkVeilWarpAmount, 0)
+    assert.equal(settings.reactBitsDarkVeilResolutionScale, 0.25)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilHueShift: "purple" }).reactBitsDarkVeilHueShift,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilHueShift,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilNoiseIntensity: "grainy" }).reactBitsDarkVeilNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilNoiseIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilScanlineIntensity: "strong" })
+        .reactBitsDarkVeilScanlineIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilScanlineIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilSpeed: "fast" }).reactBitsDarkVeilSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilScanlineFrequency: "dense" })
+        .reactBitsDarkVeilScanlineFrequency,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilScanlineFrequency,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilWarpAmount: "warped" }).reactBitsDarkVeilWarpAmount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilWarpAmount,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDarkVeilResolutionScale: "sharp" })
+        .reactBitsDarkVeilResolutionScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilResolutionScale,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

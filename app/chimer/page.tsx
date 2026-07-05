@@ -1000,6 +1000,13 @@ export default function ChimerPage() {
             reactBitsPrismInertia={settings.reactBitsPrismInertia}
             reactBitsPrismBloom={settings.reactBitsPrismBloom}
             reactBitsPrismTimeScale={settings.reactBitsPrismTimeScale}
+            reactBitsDarkVeilHueShift={settings.reactBitsDarkVeilHueShift}
+            reactBitsDarkVeilNoiseIntensity={settings.reactBitsDarkVeilNoiseIntensity}
+            reactBitsDarkVeilScanlineIntensity={settings.reactBitsDarkVeilScanlineIntensity}
+            reactBitsDarkVeilSpeed={settings.reactBitsDarkVeilSpeed}
+            reactBitsDarkVeilScanlineFrequency={settings.reactBitsDarkVeilScanlineFrequency}
+            reactBitsDarkVeilWarpAmount={settings.reactBitsDarkVeilWarpAmount}
+            reactBitsDarkVeilResolutionScale={settings.reactBitsDarkVeilResolutionScale}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

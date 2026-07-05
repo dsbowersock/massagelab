@@ -581,6 +581,13 @@ export interface ChimerSettings {
   reactBitsPrismInertia: number
   reactBitsPrismBloom: number
   reactBitsPrismTimeScale: number
+  reactBitsDarkVeilHueShift: number
+  reactBitsDarkVeilNoiseIntensity: number
+  reactBitsDarkVeilScanlineIntensity: number
+  reactBitsDarkVeilSpeed: number
+  reactBitsDarkVeilScanlineFrequency: number
+  reactBitsDarkVeilWarpAmount: number
+  reactBitsDarkVeilResolutionScale: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -4992,6 +4999,107 @@ export function SetTimer({
               checked={settings.reactBitsPrismTransparent}
               onChange={(event) => onSettingsChange({ reactBitsPrismTransparent: event.target.checked })}
               aria-label="Prism transparent blend"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-dark-veil") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.rangeRow}>
+            <span>Hue shift ({settings.reactBitsDarkVeilHueShift.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={settings.reactBitsDarkVeilHueShift}
+              onChange={(event) => onSettingsChange({ reactBitsDarkVeilHueShift: Number(event.target.value) })}
+              aria-label="Dark Veil hue shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({settings.reactBitsDarkVeilSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsDarkVeilSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsDarkVeilSpeed: Number(event.target.value) })}
+              aria-label="Dark Veil animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsDarkVeilNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsDarkVeilNoiseIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsDarkVeilNoiseIntensity: Number(event.target.value) })}
+              aria-label="Dark Veil noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanline intensity ({settings.reactBitsDarkVeilScanlineIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsDarkVeilScanlineIntensity}
+              onChange={(event) => onSettingsChange({
+                reactBitsDarkVeilScanlineIntensity: Number(event.target.value),
+              })}
+              aria-label="Dark Veil scanline intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanline frequency ({settings.reactBitsDarkVeilScanlineFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="40"
+              step="0.5"
+              value={settings.reactBitsDarkVeilScanlineFrequency}
+              onChange={(event) => onSettingsChange({
+                reactBitsDarkVeilScanlineFrequency: Number(event.target.value),
+              })}
+              aria-label="Dark Veil scanline frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({settings.reactBitsDarkVeilWarpAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsDarkVeilWarpAmount}
+              onChange={(event) => onSettingsChange({ reactBitsDarkVeilWarpAmount: Number(event.target.value) })}
+              aria-label="Dark Veil warp amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Resolution scale ({settings.reactBitsDarkVeilResolutionScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="1"
+              step="0.05"
+              value={settings.reactBitsDarkVeilResolutionScale}
+              onChange={(event) => onSettingsChange({ reactBitsDarkVeilResolutionScale: Number(event.target.value) })}
+              aria-label="Dark Veil resolution scale"
             />
           </label>
         </div>
