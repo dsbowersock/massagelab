@@ -2068,6 +2068,70 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Particles background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsParticlesPaletteMode: "harmony",
+      reactBitsParticlesPrimaryColor: "#ffffff",
+      reactBitsParticlesHarmony: "triad",
+      reactBitsParticlesColorOne: "#abcdef",
+      reactBitsParticlesColorTwo: "#010203",
+      reactBitsParticlesColorThree: "#111111",
+      reactBitsParticlesCount: 9999.6,
+      reactBitsParticlesSpread: 99,
+      reactBitsParticlesSpeed: 99,
+      reactBitsParticlesMoveOnHover: true,
+      reactBitsParticlesHoverFactor: 99,
+      reactBitsParticlesAlpha: true,
+      reactBitsParticlesBaseSize: 999,
+      reactBitsParticlesSizeRandomness: 99,
+      reactBitsParticlesCameraDistance: 999,
+      reactBitsParticlesDisableRotation: true,
+      reactBitsParticlesPixelRatio: 99,
+    })
+
+    assert.equal(settings.reactBitsParticlesPaletteMode, "harmony")
+    assert.equal(settings.reactBitsParticlesPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsParticlesHarmony, "triad")
+    assert.equal(settings.reactBitsParticlesColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsParticlesColorTwo, "#010203")
+    assert.equal(settings.reactBitsParticlesColorThree, "#111111")
+    assert.equal(settings.reactBitsParticlesCount, 1500)
+    assert.equal(settings.reactBitsParticlesSpread, 30)
+    assert.equal(settings.reactBitsParticlesSpeed, 1)
+    assert.equal(settings.reactBitsParticlesMoveOnHover, true)
+    assert.equal(settings.reactBitsParticlesHoverFactor, 5)
+    assert.equal(settings.reactBitsParticlesAlpha, true)
+    assert.equal(settings.reactBitsParticlesBaseSize, 300)
+    assert.equal(settings.reactBitsParticlesSizeRandomness, 3)
+    assert.equal(settings.reactBitsParticlesCameraDistance, 60)
+    assert.equal(settings.reactBitsParticlesDisableRotation, true)
+    assert.equal(settings.reactBitsParticlesPixelRatio, 2)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsParticlesPaletteMode: "auto" }).reactBitsParticlesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsParticlesPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsParticlesPrimaryColor: "white" }).reactBitsParticlesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsParticlesPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsParticlesHarmony: "wild" }).reactBitsParticlesHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsParticlesHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsParticlesColorOne: "white" }).reactBitsParticlesColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsParticlesColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsParticlesCount: "many" }).reactBitsParticlesCount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsParticlesCount,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsParticlesMoveOnHover: "yes" }).reactBitsParticlesMoveOnHover,
+      DEFAULT_CHIMER_SETTINGS.reactBitsParticlesMoveOnHover,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

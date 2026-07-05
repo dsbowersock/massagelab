@@ -1503,6 +1503,75 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsPlasmaWaveBendTwo, 0.8)
   })
 
+  it("resets React Bits Particles controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-particles",
+      reactBitsParticlesPaletteMode: "harmony",
+      reactBitsParticlesPrimaryColor: "#FFFFFF",
+      reactBitsParticlesHarmony: "triad",
+      reactBitsParticlesColorOne: "#ABCDEF",
+      reactBitsParticlesColorTwo: "#010203",
+      reactBitsParticlesColorThree: "#111111",
+      reactBitsParticlesCount: 420,
+      reactBitsParticlesSpread: 12,
+      reactBitsParticlesSpeed: 0.4,
+      reactBitsParticlesMoveOnHover: true,
+      reactBitsParticlesHoverFactor: 1.6,
+      reactBitsParticlesAlpha: true,
+      reactBitsParticlesBaseSize: 130,
+      reactBitsParticlesSizeRandomness: 1.5,
+      reactBitsParticlesCameraDistance: 24,
+      reactBitsParticlesDisableRotation: true,
+      reactBitsParticlesPixelRatio: 1.4,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsParticlesPaletteMode",
+      "reactBitsParticlesPrimaryColor",
+      "reactBitsParticlesHarmony",
+      "reactBitsParticlesColorOne",
+      "reactBitsParticlesColorTwo",
+      "reactBitsParticlesColorThree",
+      "reactBitsParticlesCount",
+      "reactBitsParticlesSpread",
+      "reactBitsParticlesSpeed",
+      "reactBitsParticlesMoveOnHover",
+      "reactBitsParticlesHoverFactor",
+      "reactBitsParticlesAlpha",
+      "reactBitsParticlesBaseSize",
+      "reactBitsParticlesSizeRandomness",
+      "reactBitsParticlesCameraDistance",
+      "reactBitsParticlesDisableRotation",
+      "reactBitsParticlesPixelRatio",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-particles")
+    assert.equal(premiumSettings.reactBitsParticlesPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsParticlesPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsParticlesHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsParticlesColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsParticlesColorTwo, "#010203")
+    assert.equal(premiumSettings.reactBitsParticlesColorThree, "#111111")
+    assert.equal(premiumSettings.reactBitsParticlesCount, 420)
+    assert.equal(premiumSettings.reactBitsParticlesSpread, 12)
+    assert.equal(premiumSettings.reactBitsParticlesSpeed, 0.4)
+    assert.equal(premiumSettings.reactBitsParticlesMoveOnHover, true)
+    assert.equal(premiumSettings.reactBitsParticlesHoverFactor, 1.6)
+    assert.equal(premiumSettings.reactBitsParticlesAlpha, true)
+    assert.equal(premiumSettings.reactBitsParticlesBaseSize, 130)
+    assert.equal(premiumSettings.reactBitsParticlesSizeRandomness, 1.5)
+    assert.equal(premiumSettings.reactBitsParticlesCameraDistance, 24)
+    assert.equal(premiumSettings.reactBitsParticlesDisableRotation, true)
+    assert.equal(premiumSettings.reactBitsParticlesPixelRatio, 1.4)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

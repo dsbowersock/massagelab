@@ -41,6 +41,7 @@ export interface BackgroundEffectProps {
   reactBitsSoftAurora?: ReactBitsSoftAuroraOptions
   reactBitsPlasma?: ReactBitsPlasmaOptions
   reactBitsPlasmaWave?: ReactBitsPlasmaWaveOptions
+  reactBitsParticles?: ReactBitsParticlesOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -464,6 +465,21 @@ export interface ReactBitsPlasmaWaveOptions {
   bend1?: number
   bend2?: number
   colors?: string[]
+}
+
+export interface ReactBitsParticlesOptions {
+  particleCount?: number
+  particleSpread?: number
+  speed?: number
+  colors?: string[]
+  moveParticlesOnHover?: boolean
+  particleHoverFactor?: number
+  alphaParticles?: boolean
+  particleBaseSize?: number
+  sizeRandomness?: number
+  cameraDistance?: number
+  disableRotation?: boolean
+  pixelRatio?: number
 }
 
 export interface EldoraNovatrixOptions {

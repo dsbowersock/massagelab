@@ -88,6 +88,7 @@ import {
   resolveReactBitsSoftAuroraColors,
   resolveReactBitsPlasmaColor,
   resolveReactBitsPlasmaWaveColors,
+  resolveReactBitsParticlesColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -119,6 +120,7 @@ import {
   type ReactBitsPlasmaDirection,
   type ReactBitsPlasmaPaletteMode,
   type ReactBitsPlasmaWavePaletteMode,
+  type ReactBitsParticlesPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -550,6 +552,23 @@ interface RunningTimerProps {
   reactBitsPlasmaWaveDirectionTwo: 1 | -1
   reactBitsPlasmaWaveBendOne: number
   reactBitsPlasmaWaveBendTwo: number
+  reactBitsParticlesPaletteMode: ReactBitsParticlesPaletteMode
+  reactBitsParticlesPrimaryColor: string
+  reactBitsParticlesHarmony: ColorHarmony
+  reactBitsParticlesColorOne: string
+  reactBitsParticlesColorTwo: string
+  reactBitsParticlesColorThree: string
+  reactBitsParticlesCount: number
+  reactBitsParticlesSpread: number
+  reactBitsParticlesSpeed: number
+  reactBitsParticlesMoveOnHover: boolean
+  reactBitsParticlesHoverFactor: number
+  reactBitsParticlesAlpha: boolean
+  reactBitsParticlesBaseSize: number
+  reactBitsParticlesSizeRandomness: number
+  reactBitsParticlesCameraDistance: number
+  reactBitsParticlesDisableRotation: boolean
+  reactBitsParticlesPixelRatio: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1138,6 +1157,23 @@ export function RunningTimer({
   reactBitsPlasmaWaveDirectionTwo,
   reactBitsPlasmaWaveBendOne,
   reactBitsPlasmaWaveBendTwo,
+  reactBitsParticlesPaletteMode,
+  reactBitsParticlesPrimaryColor,
+  reactBitsParticlesHarmony,
+  reactBitsParticlesColorOne,
+  reactBitsParticlesColorTwo,
+  reactBitsParticlesColorThree,
+  reactBitsParticlesCount,
+  reactBitsParticlesSpread,
+  reactBitsParticlesSpeed,
+  reactBitsParticlesMoveOnHover,
+  reactBitsParticlesHoverFactor,
+  reactBitsParticlesAlpha,
+  reactBitsParticlesBaseSize,
+  reactBitsParticlesSizeRandomness,
+  reactBitsParticlesCameraDistance,
+  reactBitsParticlesDisableRotation,
+  reactBitsParticlesPixelRatio,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1482,6 +1518,14 @@ export function RunningTimer({
     reactBitsPlasmaWaveHarmony,
     reactBitsPlasmaWaveColorOne,
     reactBitsPlasmaWaveColorTwo,
+  })
+  const particlesColors = resolveReactBitsParticlesColors({
+    reactBitsParticlesPaletteMode,
+    reactBitsParticlesPrimaryColor,
+    reactBitsParticlesHarmony,
+    reactBitsParticlesColorOne,
+    reactBitsParticlesColorTwo,
+    reactBitsParticlesColorThree,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -7510,6 +7554,218 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-particles" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsParticlesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsParticlesPaletteMode: event.target.value as ReactBitsParticlesPaletteMode,
+              })}
+              aria-label="React Bits Particles color mode"
+            >
+              <option value="source">Source white particles</option>
+              <option value="custom">Custom particles</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsParticlesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Particle color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorOne: event.target.value })}
+                  aria-label="React Bits Particles color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Particle color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorTwo: event.target.value })}
+                  aria-label="React Bits Particles color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Particle color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorThree: event.target.value })}
+                  aria-label="React Bits Particles color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsParticlesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Particles primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsParticlesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsParticlesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Particles color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsParticlesMoveOnHover}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesMoveOnHover: event.target.checked })}
+            />
+            <span>Move on cursor</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsParticlesAlpha}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesAlpha: event.target.checked })}
+            />
+            <span>Soft alpha particles</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={!reactBitsParticlesDisableRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesDisableRotation: !event.target.checked })}
+            />
+            <span>Rotate cloud</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Particle count ({reactBitsParticlesCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="20"
+              max="1500"
+              step="10"
+              value={reactBitsParticlesCount}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesCount: Number(event.target.value) })}
+              aria-label="React Bits Particles particle count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({reactBitsParticlesSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="0.5"
+              value={reactBitsParticlesSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesSpread: Number(event.target.value) })}
+              aria-label="React Bits Particles spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsParticlesSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsParticlesSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesSpeed: Number(event.target.value) })}
+              aria-label="React Bits Particles speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover push ({reactBitsParticlesHoverFactor.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={reactBitsParticlesHoverFactor}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesHoverFactor: Number(event.target.value) })}
+              aria-label="React Bits Particles hover push"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base size ({reactBitsParticlesBaseSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="10"
+              max="300"
+              step="5"
+              value={reactBitsParticlesBaseSize}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesBaseSize: Number(event.target.value) })}
+              aria-label="React Bits Particles base size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size randomness ({reactBitsParticlesSizeRandomness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={reactBitsParticlesSizeRandomness}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesSizeRandomness: Number(event.target.value) })}
+              aria-label="React Bits Particles size randomness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Camera distance ({reactBitsParticlesCameraDistance.toFixed(0)})</span>
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="1"
+              value={reactBitsParticlesCameraDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesCameraDistance: Number(event.target.value) })}
+              aria-label="React Bits Particles camera distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel ratio ({reactBitsParticlesPixelRatio.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={reactBitsParticlesPixelRatio}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesPixelRatio: Number(event.target.value) })}
+              aria-label="React Bits Particles pixel ratio"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -9759,6 +10015,20 @@ export function RunningTimer({
             dir2: reactBitsPlasmaWaveDirectionTwo,
             bend1: reactBitsPlasmaWaveBendOne,
             bend2: reactBitsPlasmaWaveBendTwo,
+          }}
+          reactBitsParticles={{
+            colors: particlesColors,
+            particleCount: reactBitsParticlesCount,
+            particleSpread: reactBitsParticlesSpread,
+            speed: reactBitsParticlesSpeed,
+            moveParticlesOnHover: reactBitsParticlesMoveOnHover,
+            particleHoverFactor: reactBitsParticlesHoverFactor,
+            alphaParticles: reactBitsParticlesAlpha,
+            particleBaseSize: reactBitsParticlesBaseSize,
+            sizeRandomness: reactBitsParticlesSizeRandomness,
+            cameraDistance: reactBitsParticlesCameraDistance,
+            disableRotation: reactBitsParticlesDisableRotation,
+            pixelRatio: reactBitsParticlesPixelRatio,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

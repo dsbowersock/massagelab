@@ -68,6 +68,7 @@ export type ReactBitsSoftAuroraPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPlasmaPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPlasmaDirection = "forward" | "reverse" | "pingpong"
 export type ReactBitsPlasmaWavePaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsParticlesPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -832,6 +833,23 @@ export interface ChimerSettings {
   reactBitsPlasmaWaveDirectionTwo: 1 | -1
   reactBitsPlasmaWaveBendOne: number
   reactBitsPlasmaWaveBendTwo: number
+  reactBitsParticlesPaletteMode: ReactBitsParticlesPaletteMode
+  reactBitsParticlesPrimaryColor: string
+  reactBitsParticlesHarmony: ColorHarmony
+  reactBitsParticlesColorOne: string
+  reactBitsParticlesColorTwo: string
+  reactBitsParticlesColorThree: string
+  reactBitsParticlesCount: number
+  reactBitsParticlesSpread: number
+  reactBitsParticlesSpeed: number
+  reactBitsParticlesMoveOnHover: boolean
+  reactBitsParticlesHoverFactor: number
+  reactBitsParticlesAlpha: boolean
+  reactBitsParticlesBaseSize: number
+  reactBitsParticlesSizeRandomness: number
+  reactBitsParticlesCameraDistance: number
+  reactBitsParticlesDisableRotation: boolean
+  reactBitsParticlesPixelRatio: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1210,6 +1228,16 @@ type ReactBitsPlasmaWaveColorSettings = Pick<
   | "reactBitsPlasmaWaveColorTwo"
 >
 
+type ReactBitsParticlesColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsParticlesPaletteMode"
+  | "reactBitsParticlesPrimaryColor"
+  | "reactBitsParticlesHarmony"
+  | "reactBitsParticlesColorOne"
+  | "reactBitsParticlesColorTwo"
+  | "reactBitsParticlesColorThree"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1581,6 +1609,25 @@ export function resolveReactBitsPlasmaWaveColors(settings: ReactBitsPlasmaWaveCo
   return [
     settings.reactBitsPlasmaWaveColorOne,
     settings.reactBitsPlasmaWaveColorTwo,
+  ]
+}
+
+export function resolveReactBitsParticlesColors(settings: ReactBitsParticlesColorSettings): string[] {
+  if (settings.reactBitsParticlesPaletteMode === "source") {
+    return ["#FFFFFF", "#FFFFFF", "#FFFFFF"]
+  }
+
+  if (settings.reactBitsParticlesPaletteMode === "harmony") {
+    return createReactBitsParticlesHarmonyColors(
+      settings.reactBitsParticlesPrimaryColor,
+      settings.reactBitsParticlesHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsParticlesColorOne,
+    settings.reactBitsParticlesColorTwo,
+    settings.reactBitsParticlesColorThree,
   ]
 }
 
@@ -2594,6 +2641,69 @@ export function createReactBitsPlasmaWaveHarmonyColors(
       return [
         hslToHex(hue - 24, waveSaturation, firstLightness),
         hslToHex(hue + 34, Math.min(0.96, waveSaturation * 0.94), secondLightness),
+      ]
+  }
+}
+
+export function createReactBitsParticlesHarmonyColors(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const particleSaturation = Math.min(0.94, Math.max(0.28, saturation))
+  const brightLightness = Math.min(0.9, Math.max(0.62, lightness + 0.14))
+  const midLightness = Math.min(0.82, Math.max(0.5, lightness + 0.06))
+  const dimLightness = Math.min(0.72, Math.max(0.42, lightness - 0.02))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, particleSaturation * 0.72, brightLightness),
+        hslToHex(hue + 180, Math.min(0.9, particleSaturation), midLightness),
+        hslToHex(hue + 180, Math.min(0.72, particleSaturation * 0.72), brightLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue, particleSaturation * 0.7, brightLightness),
+        hslToHex(hue + 150, Math.min(0.92, particleSaturation), midLightness),
+        hslToHex(hue - 150, Math.min(0.86, particleSaturation * 0.86), dimLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, particleSaturation * 0.72, brightLightness),
+        hslToHex(hue + 120, Math.min(0.9, particleSaturation), midLightness),
+        hslToHex(hue + 240, Math.min(0.86, particleSaturation * 0.86), dimLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue, particleSaturation * 0.72, brightLightness),
+        hslToHex(hue + 90, Math.min(0.88, particleSaturation * 0.88), midLightness),
+        hslToHex(hue + 180, Math.min(0.78, particleSaturation * 0.78), dimLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 22, Math.min(0.86, particleSaturation * 0.86), brightLightness),
+        hslToHex(hue + 28, Math.min(0.92, particleSaturation), midLightness),
+        hslToHex(hue + 180, Math.min(0.72, particleSaturation * 0.72), dimLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, particleSaturation * 0.42, brightLightness),
+        hslToHex(hue, particleSaturation * 0.58, midLightness),
+        hslToHex(hue, particleSaturation * 0.72, dimLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, particleSaturation * 0.46, brightLightness),
+        hslToHex(hue, particleSaturation * 0.66, midLightness),
+        hslToHex(hue, particleSaturation, dimLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 24, particleSaturation * 0.72, brightLightness),
+        hslToHex(hue, Math.min(0.9, particleSaturation), midLightness),
+        hslToHex(hue + 28, Math.min(0.84, particleSaturation * 0.84), dimLightness),
       ]
   }
 }
@@ -9036,6 +9146,223 @@ export function SetTimer({
               value={settings.reactBitsPlasmaWaveYOffset}
               onChange={(event) => onSettingsChange({ reactBitsPlasmaWaveYOffset: Number(event.target.value) })}
               aria-label="React Bits Plasma Wave y offset"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-particles") {
+      const useCustomPalette = settings.reactBitsParticlesPaletteMode === "custom"
+      const useHarmonyPalette = settings.reactBitsParticlesPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsParticlesPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsParticlesPaletteMode: event.target.value as ReactBitsParticlesPaletteMode,
+              })}
+              aria-label="React Bits Particles color mode"
+            >
+              <option value="source">Source white particles</option>
+              <option value="custom">Custom particles</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Particle color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsParticlesColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsParticlesColorOne: event.target.value })}
+                  aria-label="React Bits Particles color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Particle color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsParticlesColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsParticlesColorTwo: event.target.value })}
+                  aria-label="React Bits Particles color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Particle color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsParticlesColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsParticlesColorThree: event.target.value })}
+                  aria-label="React Bits Particles color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {useHarmonyPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsParticlesPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsParticlesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Particles primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsParticlesHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsParticlesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Particles color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsParticlesMoveOnHover}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesMoveOnHover: event.target.checked })}
+            />
+            <span>Move on cursor</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsParticlesAlpha}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesAlpha: event.target.checked })}
+            />
+            <span>Soft alpha particles</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={!settings.reactBitsParticlesDisableRotation}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesDisableRotation: !event.target.checked })}
+            />
+            <span>Rotate cloud</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Particle count ({settings.reactBitsParticlesCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="20"
+              max="1500"
+              step="10"
+              value={settings.reactBitsParticlesCount}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesCount: Number(event.target.value) })}
+              aria-label="React Bits Particles particle count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({settings.reactBitsParticlesSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="0.5"
+              value={settings.reactBitsParticlesSpread}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesSpread: Number(event.target.value) })}
+              aria-label="React Bits Particles spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsParticlesSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsParticlesSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesSpeed: Number(event.target.value) })}
+              aria-label="React Bits Particles speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover push ({settings.reactBitsParticlesHoverFactor.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={settings.reactBitsParticlesHoverFactor}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesHoverFactor: Number(event.target.value) })}
+              aria-label="React Bits Particles hover push"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base size ({settings.reactBitsParticlesBaseSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="10"
+              max="300"
+              step="5"
+              value={settings.reactBitsParticlesBaseSize}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesBaseSize: Number(event.target.value) })}
+              aria-label="React Bits Particles base size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size randomness ({settings.reactBitsParticlesSizeRandomness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={settings.reactBitsParticlesSizeRandomness}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesSizeRandomness: Number(event.target.value) })}
+              aria-label="React Bits Particles size randomness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Camera distance ({settings.reactBitsParticlesCameraDistance.toFixed(0)})</span>
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="1"
+              value={settings.reactBitsParticlesCameraDistance}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesCameraDistance: Number(event.target.value) })}
+              aria-label="React Bits Particles camera distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel ratio ({settings.reactBitsParticlesPixelRatio.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={settings.reactBitsParticlesPixelRatio}
+              onChange={(event) => onSettingsChange({ reactBitsParticlesPixelRatio: Number(event.target.value) })}
+              aria-label="React Bits Particles pixel ratio"
             />
           </label>
         </div>

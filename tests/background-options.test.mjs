@@ -79,6 +79,7 @@ describe("premium background registry", () => {
       "react-bits-soft-aurora",
       "react-bits-plasma",
       "react-bits-plasma-wave",
+      "react-bits-particles",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -303,6 +304,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-soft-aurora"))
     assert.ok(chimerOptions.includes("react-bits-plasma"))
     assert.ok(chimerOptions.includes("react-bits-plasma-wave"))
+    assert.ok(chimerOptions.includes("react-bits-particles"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -355,6 +357,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-soft-aurora"))
     assert.ok(clockOptions.includes("react-bits-plasma"))
     assert.ok(clockOptions.includes("react-bits-plasma-wave"))
+    assert.ok(clockOptions.includes("react-bits-particles"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -408,6 +411,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-soft-aurora"))
     assert.ok(musicOptions.includes("react-bits-plasma"))
     assert.ok(musicOptions.includes("react-bits-plasma-wave"))
+    assert.ok(musicOptions.includes("react-bits-particles"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2906,6 +2910,107 @@ describe("premium background registry", () => {
       "reactBitsPlasmaWaveDirectionTwo",
       "reactBitsPlasmaWaveBendOne",
       "reactBitsPlasmaWaveBendTwo",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Particles source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-particles-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-particles/)
+    assert.match(registrySource, /Particles/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/particles/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsParticlesBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_PARTICLES/)
+    assert.match(effectSource, /attribute vec3 position/)
+    assert.match(effectSource, /attribute vec4 random/)
+    assert.match(effectSource, /attribute vec3 color/)
+    assert.match(effectSource, /gl_PointSize/)
+    assert.match(effectSource, /gl\.POINTS/)
+    assert.match(effectSource, /modelMatrix/)
+    assert.match(effectSource, /projectionMatrix/)
+    assert.match(effectSource, /setPerspectiveMatrix/)
+    assert.match(effectSource, /createParticleData/)
+    assert.match(effectSource, /particleCount:\s*200/)
+    assert.match(effectSource, /particleSpread:\s*10/)
+    assert.match(effectSource, /speed:\s*0\.1/)
+    assert.match(effectSource, /particleBaseSize:\s*100/)
+    assert.match(effectSource, /cameraDistance:\s*20/)
+    assert.match(effectSource, /moveParticlesOnHover/)
+    assert.match(effectSource, /pointermove/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsParticles/)
+    assert.match(stylesSource, /reactBitsParticlesCanvas/)
+
+    assert.match(hostSource, /reactBitsParticles/)
+    assert.match(cssEffectsSource, /ReactBitsParticlesOptions/)
+    assert.match(setupSource, /resolveReactBitsParticlesColors/)
+    assert.match(runningSource, /reactBitsParticles=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsParticles=\{\{/)
+    assert.match(docsSource, /Particles \| https:\/\/reactbits\.dev\/backgrounds\/particles/)
+    assert.match(docsSource, /Particles\.jsx/)
+    assert.match(docsSource, /Particles\.css/)
+    assert.match(docsSource, /point-sprite particle cloud/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsParticlesPaletteMode",
+      "reactBitsParticlesPrimaryColor",
+      "reactBitsParticlesHarmony",
+      "reactBitsParticlesColorOne",
+      "reactBitsParticlesColorTwo",
+      "reactBitsParticlesColorThree",
+      "reactBitsParticlesCount",
+      "reactBitsParticlesSpread",
+      "reactBitsParticlesSpeed",
+      "reactBitsParticlesMoveOnHover",
+      "reactBitsParticlesHoverFactor",
+      "reactBitsParticlesAlpha",
+      "reactBitsParticlesBaseSize",
+      "reactBitsParticlesSizeRandomness",
+      "reactBitsParticlesCameraDistance",
+      "reactBitsParticlesDisableRotation",
+      "reactBitsParticlesPixelRatio",
     ]
 
     for (const settingKey of settingKeys) {
