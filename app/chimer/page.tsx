@@ -1455,6 +1455,13 @@ export default function ChimerPage() {
             reactBitsDotGridReturnDuration={settings.reactBitsDotGridReturnDuration}
             reactBitsDotGridCursorInteraction={settings.reactBitsDotGridCursorInteraction}
             reactBitsDotGridClickShock={settings.reactBitsDotGridClickShock}
+            reactBitsThreadsPaletteMode={settings.reactBitsThreadsPaletteMode}
+            reactBitsThreadsPrimaryColor={settings.reactBitsThreadsPrimaryColor}
+            reactBitsThreadsHarmony={settings.reactBitsThreadsHarmony}
+            reactBitsThreadsColor={settings.reactBitsThreadsColor}
+            reactBitsThreadsAmplitude={settings.reactBitsThreadsAmplitude}
+            reactBitsThreadsDistance={settings.reactBitsThreadsDistance}
+            reactBitsThreadsEnableMouseInteraction={settings.reactBitsThreadsEnableMouseInteraction}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

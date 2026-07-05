@@ -2451,6 +2451,45 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsDotGridClickShock, false)
   })
 
+  it("resets React Bits Threads controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-threads",
+      reactBitsThreadsPaletteMode: "harmony",
+      reactBitsThreadsPrimaryColor: "#ABCDEF",
+      reactBitsThreadsHarmony: "triad",
+      reactBitsThreadsColor: "#010203",
+      reactBitsThreadsAmplitude: 1.8,
+      reactBitsThreadsDistance: 0.35,
+      reactBitsThreadsEnableMouseInteraction: true,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsThreadsPaletteMode",
+      "reactBitsThreadsPrimaryColor",
+      "reactBitsThreadsHarmony",
+      "reactBitsThreadsColor",
+      "reactBitsThreadsAmplitude",
+      "reactBitsThreadsDistance",
+      "reactBitsThreadsEnableMouseInteraction",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-threads")
+    assert.equal(premiumSettings.reactBitsThreadsPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsThreadsPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsThreadsHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsThreadsColor, "#010203")
+    assert.equal(premiumSettings.reactBitsThreadsAmplitude, 1.8)
+    assert.equal(premiumSettings.reactBitsThreadsDistance, 0.35)
+    assert.equal(premiumSettings.reactBitsThreadsEnableMouseInteraction, true)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

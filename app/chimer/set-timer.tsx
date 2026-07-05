@@ -89,6 +89,7 @@ export type ReactBitsFaultyTerminalPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsRippleGridPaletteMode = "source" | "rainbow" | "harmony" | "custom"
 export type ReactBitsDotFieldPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsDotGridPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsThreadsPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1085,6 +1086,13 @@ export interface ChimerSettings {
   reactBitsDotGridReturnDuration: number
   reactBitsDotGridCursorInteraction: boolean
   reactBitsDotGridClickShock: boolean
+  reactBitsThreadsPaletteMode: ReactBitsThreadsPaletteMode
+  reactBitsThreadsPrimaryColor: string
+  reactBitsThreadsHarmony: ColorHarmony
+  reactBitsThreadsColor: string
+  reactBitsThreadsAmplitude: number
+  reactBitsThreadsDistance: number
+  reactBitsThreadsEnableMouseInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1589,6 +1597,14 @@ type ReactBitsDotGridColorSettings = Pick<
   | "reactBitsDotGridHarmony"
   | "reactBitsDotGridBaseColor"
   | "reactBitsDotGridActiveColor"
+>
+
+type ReactBitsThreadsColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsThreadsPaletteMode"
+  | "reactBitsThreadsPrimaryColor"
+  | "reactBitsThreadsHarmony"
+  | "reactBitsThreadsColor"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2214,6 +2230,21 @@ export function resolveReactBitsDotGridColors(settings: ReactBitsDotGridColorSet
   }
 
   return [settings.reactBitsDotGridBaseColor, settings.reactBitsDotGridActiveColor]
+}
+
+export function resolveReactBitsThreadsColor(settings: ReactBitsThreadsColorSettings): string {
+  if (settings.reactBitsThreadsPaletteMode === "source") {
+    return "#FFFFFF"
+  }
+
+  if (settings.reactBitsThreadsPaletteMode === "harmony") {
+    return createReactBitsThreadsHarmonyColor(
+      settings.reactBitsThreadsPrimaryColor,
+      settings.reactBitsThreadsHarmony,
+    )
+  }
+
+  return settings.reactBitsThreadsColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3638,6 +3669,10 @@ export function createReactBitsDotGridHarmonyColors(
 ): [string, string] {
   const [fromColor, toColor] = createReactBitsDotFieldHarmonyColors(primaryColor, harmony)
   return [fromColor, toColor]
+}
+
+export function createReactBitsThreadsHarmonyColor(primaryColor: string, harmony: ColorHarmony): string {
+  return createReactBitsSilkHarmonyColor(primaryColor, harmony)
 }
 
 export function createReactBitsPrismaticBurstHarmonyPalette(
@@ -13248,6 +13283,106 @@ export function SetTimer({
           <label className={styles.rangeRow}>
             <span>Return ({settings.reactBitsDotGridReturnDuration.toFixed(2)}s)</span>
             <input type="range" min="0.1" max="4" step="0.05" value={settings.reactBitsDotGridReturnDuration} onChange={(event) => onSettingsChange({ reactBitsDotGridReturnDuration: Number(event.target.value) })} aria-label="React Bits Dot Grid return duration" />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-threads") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsThreadsPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsThreadsPaletteMode: event.target.value as ReactBitsThreadsPaletteMode,
+              })}
+              aria-label="React Bits Threads color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsThreadsPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Thread color</span>
+              <input
+                type="color"
+                value={settings.reactBitsThreadsColor}
+                onChange={(event) => onSettingsChange({ reactBitsThreadsColor: event.target.value })}
+                aria-label="React Bits Threads color"
+              />
+            </label>
+          ) : null}
+
+          {settings.reactBitsThreadsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsThreadsPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsThreadsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Threads primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsThreadsHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsThreadsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Threads color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsThreadsEnableMouseInteraction}
+              onChange={(event) => onSettingsChange({
+                reactBitsThreadsEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Threads mouse interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({settings.reactBitsThreadsAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsThreadsAmplitude}
+              onChange={(event) => onSettingsChange({ reactBitsThreadsAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Threads amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distance ({settings.reactBitsThreadsDistance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1.5"
+              step="0.05"
+              value={settings.reactBitsThreadsDistance}
+              onChange={(event) => onSettingsChange({ reactBitsThreadsDistance: Number(event.target.value) })}
+              aria-label="React Bits Threads distance"
+            />
           </label>
         </div>
       )

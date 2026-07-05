@@ -102,6 +102,7 @@ import {
   resolveReactBitsRippleGridColor,
   resolveReactBitsDotFieldColors,
   resolveReactBitsDotGridColors,
+  resolveReactBitsThreadsColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -154,6 +155,7 @@ import {
   type ReactBitsRippleGridPaletteMode,
   type ReactBitsDotFieldPaletteMode,
   type ReactBitsDotGridPaletteMode,
+  type ReactBitsThreadsPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -817,6 +819,13 @@ interface RunningTimerProps {
   reactBitsDotGridReturnDuration: number
   reactBitsDotGridCursorInteraction: boolean
   reactBitsDotGridClickShock: boolean
+  reactBitsThreadsPaletteMode: ReactBitsThreadsPaletteMode
+  reactBitsThreadsPrimaryColor: string
+  reactBitsThreadsHarmony: ColorHarmony
+  reactBitsThreadsColor: string
+  reactBitsThreadsAmplitude: number
+  reactBitsThreadsDistance: number
+  reactBitsThreadsEnableMouseInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1637,6 +1646,13 @@ export function RunningTimer({
   reactBitsDotGridReturnDuration,
   reactBitsDotGridCursorInteraction,
   reactBitsDotGridClickShock,
+  reactBitsThreadsPaletteMode,
+  reactBitsThreadsPrimaryColor,
+  reactBitsThreadsHarmony,
+  reactBitsThreadsColor,
+  reactBitsThreadsAmplitude,
+  reactBitsThreadsDistance,
+  reactBitsThreadsEnableMouseInteraction,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -2081,6 +2097,12 @@ export function RunningTimer({
     reactBitsDotGridHarmony,
     reactBitsDotGridBaseColor,
     reactBitsDotGridActiveColor,
+  })
+  const threadsColor = resolveReactBitsThreadsColor({
+    reactBitsThreadsPaletteMode,
+    reactBitsThreadsPrimaryColor,
+    reactBitsThreadsHarmony,
+    reactBitsThreadsColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -11084,6 +11106,104 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-threads" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsThreadsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsThreadsPaletteMode: event.target.value as ReactBitsThreadsPaletteMode,
+              })}
+              aria-label="React Bits Threads color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsThreadsPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Thread color</span>
+              <input
+                type="color"
+                value={reactBitsThreadsColor}
+                onChange={(event) => handleSettingsChange({ reactBitsThreadsColor: event.target.value })}
+                aria-label="React Bits Threads color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsThreadsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsThreadsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsThreadsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Threads primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsThreadsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsThreadsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Threads color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsThreadsEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsThreadsEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Threads mouse interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({reactBitsThreadsAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsThreadsAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsThreadsAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Threads amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distance ({reactBitsThreadsDistance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1.5"
+              step="0.05"
+              value={reactBitsThreadsDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsThreadsDistance: Number(event.target.value) })}
+              aria-label="React Bits Threads distance"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -13542,6 +13662,12 @@ export function RunningTimer({
             returnDuration: reactBitsDotGridReturnDuration,
             cursorInteraction: reactBitsDotGridCursorInteraction,
             clickShock: reactBitsDotGridClickShock,
+          }}
+          reactBitsThreads={{
+            color: threadsColor,
+            amplitude: reactBitsThreadsAmplitude,
+            distance: reactBitsThreadsDistance,
+            enableMouseInteraction: reactBitsThreadsEnableMouseInteraction,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

@@ -55,6 +55,7 @@ export interface BackgroundEffectProps {
   reactBitsRippleGrid?: ReactBitsRippleGridOptions
   reactBitsDotField?: ReactBitsDotFieldOptions
   reactBitsDotGrid?: ReactBitsDotGridOptions
+  reactBitsThreads?: ReactBitsThreadsOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -701,6 +702,13 @@ export interface ReactBitsDotGridOptions {
   returnDuration?: number
   cursorInteraction?: boolean
   clickShock?: boolean
+}
+
+export interface ReactBitsThreadsOptions {
+  color?: string
+  amplitude?: number
+  distance?: number
+  enableMouseInteraction?: boolean
 }
 
 export interface EldoraNovatrixOptions {

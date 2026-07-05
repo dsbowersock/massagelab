@@ -3030,6 +3030,44 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsDotGridReturnDuration: 0 }).reactBitsDotGridReturnDuration, 0.1)
   })
 
+  it("normalizes React Bits Threads background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsThreadsPaletteMode: "harmony",
+      reactBitsThreadsPrimaryColor: "#abcdef",
+      reactBitsThreadsHarmony: "triad",
+      reactBitsThreadsColor: "#010203",
+      reactBitsThreadsAmplitude: 99,
+      reactBitsThreadsDistance: 99,
+      reactBitsThreadsEnableMouseInteraction: true,
+    })
+
+    assert.equal(settings.reactBitsThreadsPaletteMode, "harmony")
+    assert.equal(settings.reactBitsThreadsPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsThreadsHarmony, "triad")
+    assert.equal(settings.reactBitsThreadsColor, "#010203")
+    assert.equal(settings.reactBitsThreadsAmplitude, 3)
+    assert.equal(settings.reactBitsThreadsDistance, 1.5)
+    assert.equal(settings.reactBitsThreadsEnableMouseInteraction, true)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsThreadsPaletteMode: "auto" }).reactBitsThreadsPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsThreadsPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsThreadsPrimaryColor: "white" }).reactBitsThreadsPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsThreadsPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsThreadsHarmony: "wild" }).reactBitsThreadsHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsThreadsHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsThreadsColor: "white" }).reactBitsThreadsColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsThreadsColor,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsThreadsAmplitude: -1 }).reactBitsThreadsAmplitude, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsThreadsDistance: -9 }).reactBitsThreadsDistance, -1)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
