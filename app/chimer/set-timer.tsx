@@ -48,6 +48,16 @@ export type ReactBitsFloatingLinesPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsFloatingLinesBlendMode = "screen" | "normal" | "lighten" | "plus-lighter"
 export type ReactBitsSideRaysPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsSideRaysOrigin = "top-right" | "top-left" | "bottom-right" | "bottom-left"
+export type ReactBitsLightRaysPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsLightRaysOrigin =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "left"
+  | "right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -665,6 +675,21 @@ export interface ChimerSettings {
   reactBitsSideRaysBlend: number
   reactBitsSideRaysFalloff: number
   reactBitsSideRaysOpacity: number
+  reactBitsLightRaysPaletteMode: ReactBitsLightRaysPaletteMode
+  reactBitsLightRaysPrimaryColor: string
+  reactBitsLightRaysHarmony: ColorHarmony
+  reactBitsLightRaysColor: string
+  reactBitsLightRaysOrigin: ReactBitsLightRaysOrigin
+  reactBitsLightRaysSpeed: number
+  reactBitsLightRaysSpread: number
+  reactBitsLightRaysLength: number
+  reactBitsLightRaysPulsating: boolean
+  reactBitsLightRaysFadeDistance: number
+  reactBitsLightRaysSaturation: number
+  reactBitsLightRaysFollowMouse: boolean
+  reactBitsLightRaysMouseInfluence: number
+  reactBitsLightRaysNoiseAmount: number
+  reactBitsLightRaysDistortion: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -964,6 +989,14 @@ type ReactBitsSideRaysColorSettings = Pick<
   | "reactBitsSideRaysColorTwo"
 >
 
+type ReactBitsLightRaysColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsLightRaysPaletteMode"
+  | "reactBitsLightRaysPrimaryColor"
+  | "reactBitsLightRaysHarmony"
+  | "reactBitsLightRaysColor"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1182,6 +1215,21 @@ export function resolveReactBitsSideRaysColors(settings: ReactBitsSideRaysColorS
     settings.reactBitsSideRaysColorOne,
     settings.reactBitsSideRaysColorTwo,
   ]
+}
+
+export function resolveReactBitsLightRaysColor(settings: ReactBitsLightRaysColorSettings): string {
+  if (settings.reactBitsLightRaysPaletteMode === "source") {
+    return "#FFFFFF"
+  }
+
+  if (settings.reactBitsLightRaysPaletteMode === "harmony") {
+    return createReactBitsLightRaysHarmonyColor(
+      settings.reactBitsLightRaysPrimaryColor,
+      settings.reactBitsLightRaysHarmony,
+    )
+  }
+
+  return settings.reactBitsLightRaysColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -1808,6 +1856,35 @@ export function createReactBitsLiquidEtherHarmonyPalette(
         hslToHex(hue, richSaturation, midLightness),
         hslToHex(hue + 28, Math.min(0.98, richSaturation * 1.02), highlightLightness),
       ]
+  }
+}
+
+export function createReactBitsLightRaysHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): string {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const raySaturation = Math.min(0.92, Math.max(0.28, saturation))
+  const rayLightness = Math.min(0.9, Math.max(0.5, lightness + 0.1))
+
+  switch (harmony) {
+    case "complementary":
+      return hslToHex(hue + 180, Math.min(0.86, raySaturation * 0.9), rayLightness)
+    case "split-complementary":
+      return hslToHex(hue + 150, Math.min(0.9, raySaturation * 0.95), rayLightness)
+    case "triad":
+      return hslToHex(hue + 120, Math.min(0.9, raySaturation * 0.95), rayLightness)
+    case "square":
+      return hslToHex(hue + 90, Math.min(0.86, raySaturation * 0.9), rayLightness)
+    case "compound":
+      return hslToHex(hue - 24, Math.min(0.92, raySaturation), rayLightness)
+    case "shades":
+      return hslToHex(hue, raySaturation, Math.min(0.92, rayLightness + 0.08))
+    case "monochromatic":
+      return hslToHex(hue, Math.min(0.62, raySaturation * 0.7), rayLightness)
+    case "analogous":
+    default:
+      return hslToHex(hue + 28, Math.min(0.9, raySaturation * 0.92), rayLightness)
   }
 }
 
@@ -6271,6 +6348,216 @@ export function SetTimer({
               value={settings.reactBitsSideRaysOpacity}
               onChange={(event) => onSettingsChange({ reactBitsSideRaysOpacity: Number(event.target.value) })}
               aria-label="Side Rays opacity"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-light-rays") {
+      const useCustomRayColor = settings.reactBitsLightRaysPaletteMode === "custom"
+      const useHarmonyRayColor = settings.reactBitsLightRaysPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsLightRaysPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLightRaysPaletteMode: event.target.value as ReactBitsLightRaysPaletteMode,
+              })}
+              aria-label="React Bits Light Rays color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom ray</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomRayColor && (
+            <label className={styles.colorRow}>
+              <span>Ray color</span>
+              <input
+                type="color"
+                value={settings.reactBitsLightRaysColor}
+                onChange={(event) => onSettingsChange({ reactBitsLightRaysColor: event.target.value })}
+                aria-label="React Bits Light Rays color"
+              />
+            </label>
+          )}
+
+          {useHarmonyRayColor && (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLightRaysPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLightRaysPrimaryColor: event.target.value })}
+                  aria-label="React Bits Light Rays primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsLightRaysHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLightRaysHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Light Rays color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Origin</span>
+            <select
+              value={settings.reactBitsLightRaysOrigin}
+              onChange={(event) => onSettingsChange({
+                reactBitsLightRaysOrigin: event.target.value as ReactBitsLightRaysOrigin,
+              })}
+              aria-label="React Bits Light Rays origin"
+            >
+              <option value="top-left">Top left</option>
+              <option value="top-center">Top center</option>
+              <option value="top-right">Top right</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+              <option value="bottom-left">Bottom left</option>
+              <option value="bottom-center">Bottom center</option>
+              <option value="bottom-right">Bottom right</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLightRaysPulsating}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysPulsating: event.target.checked })}
+              aria-label="React Bits Light Rays pulsating"
+            />
+            <span>Pulsating rays</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLightRaysFollowMouse}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysFollowMouse: event.target.checked })}
+              aria-label="React Bits Light Rays follow mouse"
+            />
+            <span>Follow cursor</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsLightRaysSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={settings.reactBitsLightRaysSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysSpeed: Number(event.target.value) })}
+              aria-label="React Bits Light Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({settings.reactBitsLightRaysSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.1"
+              value={settings.reactBitsLightRaysSpread}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysSpread: Number(event.target.value) })}
+              aria-label="React Bits Light Rays spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Length ({settings.reactBitsLightRaysLength.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="5"
+              step="0.05"
+              value={settings.reactBitsLightRaysLength}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysLength: Number(event.target.value) })}
+              aria-label="React Bits Light Rays length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fade distance ({settings.reactBitsLightRaysFadeDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value={settings.reactBitsLightRaysFadeDistance}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysFadeDistance: Number(event.target.value) })}
+              aria-label="React Bits Light Rays fade distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({settings.reactBitsLightRaysSaturation.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={settings.reactBitsLightRaysSaturation}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysSaturation: Number(event.target.value) })}
+              aria-label="React Bits Light Rays saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({settings.reactBitsLightRaysMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsLightRaysMouseInfluence}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Light Rays mouse influence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsLightRaysNoiseAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsLightRaysNoiseAmount}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysNoiseAmount: Number(event.target.value) })}
+              aria-label="React Bits Light Rays noise amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({settings.reactBitsLightRaysDistortion.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsLightRaysDistortion}
+              onChange={(event) => onSettingsChange({ reactBitsLightRaysDistortion: Number(event.target.value) })}
+              aria-label="React Bits Light Rays distortion"
             />
           </label>
         </div>

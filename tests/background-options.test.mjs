@@ -70,6 +70,7 @@ describe("premium background registry", () => {
       "react-bits-silk",
       "react-bits-floating-lines",
       "react-bits-side-rays",
+      "react-bits-light-rays",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -285,6 +286,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-silk"))
     assert.ok(chimerOptions.includes("react-bits-floating-lines"))
     assert.ok(chimerOptions.includes("react-bits-side-rays"))
+    assert.ok(chimerOptions.includes("react-bits-light-rays"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -328,6 +330,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-silk"))
     assert.ok(clockOptions.includes("react-bits-floating-lines"))
     assert.ok(clockOptions.includes("react-bits-side-rays"))
+    assert.ok(clockOptions.includes("react-bits-light-rays"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -372,6 +375,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-silk"))
     assert.ok(musicOptions.includes("react-bits-floating-lines"))
     assert.ok(musicOptions.includes("react-bits-side-rays"))
+    assert.ok(musicOptions.includes("react-bits-light-rays"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1939,6 +1943,101 @@ describe("premium background registry", () => {
       "reactBitsSideRaysBlend",
       "reactBitsSideRaysFalloff",
       "reactBitsSideRaysOpacity",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Light Rays source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-light-rays-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-light-rays/)
+    assert.match(registrySource, /Light Rays/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/light-rays/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsLightRaysBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHT_RAYS/)
+    assert.match(effectSource, /rayStrength/)
+    assert.match(effectSource, /getAnchorAndDir/)
+    assert.match(effectSource, /mouseInfluence/)
+    assert.match(effectSource, /noiseAmount/)
+    assert.match(effectSource, /distortion/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /raysOrigin:\s*"top-center"/)
+    assert.match(effectSource, /raysColor:\s*"#FFFFFF"/)
+    assert.match(effectSource, /raysSpeed:\s*1/)
+    assert.match(effectSource, /lightSpread:\s*1/)
+    assert.match(effectSource, /rayLength:\s*2/)
+    assert.match(effectSource, /pulsating:\s*false/)
+    assert.match(effectSource, /followMouse:\s*false/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsLightRays/)
+    assert.match(stylesSource, /reactBitsLightRaysCanvas/)
+
+    assert.match(hostSource, /reactBitsLightRays/)
+    assert.match(cssEffectsSource, /ReactBitsLightRaysOptions/)
+    assert.match(setupSource, /resolveReactBitsLightRaysColor/)
+    assert.match(runningSource, /reactBitsLightRays=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsLightRays=\{\{/)
+    assert.match(docsSource, /Light Rays \| https:\/\/reactbits\.dev\/backgrounds\/light-rays/)
+    assert.match(docsSource, /LightRays\.jsx/)
+    assert.match(docsSource, /LightRays\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsLightRaysPaletteMode",
+      "reactBitsLightRaysPrimaryColor",
+      "reactBitsLightRaysHarmony",
+      "reactBitsLightRaysColor",
+      "reactBitsLightRaysOrigin",
+      "reactBitsLightRaysSpeed",
+      "reactBitsLightRaysSpread",
+      "reactBitsLightRaysLength",
+      "reactBitsLightRaysPulsating",
+      "reactBitsLightRaysFadeDistance",
+      "reactBitsLightRaysSaturation",
+      "reactBitsLightRaysFollowMouse",
+      "reactBitsLightRaysMouseInfluence",
+      "reactBitsLightRaysNoiseAmount",
+      "reactBitsLightRaysDistortion",
     ]
 
     for (const settingKey of settingKeys) {

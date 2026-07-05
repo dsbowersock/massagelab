@@ -34,6 +34,7 @@ import type {
   ReactBitsSilkOptions,
   ReactBitsFloatingLinesOptions,
   ReactBitsSideRaysOptions,
+  ReactBitsLightRaysOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -83,6 +84,7 @@ interface BackgroundHostProps {
   reactBitsSilk?: ReactBitsSilkOptions
   reactBitsFloatingLines?: ReactBitsFloatingLinesOptions
   reactBitsSideRays?: ReactBitsSideRaysOptions
+  reactBitsLightRays?: ReactBitsLightRaysOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -148,6 +150,7 @@ export function BackgroundHost({
   reactBitsSilk,
   reactBitsFloatingLines,
   reactBitsSideRays,
+  reactBitsLightRays,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -238,6 +241,7 @@ export function BackgroundHost({
           reactBitsSilk={reactBitsSilk}
           reactBitsFloatingLines={reactBitsFloatingLines}
           reactBitsSideRays={reactBitsSideRays}
+          reactBitsLightRays={reactBitsLightRays}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

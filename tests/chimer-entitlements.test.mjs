@@ -904,6 +904,65 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsSideRaysOpacity, 0.7)
   })
 
+  it("resets React Bits Light Rays controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-light-rays",
+      reactBitsLightRaysPaletteMode: "harmony",
+      reactBitsLightRaysPrimaryColor: "#FFFFFF",
+      reactBitsLightRaysHarmony: "triad",
+      reactBitsLightRaysColor: "#ABCDEF",
+      reactBitsLightRaysOrigin: "bottom-center",
+      reactBitsLightRaysSpeed: 3.5,
+      reactBitsLightRaysSpread: 3,
+      reactBitsLightRaysLength: 4,
+      reactBitsLightRaysPulsating: true,
+      reactBitsLightRaysFadeDistance: 2.2,
+      reactBitsLightRaysSaturation: 2,
+      reactBitsLightRaysFollowMouse: true,
+      reactBitsLightRaysMouseInfluence: 0.7,
+      reactBitsLightRaysNoiseAmount: 0.45,
+      reactBitsLightRaysDistortion: 1.5,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.reactBitsLightRaysPaletteMode, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysPaletteMode)
+    assert.equal(freeSettings.reactBitsLightRaysPrimaryColor, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysPrimaryColor)
+    assert.equal(freeSettings.reactBitsLightRaysHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysHarmony)
+    assert.equal(freeSettings.reactBitsLightRaysColor, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysColor)
+    assert.equal(freeSettings.reactBitsLightRaysOrigin, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysOrigin)
+    assert.equal(freeSettings.reactBitsLightRaysSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysSpeed)
+    assert.equal(freeSettings.reactBitsLightRaysSpread, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysSpread)
+    assert.equal(freeSettings.reactBitsLightRaysLength, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysLength)
+    assert.equal(freeSettings.reactBitsLightRaysPulsating, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysPulsating)
+    assert.equal(freeSettings.reactBitsLightRaysFadeDistance, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysFadeDistance)
+    assert.equal(freeSettings.reactBitsLightRaysSaturation, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysSaturation)
+    assert.equal(freeSettings.reactBitsLightRaysFollowMouse, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysFollowMouse)
+    assert.equal(freeSettings.reactBitsLightRaysMouseInfluence, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysMouseInfluence)
+    assert.equal(freeSettings.reactBitsLightRaysNoiseAmount, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysNoiseAmount)
+    assert.equal(freeSettings.reactBitsLightRaysDistortion, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysDistortion)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-light-rays")
+    assert.equal(premiumSettings.reactBitsLightRaysPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsLightRaysPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsLightRaysHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsLightRaysColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsLightRaysOrigin, "bottom-center")
+    assert.equal(premiumSettings.reactBitsLightRaysSpeed, 3.5)
+    assert.equal(premiumSettings.reactBitsLightRaysSpread, 3)
+    assert.equal(premiumSettings.reactBitsLightRaysLength, 4)
+    assert.equal(premiumSettings.reactBitsLightRaysPulsating, true)
+    assert.equal(premiumSettings.reactBitsLightRaysFadeDistance, 2.2)
+    assert.equal(premiumSettings.reactBitsLightRaysSaturation, 2)
+    assert.equal(premiumSettings.reactBitsLightRaysFollowMouse, true)
+    assert.equal(premiumSettings.reactBitsLightRaysMouseInfluence, 0.7)
+    assert.equal(premiumSettings.reactBitsLightRaysNoiseAmount, 0.45)
+    assert.equal(premiumSettings.reactBitsLightRaysDistortion, 1.5)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

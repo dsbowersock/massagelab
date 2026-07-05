@@ -29,6 +29,7 @@ export type BackgroundId =
   | "react-bits-silk"
   | "react-bits-floating-lines"
   | "react-bits-side-rays"
+  | "react-bits-light-rays"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -102,6 +103,7 @@ const reactBitsLightPillar = () => import("./effects/react-bits-light-pillar-bac
 const reactBitsSilk = () => import("./effects/react-bits-silk-background")
 const reactBitsFloatingLines = () => import("./effects/react-bits-floating-lines-background")
 const reactBitsSideRays = () => import("./effects/react-bits-side-rays-background")
+const reactBitsLightRays = () => import("./effects/react-bits-light-rays-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -617,6 +619,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 86% 10%, rgba(234,179,8,0.2), transparent 36%), radial-gradient(circle at 82% 14%, rgba(150,200,255,0.16), transparent 42%), linear-gradient(145deg, #03040a 0%, #07101f 58%, #000000 100%)",
+    },
+  },
+  {
+    id: "react-bits-light-rays",
+    label: "React Bits Light Rays",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/light-rays",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium source-shaped ray shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony ray color, origin, speed, spread, length, pulsating, fade distance, saturation, optional mouse follow, noise, and distortion controls; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsLightRays().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.24), transparent 42%), radial-gradient(circle at 42% 24%, rgba(160,210,255,0.16), transparent 42%), linear-gradient(180deg, #020617 0%, #05070d 100%)",
     },
   },
   {
