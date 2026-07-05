@@ -80,6 +80,7 @@ import {
   resolveReactBitsFloatingLinesGradient,
   resolveReactBitsSideRaysColors,
   resolveReactBitsLightRaysColor,
+  resolveReactBitsPixelBlastColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -101,6 +102,8 @@ import {
   type ReactBitsSideRaysPaletteMode,
   type ReactBitsLightRaysOrigin,
   type ReactBitsLightRaysPaletteMode,
+  type ReactBitsPixelBlastPaletteMode,
+  type ReactBitsPixelBlastVariant,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -400,6 +403,29 @@ interface RunningTimerProps {
   reactBitsLightRaysMouseInfluence: number
   reactBitsLightRaysNoiseAmount: number
   reactBitsLightRaysDistortion: number
+  reactBitsPixelBlastPaletteMode: ReactBitsPixelBlastPaletteMode
+  reactBitsPixelBlastPrimaryColor: string
+  reactBitsPixelBlastHarmony: ColorHarmony
+  reactBitsPixelBlastColor: string
+  reactBitsPixelBlastVariant: ReactBitsPixelBlastVariant
+  reactBitsPixelBlastPixelSize: number
+  reactBitsPixelBlastAntialias: boolean
+  reactBitsPixelBlastPatternScale: number
+  reactBitsPixelBlastPatternDensity: number
+  reactBitsPixelBlastLiquid: boolean
+  reactBitsPixelBlastLiquidStrength: number
+  reactBitsPixelBlastLiquidRadius: number
+  reactBitsPixelBlastPixelSizeJitter: number
+  reactBitsPixelBlastEnableRipples: boolean
+  reactBitsPixelBlastRippleIntensityScale: number
+  reactBitsPixelBlastRippleThickness: number
+  reactBitsPixelBlastRippleSpeed: number
+  reactBitsPixelBlastLiquidWobbleSpeed: number
+  reactBitsPixelBlastAutoPauseOffscreen: boolean
+  reactBitsPixelBlastSpeed: number
+  reactBitsPixelBlastTransparent: boolean
+  reactBitsPixelBlastEdgeFade: number
+  reactBitsPixelBlastNoiseAmount: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -856,6 +882,29 @@ export function RunningTimer({
   reactBitsLightRaysMouseInfluence,
   reactBitsLightRaysNoiseAmount,
   reactBitsLightRaysDistortion,
+  reactBitsPixelBlastPaletteMode,
+  reactBitsPixelBlastPrimaryColor,
+  reactBitsPixelBlastHarmony,
+  reactBitsPixelBlastColor,
+  reactBitsPixelBlastVariant,
+  reactBitsPixelBlastPixelSize,
+  reactBitsPixelBlastAntialias,
+  reactBitsPixelBlastPatternScale,
+  reactBitsPixelBlastPatternDensity,
+  reactBitsPixelBlastLiquid,
+  reactBitsPixelBlastLiquidStrength,
+  reactBitsPixelBlastLiquidRadius,
+  reactBitsPixelBlastPixelSizeJitter,
+  reactBitsPixelBlastEnableRipples,
+  reactBitsPixelBlastRippleIntensityScale,
+  reactBitsPixelBlastRippleThickness,
+  reactBitsPixelBlastRippleSpeed,
+  reactBitsPixelBlastLiquidWobbleSpeed,
+  reactBitsPixelBlastAutoPauseOffscreen,
+  reactBitsPixelBlastSpeed,
+  reactBitsPixelBlastTransparent,
+  reactBitsPixelBlastEdgeFade,
+  reactBitsPixelBlastNoiseAmount,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1145,6 +1194,12 @@ export function RunningTimer({
     reactBitsLightRaysPrimaryColor,
     reactBitsLightRaysHarmony,
     reactBitsLightRaysColor,
+  })
+  const pixelBlastColor = resolveReactBitsPixelBlastColor({
+    reactBitsPixelBlastPaletteMode,
+    reactBitsPixelBlastPrimaryColor,
+    reactBitsPixelBlastHarmony,
+    reactBitsPixelBlastColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -5431,6 +5486,314 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-pixel-blast" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPixelBlastPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastPaletteMode: event.target.value as ReactBitsPixelBlastPaletteMode,
+              })}
+              aria-label="React Bits Pixel Blast color mode"
+            >
+              <option value="source">Source lavender</option>
+              <option value="custom">Custom pixel</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPixelBlastPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Pixel color</span>
+              <input
+                type="color"
+                value={reactBitsPixelBlastColor}
+                onChange={(event) => handleSettingsChange({ reactBitsPixelBlastColor: event.target.value })}
+                aria-label="React Bits Pixel Blast color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsPixelBlastPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPixelBlastPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPrimaryColor: event.target.value })}
+                  aria-label="React Bits Pixel Blast primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsPixelBlastHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPixelBlastHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Pixel Blast color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Shape</span>
+            <select
+              value={reactBitsPixelBlastVariant}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastVariant: event.target.value as ReactBitsPixelBlastVariant,
+              })}
+              aria-label="React Bits Pixel Blast shape"
+            >
+              <option value="square">Square</option>
+              <option value="circle">Circle</option>
+              <option value="triangle">Triangle</option>
+              <option value="diamond">Diamond</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastAntialias}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastAntialias: event.target.checked })}
+              aria-label="React Bits Pixel Blast antialias"
+            />
+            <span>Antialias edges</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastEnableRipples}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastEnableRipples: event.target.checked })}
+              aria-label="React Bits Pixel Blast ripple clicks"
+            />
+            <span>Ripple clicks</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastLiquid}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastLiquid: event.target.checked })}
+              aria-label="React Bits Pixel Blast liquid pointer warp"
+            />
+            <span>Liquid pointer warp</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastTransparent: event.target.checked })}
+              aria-label="React Bits Pixel Blast transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastAutoPauseOffscreen}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastAutoPauseOffscreen: event.target.checked })}
+              aria-label="React Bits Pixel Blast pause offscreen"
+            />
+            <span>Pause offscreen</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel size ({reactBitsPixelBlastPixelSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={reactBitsPixelBlastPixelSize}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPixelSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pixel size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pattern scale ({reactBitsPixelBlastPatternScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="8"
+              step="0.05"
+              value={reactBitsPixelBlastPatternScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPatternScale: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pattern scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsPixelBlastPatternDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsPixelBlastPatternDensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastPatternDensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast pattern density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPixelBlastSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPixelBlastSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel jitter ({reactBitsPixelBlastPixelSizeJitter.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPixelBlastPixelSizeJitter}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastPixelSizeJitter: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast pixel jitter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Edge fade ({reactBitsPixelBlastEdgeFade.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPixelBlastEdgeFade}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastEdgeFade: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast edge fade"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple intensity ({reactBitsPixelBlastRippleIntensityScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsPixelBlastRippleIntensityScale}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastRippleIntensityScale: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast ripple intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple thickness ({reactBitsPixelBlastRippleThickness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="0.5"
+              step="0.01"
+              value={reactBitsPixelBlastRippleThickness}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastRippleThickness: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast ripple thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple speed ({reactBitsPixelBlastRippleSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsPixelBlastRippleSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastRippleSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast ripple speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid strength ({reactBitsPixelBlastLiquidStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.01"
+              value={reactBitsPixelBlastLiquidStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastLiquidStrength: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast liquid strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid radius ({reactBitsPixelBlastLiquidRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.1"
+              value={reactBitsPixelBlastLiquidRadius}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastLiquidRadius: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast liquid radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid wobble ({reactBitsPixelBlastLiquidWobbleSpeed.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.1"
+              value={reactBitsPixelBlastLiquidWobbleSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastLiquidWobbleSpeed: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast liquid wobble speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsPixelBlastNoiseAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.01"
+              value={reactBitsPixelBlastNoiseAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastNoiseAmount: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast noise amount"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -7560,6 +7923,28 @@ export function RunningTimer({
             mouseInfluence: reactBitsLightRaysMouseInfluence,
             noiseAmount: reactBitsLightRaysNoiseAmount,
             distortion: reactBitsLightRaysDistortion,
+          }}
+          reactBitsPixelBlast={{
+            variant: reactBitsPixelBlastVariant,
+            pixelSize: reactBitsPixelBlastPixelSize,
+            color: pixelBlastColor,
+            antialias: reactBitsPixelBlastAntialias,
+            patternScale: reactBitsPixelBlastPatternScale,
+            patternDensity: reactBitsPixelBlastPatternDensity,
+            liquid: reactBitsPixelBlastLiquid,
+            liquidStrength: reactBitsPixelBlastLiquidStrength,
+            liquidRadius: reactBitsPixelBlastLiquidRadius,
+            pixelSizeJitter: reactBitsPixelBlastPixelSizeJitter,
+            enableRipples: reactBitsPixelBlastEnableRipples,
+            rippleIntensityScale: reactBitsPixelBlastRippleIntensityScale,
+            rippleThickness: reactBitsPixelBlastRippleThickness,
+            rippleSpeed: reactBitsPixelBlastRippleSpeed,
+            liquidWobbleSpeed: reactBitsPixelBlastLiquidWobbleSpeed,
+            autoPauseOffscreen: reactBitsPixelBlastAutoPauseOffscreen,
+            speed: reactBitsPixelBlastSpeed,
+            transparent: reactBitsPixelBlastTransparent,
+            edgeFade: reactBitsPixelBlastEdgeFade,
+            noiseAmount: reactBitsPixelBlastNoiseAmount,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

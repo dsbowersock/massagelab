@@ -71,6 +71,7 @@ describe("premium background registry", () => {
       "react-bits-floating-lines",
       "react-bits-side-rays",
       "react-bits-light-rays",
+      "react-bits-pixel-blast",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -287,6 +288,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-floating-lines"))
     assert.ok(chimerOptions.includes("react-bits-side-rays"))
     assert.ok(chimerOptions.includes("react-bits-light-rays"))
+    assert.ok(chimerOptions.includes("react-bits-pixel-blast"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -331,6 +333,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-floating-lines"))
     assert.ok(clockOptions.includes("react-bits-side-rays"))
     assert.ok(clockOptions.includes("react-bits-light-rays"))
+    assert.ok(clockOptions.includes("react-bits-pixel-blast"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -376,6 +379,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-floating-lines"))
     assert.ok(musicOptions.includes("react-bits-side-rays"))
     assert.ok(musicOptions.includes("react-bits-light-rays"))
+    assert.ok(musicOptions.includes("react-bits-pixel-blast"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2038,6 +2042,119 @@ describe("premium background registry", () => {
       "reactBitsLightRaysMouseInfluence",
       "reactBitsLightRaysNoiseAmount",
       "reactBitsLightRaysDistortion",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Pixel Blast source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-pixel-blast-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-pixel-blast/)
+    assert.match(registrySource, /Pixel Blast/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/pixel-blast/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsPixelBlastBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_PIXEL_BLAST/)
+    assert.match(effectSource, /Bayer8/)
+    assert.match(effectSource, /fbm2/)
+    assert.match(effectSource, /maskCircle/)
+    assert.match(effectSource, /maskTriangle/)
+    assert.match(effectSource, /maskDiamond/)
+    assert.match(effectSource, /createTouchTexture/)
+    assert.match(effectSource, /uTouchTexture/)
+    assert.match(effectSource, /uClickPos/)
+    assert.match(effectSource, /OES_standard_derivatives/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteTexture/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /variant:\s*"square"/)
+    assert.match(effectSource, /pixelSize:\s*3/)
+    assert.match(effectSource, /color:\s*"#B497CF"/)
+    assert.match(effectSource, /patternScale:\s*2/)
+    assert.match(effectSource, /patternDensity:\s*1/)
+    assert.match(effectSource, /liquid:\s*false/)
+    assert.match(effectSource, /enableRipples:\s*true/)
+    assert.match(effectSource, /speed:\s*0\.5/)
+    assert.match(effectSource, /transparent:\s*true/)
+    assert.match(effectSource, /edgeFade:\s*0\.5/)
+    assert.match(effectSource, /noiseAmount:\s*0/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "postprocessing"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsPixelBlast/)
+    assert.match(stylesSource, /reactBitsPixelBlastCanvas/)
+
+    assert.match(hostSource, /reactBitsPixelBlast/)
+    assert.match(cssEffectsSource, /ReactBitsPixelBlastOptions/)
+    assert.match(setupSource, /resolveReactBitsPixelBlastColor/)
+    assert.match(runningSource, /reactBitsPixelBlast=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsPixelBlast=\{\{/)
+    assert.match(docsSource, /Pixel Blast \| https:\/\/reactbits\.dev\/backgrounds\/pixel-blast/)
+    assert.match(docsSource, /PixelBlast\.jsx/)
+    assert.match(docsSource, /PixelBlast\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /Three\.js/)
+    assert.match(docsSource, /postprocessing/)
+
+    const settingKeys = [
+      "reactBitsPixelBlastPaletteMode",
+      "reactBitsPixelBlastPrimaryColor",
+      "reactBitsPixelBlastHarmony",
+      "reactBitsPixelBlastColor",
+      "reactBitsPixelBlastVariant",
+      "reactBitsPixelBlastPixelSize",
+      "reactBitsPixelBlastAntialias",
+      "reactBitsPixelBlastPatternScale",
+      "reactBitsPixelBlastPatternDensity",
+      "reactBitsPixelBlastLiquid",
+      "reactBitsPixelBlastLiquidStrength",
+      "reactBitsPixelBlastLiquidRadius",
+      "reactBitsPixelBlastPixelSizeJitter",
+      "reactBitsPixelBlastEnableRipples",
+      "reactBitsPixelBlastRippleIntensityScale",
+      "reactBitsPixelBlastRippleThickness",
+      "reactBitsPixelBlastRippleSpeed",
+      "reactBitsPixelBlastLiquidWobbleSpeed",
+      "reactBitsPixelBlastAutoPauseOffscreen",
+      "reactBitsPixelBlastSpeed",
+      "reactBitsPixelBlastTransparent",
+      "reactBitsPixelBlastEdgeFade",
+      "reactBitsPixelBlastNoiseAmount",
     ]
 
     for (const settingKey of settingKeys) {

@@ -33,6 +33,7 @@ export interface BackgroundEffectProps {
   reactBitsFloatingLines?: ReactBitsFloatingLinesOptions
   reactBitsSideRays?: ReactBitsSideRaysOptions
   reactBitsLightRays?: ReactBitsLightRaysOptions
+  reactBitsPixelBlast?: ReactBitsPixelBlastOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -328,6 +329,29 @@ export interface ReactBitsLightRaysOptions {
   mouseInfluence?: number
   noiseAmount?: number
   distortion?: number
+}
+
+export interface ReactBitsPixelBlastOptions {
+  variant?: "square" | "circle" | "triangle" | "diamond"
+  pixelSize?: number
+  color?: string
+  antialias?: boolean
+  patternScale?: number
+  patternDensity?: number
+  liquid?: boolean
+  liquidStrength?: number
+  liquidRadius?: number
+  pixelSizeJitter?: number
+  enableRipples?: boolean
+  rippleIntensityScale?: number
+  rippleThickness?: number
+  rippleSpeed?: number
+  liquidWobbleSpeed?: number
+  autoPauseOffscreen?: boolean
+  speed?: number
+  transparent?: boolean
+  edgeFade?: number
+  noiseAmount?: number
 }
 
 export interface EldoraNovatrixOptions {

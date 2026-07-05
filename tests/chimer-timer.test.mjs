@@ -1532,6 +1532,102 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Pixel Blast background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsPixelBlastPaletteMode: "harmony",
+      reactBitsPixelBlastPrimaryColor: "#ffffff",
+      reactBitsPixelBlastHarmony: "triad",
+      reactBitsPixelBlastColor: "#abcdef",
+      reactBitsPixelBlastVariant: "diamond",
+      reactBitsPixelBlastPixelSize: 99,
+      reactBitsPixelBlastAntialias: false,
+      reactBitsPixelBlastPatternScale: 99,
+      reactBitsPixelBlastPatternDensity: -1,
+      reactBitsPixelBlastLiquid: true,
+      reactBitsPixelBlastLiquidStrength: 99,
+      reactBitsPixelBlastLiquidRadius: 99,
+      reactBitsPixelBlastPixelSizeJitter: 99,
+      reactBitsPixelBlastEnableRipples: false,
+      reactBitsPixelBlastRippleIntensityScale: 99,
+      reactBitsPixelBlastRippleThickness: 99,
+      reactBitsPixelBlastRippleSpeed: 99,
+      reactBitsPixelBlastLiquidWobbleSpeed: 99,
+      reactBitsPixelBlastAutoPauseOffscreen: false,
+      reactBitsPixelBlastSpeed: 99,
+      reactBitsPixelBlastTransparent: false,
+      reactBitsPixelBlastEdgeFade: 99,
+      reactBitsPixelBlastNoiseAmount: 99,
+    })
+
+    assert.equal(settings.reactBitsPixelBlastPaletteMode, "harmony")
+    assert.equal(settings.reactBitsPixelBlastPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsPixelBlastHarmony, "triad")
+    assert.equal(settings.reactBitsPixelBlastColor, "#ABCDEF")
+    assert.equal(settings.reactBitsPixelBlastVariant, "diamond")
+    assert.equal(settings.reactBitsPixelBlastPixelSize, 16)
+    assert.equal(settings.reactBitsPixelBlastAntialias, false)
+    assert.equal(settings.reactBitsPixelBlastPatternScale, 8)
+    assert.equal(settings.reactBitsPixelBlastPatternDensity, 0)
+    assert.equal(settings.reactBitsPixelBlastLiquid, true)
+    assert.equal(settings.reactBitsPixelBlastLiquidStrength, 0.4)
+    assert.equal(settings.reactBitsPixelBlastLiquidRadius, 4)
+    assert.equal(settings.reactBitsPixelBlastPixelSizeJitter, 1)
+    assert.equal(settings.reactBitsPixelBlastEnableRipples, false)
+    assert.equal(settings.reactBitsPixelBlastRippleIntensityScale, 4)
+    assert.equal(settings.reactBitsPixelBlastRippleThickness, 0.5)
+    assert.equal(settings.reactBitsPixelBlastRippleSpeed, 2)
+    assert.equal(settings.reactBitsPixelBlastLiquidWobbleSpeed, 10)
+    assert.equal(settings.reactBitsPixelBlastAutoPauseOffscreen, false)
+    assert.equal(settings.reactBitsPixelBlastSpeed, 3)
+    assert.equal(settings.reactBitsPixelBlastTransparent, false)
+    assert.equal(settings.reactBitsPixelBlastEdgeFade, 1)
+    assert.equal(settings.reactBitsPixelBlastNoiseAmount, 0.4)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastPaletteMode: "auto" }).reactBitsPixelBlastPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastPrimaryColor: "white" }).reactBitsPixelBlastPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastHarmony: "wild" }).reactBitsPixelBlastHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastColor: "white" }).reactBitsPixelBlastColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastVariant: "hex" }).reactBitsPixelBlastVariant,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastVariant,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastSpeed: "fast" }).reactBitsPixelBlastSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastAntialias: "yes" }).reactBitsPixelBlastAntialias,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastAntialias,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastLiquid: "yes" }).reactBitsPixelBlastLiquid,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastLiquid,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastEnableRipples: "no" }).reactBitsPixelBlastEnableRipples,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastEnableRipples,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastAutoPauseOffscreen: "no" }).reactBitsPixelBlastAutoPauseOffscreen,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastAutoPauseOffscreen,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelBlastTransparent: "no" }).reactBitsPixelBlastTransparent,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelBlastTransparent,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

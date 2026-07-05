@@ -963,6 +963,93 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsLightRaysDistortion, 1.5)
   })
 
+  it("resets React Bits Pixel Blast controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-pixel-blast",
+      reactBitsPixelBlastPaletteMode: "harmony",
+      reactBitsPixelBlastPrimaryColor: "#FFFFFF",
+      reactBitsPixelBlastHarmony: "triad",
+      reactBitsPixelBlastColor: "#ABCDEF",
+      reactBitsPixelBlastVariant: "diamond",
+      reactBitsPixelBlastPixelSize: 12,
+      reactBitsPixelBlastAntialias: false,
+      reactBitsPixelBlastPatternScale: 4,
+      reactBitsPixelBlastPatternDensity: 1.5,
+      reactBitsPixelBlastLiquid: true,
+      reactBitsPixelBlastLiquidStrength: 0.24,
+      reactBitsPixelBlastLiquidRadius: 2.5,
+      reactBitsPixelBlastPixelSizeJitter: 0.4,
+      reactBitsPixelBlastEnableRipples: false,
+      reactBitsPixelBlastRippleIntensityScale: 2.5,
+      reactBitsPixelBlastRippleThickness: 0.24,
+      reactBitsPixelBlastRippleSpeed: 1.2,
+      reactBitsPixelBlastLiquidWobbleSpeed: 6,
+      reactBitsPixelBlastAutoPauseOffscreen: false,
+      reactBitsPixelBlastSpeed: 1.8,
+      reactBitsPixelBlastTransparent: false,
+      reactBitsPixelBlastEdgeFade: 0.2,
+      reactBitsPixelBlastNoiseAmount: 0.18,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsPixelBlastPaletteMode",
+      "reactBitsPixelBlastPrimaryColor",
+      "reactBitsPixelBlastHarmony",
+      "reactBitsPixelBlastColor",
+      "reactBitsPixelBlastVariant",
+      "reactBitsPixelBlastPixelSize",
+      "reactBitsPixelBlastAntialias",
+      "reactBitsPixelBlastPatternScale",
+      "reactBitsPixelBlastPatternDensity",
+      "reactBitsPixelBlastLiquid",
+      "reactBitsPixelBlastLiquidStrength",
+      "reactBitsPixelBlastLiquidRadius",
+      "reactBitsPixelBlastPixelSizeJitter",
+      "reactBitsPixelBlastEnableRipples",
+      "reactBitsPixelBlastRippleIntensityScale",
+      "reactBitsPixelBlastRippleThickness",
+      "reactBitsPixelBlastRippleSpeed",
+      "reactBitsPixelBlastLiquidWobbleSpeed",
+      "reactBitsPixelBlastAutoPauseOffscreen",
+      "reactBitsPixelBlastSpeed",
+      "reactBitsPixelBlastTransparent",
+      "reactBitsPixelBlastEdgeFade",
+      "reactBitsPixelBlastNoiseAmount",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-pixel-blast")
+    assert.equal(premiumSettings.reactBitsPixelBlastPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsPixelBlastPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsPixelBlastHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsPixelBlastColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsPixelBlastVariant, "diamond")
+    assert.equal(premiumSettings.reactBitsPixelBlastPixelSize, 12)
+    assert.equal(premiumSettings.reactBitsPixelBlastAntialias, false)
+    assert.equal(premiumSettings.reactBitsPixelBlastPatternScale, 4)
+    assert.equal(premiumSettings.reactBitsPixelBlastPatternDensity, 1.5)
+    assert.equal(premiumSettings.reactBitsPixelBlastLiquid, true)
+    assert.equal(premiumSettings.reactBitsPixelBlastLiquidStrength, 0.24)
+    assert.equal(premiumSettings.reactBitsPixelBlastLiquidRadius, 2.5)
+    assert.equal(premiumSettings.reactBitsPixelBlastPixelSizeJitter, 0.4)
+    assert.equal(premiumSettings.reactBitsPixelBlastEnableRipples, false)
+    assert.equal(premiumSettings.reactBitsPixelBlastRippleIntensityScale, 2.5)
+    assert.equal(premiumSettings.reactBitsPixelBlastRippleThickness, 0.24)
+    assert.equal(premiumSettings.reactBitsPixelBlastRippleSpeed, 1.2)
+    assert.equal(premiumSettings.reactBitsPixelBlastLiquidWobbleSpeed, 6)
+    assert.equal(premiumSettings.reactBitsPixelBlastAutoPauseOffscreen, false)
+    assert.equal(premiumSettings.reactBitsPixelBlastSpeed, 1.8)
+    assert.equal(premiumSettings.reactBitsPixelBlastTransparent, false)
+    assert.equal(premiumSettings.reactBitsPixelBlastEdgeFade, 0.2)
+    assert.equal(premiumSettings.reactBitsPixelBlastNoiseAmount, 0.18)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

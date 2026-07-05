@@ -58,6 +58,8 @@ export type ReactBitsLightRaysOrigin =
   | "bottom-left"
   | "bottom-center"
   | "bottom-right"
+export type ReactBitsPixelBlastPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsPixelBlastVariant = "square" | "circle" | "triangle" | "diamond"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -690,6 +692,29 @@ export interface ChimerSettings {
   reactBitsLightRaysMouseInfluence: number
   reactBitsLightRaysNoiseAmount: number
   reactBitsLightRaysDistortion: number
+  reactBitsPixelBlastPaletteMode: ReactBitsPixelBlastPaletteMode
+  reactBitsPixelBlastPrimaryColor: string
+  reactBitsPixelBlastHarmony: ColorHarmony
+  reactBitsPixelBlastColor: string
+  reactBitsPixelBlastVariant: ReactBitsPixelBlastVariant
+  reactBitsPixelBlastPixelSize: number
+  reactBitsPixelBlastAntialias: boolean
+  reactBitsPixelBlastPatternScale: number
+  reactBitsPixelBlastPatternDensity: number
+  reactBitsPixelBlastLiquid: boolean
+  reactBitsPixelBlastLiquidStrength: number
+  reactBitsPixelBlastLiquidRadius: number
+  reactBitsPixelBlastPixelSizeJitter: number
+  reactBitsPixelBlastEnableRipples: boolean
+  reactBitsPixelBlastRippleIntensityScale: number
+  reactBitsPixelBlastRippleThickness: number
+  reactBitsPixelBlastRippleSpeed: number
+  reactBitsPixelBlastLiquidWobbleSpeed: number
+  reactBitsPixelBlastAutoPauseOffscreen: boolean
+  reactBitsPixelBlastSpeed: number
+  reactBitsPixelBlastTransparent: boolean
+  reactBitsPixelBlastEdgeFade: number
+  reactBitsPixelBlastNoiseAmount: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -997,6 +1022,14 @@ type ReactBitsLightRaysColorSettings = Pick<
   | "reactBitsLightRaysColor"
 >
 
+type ReactBitsPixelBlastColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsPixelBlastPaletteMode"
+  | "reactBitsPixelBlastPrimaryColor"
+  | "reactBitsPixelBlastHarmony"
+  | "reactBitsPixelBlastColor"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1230,6 +1263,21 @@ export function resolveReactBitsLightRaysColor(settings: ReactBitsLightRaysColor
   }
 
   return settings.reactBitsLightRaysColor
+}
+
+export function resolveReactBitsPixelBlastColor(settings: ReactBitsPixelBlastColorSettings): string {
+  if (settings.reactBitsPixelBlastPaletteMode === "source") {
+    return "#B497CF"
+  }
+
+  if (settings.reactBitsPixelBlastPaletteMode === "harmony") {
+    return createReactBitsPixelBlastHarmonyColor(
+      settings.reactBitsPixelBlastPrimaryColor,
+      settings.reactBitsPixelBlastHarmony,
+    )
+  }
+
+  return settings.reactBitsPixelBlastColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -1885,6 +1933,35 @@ export function createReactBitsLightRaysHarmonyColor(
     case "analogous":
     default:
       return hslToHex(hue + 28, Math.min(0.9, raySaturation * 0.92), rayLightness)
+  }
+}
+
+export function createReactBitsPixelBlastHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): string {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const pixelSaturation = Math.min(0.9, Math.max(0.38, saturation))
+  const pixelLightness = Math.min(0.82, Math.max(0.46, lightness + 0.04))
+
+  switch (harmony) {
+    case "complementary":
+      return hslToHex(hue + 180, Math.min(0.84, pixelSaturation * 0.9), pixelLightness)
+    case "split-complementary":
+      return hslToHex(hue + 150, Math.min(0.86, pixelSaturation * 0.95), pixelLightness)
+    case "triad":
+      return hslToHex(hue + 120, Math.min(0.86, pixelSaturation * 0.95), pixelLightness)
+    case "square":
+      return hslToHex(hue + 90, Math.min(0.84, pixelSaturation * 0.9), pixelLightness)
+    case "compound":
+      return hslToHex(hue - 22, Math.min(0.9, pixelSaturation), pixelLightness)
+    case "shades":
+      return hslToHex(hue, pixelSaturation, Math.min(0.88, pixelLightness + 0.08))
+    case "monochromatic":
+      return hslToHex(hue, Math.min(0.58, pixelSaturation * 0.72), pixelLightness)
+    case "analogous":
+    default:
+      return hslToHex(hue + 28, Math.min(0.88, pixelSaturation * 0.94), pixelLightness)
   }
 }
 
@@ -6558,6 +6635,311 @@ export function SetTimer({
               value={settings.reactBitsLightRaysDistortion}
               onChange={(event) => onSettingsChange({ reactBitsLightRaysDistortion: Number(event.target.value) })}
               aria-label="React Bits Light Rays distortion"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-pixel-blast") {
+      const useCustomPixelColor = settings.reactBitsPixelBlastPaletteMode === "custom"
+      const useHarmonyPixelColor = settings.reactBitsPixelBlastPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsPixelBlastPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsPixelBlastPaletteMode: event.target.value as ReactBitsPixelBlastPaletteMode,
+              })}
+              aria-label="React Bits Pixel Blast color mode"
+            >
+              <option value="source">Source lavender</option>
+              <option value="custom">Custom pixel</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPixelColor && (
+            <label className={styles.colorRow}>
+              <span>Pixel color</span>
+              <input
+                type="color"
+                value={settings.reactBitsPixelBlastColor}
+                onChange={(event) => onSettingsChange({ reactBitsPixelBlastColor: event.target.value })}
+                aria-label="React Bits Pixel Blast color"
+              />
+            </label>
+          )}
+
+          {useHarmonyPixelColor && (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPixelBlastPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsPixelBlastPrimaryColor: event.target.value })}
+                  aria-label="React Bits Pixel Blast primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsPixelBlastHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsPixelBlastHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Pixel Blast color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Shape</span>
+            <select
+              value={settings.reactBitsPixelBlastVariant}
+              onChange={(event) => onSettingsChange({
+                reactBitsPixelBlastVariant: event.target.value as ReactBitsPixelBlastVariant,
+              })}
+              aria-label="React Bits Pixel Blast shape"
+            >
+              <option value="square">Square</option>
+              <option value="circle">Circle</option>
+              <option value="triangle">Triangle</option>
+              <option value="diamond">Diamond</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsPixelBlastAntialias}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastAntialias: event.target.checked })}
+              aria-label="React Bits Pixel Blast antialias"
+            />
+            <span>Antialias edges</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsPixelBlastEnableRipples}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastEnableRipples: event.target.checked })}
+              aria-label="React Bits Pixel Blast ripple clicks"
+            />
+            <span>Ripple clicks</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsPixelBlastLiquid}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastLiquid: event.target.checked })}
+              aria-label="React Bits Pixel Blast liquid pointer warp"
+            />
+            <span>Liquid pointer warp</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsPixelBlastTransparent}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastTransparent: event.target.checked })}
+              aria-label="React Bits Pixel Blast transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsPixelBlastAutoPauseOffscreen}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastAutoPauseOffscreen: event.target.checked })}
+              aria-label="React Bits Pixel Blast pause offscreen"
+            />
+            <span>Pause offscreen</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel size ({settings.reactBitsPixelBlastPixelSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={settings.reactBitsPixelBlastPixelSize}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastPixelSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pixel size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pattern scale ({settings.reactBitsPixelBlastPatternScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="8"
+              step="0.05"
+              value={settings.reactBitsPixelBlastPatternScale}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastPatternScale: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pattern scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({settings.reactBitsPixelBlastPatternDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsPixelBlastPatternDensity}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastPatternDensity: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pattern density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsPixelBlastSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsPixelBlastSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel jitter ({settings.reactBitsPixelBlastPixelSizeJitter.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsPixelBlastPixelSizeJitter}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastPixelSizeJitter: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pixel jitter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Edge fade ({settings.reactBitsPixelBlastEdgeFade.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsPixelBlastEdgeFade}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastEdgeFade: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast edge fade"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple intensity ({settings.reactBitsPixelBlastRippleIntensityScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsPixelBlastRippleIntensityScale}
+              onChange={(event) => onSettingsChange({
+                reactBitsPixelBlastRippleIntensityScale: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast ripple intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple thickness ({settings.reactBitsPixelBlastRippleThickness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="0.5"
+              step="0.01"
+              value={settings.reactBitsPixelBlastRippleThickness}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastRippleThickness: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast ripple thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple speed ({settings.reactBitsPixelBlastRippleSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsPixelBlastRippleSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastRippleSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast ripple speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid strength ({settings.reactBitsPixelBlastLiquidStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.01"
+              value={settings.reactBitsPixelBlastLiquidStrength}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastLiquidStrength: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast liquid strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid radius ({settings.reactBitsPixelBlastLiquidRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.1"
+              value={settings.reactBitsPixelBlastLiquidRadius}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastLiquidRadius: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast liquid radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid wobble ({settings.reactBitsPixelBlastLiquidWobbleSpeed.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.1"
+              value={settings.reactBitsPixelBlastLiquidWobbleSpeed}
+              onChange={(event) => onSettingsChange({
+                reactBitsPixelBlastLiquidWobbleSpeed: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast liquid wobble speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsPixelBlastNoiseAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.01"
+              value={settings.reactBitsPixelBlastNoiseAmount}
+              onChange={(event) => onSettingsChange({ reactBitsPixelBlastNoiseAmount: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast noise amount"
             />
           </label>
         </div>

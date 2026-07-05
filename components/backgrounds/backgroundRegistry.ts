@@ -30,6 +30,7 @@ export type BackgroundId =
   | "react-bits-floating-lines"
   | "react-bits-side-rays"
   | "react-bits-light-rays"
+  | "react-bits-pixel-blast"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -104,6 +105,7 @@ const reactBitsSilk = () => import("./effects/react-bits-silk-background")
 const reactBitsFloatingLines = () => import("./effects/react-bits-floating-lines-background")
 const reactBitsSideRays = () => import("./effects/react-bits-side-rays-background")
 const reactBitsLightRays = () => import("./effects/react-bits-light-rays-background")
+const reactBitsPixelBlast = () => import("./effects/react-bits-pixel-blast-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -640,6 +642,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.24), transparent 42%), radial-gradient(circle at 42% 24%, rgba(160,210,255,0.16), transparent 42%), linear-gradient(180deg, #020617 0%, #05070d 100%)",
+    },
+  },
+  {
+    id: "react-bits-pixel-blast",
+    label: "Pixel Blast",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/pixel-blast",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium dithered pixel-shape shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony pixel color, shape, pixel size, antialiasing, scale, density, jitter, ripple clicks, liquid pointer warp, speed, transparency, edge fade, and noise controls; source Three.js/postprocessing shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsPixelBlast().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 48% 44%, rgba(180,151,207,0.26), transparent 38%), radial-gradient(circle at 62% 62%, rgba(82,39,255,0.16), transparent 42%), linear-gradient(145deg, #05020a 0%, #0f0820 58%, #020106 100%)",
     },
   },
   {
