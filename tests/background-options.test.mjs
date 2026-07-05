@@ -91,6 +91,7 @@ describe("premium background registry", () => {
       "react-bits-dither",
       "react-bits-faulty-terminal",
       "react-bits-ripple-grid",
+      "react-bits-dot-field",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -327,6 +328,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-dither"))
     assert.ok(chimerOptions.includes("react-bits-faulty-terminal"))
     assert.ok(chimerOptions.includes("react-bits-ripple-grid"))
+    assert.ok(chimerOptions.includes("react-bits-dot-field"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -391,6 +393,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-dither"))
     assert.ok(clockOptions.includes("react-bits-faulty-terminal"))
     assert.ok(clockOptions.includes("react-bits-ripple-grid"))
+    assert.ok(clockOptions.includes("react-bits-dot-field"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -456,6 +459,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-dither"))
     assert.ok(musicOptions.includes("react-bits-faulty-terminal"))
     assert.ok(musicOptions.includes("react-bits-ripple-grid"))
+    assert.ok(musicOptions.includes("react-bits-dot-field"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -4093,6 +4097,100 @@ describe("premium background registry", () => {
       "reactBitsRippleGridGridRotation",
       "reactBitsRippleGridMouseInteraction",
       "reactBitsRippleGridMouseInteractionRadius",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Dot Field source-shaped, canvas-based, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-dot-field-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-dot-field/)
+    assert.match(registrySource, /Dot Field/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dot-field/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsDotFieldBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_DOT_FIELD/)
+    assert.match(effectSource, /buildDots/)
+    assert.match(effectSource, /cursorForce/)
+    assert.match(effectSource, /bulgeStrength/)
+    assert.match(effectSource, /glowRadius/)
+    assert.match(effectSource, /sparkle/)
+    assert.match(effectSource, /waveAmplitude/)
+    assert.match(effectSource, /getContext\("2d"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /clearInterval/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsDotField/)
+    assert.match(stylesSource, /reactBitsDotFieldCanvas/)
+    assert.match(stylesSource, /reactBitsDotFieldGlowSvg/)
+    assert.match(hostSource, /reactBitsDotField/)
+    assert.match(cssEffectsSource, /ReactBitsDotFieldOptions/)
+    assert.match(setupSource, /resolveReactBitsDotFieldColors/)
+    assert.match(setupSource, /createReactBitsDotFieldHarmonyColors/)
+    assert.match(runningSource, /reactBitsDotField=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsDotField=\{\{/)
+    assert.match(docsSource, /Dot Field \| https:\/\/reactbits\.dev\/backgrounds\/dot-field/)
+    assert.match(docsSource, /DotField\.jsx/)
+    assert.match(docsSource, /DotField\.css/)
+    assert.match(docsSource, /canvas\/SVG/)
+
+    const settingKeys = [
+      "reactBitsDotFieldPaletteMode",
+      "reactBitsDotFieldPrimaryColor",
+      "reactBitsDotFieldHarmony",
+      "reactBitsDotFieldGradientFromColor",
+      "reactBitsDotFieldGradientFromAlpha",
+      "reactBitsDotFieldGradientToColor",
+      "reactBitsDotFieldGradientToAlpha",
+      "reactBitsDotFieldGlowColor",
+      "reactBitsDotFieldDotRadius",
+      "reactBitsDotFieldDotSpacing",
+      "reactBitsDotFieldCursorRadius",
+      "reactBitsDotFieldCursorForce",
+      "reactBitsDotFieldBulgeOnly",
+      "reactBitsDotFieldBulgeStrength",
+      "reactBitsDotFieldGlowRadius",
+      "reactBitsDotFieldSparkle",
+      "reactBitsDotFieldWaveAmplitude",
+      "reactBitsDotFieldCursorInteraction",
     ]
 
     for (const settingKey of settingKeys) {

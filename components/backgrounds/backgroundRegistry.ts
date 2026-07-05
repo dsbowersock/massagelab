@@ -50,6 +50,7 @@ export type BackgroundId =
   | "react-bits-dither"
   | "react-bits-faulty-terminal"
   | "react-bits-ripple-grid"
+  | "react-bits-dot-field"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -144,6 +145,7 @@ const reactBitsGalaxy = () => import("./effects/react-bits-galaxy-background")
 const reactBitsDither = () => import("./effects/react-bits-dither-background")
 const reactBitsFaultyTerminal = () => import("./effects/react-bits-faulty-terminal-background")
 const reactBitsRippleGrid = () => import("./effects/react-bits-ripple-grid-background")
+const reactBitsDotField = () => import("./effects/react-bits-dot-field-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1124,6 +1126,29 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
       background:
         "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), transparent 42%), linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px), #020617",
       backgroundSize: "100% 100%, 40px 40px, 40px 40px",
+    },
+  },
+  {
+    id: "react-bits-dot-field",
+    label: "Dot Field",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/dot-field",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium reactive dot-field canvas for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "low",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony dot gradient and glow colors plus source-shaped dot radius, spacing, cursor radius/force, bulge mode, bulge strength, glow radius, sparkle, wave, and cursor controls.",
+    component: () => reactBitsDotField().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      backgroundColor: "#080710",
+      backgroundImage:
+        "radial-gradient(circle at 2px 2px, rgba(180,151,207,0.32) 1px, transparent 1.8px), radial-gradient(circle at 50% 50%, rgba(18,15,23,0.85), transparent 32%)",
+      backgroundSize: "18px 18px, 100% 100%",
     },
   },
   {

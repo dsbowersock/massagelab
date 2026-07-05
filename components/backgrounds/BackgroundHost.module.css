@@ -734,6 +734,28 @@
   transform: translateZ(0);
 }
 
+.reactBitsDotField {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reactBitsDotFieldCanvas,
+.reactBitsDotFieldGlowSvg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.reactBitsDotFieldGlow {
+  opacity: 0;
+  will-change: opacity;
+}
+
 .eldoraNovatrixBackground {
   overflow: hidden;
   background:

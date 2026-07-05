@@ -2313,6 +2313,78 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsRippleGridMouseInteractionRadius, 1.7)
   })
 
+  it("resets React Bits Dot Field controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-dot-field",
+      reactBitsDotFieldPaletteMode: "harmony",
+      reactBitsDotFieldPrimaryColor: "#ABCDEF",
+      reactBitsDotFieldHarmony: "triad",
+      reactBitsDotFieldGradientFromColor: "#010203",
+      reactBitsDotFieldGradientFromAlpha: 0.62,
+      reactBitsDotFieldGradientToColor: "#040506",
+      reactBitsDotFieldGradientToAlpha: 0.31,
+      reactBitsDotFieldGlowColor: "#070809",
+      reactBitsDotFieldDotRadius: 2.4,
+      reactBitsDotFieldDotSpacing: 18,
+      reactBitsDotFieldCursorRadius: 420,
+      reactBitsDotFieldCursorForce: 0.24,
+      reactBitsDotFieldBulgeOnly: false,
+      reactBitsDotFieldBulgeStrength: 72,
+      reactBitsDotFieldGlowRadius: 210,
+      reactBitsDotFieldSparkle: true,
+      reactBitsDotFieldWaveAmplitude: 8,
+      reactBitsDotFieldCursorInteraction: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsDotFieldPaletteMode",
+      "reactBitsDotFieldPrimaryColor",
+      "reactBitsDotFieldHarmony",
+      "reactBitsDotFieldGradientFromColor",
+      "reactBitsDotFieldGradientFromAlpha",
+      "reactBitsDotFieldGradientToColor",
+      "reactBitsDotFieldGradientToAlpha",
+      "reactBitsDotFieldGlowColor",
+      "reactBitsDotFieldDotRadius",
+      "reactBitsDotFieldDotSpacing",
+      "reactBitsDotFieldCursorRadius",
+      "reactBitsDotFieldCursorForce",
+      "reactBitsDotFieldBulgeOnly",
+      "reactBitsDotFieldBulgeStrength",
+      "reactBitsDotFieldGlowRadius",
+      "reactBitsDotFieldSparkle",
+      "reactBitsDotFieldWaveAmplitude",
+      "reactBitsDotFieldCursorInteraction",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-dot-field")
+    assert.equal(premiumSettings.reactBitsDotFieldPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsDotFieldPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsDotFieldHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsDotFieldGradientFromColor, "#010203")
+    assert.equal(premiumSettings.reactBitsDotFieldGradientFromAlpha, 0.62)
+    assert.equal(premiumSettings.reactBitsDotFieldGradientToColor, "#040506")
+    assert.equal(premiumSettings.reactBitsDotFieldGradientToAlpha, 0.31)
+    assert.equal(premiumSettings.reactBitsDotFieldGlowColor, "#070809")
+    assert.equal(premiumSettings.reactBitsDotFieldDotRadius, 2.4)
+    assert.equal(premiumSettings.reactBitsDotFieldDotSpacing, 18)
+    assert.equal(premiumSettings.reactBitsDotFieldCursorRadius, 420)
+    assert.equal(premiumSettings.reactBitsDotFieldCursorForce, 0.24)
+    assert.equal(premiumSettings.reactBitsDotFieldBulgeOnly, false)
+    assert.equal(premiumSettings.reactBitsDotFieldBulgeStrength, 72)
+    assert.equal(premiumSettings.reactBitsDotFieldGlowRadius, 210)
+    assert.equal(premiumSettings.reactBitsDotFieldSparkle, true)
+    assert.equal(premiumSettings.reactBitsDotFieldWaveAmplitude, 8)
+    assert.equal(premiumSettings.reactBitsDotFieldCursorInteraction, false)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

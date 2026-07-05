@@ -2897,6 +2897,84 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Dot Field background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsDotFieldPaletteMode: "harmony",
+      reactBitsDotFieldPrimaryColor: "#abcdef",
+      reactBitsDotFieldHarmony: "triad",
+      reactBitsDotFieldGradientFromColor: "#010203",
+      reactBitsDotFieldGradientFromAlpha: 99,
+      reactBitsDotFieldGradientToColor: "#040506",
+      reactBitsDotFieldGradientToAlpha: 99,
+      reactBitsDotFieldGlowColor: "#070809",
+      reactBitsDotFieldDotRadius: 99,
+      reactBitsDotFieldDotSpacing: 99,
+      reactBitsDotFieldCursorRadius: 9999,
+      reactBitsDotFieldCursorForce: 99,
+      reactBitsDotFieldBulgeOnly: false,
+      reactBitsDotFieldBulgeStrength: 999,
+      reactBitsDotFieldGlowRadius: 999,
+      reactBitsDotFieldSparkle: true,
+      reactBitsDotFieldWaveAmplitude: 999,
+      reactBitsDotFieldCursorInteraction: false,
+    })
+
+    assert.equal(settings.reactBitsDotFieldPaletteMode, "harmony")
+    assert.equal(settings.reactBitsDotFieldPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsDotFieldHarmony, "triad")
+    assert.equal(settings.reactBitsDotFieldGradientFromColor, "#010203")
+    assert.equal(settings.reactBitsDotFieldGradientFromAlpha, 1)
+    assert.equal(settings.reactBitsDotFieldGradientToColor, "#040506")
+    assert.equal(settings.reactBitsDotFieldGradientToAlpha, 1)
+    assert.equal(settings.reactBitsDotFieldGlowColor, "#070809")
+    assert.equal(settings.reactBitsDotFieldDotRadius, 8)
+    assert.equal(settings.reactBitsDotFieldDotSpacing, 48)
+    assert.equal(settings.reactBitsDotFieldCursorRadius, 900)
+    assert.equal(settings.reactBitsDotFieldCursorForce, 1)
+    assert.equal(settings.reactBitsDotFieldBulgeOnly, false)
+    assert.equal(settings.reactBitsDotFieldBulgeStrength, 160)
+    assert.equal(settings.reactBitsDotFieldGlowRadius, 360)
+    assert.equal(settings.reactBitsDotFieldSparkle, true)
+    assert.equal(settings.reactBitsDotFieldWaveAmplitude, 48)
+    assert.equal(settings.reactBitsDotFieldCursorInteraction, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldPaletteMode: "auto" }).reactBitsDotFieldPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldPrimaryColor: "white" }).reactBitsDotFieldPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldHarmony: "wild" }).reactBitsDotFieldHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldGradientFromColor: "white" }).reactBitsDotFieldGradientFromColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldGradientFromColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldBulgeOnly: "yes" }).reactBitsDotFieldBulgeOnly,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldBulgeOnly,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldSparkle: "yes" }).reactBitsDotFieldSparkle,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldSparkle,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotFieldCursorInteraction: "yes" }).reactBitsDotFieldCursorInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotFieldCursorInteraction,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldGradientFromAlpha: -1 }).reactBitsDotFieldGradientFromAlpha, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldDotRadius: 0 }).reactBitsDotFieldDotRadius, 0.5)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldDotSpacing: 0 }).reactBitsDotFieldDotSpacing, 4)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldCursorRadius: 0 }).reactBitsDotFieldCursorRadius, 60)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldCursorForce: 0 }).reactBitsDotFieldCursorForce, 0.01)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldBulgeStrength: -1 }).reactBitsDotFieldBulgeStrength, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldGlowRadius: -1 }).reactBitsDotFieldGlowRadius, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotFieldWaveAmplitude: -1 }).reactBitsDotFieldWaveAmplitude, 0)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

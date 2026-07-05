@@ -53,6 +53,7 @@ export interface BackgroundEffectProps {
   reactBitsDither?: ReactBitsDitherOptions
   reactBitsFaultyTerminal?: ReactBitsFaultyTerminalOptions
   reactBitsRippleGrid?: ReactBitsRippleGridOptions
+  reactBitsDotField?: ReactBitsDotFieldOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -667,6 +668,22 @@ export interface ReactBitsRippleGridOptions {
   gridRotation?: number
   mouseInteraction?: boolean
   mouseInteractionRadius?: number
+}
+
+export interface ReactBitsDotFieldOptions {
+  dotRadius?: number
+  dotSpacing?: number
+  cursorRadius?: number
+  cursorForce?: number
+  bulgeOnly?: boolean
+  bulgeStrength?: number
+  glowRadius?: number
+  sparkle?: boolean
+  waveAmplitude?: number
+  gradientFrom?: string
+  gradientTo?: string
+  glowColor?: string
+  cursorInteraction?: boolean
 }
 
 export interface EldoraNovatrixOptions {

@@ -87,6 +87,7 @@ export type ReactBitsGalaxyPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsDitherPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsFaultyTerminalPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsRippleGridPaletteMode = "source" | "rainbow" | "harmony" | "custom"
+export type ReactBitsDotFieldPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1049,6 +1050,24 @@ export interface ChimerSettings {
   reactBitsRippleGridGridRotation: number
   reactBitsRippleGridMouseInteraction: boolean
   reactBitsRippleGridMouseInteractionRadius: number
+  reactBitsDotFieldPaletteMode: ReactBitsDotFieldPaletteMode
+  reactBitsDotFieldPrimaryColor: string
+  reactBitsDotFieldHarmony: ColorHarmony
+  reactBitsDotFieldGradientFromColor: string
+  reactBitsDotFieldGradientFromAlpha: number
+  reactBitsDotFieldGradientToColor: string
+  reactBitsDotFieldGradientToAlpha: number
+  reactBitsDotFieldGlowColor: string
+  reactBitsDotFieldDotRadius: number
+  reactBitsDotFieldDotSpacing: number
+  reactBitsDotFieldCursorRadius: number
+  reactBitsDotFieldCursorForce: number
+  reactBitsDotFieldBulgeOnly: boolean
+  reactBitsDotFieldBulgeStrength: number
+  reactBitsDotFieldGlowRadius: number
+  reactBitsDotFieldSparkle: boolean
+  reactBitsDotFieldWaveAmplitude: number
+  reactBitsDotFieldCursorInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1532,6 +1551,18 @@ type ReactBitsRippleGridColorSettings = Pick<
   | "reactBitsRippleGridPrimaryColor"
   | "reactBitsRippleGridHarmony"
   | "reactBitsRippleGridColor"
+>
+
+type ReactBitsDotFieldColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsDotFieldPaletteMode"
+  | "reactBitsDotFieldPrimaryColor"
+  | "reactBitsDotFieldHarmony"
+  | "reactBitsDotFieldGradientFromColor"
+  | "reactBitsDotFieldGradientFromAlpha"
+  | "reactBitsDotFieldGradientToColor"
+  | "reactBitsDotFieldGradientToAlpha"
+  | "reactBitsDotFieldGlowColor"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2109,6 +2140,39 @@ export function resolveReactBitsRippleGridColor(settings: ReactBitsRippleGridCol
   }
 
   return settings.reactBitsRippleGridColor
+}
+
+export function resolveReactBitsDotFieldColors(settings: ReactBitsDotFieldColorSettings): {
+  gradientFrom: string
+  gradientTo: string
+  glowColor: string
+} {
+  if (settings.reactBitsDotFieldPaletteMode === "source") {
+    return {
+      gradientFrom: "rgba(168, 85, 247, 0.35)",
+      gradientTo: "rgba(180, 151, 207, 0.25)",
+      glowColor: "#120F17",
+    }
+  }
+
+  if (settings.reactBitsDotFieldPaletteMode === "harmony") {
+    const [fromColor, toColor, glowColor] = createReactBitsDotFieldHarmonyColors(
+      settings.reactBitsDotFieldPrimaryColor,
+      settings.reactBitsDotFieldHarmony,
+    )
+
+    return {
+      gradientFrom: hexToRgba(fromColor, settings.reactBitsDotFieldGradientFromAlpha),
+      gradientTo: hexToRgba(toColor, settings.reactBitsDotFieldGradientToAlpha),
+      glowColor,
+    }
+  }
+
+  return {
+    gradientFrom: hexToRgba(settings.reactBitsDotFieldGradientFromColor, settings.reactBitsDotFieldGradientFromAlpha),
+    gradientTo: hexToRgba(settings.reactBitsDotFieldGradientToColor, settings.reactBitsDotFieldGradientToAlpha),
+    glowColor: settings.reactBitsDotFieldGlowColor,
+  }
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3469,6 +3533,64 @@ export function createReactBitsRippleGridHarmonyColor(
   return createReactBitsPixelSnowHarmonyColor(primaryColor, harmony)
 }
 
+export function createReactBitsDotFieldHarmonyColors(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const dotSaturation = Math.min(0.86, Math.max(0.34, saturation * 0.78))
+  const fromLightness = Math.min(0.72, Math.max(0.42, lightness + 0.06))
+  const toLightness = Math.min(0.82, Math.max(0.5, lightness + 0.16))
+  const glowLightness = Math.min(0.16, Math.max(0.04, lightness * 0.22))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, dotSaturation, fromLightness),
+        hslToHex(hue + 180, dotSaturation * 0.72, toLightness),
+        hslToHex(hue, dotSaturation * 0.46, glowLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue, dotSaturation, fromLightness),
+        hslToHex(hue + 150, dotSaturation * 0.76, toLightness),
+        hslToHex(hue + 210, dotSaturation * 0.42, glowLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, dotSaturation, fromLightness),
+        hslToHex(hue + 120, dotSaturation * 0.78, toLightness),
+        hslToHex(hue + 240, dotSaturation * 0.42, glowLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 90, dotSaturation * 0.84, fromLightness),
+        hslToHex(hue + 180, dotSaturation * 0.72, toLightness),
+        hslToHex(hue + 270, dotSaturation * 0.42, glowLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 24, dotSaturation * 0.86, fromLightness),
+        hslToHex(hue + 184, dotSaturation * 0.68, toLightness),
+        hslToHex(hue, dotSaturation * 0.42, glowLightness),
+      ]
+    case "shades":
+    case "monochromatic":
+      return [
+        hslToHex(hue, dotSaturation * 0.62, fromLightness),
+        hslToHex(hue, dotSaturation * 0.42, toLightness),
+        hslToHex(hue, dotSaturation * 0.32, glowLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 24, dotSaturation * 0.82, fromLightness),
+        hslToHex(hue + 24, dotSaturation * 0.68, toLightness),
+        hslToHex(hue, dotSaturation * 0.42, glowLightness),
+      ]
+  }
+}
+
 export function createReactBitsPrismaticBurstHarmonyPalette(
   primaryColor: string,
   harmony: ColorHarmony,
@@ -3732,6 +3854,11 @@ function parseHexColorToRgb(color: string): [number, number, number] {
     Number.parseInt(match.slice(2, 4), 16),
     Number.parseInt(match.slice(4, 6), 16),
   ]
+}
+
+function hexToRgba(color: string, alpha: number): string {
+  const [red, green, blue] = parseHexColorToRgb(color)
+  return `rgba(${red}, ${green}, ${blue}, ${Math.min(1, Math.max(0, alpha)).toFixed(2)})`
 }
 
 function getHueFromHexColor(color: string): number {
@@ -12703,6 +12830,246 @@ export function SetTimer({
               />
             </label>
           ) : null}
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-dot-field") {
+      const useCustomDotField = settings.reactBitsDotFieldPaletteMode === "custom"
+      const useHarmonyDotField = settings.reactBitsDotFieldPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsDotFieldPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsDotFieldPaletteMode: event.target.value as ReactBitsDotFieldPaletteMode,
+              })}
+              aria-label="React Bits Dot Field color mode"
+            >
+              <option value="source">Source purple</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomDotField ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient start</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotFieldGradientFromColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldGradientFromColor: event.target.value })}
+                  aria-label="React Bits Dot Field gradient start color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient end</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotFieldGradientToColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldGradientToColor: event.target.value })}
+                  aria-label="React Bits Dot Field gradient end color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Glow color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotFieldGlowColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldGlowColor: event.target.value })}
+                  aria-label="React Bits Dot Field glow color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {useHarmonyDotField ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotFieldPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldPrimaryColor: event.target.value })}
+                  aria-label="React Bits Dot Field primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsDotFieldHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsDotFieldHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Dot Field color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsDotFieldPaletteMode !== "source" ? (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Start alpha ({settings.reactBitsDotFieldGradientFromAlpha.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={settings.reactBitsDotFieldGradientFromAlpha}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsDotFieldGradientFromAlpha: Number(event.target.value),
+                  })}
+                  aria-label="React Bits Dot Field gradient start alpha"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>End alpha ({settings.reactBitsDotFieldGradientToAlpha.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={settings.reactBitsDotFieldGradientToAlpha}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsDotFieldGradientToAlpha: Number(event.target.value),
+                  })}
+                  aria-label="React Bits Dot Field gradient end alpha"
+                />
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsDotFieldCursorInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsDotFieldCursorInteraction: event.target.checked })}
+              aria-label="React Bits Dot Field cursor interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bulge mode</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsDotFieldBulgeOnly}
+              onChange={(event) => onSettingsChange({ reactBitsDotFieldBulgeOnly: event.target.checked })}
+              aria-label="React Bits Dot Field bulge mode"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Sparkle</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsDotFieldSparkle}
+              onChange={(event) => onSettingsChange({ reactBitsDotFieldSparkle: event.target.checked })}
+              aria-label="React Bits Dot Field sparkle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dot radius ({settings.reactBitsDotFieldDotRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsDotFieldDotRadius}
+              onChange={(event) => onSettingsChange({ reactBitsDotFieldDotRadius: Number(event.target.value) })}
+              aria-label="React Bits Dot Field dot radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dot spacing ({settings.reactBitsDotFieldDotSpacing.toFixed(1)})</span>
+            <input
+              type="range"
+              min="4"
+              max="48"
+              step="0.5"
+              value={settings.reactBitsDotFieldDotSpacing}
+              onChange={(event) => onSettingsChange({ reactBitsDotFieldDotSpacing: Number(event.target.value) })}
+              aria-label="React Bits Dot Field dot spacing"
+            />
+          </label>
+
+          {settings.reactBitsDotFieldCursorInteraction ? (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Cursor radius ({settings.reactBitsDotFieldCursorRadius.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="60"
+                  max="900"
+                  step="10"
+                  value={settings.reactBitsDotFieldCursorRadius}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldCursorRadius: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field cursor radius"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Cursor force ({settings.reactBitsDotFieldCursorForce.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="1"
+                  step="0.01"
+                  value={settings.reactBitsDotFieldCursorForce}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldCursorForce: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field cursor force"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Bulge strength ({settings.reactBitsDotFieldBulgeStrength.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="160"
+                  step="1"
+                  value={settings.reactBitsDotFieldBulgeStrength}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldBulgeStrength: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field bulge strength"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Glow radius ({settings.reactBitsDotFieldGlowRadius.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="4"
+                  value={settings.reactBitsDotFieldGlowRadius}
+                  onChange={(event) => onSettingsChange({ reactBitsDotFieldGlowRadius: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field glow radius"
+                />
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>Wave ({settings.reactBitsDotFieldWaveAmplitude.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="48"
+              step="0.5"
+              value={settings.reactBitsDotFieldWaveAmplitude}
+              onChange={(event) => onSettingsChange({ reactBitsDotFieldWaveAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Dot Field wave amplitude"
+            />
+          </label>
         </div>
       )
     }
