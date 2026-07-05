@@ -1131,6 +1131,66 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsColorBendsBandWidth, 10)
   })
 
+  it("resets React Bits Evil Eye controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-evil-eye",
+      reactBitsEvilEyePaletteMode: "harmony",
+      reactBitsEvilEyePrimaryColor: "#FFFFFF",
+      reactBitsEvilEyeHarmony: "triad",
+      reactBitsEvilEyeColor: "#ABCDEF",
+      reactBitsEvilEyeBackgroundColor: "#010203",
+      reactBitsEvilEyeIntensity: 2.2,
+      reactBitsEvilEyePupilSize: 1.2,
+      reactBitsEvilEyeIrisWidth: 0.4,
+      reactBitsEvilEyeGlowIntensity: 0.8,
+      reactBitsEvilEyeScale: 1.3,
+      reactBitsEvilEyeNoiseScale: 2.2,
+      reactBitsEvilEyePupilFollow: 1.4,
+      reactBitsEvilEyeFlameSpeed: 1.8,
+      reactBitsEvilEyeInteractive: true,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsEvilEyePaletteMode",
+      "reactBitsEvilEyePrimaryColor",
+      "reactBitsEvilEyeHarmony",
+      "reactBitsEvilEyeColor",
+      "reactBitsEvilEyeBackgroundColor",
+      "reactBitsEvilEyeIntensity",
+      "reactBitsEvilEyePupilSize",
+      "reactBitsEvilEyeIrisWidth",
+      "reactBitsEvilEyeGlowIntensity",
+      "reactBitsEvilEyeScale",
+      "reactBitsEvilEyeNoiseScale",
+      "reactBitsEvilEyePupilFollow",
+      "reactBitsEvilEyeFlameSpeed",
+      "reactBitsEvilEyeInteractive",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-evil-eye")
+    assert.equal(premiumSettings.reactBitsEvilEyePaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsEvilEyePrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsEvilEyeHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsEvilEyeColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsEvilEyeBackgroundColor, "#010203")
+    assert.equal(premiumSettings.reactBitsEvilEyeIntensity, 2.2)
+    assert.equal(premiumSettings.reactBitsEvilEyePupilSize, 1.2)
+    assert.equal(premiumSettings.reactBitsEvilEyeIrisWidth, 0.4)
+    assert.equal(premiumSettings.reactBitsEvilEyeGlowIntensity, 0.8)
+    assert.equal(premiumSettings.reactBitsEvilEyeScale, 1.3)
+    assert.equal(premiumSettings.reactBitsEvilEyeNoiseScale, 2.2)
+    assert.equal(premiumSettings.reactBitsEvilEyePupilFollow, 1.4)
+    assert.equal(premiumSettings.reactBitsEvilEyeFlameSpeed, 1.8)
+    assert.equal(premiumSettings.reactBitsEvilEyeInteractive, true)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

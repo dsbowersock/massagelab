@@ -1704,6 +1704,68 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Evil Eye background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsEvilEyePaletteMode: "harmony",
+      reactBitsEvilEyePrimaryColor: "#ffffff",
+      reactBitsEvilEyeHarmony: "triad",
+      reactBitsEvilEyeColor: "#abcdef",
+      reactBitsEvilEyeBackgroundColor: "#010203",
+      reactBitsEvilEyeIntensity: 99,
+      reactBitsEvilEyePupilSize: 99,
+      reactBitsEvilEyeIrisWidth: 99,
+      reactBitsEvilEyeGlowIntensity: 99,
+      reactBitsEvilEyeScale: 99,
+      reactBitsEvilEyeNoiseScale: 99,
+      reactBitsEvilEyePupilFollow: 99,
+      reactBitsEvilEyeFlameSpeed: 99,
+      reactBitsEvilEyeInteractive: true,
+    })
+
+    assert.equal(settings.reactBitsEvilEyePaletteMode, "harmony")
+    assert.equal(settings.reactBitsEvilEyePrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsEvilEyeHarmony, "triad")
+    assert.equal(settings.reactBitsEvilEyeColor, "#ABCDEF")
+    assert.equal(settings.reactBitsEvilEyeBackgroundColor, "#010203")
+    assert.equal(settings.reactBitsEvilEyeIntensity, 3)
+    assert.equal(settings.reactBitsEvilEyePupilSize, 2)
+    assert.equal(settings.reactBitsEvilEyeIrisWidth, 1)
+    assert.equal(settings.reactBitsEvilEyeGlowIntensity, 1.5)
+    assert.equal(settings.reactBitsEvilEyeScale, 2)
+    assert.equal(settings.reactBitsEvilEyeNoiseScale, 4)
+    assert.equal(settings.reactBitsEvilEyePupilFollow, 2)
+    assert.equal(settings.reactBitsEvilEyeFlameSpeed, 3)
+    assert.equal(settings.reactBitsEvilEyeInteractive, true)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyePaletteMode: "auto" }).reactBitsEvilEyePaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyePaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyePrimaryColor: "white" }).reactBitsEvilEyePrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyePrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyeHarmony: "wild" }).reactBitsEvilEyeHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyeHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyeColor: "white" }).reactBitsEvilEyeColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyeColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyeBackgroundColor: "black" }).reactBitsEvilEyeBackgroundColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyeBackgroundColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyeFlameSpeed: "fast" }).reactBitsEvilEyeFlameSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyeFlameSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsEvilEyeInteractive: "yes" }).reactBitsEvilEyeInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsEvilEyeInteractive,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

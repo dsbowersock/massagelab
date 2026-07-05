@@ -82,6 +82,7 @@ import {
   resolveReactBitsLightRaysColor,
   resolveReactBitsPixelBlastColor,
   resolveReactBitsColorBendsColors,
+  resolveReactBitsEvilEyeColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -106,6 +107,7 @@ import {
   type ReactBitsPixelBlastPaletteMode,
   type ReactBitsPixelBlastVariant,
   type ReactBitsColorBendsPaletteMode,
+  type ReactBitsEvilEyePaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -449,6 +451,20 @@ interface RunningTimerProps {
   reactBitsColorBendsIterations: number
   reactBitsColorBendsIntensity: number
   reactBitsColorBendsBandWidth: number
+  reactBitsEvilEyePaletteMode: ReactBitsEvilEyePaletteMode
+  reactBitsEvilEyePrimaryColor: string
+  reactBitsEvilEyeHarmony: ColorHarmony
+  reactBitsEvilEyeColor: string
+  reactBitsEvilEyeBackgroundColor: string
+  reactBitsEvilEyeIntensity: number
+  reactBitsEvilEyePupilSize: number
+  reactBitsEvilEyeIrisWidth: number
+  reactBitsEvilEyeGlowIntensity: number
+  reactBitsEvilEyeScale: number
+  reactBitsEvilEyeNoiseScale: number
+  reactBitsEvilEyePupilFollow: number
+  reactBitsEvilEyeFlameSpeed: number
+  reactBitsEvilEyeInteractive: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -949,6 +965,20 @@ export function RunningTimer({
   reactBitsColorBendsIterations,
   reactBitsColorBendsIntensity,
   reactBitsColorBendsBandWidth,
+  reactBitsEvilEyePaletteMode,
+  reactBitsEvilEyePrimaryColor,
+  reactBitsEvilEyeHarmony,
+  reactBitsEvilEyeColor,
+  reactBitsEvilEyeBackgroundColor,
+  reactBitsEvilEyeIntensity,
+  reactBitsEvilEyePupilSize,
+  reactBitsEvilEyeIrisWidth,
+  reactBitsEvilEyeGlowIntensity,
+  reactBitsEvilEyeScale,
+  reactBitsEvilEyeNoiseScale,
+  reactBitsEvilEyePupilFollow,
+  reactBitsEvilEyeFlameSpeed,
+  reactBitsEvilEyeInteractive,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1253,6 +1283,12 @@ export function RunningTimer({
     reactBitsColorBendsColorTwo,
     reactBitsColorBendsColorThree,
     reactBitsColorBendsColorFour,
+  })
+  const evilEyeColor = resolveReactBitsEvilEyeColor({
+    reactBitsEvilEyePaletteMode,
+    reactBitsEvilEyePrimaryColor,
+    reactBitsEvilEyeHarmony,
+    reactBitsEvilEyeColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -6093,6 +6129,191 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-evil-eye" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsEvilEyePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsEvilEyePaletteMode: event.target.value as ReactBitsEvilEyePaletteMode,
+              })}
+              aria-label="React Bits Evil Eye color mode"
+            >
+              <option value="source">Source orange</option>
+              <option value="custom">Custom eye</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsEvilEyePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Eye color</span>
+              <input
+                type="color"
+                value={reactBitsEvilEyeColor}
+                onChange={(event) => handleSettingsChange({ reactBitsEvilEyeColor: event.target.value })}
+                aria-label="React Bits Evil Eye eye color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsEvilEyePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsEvilEyePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsEvilEyePrimaryColor: event.target.value })}
+                  aria-label="React Bits Evil Eye primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsEvilEyeHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsEvilEyeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Evil Eye color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={reactBitsEvilEyeBackgroundColor}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeBackgroundColor: event.target.value })}
+              aria-label="React Bits Evil Eye background color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsEvilEyeInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeInteractive: event.target.checked })}
+              aria-label="React Bits Evil Eye pointer interaction"
+            />
+            <span>Pointer pupil follow</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsEvilEyeIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsEvilEyeIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeIntensity: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pupil size ({reactBitsEvilEyePupilSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={reactBitsEvilEyePupilSize}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyePupilSize: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye pupil size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Iris width ({reactBitsEvilEyeIrisWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsEvilEyeIrisWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeIrisWidth: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye iris width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsEvilEyeGlowIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={reactBitsEvilEyeGlowIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeGlowIntensity: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsEvilEyeScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="2"
+              step="0.05"
+              value={reactBitsEvilEyeScale}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeScale: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise scale ({reactBitsEvilEyeNoiseScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsEvilEyeNoiseScale}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeNoiseScale: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye noise scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pupil follow ({reactBitsEvilEyePupilFollow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsEvilEyePupilFollow}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyePupilFollow: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye pupil follow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flame speed ({reactBitsEvilEyeFlameSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsEvilEyeFlameSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeFlameSpeed: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye flame speed"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -8261,6 +8482,19 @@ export function RunningTimer({
             iterations: reactBitsColorBendsIterations,
             intensity: reactBitsColorBendsIntensity,
             bandWidth: reactBitsColorBendsBandWidth,
+          }}
+          reactBitsEvilEye={{
+            eyeColor: evilEyeColor,
+            intensity: reactBitsEvilEyeIntensity,
+            pupilSize: reactBitsEvilEyePupilSize,
+            irisWidth: reactBitsEvilEyeIrisWidth,
+            glowIntensity: reactBitsEvilEyeGlowIntensity,
+            scale: reactBitsEvilEyeScale,
+            noiseScale: reactBitsEvilEyeNoiseScale,
+            pupilFollow: reactBitsEvilEyePupilFollow,
+            flameSpeed: reactBitsEvilEyeFlameSpeed,
+            backgroundColor: reactBitsEvilEyeBackgroundColor,
+            interactive: reactBitsEvilEyeInteractive,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

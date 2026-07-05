@@ -32,6 +32,7 @@ export type BackgroundId =
   | "react-bits-light-rays"
   | "react-bits-pixel-blast"
   | "react-bits-color-bends"
+  | "react-bits-evil-eye"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -108,6 +109,7 @@ const reactBitsSideRays = () => import("./effects/react-bits-side-rays-backgroun
 const reactBitsLightRays = () => import("./effects/react-bits-light-rays-background")
 const reactBitsPixelBlast = () => import("./effects/react-bits-pixel-blast-background")
 const reactBitsColorBends = () => import("./effects/react-bits-color-bends-background")
+const reactBitsEvilEye = () => import("./effects/react-bits-evil-eye-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -686,6 +688,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 46% 48%, rgba(138,92,246,0.24), transparent 36%), radial-gradient(circle at 62% 52%, rgba(236,72,153,0.16), transparent 42%), linear-gradient(145deg, #05020a 0%, #10051e 58%, #020106 100%)",
+    },
+  },
+  {
+    id: "react-bits-evil-eye",
+    label: "Evil Eye",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/evil-eye",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium iris/flame shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony eye color, source intensity, pupil, iris, glow, scale, noise, flame speed, background color, and opt-in pupil follow; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsEvilEye().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(255,111,55,0.24), transparent 36%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0.8), transparent 58%), #000000",
     },
   },
   {
