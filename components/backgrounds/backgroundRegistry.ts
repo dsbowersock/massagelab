@@ -41,6 +41,7 @@ export type BackgroundId =
   | "react-bits-particles"
   | "react-bits-gradient-blinds"
   | "react-bits-grainient"
+  | "react-bits-grid-scan"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -126,6 +127,7 @@ const reactBitsPlasmaWave = () => import("./effects/react-bits-plasma-wave-backg
 const reactBitsParticles = () => import("./effects/react-bits-particles-background")
 const reactBitsGradientBlinds = () => import("./effects/react-bits-gradient-blinds-background")
 const reactBitsGrainient = () => import("./effects/react-bits-grainient-background")
+const reactBitsGridScan = () => import("./effects/react-bits-grid-scan-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -893,6 +895,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 30% 28%, rgba(255,159,252,0.2), transparent 36%), radial-gradient(circle at 70% 58%, rgba(82,39,255,0.24), transparent 42%), linear-gradient(145deg, #090012 0%, #140729 58%, #05020a 100%)",
+    },
+  },
+  {
+    id: "react-bits-grid-scan",
+    label: "Grid Scan",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/grid-scan",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium perspective grid scanner for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony grid and scan colors plus source-shaped sensitivity, line thickness, scan opacity, grid scale, line style, jitter, direction, noise, glow, softness, phase taper, duration, delay, and opt-in pointer skew/click scan pulses; source shader adapted with raw WebGL while webcam/face-api and postprocessing imports are omitted.",
+    component: () => reactBitsGridScan().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 46%, rgba(255,159,252,0.14), transparent 32%), linear-gradient(145deg, #05030a 0%, #100719 58%, #020106 100%)",
     },
   },
   {

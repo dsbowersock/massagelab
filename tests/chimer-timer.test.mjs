@@ -2299,6 +2299,87 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Grid Scan background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsGridScanPaletteMode: "harmony",
+      reactBitsGridScanPrimaryColor: "#ff9ffc",
+      reactBitsGridScanHarmony: "triad",
+      reactBitsGridScanLinesColor: "#abcdef",
+      reactBitsGridScanScanColor: "#010203",
+      reactBitsGridScanSensitivity: 99,
+      reactBitsGridScanLineThickness: 99,
+      reactBitsGridScanScanOpacity: 99,
+      reactBitsGridScanGridScale: 99,
+      reactBitsGridScanLineStyle: "dotted",
+      reactBitsGridScanLineJitter: 99,
+      reactBitsGridScanDirection: "backward",
+      reactBitsGridScanNoiseIntensity: 99,
+      reactBitsGridScanBloomOpacity: 99,
+      reactBitsGridScanScanGlow: 99,
+      reactBitsGridScanScanSoftness: 99,
+      reactBitsGridScanPhaseTaper: 99,
+      reactBitsGridScanScanDuration: 99,
+      reactBitsGridScanScanDelay: 99,
+      reactBitsGridScanEnablePointerInteraction: true,
+      reactBitsGridScanScanOnClick: true,
+    })
+
+    assert.equal(settings.reactBitsGridScanPaletteMode, "harmony")
+    assert.equal(settings.reactBitsGridScanPrimaryColor, "#FF9FFC")
+    assert.equal(settings.reactBitsGridScanHarmony, "triad")
+    assert.equal(settings.reactBitsGridScanLinesColor, "#ABCDEF")
+    assert.equal(settings.reactBitsGridScanScanColor, "#010203")
+    assert.equal(settings.reactBitsGridScanSensitivity, 1)
+    assert.equal(settings.reactBitsGridScanLineThickness, 6)
+    assert.equal(settings.reactBitsGridScanScanOpacity, 1)
+    assert.equal(settings.reactBitsGridScanGridScale, 0.5)
+    assert.equal(settings.reactBitsGridScanLineStyle, "dotted")
+    assert.equal(settings.reactBitsGridScanLineJitter, 1)
+    assert.equal(settings.reactBitsGridScanDirection, "backward")
+    assert.equal(settings.reactBitsGridScanNoiseIntensity, 0.25)
+    assert.equal(settings.reactBitsGridScanBloomOpacity, 2)
+    assert.equal(settings.reactBitsGridScanScanGlow, 3)
+    assert.equal(settings.reactBitsGridScanScanSoftness, 6)
+    assert.equal(settings.reactBitsGridScanPhaseTaper, 0.49)
+    assert.equal(settings.reactBitsGridScanScanDuration, 10)
+    assert.equal(settings.reactBitsGridScanScanDelay, 10)
+    assert.equal(settings.reactBitsGridScanEnablePointerInteraction, true)
+    assert.equal(settings.reactBitsGridScanScanOnClick, true)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanPaletteMode: "auto" }).reactBitsGridScanPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanPrimaryColor: "pink" }).reactBitsGridScanPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanHarmony: "wild" }).reactBitsGridScanHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanLinesColor: "pink" }).reactBitsGridScanLinesColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanLinesColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanLineStyle: "double" }).reactBitsGridScanLineStyle,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanLineStyle,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanDirection: "sideways" }).reactBitsGridScanDirection,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanDirection,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanSensitivity: "fast" }).reactBitsGridScanSensitivity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanSensitivity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridScanEnablePointerInteraction: "yes" })
+        .reactBitsGridScanEnablePointerInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridScanEnablePointerInteraction,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

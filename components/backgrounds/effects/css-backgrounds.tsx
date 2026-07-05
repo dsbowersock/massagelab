@@ -44,6 +44,7 @@ export interface BackgroundEffectProps {
   reactBitsParticles?: ReactBitsParticlesOptions
   reactBitsGradientBlinds?: ReactBitsGradientBlindsOptions
   reactBitsGrainient?: ReactBitsGrainientOptions
+  reactBitsGridScan?: ReactBitsGridScanOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -525,6 +526,27 @@ export interface ReactBitsGrainientOptions {
   color1?: string
   color2?: string
   color3?: string
+}
+
+export interface ReactBitsGridScanOptions {
+  sensitivity?: number
+  lineThickness?: number
+  linesColor?: string
+  scanColor?: string
+  scanOpacity?: number
+  gridScale?: number
+  lineStyle?: "solid" | "dashed" | "dotted"
+  lineJitter?: number
+  scanDirection?: "forward" | "backward" | "pingpong"
+  noiseIntensity?: number
+  bloomOpacity?: number
+  scanGlow?: number
+  scanSoftness?: number
+  scanPhaseTaper?: number
+  scanDuration?: number
+  scanDelay?: number
+  enablePointerInteraction?: boolean
+  scanOnClick?: boolean
 }
 
 export interface EldoraNovatrixOptions {

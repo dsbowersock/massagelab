@@ -82,6 +82,7 @@ describe("premium background registry", () => {
       "react-bits-particles",
       "react-bits-gradient-blinds",
       "react-bits-grainient",
+      "react-bits-grid-scan",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -309,6 +310,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-particles"))
     assert.ok(chimerOptions.includes("react-bits-gradient-blinds"))
     assert.ok(chimerOptions.includes("react-bits-grainient"))
+    assert.ok(chimerOptions.includes("react-bits-grid-scan"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -364,6 +366,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-particles"))
     assert.ok(clockOptions.includes("react-bits-gradient-blinds"))
     assert.ok(clockOptions.includes("react-bits-grainient"))
+    assert.ok(clockOptions.includes("react-bits-grid-scan"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -420,6 +423,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-particles"))
     assert.ok(musicOptions.includes("react-bits-gradient-blinds"))
     assert.ok(musicOptions.includes("react-bits-grainient"))
+    assert.ok(musicOptions.includes("react-bits-grid-scan"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3226,6 +3230,111 @@ describe("premium background registry", () => {
       "reactBitsGrainientCenterX",
       "reactBitsGrainientCenterY",
       "reactBitsGrainientZoom",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Grid Scan source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-grid-scan-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-grid-scan/)
+    assert.match(registrySource, /Grid Scan/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/grid-scan/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsGridScanBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_GRID_SCAN/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /OES_standard_derivatives/)
+    assert.match(effectSource, /uScanStarts/)
+    assert.match(effectSource, /uScanCount/)
+    assert.match(effectSource, /uLineThickness/)
+    assert.match(effectSource, /uScanGlow/)
+    assert.match(effectSource, /sensitivity:\s*0\.55/)
+    assert.match(effectSource, /lineThickness:\s*1/)
+    assert.match(effectSource, /gridScale:\s*0\.1/)
+    assert.match(effectSource, /lineStyle:\s*"solid"/)
+    assert.match(effectSource, /scanDirection:\s*"pingpong"/)
+    assert.match(effectSource, /scanPhaseTaper:\s*0\.49/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /pointermove/)
+    assert.match(effectSource, /pointerdown/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /face-api/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsGridScan/)
+    assert.match(stylesSource, /reactBitsGridScanCanvas/)
+    assert.match(hostSource, /reactBitsGridScan/)
+    assert.match(cssEffectsSource, /ReactBitsGridScanOptions/)
+    assert.match(setupSource, /resolveReactBitsGridScanColors/)
+    assert.match(runningSource, /reactBitsGridScan=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsGridScan=\{\{/)
+    assert.match(docsSource, /Grid Scan \| https:\/\/reactbits\.dev\/backgrounds\/grid-scan/)
+    assert.match(docsSource, /GridScan\.jsx/)
+    assert.match(docsSource, /GridScan\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /face-api\.js/)
+    assert.match(docsSource, /postprocessing/)
+
+    const settingKeys = [
+      "reactBitsGridScanPaletteMode",
+      "reactBitsGridScanPrimaryColor",
+      "reactBitsGridScanHarmony",
+      "reactBitsGridScanLinesColor",
+      "reactBitsGridScanScanColor",
+      "reactBitsGridScanSensitivity",
+      "reactBitsGridScanLineThickness",
+      "reactBitsGridScanScanOpacity",
+      "reactBitsGridScanGridScale",
+      "reactBitsGridScanLineStyle",
+      "reactBitsGridScanLineJitter",
+      "reactBitsGridScanDirection",
+      "reactBitsGridScanNoiseIntensity",
+      "reactBitsGridScanBloomOpacity",
+      "reactBitsGridScanScanGlow",
+      "reactBitsGridScanScanSoftness",
+      "reactBitsGridScanPhaseTaper",
+      "reactBitsGridScanScanDuration",
+      "reactBitsGridScanScanDelay",
+      "reactBitsGridScanEnablePointerInteraction",
+      "reactBitsGridScanScanOnClick",
     ]
 
     for (const settingKey of settingKeys) {

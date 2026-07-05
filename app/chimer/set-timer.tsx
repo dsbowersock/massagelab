@@ -73,6 +73,9 @@ export type ReactBitsGradientBlindsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsGradientBlindsShineDirection = "left" | "right"
 export type ReactBitsGradientBlindsBlendMode = "normal" | "screen" | "lighten" | "plus-lighter"
 export type ReactBitsGrainientPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsGridScanPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsGridScanLineStyle = "solid" | "dashed" | "dotted"
+export type ReactBitsGridScanDirection = "forward" | "backward" | "pingpong"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -898,6 +901,27 @@ export interface ChimerSettings {
   reactBitsGrainientCenterX: number
   reactBitsGrainientCenterY: number
   reactBitsGrainientZoom: number
+  reactBitsGridScanPaletteMode: ReactBitsGridScanPaletteMode
+  reactBitsGridScanPrimaryColor: string
+  reactBitsGridScanHarmony: ColorHarmony
+  reactBitsGridScanLinesColor: string
+  reactBitsGridScanScanColor: string
+  reactBitsGridScanSensitivity: number
+  reactBitsGridScanLineThickness: number
+  reactBitsGridScanScanOpacity: number
+  reactBitsGridScanGridScale: number
+  reactBitsGridScanLineStyle: ReactBitsGridScanLineStyle
+  reactBitsGridScanLineJitter: number
+  reactBitsGridScanDirection: ReactBitsGridScanDirection
+  reactBitsGridScanNoiseIntensity: number
+  reactBitsGridScanBloomOpacity: number
+  reactBitsGridScanScanGlow: number
+  reactBitsGridScanScanSoftness: number
+  reactBitsGridScanPhaseTaper: number
+  reactBitsGridScanScanDuration: number
+  reactBitsGridScanScanDelay: number
+  reactBitsGridScanEnablePointerInteraction: boolean
+  reactBitsGridScanScanOnClick: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1303,6 +1327,15 @@ type ReactBitsGrainientColorSettings = Pick<
   | "reactBitsGrainientColorOne"
   | "reactBitsGrainientColorTwo"
   | "reactBitsGrainientColorThree"
+>
+
+type ReactBitsGridScanColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsGridScanPaletteMode"
+  | "reactBitsGridScanPrimaryColor"
+  | "reactBitsGridScanHarmony"
+  | "reactBitsGridScanLinesColor"
+  | "reactBitsGridScanScanColor"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -1732,6 +1765,24 @@ export function resolveReactBitsGrainientColors(settings: ReactBitsGrainientColo
     settings.reactBitsGrainientColorOne,
     settings.reactBitsGrainientColorTwo,
     settings.reactBitsGrainientColorThree,
+  ]
+}
+
+export function resolveReactBitsGridScanColors(settings: ReactBitsGridScanColorSettings): [string, string] {
+  if (settings.reactBitsGridScanPaletteMode === "source") {
+    return ["#2F293A", "#FF9FFC"]
+  }
+
+  if (settings.reactBitsGridScanPaletteMode === "harmony") {
+    return createReactBitsGridScanHarmonyColors(
+      settings.reactBitsGridScanPrimaryColor,
+      settings.reactBitsGridScanHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsGridScanLinesColor,
+    settings.reactBitsGridScanScanColor,
   ]
 }
 
@@ -2925,6 +2976,60 @@ export function createReactBitsGrainientHarmonyColors(
         hslToHex(hue - 24, grainSaturation, brightLightness),
         hslToHex(hue + 18, Math.min(0.92, grainSaturation * 0.95), midLightness),
         hslToHex(hue + 42, Math.min(0.74, grainSaturation * 0.58), softLightness),
+      ]
+  }
+}
+
+export function createReactBitsGridScanHarmonyColors(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const scanSaturation = Math.min(0.96, Math.max(0.44, saturation))
+  const lineLightness = Math.min(0.24, Math.max(0.08, lightness * 0.34))
+  const scanLightness = Math.min(0.82, Math.max(0.56, lightness + 0.12))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue + 180, scanSaturation * 0.5, lineLightness),
+        hslToHex(hue, scanSaturation, scanLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue + 210, scanSaturation * 0.48, lineLightness),
+        hslToHex(hue - 18, scanSaturation, scanLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue + 240, scanSaturation * 0.52, lineLightness),
+        hslToHex(hue + 120, Math.min(0.92, scanSaturation * 0.94), scanLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 180, scanSaturation * 0.46, lineLightness),
+        hslToHex(hue + 90, Math.min(0.92, scanSaturation), scanLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue + 180, scanSaturation * 0.42, lineLightness),
+        hslToHex(hue + 24, Math.min(0.96, scanSaturation), scanLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, scanSaturation * 0.36, lineLightness),
+        hslToHex(hue, scanSaturation, scanLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, scanSaturation * 0.42, lineLightness),
+        hslToHex(hue, scanSaturation, scanLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue + 28, scanSaturation * 0.48, lineLightness),
+        hslToHex(hue - 18, scanSaturation, scanLightness),
       ]
   }
 }
@@ -10170,6 +10275,289 @@ export function SetTimer({
               value={settings.reactBitsGrainientZoom}
               onChange={(event) => onSettingsChange({ reactBitsGrainientZoom: Number(event.target.value) })}
               aria-label="React Bits Grainient zoom"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-grid-scan") {
+      const useCustomGridScan = settings.reactBitsGridScanPaletteMode === "custom"
+      const useHarmonyGridScan = settings.reactBitsGridScanPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsGridScanPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridScanPaletteMode: event.target.value as ReactBitsGridScanPaletteMode,
+              })}
+              aria-label="React Bits Grid Scan color mode"
+            >
+              <option value="source">Source dark grid and magenta scan</option>
+              <option value="custom">Custom grid and scan colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomGridScan ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Grid lines</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridScanLinesColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridScanLinesColor: event.target.value })}
+                  aria-label="React Bits Grid Scan line color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Scan color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridScanScanColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridScanScanColor: event.target.value })}
+                  aria-label="React Bits Grid Scan scan color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {useHarmonyGridScan ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridScanPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridScanPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grid Scan primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsGridScanHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsGridScanHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grid Scan color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGridScanEnablePointerInteraction}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridScanEnablePointerInteraction: event.target.checked,
+              })}
+            />
+            <span>Pointer skew</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGridScanScanOnClick}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanScanOnClick: event.target.checked })}
+            />
+            <span>Click scan pulses</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Line style</span>
+            <select
+              value={settings.reactBitsGridScanLineStyle}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridScanLineStyle: event.target.value as ReactBitsGridScanLineStyle,
+              })}
+              aria-label="React Bits Grid Scan line style"
+            >
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Scan direction</span>
+            <select
+              value={settings.reactBitsGridScanDirection}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridScanDirection: event.target.value as ReactBitsGridScanDirection,
+              })}
+              aria-label="React Bits Grid Scan direction"
+            >
+              <option value="forward">Forward</option>
+              <option value="backward">Backward</option>
+              <option value="pingpong">Ping pong</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sensitivity ({settings.reactBitsGridScanSensitivity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGridScanSensitivity}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanSensitivity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan sensitivity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line thickness ({settings.reactBitsGridScanLineThickness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="6"
+              step="0.1"
+              value={settings.reactBitsGridScanLineThickness}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanLineThickness: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan line thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan opacity ({settings.reactBitsGridScanScanOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGridScanScanOpacity}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanScanOpacity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid scale ({settings.reactBitsGridScanGridScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="0.5"
+              step="0.01"
+              value={settings.reactBitsGridScanGridScale}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanGridScale: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan grid scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line jitter ({settings.reactBitsGridScanLineJitter.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGridScanLineJitter}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanLineJitter: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan line jitter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsGridScanNoiseIntensity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.25"
+              step="0.005"
+              value={settings.reactBitsGridScanNoiseIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanNoiseIntensity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom opacity ({settings.reactBitsGridScanBloomOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsGridScanBloomOpacity}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanBloomOpacity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan bloom opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan glow ({settings.reactBitsGridScanScanGlow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsGridScanScanGlow}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanScanGlow: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan softness ({settings.reactBitsGridScanScanSoftness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="6"
+              step="0.1"
+              value={settings.reactBitsGridScanScanSoftness}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanScanSoftness: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan softness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Phase taper ({settings.reactBitsGridScanPhaseTaper.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.49"
+              step="0.01"
+              value={settings.reactBitsGridScanPhaseTaper}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanPhaseTaper: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan phase taper"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan duration ({settings.reactBitsGridScanScanDuration.toFixed(2)}s)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="10"
+              step="0.05"
+              value={settings.reactBitsGridScanScanDuration}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanScanDuration: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan duration"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan delay ({settings.reactBitsGridScanScanDelay.toFixed(2)}s)</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.05"
+              value={settings.reactBitsGridScanScanDelay}
+              onChange={(event) => onSettingsChange({ reactBitsGridScanScanDelay: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan delay"
             />
           </label>
         </div>

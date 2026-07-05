@@ -1740,6 +1740,87 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsGrainientZoom, 1.1)
   })
 
+  it("resets React Bits Grid Scan controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-grid-scan",
+      reactBitsGridScanPaletteMode: "harmony",
+      reactBitsGridScanPrimaryColor: "#FF9FFC",
+      reactBitsGridScanHarmony: "triad",
+      reactBitsGridScanLinesColor: "#ABCDEF",
+      reactBitsGridScanScanColor: "#010203",
+      reactBitsGridScanSensitivity: 0.7,
+      reactBitsGridScanLineThickness: 2.4,
+      reactBitsGridScanScanOpacity: 0.6,
+      reactBitsGridScanGridScale: 0.2,
+      reactBitsGridScanLineStyle: "dotted",
+      reactBitsGridScanLineJitter: 0.5,
+      reactBitsGridScanDirection: "backward",
+      reactBitsGridScanNoiseIntensity: 0.08,
+      reactBitsGridScanBloomOpacity: 0.4,
+      reactBitsGridScanScanGlow: 1.2,
+      reactBitsGridScanScanSoftness: 3.2,
+      reactBitsGridScanPhaseTaper: 0.25,
+      reactBitsGridScanScanDuration: 3,
+      reactBitsGridScanScanDelay: 1,
+      reactBitsGridScanEnablePointerInteraction: true,
+      reactBitsGridScanScanOnClick: true,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsGridScanPaletteMode",
+      "reactBitsGridScanPrimaryColor",
+      "reactBitsGridScanHarmony",
+      "reactBitsGridScanLinesColor",
+      "reactBitsGridScanScanColor",
+      "reactBitsGridScanSensitivity",
+      "reactBitsGridScanLineThickness",
+      "reactBitsGridScanScanOpacity",
+      "reactBitsGridScanGridScale",
+      "reactBitsGridScanLineStyle",
+      "reactBitsGridScanLineJitter",
+      "reactBitsGridScanDirection",
+      "reactBitsGridScanNoiseIntensity",
+      "reactBitsGridScanBloomOpacity",
+      "reactBitsGridScanScanGlow",
+      "reactBitsGridScanScanSoftness",
+      "reactBitsGridScanPhaseTaper",
+      "reactBitsGridScanScanDuration",
+      "reactBitsGridScanScanDelay",
+      "reactBitsGridScanEnablePointerInteraction",
+      "reactBitsGridScanScanOnClick",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-grid-scan")
+    assert.equal(premiumSettings.reactBitsGridScanPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsGridScanPrimaryColor, "#FF9FFC")
+    assert.equal(premiumSettings.reactBitsGridScanHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsGridScanLinesColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsGridScanScanColor, "#010203")
+    assert.equal(premiumSettings.reactBitsGridScanSensitivity, 0.7)
+    assert.equal(premiumSettings.reactBitsGridScanLineThickness, 2.4)
+    assert.equal(premiumSettings.reactBitsGridScanScanOpacity, 0.6)
+    assert.equal(premiumSettings.reactBitsGridScanGridScale, 0.2)
+    assert.equal(premiumSettings.reactBitsGridScanLineStyle, "dotted")
+    assert.equal(premiumSettings.reactBitsGridScanLineJitter, 0.5)
+    assert.equal(premiumSettings.reactBitsGridScanDirection, "backward")
+    assert.equal(premiumSettings.reactBitsGridScanNoiseIntensity, 0.08)
+    assert.equal(premiumSettings.reactBitsGridScanBloomOpacity, 0.4)
+    assert.equal(premiumSettings.reactBitsGridScanScanGlow, 1.2)
+    assert.equal(premiumSettings.reactBitsGridScanScanSoftness, 3.2)
+    assert.equal(premiumSettings.reactBitsGridScanPhaseTaper, 0.25)
+    assert.equal(premiumSettings.reactBitsGridScanScanDuration, 3)
+    assert.equal(premiumSettings.reactBitsGridScanScanDelay, 1)
+    assert.equal(premiumSettings.reactBitsGridScanEnablePointerInteraction, true)
+    assert.equal(premiumSettings.reactBitsGridScanScanOnClick, true)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",
