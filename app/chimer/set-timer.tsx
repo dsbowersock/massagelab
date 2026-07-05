@@ -88,6 +88,7 @@ export type ReactBitsDitherPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsFaultyTerminalPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsRippleGridPaletteMode = "source" | "rainbow" | "harmony" | "custom"
 export type ReactBitsDotFieldPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsDotGridPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1068,6 +1069,22 @@ export interface ChimerSettings {
   reactBitsDotFieldSparkle: boolean
   reactBitsDotFieldWaveAmplitude: number
   reactBitsDotFieldCursorInteraction: boolean
+  reactBitsDotGridPaletteMode: ReactBitsDotGridPaletteMode
+  reactBitsDotGridPrimaryColor: string
+  reactBitsDotGridHarmony: ColorHarmony
+  reactBitsDotGridBaseColor: string
+  reactBitsDotGridActiveColor: string
+  reactBitsDotGridDotSize: number
+  reactBitsDotGridGap: number
+  reactBitsDotGridProximity: number
+  reactBitsDotGridSpeedTrigger: number
+  reactBitsDotGridShockRadius: number
+  reactBitsDotGridShockStrength: number
+  reactBitsDotGridMaxSpeed: number
+  reactBitsDotGridResistance: number
+  reactBitsDotGridReturnDuration: number
+  reactBitsDotGridCursorInteraction: boolean
+  reactBitsDotGridClickShock: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1563,6 +1580,15 @@ type ReactBitsDotFieldColorSettings = Pick<
   | "reactBitsDotFieldGradientToColor"
   | "reactBitsDotFieldGradientToAlpha"
   | "reactBitsDotFieldGlowColor"
+>
+
+type ReactBitsDotGridColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsDotGridPaletteMode"
+  | "reactBitsDotGridPrimaryColor"
+  | "reactBitsDotGridHarmony"
+  | "reactBitsDotGridBaseColor"
+  | "reactBitsDotGridActiveColor"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2173,6 +2199,21 @@ export function resolveReactBitsDotFieldColors(settings: ReactBitsDotFieldColorS
     gradientTo: hexToRgba(settings.reactBitsDotFieldGradientToColor, settings.reactBitsDotFieldGradientToAlpha),
     glowColor: settings.reactBitsDotFieldGlowColor,
   }
+}
+
+export function resolveReactBitsDotGridColors(settings: ReactBitsDotGridColorSettings): [string, string] {
+  if (settings.reactBitsDotGridPaletteMode === "source") {
+    return ["#5227FF", "#5227FF"]
+  }
+
+  if (settings.reactBitsDotGridPaletteMode === "harmony") {
+    return createReactBitsDotGridHarmonyColors(
+      settings.reactBitsDotGridPrimaryColor,
+      settings.reactBitsDotGridHarmony,
+    )
+  }
+
+  return [settings.reactBitsDotGridBaseColor, settings.reactBitsDotGridActiveColor]
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3589,6 +3630,14 @@ export function createReactBitsDotFieldHarmonyColors(
         hslToHex(hue, dotSaturation * 0.42, glowLightness),
       ]
   }
+}
+
+export function createReactBitsDotGridHarmonyColors(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string] {
+  const [fromColor, toColor] = createReactBitsDotFieldHarmonyColors(primaryColor, harmony)
+  return [fromColor, toColor]
 }
 
 export function createReactBitsPrismaticBurstHarmonyPalette(
@@ -13069,6 +13118,136 @@ export function SetTimer({
               onChange={(event) => onSettingsChange({ reactBitsDotFieldWaveAmplitude: Number(event.target.value) })}
               aria-label="React Bits Dot Field wave amplitude"
             />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-dot-grid") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsDotGridPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsDotGridPaletteMode: event.target.value as ReactBitsDotGridPaletteMode,
+              })}
+              aria-label="React Bits Dot Grid color mode"
+            >
+              <option value="source">Source violet</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsDotGridPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Base color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotGridBaseColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotGridBaseColor: event.target.value })}
+                  aria-label="React Bits Dot Grid base color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Active color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotGridActiveColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotGridActiveColor: event.target.value })}
+                  aria-label="React Bits Dot Grid active color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsDotGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDotGridPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDotGridPrimaryColor: event.target.value })}
+                  aria-label="React Bits Dot Grid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsDotGridHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsDotGridHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Dot Grid color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsDotGridCursorInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsDotGridCursorInteraction: event.target.checked })}
+              aria-label="React Bits Dot Grid cursor interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Click shock</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsDotGridClickShock}
+              onChange={(event) => onSettingsChange({ reactBitsDotGridClickShock: event.target.checked })}
+              aria-label="React Bits Dot Grid click shock"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dot size ({settings.reactBitsDotGridDotSize.toFixed(1)})</span>
+            <input type="range" min="2" max="40" step="0.5" value={settings.reactBitsDotGridDotSize} onChange={(event) => onSettingsChange({ reactBitsDotGridDotSize: Number(event.target.value) })} aria-label="React Bits Dot Grid dot size" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Gap ({settings.reactBitsDotGridGap.toFixed(1)})</span>
+            <input type="range" min="4" max="80" step="0.5" value={settings.reactBitsDotGridGap} onChange={(event) => onSettingsChange({ reactBitsDotGridGap: Number(event.target.value) })} aria-label="React Bits Dot Grid gap" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Proximity ({settings.reactBitsDotGridProximity.toFixed(0)})</span>
+            <input type="range" min="40" max="500" step="5" value={settings.reactBitsDotGridProximity} onChange={(event) => onSettingsChange({ reactBitsDotGridProximity: Number(event.target.value) })} aria-label="React Bits Dot Grid proximity" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Speed trigger ({settings.reactBitsDotGridSpeedTrigger.toFixed(0)})</span>
+            <input type="range" min="0" max="1000" step="10" value={settings.reactBitsDotGridSpeedTrigger} onChange={(event) => onSettingsChange({ reactBitsDotGridSpeedTrigger: Number(event.target.value) })} aria-label="React Bits Dot Grid speed trigger" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Shock radius ({settings.reactBitsDotGridShockRadius.toFixed(0)})</span>
+            <input type="range" min="40" max="700" step="10" value={settings.reactBitsDotGridShockRadius} onChange={(event) => onSettingsChange({ reactBitsDotGridShockRadius: Number(event.target.value) })} aria-label="React Bits Dot Grid shock radius" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Shock strength ({settings.reactBitsDotGridShockStrength.toFixed(1)})</span>
+            <input type="range" min="0" max="12" step="0.1" value={settings.reactBitsDotGridShockStrength} onChange={(event) => onSettingsChange({ reactBitsDotGridShockStrength: Number(event.target.value) })} aria-label="React Bits Dot Grid shock strength" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Max speed ({settings.reactBitsDotGridMaxSpeed.toFixed(0)})</span>
+            <input type="range" min="100" max="8000" step="100" value={settings.reactBitsDotGridMaxSpeed} onChange={(event) => onSettingsChange({ reactBitsDotGridMaxSpeed: Number(event.target.value) })} aria-label="React Bits Dot Grid max speed" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Resistance ({settings.reactBitsDotGridResistance.toFixed(0)})</span>
+            <input type="range" min="120" max="1600" step="20" value={settings.reactBitsDotGridResistance} onChange={(event) => onSettingsChange({ reactBitsDotGridResistance: Number(event.target.value) })} aria-label="React Bits Dot Grid resistance" />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Return ({settings.reactBitsDotGridReturnDuration.toFixed(2)}s)</span>
+            <input type="range" min="0.1" max="4" step="0.05" value={settings.reactBitsDotGridReturnDuration} onChange={(event) => onSettingsChange({ reactBitsDotGridReturnDuration: Number(event.target.value) })} aria-label="React Bits Dot Grid return duration" />
           </label>
         </div>
       )

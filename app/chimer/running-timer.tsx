@@ -101,6 +101,7 @@ import {
   resolveReactBitsFaultyTerminalTint,
   resolveReactBitsRippleGridColor,
   resolveReactBitsDotFieldColors,
+  resolveReactBitsDotGridColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -152,6 +153,7 @@ import {
   type ReactBitsFaultyTerminalPaletteMode,
   type ReactBitsRippleGridPaletteMode,
   type ReactBitsDotFieldPaletteMode,
+  type ReactBitsDotGridPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -799,6 +801,22 @@ interface RunningTimerProps {
   reactBitsDotFieldSparkle: boolean
   reactBitsDotFieldWaveAmplitude: number
   reactBitsDotFieldCursorInteraction: boolean
+  reactBitsDotGridPaletteMode: ReactBitsDotGridPaletteMode
+  reactBitsDotGridPrimaryColor: string
+  reactBitsDotGridHarmony: ColorHarmony
+  reactBitsDotGridBaseColor: string
+  reactBitsDotGridActiveColor: string
+  reactBitsDotGridDotSize: number
+  reactBitsDotGridGap: number
+  reactBitsDotGridProximity: number
+  reactBitsDotGridSpeedTrigger: number
+  reactBitsDotGridShockRadius: number
+  reactBitsDotGridShockStrength: number
+  reactBitsDotGridMaxSpeed: number
+  reactBitsDotGridResistance: number
+  reactBitsDotGridReturnDuration: number
+  reactBitsDotGridCursorInteraction: boolean
+  reactBitsDotGridClickShock: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1603,6 +1621,22 @@ export function RunningTimer({
   reactBitsDotFieldSparkle,
   reactBitsDotFieldWaveAmplitude,
   reactBitsDotFieldCursorInteraction,
+  reactBitsDotGridPaletteMode,
+  reactBitsDotGridPrimaryColor,
+  reactBitsDotGridHarmony,
+  reactBitsDotGridBaseColor,
+  reactBitsDotGridActiveColor,
+  reactBitsDotGridDotSize,
+  reactBitsDotGridGap,
+  reactBitsDotGridProximity,
+  reactBitsDotGridSpeedTrigger,
+  reactBitsDotGridShockRadius,
+  reactBitsDotGridShockStrength,
+  reactBitsDotGridMaxSpeed,
+  reactBitsDotGridResistance,
+  reactBitsDotGridReturnDuration,
+  reactBitsDotGridCursorInteraction,
+  reactBitsDotGridClickShock,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -2040,6 +2074,13 @@ export function RunningTimer({
     reactBitsDotFieldGradientToColor,
     reactBitsDotFieldGradientToAlpha,
     reactBitsDotFieldGlowColor,
+  })
+  const dotGridColors = resolveReactBitsDotGridColors({
+    reactBitsDotGridPaletteMode,
+    reactBitsDotGridPrimaryColor,
+    reactBitsDotGridHarmony,
+    reactBitsDotGridBaseColor,
+    reactBitsDotGridActiveColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -10974,6 +11015,75 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-dot-grid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsDotGridPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDotGridPaletteMode: event.target.value as ReactBitsDotGridPaletteMode,
+              })}
+              aria-label="React Bits Dot Grid color mode"
+            >
+              <option value="source">Source violet</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsDotGridPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Base color</span>
+                <input type="color" value={reactBitsDotGridBaseColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridBaseColor: event.target.value })} aria-label="React Bits Dot Grid base color" />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Active color</span>
+                <input type="color" value={reactBitsDotGridActiveColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridActiveColor: event.target.value })} aria-label="React Bits Dot Grid active color" />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsDotGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input type="color" value={reactBitsDotGridPrimaryColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridPrimaryColor: event.target.value })} aria-label="React Bits Dot Grid primary color" />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select value={reactBitsDotGridHarmony} onChange={(event) => handleSettingsChange({ reactBitsDotGridHarmony: event.target.value as ColorHarmony })} aria-label="React Bits Dot Grid color harmony">
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input type="checkbox" checked={reactBitsDotGridCursorInteraction} onChange={(event) => handleSettingsChange({ reactBitsDotGridCursorInteraction: event.target.checked })} aria-label="React Bits Dot Grid cursor interaction" />
+          </label>
+          <label className={styles.switchRow}>
+            <span>Click shock</span>
+            <input type="checkbox" checked={reactBitsDotGridClickShock} onChange={(event) => handleSettingsChange({ reactBitsDotGridClickShock: event.target.checked })} aria-label="React Bits Dot Grid click shock" />
+          </label>
+
+          <label className={styles.rangeRow}><span>Dot size ({reactBitsDotGridDotSize.toFixed(1)})</span><input type="range" min="2" max="40" step="0.5" value={reactBitsDotGridDotSize} onChange={(event) => handleSettingsChange({ reactBitsDotGridDotSize: Number(event.target.value) })} aria-label="React Bits Dot Grid dot size" /></label>
+          <label className={styles.rangeRow}><span>Gap ({reactBitsDotGridGap.toFixed(1)})</span><input type="range" min="4" max="80" step="0.5" value={reactBitsDotGridGap} onChange={(event) => handleSettingsChange({ reactBitsDotGridGap: Number(event.target.value) })} aria-label="React Bits Dot Grid gap" /></label>
+          <label className={styles.rangeRow}><span>Proximity ({reactBitsDotGridProximity.toFixed(0)})</span><input type="range" min="40" max="500" step="5" value={reactBitsDotGridProximity} onChange={(event) => handleSettingsChange({ reactBitsDotGridProximity: Number(event.target.value) })} aria-label="React Bits Dot Grid proximity" /></label>
+          <label className={styles.rangeRow}><span>Speed trigger ({reactBitsDotGridSpeedTrigger.toFixed(0)})</span><input type="range" min="0" max="1000" step="10" value={reactBitsDotGridSpeedTrigger} onChange={(event) => handleSettingsChange({ reactBitsDotGridSpeedTrigger: Number(event.target.value) })} aria-label="React Bits Dot Grid speed trigger" /></label>
+          <label className={styles.rangeRow}><span>Shock radius ({reactBitsDotGridShockRadius.toFixed(0)})</span><input type="range" min="40" max="700" step="10" value={reactBitsDotGridShockRadius} onChange={(event) => handleSettingsChange({ reactBitsDotGridShockRadius: Number(event.target.value) })} aria-label="React Bits Dot Grid shock radius" /></label>
+          <label className={styles.rangeRow}><span>Shock strength ({reactBitsDotGridShockStrength.toFixed(1)})</span><input type="range" min="0" max="12" step="0.1" value={reactBitsDotGridShockStrength} onChange={(event) => handleSettingsChange({ reactBitsDotGridShockStrength: Number(event.target.value) })} aria-label="React Bits Dot Grid shock strength" /></label>
+          <label className={styles.rangeRow}><span>Max speed ({reactBitsDotGridMaxSpeed.toFixed(0)})</span><input type="range" min="100" max="8000" step="100" value={reactBitsDotGridMaxSpeed} onChange={(event) => handleSettingsChange({ reactBitsDotGridMaxSpeed: Number(event.target.value) })} aria-label="React Bits Dot Grid max speed" /></label>
+          <label className={styles.rangeRow}><span>Resistance ({reactBitsDotGridResistance.toFixed(0)})</span><input type="range" min="120" max="1600" step="20" value={reactBitsDotGridResistance} onChange={(event) => handleSettingsChange({ reactBitsDotGridResistance: Number(event.target.value) })} aria-label="React Bits Dot Grid resistance" /></label>
+          <label className={styles.rangeRow}><span>Return ({reactBitsDotGridReturnDuration.toFixed(2)}s)</span><input type="range" min="0.1" max="4" step="0.05" value={reactBitsDotGridReturnDuration} onChange={(event) => handleSettingsChange({ reactBitsDotGridReturnDuration: Number(event.target.value) })} aria-label="React Bits Dot Grid return duration" /></label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -13417,6 +13527,21 @@ export function RunningTimer({
             gradientTo: dotFieldColors.gradientTo,
             glowColor: dotFieldColors.glowColor,
             cursorInteraction: reactBitsDotFieldCursorInteraction,
+          }}
+          reactBitsDotGrid={{
+            dotSize: reactBitsDotGridDotSize,
+            gap: reactBitsDotGridGap,
+            baseColor: dotGridColors[0],
+            activeColor: dotGridColors[1],
+            proximity: reactBitsDotGridProximity,
+            speedTrigger: reactBitsDotGridSpeedTrigger,
+            shockRadius: reactBitsDotGridShockRadius,
+            shockStrength: reactBitsDotGridShockStrength,
+            maxSpeed: reactBitsDotGridMaxSpeed,
+            resistance: reactBitsDotGridResistance,
+            returnDuration: reactBitsDotGridReturnDuration,
+            cursorInteraction: reactBitsDotGridCursorInteraction,
+            clickShock: reactBitsDotGridClickShock,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

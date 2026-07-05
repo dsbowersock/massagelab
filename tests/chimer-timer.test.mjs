@@ -2975,6 +2975,61 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsDotFieldWaveAmplitude: -1 }).reactBitsDotFieldWaveAmplitude, 0)
   })
 
+  it("normalizes React Bits Dot Grid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsDotGridPaletteMode: "harmony",
+      reactBitsDotGridPrimaryColor: "#abcdef",
+      reactBitsDotGridHarmony: "triad",
+      reactBitsDotGridBaseColor: "#010203",
+      reactBitsDotGridActiveColor: "#040506",
+      reactBitsDotGridDotSize: 99,
+      reactBitsDotGridGap: 99,
+      reactBitsDotGridProximity: 999,
+      reactBitsDotGridSpeedTrigger: 9999,
+      reactBitsDotGridShockRadius: 9999,
+      reactBitsDotGridShockStrength: 99,
+      reactBitsDotGridMaxSpeed: 99999,
+      reactBitsDotGridResistance: 9999,
+      reactBitsDotGridReturnDuration: 99,
+      reactBitsDotGridCursorInteraction: false,
+      reactBitsDotGridClickShock: false,
+    })
+
+    assert.equal(settings.reactBitsDotGridPaletteMode, "harmony")
+    assert.equal(settings.reactBitsDotGridPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsDotGridHarmony, "triad")
+    assert.equal(settings.reactBitsDotGridBaseColor, "#010203")
+    assert.equal(settings.reactBitsDotGridActiveColor, "#040506")
+    assert.equal(settings.reactBitsDotGridDotSize, 40)
+    assert.equal(settings.reactBitsDotGridGap, 80)
+    assert.equal(settings.reactBitsDotGridProximity, 500)
+    assert.equal(settings.reactBitsDotGridSpeedTrigger, 1000)
+    assert.equal(settings.reactBitsDotGridShockRadius, 700)
+    assert.equal(settings.reactBitsDotGridShockStrength, 12)
+    assert.equal(settings.reactBitsDotGridMaxSpeed, 8000)
+    assert.equal(settings.reactBitsDotGridResistance, 1600)
+    assert.equal(settings.reactBitsDotGridReturnDuration, 4)
+    assert.equal(settings.reactBitsDotGridCursorInteraction, false)
+    assert.equal(settings.reactBitsDotGridClickShock, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotGridPaletteMode: "auto" }).reactBitsDotGridPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotGridPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotGridPrimaryColor: "white" }).reactBitsDotGridPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotGridPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDotGridHarmony: "wild" }).reactBitsDotGridHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDotGridHarmony,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsDotGridDotSize: 0 }).reactBitsDotGridDotSize, 2)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotGridGap: 0 }).reactBitsDotGridGap, 4)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotGridProximity: 0 }).reactBitsDotGridProximity, 40)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotGridShockStrength: -1 }).reactBitsDotGridShockStrength, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsDotGridReturnDuration: 0 }).reactBitsDotGridReturnDuration, 0.1)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

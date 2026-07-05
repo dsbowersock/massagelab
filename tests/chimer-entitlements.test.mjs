@@ -2385,6 +2385,72 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsDotFieldCursorInteraction, false)
   })
 
+  it("resets React Bits Dot Grid controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-dot-grid",
+      reactBitsDotGridPaletteMode: "harmony",
+      reactBitsDotGridPrimaryColor: "#ABCDEF",
+      reactBitsDotGridHarmony: "triad",
+      reactBitsDotGridBaseColor: "#010203",
+      reactBitsDotGridActiveColor: "#040506",
+      reactBitsDotGridDotSize: 18,
+      reactBitsDotGridGap: 24,
+      reactBitsDotGridProximity: 220,
+      reactBitsDotGridSpeedTrigger: 80,
+      reactBitsDotGridShockRadius: 280,
+      reactBitsDotGridShockStrength: 6,
+      reactBitsDotGridMaxSpeed: 4200,
+      reactBitsDotGridResistance: 680,
+      reactBitsDotGridReturnDuration: 1.2,
+      reactBitsDotGridCursorInteraction: false,
+      reactBitsDotGridClickShock: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsDotGridPaletteMode",
+      "reactBitsDotGridPrimaryColor",
+      "reactBitsDotGridHarmony",
+      "reactBitsDotGridBaseColor",
+      "reactBitsDotGridActiveColor",
+      "reactBitsDotGridDotSize",
+      "reactBitsDotGridGap",
+      "reactBitsDotGridProximity",
+      "reactBitsDotGridSpeedTrigger",
+      "reactBitsDotGridShockRadius",
+      "reactBitsDotGridShockStrength",
+      "reactBitsDotGridMaxSpeed",
+      "reactBitsDotGridResistance",
+      "reactBitsDotGridReturnDuration",
+      "reactBitsDotGridCursorInteraction",
+      "reactBitsDotGridClickShock",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-dot-grid")
+    assert.equal(premiumSettings.reactBitsDotGridPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsDotGridPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsDotGridHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsDotGridBaseColor, "#010203")
+    assert.equal(premiumSettings.reactBitsDotGridActiveColor, "#040506")
+    assert.equal(premiumSettings.reactBitsDotGridDotSize, 18)
+    assert.equal(premiumSettings.reactBitsDotGridGap, 24)
+    assert.equal(premiumSettings.reactBitsDotGridProximity, 220)
+    assert.equal(premiumSettings.reactBitsDotGridSpeedTrigger, 80)
+    assert.equal(premiumSettings.reactBitsDotGridShockRadius, 280)
+    assert.equal(premiumSettings.reactBitsDotGridShockStrength, 6)
+    assert.equal(premiumSettings.reactBitsDotGridMaxSpeed, 4200)
+    assert.equal(premiumSettings.reactBitsDotGridResistance, 680)
+    assert.equal(premiumSettings.reactBitsDotGridReturnDuration, 1.2)
+    assert.equal(premiumSettings.reactBitsDotGridCursorInteraction, false)
+    assert.equal(premiumSettings.reactBitsDotGridClickShock, false)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

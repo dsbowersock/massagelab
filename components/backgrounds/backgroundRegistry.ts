@@ -51,6 +51,7 @@ export type BackgroundId =
   | "react-bits-faulty-terminal"
   | "react-bits-ripple-grid"
   | "react-bits-dot-field"
+  | "react-bits-dot-grid"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -146,6 +147,7 @@ const reactBitsDither = () => import("./effects/react-bits-dither-background")
 const reactBitsFaultyTerminal = () => import("./effects/react-bits-faulty-terminal-background")
 const reactBitsRippleGrid = () => import("./effects/react-bits-ripple-grid-background")
 const reactBitsDotField = () => import("./effects/react-bits-dot-field-background")
+const reactBitsDotGrid = () => import("./effects/react-bits-dot-grid-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1149,6 +1151,28 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
       backgroundImage:
         "radial-gradient(circle at 2px 2px, rgba(180,151,207,0.32) 1px, transparent 1.8px), radial-gradient(circle at 50% 50%, rgba(18,15,23,0.85), transparent 32%)",
       backgroundSize: "18px 18px, 100% 100%",
+    },
+  },
+  {
+    id: "react-bits-dot-grid",
+    label: "Dot Grid",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/dot-grid",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium reactive dot-grid canvas for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "low",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony base and active colors plus source-shaped dot size, gap, proximity, speed trigger, shock radius/strength, max speed, resistance, return duration, cursor, and click-shock controls.",
+    component: () => reactBitsDotGrid().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      backgroundColor: "#05030f",
+      backgroundImage: "radial-gradient(circle at 2px 2px, rgba(82,39,255,0.72) 2px, transparent 2.8px)",
+      backgroundSize: "48px 48px",
     },
   },
   {

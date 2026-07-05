@@ -92,6 +92,7 @@ describe("premium background registry", () => {
       "react-bits-faulty-terminal",
       "react-bits-ripple-grid",
       "react-bits-dot-field",
+      "react-bits-dot-grid",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -329,6 +330,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-faulty-terminal"))
     assert.ok(chimerOptions.includes("react-bits-ripple-grid"))
     assert.ok(chimerOptions.includes("react-bits-dot-field"))
+    assert.ok(chimerOptions.includes("react-bits-dot-grid"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -394,6 +396,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-faulty-terminal"))
     assert.ok(clockOptions.includes("react-bits-ripple-grid"))
     assert.ok(clockOptions.includes("react-bits-dot-field"))
+    assert.ok(clockOptions.includes("react-bits-dot-grid"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -460,6 +463,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-faulty-terminal"))
     assert.ok(musicOptions.includes("react-bits-ripple-grid"))
     assert.ok(musicOptions.includes("react-bits-dot-field"))
+    assert.ok(musicOptions.includes("react-bits-dot-grid"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -4194,6 +4198,88 @@ describe("premium background registry", () => {
     ]
 
     for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Dot Grid source-shaped, canvas-based, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-dot-grid-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-dot-grid/)
+    assert.match(registrySource, /Dot Grid/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dot-grid/)
+    assert.match(effectSource, /ReactBitsDotGridBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_DOT_GRID/)
+    assert.match(effectSource, /applyImpulse/)
+    assert.match(effectSource, /speedTrigger/)
+    assert.match(effectSource, /shockStrength/)
+    assert.match(effectSource, /returnDuration/)
+    assert.match(effectSource, /getContext\("2d"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.doesNotMatch(effectSource, /from "gsap"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.match(stylesSource, /reactBitsDotGrid/)
+    assert.match(stylesSource, /reactBitsDotGridCanvas/)
+    assert.match(hostSource, /reactBitsDotGrid/)
+    assert.match(cssEffectsSource, /ReactBitsDotGridOptions/)
+    assert.match(setupSource, /resolveReactBitsDotGridColors/)
+    assert.match(setupSource, /createReactBitsDotGridHarmonyColors/)
+    assert.match(runningSource, /reactBitsDotGrid=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsDotGrid=\{\{/)
+    assert.match(docsSource, /Dot Grid \| https:\/\/reactbits\.dev\/backgrounds\/dot-grid/)
+    assert.match(docsSource, /DotGrid\.jsx/)
+    assert.match(docsSource, /DotGrid\.css/)
+    assert.match(docsSource, /GSAP InertiaPlugin/)
+
+    for (const settingKey of [
+      "reactBitsDotGridPaletteMode",
+      "reactBitsDotGridPrimaryColor",
+      "reactBitsDotGridHarmony",
+      "reactBitsDotGridBaseColor",
+      "reactBitsDotGridActiveColor",
+      "reactBitsDotGridDotSize",
+      "reactBitsDotGridGap",
+      "reactBitsDotGridProximity",
+      "reactBitsDotGridSpeedTrigger",
+      "reactBitsDotGridShockRadius",
+      "reactBitsDotGridShockStrength",
+      "reactBitsDotGridMaxSpeed",
+      "reactBitsDotGridResistance",
+      "reactBitsDotGridReturnDuration",
+      "reactBitsDotGridCursorInteraction",
+      "reactBitsDotGridClickShock",
+    ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
       assert.match(pageSource, new RegExp(settingKey))

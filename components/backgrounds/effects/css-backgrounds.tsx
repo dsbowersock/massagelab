@@ -54,6 +54,7 @@ export interface BackgroundEffectProps {
   reactBitsFaultyTerminal?: ReactBitsFaultyTerminalOptions
   reactBitsRippleGrid?: ReactBitsRippleGridOptions
   reactBitsDotField?: ReactBitsDotFieldOptions
+  reactBitsDotGrid?: ReactBitsDotGridOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -684,6 +685,22 @@ export interface ReactBitsDotFieldOptions {
   gradientTo?: string
   glowColor?: string
   cursorInteraction?: boolean
+}
+
+export interface ReactBitsDotGridOptions {
+  dotSize?: number
+  gap?: number
+  baseColor?: string
+  activeColor?: string
+  proximity?: number
+  speedTrigger?: number
+  shockRadius?: number
+  shockStrength?: number
+  maxSpeed?: number
+  resistance?: number
+  returnDuration?: number
+  cursorInteraction?: boolean
+  clickShock?: boolean
 }
 
 export interface EldoraNovatrixOptions {
