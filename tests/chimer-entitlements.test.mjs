@@ -2253,6 +2253,66 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsFaultyTerminalBrightness, 1.8)
   })
 
+  it("resets React Bits Ripple Grid controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-ripple-grid",
+      reactBitsRippleGridPaletteMode: "harmony",
+      reactBitsRippleGridPrimaryColor: "#ABCDEF",
+      reactBitsRippleGridHarmony: "triad",
+      reactBitsRippleGridColor: "#010203",
+      reactBitsRippleGridRippleIntensity: 0.12,
+      reactBitsRippleGridGridSize: 14,
+      reactBitsRippleGridGridThickness: 9,
+      reactBitsRippleGridFadeDistance: 2.25,
+      reactBitsRippleGridVignetteStrength: 2.75,
+      reactBitsRippleGridGlowIntensity: 0.42,
+      reactBitsRippleGridOpacity: 0.84,
+      reactBitsRippleGridGridRotation: 32,
+      reactBitsRippleGridMouseInteraction: false,
+      reactBitsRippleGridMouseInteractionRadius: 1.7,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsRippleGridPaletteMode",
+      "reactBitsRippleGridPrimaryColor",
+      "reactBitsRippleGridHarmony",
+      "reactBitsRippleGridColor",
+      "reactBitsRippleGridRippleIntensity",
+      "reactBitsRippleGridGridSize",
+      "reactBitsRippleGridGridThickness",
+      "reactBitsRippleGridFadeDistance",
+      "reactBitsRippleGridVignetteStrength",
+      "reactBitsRippleGridGlowIntensity",
+      "reactBitsRippleGridOpacity",
+      "reactBitsRippleGridGridRotation",
+      "reactBitsRippleGridMouseInteraction",
+      "reactBitsRippleGridMouseInteractionRadius",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-ripple-grid")
+    assert.equal(premiumSettings.reactBitsRippleGridPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsRippleGridPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsRippleGridHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsRippleGridColor, "#010203")
+    assert.equal(premiumSettings.reactBitsRippleGridRippleIntensity, 0.12)
+    assert.equal(premiumSettings.reactBitsRippleGridGridSize, 14)
+    assert.equal(premiumSettings.reactBitsRippleGridGridThickness, 9)
+    assert.equal(premiumSettings.reactBitsRippleGridFadeDistance, 2.25)
+    assert.equal(premiumSettings.reactBitsRippleGridVignetteStrength, 2.75)
+    assert.equal(premiumSettings.reactBitsRippleGridGlowIntensity, 0.42)
+    assert.equal(premiumSettings.reactBitsRippleGridOpacity, 0.84)
+    assert.equal(premiumSettings.reactBitsRippleGridGridRotation, 32)
+    assert.equal(premiumSettings.reactBitsRippleGridMouseInteraction, false)
+    assert.equal(premiumSettings.reactBitsRippleGridMouseInteractionRadius, 1.7)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

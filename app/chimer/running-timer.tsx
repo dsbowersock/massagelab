@@ -99,6 +99,7 @@ import {
   resolveReactBitsGalaxyHueShift,
   resolveReactBitsDitherColor,
   resolveReactBitsFaultyTerminalTint,
+  resolveReactBitsRippleGridColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -148,6 +149,7 @@ import {
   type ReactBitsGalaxyPaletteMode,
   type ReactBitsDitherPaletteMode,
   type ReactBitsFaultyTerminalPaletteMode,
+  type ReactBitsRippleGridPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -763,6 +765,20 @@ interface RunningTimerProps {
   reactBitsFaultyTerminalMouseStrength: number
   reactBitsFaultyTerminalPageLoadAnimation: boolean
   reactBitsFaultyTerminalBrightness: number
+  reactBitsRippleGridPaletteMode: ReactBitsRippleGridPaletteMode
+  reactBitsRippleGridPrimaryColor: string
+  reactBitsRippleGridHarmony: ColorHarmony
+  reactBitsRippleGridColor: string
+  reactBitsRippleGridRippleIntensity: number
+  reactBitsRippleGridGridSize: number
+  reactBitsRippleGridGridThickness: number
+  reactBitsRippleGridFadeDistance: number
+  reactBitsRippleGridVignetteStrength: number
+  reactBitsRippleGridGlowIntensity: number
+  reactBitsRippleGridOpacity: number
+  reactBitsRippleGridGridRotation: number
+  reactBitsRippleGridMouseInteraction: boolean
+  reactBitsRippleGridMouseInteractionRadius: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1535,6 +1551,20 @@ export function RunningTimer({
   reactBitsFaultyTerminalMouseStrength,
   reactBitsFaultyTerminalPageLoadAnimation,
   reactBitsFaultyTerminalBrightness,
+  reactBitsRippleGridPaletteMode,
+  reactBitsRippleGridPrimaryColor,
+  reactBitsRippleGridHarmony,
+  reactBitsRippleGridColor,
+  reactBitsRippleGridRippleIntensity,
+  reactBitsRippleGridGridSize,
+  reactBitsRippleGridGridThickness,
+  reactBitsRippleGridFadeDistance,
+  reactBitsRippleGridVignetteStrength,
+  reactBitsRippleGridGlowIntensity,
+  reactBitsRippleGridOpacity,
+  reactBitsRippleGridGridRotation,
+  reactBitsRippleGridMouseInteraction,
+  reactBitsRippleGridMouseInteractionRadius,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1956,6 +1986,12 @@ export function RunningTimer({
     reactBitsFaultyTerminalPrimaryColor,
     reactBitsFaultyTerminalHarmony,
     reactBitsFaultyTerminalTint,
+  })
+  const rippleGridColor = resolveReactBitsRippleGridColor({
+    reactBitsRippleGridPaletteMode,
+    reactBitsRippleGridPrimaryColor,
+    reactBitsRippleGridHarmony,
+    reactBitsRippleGridColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -10459,6 +10495,202 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-ripple-grid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsRippleGridPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRippleGridPaletteMode: event.target.value as ReactBitsRippleGridPaletteMode,
+              })}
+              aria-label="React Bits Ripple Grid color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="rainbow">Source rainbow</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsRippleGridPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Grid color</span>
+              <input
+                type="color"
+                value={reactBitsRippleGridColor}
+                onChange={(event) => handleSettingsChange({ reactBitsRippleGridColor: event.target.value })}
+                aria-label="React Bits Ripple Grid color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsRippleGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsRippleGridPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsRippleGridPrimaryColor: event.target.value })}
+                  aria-label="React Bits Ripple Grid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsRippleGridHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsRippleGridHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Ripple Grid color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsRippleGridMouseInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridMouseInteraction: event.target.checked })}
+              aria-label="React Bits Ripple Grid cursor interaction"
+            />
+            <span>Cursor interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple ({reactBitsRippleGridRippleIntensity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.3"
+              step="0.005"
+              value={reactBitsRippleGridRippleIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRippleGridRippleIntensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Ripple Grid ripple intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid size ({reactBitsRippleGridGridSize.toFixed(1)})</span>
+            <input
+              type="range"
+              min="2"
+              max="30"
+              step="0.5"
+              value={reactBitsRippleGridGridSize}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridSize: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Thickness ({reactBitsRippleGridGridThickness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              step="0.5"
+              value={reactBitsRippleGridGridThickness}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridThickness: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fade ({reactBitsRippleGridFadeDistance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="5"
+              step="0.05"
+              value={reactBitsRippleGridFadeDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridFadeDistance: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid fade distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Vignette ({reactBitsRippleGridVignetteStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="6"
+              step="0.05"
+              value={reactBitsRippleGridVignetteStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRippleGridVignetteStrength: Number(event.target.value),
+              })}
+              aria-label="React Bits Ripple Grid vignette strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsRippleGridGlowIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsRippleGridGlowIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGlowIntensity: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({reactBitsRippleGridOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsRippleGridOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridOpacity: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsRippleGridGridRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsRippleGridGridRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridRotation: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid rotation"
+            />
+          </label>
+
+          {reactBitsRippleGridMouseInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Cursor radius ({reactBitsRippleGridMouseInteractionRadius.toFixed(2)})</span>
+              <input
+                type="range"
+                min="0.1"
+                max="5"
+                step="0.05"
+                value={reactBitsRippleGridMouseInteractionRadius}
+                onChange={(event) => handleSettingsChange({
+                  reactBitsRippleGridMouseInteractionRadius: Number(event.target.value),
+                })}
+                aria-label="React Bits Ripple Grid cursor radius"
+              />
+            </label>
+          ) : null}
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -12873,6 +13105,20 @@ export function RunningTimer({
             mouseStrength: reactBitsFaultyTerminalMouseStrength,
             pageLoadAnimation: reactBitsFaultyTerminalPageLoadAnimation,
             brightness: reactBitsFaultyTerminalBrightness,
+          }}
+          reactBitsRippleGrid={{
+            enableRainbow: reactBitsRippleGridPaletteMode === "rainbow",
+            gridColor: rippleGridColor,
+            rippleIntensity: reactBitsRippleGridRippleIntensity,
+            gridSize: reactBitsRippleGridGridSize,
+            gridThickness: reactBitsRippleGridGridThickness,
+            fadeDistance: reactBitsRippleGridFadeDistance,
+            vignetteStrength: reactBitsRippleGridVignetteStrength,
+            glowIntensity: reactBitsRippleGridGlowIntensity,
+            opacity: reactBitsRippleGridOpacity,
+            gridRotation: reactBitsRippleGridGridRotation,
+            mouseInteraction: reactBitsRippleGridMouseInteraction,
+            mouseInteractionRadius: reactBitsRippleGridMouseInteractionRadius,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

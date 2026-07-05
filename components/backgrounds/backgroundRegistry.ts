@@ -49,6 +49,7 @@ export type BackgroundId =
   | "react-bits-galaxy"
   | "react-bits-dither"
   | "react-bits-faulty-terminal"
+  | "react-bits-ripple-grid"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -142,6 +143,7 @@ const reactBitsPrismaticBurst = () => import("./effects/react-bits-prismatic-bur
 const reactBitsGalaxy = () => import("./effects/react-bits-galaxy-background")
 const reactBitsDither = () => import("./effects/react-bits-dither-background")
 const reactBitsFaultyTerminal = () => import("./effects/react-bits-faulty-terminal-background")
+const reactBitsRippleGrid = () => import("./effects/react-bits-ripple-grid-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1100,6 +1102,28 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
       backgroundImage:
         "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 12px)",
       backgroundSize: "100% 4px, 18px 18px",
+    },
+  },
+  {
+    id: "react-bits-ripple-grid",
+    label: "Ripple Grid",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/ripple-grid",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium rippling grid shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/rainbow/custom/harmony grid color plus source-shaped ripple, grid, fade, vignette, glow, opacity, rotation, cursor, and cursor-radius controls.",
+    component: () => reactBitsRippleGrid().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), transparent 42%), linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px), #020617",
+      backgroundSize: "100% 100%, 40px 40px, 40px 40px",
     },
   },
   {

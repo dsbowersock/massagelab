@@ -54,6 +54,7 @@ import type {
   ReactBitsGalaxyOptions,
   ReactBitsDitherOptions,
   ReactBitsFaultyTerminalOptions,
+  ReactBitsRippleGridOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -123,6 +124,7 @@ interface BackgroundHostProps {
   reactBitsGalaxy?: ReactBitsGalaxyOptions
   reactBitsDither?: ReactBitsDitherOptions
   reactBitsFaultyTerminal?: ReactBitsFaultyTerminalOptions
+  reactBitsRippleGrid?: ReactBitsRippleGridOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -208,6 +210,7 @@ export function BackgroundHost({
   reactBitsGalaxy,
   reactBitsDither,
   reactBitsFaultyTerminal,
+  reactBitsRippleGrid,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -318,6 +321,7 @@ export function BackgroundHost({
           reactBitsGalaxy={reactBitsGalaxy}
           reactBitsDither={reactBitsDither}
           reactBitsFaultyTerminal={reactBitsFaultyTerminal}
+          reactBitsRippleGrid={reactBitsRippleGrid}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

@@ -2829,6 +2829,74 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsFaultyTerminalBrightness: 0 }).reactBitsFaultyTerminalBrightness, 0.1)
   })
 
+  it("normalizes React Bits Ripple Grid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsRippleGridPaletteMode: "harmony",
+      reactBitsRippleGridPrimaryColor: "#abcdef",
+      reactBitsRippleGridHarmony: "triad",
+      reactBitsRippleGridColor: "#010203",
+      reactBitsRippleGridRippleIntensity: 99,
+      reactBitsRippleGridGridSize: 99,
+      reactBitsRippleGridGridThickness: 99,
+      reactBitsRippleGridFadeDistance: 99,
+      reactBitsRippleGridVignetteStrength: 99,
+      reactBitsRippleGridGlowIntensity: 99,
+      reactBitsRippleGridOpacity: 99,
+      reactBitsRippleGridGridRotation: 999,
+      reactBitsRippleGridMouseInteraction: false,
+      reactBitsRippleGridMouseInteractionRadius: 99,
+    })
+
+    assert.equal(settings.reactBitsRippleGridPaletteMode, "harmony")
+    assert.equal(settings.reactBitsRippleGridPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsRippleGridHarmony, "triad")
+    assert.equal(settings.reactBitsRippleGridColor, "#010203")
+    assert.equal(settings.reactBitsRippleGridRippleIntensity, 0.3)
+    assert.equal(settings.reactBitsRippleGridGridSize, 30)
+    assert.equal(settings.reactBitsRippleGridGridThickness, 50)
+    assert.equal(settings.reactBitsRippleGridFadeDistance, 5)
+    assert.equal(settings.reactBitsRippleGridVignetteStrength, 6)
+    assert.equal(settings.reactBitsRippleGridGlowIntensity, 1)
+    assert.equal(settings.reactBitsRippleGridOpacity, 1)
+    assert.equal(settings.reactBitsRippleGridGridRotation, 180)
+    assert.equal(settings.reactBitsRippleGridMouseInteraction, false)
+    assert.equal(settings.reactBitsRippleGridMouseInteractionRadius, 5)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridPaletteMode: "auto" }).reactBitsRippleGridPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRippleGridPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridPrimaryColor: "white" }).reactBitsRippleGridPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRippleGridPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridHarmony: "wild" }).reactBitsRippleGridHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRippleGridHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridColor: "white" }).reactBitsRippleGridColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRippleGridColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridRippleIntensity: "strong" }).reactBitsRippleGridRippleIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRippleGridRippleIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridMouseInteraction: "yes" }).reactBitsRippleGridMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRippleGridMouseInteraction,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsRippleGridRippleIntensity: -1 }).reactBitsRippleGridRippleIntensity, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsRippleGridGridSize: 0 }).reactBitsRippleGridGridSize, 2)
+    assert.equal(sanitizeChimerSettings({ reactBitsRippleGridGridThickness: 0 }).reactBitsRippleGridGridThickness, 1)
+    assert.equal(sanitizeChimerSettings({ reactBitsRippleGridFadeDistance: 0 }).reactBitsRippleGridFadeDistance, 0.2)
+    assert.equal(sanitizeChimerSettings({ reactBitsRippleGridVignetteStrength: 0 }).reactBitsRippleGridVignetteStrength, 0.1)
+    assert.equal(sanitizeChimerSettings({ reactBitsRippleGridGridRotation: -999 }).reactBitsRippleGridGridRotation, -180)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRippleGridMouseInteractionRadius: 0 }).reactBitsRippleGridMouseInteractionRadius,
+      0.1,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
