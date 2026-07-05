@@ -51,6 +51,7 @@ export interface BackgroundEffectProps {
   reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
   reactBitsGalaxy?: ReactBitsGalaxyOptions
   reactBitsDither?: ReactBitsDitherOptions
+  reactBitsFaultyTerminal?: ReactBitsFaultyTerminalOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -630,6 +631,26 @@ export interface ReactBitsDitherOptions {
   pixelSize?: number
   mouseInteraction?: boolean
   mouseRadius?: number
+}
+
+export interface ReactBitsFaultyTerminalOptions {
+  scale?: number
+  gridMulX?: number
+  gridMulY?: number
+  digitSize?: number
+  timeScale?: number
+  scanlineIntensity?: number
+  glitchAmount?: number
+  flickerAmount?: number
+  noiseAmp?: number
+  chromaticAberration?: number
+  dither?: number
+  curvature?: number
+  tint?: string
+  mouseReact?: boolean
+  mouseStrength?: number
+  pageLoadAnimation?: boolean
+  brightness?: number
 }
 
 export interface EldoraNovatrixOptions {

@@ -2175,6 +2175,84 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsDitherMouseRadius, 1.75)
   })
 
+  it("resets React Bits Faulty Terminal controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-faulty-terminal",
+      reactBitsFaultyTerminalPaletteMode: "harmony",
+      reactBitsFaultyTerminalPrimaryColor: "#ABCDEF",
+      reactBitsFaultyTerminalHarmony: "triad",
+      reactBitsFaultyTerminalTint: "#010203",
+      reactBitsFaultyTerminalScale: 2.5,
+      reactBitsFaultyTerminalGridMulX: 3.5,
+      reactBitsFaultyTerminalGridMulY: 1.75,
+      reactBitsFaultyTerminalDigitSize: 2.25,
+      reactBitsFaultyTerminalTimeScale: 0.8,
+      reactBitsFaultyTerminalScanlineIntensity: 0.75,
+      reactBitsFaultyTerminalGlitchAmount: 1.5,
+      reactBitsFaultyTerminalFlickerAmount: 0.65,
+      reactBitsFaultyTerminalNoiseAmp: 0.45,
+      reactBitsFaultyTerminalChromaticAberration: 4.5,
+      reactBitsFaultyTerminalDither: 64,
+      reactBitsFaultyTerminalCurvature: 0.35,
+      reactBitsFaultyTerminalMouseReact: false,
+      reactBitsFaultyTerminalMouseStrength: 0.9,
+      reactBitsFaultyTerminalPageLoadAnimation: false,
+      reactBitsFaultyTerminalBrightness: 1.8,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsFaultyTerminalPaletteMode",
+      "reactBitsFaultyTerminalPrimaryColor",
+      "reactBitsFaultyTerminalHarmony",
+      "reactBitsFaultyTerminalTint",
+      "reactBitsFaultyTerminalScale",
+      "reactBitsFaultyTerminalGridMulX",
+      "reactBitsFaultyTerminalGridMulY",
+      "reactBitsFaultyTerminalDigitSize",
+      "reactBitsFaultyTerminalTimeScale",
+      "reactBitsFaultyTerminalScanlineIntensity",
+      "reactBitsFaultyTerminalGlitchAmount",
+      "reactBitsFaultyTerminalFlickerAmount",
+      "reactBitsFaultyTerminalNoiseAmp",
+      "reactBitsFaultyTerminalChromaticAberration",
+      "reactBitsFaultyTerminalDither",
+      "reactBitsFaultyTerminalCurvature",
+      "reactBitsFaultyTerminalMouseReact",
+      "reactBitsFaultyTerminalMouseStrength",
+      "reactBitsFaultyTerminalPageLoadAnimation",
+      "reactBitsFaultyTerminalBrightness",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-faulty-terminal")
+    assert.equal(premiumSettings.reactBitsFaultyTerminalPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsFaultyTerminalPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsFaultyTerminalHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsFaultyTerminalTint, "#010203")
+    assert.equal(premiumSettings.reactBitsFaultyTerminalScale, 2.5)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalGridMulX, 3.5)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalGridMulY, 1.75)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalDigitSize, 2.25)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalTimeScale, 0.8)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalScanlineIntensity, 0.75)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalGlitchAmount, 1.5)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalFlickerAmount, 0.65)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalNoiseAmp, 0.45)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalChromaticAberration, 4.5)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalDither, 64)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalCurvature, 0.35)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalMouseReact, false)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalMouseStrength, 0.9)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalPageLoadAnimation, false)
+    assert.equal(premiumSettings.reactBitsFaultyTerminalBrightness, 1.8)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

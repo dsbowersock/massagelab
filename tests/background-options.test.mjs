@@ -89,6 +89,7 @@ describe("premium background registry", () => {
       "react-bits-prismatic-burst",
       "react-bits-galaxy",
       "react-bits-dither",
+      "react-bits-faulty-terminal",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -323,6 +324,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-prismatic-burst"))
     assert.ok(chimerOptions.includes("react-bits-galaxy"))
     assert.ok(chimerOptions.includes("react-bits-dither"))
+    assert.ok(chimerOptions.includes("react-bits-faulty-terminal"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -385,6 +387,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-prismatic-burst"))
     assert.ok(clockOptions.includes("react-bits-galaxy"))
     assert.ok(clockOptions.includes("react-bits-dither"))
+    assert.ok(clockOptions.includes("react-bits-faulty-terminal"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -448,6 +451,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-prismatic-burst"))
     assert.ok(musicOptions.includes("react-bits-galaxy"))
     assert.ok(musicOptions.includes("react-bits-dither"))
+    assert.ok(musicOptions.includes("react-bits-faulty-terminal"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3889,6 +3893,106 @@ describe("premium background registry", () => {
       "reactBitsDitherPixelSize",
       "reactBitsDitherMouseInteraction",
       "reactBitsDitherMouseRadius",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Faulty Terminal source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-faulty-terminal-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-faulty-terminal/)
+    assert.match(registrySource, /Faulty Terminal/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/faulty-terminal/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsFaultyTerminalBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_FAULTY_TERMINAL/)
+    assert.match(effectSource, /hash21/)
+    assert.match(effectSource, /fbm/)
+    assert.match(effectSource, /pattern/)
+    assert.match(effectSource, /digit/)
+    assert.match(effectSource, /displace/)
+    assert.match(effectSource, /barrel/)
+    assert.match(effectSource, /uPageLoadProgress/)
+    assert.match(effectSource, /uMouseStrength/)
+    assert.match(effectSource, /uChromaticAberration/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsFaultyTerminalCanvas/)
+    assert.match(hostSource, /reactBitsFaultyTerminal/)
+    assert.match(cssEffectsSource, /ReactBitsFaultyTerminalOptions/)
+    assert.match(setupSource, /resolveReactBitsFaultyTerminalTint/)
+    assert.match(setupSource, /createReactBitsFaultyTerminalHarmonyColor/)
+    assert.match(runningSource, /reactBitsFaultyTerminal=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsFaultyTerminal=\{\{/)
+    assert.match(docsSource, /Faulty Terminal \| https:\/\/reactbits\.dev\/backgrounds\/faulty-terminal/)
+    assert.match(docsSource, /FaultyTerminal\.jsx/)
+    assert.match(docsSource, /FaultyTerminal\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /CRT-like terminal digit shader/)
+
+    const settingKeys = [
+      "reactBitsFaultyTerminalPaletteMode",
+      "reactBitsFaultyTerminalPrimaryColor",
+      "reactBitsFaultyTerminalHarmony",
+      "reactBitsFaultyTerminalTint",
+      "reactBitsFaultyTerminalScale",
+      "reactBitsFaultyTerminalGridMulX",
+      "reactBitsFaultyTerminalGridMulY",
+      "reactBitsFaultyTerminalDigitSize",
+      "reactBitsFaultyTerminalTimeScale",
+      "reactBitsFaultyTerminalScanlineIntensity",
+      "reactBitsFaultyTerminalGlitchAmount",
+      "reactBitsFaultyTerminalFlickerAmount",
+      "reactBitsFaultyTerminalNoiseAmp",
+      "reactBitsFaultyTerminalChromaticAberration",
+      "reactBitsFaultyTerminalDither",
+      "reactBitsFaultyTerminalCurvature",
+      "reactBitsFaultyTerminalMouseReact",
+      "reactBitsFaultyTerminalMouseStrength",
+      "reactBitsFaultyTerminalPageLoadAnimation",
+      "reactBitsFaultyTerminalBrightness",
     ]
 
     for (const settingKey of settingKeys) {

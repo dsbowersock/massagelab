@@ -2751,6 +2751,84 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsDitherMouseRadius: 0 }).reactBitsDitherMouseRadius, 0.05)
   })
 
+  it("normalizes React Bits Faulty Terminal background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsFaultyTerminalPaletteMode: "harmony",
+      reactBitsFaultyTerminalPrimaryColor: "#abcdef",
+      reactBitsFaultyTerminalHarmony: "triad",
+      reactBitsFaultyTerminalTint: "#010203",
+      reactBitsFaultyTerminalScale: 99,
+      reactBitsFaultyTerminalGridMulX: 99,
+      reactBitsFaultyTerminalGridMulY: 99,
+      reactBitsFaultyTerminalDigitSize: 99,
+      reactBitsFaultyTerminalTimeScale: 99,
+      reactBitsFaultyTerminalScanlineIntensity: 99,
+      reactBitsFaultyTerminalGlitchAmount: 99,
+      reactBitsFaultyTerminalFlickerAmount: 99,
+      reactBitsFaultyTerminalNoiseAmp: 99,
+      reactBitsFaultyTerminalChromaticAberration: 99,
+      reactBitsFaultyTerminalDither: 999,
+      reactBitsFaultyTerminalCurvature: 99,
+      reactBitsFaultyTerminalMouseReact: false,
+      reactBitsFaultyTerminalMouseStrength: 99,
+      reactBitsFaultyTerminalPageLoadAnimation: false,
+      reactBitsFaultyTerminalBrightness: 99,
+    })
+
+    assert.equal(settings.reactBitsFaultyTerminalPaletteMode, "harmony")
+    assert.equal(settings.reactBitsFaultyTerminalPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsFaultyTerminalHarmony, "triad")
+    assert.equal(settings.reactBitsFaultyTerminalTint, "#010203")
+    assert.equal(settings.reactBitsFaultyTerminalScale, 4)
+    assert.equal(settings.reactBitsFaultyTerminalGridMulX, 6)
+    assert.equal(settings.reactBitsFaultyTerminalGridMulY, 6)
+    assert.equal(settings.reactBitsFaultyTerminalDigitSize, 4)
+    assert.equal(settings.reactBitsFaultyTerminalTimeScale, 2)
+    assert.equal(settings.reactBitsFaultyTerminalScanlineIntensity, 2)
+    assert.equal(settings.reactBitsFaultyTerminalGlitchAmount, 3)
+    assert.equal(settings.reactBitsFaultyTerminalFlickerAmount, 2)
+    assert.equal(settings.reactBitsFaultyTerminalNoiseAmp, 2)
+    assert.equal(settings.reactBitsFaultyTerminalChromaticAberration, 8)
+    assert.equal(settings.reactBitsFaultyTerminalDither, 255)
+    assert.equal(settings.reactBitsFaultyTerminalCurvature, 1)
+    assert.equal(settings.reactBitsFaultyTerminalMouseReact, false)
+    assert.equal(settings.reactBitsFaultyTerminalMouseStrength, 2)
+    assert.equal(settings.reactBitsFaultyTerminalPageLoadAnimation, false)
+    assert.equal(settings.reactBitsFaultyTerminalBrightness, 3)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalPaletteMode: "auto" }).reactBitsFaultyTerminalPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalPrimaryColor: "white" }).reactBitsFaultyTerminalPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalHarmony: "wild" }).reactBitsFaultyTerminalHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalTint: "white" }).reactBitsFaultyTerminalTint,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalTint,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalTimeScale: "fast" }).reactBitsFaultyTerminalTimeScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalTimeScale,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalMouseReact: "yes" }).reactBitsFaultyTerminalMouseReact,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalMouseReact,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFaultyTerminalPageLoadAnimation: "yes" })
+        .reactBitsFaultyTerminalPageLoadAnimation,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFaultyTerminalPageLoadAnimation,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsFaultyTerminalScale: 0 }).reactBitsFaultyTerminalScale, 0.25)
+    assert.equal(sanitizeChimerSettings({ reactBitsFaultyTerminalDigitSize: 0 }).reactBitsFaultyTerminalDigitSize, 0.5)
+    assert.equal(sanitizeChimerSettings({ reactBitsFaultyTerminalBrightness: 0 }).reactBitsFaultyTerminalBrightness, 0.1)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

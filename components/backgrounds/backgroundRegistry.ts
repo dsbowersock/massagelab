@@ -48,6 +48,7 @@ export type BackgroundId =
   | "react-bits-prismatic-burst"
   | "react-bits-galaxy"
   | "react-bits-dither"
+  | "react-bits-faulty-terminal"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -140,6 +141,7 @@ const reactBitsLightning = () => import("./effects/react-bits-lightning-backgrou
 const reactBitsPrismaticBurst = () => import("./effects/react-bits-prismatic-burst-background")
 const reactBitsGalaxy = () => import("./effects/react-bits-galaxy-background")
 const reactBitsDither = () => import("./effects/react-bits-dither-background")
+const reactBitsFaultyTerminal = () => import("./effects/react-bits-faulty-terminal-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1075,6 +1077,29 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "linear-gradient(135deg, rgba(148,163,184,0.22), transparent 48%), repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 5px), #020617",
+    },
+  },
+  {
+    id: "react-bits-faulty-terminal",
+    label: "Faulty Terminal",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/faulty-terminal",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium terminal/glitch shader for opt-in themed Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "high",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony tint plus source-shaped scale, grid, digit, time, scanline, glitch, flicker, noise, chromatic, dither, curvature, cursor, page-load, and brightness controls.",
+    component: () => reactBitsFaultyTerminal().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      backgroundColor: "#000000",
+      backgroundImage:
+        "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 12px)",
+      backgroundSize: "100% 4px, 18px 18px",
     },
   },
   {

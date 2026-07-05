@@ -85,6 +85,7 @@ export type ReactBitsPrismaticBurstAnimationType = "rotate" | "rotate3d" | "hove
 export type ReactBitsPrismaticBurstMixBlendMode = "lighten" | "screen" | "none"
 export type ReactBitsGalaxyPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsDitherPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsFaultyTerminalPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1013,6 +1014,26 @@ export interface ChimerSettings {
   reactBitsDitherPixelSize: number
   reactBitsDitherMouseInteraction: boolean
   reactBitsDitherMouseRadius: number
+  reactBitsFaultyTerminalPaletteMode: ReactBitsFaultyTerminalPaletteMode
+  reactBitsFaultyTerminalPrimaryColor: string
+  reactBitsFaultyTerminalHarmony: ColorHarmony
+  reactBitsFaultyTerminalTint: string
+  reactBitsFaultyTerminalScale: number
+  reactBitsFaultyTerminalGridMulX: number
+  reactBitsFaultyTerminalGridMulY: number
+  reactBitsFaultyTerminalDigitSize: number
+  reactBitsFaultyTerminalTimeScale: number
+  reactBitsFaultyTerminalScanlineIntensity: number
+  reactBitsFaultyTerminalGlitchAmount: number
+  reactBitsFaultyTerminalFlickerAmount: number
+  reactBitsFaultyTerminalNoiseAmp: number
+  reactBitsFaultyTerminalChromaticAberration: number
+  reactBitsFaultyTerminalDither: number
+  reactBitsFaultyTerminalCurvature: number
+  reactBitsFaultyTerminalMouseReact: boolean
+  reactBitsFaultyTerminalMouseStrength: number
+  reactBitsFaultyTerminalPageLoadAnimation: boolean
+  reactBitsFaultyTerminalBrightness: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1480,6 +1501,14 @@ type ReactBitsDitherColorSettings = Pick<
   | "reactBitsDitherPrimaryColor"
   | "reactBitsDitherHarmony"
   | "reactBitsDitherColor"
+>
+
+type ReactBitsFaultyTerminalColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsFaultyTerminalPaletteMode"
+  | "reactBitsFaultyTerminalPrimaryColor"
+  | "reactBitsFaultyTerminalHarmony"
+  | "reactBitsFaultyTerminalTint"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2025,6 +2054,23 @@ export function resolveReactBitsDitherColor(settings: ReactBitsDitherColorSettin
   }
 
   return settings.reactBitsDitherColor
+}
+
+export function resolveReactBitsFaultyTerminalTint(
+  settings: ReactBitsFaultyTerminalColorSettings,
+): string {
+  if (settings.reactBitsFaultyTerminalPaletteMode === "source") {
+    return "#FFFFFF"
+  }
+
+  if (settings.reactBitsFaultyTerminalPaletteMode === "harmony") {
+    return createReactBitsFaultyTerminalHarmonyColor(
+      settings.reactBitsFaultyTerminalPrimaryColor,
+      settings.reactBitsFaultyTerminalHarmony,
+    )
+  }
+
+  return settings.reactBitsFaultyTerminalTint
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3365,6 +3411,13 @@ export function createReactBitsGalaxyHarmonyHue(
 }
 
 export function createReactBitsDitherHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): string {
+  return createReactBitsPixelSnowHarmonyColor(primaryColor, harmony)
+}
+
+export function createReactBitsFaultyTerminalHarmonyColor(
   primaryColor: string,
   harmony: ColorHarmony,
 ): string {
@@ -12122,6 +12175,285 @@ export function SetTimer({
                 value={settings.reactBitsDitherMouseRadius}
                 onChange={(event) => onSettingsChange({ reactBitsDitherMouseRadius: Number(event.target.value) })}
                 aria-label="React Bits Dither cursor radius"
+              />
+            </label>
+          ) : null}
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-faulty-terminal") {
+      const useCustomFaultyTerminal = settings.reactBitsFaultyTerminalPaletteMode === "custom"
+      const useHarmonyFaultyTerminal = settings.reactBitsFaultyTerminalPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Tint mode</span>
+            <select
+              value={settings.reactBitsFaultyTerminalPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsFaultyTerminalPaletteMode: event.target.value as ReactBitsFaultyTerminalPaletteMode,
+              })}
+              aria-label="React Bits Faulty Terminal tint mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom tint</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomFaultyTerminal ? (
+            <label className={styles.colorRow}>
+              <span>Terminal tint</span>
+              <input
+                type="color"
+                value={settings.reactBitsFaultyTerminalTint}
+                onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalTint: event.target.value })}
+                aria-label="React Bits Faulty Terminal tint"
+              />
+            </label>
+          ) : null}
+
+          {useHarmonyFaultyTerminal ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsFaultyTerminalPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalPrimaryColor: event.target.value })}
+                  aria-label="React Bits Faulty Terminal primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsFaultyTerminalHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsFaultyTerminalHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Faulty Terminal color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsFaultyTerminalMouseReact}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalMouseReact: event.target.checked })}
+              aria-label="React Bits Faulty Terminal cursor reaction"
+            />
+            <span>Cursor reaction</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsFaultyTerminalPageLoadAnimation}
+              onChange={(event) => onSettingsChange({
+                reactBitsFaultyTerminalPageLoadAnimation: event.target.checked,
+              })}
+              aria-label="React Bits Faulty Terminal page-load animation"
+            />
+            <span>Page-load animation</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({settings.reactBitsFaultyTerminalScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsFaultyTerminalScale}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalScale: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid X ({settings.reactBitsFaultyTerminalGridMulX.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="6"
+              step="0.05"
+              value={settings.reactBitsFaultyTerminalGridMulX}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalGridMulX: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal grid X multiplier"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid Y ({settings.reactBitsFaultyTerminalGridMulY.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="6"
+              step="0.05"
+              value={settings.reactBitsFaultyTerminalGridMulY}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalGridMulY: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal grid Y multiplier"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Digit size ({settings.reactBitsFaultyTerminalDigitSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsFaultyTerminalDigitSize}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalDigitSize: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal digit size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({settings.reactBitsFaultyTerminalTimeScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalTimeScale}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalTimeScale: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal time scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanlines ({settings.reactBitsFaultyTerminalScanlineIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalScanlineIntensity}
+              onChange={(event) => onSettingsChange({
+                reactBitsFaultyTerminalScanlineIntensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal scanline intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glitch ({settings.reactBitsFaultyTerminalGlitchAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalGlitchAmount}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalGlitchAmount: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal glitch amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flicker ({settings.reactBitsFaultyTerminalFlickerAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalFlickerAmount}
+              onChange={(event) => onSettingsChange({
+                reactBitsFaultyTerminalFlickerAmount: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal flicker amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsFaultyTerminalNoiseAmp.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalNoiseAmp}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalNoiseAmp: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal noise amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Chromatic ({settings.reactBitsFaultyTerminalChromaticAberration.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsFaultyTerminalChromaticAberration}
+              onChange={(event) => onSettingsChange({
+                reactBitsFaultyTerminalChromaticAberration: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal chromatic aberration"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dither ({settings.reactBitsFaultyTerminalDither.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              step="1"
+              value={settings.reactBitsFaultyTerminalDither}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalDither: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal dither"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Curvature ({settings.reactBitsFaultyTerminalCurvature.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalCurvature}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalCurvature: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal curvature"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({settings.reactBitsFaultyTerminalBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.01"
+              value={settings.reactBitsFaultyTerminalBrightness}
+              onChange={(event) => onSettingsChange({ reactBitsFaultyTerminalBrightness: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal brightness"
+            />
+          </label>
+
+          {settings.reactBitsFaultyTerminalMouseReact ? (
+            <label className={styles.rangeRow}>
+              <span>Cursor strength ({settings.reactBitsFaultyTerminalMouseStrength.toFixed(2)})</span>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.01"
+                value={settings.reactBitsFaultyTerminalMouseStrength}
+                onChange={(event) => onSettingsChange({
+                  reactBitsFaultyTerminalMouseStrength: Number(event.target.value),
+                })}
+                aria-label="React Bits Faulty Terminal cursor strength"
               />
             </label>
           ) : null}
