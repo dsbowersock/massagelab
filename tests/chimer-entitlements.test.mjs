@@ -1398,6 +1398,51 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsSoftAuroraMouseInfluence, 0.4)
   })
 
+  it("resets React Bits Plasma controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-plasma",
+      reactBitsPlasmaPaletteMode: "harmony",
+      reactBitsPlasmaPrimaryColor: "#FFFFFF",
+      reactBitsPlasmaHarmony: "triad",
+      reactBitsPlasmaColor: "#ABCDEF",
+      reactBitsPlasmaSpeed: 1.6,
+      reactBitsPlasmaDirection: "pingpong",
+      reactBitsPlasmaScale: 2.2,
+      reactBitsPlasmaOpacity: 0.7,
+      reactBitsPlasmaMouseInteractive: true,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsPlasmaPaletteMode",
+      "reactBitsPlasmaPrimaryColor",
+      "reactBitsPlasmaHarmony",
+      "reactBitsPlasmaColor",
+      "reactBitsPlasmaSpeed",
+      "reactBitsPlasmaDirection",
+      "reactBitsPlasmaScale",
+      "reactBitsPlasmaOpacity",
+      "reactBitsPlasmaMouseInteractive",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-plasma")
+    assert.equal(premiumSettings.reactBitsPlasmaPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsPlasmaPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsPlasmaHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsPlasmaColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsPlasmaSpeed, 1.6)
+    assert.equal(premiumSettings.reactBitsPlasmaDirection, "pingpong")
+    assert.equal(premiumSettings.reactBitsPlasmaScale, 2.2)
+    assert.equal(premiumSettings.reactBitsPlasmaOpacity, 0.7)
+    assert.equal(premiumSettings.reactBitsPlasmaMouseInteractive, true)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

@@ -36,6 +36,7 @@ export type BackgroundId =
   | "react-bits-line-waves"
   | "react-bits-radar"
   | "react-bits-soft-aurora"
+  | "react-bits-plasma"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -116,6 +117,7 @@ const reactBitsEvilEye = () => import("./effects/react-bits-evil-eye-background"
 const reactBitsLineWaves = () => import("./effects/react-bits-line-waves-background")
 const reactBitsRadar = () => import("./effects/react-bits-radar-background")
 const reactBitsSoftAurora = () => import("./effects/react-bits-soft-aurora-background")
+const reactBitsPlasma = () => import("./effects/react-bits-plasma-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -778,6 +780,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 46% 64%, rgba(247,247,247,0.16), transparent 38%), radial-gradient(circle at 58% 66%, rgba(225,0,255,0.18), transparent 44%), linear-gradient(180deg, #05010d 0%, #10071e 58%, #020006 100%)",
+    },
+  },
+  {
+    id: "react-bits-plasma",
+    label: "Plasma",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/plasma",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium raymarched plasma shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony plasma color, source speed, direction including ping-pong, scale, opacity, and optional mouse warp; source WebGL2/OGL shader adapted with raw WebGL2 while the canvas remains pointer-events free.",
+    component: () => reactBitsPlasma().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.16), transparent 34%), radial-gradient(circle at 42% 60%, rgba(138,92,246,0.18), transparent 42%), linear-gradient(145deg, #05010d 0%, #12051f 58%, #020006 100%)",
     },
   },
   {

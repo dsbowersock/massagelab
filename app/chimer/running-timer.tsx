@@ -86,6 +86,7 @@ import {
   resolveReactBitsLineWavesColors,
   resolveReactBitsRadarColor,
   resolveReactBitsSoftAuroraColors,
+  resolveReactBitsPlasmaColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -114,6 +115,8 @@ import {
   type ReactBitsLineWavesPaletteMode,
   type ReactBitsRadarPaletteMode,
   type ReactBitsSoftAuroraPaletteMode,
+  type ReactBitsPlasmaDirection,
+  type ReactBitsPlasmaPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -522,6 +525,15 @@ interface RunningTimerProps {
   reactBitsSoftAuroraColorSpeed: number
   reactBitsSoftAuroraEnableMouseInteraction: boolean
   reactBitsSoftAuroraMouseInfluence: number
+  reactBitsPlasmaPaletteMode: ReactBitsPlasmaPaletteMode
+  reactBitsPlasmaPrimaryColor: string
+  reactBitsPlasmaHarmony: ColorHarmony
+  reactBitsPlasmaColor: string
+  reactBitsPlasmaSpeed: number
+  reactBitsPlasmaDirection: ReactBitsPlasmaDirection
+  reactBitsPlasmaScale: number
+  reactBitsPlasmaOpacity: number
+  reactBitsPlasmaMouseInteractive: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1087,6 +1099,15 @@ export function RunningTimer({
   reactBitsSoftAuroraColorSpeed,
   reactBitsSoftAuroraEnableMouseInteraction,
   reactBitsSoftAuroraMouseInfluence,
+  reactBitsPlasmaPaletteMode,
+  reactBitsPlasmaPrimaryColor,
+  reactBitsPlasmaHarmony,
+  reactBitsPlasmaColor,
+  reactBitsPlasmaSpeed,
+  reactBitsPlasmaDirection,
+  reactBitsPlasmaScale,
+  reactBitsPlasmaOpacity,
+  reactBitsPlasmaMouseInteractive,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1418,6 +1439,12 @@ export function RunningTimer({
     reactBitsSoftAuroraHarmony,
     reactBitsSoftAuroraColorOne,
     reactBitsSoftAuroraColorTwo,
+  })
+  const plasmaColor = resolveReactBitsPlasmaColor({
+    reactBitsPlasmaPaletteMode,
+    reactBitsPlasmaPrimaryColor,
+    reactBitsPlasmaHarmony,
+    reactBitsPlasmaColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -7131,6 +7158,131 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-plasma" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPlasmaPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaPaletteMode: event.target.value as ReactBitsPlasmaPaletteMode,
+              })}
+              aria-label="React Bits Plasma color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom plasma</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPlasmaPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Plasma color</span>
+              <input
+                type="color"
+                value={reactBitsPlasmaColor}
+                onChange={(event) => handleSettingsChange({ reactBitsPlasmaColor: event.target.value })}
+                aria-label="React Bits Plasma color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsPlasmaPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaPrimaryColor: event.target.value })}
+                  aria-label="React Bits Plasma primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPlasmaHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPlasmaHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Plasma color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Direction</span>
+            <select
+              value={reactBitsPlasmaDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaDirection: event.target.value as ReactBitsPlasmaDirection,
+              })}
+              aria-label="React Bits Plasma direction"
+            >
+              <option value="forward">Forward</option>
+              <option value="reverse">Reverse</option>
+              <option value="pingpong">Ping-pong</option>
+            </select>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <span>Mouse warp</span>
+            <input
+              type="checkbox"
+              checked={reactBitsPlasmaMouseInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaMouseInteractive: event.target.checked })}
+              aria-label="React Bits Plasma mouse warp"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPlasmaSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPlasmaSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaSpeed: Number(event.target.value) })}
+              aria-label="React Bits Plasma speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsPlasmaScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={reactBitsPlasmaScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaScale: Number(event.target.value) })}
+              aria-label="React Bits Plasma scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsPlasmaOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPlasmaOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaOpacity: Number(event.target.value) })}
+              aria-label="React Bits Plasma opacity"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -9360,6 +9512,14 @@ export function RunningTimer({
             colorSpeed: reactBitsSoftAuroraColorSpeed,
             enableMouseInteraction: reactBitsSoftAuroraEnableMouseInteraction,
             mouseInfluence: reactBitsSoftAuroraMouseInfluence,
+          }}
+          reactBitsPlasma={{
+            color: plasmaColor,
+            speed: reactBitsPlasmaSpeed,
+            direction: reactBitsPlasmaDirection,
+            scale: reactBitsPlasmaScale,
+            opacity: reactBitsPlasmaOpacity,
+            mouseInteractive: reactBitsPlasmaMouseInteractive,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

@@ -77,6 +77,7 @@ describe("premium background registry", () => {
       "react-bits-line-waves",
       "react-bits-radar",
       "react-bits-soft-aurora",
+      "react-bits-plasma",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -299,6 +300,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-line-waves"))
     assert.ok(chimerOptions.includes("react-bits-radar"))
     assert.ok(chimerOptions.includes("react-bits-soft-aurora"))
+    assert.ok(chimerOptions.includes("react-bits-plasma"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -349,6 +351,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-line-waves"))
     assert.ok(clockOptions.includes("react-bits-radar"))
     assert.ok(clockOptions.includes("react-bits-soft-aurora"))
+    assert.ok(clockOptions.includes("react-bits-plasma"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -400,6 +403,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-line-waves"))
     assert.ok(musicOptions.includes("react-bits-radar"))
     assert.ok(musicOptions.includes("react-bits-soft-aurora"))
+    assert.ok(musicOptions.includes("react-bits-plasma"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2713,6 +2717,94 @@ describe("premium background registry", () => {
       "reactBitsSoftAuroraColorSpeed",
       "reactBitsSoftAuroraEnableMouseInteraction",
       "reactBitsSoftAuroraMouseInfluence",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Plasma source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-plasma-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-plasma/)
+    assert.match(registrySource, /label:\s*"Plasma"/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/plasma/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsPlasmaBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_PLASMA/)
+    assert.match(effectSource, /#version 300 es/)
+    assert.match(effectSource, /getContext\("webgl2"/)
+    assert.match(effectSource, /uCustomColor/)
+    assert.match(effectSource, /uDirection/)
+    assert.match(effectSource, /uOpacity/)
+    assert.match(effectSource, /uMouseInteractive/)
+    assert.match(effectSource, /pingpongDuration/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /color:\s*"#FFFFFF"/)
+    assert.match(effectSource, /speed:\s*1/)
+    assert.match(effectSource, /direction:\s*"forward"/)
+    assert.match(effectSource, /scale:\s*1/)
+    assert.match(effectSource, /opacity:\s*1/)
+    assert.match(effectSource, /mouseInteractive:\s*false/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsPlasma/)
+    assert.match(stylesSource, /reactBitsPlasmaCanvas/)
+
+    assert.match(hostSource, /reactBitsPlasma/)
+    assert.match(cssEffectsSource, /ReactBitsPlasmaOptions/)
+    assert.match(setupSource, /resolveReactBitsPlasmaColor/)
+    assert.match(runningSource, /reactBitsPlasma=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsPlasma=\{\{/)
+    assert.match(docsSource, /Plasma \| https:\/\/reactbits\.dev\/backgrounds\/plasma/)
+    assert.match(docsSource, /Plasma\.jsx/)
+    assert.match(docsSource, /Plasma\.css/)
+    assert.match(docsSource, /raw WebGL2/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsPlasmaPaletteMode",
+      "reactBitsPlasmaPrimaryColor",
+      "reactBitsPlasmaHarmony",
+      "reactBitsPlasmaColor",
+      "reactBitsPlasmaSpeed",
+      "reactBitsPlasmaDirection",
+      "reactBitsPlasmaScale",
+      "reactBitsPlasmaOpacity",
+      "reactBitsPlasmaMouseInteractive",
     ]
 
     for (const settingKey of settingKeys) {

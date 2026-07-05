@@ -65,6 +65,8 @@ export type ReactBitsEvilEyePaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsLineWavesPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsRadarPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsSoftAuroraPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsPlasmaPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsPlasmaDirection = "forward" | "reverse" | "pingpong"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -806,6 +808,15 @@ export interface ChimerSettings {
   reactBitsSoftAuroraColorSpeed: number
   reactBitsSoftAuroraEnableMouseInteraction: boolean
   reactBitsSoftAuroraMouseInfluence: number
+  reactBitsPlasmaPaletteMode: ReactBitsPlasmaPaletteMode
+  reactBitsPlasmaPrimaryColor: string
+  reactBitsPlasmaHarmony: ColorHarmony
+  reactBitsPlasmaColor: string
+  reactBitsPlasmaSpeed: number
+  reactBitsPlasmaDirection: ReactBitsPlasmaDirection
+  reactBitsPlasmaScale: number
+  reactBitsPlasmaOpacity: number
+  reactBitsPlasmaMouseInteractive: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1167,6 +1178,14 @@ type ReactBitsSoftAuroraColorSettings = Pick<
   | "reactBitsSoftAuroraColorTwo"
 >
 
+type ReactBitsPlasmaColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsPlasmaPaletteMode"
+  | "reactBitsPlasmaPrimaryColor"
+  | "reactBitsPlasmaHarmony"
+  | "reactBitsPlasmaColor"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1506,6 +1525,21 @@ export function resolveReactBitsSoftAuroraColors(settings: ReactBitsSoftAuroraCo
     settings.reactBitsSoftAuroraColorOne,
     settings.reactBitsSoftAuroraColorTwo,
   ]
+}
+
+export function resolveReactBitsPlasmaColor(settings: ReactBitsPlasmaColorSettings): string {
+  if (settings.reactBitsPlasmaPaletteMode === "source") {
+    return "#FFFFFF"
+  }
+
+  if (settings.reactBitsPlasmaPaletteMode === "harmony") {
+    return createReactBitsPlasmaHarmonyColor(
+      settings.reactBitsPlasmaPrimaryColor,
+      settings.reactBitsPlasmaHarmony,
+    )
+  }
+
+  return settings.reactBitsPlasmaColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -2436,6 +2470,35 @@ export function createReactBitsSoftAuroraHarmonyColors(
         hslToHex(hue - 24, auroraSaturation * 0.26, paleLightness),
         hslToHex(hue + 30, auroraSaturation * 0.92, glowLightness),
       ]
+  }
+}
+
+export function createReactBitsPlasmaHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): string {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const plasmaSaturation = Math.min(0.96, Math.max(0.42, saturation))
+  const plasmaLightness = Math.min(0.86, Math.max(0.48, lightness + 0.04))
+
+  switch (harmony) {
+    case "complementary":
+      return hslToHex(hue + 180, Math.min(0.94, plasmaSaturation * 0.94), plasmaLightness)
+    case "split-complementary":
+      return hslToHex(hue + 150, Math.min(0.96, plasmaSaturation), Math.min(0.88, plasmaLightness + 0.02))
+    case "triad":
+      return hslToHex(hue + 120, Math.min(0.96, plasmaSaturation), plasmaLightness)
+    case "square":
+      return hslToHex(hue + 90, Math.min(0.94, plasmaSaturation * 0.94), Math.min(0.88, plasmaLightness + 0.02))
+    case "compound":
+      return hslToHex(hue - 28, Math.min(0.98, plasmaSaturation), Math.min(0.86, plasmaLightness + 0.02))
+    case "shades":
+      return hslToHex(hue, Math.min(0.78, plasmaSaturation * 0.78), Math.min(0.92, plasmaLightness + 0.12))
+    case "monochromatic":
+      return hslToHex(hue, plasmaSaturation, plasmaLightness)
+    case "analogous":
+    default:
+      return hslToHex(hue + 28, Math.min(0.96, plasmaSaturation * 0.96), plasmaLightness)
   }
 }
 
@@ -8552,6 +8615,136 @@ export function SetTimer({
                 reactBitsSoftAuroraMouseInfluence: Number(event.target.value),
               })}
               aria-label="React Bits Soft Aurora mouse influence"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-plasma") {
+      const useCustomColor = settings.reactBitsPlasmaPaletteMode === "custom"
+      const useHarmonyColor = settings.reactBitsPlasmaPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsPlasmaPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsPlasmaPaletteMode: event.target.value as ReactBitsPlasmaPaletteMode,
+              })}
+              aria-label="React Bits Plasma color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom plasma</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomColor ? (
+            <label className={styles.colorRow}>
+              <span>Plasma color</span>
+              <input
+                type="color"
+                value={settings.reactBitsPlasmaColor}
+                onChange={(event) => onSettingsChange({ reactBitsPlasmaColor: event.target.value })}
+                aria-label="React Bits Plasma color"
+              />
+            </label>
+          ) : null}
+
+          {useHarmonyColor ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPlasmaPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsPlasmaPrimaryColor: event.target.value })}
+                  aria-label="React Bits Plasma primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsPlasmaHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsPlasmaHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Plasma color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Direction</span>
+            <select
+              value={settings.reactBitsPlasmaDirection}
+              onChange={(event) => onSettingsChange({
+                reactBitsPlasmaDirection: event.target.value as ReactBitsPlasmaDirection,
+              })}
+              aria-label="React Bits Plasma direction"
+            >
+              <option value="forward">Forward</option>
+              <option value="reverse">Reverse</option>
+              <option value="pingpong">Ping-pong</option>
+            </select>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <span>Mouse warp</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsPlasmaMouseInteractive}
+              onChange={(event) => onSettingsChange({ reactBitsPlasmaMouseInteractive: event.target.checked })}
+              aria-label="React Bits Plasma mouse warp"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsPlasmaSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsPlasmaSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsPlasmaSpeed: Number(event.target.value) })}
+              aria-label="React Bits Plasma speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({settings.reactBitsPlasmaScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsPlasmaScale}
+              onChange={(event) => onSettingsChange({ reactBitsPlasmaScale: Number(event.target.value) })}
+              aria-label="React Bits Plasma scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(settings.reactBitsPlasmaOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsPlasmaOpacity}
+              onChange={(event) => onSettingsChange({ reactBitsPlasmaOpacity: Number(event.target.value) })}
+              aria-label="React Bits Plasma opacity"
             />
           </label>
         </div>

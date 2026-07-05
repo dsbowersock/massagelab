@@ -41,6 +41,7 @@ import type {
   ReactBitsLineWavesOptions,
   ReactBitsRadarOptions,
   ReactBitsSoftAuroraOptions,
+  ReactBitsPlasmaOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -97,6 +98,7 @@ interface BackgroundHostProps {
   reactBitsLineWaves?: ReactBitsLineWavesOptions
   reactBitsRadar?: ReactBitsRadarOptions
   reactBitsSoftAurora?: ReactBitsSoftAuroraOptions
+  reactBitsPlasma?: ReactBitsPlasmaOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -169,6 +171,7 @@ export function BackgroundHost({
   reactBitsLineWaves,
   reactBitsRadar,
   reactBitsSoftAurora,
+  reactBitsPlasma,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -266,6 +269,7 @@ export function BackgroundHost({
           reactBitsLineWaves={reactBitsLineWaves}
           reactBitsRadar={reactBitsRadar}
           reactBitsSoftAurora={reactBitsSoftAurora}
+          reactBitsPlasma={reactBitsPlasma}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

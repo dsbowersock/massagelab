@@ -1958,6 +1958,58 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Plasma background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsPlasmaPaletteMode: "harmony",
+      reactBitsPlasmaPrimaryColor: "#ffffff",
+      reactBitsPlasmaHarmony: "triad",
+      reactBitsPlasmaColor: "#abcdef",
+      reactBitsPlasmaSpeed: 99,
+      reactBitsPlasmaDirection: "pingpong",
+      reactBitsPlasmaScale: 99,
+      reactBitsPlasmaOpacity: 99,
+      reactBitsPlasmaMouseInteractive: true,
+    })
+
+    assert.equal(settings.reactBitsPlasmaPaletteMode, "harmony")
+    assert.equal(settings.reactBitsPlasmaPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsPlasmaHarmony, "triad")
+    assert.equal(settings.reactBitsPlasmaColor, "#ABCDEF")
+    assert.equal(settings.reactBitsPlasmaSpeed, 3)
+    assert.equal(settings.reactBitsPlasmaDirection, "pingpong")
+    assert.equal(settings.reactBitsPlasmaScale, 4)
+    assert.equal(settings.reactBitsPlasmaOpacity, 1)
+    assert.equal(settings.reactBitsPlasmaMouseInteractive, true)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaPaletteMode: "auto" }).reactBitsPlasmaPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaPrimaryColor: "white" }).reactBitsPlasmaPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaHarmony: "wild" }).reactBitsPlasmaHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaColor: "white" }).reactBitsPlasmaColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaSpeed: "fast" }).reactBitsPlasmaSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaDirection: "sideways" }).reactBitsPlasmaDirection,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaDirection,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaMouseInteractive: "yes" }).reactBitsPlasmaMouseInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaMouseInteractive,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
