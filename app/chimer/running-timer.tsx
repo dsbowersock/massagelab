@@ -76,6 +76,7 @@ import {
   resolveReactBitsFerrofluidColors,
   resolveReactBitsLightfallColors,
   resolveReactBitsLiquidEtherColors,
+  resolveReactBitsLightPillarColors,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
   resolveEldoraPhotonBeamColors,
@@ -89,6 +90,9 @@ import {
   type ReactBitsLightfallPaletteMode,
   type ReactBitsLiquidEtherPaletteMode,
   type ReactBitsPrismAnimationType,
+  type ReactBitsLightPillarBlendMode,
+  type ReactBitsLightPillarPaletteMode,
+  type ReactBitsLightPillarQuality,
   type EldoraHackerPaletteMode,
   type EldoraNovatrixPaletteMode,
   type EldoraPhotonBeamPaletteMode,
@@ -301,6 +305,21 @@ interface RunningTimerProps {
   reactBitsDarkVeilScanlineFrequency: number
   reactBitsDarkVeilWarpAmount: number
   reactBitsDarkVeilResolutionScale: number
+  reactBitsLightPillarPaletteMode: ReactBitsLightPillarPaletteMode
+  reactBitsLightPillarPrimaryColor: string
+  reactBitsLightPillarHarmony: ColorHarmony
+  reactBitsLightPillarTopColor: string
+  reactBitsLightPillarBottomColor: string
+  reactBitsLightPillarIntensity: number
+  reactBitsLightPillarRotationSpeed: number
+  reactBitsLightPillarInteractive: boolean
+  reactBitsLightPillarGlowAmount: number
+  reactBitsLightPillarWidth: number
+  reactBitsLightPillarHeight: number
+  reactBitsLightPillarNoiseIntensity: number
+  reactBitsLightPillarBlendMode: ReactBitsLightPillarBlendMode
+  reactBitsLightPillarRotation: number
+  reactBitsLightPillarQuality: ReactBitsLightPillarQuality
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -673,6 +692,21 @@ export function RunningTimer({
   reactBitsDarkVeilScanlineFrequency,
   reactBitsDarkVeilWarpAmount,
   reactBitsDarkVeilResolutionScale,
+  reactBitsLightPillarPaletteMode,
+  reactBitsLightPillarPrimaryColor,
+  reactBitsLightPillarHarmony,
+  reactBitsLightPillarTopColor,
+  reactBitsLightPillarBottomColor,
+  reactBitsLightPillarIntensity,
+  reactBitsLightPillarRotationSpeed,
+  reactBitsLightPillarInteractive,
+  reactBitsLightPillarGlowAmount,
+  reactBitsLightPillarWidth,
+  reactBitsLightPillarHeight,
+  reactBitsLightPillarNoiseIntensity,
+  reactBitsLightPillarBlendMode,
+  reactBitsLightPillarRotation,
+  reactBitsLightPillarQuality,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -928,6 +962,13 @@ export function RunningTimer({
     reactBitsLightfallColorOne,
     reactBitsLightfallColorTwo,
     reactBitsLightfallColorThree,
+  })
+  const lightPillarColors = resolveReactBitsLightPillarColors({
+    reactBitsLightPillarPaletteMode,
+    reactBitsLightPillarPrimaryColor,
+    reactBitsLightPillarHarmony,
+    reactBitsLightPillarTopColor,
+    reactBitsLightPillarBottomColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -4072,6 +4113,211 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-light-pillar" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightPillarPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarPaletteMode: event.target.value as ReactBitsLightPillarPaletteMode,
+              })}
+              aria-label="Light Pillar color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightPillarPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Top color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightPillarTopColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarTopColor: event.target.value })}
+                  aria-label="Light Pillar top color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Bottom color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightPillarBottomColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarBottomColor: event.target.value })}
+                  aria-label="Light Pillar bottom color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightPillarPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarPrimaryColor: event.target.value })}
+                  aria-label="Light Pillar primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLightPillarHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightPillarHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Light Pillar color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Quality</span>
+            <select
+              value={reactBitsLightPillarQuality}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarQuality: event.target.value as ReactBitsLightPillarQuality,
+              })}
+              aria-label="Light Pillar quality"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={reactBitsLightPillarBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarBlendMode: event.target.value as ReactBitsLightPillarBlendMode,
+              })}
+              aria-label="Light Pillar blend mode"
+            >
+              <option value="screen">Screen</option>
+              <option value="normal">Normal</option>
+              <option value="lighten">Lighten</option>
+              <option value="plus-lighter">Plus lighter</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsLightPillarIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsLightPillarIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarIntensity: Number(event.target.value) })}
+              aria-label="Light Pillar intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({reactBitsLightPillarRotationSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsLightPillarRotationSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarRotationSpeed: Number(event.target.value),
+              })}
+              aria-label="Light Pillar rotation speed"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor rotation</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLightPillarInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarInteractive: event.target.checked })}
+              aria-label="Light Pillar cursor rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow amount ({reactBitsLightPillarGlowAmount.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.03"
+              step="0.001"
+              value={reactBitsLightPillarGlowAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarGlowAmount: Number(event.target.value) })}
+              aria-label="Light Pillar glow amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar width ({reactBitsLightPillarWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsLightPillarWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarWidth: Number(event.target.value) })}
+              aria-label="Light Pillar width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar height ({reactBitsLightPillarHeight.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={reactBitsLightPillarHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarHeight: Number(event.target.value) })}
+              aria-label="Light Pillar height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsLightPillarNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsLightPillarNoiseIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarNoiseIntensity: Number(event.target.value),
+              })}
+              aria-label="Light Pillar noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar rotation ({reactBitsLightPillarRotation.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsLightPillarRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarRotation: Number(event.target.value) })}
+              aria-label="Light Pillar rotation"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -6124,6 +6370,20 @@ export function RunningTimer({
             scanlineFrequency: reactBitsDarkVeilScanlineFrequency,
             warpAmount: reactBitsDarkVeilWarpAmount,
             resolutionScale: reactBitsDarkVeilResolutionScale,
+          }}
+          reactBitsLightPillar={{
+            topColor: lightPillarColors[0],
+            bottomColor: lightPillarColors[1],
+            intensity: reactBitsLightPillarIntensity,
+            rotationSpeed: reactBitsLightPillarRotationSpeed,
+            interactive: reactBitsLightPillarInteractive,
+            glowAmount: reactBitsLightPillarGlowAmount,
+            pillarWidth: reactBitsLightPillarWidth,
+            pillarHeight: reactBitsLightPillarHeight,
+            noiseIntensity: reactBitsLightPillarNoiseIntensity,
+            mixBlendMode: reactBitsLightPillarBlendMode,
+            pillarRotation: reactBitsLightPillarRotation,
+            quality: reactBitsLightPillarQuality,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

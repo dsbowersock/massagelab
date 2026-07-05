@@ -545,6 +545,86 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsDarkVeilResolutionScale, 0.65)
   })
 
+  it("resets React Bits Light Pillar controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-light-pillar",
+      reactBitsLightPillarPaletteMode: "harmony",
+      reactBitsLightPillarPrimaryColor: "#123456",
+      reactBitsLightPillarHarmony: "triad",
+      reactBitsLightPillarTopColor: "#ABCDEF",
+      reactBitsLightPillarBottomColor: "#FEDCBA",
+      reactBitsLightPillarIntensity: 2.4,
+      reactBitsLightPillarRotationSpeed: 1.2,
+      reactBitsLightPillarInteractive: true,
+      reactBitsLightPillarGlowAmount: 0.02,
+      reactBitsLightPillarWidth: 5.4,
+      reactBitsLightPillarHeight: 1.2,
+      reactBitsLightPillarNoiseIntensity: 0.7,
+      reactBitsLightPillarBlendMode: "normal",
+      reactBitsLightPillarRotation: 44,
+      reactBitsLightPillarQuality: "medium",
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(
+      freeSettings.reactBitsLightPillarPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarPaletteMode,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightPillarPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarPrimaryColor,
+    )
+    assert.equal(freeSettings.reactBitsLightPillarHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarHarmony)
+    assert.equal(freeSettings.reactBitsLightPillarTopColor, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarTopColor)
+    assert.equal(
+      freeSettings.reactBitsLightPillarBottomColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarBottomColor,
+    )
+    assert.equal(freeSettings.reactBitsLightPillarIntensity, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarIntensity)
+    assert.equal(
+      freeSettings.reactBitsLightPillarRotationSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarRotationSpeed,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightPillarInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarInteractive,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightPillarGlowAmount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarGlowAmount,
+    )
+    assert.equal(freeSettings.reactBitsLightPillarWidth, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarWidth)
+    assert.equal(freeSettings.reactBitsLightPillarHeight, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarHeight)
+    assert.equal(
+      freeSettings.reactBitsLightPillarNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarNoiseIntensity,
+    )
+    assert.equal(freeSettings.reactBitsLightPillarBlendMode, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarBlendMode)
+    assert.equal(freeSettings.reactBitsLightPillarRotation, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarRotation)
+    assert.equal(freeSettings.reactBitsLightPillarQuality, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarQuality)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-light-pillar")
+    assert.equal(premiumSettings.reactBitsLightPillarPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsLightPillarPrimaryColor, "#123456")
+    assert.equal(premiumSettings.reactBitsLightPillarHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsLightPillarTopColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsLightPillarBottomColor, "#FEDCBA")
+    assert.equal(premiumSettings.reactBitsLightPillarIntensity, 2.4)
+    assert.equal(premiumSettings.reactBitsLightPillarRotationSpeed, 1.2)
+    assert.equal(premiumSettings.reactBitsLightPillarInteractive, true)
+    assert.equal(premiumSettings.reactBitsLightPillarGlowAmount, 0.02)
+    assert.equal(premiumSettings.reactBitsLightPillarWidth, 5.4)
+    assert.equal(premiumSettings.reactBitsLightPillarHeight, 1.2)
+    assert.equal(premiumSettings.reactBitsLightPillarNoiseIntensity, 0.7)
+    assert.equal(premiumSettings.reactBitsLightPillarBlendMode, "normal")
+    assert.equal(premiumSettings.reactBitsLightPillarRotation, 44)
+    assert.equal(premiumSettings.reactBitsLightPillarQuality, "medium")
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

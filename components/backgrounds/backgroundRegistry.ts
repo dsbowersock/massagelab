@@ -25,6 +25,7 @@ export type BackgroundId =
   | "react-bits-liquid-ether"
   | "react-bits-prism"
   | "react-bits-dark-veil"
+  | "react-bits-light-pillar"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -94,6 +95,7 @@ const reactBitsLightfall = () => import("./effects/react-bits-lightfall-backgrou
 const reactBitsLiquidEther = () => import("./effects/react-bits-liquid-ether-background")
 const reactBitsPrism = () => import("./effects/react-bits-prism-background")
 const reactBitsDarkVeil = () => import("./effects/react-bits-dark-veil-background")
+const reactBitsLightPillar = () => import("./effects/react-bits-light-pillar-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -525,6 +527,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 46% 52%, rgba(124,58,237,0.28), transparent 38%), radial-gradient(circle at 64% 44%, rgba(236,72,153,0.16), transparent 34%), linear-gradient(145deg, #05010d 0%, #12051f 58%, #020007 100%)",
+    },
+  },
+  {
+    id: "react-bits-light-pillar",
+    label: "Light Pillar",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/light-pillar",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium vertical raymarched light-pillar shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "high",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Custom or harmony-based top and bottom colors plus source-shaped intensity, rotation speed, optional cursor interaction, glow amount, pillar width/height, noise, blend mode, pillar rotation, and quality controls; source Three.js shader adapted with native WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsLightPillar().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 46%, rgba(82,39,255,0.24), transparent 32%), radial-gradient(circle at 50% 54%, rgba(255,159,252,0.18), transparent 42%), linear-gradient(145deg, #050013 0%, #120424 56%, #020007 100%)",
     },
   },
   {

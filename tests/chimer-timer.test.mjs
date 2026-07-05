@@ -1156,6 +1156,103 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Light Pillar background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsLightPillarPaletteMode: "harmony",
+      reactBitsLightPillarPrimaryColor: "#123456",
+      reactBitsLightPillarHarmony: "triad",
+      reactBitsLightPillarTopColor: "#abcdef",
+      reactBitsLightPillarBottomColor: "#fedcba",
+      reactBitsLightPillarIntensity: 99,
+      reactBitsLightPillarRotationSpeed: -1,
+      reactBitsLightPillarInteractive: true,
+      reactBitsLightPillarGlowAmount: 99,
+      reactBitsLightPillarWidth: 0,
+      reactBitsLightPillarHeight: 99,
+      reactBitsLightPillarNoiseIntensity: -1,
+      reactBitsLightPillarBlendMode: "normal",
+      reactBitsLightPillarRotation: 999,
+      reactBitsLightPillarQuality: "low",
+    })
+
+    assert.equal(settings.reactBitsLightPillarPaletteMode, "harmony")
+    assert.equal(settings.reactBitsLightPillarPrimaryColor, "#123456")
+    assert.equal(settings.reactBitsLightPillarHarmony, "triad")
+    assert.equal(settings.reactBitsLightPillarTopColor, "#ABCDEF")
+    assert.equal(settings.reactBitsLightPillarBottomColor, "#FEDCBA")
+    assert.equal(settings.reactBitsLightPillarIntensity, 3)
+    assert.equal(settings.reactBitsLightPillarRotationSpeed, 0)
+    assert.equal(settings.reactBitsLightPillarInteractive, true)
+    assert.equal(settings.reactBitsLightPillarGlowAmount, 0.03)
+    assert.equal(settings.reactBitsLightPillarWidth, 0.5)
+    assert.equal(settings.reactBitsLightPillarHeight, 2)
+    assert.equal(settings.reactBitsLightPillarNoiseIntensity, 0)
+    assert.equal(settings.reactBitsLightPillarBlendMode, "normal")
+    assert.equal(settings.reactBitsLightPillarRotation, 180)
+    assert.equal(settings.reactBitsLightPillarQuality, "low")
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarPaletteMode: "auto" }).reactBitsLightPillarPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarPrimaryColor: "purple" }).reactBitsLightPillarPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarHarmony: "wild" }).reactBitsLightPillarHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarTopColor: "violet" }).reactBitsLightPillarTopColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarTopColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarBottomColor: "pink" }).reactBitsLightPillarBottomColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarBottomColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarIntensity: "bright" }).reactBitsLightPillarIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarRotationSpeed: "fast" }).reactBitsLightPillarRotationSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarRotationSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarInteractive: "yes" }).reactBitsLightPillarInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarInteractive,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarGlowAmount: "glow" }).reactBitsLightPillarGlowAmount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarGlowAmount,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarWidth: "wide" }).reactBitsLightPillarWidth,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarWidth,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarHeight: "tall" }).reactBitsLightPillarHeight,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarHeight,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarNoiseIntensity: "grainy" })
+        .reactBitsLightPillarNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarNoiseIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarBlendMode: "multiply" }).reactBitsLightPillarBlendMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarBlendMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarRotation: "tilted" }).reactBitsLightPillarRotation,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarRotation,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightPillarQuality: "ultra" }).reactBitsLightPillarQuality,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarQuality,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

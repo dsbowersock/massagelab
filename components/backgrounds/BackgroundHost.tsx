@@ -30,6 +30,7 @@ import type {
   ReactBitsLiquidEtherOptions,
   ReactBitsPrismOptions,
   ReactBitsDarkVeilOptions,
+  ReactBitsLightPillarOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -75,6 +76,7 @@ interface BackgroundHostProps {
   reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
   reactBitsPrism?: ReactBitsPrismOptions
   reactBitsDarkVeil?: ReactBitsDarkVeilOptions
+  reactBitsLightPillar?: ReactBitsLightPillarOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -136,6 +138,7 @@ export function BackgroundHost({
   reactBitsLiquidEther,
   reactBitsPrism,
   reactBitsDarkVeil,
+  reactBitsLightPillar,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -222,6 +225,7 @@ export function BackgroundHost({
           reactBitsLiquidEther={reactBitsLiquidEther}
           reactBitsPrism={reactBitsPrism}
           reactBitsDarkVeil={reactBitsDarkVeil}
+          reactBitsLightPillar={reactBitsLightPillar}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

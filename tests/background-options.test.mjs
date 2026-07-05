@@ -66,6 +66,7 @@ describe("premium background registry", () => {
       "react-bits-liquid-ether",
       "react-bits-prism",
       "react-bits-dark-veil",
+      "react-bits-light-pillar",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -172,11 +173,14 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Prism\.css/)
     assert.match(sourceDoc, /DarkVeil\.jsx/)
     assert.match(sourceDoc, /DarkVeil\.css/)
+    assert.match(sourceDoc, /LightPillar\.jsx/)
+    assert.match(sourceDoc, /LightPillar\.css/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/lightfall/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/liquid-ether/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/prism/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/dark-veil/)
+    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/light-pillar/)
     assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
@@ -274,6 +278,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-liquid-ether"))
     assert.ok(chimerOptions.includes("react-bits-prism"))
     assert.ok(chimerOptions.includes("react-bits-dark-veil"))
+    assert.ok(chimerOptions.includes("react-bits-light-pillar"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -313,6 +318,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-liquid-ether"))
     assert.ok(clockOptions.includes("react-bits-prism"))
     assert.ok(clockOptions.includes("react-bits-dark-veil"))
+    assert.ok(clockOptions.includes("react-bits-light-pillar"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -353,6 +359,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-liquid-ether"))
     assert.ok(musicOptions.includes("react-bits-prism"))
     assert.ok(musicOptions.includes("react-bits-dark-veil"))
+    assert.ok(musicOptions.includes("react-bits-light-pillar"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1497,6 +1504,124 @@ describe("premium background registry", () => {
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Light Pillar source-shaped, raw WebGL, customizable, and cursor-optional", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-light-pillar-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-light-pillar/)
+    assert.match(registrySource, /Light Pillar/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/light-pillar/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsLightPillarBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHT_PILLAR/)
+    assert.match(effectSource, /topColor: "#5227FF"/)
+    assert.match(effectSource, /bottomColor: "#FF9FFC"/)
+    assert.match(effectSource, /intensity: 1/)
+    assert.match(effectSource, /rotationSpeed: 0\.3/)
+    assert.match(effectSource, /interactive: false/)
+    assert.match(effectSource, /glowAmount: 0\.005/)
+    assert.match(effectSource, /pillarWidth: 3/)
+    assert.match(effectSource, /pillarHeight: 0\.4/)
+    assert.match(effectSource, /noiseIntensity: 0\.5/)
+    assert.match(effectSource, /mixBlendMode: "screen"/)
+    assert.match(effectSource, /pillarRotation: 0/)
+    assert.match(effectSource, /quality: "high"/)
+    assert.match(effectSource, /QUALITY_SETTINGS/)
+    assert.match(effectSource, /iterations: 80/)
+    assert.match(effectSource, /waveIterations: 4/)
+    assert.match(effectSource, /STEP_MULT/)
+    assert.match(effectSource, /MAX_ITER/)
+    assert.match(effectSource, /WAVE_ITER/)
+    assert.match(effectSource, /uTopColor/)
+    assert.match(effectSource, /uBottomColor/)
+    assert.match(effectSource, /uIntensity/)
+    assert.match(effectSource, /uInteractive/)
+    assert.match(effectSource, /uGlowAmount/)
+    assert.match(effectSource, /uPillarWidth/)
+    assert.match(effectSource, /uPillarHeight/)
+    assert.match(effectSource, /uNoiseIntensity/)
+    assert.match(effectSource, /uPillarRotCos/)
+    assert.match(effectSource, /uPillarRotSin/)
+    assert.match(effectSource, /uWaveSin/)
+    assert.match(effectSource, /uWaveCos/)
+    assert.match(effectSource, /buildFragmentShaderSource/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("resize"/)
+    assert.match(effectSource, /window\.removeEventListener\("resize"/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(stylesSource, /reactBitsLightPillar/)
+    assert.match(stylesSource, /reactBitsLightPillarCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsLightPillar/)
+    assert.match(cssEffectsSource, /ReactBitsLightPillarOptions/)
+    assert.match(setupSource, /resolveReactBitsLightPillarColors/)
+    assert.match(runningSource, /reactBitsLightPillar=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsLightPillar=\{\{/)
+    assert.match(docsSource, /Light Pillar \| https:\/\/reactbits\.dev\/backgrounds\/light-pillar/)
+    assert.match(docsSource, /LightPillar\.jsx/)
+    assert.match(docsSource, /LightPillar\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /Three\.js shader/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /container\.addEventListener\("mousemove"/)
+    for (const settingKey of [
+      "reactBitsLightPillarPaletteMode",
+      "reactBitsLightPillarPrimaryColor",
+      "reactBitsLightPillarHarmony",
+      "reactBitsLightPillarTopColor",
+      "reactBitsLightPillarBottomColor",
+      "reactBitsLightPillarIntensity",
+      "reactBitsLightPillarRotationSpeed",
+      "reactBitsLightPillarInteractive",
+      "reactBitsLightPillarGlowAmount",
+      "reactBitsLightPillarWidth",
+      "reactBitsLightPillarHeight",
+      "reactBitsLightPillarNoiseIntensity",
+      "reactBitsLightPillarBlendMode",
+      "reactBitsLightPillarRotation",
+      "reactBitsLightPillarQuality",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
     }
   })
 

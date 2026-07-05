@@ -40,6 +40,9 @@ export type ReactBitsFerrofluidPaletteMode = "harmony" | "custom"
 export type ReactBitsLightfallPaletteMode = "harmony" | "custom"
 export type ReactBitsLiquidEtherPaletteMode = "harmony" | "custom"
 export type ReactBitsPrismAnimationType = "rotate" | "3drotate" | "hover"
+export type ReactBitsLightPillarPaletteMode = "harmony" | "custom"
+export type ReactBitsLightPillarBlendMode = "screen" | "normal" | "lighten" | "plus-lighter"
+export type ReactBitsLightPillarQuality = "low" | "medium" | "high"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -588,6 +591,21 @@ export interface ChimerSettings {
   reactBitsDarkVeilScanlineFrequency: number
   reactBitsDarkVeilWarpAmount: number
   reactBitsDarkVeilResolutionScale: number
+  reactBitsLightPillarPaletteMode: ReactBitsLightPillarPaletteMode
+  reactBitsLightPillarPrimaryColor: string
+  reactBitsLightPillarHarmony: ColorHarmony
+  reactBitsLightPillarTopColor: string
+  reactBitsLightPillarBottomColor: string
+  reactBitsLightPillarIntensity: number
+  reactBitsLightPillarRotationSpeed: number
+  reactBitsLightPillarInteractive: boolean
+  reactBitsLightPillarGlowAmount: number
+  reactBitsLightPillarWidth: number
+  reactBitsLightPillarHeight: number
+  reactBitsLightPillarNoiseIntensity: number
+  reactBitsLightPillarBlendMode: ReactBitsLightPillarBlendMode
+  reactBitsLightPillarRotation: number
+  reactBitsLightPillarQuality: ReactBitsLightPillarQuality
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -851,6 +869,15 @@ type ReactBitsLiquidEtherColorSettings = Pick<
   | "reactBitsLiquidEtherColorThree"
 >
 
+type ReactBitsLightPillarColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsLightPillarPaletteMode"
+  | "reactBitsLightPillarPrimaryColor"
+  | "reactBitsLightPillarHarmony"
+  | "reactBitsLightPillarTopColor"
+  | "reactBitsLightPillarBottomColor"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1002,6 +1029,22 @@ export function resolveReactBitsLiquidEtherColors(
     settings.reactBitsLiquidEtherColorOne,
     settings.reactBitsLiquidEtherColorTwo,
     settings.reactBitsLiquidEtherColorThree,
+  ]
+}
+
+export function resolveReactBitsLightPillarColors(
+  settings: ReactBitsLightPillarColorSettings,
+): [string, string] {
+  if (settings.reactBitsLightPillarPaletteMode === "harmony") {
+    return createReactBitsLightPillarHarmonyPalette(
+      settings.reactBitsLightPillarPrimaryColor,
+      settings.reactBitsLightPillarHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsLightPillarTopColor,
+    settings.reactBitsLightPillarBottomColor,
   ]
 }
 
@@ -1368,6 +1411,60 @@ export function createReactBitsLightfallHarmonyPalette(
         hslToHex(hue - 28, vividSaturation * 0.76, highlightLightness),
         hslToHex(hue, vividSaturation, midLightness),
         hslToHex(hue + 32, Math.min(0.98, vividSaturation * 1.02), baseLightness),
+      ]
+  }
+}
+
+export function createReactBitsLightPillarHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const vividSaturation = Math.min(0.98, Math.max(0.5, saturation))
+  const topLightness = Math.min(0.68, Math.max(0.34, lightness))
+  const bottomLightness = Math.min(0.88, Math.max(0.62, lightness + 0.22))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, vividSaturation, topLightness),
+        hslToHex(hue + 180, Math.min(0.98, vividSaturation * 0.9), bottomLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue + 150, Math.min(0.96, vividSaturation * 0.92), topLightness),
+        hslToHex(hue + 210, Math.min(0.98, vividSaturation), bottomLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue + 120, Math.min(0.96, vividSaturation * 0.9), topLightness),
+        hslToHex(hue + 240, Math.min(0.98, vividSaturation), bottomLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 90, Math.min(0.94, vividSaturation * 0.88), topLightness),
+        hslToHex(hue + 180, Math.min(0.98, vividSaturation), bottomLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 18, Math.min(0.92, vividSaturation * 0.84), topLightness),
+        hslToHex(hue + 184, Math.min(0.98, vividSaturation * 0.94), bottomLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, vividSaturation, topLightness),
+        hslToHex(hue, vividSaturation * 0.66, bottomLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, vividSaturation * 0.84, topLightness),
+        hslToHex(hue, vividSaturation * 0.54, bottomLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 28, vividSaturation * 0.86, topLightness),
+        hslToHex(hue + 32, Math.min(0.98, vividSaturation), bottomLightness),
       ]
   }
 }
@@ -5100,6 +5197,211 @@ export function SetTimer({
               value={settings.reactBitsDarkVeilResolutionScale}
               onChange={(event) => onSettingsChange({ reactBitsDarkVeilResolutionScale: Number(event.target.value) })}
               aria-label="Dark Veil resolution scale"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-light-pillar") {
+      const useCustomPalette = settings.reactBitsLightPillarPaletteMode === "custom"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsLightPillarPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLightPillarPaletteMode: event.target.value as ReactBitsLightPillarPaletteMode,
+              })}
+              aria-label="Light Pillar color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Top color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLightPillarTopColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLightPillarTopColor: event.target.value })}
+                  aria-label="Light Pillar top color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Bottom color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLightPillarBottomColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLightPillarBottomColor: event.target.value })}
+                  aria-label="Light Pillar bottom color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLightPillarPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLightPillarPrimaryColor: event.target.value })}
+                  aria-label="Light Pillar primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsLightPillarHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLightPillarHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Light Pillar color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Quality</span>
+            <select
+              value={settings.reactBitsLightPillarQuality}
+              onChange={(event) => onSettingsChange({
+                reactBitsLightPillarQuality: event.target.value as ReactBitsLightPillarQuality,
+              })}
+              aria-label="Light Pillar quality"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={settings.reactBitsLightPillarBlendMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLightPillarBlendMode: event.target.value as ReactBitsLightPillarBlendMode,
+              })}
+              aria-label="Light Pillar blend mode"
+            >
+              <option value="screen">Screen</option>
+              <option value="normal">Normal</option>
+              <option value="lighten">Lighten</option>
+              <option value="plus-lighter">Plus lighter</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({settings.reactBitsLightPillarIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsLightPillarIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarIntensity: Number(event.target.value) })}
+              aria-label="Light Pillar intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({settings.reactBitsLightPillarRotationSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsLightPillarRotationSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarRotationSpeed: Number(event.target.value) })}
+              aria-label="Light Pillar rotation speed"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor rotation</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLightPillarInteractive}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarInteractive: event.target.checked })}
+              aria-label="Light Pillar cursor rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow amount ({settings.reactBitsLightPillarGlowAmount.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.03"
+              step="0.001"
+              value={settings.reactBitsLightPillarGlowAmount}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarGlowAmount: Number(event.target.value) })}
+              aria-label="Light Pillar glow amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar width ({settings.reactBitsLightPillarWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsLightPillarWidth}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarWidth: Number(event.target.value) })}
+              aria-label="Light Pillar width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar height ({settings.reactBitsLightPillarHeight.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsLightPillarHeight}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarHeight: Number(event.target.value) })}
+              aria-label="Light Pillar height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsLightPillarNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsLightPillarNoiseIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarNoiseIntensity: Number(event.target.value) })}
+              aria-label="Light Pillar noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar rotation ({settings.reactBitsLightPillarRotation.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={settings.reactBitsLightPillarRotation}
+              onChange={(event) => onSettingsChange({ reactBitsLightPillarRotation: Number(event.target.value) })}
+              aria-label="Light Pillar rotation"
             />
           </label>
         </div>

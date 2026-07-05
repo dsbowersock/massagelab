@@ -28,6 +28,7 @@ export interface BackgroundEffectProps {
   reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
   reactBitsPrism?: ReactBitsPrismOptions
   reactBitsDarkVeil?: ReactBitsDarkVeilOptions
+  reactBitsLightPillar?: ReactBitsLightPillarOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -241,6 +242,21 @@ export interface ReactBitsDarkVeilOptions {
   scanlineFrequency?: number
   warpAmount?: number
   resolutionScale?: number
+}
+
+export interface ReactBitsLightPillarOptions {
+  topColor?: string
+  bottomColor?: string
+  intensity?: number
+  rotationSpeed?: number
+  interactive?: boolean
+  glowAmount?: number
+  pillarWidth?: number
+  pillarHeight?: number
+  noiseIntensity?: number
+  mixBlendMode?: "screen" | "normal" | "lighten" | "plus-lighter"
+  pillarRotation?: number
+  quality?: "low" | "medium" | "high"
 }
 
 export interface EldoraNovatrixOptions {
