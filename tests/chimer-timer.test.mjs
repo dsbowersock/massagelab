@@ -2613,6 +2613,87 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsPrismaticBurstRayCount: 10.9 }).reactBitsPrismaticBurstRayCount, 10)
   })
 
+  it("normalizes React Bits Galaxy background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsGalaxyPaletteMode: "harmony",
+      reactBitsGalaxyPrimaryColor: "#abcdef",
+      reactBitsGalaxyHarmony: "triad",
+      reactBitsGalaxyColor: "#010203",
+      reactBitsGalaxyHueShift: 999,
+      reactBitsGalaxyFocalX: 99,
+      reactBitsGalaxyFocalY: -99,
+      reactBitsGalaxyRotationDeg: 999,
+      reactBitsGalaxyStarSpeed: 99,
+      reactBitsGalaxyDensity: 99,
+      reactBitsGalaxySpeed: 99,
+      reactBitsGalaxyMouseInteraction: false,
+      reactBitsGalaxyGlowIntensity: 99,
+      reactBitsGalaxySaturation: 99,
+      reactBitsGalaxyMouseRepulsion: false,
+      reactBitsGalaxyRepulsionStrength: 99,
+      reactBitsGalaxyTwinkleIntensity: 99,
+      reactBitsGalaxyRotationSpeed: 99,
+      reactBitsGalaxyAutoCenterRepulsion: 99,
+      reactBitsGalaxyTransparent: false,
+    })
+
+    assert.equal(settings.reactBitsGalaxyPaletteMode, "harmony")
+    assert.equal(settings.reactBitsGalaxyPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsGalaxyHarmony, "triad")
+    assert.equal(settings.reactBitsGalaxyColor, "#010203")
+    assert.equal(settings.reactBitsGalaxyHueShift, 360)
+    assert.equal(settings.reactBitsGalaxyFocalX, 1)
+    assert.equal(settings.reactBitsGalaxyFocalY, 0)
+    assert.equal(settings.reactBitsGalaxyRotationDeg, 360)
+    assert.equal(settings.reactBitsGalaxyStarSpeed, 5)
+    assert.equal(settings.reactBitsGalaxyDensity, 3)
+    assert.equal(settings.reactBitsGalaxySpeed, 5)
+    assert.equal(settings.reactBitsGalaxyMouseInteraction, false)
+    assert.equal(settings.reactBitsGalaxyGlowIntensity, 2)
+    assert.equal(settings.reactBitsGalaxySaturation, 2)
+    assert.equal(settings.reactBitsGalaxyMouseRepulsion, false)
+    assert.equal(settings.reactBitsGalaxyRepulsionStrength, 6)
+    assert.equal(settings.reactBitsGalaxyTwinkleIntensity, 1)
+    assert.equal(settings.reactBitsGalaxyRotationSpeed, 2)
+    assert.equal(settings.reactBitsGalaxyAutoCenterRepulsion, 6)
+    assert.equal(settings.reactBitsGalaxyTransparent, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyPaletteMode: "auto" }).reactBitsGalaxyPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyPrimaryColor: "white" }).reactBitsGalaxyPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyHarmony: "wild" }).reactBitsGalaxyHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyColor: "white" }).reactBitsGalaxyColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxySpeed: "fast" }).reactBitsGalaxySpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxySpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyMouseInteraction: "yes" }).reactBitsGalaxyMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyMouseInteraction,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyMouseRepulsion: "yes" }).reactBitsGalaxyMouseRepulsion,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyMouseRepulsion,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGalaxyTransparent: "no" }).reactBitsGalaxyTransparent,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGalaxyTransparent,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsGalaxyDensity: 0 }).reactBitsGalaxyDensity, 0.1)
+    assert.equal(sanitizeChimerSettings({ reactBitsGalaxyGlowIntensity: 0 }).reactBitsGalaxyGlowIntensity, 0.01)
+    assert.equal(sanitizeChimerSettings({ reactBitsGalaxyRotationSpeed: -99 }).reactBitsGalaxyRotationSpeed, -2)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

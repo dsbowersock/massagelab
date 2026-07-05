@@ -87,6 +87,7 @@ describe("premium background registry", () => {
       "react-bits-pixel-snow",
       "react-bits-lightning",
       "react-bits-prismatic-burst",
+      "react-bits-galaxy",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -319,6 +320,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-pixel-snow"))
     assert.ok(chimerOptions.includes("react-bits-lightning"))
     assert.ok(chimerOptions.includes("react-bits-prismatic-burst"))
+    assert.ok(chimerOptions.includes("react-bits-galaxy"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -379,6 +381,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-pixel-snow"))
     assert.ok(clockOptions.includes("react-bits-lightning"))
     assert.ok(clockOptions.includes("react-bits-prismatic-burst"))
+    assert.ok(clockOptions.includes("react-bits-galaxy"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -440,6 +443,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-pixel-snow"))
     assert.ok(musicOptions.includes("react-bits-lightning"))
     assert.ok(musicOptions.includes("react-bits-prismatic-burst"))
+    assert.ok(musicOptions.includes("react-bits-galaxy"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3695,6 +3699,101 @@ describe("premium background registry", () => {
       "reactBitsPrismaticBurstHoverDampness",
       "reactBitsPrismaticBurstRayCount",
       "reactBitsPrismaticBurstMixBlendMode",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Galaxy source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-galaxy-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-galaxy/)
+    assert.match(registrySource, /Galaxy/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/galaxy/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsGalaxyBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_GALAXY/)
+    assert.match(effectSource, /Hash21/)
+    assert.match(effectSource, /StarLayer/)
+    assert.match(effectSource, /hsv2rgb/)
+    assert.match(effectSource, /uMouseRepulsion/)
+    assert.match(effectSource, /uAutoCenterRepulsion/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsGalaxyCanvas/)
+    assert.match(hostSource, /reactBitsGalaxy/)
+    assert.match(cssEffectsSource, /ReactBitsGalaxyOptions/)
+    assert.match(setupSource, /resolveReactBitsGalaxyHueShift/)
+    assert.match(setupSource, /createReactBitsGalaxyHarmonyHue/)
+    assert.match(runningSource, /reactBitsGalaxy=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsGalaxy=\{\{/)
+    assert.match(docsSource, /Galaxy \| https:\/\/reactbits\.dev\/backgrounds\/galaxy/)
+    assert.match(docsSource, /Galaxy\.jsx/)
+    assert.match(docsSource, /Galaxy\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsGalaxyPaletteMode",
+      "reactBitsGalaxyPrimaryColor",
+      "reactBitsGalaxyHarmony",
+      "reactBitsGalaxyColor",
+      "reactBitsGalaxyHueShift",
+      "reactBitsGalaxyFocalX",
+      "reactBitsGalaxyFocalY",
+      "reactBitsGalaxyRotationDeg",
+      "reactBitsGalaxyStarSpeed",
+      "reactBitsGalaxyDensity",
+      "reactBitsGalaxySpeed",
+      "reactBitsGalaxyMouseInteraction",
+      "reactBitsGalaxyGlowIntensity",
+      "reactBitsGalaxySaturation",
+      "reactBitsGalaxyMouseRepulsion",
+      "reactBitsGalaxyRepulsionStrength",
+      "reactBitsGalaxyTwinkleIntensity",
+      "reactBitsGalaxyRotationSpeed",
+      "reactBitsGalaxyAutoCenterRepulsion",
+      "reactBitsGalaxyTransparent",
     ]
 
     for (const settingKey of settingKeys) {

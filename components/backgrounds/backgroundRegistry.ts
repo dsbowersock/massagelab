@@ -46,6 +46,7 @@ export type BackgroundId =
   | "react-bits-pixel-snow"
   | "react-bits-lightning"
   | "react-bits-prismatic-burst"
+  | "react-bits-galaxy"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -136,6 +137,7 @@ const reactBitsBeams = () => import("./effects/react-bits-beams-background")
 const reactBitsPixelSnow = () => import("./effects/react-bits-pixel-snow-background")
 const reactBitsLightning = () => import("./effects/react-bits-lightning-background")
 const reactBitsPrismaticBurst = () => import("./effects/react-bits-prismatic-burst-background")
+const reactBitsGalaxy = () => import("./effects/react-bits-galaxy-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1029,6 +1031,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 45%, rgba(147,197,253,0.22), transparent 34%), radial-gradient(circle at 68% 32%, rgba(236,72,153,0.18), transparent 30%), #02030a",
+    },
+  },
+  {
+    id: "react-bits-galaxy",
+    label: "Galaxy",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/galaxy",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium star-field shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony hue shift plus source-shaped focal point, rotation, star speed, density, speed, glow, saturation, twinkle, cursor interaction, repulsion, center repulsion, and transparency controls.",
+    component: () => reactBitsGalaxy().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 44%, rgba(147,197,253,0.16), transparent 34%), radial-gradient(circle at 72% 24%, rgba(34,197,94,0.16), transparent 28%), #020617",
     },
   },
   {

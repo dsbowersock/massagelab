@@ -96,6 +96,7 @@ import {
   resolveReactBitsPixelSnowColor,
   resolveReactBitsLightningHue,
   resolveReactBitsPrismaticBurstColors,
+  resolveReactBitsGalaxyHueShift,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -142,6 +143,7 @@ import {
   type ReactBitsPrismaticBurstAnimationType,
   type ReactBitsPrismaticBurstMixBlendMode,
   type ReactBitsPrismaticBurstPaletteMode,
+  type ReactBitsGalaxyPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -706,6 +708,26 @@ interface RunningTimerProps {
   reactBitsPrismaticBurstHoverDampness: number
   reactBitsPrismaticBurstRayCount: number
   reactBitsPrismaticBurstMixBlendMode: ReactBitsPrismaticBurstMixBlendMode
+  reactBitsGalaxyPaletteMode: ReactBitsGalaxyPaletteMode
+  reactBitsGalaxyPrimaryColor: string
+  reactBitsGalaxyHarmony: ColorHarmony
+  reactBitsGalaxyColor: string
+  reactBitsGalaxyHueShift: number
+  reactBitsGalaxyFocalX: number
+  reactBitsGalaxyFocalY: number
+  reactBitsGalaxyRotationDeg: number
+  reactBitsGalaxyStarSpeed: number
+  reactBitsGalaxyDensity: number
+  reactBitsGalaxySpeed: number
+  reactBitsGalaxyMouseInteraction: boolean
+  reactBitsGalaxyGlowIntensity: number
+  reactBitsGalaxySaturation: number
+  reactBitsGalaxyMouseRepulsion: boolean
+  reactBitsGalaxyRepulsionStrength: number
+  reactBitsGalaxyTwinkleIntensity: number
+  reactBitsGalaxyRotationSpeed: number
+  reactBitsGalaxyAutoCenterRepulsion: number
+  reactBitsGalaxyTransparent: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1427,6 +1449,26 @@ export function RunningTimer({
   reactBitsPrismaticBurstHoverDampness,
   reactBitsPrismaticBurstRayCount,
   reactBitsPrismaticBurstMixBlendMode,
+  reactBitsGalaxyPaletteMode,
+  reactBitsGalaxyPrimaryColor,
+  reactBitsGalaxyHarmony,
+  reactBitsGalaxyColor,
+  reactBitsGalaxyHueShift,
+  reactBitsGalaxyFocalX,
+  reactBitsGalaxyFocalY,
+  reactBitsGalaxyRotationDeg,
+  reactBitsGalaxyStarSpeed,
+  reactBitsGalaxyDensity,
+  reactBitsGalaxySpeed,
+  reactBitsGalaxyMouseInteraction,
+  reactBitsGalaxyGlowIntensity,
+  reactBitsGalaxySaturation,
+  reactBitsGalaxyMouseRepulsion,
+  reactBitsGalaxyRepulsionStrength,
+  reactBitsGalaxyTwinkleIntensity,
+  reactBitsGalaxyRotationSpeed,
+  reactBitsGalaxyAutoCenterRepulsion,
+  reactBitsGalaxyTransparent,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1829,6 +1871,13 @@ export function RunningTimer({
     reactBitsPrismaticBurstColorTwo,
     reactBitsPrismaticBurstColorThree,
     reactBitsPrismaticBurstColorFour,
+  })
+  const galaxyHueShift = resolveReactBitsGalaxyHueShift({
+    reactBitsGalaxyPaletteMode,
+    reactBitsGalaxyPrimaryColor,
+    reactBitsGalaxyHarmony,
+    reactBitsGalaxyColor,
+    reactBitsGalaxyHueShift,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -9642,6 +9691,270 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-galaxy" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsGalaxyPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGalaxyPaletteMode: event.target.value as ReactBitsGalaxyPaletteMode,
+              })}
+              aria-label="React Bits Galaxy color mode"
+            >
+              <option value="source">Source hue shift</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGalaxyPaletteMode === "source" ? (
+            <label className={styles.rangeRow}>
+              <span>Hue shift ({reactBitsGalaxyHueShift.toFixed(0)}deg)</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={reactBitsGalaxyHueShift}
+                onChange={(event) => handleSettingsChange({ reactBitsGalaxyHueShift: Number(event.target.value) })}
+                aria-label="React Bits Galaxy hue shift"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsGalaxyPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Galaxy color</span>
+              <input
+                type="color"
+                value={reactBitsGalaxyColor}
+                onChange={(event) => handleSettingsChange({ reactBitsGalaxyColor: event.target.value })}
+                aria-label="React Bits Galaxy color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsGalaxyPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGalaxyPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGalaxyPrimaryColor: event.target.value })}
+                  aria-label="React Bits Galaxy primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGalaxyHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGalaxyHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Galaxy color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGalaxyTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyTransparent: event.target.checked })}
+              aria-label="React Bits Galaxy transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGalaxyMouseInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyMouseInteraction: event.target.checked })}
+              aria-label="React Bits Galaxy cursor interaction"
+            />
+            <span>Cursor interaction</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGalaxyMouseRepulsion}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyMouseRepulsion: event.target.checked })}
+              aria-label="React Bits Galaxy cursor repulsion"
+            />
+            <span>Cursor repulsion</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Focal X ({reactBitsGalaxyFocalX.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGalaxyFocalX}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyFocalX: Number(event.target.value) })}
+              aria-label="React Bits Galaxy focal X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Focal Y ({reactBitsGalaxyFocalY.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGalaxyFocalY}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyFocalY: Number(event.target.value) })}
+              aria-label="React Bits Galaxy focal Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsGalaxyRotationDeg.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-360"
+              max="360"
+              step="1"
+              value={reactBitsGalaxyRotationDeg}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRotationDeg: Number(event.target.value) })}
+              aria-label="React Bits Galaxy rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Star speed ({reactBitsGalaxyStarSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsGalaxyStarSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyStarSpeed: Number(event.target.value) })}
+              aria-label="React Bits Galaxy star speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsGalaxyDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsGalaxyDensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyDensity: Number(event.target.value) })}
+              aria-label="React Bits Galaxy density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsGalaxySpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsGalaxySpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxySpeed: Number(event.target.value) })}
+              aria-label="React Bits Galaxy speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsGalaxyGlowIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="2"
+              step="0.01"
+              value={reactBitsGalaxyGlowIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyGlowIntensity: Number(event.target.value) })}
+              aria-label="React Bits Galaxy glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({reactBitsGalaxySaturation.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsGalaxySaturation}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxySaturation: Number(event.target.value) })}
+              aria-label="React Bits Galaxy saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Twinkle ({reactBitsGalaxyTwinkleIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGalaxyTwinkleIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyTwinkleIntensity: Number(event.target.value) })}
+              aria-label="React Bits Galaxy twinkle intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({reactBitsGalaxyRotationSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.01"
+              value={reactBitsGalaxyRotationSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRotationSpeed: Number(event.target.value) })}
+              aria-label="React Bits Galaxy rotation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Repulsion ({reactBitsGalaxyRepulsionStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.05"
+              value={reactBitsGalaxyRepulsionStrength}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRepulsionStrength: Number(event.target.value) })}
+              aria-label="React Bits Galaxy repulsion strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Center repulsion ({reactBitsGalaxyAutoCenterRepulsion.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.05"
+              value={reactBitsGalaxyAutoCenterRepulsion}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGalaxyAutoCenterRepulsion: Number(event.target.value),
+              })}
+              aria-label="React Bits Galaxy center repulsion"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -12009,6 +12322,24 @@ export function RunningTimer({
             hoverDampness: reactBitsPrismaticBurstHoverDampness,
             rayCount: reactBitsPrismaticBurstRayCount,
             mixBlendMode: reactBitsPrismaticBurstMixBlendMode,
+          }}
+          reactBitsGalaxy={{
+            focalX: reactBitsGalaxyFocalX,
+            focalY: reactBitsGalaxyFocalY,
+            rotationDeg: reactBitsGalaxyRotationDeg,
+            starSpeed: reactBitsGalaxyStarSpeed,
+            density: reactBitsGalaxyDensity,
+            hueShift: galaxyHueShift,
+            speed: reactBitsGalaxySpeed,
+            mouseInteraction: reactBitsGalaxyMouseInteraction,
+            glowIntensity: reactBitsGalaxyGlowIntensity,
+            saturation: reactBitsGalaxySaturation,
+            mouseRepulsion: reactBitsGalaxyMouseRepulsion,
+            repulsionStrength: reactBitsGalaxyRepulsionStrength,
+            twinkleIntensity: reactBitsGalaxyTwinkleIntensity,
+            rotationSpeed: reactBitsGalaxyRotationSpeed,
+            autoCenterRepulsion: reactBitsGalaxyAutoCenterRepulsion,
+            transparent: reactBitsGalaxyTransparent,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

@@ -49,6 +49,7 @@ export interface BackgroundEffectProps {
   reactBitsPixelSnow?: ReactBitsPixelSnowOptions
   reactBitsLightning?: ReactBitsLightningOptions
   reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
+  reactBitsGalaxy?: ReactBitsGalaxyOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -598,6 +599,25 @@ export interface ReactBitsPrismaticBurstOptions {
   hoverDampness?: number
   rayCount?: number
   mixBlendMode?: "lighten" | "screen" | "none"
+}
+
+export interface ReactBitsGalaxyOptions {
+  focalX?: number
+  focalY?: number
+  rotationDeg?: number
+  starSpeed?: number
+  density?: number
+  hueShift?: number
+  speed?: number
+  mouseInteraction?: boolean
+  glowIntensity?: number
+  saturation?: number
+  mouseRepulsion?: boolean
+  repulsionStrength?: number
+  twinkleIntensity?: number
+  rotationSpeed?: number
+  autoCenterRepulsion?: number
+  transparent?: boolean
 }
 
 export interface EldoraNovatrixOptions {

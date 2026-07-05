@@ -2046,6 +2046,84 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsPrismaticBurstMixBlendMode, "screen")
   })
 
+  it("resets React Bits Galaxy controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-galaxy",
+      reactBitsGalaxyPaletteMode: "harmony",
+      reactBitsGalaxyPrimaryColor: "#ABCDEF",
+      reactBitsGalaxyHarmony: "triad",
+      reactBitsGalaxyColor: "#010203",
+      reactBitsGalaxyHueShift: 310,
+      reactBitsGalaxyFocalX: 0.2,
+      reactBitsGalaxyFocalY: 0.8,
+      reactBitsGalaxyRotationDeg: 45,
+      reactBitsGalaxyStarSpeed: 1.25,
+      reactBitsGalaxyDensity: 1.6,
+      reactBitsGalaxySpeed: 1.75,
+      reactBitsGalaxyMouseInteraction: false,
+      reactBitsGalaxyGlowIntensity: 0.85,
+      reactBitsGalaxySaturation: 1.4,
+      reactBitsGalaxyMouseRepulsion: false,
+      reactBitsGalaxyRepulsionStrength: 3.25,
+      reactBitsGalaxyTwinkleIntensity: 0.72,
+      reactBitsGalaxyRotationSpeed: -0.25,
+      reactBitsGalaxyAutoCenterRepulsion: 1.5,
+      reactBitsGalaxyTransparent: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsGalaxyPaletteMode",
+      "reactBitsGalaxyPrimaryColor",
+      "reactBitsGalaxyHarmony",
+      "reactBitsGalaxyColor",
+      "reactBitsGalaxyHueShift",
+      "reactBitsGalaxyFocalX",
+      "reactBitsGalaxyFocalY",
+      "reactBitsGalaxyRotationDeg",
+      "reactBitsGalaxyStarSpeed",
+      "reactBitsGalaxyDensity",
+      "reactBitsGalaxySpeed",
+      "reactBitsGalaxyMouseInteraction",
+      "reactBitsGalaxyGlowIntensity",
+      "reactBitsGalaxySaturation",
+      "reactBitsGalaxyMouseRepulsion",
+      "reactBitsGalaxyRepulsionStrength",
+      "reactBitsGalaxyTwinkleIntensity",
+      "reactBitsGalaxyRotationSpeed",
+      "reactBitsGalaxyAutoCenterRepulsion",
+      "reactBitsGalaxyTransparent",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-galaxy")
+    assert.equal(premiumSettings.reactBitsGalaxyPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsGalaxyPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsGalaxyHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsGalaxyColor, "#010203")
+    assert.equal(premiumSettings.reactBitsGalaxyHueShift, 310)
+    assert.equal(premiumSettings.reactBitsGalaxyFocalX, 0.2)
+    assert.equal(premiumSettings.reactBitsGalaxyFocalY, 0.8)
+    assert.equal(premiumSettings.reactBitsGalaxyRotationDeg, 45)
+    assert.equal(premiumSettings.reactBitsGalaxyStarSpeed, 1.25)
+    assert.equal(premiumSettings.reactBitsGalaxyDensity, 1.6)
+    assert.equal(premiumSettings.reactBitsGalaxySpeed, 1.75)
+    assert.equal(premiumSettings.reactBitsGalaxyMouseInteraction, false)
+    assert.equal(premiumSettings.reactBitsGalaxyGlowIntensity, 0.85)
+    assert.equal(premiumSettings.reactBitsGalaxySaturation, 1.4)
+    assert.equal(premiumSettings.reactBitsGalaxyMouseRepulsion, false)
+    assert.equal(premiumSettings.reactBitsGalaxyRepulsionStrength, 3.25)
+    assert.equal(premiumSettings.reactBitsGalaxyTwinkleIntensity, 0.72)
+    assert.equal(premiumSettings.reactBitsGalaxyRotationSpeed, -0.25)
+    assert.equal(premiumSettings.reactBitsGalaxyAutoCenterRepulsion, 1.5)
+    assert.equal(premiumSettings.reactBitsGalaxyTransparent, false)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",
