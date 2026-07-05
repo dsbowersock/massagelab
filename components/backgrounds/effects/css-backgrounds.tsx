@@ -42,6 +42,7 @@ export interface BackgroundEffectProps {
   reactBitsPlasma?: ReactBitsPlasmaOptions
   reactBitsPlasmaWave?: ReactBitsPlasmaWaveOptions
   reactBitsParticles?: ReactBitsParticlesOptions
+  reactBitsGradientBlinds?: ReactBitsGradientBlindsOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -480,6 +481,24 @@ export interface ReactBitsParticlesOptions {
   cameraDistance?: number
   disableRotation?: boolean
   pixelRatio?: number
+}
+
+export interface ReactBitsGradientBlindsOptions {
+  dpr?: number
+  gradientColors?: string[]
+  angle?: number
+  noise?: number
+  blindCount?: number
+  blindMinWidth?: number
+  mouseDampening?: number
+  mirrorGradient?: boolean
+  spotlightRadius?: number
+  spotlightSoftness?: number
+  spotlightOpacity?: number
+  distortAmount?: number
+  shineDirection?: "left" | "right"
+  mixBlendMode?: "normal" | "screen" | "lighten" | "plus-lighter"
+  enableMouseInteraction?: boolean
 }
 
 export interface EldoraNovatrixOptions {

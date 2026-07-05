@@ -80,6 +80,7 @@ describe("premium background registry", () => {
       "react-bits-plasma",
       "react-bits-plasma-wave",
       "react-bits-particles",
+      "react-bits-gradient-blinds",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -305,6 +306,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-plasma"))
     assert.ok(chimerOptions.includes("react-bits-plasma-wave"))
     assert.ok(chimerOptions.includes("react-bits-particles"))
+    assert.ok(chimerOptions.includes("react-bits-gradient-blinds"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -358,6 +360,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-plasma"))
     assert.ok(clockOptions.includes("react-bits-plasma-wave"))
     assert.ok(clockOptions.includes("react-bits-particles"))
+    assert.ok(clockOptions.includes("react-bits-gradient-blinds"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -412,6 +415,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-plasma"))
     assert.ok(musicOptions.includes("react-bits-plasma-wave"))
     assert.ok(musicOptions.includes("react-bits-particles"))
+    assert.ok(musicOptions.includes("react-bits-gradient-blinds"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3011,6 +3015,105 @@ describe("premium background registry", () => {
       "reactBitsParticlesCameraDistance",
       "reactBitsParticlesDisableRotation",
       "reactBitsParticlesPixelRatio",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Gradient Blinds source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-gradient-blinds-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-gradient-blinds/)
+    assert.match(registrySource, /Gradient Blinds/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/gradient-blinds/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsGradientBlindsBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_GRADIENT_BLINDS/)
+    assert.match(effectSource, /gradientColors:\s*\["#FF9FFC", "#5227FF"\]/)
+    assert.match(effectSource, /noise:\s*0\.3/)
+    assert.match(effectSource, /blindCount:\s*16/)
+    assert.match(effectSource, /blindMinWidth:\s*60/)
+    assert.match(effectSource, /mouseDampening:\s*0\.15/)
+    assert.match(effectSource, /spotlightRadius:\s*0\.5/)
+    assert.match(effectSource, /mixBlendMode:\s*"lighten"/)
+    assert.match(effectSource, /uniform vec3 uColor0/)
+    assert.match(effectSource, /uBlindCount/)
+    assert.match(effectSource, /uSpotlightOpacity/)
+    assert.match(effectSource, /uShineFlip/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /pointermove/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsGradientBlinds/)
+    assert.match(stylesSource, /reactBitsGradientBlindsCanvas/)
+    assert.match(hostSource, /reactBitsGradientBlinds/)
+    assert.match(cssEffectsSource, /ReactBitsGradientBlindsOptions/)
+    assert.match(setupSource, /resolveReactBitsGradientBlindsColors/)
+    assert.match(runningSource, /reactBitsGradientBlinds=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsGradientBlinds=\{\{/)
+    assert.match(docsSource, /Gradient Blinds \| https:\/\/reactbits\.dev\/backgrounds\/gradient-blinds/)
+    assert.match(docsSource, /GradientBlinds\.jsx/)
+    assert.match(docsSource, /GradientBlinds\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsGradientBlindsPaletteMode",
+      "reactBitsGradientBlindsPrimaryColor",
+      "reactBitsGradientBlindsHarmony",
+      "reactBitsGradientBlindsColorOne",
+      "reactBitsGradientBlindsColorTwo",
+      "reactBitsGradientBlindsAngle",
+      "reactBitsGradientBlindsNoise",
+      "reactBitsGradientBlindsBlindCount",
+      "reactBitsGradientBlindsBlindMinWidth",
+      "reactBitsGradientBlindsMouseDampening",
+      "reactBitsGradientBlindsMirror",
+      "reactBitsGradientBlindsSpotlightRadius",
+      "reactBitsGradientBlindsSpotlightSoftness",
+      "reactBitsGradientBlindsSpotlightOpacity",
+      "reactBitsGradientBlindsDistort",
+      "reactBitsGradientBlindsShineDirection",
+      "reactBitsGradientBlindsBlendMode",
+      "reactBitsGradientBlindsDpr",
+      "reactBitsGradientBlindsEnableMouseInteraction",
     ]
 
     for (const settingKey of settingKeys) {

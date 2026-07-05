@@ -39,6 +39,7 @@ export type BackgroundId =
   | "react-bits-plasma"
   | "react-bits-plasma-wave"
   | "react-bits-particles"
+  | "react-bits-gradient-blinds"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -122,6 +123,7 @@ const reactBitsSoftAurora = () => import("./effects/react-bits-soft-aurora-backg
 const reactBitsPlasma = () => import("./effects/react-bits-plasma-background")
 const reactBitsPlasmaWave = () => import("./effects/react-bits-plasma-wave-background")
 const reactBitsParticles = () => import("./effects/react-bits-particles-background")
+const reactBitsGradientBlinds = () => import("./effects/react-bits-gradient-blinds-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -847,6 +849,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.12), transparent 35%), linear-gradient(145deg, #02030a 0%, #060812 58%, #000104 100%)",
+    },
+  },
+  {
+    id: "react-bits-gradient-blinds",
+    label: "Gradient Blinds",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/gradient-blinds",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium striped gradient spotlight shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony gradient colors plus source-shaped angle, noise, blind count, minimum blind width, mouse damping, mirror, spotlight radius/softness/opacity, distortion, shine direction, blend mode, DPR, and optional cursor spotlight; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsGradientBlinds().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "linear-gradient(90deg, rgba(255,159,252,0.28), rgba(82,39,255,0.3)), linear-gradient(145deg, #05010d 0%, #12051f 58%, #020006 100%)",
     },
   },
   {

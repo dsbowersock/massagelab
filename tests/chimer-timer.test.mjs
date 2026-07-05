@@ -2132,6 +2132,91 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Gradient Blinds background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsGradientBlindsPaletteMode: "harmony",
+      reactBitsGradientBlindsPrimaryColor: "#ff9ffc",
+      reactBitsGradientBlindsHarmony: "triad",
+      reactBitsGradientBlindsColorOne: "#abcdef",
+      reactBitsGradientBlindsColorTwo: "#010203",
+      reactBitsGradientBlindsAngle: 999,
+      reactBitsGradientBlindsNoise: 99,
+      reactBitsGradientBlindsBlindCount: 999.6,
+      reactBitsGradientBlindsBlindMinWidth: 999,
+      reactBitsGradientBlindsMouseDampening: 99,
+      reactBitsGradientBlindsMirror: true,
+      reactBitsGradientBlindsSpotlightRadius: 99,
+      reactBitsGradientBlindsSpotlightSoftness: 99,
+      reactBitsGradientBlindsSpotlightOpacity: 99,
+      reactBitsGradientBlindsDistort: 99,
+      reactBitsGradientBlindsShineDirection: "right",
+      reactBitsGradientBlindsBlendMode: "screen",
+      reactBitsGradientBlindsDpr: 99,
+      reactBitsGradientBlindsEnableMouseInteraction: true,
+    })
+
+    assert.equal(settings.reactBitsGradientBlindsPaletteMode, "harmony")
+    assert.equal(settings.reactBitsGradientBlindsPrimaryColor, "#FF9FFC")
+    assert.equal(settings.reactBitsGradientBlindsHarmony, "triad")
+    assert.equal(settings.reactBitsGradientBlindsColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsGradientBlindsColorTwo, "#010203")
+    assert.equal(settings.reactBitsGradientBlindsAngle, 180)
+    assert.equal(settings.reactBitsGradientBlindsNoise, 1)
+    assert.equal(settings.reactBitsGradientBlindsBlindCount, 80)
+    assert.equal(settings.reactBitsGradientBlindsBlindMinWidth, 240)
+    assert.equal(settings.reactBitsGradientBlindsMouseDampening, 1)
+    assert.equal(settings.reactBitsGradientBlindsMirror, true)
+    assert.equal(settings.reactBitsGradientBlindsSpotlightRadius, 1.5)
+    assert.equal(settings.reactBitsGradientBlindsSpotlightSoftness, 4)
+    assert.equal(settings.reactBitsGradientBlindsSpotlightOpacity, 2)
+    assert.equal(settings.reactBitsGradientBlindsDistort, 5)
+    assert.equal(settings.reactBitsGradientBlindsShineDirection, "right")
+    assert.equal(settings.reactBitsGradientBlindsBlendMode, "screen")
+    assert.equal(settings.reactBitsGradientBlindsDpr, 2)
+    assert.equal(settings.reactBitsGradientBlindsEnableMouseInteraction, true)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsPaletteMode: "auto" }).reactBitsGradientBlindsPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsPrimaryColor: "pink" }).reactBitsGradientBlindsPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsHarmony: "wild" }).reactBitsGradientBlindsHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsColorOne: "pink" }).reactBitsGradientBlindsColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsAngle: "wide" }).reactBitsGradientBlindsAngle,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsAngle,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsGradientBlindsAngle: -999 }).reactBitsGradientBlindsAngle, -180)
+    assert.equal(sanitizeChimerSettings({ reactBitsGradientBlindsNoise: -1 }).reactBitsGradientBlindsNoise, 0)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsBlindCount: "many" }).reactBitsGradientBlindsBlindCount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsBlindCount,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsGradientBlindsBlindCount: 0 }).reactBitsGradientBlindsBlindCount, 1)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsShineDirection: "center" })
+        .reactBitsGradientBlindsShineDirection,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsShineDirection,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsBlendMode: "multiply" }).reactBitsGradientBlindsBlendMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsBlendMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGradientBlindsEnableMouseInteraction: "yes" })
+        .reactBitsGradientBlindsEnableMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGradientBlindsEnableMouseInteraction,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

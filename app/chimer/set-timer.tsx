@@ -69,6 +69,9 @@ export type ReactBitsPlasmaPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPlasmaDirection = "forward" | "reverse" | "pingpong"
 export type ReactBitsPlasmaWavePaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsParticlesPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsGradientBlindsPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsGradientBlindsShineDirection = "left" | "right"
+export type ReactBitsGradientBlindsBlendMode = "normal" | "screen" | "lighten" | "plus-lighter"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -850,6 +853,25 @@ export interface ChimerSettings {
   reactBitsParticlesCameraDistance: number
   reactBitsParticlesDisableRotation: boolean
   reactBitsParticlesPixelRatio: number
+  reactBitsGradientBlindsPaletteMode: ReactBitsGradientBlindsPaletteMode
+  reactBitsGradientBlindsPrimaryColor: string
+  reactBitsGradientBlindsHarmony: ColorHarmony
+  reactBitsGradientBlindsColorOne: string
+  reactBitsGradientBlindsColorTwo: string
+  reactBitsGradientBlindsAngle: number
+  reactBitsGradientBlindsNoise: number
+  reactBitsGradientBlindsBlindCount: number
+  reactBitsGradientBlindsBlindMinWidth: number
+  reactBitsGradientBlindsMouseDampening: number
+  reactBitsGradientBlindsMirror: boolean
+  reactBitsGradientBlindsSpotlightRadius: number
+  reactBitsGradientBlindsSpotlightSoftness: number
+  reactBitsGradientBlindsSpotlightOpacity: number
+  reactBitsGradientBlindsDistort: number
+  reactBitsGradientBlindsShineDirection: ReactBitsGradientBlindsShineDirection
+  reactBitsGradientBlindsBlendMode: ReactBitsGradientBlindsBlendMode
+  reactBitsGradientBlindsDpr: number
+  reactBitsGradientBlindsEnableMouseInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1236,6 +1258,15 @@ type ReactBitsParticlesColorSettings = Pick<
   | "reactBitsParticlesColorOne"
   | "reactBitsParticlesColorTwo"
   | "reactBitsParticlesColorThree"
+>
+
+type ReactBitsGradientBlindsColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsGradientBlindsPaletteMode"
+  | "reactBitsGradientBlindsPrimaryColor"
+  | "reactBitsGradientBlindsHarmony"
+  | "reactBitsGradientBlindsColorOne"
+  | "reactBitsGradientBlindsColorTwo"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -1628,6 +1659,24 @@ export function resolveReactBitsParticlesColors(settings: ReactBitsParticlesColo
     settings.reactBitsParticlesColorOne,
     settings.reactBitsParticlesColorTwo,
     settings.reactBitsParticlesColorThree,
+  ]
+}
+
+export function resolveReactBitsGradientBlindsColors(settings: ReactBitsGradientBlindsColorSettings): string[] {
+  if (settings.reactBitsGradientBlindsPaletteMode === "source") {
+    return ["#FF9FFC", "#5227FF"]
+  }
+
+  if (settings.reactBitsGradientBlindsPaletteMode === "harmony") {
+    return createReactBitsGradientBlindsHarmonyColors(
+      settings.reactBitsGradientBlindsPrimaryColor,
+      settings.reactBitsGradientBlindsHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsGradientBlindsColorOne,
+    settings.reactBitsGradientBlindsColorTwo,
   ]
 }
 
@@ -2704,6 +2753,60 @@ export function createReactBitsParticlesHarmonyColors(
         hslToHex(hue - 24, particleSaturation * 0.72, brightLightness),
         hslToHex(hue, Math.min(0.9, particleSaturation), midLightness),
         hslToHex(hue + 28, Math.min(0.84, particleSaturation * 0.84), dimLightness),
+      ]
+  }
+}
+
+export function createReactBitsGradientBlindsHarmonyColors(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const blindSaturation = Math.min(0.96, Math.max(0.44, saturation))
+  const firstLightness = Math.min(0.78, Math.max(0.54, lightness + 0.08))
+  const secondLightness = Math.min(0.7, Math.max(0.4, lightness - 0.02))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, blindSaturation, firstLightness),
+        hslToHex(hue + 180, Math.min(0.92, blindSaturation * 0.92), secondLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue - 18, blindSaturation, firstLightness),
+        hslToHex(hue + 150, Math.min(0.94, blindSaturation), secondLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue + 120, blindSaturation, firstLightness),
+        hslToHex(hue + 240, Math.min(0.92, blindSaturation * 0.92), secondLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 90, Math.min(0.94, blindSaturation), firstLightness),
+        hslToHex(hue + 180, Math.min(0.86, blindSaturation * 0.86), secondLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 28, Math.min(0.94, blindSaturation), firstLightness),
+        hslToHex(hue + 34, Math.min(0.96, blindSaturation), secondLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, Math.min(0.82, blindSaturation * 0.82), firstLightness),
+        hslToHex(hue, Math.min(0.68, blindSaturation * 0.68), secondLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, blindSaturation, firstLightness),
+        hslToHex(hue, Math.min(0.76, blindSaturation * 0.76), secondLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 24, blindSaturation, firstLightness),
+        hslToHex(hue + 32, Math.min(0.94, blindSaturation * 0.94), secondLightness),
       ]
   }
 }
@@ -9363,6 +9466,263 @@ export function SetTimer({
               value={settings.reactBitsParticlesPixelRatio}
               onChange={(event) => onSettingsChange({ reactBitsParticlesPixelRatio: Number(event.target.value) })}
               aria-label="React Bits Particles pixel ratio"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-gradient-blinds") {
+      const useCustomGradient = settings.reactBitsGradientBlindsPaletteMode === "custom"
+      const useHarmonyGradient = settings.reactBitsGradientBlindsPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsGradientBlindsPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsGradientBlindsPaletteMode: event.target.value as ReactBitsGradientBlindsPaletteMode,
+              })}
+              aria-label="React Bits Gradient Blinds color mode"
+            >
+              <option value="source">Source pink and purple</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomGradient ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGradientBlindsColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsGradientBlindsColorOne: event.target.value })}
+                  aria-label="React Bits Gradient Blinds color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGradientBlindsColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsGradientBlindsColorTwo: event.target.value })}
+                  aria-label="React Bits Gradient Blinds color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {useHarmonyGradient ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGradientBlindsPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGradientBlindsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Gradient Blinds primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsGradientBlindsHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsGradientBlindsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Gradient Blinds color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGradientBlindsEnableMouseInteraction}
+              onChange={(event) => onSettingsChange({
+                reactBitsGradientBlindsEnableMouseInteraction: event.target.checked,
+              })}
+            />
+            <span>Cursor spotlight</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGradientBlindsMirror}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsMirror: event.target.checked })}
+            />
+            <span>Mirror gradient</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Shine direction</span>
+            <select
+              value={settings.reactBitsGradientBlindsShineDirection}
+              onChange={(event) => onSettingsChange({
+                reactBitsGradientBlindsShineDirection: event.target.value as ReactBitsGradientBlindsShineDirection,
+              })}
+              aria-label="React Bits Gradient Blinds shine direction"
+            >
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={settings.reactBitsGradientBlindsBlendMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsGradientBlindsBlendMode: event.target.value as ReactBitsGradientBlindsBlendMode,
+              })}
+              aria-label="React Bits Gradient Blinds blend mode"
+            >
+              <option value="lighten">Lighten</option>
+              <option value="screen">Screen</option>
+              <option value="plus-lighter">Plus lighter</option>
+              <option value="normal">Normal</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Angle ({settings.reactBitsGradientBlindsAngle.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={settings.reactBitsGradientBlindsAngle}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsAngle: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsGradientBlindsNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGradientBlindsNoise}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsNoise: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blind count ({settings.reactBitsGradientBlindsBlindCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="80"
+              step="1"
+              value={settings.reactBitsGradientBlindsBlindCount}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsBlindCount: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds blind count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Min blind width ({settings.reactBitsGradientBlindsBlindMinWidth.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="240"
+              step="5"
+              value={settings.reactBitsGradientBlindsBlindMinWidth}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsBlindMinWidth: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds minimum blind width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse damping ({settings.reactBitsGradientBlindsMouseDampening.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGradientBlindsMouseDampening}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsMouseDampening: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds mouse damping"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spotlight radius ({settings.reactBitsGradientBlindsSpotlightRadius.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1.5"
+              step="0.05"
+              value={settings.reactBitsGradientBlindsSpotlightRadius}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsSpotlightRadius: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds spotlight radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spotlight softness ({settings.reactBitsGradientBlindsSpotlightSoftness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.1"
+              value={settings.reactBitsGradientBlindsSpotlightSoftness}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsSpotlightSoftness: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds spotlight softness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spotlight opacity ({settings.reactBitsGradientBlindsSpotlightOpacity.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={settings.reactBitsGradientBlindsSpotlightOpacity}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsSpotlightOpacity: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds spotlight opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({settings.reactBitsGradientBlindsDistort.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={settings.reactBitsGradientBlindsDistort}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsDistort: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>DPR ({settings.reactBitsGradientBlindsDpr.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={settings.reactBitsGradientBlindsDpr}
+              onChange={(event) => onSettingsChange({ reactBitsGradientBlindsDpr: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds dpr"
             />
           </label>
         </div>

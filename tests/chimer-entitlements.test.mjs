@@ -1572,6 +1572,81 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsParticlesPixelRatio, 1.4)
   })
 
+  it("resets React Bits Gradient Blinds controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-gradient-blinds",
+      reactBitsGradientBlindsPaletteMode: "harmony",
+      reactBitsGradientBlindsPrimaryColor: "#FF9FFC",
+      reactBitsGradientBlindsHarmony: "triad",
+      reactBitsGradientBlindsColorOne: "#ABCDEF",
+      reactBitsGradientBlindsColorTwo: "#010203",
+      reactBitsGradientBlindsAngle: 30,
+      reactBitsGradientBlindsNoise: 0.44,
+      reactBitsGradientBlindsBlindCount: 24,
+      reactBitsGradientBlindsBlindMinWidth: 72,
+      reactBitsGradientBlindsMouseDampening: 0.32,
+      reactBitsGradientBlindsMirror: true,
+      reactBitsGradientBlindsSpotlightRadius: 0.8,
+      reactBitsGradientBlindsSpotlightSoftness: 1.6,
+      reactBitsGradientBlindsSpotlightOpacity: 1.2,
+      reactBitsGradientBlindsDistort: 1.8,
+      reactBitsGradientBlindsShineDirection: "right",
+      reactBitsGradientBlindsBlendMode: "screen",
+      reactBitsGradientBlindsDpr: 1.4,
+      reactBitsGradientBlindsEnableMouseInteraction: true,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsGradientBlindsPaletteMode",
+      "reactBitsGradientBlindsPrimaryColor",
+      "reactBitsGradientBlindsHarmony",
+      "reactBitsGradientBlindsColorOne",
+      "reactBitsGradientBlindsColorTwo",
+      "reactBitsGradientBlindsAngle",
+      "reactBitsGradientBlindsNoise",
+      "reactBitsGradientBlindsBlindCount",
+      "reactBitsGradientBlindsBlindMinWidth",
+      "reactBitsGradientBlindsMouseDampening",
+      "reactBitsGradientBlindsMirror",
+      "reactBitsGradientBlindsSpotlightRadius",
+      "reactBitsGradientBlindsSpotlightSoftness",
+      "reactBitsGradientBlindsSpotlightOpacity",
+      "reactBitsGradientBlindsDistort",
+      "reactBitsGradientBlindsShineDirection",
+      "reactBitsGradientBlindsBlendMode",
+      "reactBitsGradientBlindsDpr",
+      "reactBitsGradientBlindsEnableMouseInteraction",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-gradient-blinds")
+    assert.equal(premiumSettings.reactBitsGradientBlindsPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsGradientBlindsPrimaryColor, "#FF9FFC")
+    assert.equal(premiumSettings.reactBitsGradientBlindsHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsGradientBlindsColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsGradientBlindsColorTwo, "#010203")
+    assert.equal(premiumSettings.reactBitsGradientBlindsAngle, 30)
+    assert.equal(premiumSettings.reactBitsGradientBlindsNoise, 0.44)
+    assert.equal(premiumSettings.reactBitsGradientBlindsBlindCount, 24)
+    assert.equal(premiumSettings.reactBitsGradientBlindsBlindMinWidth, 72)
+    assert.equal(premiumSettings.reactBitsGradientBlindsMouseDampening, 0.32)
+    assert.equal(premiumSettings.reactBitsGradientBlindsMirror, true)
+    assert.equal(premiumSettings.reactBitsGradientBlindsSpotlightRadius, 0.8)
+    assert.equal(premiumSettings.reactBitsGradientBlindsSpotlightSoftness, 1.6)
+    assert.equal(premiumSettings.reactBitsGradientBlindsSpotlightOpacity, 1.2)
+    assert.equal(premiumSettings.reactBitsGradientBlindsDistort, 1.8)
+    assert.equal(premiumSettings.reactBitsGradientBlindsShineDirection, "right")
+    assert.equal(premiumSettings.reactBitsGradientBlindsBlendMode, "screen")
+    assert.equal(premiumSettings.reactBitsGradientBlindsDpr, 1.4)
+    assert.equal(premiumSettings.reactBitsGradientBlindsEnableMouseInteraction, true)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",
