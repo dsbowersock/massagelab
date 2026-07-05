@@ -384,6 +384,24 @@
   transform: translateZ(0);
 }
 
+.reactBitsFloatingLines {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(233, 71, 245, 0.12), transparent 34%),
+    radial-gradient(circle at 78% 88%, rgba(47, 75, 162, 0.18), transparent 38%),
+    linear-gradient(145deg, #02030a 0%, #060716 58%, #000000 100%);
+}
+
+.reactBitsFloatingLinesCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
 .eldoraNovatrixBackground {
   overflow: hidden;
   background:

@@ -77,6 +77,7 @@ import {
   resolveReactBitsLightfallColors,
   resolveReactBitsLiquidEtherColors,
   resolveReactBitsLightPillarColors,
+  resolveReactBitsFloatingLinesGradient,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -92,6 +93,8 @@ import {
   type ReactBitsLiquidEtherPaletteMode,
   type ReactBitsPrismAnimationType,
   type ReactBitsLightPillarBlendMode,
+  type ReactBitsFloatingLinesBlendMode,
+  type ReactBitsFloatingLinesPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -330,6 +333,38 @@ interface RunningTimerProps {
   reactBitsSilkScale: number
   reactBitsSilkNoiseIntensity: number
   reactBitsSilkRotation: number
+  reactBitsFloatingLinesPaletteMode: ReactBitsFloatingLinesPaletteMode
+  reactBitsFloatingLinesPrimaryColor: string
+  reactBitsFloatingLinesHarmony: ColorHarmony
+  reactBitsFloatingLinesColorOne: string
+  reactBitsFloatingLinesColorTwo: string
+  reactBitsFloatingLinesColorThree: string
+  reactBitsFloatingLinesEnableTop: boolean
+  reactBitsFloatingLinesEnableMiddle: boolean
+  reactBitsFloatingLinesEnableBottom: boolean
+  reactBitsFloatingLinesTopLineCount: number
+  reactBitsFloatingLinesMiddleLineCount: number
+  reactBitsFloatingLinesBottomLineCount: number
+  reactBitsFloatingLinesTopLineDistance: number
+  reactBitsFloatingLinesMiddleLineDistance: number
+  reactBitsFloatingLinesBottomLineDistance: number
+  reactBitsFloatingLinesTopWaveX: number
+  reactBitsFloatingLinesTopWaveY: number
+  reactBitsFloatingLinesTopWaveRotate: number
+  reactBitsFloatingLinesMiddleWaveX: number
+  reactBitsFloatingLinesMiddleWaveY: number
+  reactBitsFloatingLinesMiddleWaveRotate: number
+  reactBitsFloatingLinesBottomWaveX: number
+  reactBitsFloatingLinesBottomWaveY: number
+  reactBitsFloatingLinesBottomWaveRotate: number
+  reactBitsFloatingLinesAnimationSpeed: number
+  reactBitsFloatingLinesInteractive: boolean
+  reactBitsFloatingLinesBendRadius: number
+  reactBitsFloatingLinesBendStrength: number
+  reactBitsFloatingLinesMouseDamping: number
+  reactBitsFloatingLinesParallax: boolean
+  reactBitsFloatingLinesParallaxStrength: number
+  reactBitsFloatingLinesBlendMode: ReactBitsFloatingLinesBlendMode
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -725,6 +760,38 @@ export function RunningTimer({
   reactBitsSilkScale,
   reactBitsSilkNoiseIntensity,
   reactBitsSilkRotation,
+  reactBitsFloatingLinesPaletteMode,
+  reactBitsFloatingLinesPrimaryColor,
+  reactBitsFloatingLinesHarmony,
+  reactBitsFloatingLinesColorOne,
+  reactBitsFloatingLinesColorTwo,
+  reactBitsFloatingLinesColorThree,
+  reactBitsFloatingLinesEnableTop,
+  reactBitsFloatingLinesEnableMiddle,
+  reactBitsFloatingLinesEnableBottom,
+  reactBitsFloatingLinesTopLineCount,
+  reactBitsFloatingLinesMiddleLineCount,
+  reactBitsFloatingLinesBottomLineCount,
+  reactBitsFloatingLinesTopLineDistance,
+  reactBitsFloatingLinesMiddleLineDistance,
+  reactBitsFloatingLinesBottomLineDistance,
+  reactBitsFloatingLinesTopWaveX,
+  reactBitsFloatingLinesTopWaveY,
+  reactBitsFloatingLinesTopWaveRotate,
+  reactBitsFloatingLinesMiddleWaveX,
+  reactBitsFloatingLinesMiddleWaveY,
+  reactBitsFloatingLinesMiddleWaveRotate,
+  reactBitsFloatingLinesBottomWaveX,
+  reactBitsFloatingLinesBottomWaveY,
+  reactBitsFloatingLinesBottomWaveRotate,
+  reactBitsFloatingLinesAnimationSpeed,
+  reactBitsFloatingLinesInteractive,
+  reactBitsFloatingLinesBendRadius,
+  reactBitsFloatingLinesBendStrength,
+  reactBitsFloatingLinesMouseDamping,
+  reactBitsFloatingLinesParallax,
+  reactBitsFloatingLinesParallaxStrength,
+  reactBitsFloatingLinesBlendMode,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -993,6 +1060,14 @@ export function RunningTimer({
     reactBitsSilkPrimaryColor,
     reactBitsSilkHarmony,
     reactBitsSilkColor,
+  })
+  const floatingLinesGradient = resolveReactBitsFloatingLinesGradient({
+    reactBitsFloatingLinesPaletteMode,
+    reactBitsFloatingLinesPrimaryColor,
+    reactBitsFloatingLinesHarmony,
+    reactBitsFloatingLinesColorOne,
+    reactBitsFloatingLinesColorTwo,
+    reactBitsFloatingLinesColorThree,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -4452,6 +4527,436 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-floating-lines" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsFloatingLinesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesPaletteMode: event.target.value as ReactBitsFloatingLinesPaletteMode,
+              })}
+              aria-label="Floating Lines color mode"
+            >
+              <option value="source">Source blue/pink</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsFloatingLinesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient 1</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorOne: event.target.value })}
+                  aria-label="Floating Lines gradient color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient 2</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorTwo: event.target.value })}
+                  aria-label="Floating Lines gradient color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient 3</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorThree: event.target.value })}
+                  aria-label="Floating Lines gradient color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsFloatingLinesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFloatingLinesPrimaryColor: event.target.value,
+                  })}
+                  aria-label="Floating Lines primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsFloatingLinesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFloatingLinesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Floating Lines color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={reactBitsFloatingLinesBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBlendMode: event.target.value as ReactBitsFloatingLinesBlendMode,
+              })}
+              aria-label="Floating Lines blend mode"
+            >
+              <option value="screen">Screen</option>
+              <option value="normal">Normal</option>
+              <option value="lighten">Lighten</option>
+              <option value="plus-lighter">Plus lighter</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsFloatingLinesAnimationSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesAnimationSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesAnimationSpeed: Number(event.target.value),
+              })}
+              aria-label="Floating Lines animation speed"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Top wave</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesEnableTop}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableTop: event.target.checked })}
+              aria-label="Floating Lines top wave"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top count ({reactBitsFloatingLinesTopLineCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="32"
+              step="1"
+              value={reactBitsFloatingLinesTopLineCount}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopLineCount: Number(event.target.value) })}
+              aria-label="Floating Lines top line count"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top spacing ({reactBitsFloatingLinesTopLineDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesTopLineDistance}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesTopLineDistance: Number(event.target.value),
+              })}
+              aria-label="Floating Lines top line spacing"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top X ({reactBitsFloatingLinesTopWaveX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesTopWaveX}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopWaveX: Number(event.target.value) })}
+              aria-label="Floating Lines top wave X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top Y ({reactBitsFloatingLinesTopWaveY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.1"
+              value={reactBitsFloatingLinesTopWaveY}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopWaveY: Number(event.target.value) })}
+              aria-label="Floating Lines top wave Y"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top rotation ({reactBitsFloatingLinesTopWaveRotate.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesTopWaveRotate}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesTopWaveRotate: Number(event.target.value),
+              })}
+              aria-label="Floating Lines top wave rotation"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Middle wave</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesEnableMiddle}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableMiddle: event.target.checked })}
+              aria-label="Floating Lines middle wave"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle count ({reactBitsFloatingLinesMiddleLineCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="32"
+              step="1"
+              value={reactBitsFloatingLinesMiddleLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleLineCount: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle line count"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle spacing ({reactBitsFloatingLinesMiddleLineDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesMiddleLineDistance}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleLineDistance: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle line spacing"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle X ({reactBitsFloatingLinesMiddleWaveX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesMiddleWaveX}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleWaveX: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle wave X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle Y ({reactBitsFloatingLinesMiddleWaveY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.1"
+              value={reactBitsFloatingLinesMiddleWaveY}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleWaveY: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle wave Y"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle rotation ({reactBitsFloatingLinesMiddleWaveRotate.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesMiddleWaveRotate}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleWaveRotate: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle wave rotation"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bottom wave</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesEnableBottom}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableBottom: event.target.checked })}
+              aria-label="Floating Lines bottom wave"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom count ({reactBitsFloatingLinesBottomLineCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="32"
+              step="1"
+              value={reactBitsFloatingLinesBottomLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomLineCount: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom line count"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom spacing ({reactBitsFloatingLinesBottomLineDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesBottomLineDistance}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomLineDistance: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom line spacing"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom X ({reactBitsFloatingLinesBottomWaveX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesBottomWaveX}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomWaveX: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom wave X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom Y ({reactBitsFloatingLinesBottomWaveY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.1"
+              value={reactBitsFloatingLinesBottomWaveY}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomWaveY: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom wave Y"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom rotation ({reactBitsFloatingLinesBottomWaveRotate.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesBottomWaveRotate}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomWaveRotate: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom wave rotation"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor bend</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesInteractive}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesInteractive: event.target.checked,
+              })}
+              aria-label="Floating Lines cursor bend"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bend radius ({reactBitsFloatingLinesBendRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesBendRadius}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBendRadius: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bend radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bend strength ({reactBitsFloatingLinesBendStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.05"
+              value={reactBitsFloatingLinesBendStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBendStrength: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bend strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse damping ({reactBitsFloatingLinesMouseDamping.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="1"
+              step="0.01"
+              value={reactBitsFloatingLinesMouseDamping}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMouseDamping: Number(event.target.value),
+              })}
+              aria-label="Floating Lines mouse damping"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Parallax</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesParallax}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesParallax: event.target.checked })}
+              aria-label="Floating Lines parallax"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Parallax strength ({reactBitsFloatingLinesParallaxStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsFloatingLinesParallaxStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesParallaxStrength: Number(event.target.value),
+              })}
+              aria-label="Floating Lines parallax strength"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -6525,6 +7030,35 @@ export function RunningTimer({
             scale: reactBitsSilkScale,
             noiseIntensity: reactBitsSilkNoiseIntensity,
             rotation: reactBitsSilkRotation,
+          }}
+          reactBitsFloatingLines={{
+            linesGradient: floatingLinesGradient,
+            enableTop: reactBitsFloatingLinesEnableTop,
+            enableMiddle: reactBitsFloatingLinesEnableMiddle,
+            enableBottom: reactBitsFloatingLinesEnableBottom,
+            topLineCount: reactBitsFloatingLinesTopLineCount,
+            middleLineCount: reactBitsFloatingLinesMiddleLineCount,
+            bottomLineCount: reactBitsFloatingLinesBottomLineCount,
+            topLineDistance: reactBitsFloatingLinesTopLineDistance,
+            middleLineDistance: reactBitsFloatingLinesMiddleLineDistance,
+            bottomLineDistance: reactBitsFloatingLinesBottomLineDistance,
+            topWaveX: reactBitsFloatingLinesTopWaveX,
+            topWaveY: reactBitsFloatingLinesTopWaveY,
+            topWaveRotate: reactBitsFloatingLinesTopWaveRotate,
+            middleWaveX: reactBitsFloatingLinesMiddleWaveX,
+            middleWaveY: reactBitsFloatingLinesMiddleWaveY,
+            middleWaveRotate: reactBitsFloatingLinesMiddleWaveRotate,
+            bottomWaveX: reactBitsFloatingLinesBottomWaveX,
+            bottomWaveY: reactBitsFloatingLinesBottomWaveY,
+            bottomWaveRotate: reactBitsFloatingLinesBottomWaveRotate,
+            animationSpeed: reactBitsFloatingLinesAnimationSpeed,
+            interactive: reactBitsFloatingLinesInteractive,
+            bendRadius: reactBitsFloatingLinesBendRadius,
+            bendStrength: reactBitsFloatingLinesBendStrength,
+            mouseDamping: reactBitsFloatingLinesMouseDamping,
+            parallax: reactBitsFloatingLinesParallax,
+            parallaxStrength: reactBitsFloatingLinesParallaxStrength,
+            mixBlendMode: reactBitsFloatingLinesBlendMode,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

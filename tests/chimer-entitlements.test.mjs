@@ -663,6 +663,191 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsSilkRotation, 1.4)
   })
 
+  it("resets React Bits Floating Lines controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-floating-lines",
+      reactBitsFloatingLinesPaletteMode: "harmony",
+      reactBitsFloatingLinesPrimaryColor: "#123456",
+      reactBitsFloatingLinesHarmony: "triad",
+      reactBitsFloatingLinesColorOne: "#ABCDEF",
+      reactBitsFloatingLinesColorTwo: "#FEDCBA",
+      reactBitsFloatingLinesColorThree: "#010203",
+      reactBitsFloatingLinesEnableTop: false,
+      reactBitsFloatingLinesEnableMiddle: false,
+      reactBitsFloatingLinesEnableBottom: true,
+      reactBitsFloatingLinesTopLineCount: 12,
+      reactBitsFloatingLinesMiddleLineCount: 10,
+      reactBitsFloatingLinesBottomLineCount: 8,
+      reactBitsFloatingLinesTopLineDistance: 4.5,
+      reactBitsFloatingLinesMiddleLineDistance: 3.5,
+      reactBitsFloatingLinesBottomLineDistance: 2.5,
+      reactBitsFloatingLinesTopWaveX: 4.4,
+      reactBitsFloatingLinesTopWaveY: 0.4,
+      reactBitsFloatingLinesTopWaveRotate: -0.3,
+      reactBitsFloatingLinesMiddleWaveX: 3.3,
+      reactBitsFloatingLinesMiddleWaveY: 0.2,
+      reactBitsFloatingLinesMiddleWaveRotate: 0.5,
+      reactBitsFloatingLinesBottomWaveX: 2.2,
+      reactBitsFloatingLinesBottomWaveY: -0.6,
+      reactBitsFloatingLinesBottomWaveRotate: -0.9,
+      reactBitsFloatingLinesAnimationSpeed: 1.5,
+      reactBitsFloatingLinesInteractive: false,
+      reactBitsFloatingLinesBendRadius: 7,
+      reactBitsFloatingLinesBendStrength: -0.8,
+      reactBitsFloatingLinesMouseDamping: 0.08,
+      reactBitsFloatingLinesParallax: false,
+      reactBitsFloatingLinesParallaxStrength: 0.4,
+      reactBitsFloatingLinesBlendMode: "normal",
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesPaletteMode,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesPrimaryColor,
+    )
+    assert.equal(freeSettings.reactBitsFloatingLinesHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesHarmony)
+    assert.equal(freeSettings.reactBitsFloatingLinesColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesColorOne)
+    assert.equal(freeSettings.reactBitsFloatingLinesColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesColorTwo)
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesColorThree,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesColorThree,
+    )
+    assert.equal(freeSettings.reactBitsFloatingLinesEnableTop, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesEnableTop)
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesEnableMiddle,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesEnableMiddle,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesEnableBottom,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesEnableBottom,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesTopLineCount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopLineCount,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesMiddleLineCount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleLineCount,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBottomLineCount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomLineCount,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesTopLineDistance,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopLineDistance,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesMiddleLineDistance,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleLineDistance,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBottomLineDistance,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomLineDistance,
+    )
+    assert.equal(freeSettings.reactBitsFloatingLinesTopWaveX, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopWaveX)
+    assert.equal(freeSettings.reactBitsFloatingLinesTopWaveY, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopWaveY)
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesTopWaveRotate,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopWaveRotate,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesMiddleWaveX,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleWaveX,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesMiddleWaveY,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleWaveY,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesMiddleWaveRotate,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleWaveRotate,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBottomWaveX,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomWaveX,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBottomWaveY,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomWaveY,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBottomWaveRotate,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomWaveRotate,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesAnimationSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesAnimationSpeed,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesInteractive,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBendRadius,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBendRadius,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBendStrength,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBendStrength,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesMouseDamping,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMouseDamping,
+    )
+    assert.equal(freeSettings.reactBitsFloatingLinesParallax, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesParallax)
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesParallaxStrength,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesParallaxStrength,
+    )
+    assert.equal(
+      freeSettings.reactBitsFloatingLinesBlendMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBlendMode,
+    )
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-floating-lines")
+    assert.equal(premiumSettings.reactBitsFloatingLinesPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsFloatingLinesPrimaryColor, "#123456")
+    assert.equal(premiumSettings.reactBitsFloatingLinesHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsFloatingLinesColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsFloatingLinesColorTwo, "#FEDCBA")
+    assert.equal(premiumSettings.reactBitsFloatingLinesColorThree, "#010203")
+    assert.equal(premiumSettings.reactBitsFloatingLinesEnableTop, false)
+    assert.equal(premiumSettings.reactBitsFloatingLinesEnableMiddle, false)
+    assert.equal(premiumSettings.reactBitsFloatingLinesEnableBottom, true)
+    assert.equal(premiumSettings.reactBitsFloatingLinesTopLineCount, 12)
+    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleLineCount, 10)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBottomLineCount, 8)
+    assert.equal(premiumSettings.reactBitsFloatingLinesTopLineDistance, 4.5)
+    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleLineDistance, 3.5)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBottomLineDistance, 2.5)
+    assert.equal(premiumSettings.reactBitsFloatingLinesTopWaveX, 4.4)
+    assert.equal(premiumSettings.reactBitsFloatingLinesTopWaveY, 0.4)
+    assert.equal(premiumSettings.reactBitsFloatingLinesTopWaveRotate, -0.3)
+    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleWaveX, 3.3)
+    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleWaveY, 0.2)
+    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleWaveRotate, 0.5)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBottomWaveX, 2.2)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBottomWaveY, -0.6)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBottomWaveRotate, -0.9)
+    assert.equal(premiumSettings.reactBitsFloatingLinesAnimationSpeed, 1.5)
+    assert.equal(premiumSettings.reactBitsFloatingLinesInteractive, false)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBendRadius, 7)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBendStrength, -0.8)
+    assert.equal(premiumSettings.reactBitsFloatingLinesMouseDamping, 0.08)
+    assert.equal(premiumSettings.reactBitsFloatingLinesParallax, false)
+    assert.equal(premiumSettings.reactBitsFloatingLinesParallaxStrength, 0.4)
+    assert.equal(premiumSettings.reactBitsFloatingLinesBlendMode, "normal")
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

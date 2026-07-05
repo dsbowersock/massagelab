@@ -1307,6 +1307,101 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Floating Lines background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsFloatingLinesPaletteMode: "harmony",
+      reactBitsFloatingLinesPrimaryColor: "#123456",
+      reactBitsFloatingLinesHarmony: "triad",
+      reactBitsFloatingLinesColorOne: "#abcdef",
+      reactBitsFloatingLinesColorTwo: "#fedcba",
+      reactBitsFloatingLinesColorThree: "#010203",
+      reactBitsFloatingLinesEnableTop: false,
+      reactBitsFloatingLinesEnableMiddle: false,
+      reactBitsFloatingLinesEnableBottom: true,
+      reactBitsFloatingLinesTopLineCount: 99,
+      reactBitsFloatingLinesMiddleLineCount: -1,
+      reactBitsFloatingLinesBottomLineCount: 8,
+      reactBitsFloatingLinesTopLineDistance: 0,
+      reactBitsFloatingLinesMiddleLineDistance: 99,
+      reactBitsFloatingLinesBottomLineDistance: 4.5,
+      reactBitsFloatingLinesTopWaveX: 99,
+      reactBitsFloatingLinesTopWaveY: -99,
+      reactBitsFloatingLinesTopWaveRotate: 99,
+      reactBitsFloatingLinesMiddleWaveX: -99,
+      reactBitsFloatingLinesMiddleWaveY: 99,
+      reactBitsFloatingLinesMiddleWaveRotate: -99,
+      reactBitsFloatingLinesBottomWaveX: 1.5,
+      reactBitsFloatingLinesBottomWaveY: -1.5,
+      reactBitsFloatingLinesBottomWaveRotate: 0.75,
+      reactBitsFloatingLinesAnimationSpeed: 99,
+      reactBitsFloatingLinesInteractive: false,
+      reactBitsFloatingLinesBendRadius: 99,
+      reactBitsFloatingLinesBendStrength: -99,
+      reactBitsFloatingLinesMouseDamping: 99,
+      reactBitsFloatingLinesParallax: false,
+      reactBitsFloatingLinesParallaxStrength: 99,
+      reactBitsFloatingLinesBlendMode: "normal",
+    })
+
+    assert.equal(settings.reactBitsFloatingLinesPaletteMode, "harmony")
+    assert.equal(settings.reactBitsFloatingLinesPrimaryColor, "#123456")
+    assert.equal(settings.reactBitsFloatingLinesHarmony, "triad")
+    assert.equal(settings.reactBitsFloatingLinesColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsFloatingLinesColorTwo, "#FEDCBA")
+    assert.equal(settings.reactBitsFloatingLinesColorThree, "#010203")
+    assert.equal(settings.reactBitsFloatingLinesEnableTop, false)
+    assert.equal(settings.reactBitsFloatingLinesEnableMiddle, false)
+    assert.equal(settings.reactBitsFloatingLinesEnableBottom, true)
+    assert.equal(settings.reactBitsFloatingLinesTopLineCount, 32)
+    assert.equal(settings.reactBitsFloatingLinesMiddleLineCount, 0)
+    assert.equal(settings.reactBitsFloatingLinesBottomLineCount, 8)
+    assert.equal(settings.reactBitsFloatingLinesTopLineDistance, 0.1)
+    assert.equal(settings.reactBitsFloatingLinesMiddleLineDistance, 20)
+    assert.equal(settings.reactBitsFloatingLinesBottomLineDistance, 4.5)
+    assert.equal(settings.reactBitsFloatingLinesTopWaveX, 20)
+    assert.equal(settings.reactBitsFloatingLinesTopWaveY, -4)
+    assert.equal(settings.reactBitsFloatingLinesTopWaveRotate, 4)
+    assert.equal(settings.reactBitsFloatingLinesMiddleWaveX, -20)
+    assert.equal(settings.reactBitsFloatingLinesMiddleWaveY, 4)
+    assert.equal(settings.reactBitsFloatingLinesMiddleWaveRotate, -4)
+    assert.equal(settings.reactBitsFloatingLinesBottomWaveX, 1.5)
+    assert.equal(settings.reactBitsFloatingLinesBottomWaveY, -1.5)
+    assert.equal(settings.reactBitsFloatingLinesBottomWaveRotate, 0.75)
+    assert.equal(settings.reactBitsFloatingLinesAnimationSpeed, 4)
+    assert.equal(settings.reactBitsFloatingLinesInteractive, false)
+    assert.equal(settings.reactBitsFloatingLinesBendRadius, 20)
+    assert.equal(settings.reactBitsFloatingLinesBendStrength, -2)
+    assert.equal(settings.reactBitsFloatingLinesMouseDamping, 1)
+    assert.equal(settings.reactBitsFloatingLinesParallax, false)
+    assert.equal(settings.reactBitsFloatingLinesParallaxStrength, 1)
+    assert.equal(settings.reactBitsFloatingLinesBlendMode, "normal")
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFloatingLinesPaletteMode: "auto" }).reactBitsFloatingLinesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFloatingLinesPrimaryColor: "purple" }).reactBitsFloatingLinesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFloatingLinesHarmony: "wild" }).reactBitsFloatingLinesHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFloatingLinesBlendMode: "multiply" }).reactBitsFloatingLinesBlendMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBlendMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFloatingLinesAnimationSpeed: "fast" })
+        .reactBitsFloatingLinesAnimationSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesAnimationSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFloatingLinesInteractive: "yes" }).reactBitsFloatingLinesInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesInteractive,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

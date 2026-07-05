@@ -68,6 +68,7 @@ describe("premium background registry", () => {
       "react-bits-dark-veil",
       "react-bits-light-pillar",
       "react-bits-silk",
+      "react-bits-floating-lines",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -281,6 +282,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-dark-veil"))
     assert.ok(chimerOptions.includes("react-bits-light-pillar"))
     assert.ok(chimerOptions.includes("react-bits-silk"))
+    assert.ok(chimerOptions.includes("react-bits-floating-lines"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -322,6 +324,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-dark-veil"))
     assert.ok(clockOptions.includes("react-bits-light-pillar"))
     assert.ok(clockOptions.includes("react-bits-silk"))
+    assert.ok(clockOptions.includes("react-bits-floating-lines"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -364,6 +367,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-dark-veil"))
     assert.ok(musicOptions.includes("react-bits-light-pillar"))
     assert.ok(musicOptions.includes("react-bits-silk"))
+    assert.ok(musicOptions.includes("react-bits-floating-lines"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1721,6 +1725,121 @@ describe("premium background registry", () => {
       "reactBitsSilkNoiseIntensity",
       "reactBitsSilkRotation",
     ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Floating Lines source-shaped, raw WebGL, customizable, and cursor-optional", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-floating-lines-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-floating-lines/)
+    assert.match(registrySource, /Floating Lines/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/floating-lines/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsFloatingLinesBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_FLOATING_LINES/)
+    assert.match(effectSource, /MAX_LINE_COUNT/)
+    assert.match(effectSource, /lineGradient\[8\]/)
+    assert.match(effectSource, /background_color/)
+    assert.match(effectSource, /getLineColor/)
+    assert.match(effectSource, /wave/)
+    assert.match(effectSource, /rotate/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /animationSpeed:\s*1/)
+    assert.match(effectSource, /interactive:\s*true/)
+    assert.match(effectSource, /bendRadius:\s*5/)
+    assert.match(effectSource, /bendStrength:\s*-0\.5/)
+    assert.match(effectSource, /mouseDamping:\s*0\.05/)
+    assert.match(effectSource, /parallax:\s*true/)
+    assert.match(effectSource, /parallaxStrength:\s*0\.2/)
+    assert.match(effectSource, /mixBlendMode:\s*"screen"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+
+    assert.match(stylesSource, /reactBitsFloatingLines/)
+    assert.match(stylesSource, /reactBitsFloatingLinesCanvas/)
+
+    assert.match(hostSource, /reactBitsFloatingLines/)
+    assert.match(cssEffectsSource, /ReactBitsFloatingLinesOptions/)
+    assert.match(setupSource, /resolveReactBitsFloatingLinesGradient/)
+    assert.match(runningSource, /reactBitsFloatingLines=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsFloatingLines=\{\{/)
+    assert.match(docsSource, /Floating Lines \| https:\/\/reactbits\.dev\/backgrounds\/floating-lines/)
+    assert.match(docsSource, /FloatingLines\.jsx/)
+    assert.match(docsSource, /FloatingLines\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /Three\.js/)
+
+    const settingKeys = [
+      "reactBitsFloatingLinesPaletteMode",
+      "reactBitsFloatingLinesPrimaryColor",
+      "reactBitsFloatingLinesHarmony",
+      "reactBitsFloatingLinesColorOne",
+      "reactBitsFloatingLinesColorTwo",
+      "reactBitsFloatingLinesColorThree",
+      "reactBitsFloatingLinesEnableTop",
+      "reactBitsFloatingLinesEnableMiddle",
+      "reactBitsFloatingLinesEnableBottom",
+      "reactBitsFloatingLinesTopLineCount",
+      "reactBitsFloatingLinesMiddleLineCount",
+      "reactBitsFloatingLinesBottomLineCount",
+      "reactBitsFloatingLinesTopLineDistance",
+      "reactBitsFloatingLinesMiddleLineDistance",
+      "reactBitsFloatingLinesBottomLineDistance",
+      "reactBitsFloatingLinesTopWaveX",
+      "reactBitsFloatingLinesTopWaveY",
+      "reactBitsFloatingLinesTopWaveRotate",
+      "reactBitsFloatingLinesMiddleWaveX",
+      "reactBitsFloatingLinesMiddleWaveY",
+      "reactBitsFloatingLinesMiddleWaveRotate",
+      "reactBitsFloatingLinesBottomWaveX",
+      "reactBitsFloatingLinesBottomWaveY",
+      "reactBitsFloatingLinesBottomWaveRotate",
+      "reactBitsFloatingLinesAnimationSpeed",
+      "reactBitsFloatingLinesInteractive",
+      "reactBitsFloatingLinesBendRadius",
+      "reactBitsFloatingLinesBendStrength",
+      "reactBitsFloatingLinesMouseDamping",
+      "reactBitsFloatingLinesParallax",
+      "reactBitsFloatingLinesParallaxStrength",
+      "reactBitsFloatingLinesBlendMode",
+    ]
+
+    for (const settingKey of settingKeys) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
       assert.match(pageSource, new RegExp(settingKey))

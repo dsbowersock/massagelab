@@ -27,6 +27,7 @@ export type BackgroundId =
   | "react-bits-dark-veil"
   | "react-bits-light-pillar"
   | "react-bits-silk"
+  | "react-bits-floating-lines"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -98,6 +99,7 @@ const reactBitsPrism = () => import("./effects/react-bits-prism-background")
 const reactBitsDarkVeil = () => import("./effects/react-bits-dark-veil-background")
 const reactBitsLightPillar = () => import("./effects/react-bits-light-pillar-background")
 const reactBitsSilk = () => import("./effects/react-bits-silk-background")
+const reactBitsFloatingLines = () => import("./effects/react-bits-floating-lines-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -571,6 +573,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 48% 44%, rgba(123,116,129,0.32), transparent 36%), radial-gradient(circle at 58% 58%, rgba(203,183,218,0.16), transparent 42%), linear-gradient(145deg, #07060a 0%, #181320 58%, #040307 100%)",
+    },
+  },
+  {
+    id: "react-bits-floating-lines",
+    label: "Floating Lines",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/floating-lines",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium layered wave-line shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony line colors, top/middle/bottom wave enablement, counts, spacing, wave positions, animation speed, cursor bend, parallax, damping, and blend-mode controls; source Three.js shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsFloatingLines().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 20% 12%, rgba(233,71,245,0.12), transparent 34%), radial-gradient(circle at 78% 88%, rgba(47,75,162,0.18), transparent 38%), linear-gradient(145deg, #02030a 0%, #060716 58%, #000000 100%)",
     },
   },
   {
