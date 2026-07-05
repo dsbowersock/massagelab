@@ -1443,6 +1443,66 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsPlasmaMouseInteractive, true)
   })
 
+  it("resets React Bits Plasma Wave controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-plasma-wave",
+      reactBitsPlasmaWavePaletteMode: "harmony",
+      reactBitsPlasmaWavePrimaryColor: "#FFFFFF",
+      reactBitsPlasmaWaveHarmony: "triad",
+      reactBitsPlasmaWaveColorOne: "#ABCDEF",
+      reactBitsPlasmaWaveColorTwo: "#010203",
+      reactBitsPlasmaWaveXOffset: 120,
+      reactBitsPlasmaWaveYOffset: -140,
+      reactBitsPlasmaWaveRotationDeg: 35,
+      reactBitsPlasmaWaveFocalLength: 1.2,
+      reactBitsPlasmaWaveSpeedOne: 0.2,
+      reactBitsPlasmaWaveSpeedTwo: 0.3,
+      reactBitsPlasmaWaveDirectionTwo: -1,
+      reactBitsPlasmaWaveBendOne: 1.4,
+      reactBitsPlasmaWaveBendTwo: 0.8,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsPlasmaWavePaletteMode",
+      "reactBitsPlasmaWavePrimaryColor",
+      "reactBitsPlasmaWaveHarmony",
+      "reactBitsPlasmaWaveColorOne",
+      "reactBitsPlasmaWaveColorTwo",
+      "reactBitsPlasmaWaveXOffset",
+      "reactBitsPlasmaWaveYOffset",
+      "reactBitsPlasmaWaveRotationDeg",
+      "reactBitsPlasmaWaveFocalLength",
+      "reactBitsPlasmaWaveSpeedOne",
+      "reactBitsPlasmaWaveSpeedTwo",
+      "reactBitsPlasmaWaveDirectionTwo",
+      "reactBitsPlasmaWaveBendOne",
+      "reactBitsPlasmaWaveBendTwo",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-plasma-wave")
+    assert.equal(premiumSettings.reactBitsPlasmaWavePaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsPlasmaWavePrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsPlasmaWaveHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsPlasmaWaveColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsPlasmaWaveColorTwo, "#010203")
+    assert.equal(premiumSettings.reactBitsPlasmaWaveXOffset, 120)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveYOffset, -140)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveRotationDeg, 35)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveFocalLength, 1.2)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveSpeedOne, 0.2)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveSpeedTwo, 0.3)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveDirectionTwo, -1)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveBendOne, 1.4)
+    assert.equal(premiumSettings.reactBitsPlasmaWaveBendTwo, 0.8)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

@@ -78,6 +78,7 @@ describe("premium background registry", () => {
       "react-bits-radar",
       "react-bits-soft-aurora",
       "react-bits-plasma",
+      "react-bits-plasma-wave",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -301,6 +302,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-radar"))
     assert.ok(chimerOptions.includes("react-bits-soft-aurora"))
     assert.ok(chimerOptions.includes("react-bits-plasma"))
+    assert.ok(chimerOptions.includes("react-bits-plasma-wave"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -352,6 +354,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-radar"))
     assert.ok(clockOptions.includes("react-bits-soft-aurora"))
     assert.ok(clockOptions.includes("react-bits-plasma"))
+    assert.ok(clockOptions.includes("react-bits-plasma-wave"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -404,6 +407,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-radar"))
     assert.ok(musicOptions.includes("react-bits-soft-aurora"))
     assert.ok(musicOptions.includes("react-bits-plasma"))
+    assert.ok(musicOptions.includes("react-bits-plasma-wave"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2805,6 +2809,103 @@ describe("premium background registry", () => {
       "reactBitsPlasmaScale",
       "reactBitsPlasmaOpacity",
       "reactBitsPlasmaMouseInteractive",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Plasma Wave source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-plasma-wave-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-plasma-wave/)
+    assert.match(registrySource, /Plasma Wave/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/plasma-wave/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsPlasmaWaveBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_PLASMA_WAVE/)
+    assert.match(effectSource, /MAX_STEPS 14/)
+    assert.match(effectSource, /uFocalLength/)
+    assert.match(effectSource, /uSpeed1/)
+    assert.match(effectSource, /uSpeed2/)
+    assert.match(effectSource, /uDir2/)
+    assert.match(effectSource, /uBend1/)
+    assert.match(effectSource, /uBend2/)
+    assert.match(effectSource, /uColor1/)
+    assert.match(effectSource, /uColor2/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /"#A855F7"/)
+    assert.match(effectSource, /"#06B6D4"/)
+    assert.match(effectSource, /focalLength:\s*0\.8/)
+    assert.match(effectSource, /speed1:\s*0\.05/)
+    assert.match(effectSource, /speed2:\s*0\.05/)
+    assert.match(effectSource, /bend1:\s*1/)
+    assert.match(effectSource, /bend2:\s*0\.5/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsPlasmaWave/)
+    assert.match(stylesSource, /reactBitsPlasmaWaveCanvas/)
+
+    assert.match(hostSource, /reactBitsPlasmaWave/)
+    assert.match(cssEffectsSource, /ReactBitsPlasmaWaveOptions/)
+    assert.match(setupSource, /resolveReactBitsPlasmaWaveColors/)
+    assert.match(runningSource, /reactBitsPlasmaWave=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsPlasmaWave=\{\{/)
+    assert.match(docsSource, /Plasma Wave \| https:\/\/reactbits\.dev\/backgrounds\/plasma-wave/)
+    assert.match(docsSource, /PlasmaWave\.jsx/)
+    assert.match(docsSource, /PlasmaWave\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsPlasmaWavePaletteMode",
+      "reactBitsPlasmaWavePrimaryColor",
+      "reactBitsPlasmaWaveHarmony",
+      "reactBitsPlasmaWaveColorOne",
+      "reactBitsPlasmaWaveColorTwo",
+      "reactBitsPlasmaWaveXOffset",
+      "reactBitsPlasmaWaveYOffset",
+      "reactBitsPlasmaWaveRotationDeg",
+      "reactBitsPlasmaWaveFocalLength",
+      "reactBitsPlasmaWaveSpeedOne",
+      "reactBitsPlasmaWaveSpeedTwo",
+      "reactBitsPlasmaWaveDirectionTwo",
+      "reactBitsPlasmaWaveBendOne",
+      "reactBitsPlasmaWaveBendTwo",
     ]
 
     for (const settingKey of settingKeys) {

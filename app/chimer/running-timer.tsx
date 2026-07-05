@@ -87,6 +87,7 @@ import {
   resolveReactBitsRadarColor,
   resolveReactBitsSoftAuroraColors,
   resolveReactBitsPlasmaColor,
+  resolveReactBitsPlasmaWaveColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -117,6 +118,7 @@ import {
   type ReactBitsSoftAuroraPaletteMode,
   type ReactBitsPlasmaDirection,
   type ReactBitsPlasmaPaletteMode,
+  type ReactBitsPlasmaWavePaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -534,6 +536,20 @@ interface RunningTimerProps {
   reactBitsPlasmaScale: number
   reactBitsPlasmaOpacity: number
   reactBitsPlasmaMouseInteractive: boolean
+  reactBitsPlasmaWavePaletteMode: ReactBitsPlasmaWavePaletteMode
+  reactBitsPlasmaWavePrimaryColor: string
+  reactBitsPlasmaWaveHarmony: ColorHarmony
+  reactBitsPlasmaWaveColorOne: string
+  reactBitsPlasmaWaveColorTwo: string
+  reactBitsPlasmaWaveXOffset: number
+  reactBitsPlasmaWaveYOffset: number
+  reactBitsPlasmaWaveRotationDeg: number
+  reactBitsPlasmaWaveFocalLength: number
+  reactBitsPlasmaWaveSpeedOne: number
+  reactBitsPlasmaWaveSpeedTwo: number
+  reactBitsPlasmaWaveDirectionTwo: 1 | -1
+  reactBitsPlasmaWaveBendOne: number
+  reactBitsPlasmaWaveBendTwo: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1108,6 +1124,20 @@ export function RunningTimer({
   reactBitsPlasmaScale,
   reactBitsPlasmaOpacity,
   reactBitsPlasmaMouseInteractive,
+  reactBitsPlasmaWavePaletteMode,
+  reactBitsPlasmaWavePrimaryColor,
+  reactBitsPlasmaWaveHarmony,
+  reactBitsPlasmaWaveColorOne,
+  reactBitsPlasmaWaveColorTwo,
+  reactBitsPlasmaWaveXOffset,
+  reactBitsPlasmaWaveYOffset,
+  reactBitsPlasmaWaveRotationDeg,
+  reactBitsPlasmaWaveFocalLength,
+  reactBitsPlasmaWaveSpeedOne,
+  reactBitsPlasmaWaveSpeedTwo,
+  reactBitsPlasmaWaveDirectionTwo,
+  reactBitsPlasmaWaveBendOne,
+  reactBitsPlasmaWaveBendTwo,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1445,6 +1475,13 @@ export function RunningTimer({
     reactBitsPlasmaPrimaryColor,
     reactBitsPlasmaHarmony,
     reactBitsPlasmaColor,
+  })
+  const plasmaWaveColors = resolveReactBitsPlasmaWaveColors({
+    reactBitsPlasmaWavePaletteMode,
+    reactBitsPlasmaWavePrimaryColor,
+    reactBitsPlasmaWaveHarmony,
+    reactBitsPlasmaWaveColorOne,
+    reactBitsPlasmaWaveColorTwo,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -7283,6 +7320,196 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-plasma-wave" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPlasmaWavePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaWavePaletteMode: event.target.value as ReactBitsPlasmaWavePaletteMode,
+              })}
+              aria-label="React Bits Plasma Wave color mode"
+            >
+              <option value="source">Source violet and cyan</option>
+              <option value="custom">Custom waves</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPlasmaWavePaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Wave color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaWaveColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveColorOne: event.target.value })}
+                  aria-label="React Bits Plasma Wave color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Wave color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaWaveColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveColorTwo: event.target.value })}
+                  aria-label="React Bits Plasma Wave color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsPlasmaWavePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaWavePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWavePrimaryColor: event.target.value })}
+                  aria-label="React Bits Plasma Wave primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPlasmaWaveHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPlasmaWaveHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Plasma Wave color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Wave 2 direction</span>
+            <select
+              value={reactBitsPlasmaWaveDirectionTwo}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaWaveDirectionTwo: Number(event.target.value) as 1 | -1,
+              })}
+              aria-label="React Bits Plasma Wave secondary direction"
+            >
+              <option value={1}>Forward</option>
+              <option value={-1}>Reverse</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsPlasmaWaveRotationDeg.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsPlasmaWaveRotationDeg}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveRotationDeg: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Focal length ({reactBitsPlasmaWaveFocalLength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="2"
+              step="0.05"
+              value={reactBitsPlasmaWaveFocalLength}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveFocalLength: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave focal length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 1 speed ({reactBitsPlasmaWaveSpeedOne.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={reactBitsPlasmaWaveSpeedOne}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveSpeedOne: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave speed 1"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 2 speed ({reactBitsPlasmaWaveSpeedTwo.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={reactBitsPlasmaWaveSpeedTwo}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveSpeedTwo: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave speed 2"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 1 bend ({reactBitsPlasmaWaveBendOne.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPlasmaWaveBendOne}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveBendOne: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave bend 1"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 2 bend ({reactBitsPlasmaWaveBendTwo.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPlasmaWaveBendTwo}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveBendTwo: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave bend 2"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>X offset ({reactBitsPlasmaWaveXOffset.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-800"
+              max="800"
+              step="10"
+              value={reactBitsPlasmaWaveXOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveXOffset: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave x offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Y offset ({reactBitsPlasmaWaveYOffset.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-800"
+              max="800"
+              step="10"
+              value={reactBitsPlasmaWaveYOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveYOffset: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave y offset"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -9520,6 +9747,18 @@ export function RunningTimer({
             scale: reactBitsPlasmaScale,
             opacity: reactBitsPlasmaOpacity,
             mouseInteractive: reactBitsPlasmaMouseInteractive,
+          }}
+          reactBitsPlasmaWave={{
+            colors: plasmaWaveColors,
+            xOffset: reactBitsPlasmaWaveXOffset,
+            yOffset: reactBitsPlasmaWaveYOffset,
+            rotationDeg: reactBitsPlasmaWaveRotationDeg,
+            focalLength: reactBitsPlasmaWaveFocalLength,
+            speed1: reactBitsPlasmaWaveSpeedOne,
+            speed2: reactBitsPlasmaWaveSpeedTwo,
+            dir2: reactBitsPlasmaWaveDirectionTwo,
+            bend1: reactBitsPlasmaWaveBendOne,
+            bend2: reactBitsPlasmaWaveBendTwo,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

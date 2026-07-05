@@ -37,6 +37,7 @@ export type BackgroundId =
   | "react-bits-radar"
   | "react-bits-soft-aurora"
   | "react-bits-plasma"
+  | "react-bits-plasma-wave"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -118,6 +119,7 @@ const reactBitsLineWaves = () => import("./effects/react-bits-line-waves-backgro
 const reactBitsRadar = () => import("./effects/react-bits-radar-background")
 const reactBitsSoftAurora = () => import("./effects/react-bits-soft-aurora-background")
 const reactBitsPlasma = () => import("./effects/react-bits-plasma-background")
+const reactBitsPlasmaWave = () => import("./effects/react-bits-plasma-wave-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -801,6 +803,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.16), transparent 34%), radial-gradient(circle at 42% 60%, rgba(138,92,246,0.18), transparent 42%), linear-gradient(145deg, #05010d 0%, #12051f 58%, #020006 100%)",
+    },
+  },
+  {
+    id: "react-bits-plasma-wave",
+    label: "Plasma Wave",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/plasma-wave",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium two-color plasma wave shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony wave colors plus source-shaped X/Y offset, rotation, focal length, dual wave speeds, secondary direction, and bend controls; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsPlasmaWave().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 42% 48%, rgba(168,85,247,0.18), transparent 36%), radial-gradient(circle at 62% 54%, rgba(6,182,212,0.16), transparent 42%), linear-gradient(145deg, #04030a 0%, #09111e 58%, #010105 100%)",
     },
   },
   {

@@ -2010,6 +2010,64 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Plasma Wave background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsPlasmaWavePaletteMode: "harmony",
+      reactBitsPlasmaWavePrimaryColor: "#ffffff",
+      reactBitsPlasmaWaveHarmony: "triad",
+      reactBitsPlasmaWaveColorOne: "#abcdef",
+      reactBitsPlasmaWaveColorTwo: "#010203",
+      reactBitsPlasmaWaveXOffset: 9999,
+      reactBitsPlasmaWaveYOffset: -9999,
+      reactBitsPlasmaWaveRotationDeg: 9999,
+      reactBitsPlasmaWaveFocalLength: 99,
+      reactBitsPlasmaWaveSpeedOne: 99,
+      reactBitsPlasmaWaveSpeedTwo: 99,
+      reactBitsPlasmaWaveDirectionTwo: -1,
+      reactBitsPlasmaWaveBendOne: 99,
+      reactBitsPlasmaWaveBendTwo: 99,
+    })
+
+    assert.equal(settings.reactBitsPlasmaWavePaletteMode, "harmony")
+    assert.equal(settings.reactBitsPlasmaWavePrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsPlasmaWaveHarmony, "triad")
+    assert.equal(settings.reactBitsPlasmaWaveColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsPlasmaWaveColorTwo, "#010203")
+    assert.equal(settings.reactBitsPlasmaWaveXOffset, 800)
+    assert.equal(settings.reactBitsPlasmaWaveYOffset, -800)
+    assert.equal(settings.reactBitsPlasmaWaveRotationDeg, 180)
+    assert.equal(settings.reactBitsPlasmaWaveFocalLength, 2)
+    assert.equal(settings.reactBitsPlasmaWaveSpeedOne, 0.5)
+    assert.equal(settings.reactBitsPlasmaWaveSpeedTwo, 0.5)
+    assert.equal(settings.reactBitsPlasmaWaveDirectionTwo, -1)
+    assert.equal(settings.reactBitsPlasmaWaveBendOne, 3)
+    assert.equal(settings.reactBitsPlasmaWaveBendTwo, 3)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaWavePaletteMode: "auto" }).reactBitsPlasmaWavePaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaWavePaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaWavePrimaryColor: "white" }).reactBitsPlasmaWavePrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaWavePrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaWaveHarmony: "wild" }).reactBitsPlasmaWaveHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaWaveHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaWaveColorOne: "white" }).reactBitsPlasmaWaveColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaWaveColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaWaveSpeedOne: "fast" }).reactBitsPlasmaWaveSpeedOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaWaveSpeedOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPlasmaWaveDirectionTwo: "reverse" }).reactBitsPlasmaWaveDirectionTwo,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPlasmaWaveDirectionTwo,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
