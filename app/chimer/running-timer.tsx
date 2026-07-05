@@ -95,6 +95,7 @@ import {
   resolveReactBitsBeamsColor,
   resolveReactBitsPixelSnowColor,
   resolveReactBitsLightningHue,
+  resolveReactBitsPrismaticBurstColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -138,6 +139,9 @@ import {
   type ReactBitsPixelSnowPaletteMode,
   type ReactBitsPixelSnowVariant,
   type ReactBitsLightningPaletteMode,
+  type ReactBitsPrismaticBurstAnimationType,
+  type ReactBitsPrismaticBurstMixBlendMode,
+  type ReactBitsPrismaticBurstPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -686,6 +690,22 @@ interface RunningTimerProps {
   reactBitsLightningSpeed: number
   reactBitsLightningIntensity: number
   reactBitsLightningSize: number
+  reactBitsPrismaticBurstPaletteMode: ReactBitsPrismaticBurstPaletteMode
+  reactBitsPrismaticBurstPrimaryColor: string
+  reactBitsPrismaticBurstHarmony: ColorHarmony
+  reactBitsPrismaticBurstColorOne: string
+  reactBitsPrismaticBurstColorTwo: string
+  reactBitsPrismaticBurstColorThree: string
+  reactBitsPrismaticBurstColorFour: string
+  reactBitsPrismaticBurstIntensity: number
+  reactBitsPrismaticBurstSpeed: number
+  reactBitsPrismaticBurstAnimationType: ReactBitsPrismaticBurstAnimationType
+  reactBitsPrismaticBurstDistort: number
+  reactBitsPrismaticBurstOffsetX: number
+  reactBitsPrismaticBurstOffsetY: number
+  reactBitsPrismaticBurstHoverDampness: number
+  reactBitsPrismaticBurstRayCount: number
+  reactBitsPrismaticBurstMixBlendMode: ReactBitsPrismaticBurstMixBlendMode
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1391,6 +1411,22 @@ export function RunningTimer({
   reactBitsLightningSpeed,
   reactBitsLightningIntensity,
   reactBitsLightningSize,
+  reactBitsPrismaticBurstPaletteMode,
+  reactBitsPrismaticBurstPrimaryColor,
+  reactBitsPrismaticBurstHarmony,
+  reactBitsPrismaticBurstColorOne,
+  reactBitsPrismaticBurstColorTwo,
+  reactBitsPrismaticBurstColorThree,
+  reactBitsPrismaticBurstColorFour,
+  reactBitsPrismaticBurstIntensity,
+  reactBitsPrismaticBurstSpeed,
+  reactBitsPrismaticBurstAnimationType,
+  reactBitsPrismaticBurstDistort,
+  reactBitsPrismaticBurstOffsetX,
+  reactBitsPrismaticBurstOffsetY,
+  reactBitsPrismaticBurstHoverDampness,
+  reactBitsPrismaticBurstRayCount,
+  reactBitsPrismaticBurstMixBlendMode,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1784,6 +1820,15 @@ export function RunningTimer({
     reactBitsLightningHarmony,
     reactBitsLightningColor,
     reactBitsLightningHue,
+  })
+  const prismaticBurstColors = resolveReactBitsPrismaticBurstColors({
+    reactBitsPrismaticBurstPaletteMode,
+    reactBitsPrismaticBurstPrimaryColor,
+    reactBitsPrismaticBurstHarmony,
+    reactBitsPrismaticBurstColorOne,
+    reactBitsPrismaticBurstColorTwo,
+    reactBitsPrismaticBurstColorThree,
+    reactBitsPrismaticBurstColorFour,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -9376,6 +9421,227 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-prismatic-burst" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPrismaticBurstPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstPaletteMode: event.target.value as ReactBitsPrismaticBurstPaletteMode,
+              })}
+              aria-label="React Bits Prismatic Burst color mode"
+            >
+              <option value="source">Source spectrum</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPrismaticBurstPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorOne: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorTwo: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorThree}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPrismaticBurstColorThree: event.target.value,
+                  })}
+                  aria-label="React Bits Prismatic Burst color 3"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 4</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorFour}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorFour: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 4"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsPrismaticBurstPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstPrimaryColor}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPrismaticBurstPrimaryColor: event.target.value,
+                  })}
+                  aria-label="React Bits Prismatic Burst primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPrismaticBurstHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPrismaticBurstHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Prismatic Burst color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Animation</span>
+            <select
+              value={reactBitsPrismaticBurstAnimationType}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstAnimationType: event.target.value as ReactBitsPrismaticBurstAnimationType,
+              })}
+              aria-label="React Bits Prismatic Burst animation"
+            >
+              <option value="rotate3d">Rotate 3D</option>
+              <option value="rotate">Rotate</option>
+              <option value="hover">Cursor hover</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend</span>
+            <select
+              value={reactBitsPrismaticBurstMixBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstMixBlendMode: event.target.value as ReactBitsPrismaticBurstMixBlendMode,
+              })}
+              aria-label="React Bits Prismatic Burst blend mode"
+            >
+              <option value="lighten">Lighten</option>
+              <option value="screen">Screen</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsPrismaticBurstIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsPrismaticBurstIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstIntensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPrismaticBurstSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismaticBurstSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstSpeed: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({reactBitsPrismaticBurstDistort.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              step="0.5"
+              value={reactBitsPrismaticBurstDistort}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstDistort: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset X ({reactBitsPrismaticBurstOffsetX.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-1000"
+              max="1000"
+              step="10"
+              value={reactBitsPrismaticBurstOffsetX}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstOffsetX: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst offset X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset Y ({reactBitsPrismaticBurstOffsetY.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-1000"
+              max="1000"
+              step="10"
+              value={reactBitsPrismaticBurstOffsetY}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstOffsetY: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst offset Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover damping ({reactBitsPrismaticBurstHoverDampness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPrismaticBurstHoverDampness}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstHoverDampness: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst hover damping"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray count ({reactBitsPrismaticBurstRayCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="64"
+              step="1"
+              value={reactBitsPrismaticBurstRayCount}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstRayCount: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst ray count"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -11731,6 +11997,18 @@ export function RunningTimer({
             speed: reactBitsLightningSpeed,
             intensity: reactBitsLightningIntensity,
             size: reactBitsLightningSize,
+          }}
+          reactBitsPrismaticBurst={{
+            colors: prismaticBurstColors,
+            intensity: reactBitsPrismaticBurstIntensity,
+            speed: reactBitsPrismaticBurstSpeed,
+            animationType: reactBitsPrismaticBurstAnimationType,
+            distort: reactBitsPrismaticBurstDistort,
+            offsetX: reactBitsPrismaticBurstOffsetX,
+            offsetY: reactBitsPrismaticBurstOffsetY,
+            hoverDampness: reactBitsPrismaticBurstHoverDampness,
+            rayCount: reactBitsPrismaticBurstRayCount,
+            mixBlendMode: reactBitsPrismaticBurstMixBlendMode,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

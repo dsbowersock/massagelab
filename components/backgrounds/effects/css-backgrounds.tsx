@@ -48,6 +48,7 @@ export interface BackgroundEffectProps {
   reactBitsBeams?: ReactBitsBeamsOptions
   reactBitsPixelSnow?: ReactBitsPixelSnowOptions
   reactBitsLightning?: ReactBitsLightningOptions
+  reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -584,6 +585,19 @@ export interface ReactBitsLightningOptions {
   speed?: number
   intensity?: number
   size?: number
+}
+
+export interface ReactBitsPrismaticBurstOptions {
+  intensity?: number
+  speed?: number
+  animationType?: "rotate" | "rotate3d" | "hover"
+  colors?: string[]
+  distort?: number
+  offsetX?: number
+  offsetY?: number
+  hoverDampness?: number
+  rayCount?: number
+  mixBlendMode?: "lighten" | "screen" | "none"
 }
 
 export interface EldoraNovatrixOptions {

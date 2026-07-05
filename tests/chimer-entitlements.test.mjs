@@ -1980,6 +1980,72 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsLightningSize, 1.8)
   })
 
+  it("resets React Bits Prismatic Burst controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-prismatic-burst",
+      reactBitsPrismaticBurstPaletteMode: "harmony",
+      reactBitsPrismaticBurstPrimaryColor: "#ABCDEF",
+      reactBitsPrismaticBurstHarmony: "triad",
+      reactBitsPrismaticBurstColorOne: "#010203",
+      reactBitsPrismaticBurstColorTwo: "#AABBCC",
+      reactBitsPrismaticBurstColorThree: "#DDEEFF",
+      reactBitsPrismaticBurstColorFour: "#112233",
+      reactBitsPrismaticBurstIntensity: 3.25,
+      reactBitsPrismaticBurstSpeed: 1.75,
+      reactBitsPrismaticBurstAnimationType: "hover",
+      reactBitsPrismaticBurstDistort: 18,
+      reactBitsPrismaticBurstOffsetX: 240,
+      reactBitsPrismaticBurstOffsetY: -160,
+      reactBitsPrismaticBurstHoverDampness: 0.42,
+      reactBitsPrismaticBurstRayCount: 24,
+      reactBitsPrismaticBurstMixBlendMode: "screen",
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsPrismaticBurstPaletteMode",
+      "reactBitsPrismaticBurstPrimaryColor",
+      "reactBitsPrismaticBurstHarmony",
+      "reactBitsPrismaticBurstColorOne",
+      "reactBitsPrismaticBurstColorTwo",
+      "reactBitsPrismaticBurstColorThree",
+      "reactBitsPrismaticBurstColorFour",
+      "reactBitsPrismaticBurstIntensity",
+      "reactBitsPrismaticBurstSpeed",
+      "reactBitsPrismaticBurstAnimationType",
+      "reactBitsPrismaticBurstDistort",
+      "reactBitsPrismaticBurstOffsetX",
+      "reactBitsPrismaticBurstOffsetY",
+      "reactBitsPrismaticBurstHoverDampness",
+      "reactBitsPrismaticBurstRayCount",
+      "reactBitsPrismaticBurstMixBlendMode",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-prismatic-burst")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstColorOne, "#010203")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstColorFour, "#112233")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstIntensity, 3.25)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstSpeed, 1.75)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstAnimationType, "hover")
+    assert.equal(premiumSettings.reactBitsPrismaticBurstDistort, 18)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstOffsetX, 240)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstOffsetY, -160)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstHoverDampness, 0.42)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstRayCount, 24)
+    assert.equal(premiumSettings.reactBitsPrismaticBurstMixBlendMode, "screen")
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

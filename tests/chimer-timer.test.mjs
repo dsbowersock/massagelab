@@ -2538,6 +2538,81 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsLightningSize: 0 }).reactBitsLightningSize, 0.2)
   })
 
+  it("normalizes React Bits Prismatic Burst background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsPrismaticBurstPaletteMode: "harmony",
+      reactBitsPrismaticBurstPrimaryColor: "#abcdef",
+      reactBitsPrismaticBurstHarmony: "triad",
+      reactBitsPrismaticBurstColorOne: "#010203",
+      reactBitsPrismaticBurstColorTwo: "#aabbcc",
+      reactBitsPrismaticBurstColorThree: "#ddeeff",
+      reactBitsPrismaticBurstColorFour: "#112233",
+      reactBitsPrismaticBurstIntensity: 99,
+      reactBitsPrismaticBurstSpeed: 99,
+      reactBitsPrismaticBurstAnimationType: "hover",
+      reactBitsPrismaticBurstDistort: 99,
+      reactBitsPrismaticBurstOffsetX: 9999,
+      reactBitsPrismaticBurstOffsetY: -9999,
+      reactBitsPrismaticBurstHoverDampness: 99,
+      reactBitsPrismaticBurstRayCount: 99,
+      reactBitsPrismaticBurstMixBlendMode: "screen",
+    })
+
+    assert.equal(settings.reactBitsPrismaticBurstPaletteMode, "harmony")
+    assert.equal(settings.reactBitsPrismaticBurstPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsPrismaticBurstHarmony, "triad")
+    assert.equal(settings.reactBitsPrismaticBurstColorOne, "#010203")
+    assert.equal(settings.reactBitsPrismaticBurstColorTwo, "#AABBCC")
+    assert.equal(settings.reactBitsPrismaticBurstColorThree, "#DDEEFF")
+    assert.equal(settings.reactBitsPrismaticBurstColorFour, "#112233")
+    assert.equal(settings.reactBitsPrismaticBurstIntensity, 5)
+    assert.equal(settings.reactBitsPrismaticBurstSpeed, 3)
+    assert.equal(settings.reactBitsPrismaticBurstAnimationType, "hover")
+    assert.equal(settings.reactBitsPrismaticBurstDistort, 50)
+    assert.equal(settings.reactBitsPrismaticBurstOffsetX, 1000)
+    assert.equal(settings.reactBitsPrismaticBurstOffsetY, -1000)
+    assert.equal(settings.reactBitsPrismaticBurstHoverDampness, 1)
+    assert.equal(settings.reactBitsPrismaticBurstRayCount, 64)
+    assert.equal(settings.reactBitsPrismaticBurstMixBlendMode, "screen")
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstPaletteMode: "auto" }).reactBitsPrismaticBurstPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstPrimaryColor: "white" }).reactBitsPrismaticBurstPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstHarmony: "wild" }).reactBitsPrismaticBurstHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstColorOne: "white" }).reactBitsPrismaticBurstColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstSpeed: "fast" }).reactBitsPrismaticBurstSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstAnimationType: "orbit" }).reactBitsPrismaticBurstAnimationType,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstAnimationType,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstMixBlendMode: "multiply" }).reactBitsPrismaticBurstMixBlendMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismaticBurstMixBlendMode,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsPrismaticBurstIntensity: -1 }).reactBitsPrismaticBurstIntensity, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsPrismaticBurstDistort: -1 }).reactBitsPrismaticBurstDistort, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsPrismaticBurstOffsetX: -9999 }).reactBitsPrismaticBurstOffsetX, -1000)
+    assert.equal(sanitizeChimerSettings({ reactBitsPrismaticBurstOffsetY: 9999 }).reactBitsPrismaticBurstOffsetY, 1000)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismaticBurstHoverDampness: -1 }).reactBitsPrismaticBurstHoverDampness,
+      0,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsPrismaticBurstRayCount: 10.9 }).reactBitsPrismaticBurstRayCount, 10)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

@@ -50,6 +50,7 @@ import type {
   ReactBitsBeamsOptions,
   ReactBitsPixelSnowOptions,
   ReactBitsLightningOptions,
+  ReactBitsPrismaticBurstOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -115,6 +116,7 @@ interface BackgroundHostProps {
   reactBitsBeams?: ReactBitsBeamsOptions
   reactBitsPixelSnow?: ReactBitsPixelSnowOptions
   reactBitsLightning?: ReactBitsLightningOptions
+  reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -196,6 +198,7 @@ export function BackgroundHost({
   reactBitsBeams,
   reactBitsPixelSnow,
   reactBitsLightning,
+  reactBitsPrismaticBurst,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -302,6 +305,7 @@ export function BackgroundHost({
           reactBitsBeams={reactBitsBeams}
           reactBitsPixelSnow={reactBitsPixelSnow}
           reactBitsLightning={reactBitsLightning}
+          reactBitsPrismaticBurst={reactBitsPrismaticBurst}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

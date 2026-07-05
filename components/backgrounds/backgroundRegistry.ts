@@ -45,6 +45,7 @@ export type BackgroundId =
   | "react-bits-beams"
   | "react-bits-pixel-snow"
   | "react-bits-lightning"
+  | "react-bits-prismatic-burst"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -134,6 +135,7 @@ const reactBitsGridScan = () => import("./effects/react-bits-grid-scan-backgroun
 const reactBitsBeams = () => import("./effects/react-bits-beams-background")
 const reactBitsPixelSnow = () => import("./effects/react-bits-pixel-snow-background")
 const reactBitsLightning = () => import("./effects/react-bits-lightning-background")
+const reactBitsPrismaticBurst = () => import("./effects/react-bits-prismatic-burst-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1006,6 +1008,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 42%, rgba(92,124,255,0.18), transparent 36%), linear-gradient(180deg, #02030a 0%, #000000 100%)",
+    },
+  },
+  {
+    id: "react-bits-prismatic-burst",
+    label: "Prismatic Burst",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/prismatic-burst",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium spectral ray burst shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "high",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source spectral colors or custom/harmony gradient colors plus source-shaped intensity, speed, animation type, distortion, offset, hover damping, ray count, and blend controls.",
+    component: () => reactBitsPrismaticBurst().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 45%, rgba(147,197,253,0.22), transparent 34%), radial-gradient(circle at 68% 32%, rgba(236,72,153,0.18), transparent 30%), #02030a",
     },
   },
   {

@@ -80,6 +80,9 @@ export type ReactBitsBeamsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPixelSnowPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPixelSnowVariant = "square" | "round" | "snowflake"
 export type ReactBitsLightningPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsPrismaticBurstPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsPrismaticBurstAnimationType = "rotate" | "rotate3d" | "hover"
+export type ReactBitsPrismaticBurstMixBlendMode = "lighten" | "screen" | "none"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -961,6 +964,22 @@ export interface ChimerSettings {
   reactBitsLightningSpeed: number
   reactBitsLightningIntensity: number
   reactBitsLightningSize: number
+  reactBitsPrismaticBurstPaletteMode: ReactBitsPrismaticBurstPaletteMode
+  reactBitsPrismaticBurstPrimaryColor: string
+  reactBitsPrismaticBurstHarmony: ColorHarmony
+  reactBitsPrismaticBurstColorOne: string
+  reactBitsPrismaticBurstColorTwo: string
+  reactBitsPrismaticBurstColorThree: string
+  reactBitsPrismaticBurstColorFour: string
+  reactBitsPrismaticBurstIntensity: number
+  reactBitsPrismaticBurstSpeed: number
+  reactBitsPrismaticBurstAnimationType: ReactBitsPrismaticBurstAnimationType
+  reactBitsPrismaticBurstDistort: number
+  reactBitsPrismaticBurstOffsetX: number
+  reactBitsPrismaticBurstOffsetY: number
+  reactBitsPrismaticBurstHoverDampness: number
+  reactBitsPrismaticBurstRayCount: number
+  reactBitsPrismaticBurstMixBlendMode: ReactBitsPrismaticBurstMixBlendMode
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1400,6 +1419,17 @@ type ReactBitsLightningColorSettings = Pick<
   | "reactBitsLightningHarmony"
   | "reactBitsLightningColor"
   | "reactBitsLightningHue"
+>
+
+type ReactBitsPrismaticBurstColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsPrismaticBurstPaletteMode"
+  | "reactBitsPrismaticBurstPrimaryColor"
+  | "reactBitsPrismaticBurstHarmony"
+  | "reactBitsPrismaticBurstColorOne"
+  | "reactBitsPrismaticBurstColorTwo"
+  | "reactBitsPrismaticBurstColorThree"
+  | "reactBitsPrismaticBurstColorFour"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -1893,6 +1923,28 @@ export function resolveReactBitsLightningHue(settings: ReactBitsLightningColorSe
   }
 
   return getHueFromHexColor(settings.reactBitsLightningColor)
+}
+
+export function resolveReactBitsPrismaticBurstColors(
+  settings: ReactBitsPrismaticBurstColorSettings,
+): string[] {
+  if (settings.reactBitsPrismaticBurstPaletteMode === "source") {
+    return []
+  }
+
+  if (settings.reactBitsPrismaticBurstPaletteMode === "harmony") {
+    return createReactBitsPrismaticBurstHarmonyPalette(
+      settings.reactBitsPrismaticBurstPrimaryColor,
+      settings.reactBitsPrismaticBurstHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsPrismaticBurstColorOne,
+    settings.reactBitsPrismaticBurstColorTwo,
+    settings.reactBitsPrismaticBurstColorThree,
+    settings.reactBitsPrismaticBurstColorFour,
+  ]
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3222,6 +3274,76 @@ export function createReactBitsLightningHarmonyHue(
     case "analogous":
     default:
       return normalizeHue(hue + 24)
+  }
+}
+
+export function createReactBitsPrismaticBurstHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const burstSaturation = Math.min(0.96, Math.max(0.5, saturation))
+  const midLightness = Math.min(0.7, Math.max(0.42, lightness + 0.04))
+  const brightLightness = Math.min(0.84, Math.max(0.58, lightness + 0.18))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, burstSaturation, midLightness),
+        hslToHex(hue + 180, burstSaturation * 0.9, brightLightness),
+        hslToHex(hue - 18, burstSaturation * 0.82, midLightness * 0.82),
+        hslToHex(hue + 180, burstSaturation * 0.72, 0.9),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue, burstSaturation, midLightness),
+        hslToHex(hue + 150, burstSaturation * 0.94, brightLightness),
+        hslToHex(hue - 150, burstSaturation * 0.88, midLightness),
+        hslToHex(hue + 24, burstSaturation * 0.72, 0.88),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, burstSaturation, midLightness),
+        hslToHex(hue + 120, burstSaturation * 0.92, brightLightness),
+        hslToHex(hue + 240, burstSaturation * 0.86, midLightness),
+        hslToHex(hue + 60, burstSaturation * 0.68, 0.9),
+      ]
+    case "square":
+      return [
+        hslToHex(hue, burstSaturation, midLightness),
+        hslToHex(hue + 90, burstSaturation * 0.88, brightLightness),
+        hslToHex(hue + 180, burstSaturation * 0.78, midLightness),
+        hslToHex(hue + 270, burstSaturation * 0.76, 0.88),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue, burstSaturation, midLightness),
+        hslToHex(hue + 28, burstSaturation * 0.9, brightLightness),
+        hslToHex(hue + 180, burstSaturation * 0.72, midLightness),
+        hslToHex(hue - 34, burstSaturation * 0.76, 0.86),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, burstSaturation, Math.min(0.82, midLightness + 0.16)),
+        hslToHex(hue, burstSaturation * 0.88, midLightness),
+        hslToHex(hue, burstSaturation * 0.74, Math.max(0.28, midLightness - 0.18)),
+        hslToHex(hue, burstSaturation * 0.56, 0.9),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, burstSaturation, midLightness),
+        hslToHex(hue, burstSaturation * 0.82, brightLightness),
+        hslToHex(hue, burstSaturation * 0.66, Math.max(0.32, midLightness - 0.12)),
+        hslToHex(hue, burstSaturation * 0.42, 0.9),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 28, burstSaturation * 0.86, midLightness),
+        hslToHex(hue, burstSaturation, brightLightness),
+        hslToHex(hue + 32, burstSaturation * 0.9, midLightness),
+        hslToHex(hue + 58, burstSaturation * 0.72, 0.88),
+      ]
   }
 }
 
@@ -11264,6 +11386,224 @@ export function SetTimer({
               value={settings.reactBitsLightningSize}
               onChange={(event) => onSettingsChange({ reactBitsLightningSize: Number(event.target.value) })}
               aria-label="React Bits Lightning size"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-prismatic-burst") {
+      const useCustomPrismatic = settings.reactBitsPrismaticBurstPaletteMode === "custom"
+      const useHarmonyPrismatic = settings.reactBitsPrismaticBurstPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsPrismaticBurstPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsPrismaticBurstPaletteMode: event.target.value as ReactBitsPrismaticBurstPaletteMode,
+              })}
+              aria-label="React Bits Prismatic Burst color mode"
+            >
+              <option value="source">Source spectrum</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPrismatic ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPrismaticBurstColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstColorOne: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPrismaticBurstColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstColorTwo: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPrismaticBurstColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstColorThree: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 3"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 4</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPrismaticBurstColorFour}
+                  onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstColorFour: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 4"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {useHarmonyPrismatic ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsPrismaticBurstPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstPrimaryColor: event.target.value })}
+                  aria-label="React Bits Prismatic Burst primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsPrismaticBurstHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsPrismaticBurstHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Prismatic Burst color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Animation</span>
+            <select
+              value={settings.reactBitsPrismaticBurstAnimationType}
+              onChange={(event) => onSettingsChange({
+                reactBitsPrismaticBurstAnimationType: event.target.value as ReactBitsPrismaticBurstAnimationType,
+              })}
+              aria-label="React Bits Prismatic Burst animation"
+            >
+              <option value="rotate3d">Rotate 3D</option>
+              <option value="rotate">Rotate</option>
+              <option value="hover">Cursor hover</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend</span>
+            <select
+              value={settings.reactBitsPrismaticBurstMixBlendMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsPrismaticBurstMixBlendMode: event.target.value as ReactBitsPrismaticBurstMixBlendMode,
+              })}
+              aria-label="React Bits Prismatic Burst blend mode"
+            >
+              <option value="lighten">Lighten</option>
+              <option value="screen">Screen</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({settings.reactBitsPrismaticBurstIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={settings.reactBitsPrismaticBurstIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstIntensity: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsPrismaticBurstSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsPrismaticBurstSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstSpeed: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({settings.reactBitsPrismaticBurstDistort.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              step="0.5"
+              value={settings.reactBitsPrismaticBurstDistort}
+              onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstDistort: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset X ({settings.reactBitsPrismaticBurstOffsetX.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-1000"
+              max="1000"
+              step="10"
+              value={settings.reactBitsPrismaticBurstOffsetX}
+              onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstOffsetX: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst offset X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset Y ({settings.reactBitsPrismaticBurstOffsetY.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-1000"
+              max="1000"
+              step="10"
+              value={settings.reactBitsPrismaticBurstOffsetY}
+              onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstOffsetY: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst offset Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover damping ({settings.reactBitsPrismaticBurstHoverDampness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsPrismaticBurstHoverDampness}
+              onChange={(event) => onSettingsChange({
+                reactBitsPrismaticBurstHoverDampness: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst hover damping"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray count ({settings.reactBitsPrismaticBurstRayCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="64"
+              step="1"
+              value={settings.reactBitsPrismaticBurstRayCount}
+              onChange={(event) => onSettingsChange({ reactBitsPrismaticBurstRayCount: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst ray count"
             />
           </label>
         </div>
