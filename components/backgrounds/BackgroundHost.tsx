@@ -49,6 +49,7 @@ import type {
   ReactBitsGridScanOptions,
   ReactBitsBeamsOptions,
   ReactBitsPixelSnowOptions,
+  ReactBitsLightningOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -113,6 +114,7 @@ interface BackgroundHostProps {
   reactBitsGridScan?: ReactBitsGridScanOptions
   reactBitsBeams?: ReactBitsBeamsOptions
   reactBitsPixelSnow?: ReactBitsPixelSnowOptions
+  reactBitsLightning?: ReactBitsLightningOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -193,6 +195,7 @@ export function BackgroundHost({
   reactBitsGridScan,
   reactBitsBeams,
   reactBitsPixelSnow,
+  reactBitsLightning,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -298,6 +301,7 @@ export function BackgroundHost({
           reactBitsGridScan={reactBitsGridScan}
           reactBitsBeams={reactBitsBeams}
           reactBitsPixelSnow={reactBitsPixelSnow}
+          reactBitsLightning={reactBitsLightning}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

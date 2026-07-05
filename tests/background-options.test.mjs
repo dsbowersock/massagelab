@@ -85,6 +85,7 @@ describe("premium background registry", () => {
       "react-bits-grid-scan",
       "react-bits-beams",
       "react-bits-pixel-snow",
+      "react-bits-lightning",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -315,6 +316,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-grid-scan"))
     assert.ok(chimerOptions.includes("react-bits-beams"))
     assert.ok(chimerOptions.includes("react-bits-pixel-snow"))
+    assert.ok(chimerOptions.includes("react-bits-lightning"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -373,6 +375,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-grid-scan"))
     assert.ok(clockOptions.includes("react-bits-beams"))
     assert.ok(clockOptions.includes("react-bits-pixel-snow"))
+    assert.ok(clockOptions.includes("react-bits-lightning"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -432,6 +435,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-grid-scan"))
     assert.ok(musicOptions.includes("react-bits-beams"))
     assert.ok(musicOptions.includes("react-bits-pixel-snow"))
+    assert.ok(musicOptions.includes("react-bits-lightning"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3509,6 +3513,87 @@ describe("premium background registry", () => {
       "reactBitsPixelSnowDensity",
       "reactBitsPixelSnowVariant",
       "reactBitsPixelSnowDirection",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Lightning source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-lightning-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-lightning/)
+    assert.match(registrySource, /Lightning/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/lightning/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsLightningBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHTNING/)
+    assert.match(effectSource, /hsv2rgb/)
+    assert.match(effectSource, /hash11/)
+    assert.match(effectSource, /hash12/)
+    assert.match(effectSource, /rotate2d/)
+    assert.match(effectSource, /fbm/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsLightningCanvas/)
+    assert.match(hostSource, /reactBitsLightning/)
+    assert.match(cssEffectsSource, /ReactBitsLightningOptions/)
+    assert.match(setupSource, /resolveReactBitsLightningHue/)
+    assert.match(setupSource, /createReactBitsLightningHarmonyHue/)
+    assert.match(runningSource, /reactBitsLightning=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsLightning=\{\{/)
+    assert.match(docsSource, /Lightning \| https:\/\/reactbits\.dev\/backgrounds\/lightning/)
+    assert.match(docsSource, /Lightning\.jsx/)
+    assert.match(docsSource, /Lightning\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /hsv2rgb/)
+
+    const settingKeys = [
+      "reactBitsLightningPaletteMode",
+      "reactBitsLightningPrimaryColor",
+      "reactBitsLightningHarmony",
+      "reactBitsLightningColor",
+      "reactBitsLightningHue",
+      "reactBitsLightningXOffset",
+      "reactBitsLightningSpeed",
+      "reactBitsLightningIntensity",
+      "reactBitsLightningSize",
     ]
 
     for (const settingKey of settingKeys) {

@@ -1935,6 +1935,51 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsPixelSnowDirection, 220)
   })
 
+  it("resets React Bits Lightning controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-lightning",
+      reactBitsLightningPaletteMode: "harmony",
+      reactBitsLightningPrimaryColor: "#ABCDEF",
+      reactBitsLightningHarmony: "triad",
+      reactBitsLightningColor: "#010203",
+      reactBitsLightningHue: 310,
+      reactBitsLightningXOffset: -0.5,
+      reactBitsLightningSpeed: 2.25,
+      reactBitsLightningIntensity: 3.5,
+      reactBitsLightningSize: 1.8,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsLightningPaletteMode",
+      "reactBitsLightningPrimaryColor",
+      "reactBitsLightningHarmony",
+      "reactBitsLightningColor",
+      "reactBitsLightningHue",
+      "reactBitsLightningXOffset",
+      "reactBitsLightningSpeed",
+      "reactBitsLightningIntensity",
+      "reactBitsLightningSize",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-lightning")
+    assert.equal(premiumSettings.reactBitsLightningPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsLightningPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsLightningHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsLightningColor, "#010203")
+    assert.equal(premiumSettings.reactBitsLightningHue, 310)
+    assert.equal(premiumSettings.reactBitsLightningXOffset, -0.5)
+    assert.equal(premiumSettings.reactBitsLightningSpeed, 2.25)
+    assert.equal(premiumSettings.reactBitsLightningIntensity, 3.5)
+    assert.equal(premiumSettings.reactBitsLightningSize, 1.8)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

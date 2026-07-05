@@ -94,6 +94,7 @@ import {
   resolveReactBitsGridScanColors,
   resolveReactBitsBeamsColor,
   resolveReactBitsPixelSnowColor,
+  resolveReactBitsLightningHue,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -136,6 +137,7 @@ import {
   type ReactBitsBeamsPaletteMode,
   type ReactBitsPixelSnowPaletteMode,
   type ReactBitsPixelSnowVariant,
+  type ReactBitsLightningPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -675,6 +677,15 @@ interface RunningTimerProps {
   reactBitsPixelSnowDensity: number
   reactBitsPixelSnowVariant: ReactBitsPixelSnowVariant
   reactBitsPixelSnowDirection: number
+  reactBitsLightningPaletteMode: ReactBitsLightningPaletteMode
+  reactBitsLightningPrimaryColor: string
+  reactBitsLightningHarmony: ColorHarmony
+  reactBitsLightningColor: string
+  reactBitsLightningHue: number
+  reactBitsLightningXOffset: number
+  reactBitsLightningSpeed: number
+  reactBitsLightningIntensity: number
+  reactBitsLightningSize: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1371,6 +1382,15 @@ export function RunningTimer({
   reactBitsPixelSnowDensity,
   reactBitsPixelSnowVariant,
   reactBitsPixelSnowDirection,
+  reactBitsLightningPaletteMode,
+  reactBitsLightningPrimaryColor,
+  reactBitsLightningHarmony,
+  reactBitsLightningColor,
+  reactBitsLightningHue,
+  reactBitsLightningXOffset,
+  reactBitsLightningSpeed,
+  reactBitsLightningIntensity,
+  reactBitsLightningSize,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1757,6 +1777,13 @@ export function RunningTimer({
     reactBitsPixelSnowPrimaryColor,
     reactBitsPixelSnowHarmony,
     reactBitsPixelSnowColor,
+  })
+  const lightningHue = resolveReactBitsLightningHue({
+    reactBitsLightningPaletteMode,
+    reactBitsLightningPrimaryColor,
+    reactBitsLightningHarmony,
+    reactBitsLightningColor,
+    reactBitsLightningHue,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -9221,6 +9248,134 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-lightning" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightningPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightningPaletteMode: event.target.value as ReactBitsLightningPaletteMode,
+              })}
+              aria-label="React Bits Lightning color mode"
+            >
+              <option value="source">Source hue</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightningPaletteMode === "source" ? (
+            <label className={styles.rangeRow}>
+              <span>Hue ({reactBitsLightningHue.toFixed(0)}deg)</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={reactBitsLightningHue}
+                onChange={(event) => handleSettingsChange({ reactBitsLightningHue: Number(event.target.value) })}
+                aria-label="React Bits Lightning hue"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsLightningPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Lightning color</span>
+              <input
+                type="color"
+                value={reactBitsLightningColor}
+                onChange={(event) => handleSettingsChange({ reactBitsLightningColor: event.target.value })}
+                aria-label="React Bits Lightning color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsLightningPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightningPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightningPrimaryColor: event.target.value })}
+                  aria-label="React Bits Lightning primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsLightningHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightningHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Lightning color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>X offset ({reactBitsLightningXOffset.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.05"
+              value={reactBitsLightningXOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningXOffset: Number(event.target.value) })}
+              aria-label="React Bits Lightning X offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsLightningSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsLightningSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningSpeed: Number(event.target.value) })}
+              aria-label="React Bits Lightning speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsLightningIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.05"
+              value={reactBitsLightningIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningIntensity: Number(event.target.value) })}
+              aria-label="React Bits Lightning intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size ({reactBitsLightningSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="5"
+              step="0.05"
+              value={reactBitsLightningSize}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningSize: Number(event.target.value) })}
+              aria-label="React Bits Lightning size"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -11569,6 +11724,13 @@ export function RunningTimer({
             density: reactBitsPixelSnowDensity,
             variant: reactBitsPixelSnowVariant,
             direction: reactBitsPixelSnowDirection,
+          }}
+          reactBitsLightning={{
+            hue: lightningHue,
+            xOffset: reactBitsLightningXOffset,
+            speed: reactBitsLightningSpeed,
+            intensity: reactBitsLightningIntensity,
+            size: reactBitsLightningSize,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

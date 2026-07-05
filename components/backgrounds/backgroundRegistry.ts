@@ -44,6 +44,7 @@ export type BackgroundId =
   | "react-bits-grid-scan"
   | "react-bits-beams"
   | "react-bits-pixel-snow"
+  | "react-bits-lightning"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -132,6 +133,7 @@ const reactBitsGrainient = () => import("./effects/react-bits-grainient-backgrou
 const reactBitsGridScan = () => import("./effects/react-bits-grid-scan-background")
 const reactBitsBeams = () => import("./effects/react-bits-beams-background")
 const reactBitsPixelSnow = () => import("./effects/react-bits-pixel-snow-background")
+const reactBitsLightning = () => import("./effects/react-bits-lightning-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -983,6 +985,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 42%, rgba(255,255,255,0.16), transparent 38%), linear-gradient(180deg, #020617 0%, #050505 100%)",
+    },
+  },
+  {
+    id: "react-bits-lightning",
+    label: "Lightning",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/lightning",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium lightning-bolt shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "high",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony hue plus source-shaped X offset, speed, intensity, and size controls; raw WebGL port of the React Bits lightning shader.",
+    component: () => reactBitsLightning().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 42%, rgba(92,124,255,0.18), transparent 36%), linear-gradient(180deg, #02030a 0%, #000000 100%)",
     },
   },
   {

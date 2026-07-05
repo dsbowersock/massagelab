@@ -1331,6 +1331,15 @@ export default function ChimerPage() {
             reactBitsPixelSnowDensity={settings.reactBitsPixelSnowDensity}
             reactBitsPixelSnowVariant={settings.reactBitsPixelSnowVariant}
             reactBitsPixelSnowDirection={settings.reactBitsPixelSnowDirection}
+            reactBitsLightningPaletteMode={settings.reactBitsLightningPaletteMode}
+            reactBitsLightningPrimaryColor={settings.reactBitsLightningPrimaryColor}
+            reactBitsLightningHarmony={settings.reactBitsLightningHarmony}
+            reactBitsLightningColor={settings.reactBitsLightningColor}
+            reactBitsLightningHue={settings.reactBitsLightningHue}
+            reactBitsLightningXOffset={settings.reactBitsLightningXOffset}
+            reactBitsLightningSpeed={settings.reactBitsLightningSpeed}
+            reactBitsLightningIntensity={settings.reactBitsLightningIntensity}
+            reactBitsLightningSize={settings.reactBitsLightningSize}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

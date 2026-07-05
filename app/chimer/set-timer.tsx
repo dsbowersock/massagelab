@@ -79,6 +79,7 @@ export type ReactBitsGridScanDirection = "forward" | "backward" | "pingpong"
 export type ReactBitsBeamsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPixelSnowPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPixelSnowVariant = "square" | "round" | "snowflake"
+export type ReactBitsLightningPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -951,6 +952,15 @@ export interface ChimerSettings {
   reactBitsPixelSnowDensity: number
   reactBitsPixelSnowVariant: ReactBitsPixelSnowVariant
   reactBitsPixelSnowDirection: number
+  reactBitsLightningPaletteMode: ReactBitsLightningPaletteMode
+  reactBitsLightningPrimaryColor: string
+  reactBitsLightningHarmony: ColorHarmony
+  reactBitsLightningColor: string
+  reactBitsLightningHue: number
+  reactBitsLightningXOffset: number
+  reactBitsLightningSpeed: number
+  reactBitsLightningIntensity: number
+  reactBitsLightningSize: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1381,6 +1391,15 @@ type ReactBitsPixelSnowColorSettings = Pick<
   | "reactBitsPixelSnowPrimaryColor"
   | "reactBitsPixelSnowHarmony"
   | "reactBitsPixelSnowColor"
+>
+
+type ReactBitsLightningColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsLightningPaletteMode"
+  | "reactBitsLightningPrimaryColor"
+  | "reactBitsLightningHarmony"
+  | "reactBitsLightningColor"
+  | "reactBitsLightningHue"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -1859,6 +1878,21 @@ export function resolveReactBitsPixelSnowColor(settings: ReactBitsPixelSnowColor
   }
 
   return settings.reactBitsPixelSnowColor
+}
+
+export function resolveReactBitsLightningHue(settings: ReactBitsLightningColorSettings): number {
+  if (settings.reactBitsLightningPaletteMode === "source") {
+    return normalizeHue(settings.reactBitsLightningHue)
+  }
+
+  if (settings.reactBitsLightningPaletteMode === "harmony") {
+    return createReactBitsLightningHarmonyHue(
+      settings.reactBitsLightningPrimaryColor,
+      settings.reactBitsLightningHarmony,
+    )
+  }
+
+  return getHueFromHexColor(settings.reactBitsLightningColor)
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3165,6 +3199,32 @@ export function createReactBitsPixelSnowHarmonyColor(
   }
 }
 
+export function createReactBitsLightningHarmonyHue(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): number {
+  const [hue] = rgbToHsl(parseHexColorToRgb(primaryColor))
+
+  switch (harmony) {
+    case "complementary":
+      return normalizeHue(hue + 180)
+    case "split-complementary":
+      return normalizeHue(hue + 150)
+    case "triad":
+      return normalizeHue(hue + 120)
+    case "square":
+      return normalizeHue(hue + 90)
+    case "compound":
+      return normalizeHue(hue - 28)
+    case "shades":
+    case "monochromatic":
+      return normalizeHue(hue)
+    case "analogous":
+    default:
+      return normalizeHue(hue + 24)
+  }
+}
+
 export function createEldoraNovatrixHarmonyColor(
   primaryColor: string,
   harmony: ColorHarmony,
@@ -3358,6 +3418,19 @@ function parseHexColorToRgb(color: string): [number, number, number] {
     Number.parseInt(match.slice(2, 4), 16),
     Number.parseInt(match.slice(4, 6), 16),
   ]
+}
+
+function getHueFromHexColor(color: string): number {
+  const [hue] = rgbToHsl(parseHexColorToRgb(color))
+  return normalizeHue(hue)
+}
+
+function normalizeHue(hue: number): number {
+  if (!Number.isFinite(hue)) {
+    return 230
+  }
+
+  return ((hue % 360) + 360) % 360
 }
 
 function rgbToHsl([red, green, blue]: [number, number, number]): [number, number, number] {
@@ -11057,6 +11130,140 @@ export function SetTimer({
               value={settings.reactBitsPixelSnowDirection}
               onChange={(event) => onSettingsChange({ reactBitsPixelSnowDirection: Number(event.target.value) })}
               aria-label="React Bits Pixel Snow direction"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-lightning") {
+      const useSourceLightning = settings.reactBitsLightningPaletteMode === "source"
+      const useCustomLightning = settings.reactBitsLightningPaletteMode === "custom"
+      const useHarmonyLightning = settings.reactBitsLightningPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsLightningPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLightningPaletteMode: event.target.value as ReactBitsLightningPaletteMode,
+              })}
+              aria-label="React Bits Lightning color mode"
+            >
+              <option value="source">Source hue</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useSourceLightning ? (
+            <label className={styles.rangeRow}>
+              <span>Hue ({settings.reactBitsLightningHue.toFixed(0)}deg)</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={settings.reactBitsLightningHue}
+                onChange={(event) => onSettingsChange({ reactBitsLightningHue: Number(event.target.value) })}
+                aria-label="React Bits Lightning hue"
+              />
+            </label>
+          ) : null}
+
+          {useCustomLightning ? (
+            <label className={styles.colorRow}>
+              <span>Lightning color</span>
+              <input
+                type="color"
+                value={settings.reactBitsLightningColor}
+                onChange={(event) => onSettingsChange({ reactBitsLightningColor: event.target.value })}
+                aria-label="React Bits Lightning color"
+              />
+            </label>
+          ) : null}
+
+          {useHarmonyLightning ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLightningPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLightningPrimaryColor: event.target.value })}
+                  aria-label="React Bits Lightning primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsLightningHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLightningHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Lightning color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>X offset ({settings.reactBitsLightningXOffset.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsLightningXOffset}
+              onChange={(event) => onSettingsChange({ reactBitsLightningXOffset: Number(event.target.value) })}
+              aria-label="React Bits Lightning X offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsLightningSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={settings.reactBitsLightningSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsLightningSpeed: Number(event.target.value) })}
+              aria-label="React Bits Lightning speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({settings.reactBitsLightningIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.05"
+              value={settings.reactBitsLightningIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsLightningIntensity: Number(event.target.value) })}
+              aria-label="React Bits Lightning intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size ({settings.reactBitsLightningSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="5"
+              step="0.05"
+              value={settings.reactBitsLightningSize}
+              onChange={(event) => onSettingsChange({ reactBitsLightningSize: Number(event.target.value) })}
+              aria-label="React Bits Lightning size"
             />
           </label>
         </div>

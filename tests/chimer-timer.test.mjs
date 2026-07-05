@@ -2491,6 +2491,53 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsPixelSnowDirection: -1 }).reactBitsPixelSnowDirection, 0)
   })
 
+  it("normalizes React Bits Lightning background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsLightningPaletteMode: "harmony",
+      reactBitsLightningPrimaryColor: "#abcdef",
+      reactBitsLightningHarmony: "triad",
+      reactBitsLightningColor: "#010203",
+      reactBitsLightningHue: 999,
+      reactBitsLightningXOffset: 99,
+      reactBitsLightningSpeed: 99,
+      reactBitsLightningIntensity: 99,
+      reactBitsLightningSize: 99,
+    })
+
+    assert.equal(settings.reactBitsLightningPaletteMode, "harmony")
+    assert.equal(settings.reactBitsLightningPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsLightningHarmony, "triad")
+    assert.equal(settings.reactBitsLightningColor, "#010203")
+    assert.equal(settings.reactBitsLightningHue, 360)
+    assert.equal(settings.reactBitsLightningXOffset, 2)
+    assert.equal(settings.reactBitsLightningSpeed, 5)
+    assert.equal(settings.reactBitsLightningIntensity, 5)
+    assert.equal(settings.reactBitsLightningSize, 5)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightningPaletteMode: "auto" }).reactBitsLightningPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightningPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightningPrimaryColor: "white" }).reactBitsLightningPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightningPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightningHarmony: "wild" }).reactBitsLightningHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightningHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightningColor: "white" }).reactBitsLightningColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightningColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightningSpeed: "fast" }).reactBitsLightningSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightningSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsLightningXOffset: -99 }).reactBitsLightningXOffset, -2)
+    assert.equal(sanitizeChimerSettings({ reactBitsLightningIntensity: 0 }).reactBitsLightningIntensity, 0.1)
+    assert.equal(sanitizeChimerSettings({ reactBitsLightningSize: 0 }).reactBitsLightningSize, 0.2)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
