@@ -63,6 +63,7 @@ describe("premium background registry", () => {
       "chamaac-synthesis",
       "react-bits-ferrofluid",
       "react-bits-lightfall",
+      "react-bits-liquid-ether",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -150,6 +151,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Hacker Background/)
     assert.match(sourceDoc, /Photon Beam/)
     assert.match(sourceDoc, /Ferrofluid/)
+    assert.match(sourceDoc, /Liquid Ether/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
@@ -161,8 +163,11 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /photon-beam\.tsx/)
     assert.match(sourceDoc, /Ferrofluid\.jsx/)
     assert.match(sourceDoc, /Lightfall\.jsx/)
+    assert.match(sourceDoc, /LiquidEther\.jsx/)
+    assert.match(sourceDoc, /LiquidEther\.css/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/lightfall/)
+    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/liquid-ether/)
     assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
@@ -257,6 +262,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("eldora-novatrix-background"))
     assert.ok(chimerOptions.includes("eldora-hacker-background"))
     assert.ok(chimerOptions.includes("eldora-photon-beam"))
+    assert.ok(chimerOptions.includes("react-bits-liquid-ether"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -293,6 +299,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("eldora-novatrix-background"))
     assert.ok(clockOptions.includes("eldora-hacker-background"))
     assert.ok(clockOptions.includes("eldora-photon-beam"))
+    assert.ok(clockOptions.includes("react-bits-liquid-ether"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -330,6 +337,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("eldora-novatrix-background"))
     assert.ok(musicOptions.includes("eldora-hacker-background"))
     assert.ok(musicOptions.includes("eldora-photon-beam"))
+    assert.ok(musicOptions.includes("react-bits-liquid-ether"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1133,6 +1141,145 @@ describe("premium background registry", () => {
       "reactBitsLightfallCursorStrength",
       "reactBitsLightfallCursorRadius",
       "reactBitsLightfallCursorDampening",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Liquid Ether source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-liquid-ether-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-liquid-ether/)
+    assert.match(registrySource, /Liquid Ether/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/liquid-ether/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsLiquidEtherBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_LIQUID_ETHER/)
+    assert.match(effectSource, /colors: \["#5227FF", "#FF9FFC", "#B497CF"\]/)
+    assert.match(effectSource, /mouseInteraction: false/)
+    assert.match(effectSource, /mouseForce: 20/)
+    assert.match(effectSource, /cursorSize: 100/)
+    assert.match(effectSource, /isViscous: false/)
+    assert.match(effectSource, /viscous: 30/)
+    assert.match(effectSource, /iterationsViscous: 32/)
+    assert.match(effectSource, /iterationsPoisson: 32/)
+    assert.match(effectSource, /dt: 0\.014/)
+    assert.match(effectSource, /bfecc: true/)
+    assert.match(effectSource, /resolution: 0\.5/)
+    assert.match(effectSource, /isBounce: false/)
+    assert.match(effectSource, /autoDemo: true/)
+    assert.match(effectSource, /autoSpeed: 0\.5/)
+    assert.match(effectSource, /autoIntensity: 2\.2/)
+    assert.match(effectSource, /autoResumeDelay: 1000/)
+    assert.match(effectSource, /autoRampDuration: 0\.6/)
+    assert.match(effectSource, /opacity: 1/)
+    assert.match(effectSource, /advectionFragment/)
+    assert.match(effectSource, /externalForceFragment/)
+    assert.match(effectSource, /viscousFragment/)
+    assert.match(effectSource, /divergenceFragment/)
+    assert.match(effectSource, /poissonFragment/)
+    assert.match(effectSource, /pressureFragment/)
+    assert.match(effectSource, /colorFragment/)
+    assert.match(effectSource, /texture2D\(velocity, uv\)/)
+    assert.match(effectSource, /texture2D\(palette, vec2\(lenv, 0\.5\)\)/)
+    assert.match(effectSource, /OES_texture_float/)
+    assert.match(effectSource, /OES_texture_half_float/)
+    assert.match(effectSource, /WEBGL_color_buffer_float/)
+    assert.match(effectSource, /EXT_color_buffer_half_float/)
+    assert.match(effectSource, /createFluidTargets/)
+    assert.match(effectSource, /createRenderTarget/)
+    assert.match(effectSource, /framebufferTexture2D/)
+    assert.match(effectSource, /runAdvectionPass/)
+    assert.match(effectSource, /runExternalForcePass/)
+    assert.match(effectSource, /runViscousPass/)
+    assert.match(effectSource, /runDivergencePass/)
+    assert.match(effectSource, /runPoissonPass/)
+    assert.match(effectSource, /runPressurePass/)
+    assert.match(effectSource, /runColorPass/)
+    assert.match(effectSource, /updateAutoDriver/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(effectSource, /deleteTexture/)
+    assert.match(effectSource, /deleteFramebuffer/)
+    assert.match(stylesSource, /reactBitsLiquidEther/)
+    assert.match(stylesSource, /reactBitsLiquidEtherCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsLiquidEther/)
+    assert.match(cssEffectsSource, /ReactBitsLiquidEtherOptions/)
+    assert.match(runningSource, /reactBitsLiquidEther=\{\{/)
+    assert.match(runningSource, /resolveReactBitsLiquidEtherColors/)
+    assert.match(setupSource, /resolveReactBitsLiquidEtherColors/)
+    assert.doesNotMatch(pageSource, /reactBitsLiquidEther=\{\{/)
+    assert.match(docsSource, /Liquid Ether \| https:\/\/reactbits\.dev\/backgrounds\/liquid-ether/)
+    assert.match(docsSource, /LiquidEther\.jsx/)
+    assert.match(docsSource, /LiquidEther\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /advection, external-force, viscosity, divergence, Poisson, pressure, and palette-output/)
+    assert.match(docsSource, /cursor interaction is disabled by default/)
+    assert.match(docsSource, /window pointer listener only while cursor fluid push is enabled/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    for (const settingKey of [
+      "reactBitsLiquidEtherPaletteMode",
+      "reactBitsLiquidEtherPrimaryColor",
+      "reactBitsLiquidEtherHarmony",
+      "reactBitsLiquidEtherColorOne",
+      "reactBitsLiquidEtherColorTwo",
+      "reactBitsLiquidEtherColorThree",
+      "reactBitsLiquidEtherCursorEnabled",
+      "reactBitsLiquidEtherMouseForce",
+      "reactBitsLiquidEtherCursorSize",
+      "reactBitsLiquidEtherIsViscous",
+      "reactBitsLiquidEtherViscous",
+      "reactBitsLiquidEtherIterationsViscous",
+      "reactBitsLiquidEtherIterationsPoisson",
+      "reactBitsLiquidEtherDt",
+      "reactBitsLiquidEtherBfecc",
+      "reactBitsLiquidEtherResolution",
+      "reactBitsLiquidEtherIsBounce",
+      "reactBitsLiquidEtherAutoDemo",
+      "reactBitsLiquidEtherAutoSpeed",
+      "reactBitsLiquidEtherAutoIntensity",
+      "reactBitsLiquidEtherAutoResumeDelay",
+      "reactBitsLiquidEtherAutoRampDuration",
+      "reactBitsLiquidEtherOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

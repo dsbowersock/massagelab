@@ -22,6 +22,7 @@ export type BackgroundId =
   | "chamaac-synthesis"
   | "react-bits-ferrofluid"
   | "react-bits-lightfall"
+  | "react-bits-liquid-ether"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -88,6 +89,7 @@ const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const reactBitsFerrofluid = () => import("./effects/react-bits-ferrofluid-background")
 const reactBitsLightfall = () => import("./effects/react-bits-lightfall-background")
+const reactBitsLiquidEther = () => import("./effects/react-bits-liquid-ether-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -456,6 +458,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 44%, rgba(166,200,255,0.18), transparent 34%), radial-gradient(circle at 62% 58%, rgba(255,159,252,0.1), transparent 30%), linear-gradient(145deg, #0615a8 0%, #091d5c 54%, #030614 100%)",
+    },
+  },
+  {
+    id: "react-bits-liquid-ether",
+    label: "Liquid Ether",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/liquid-ether",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium fluid ether field for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Custom or harmony-based palette colors plus source-shaped fluid controls for cursor force/size, viscosity, solver iterations, delta time, BFECC, resolution, bounce, auto-demo motion, resume/ramp timing, and opacity; source Three.js simulation adapted with native WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsLiquidEther().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 42% 46%, rgba(82,39,255,0.24), transparent 36%), radial-gradient(circle at 62% 58%, rgba(255,159,252,0.18), transparent 34%), linear-gradient(145deg, #070015 0%, #13072f 58%, #02010a 100%)",
     },
   },
   {

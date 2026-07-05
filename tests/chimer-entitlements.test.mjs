@@ -329,6 +329,116 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsLightfallCursorDampening, 0.25)
   })
 
+  it("resets React Bits Liquid Ether controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-liquid-ether",
+      reactBitsLiquidEtherPaletteMode: "harmony",
+      reactBitsLiquidEtherPrimaryColor: "#5227FF",
+      reactBitsLiquidEtherHarmony: "triad",
+      reactBitsLiquidEtherColorOne: "#010203",
+      reactBitsLiquidEtherColorTwo: "#AABBCC",
+      reactBitsLiquidEtherColorThree: "#DDEEFF",
+      reactBitsLiquidEtherCursorEnabled: true,
+      reactBitsLiquidEtherMouseForce: 54,
+      reactBitsLiquidEtherCursorSize: 180,
+      reactBitsLiquidEtherIsViscous: true,
+      reactBitsLiquidEtherViscous: 42,
+      reactBitsLiquidEtherIterationsViscous: 24,
+      reactBitsLiquidEtherIterationsPoisson: 40,
+      reactBitsLiquidEtherDt: 0.02,
+      reactBitsLiquidEtherBfecc: false,
+      reactBitsLiquidEtherResolution: 0.75,
+      reactBitsLiquidEtherIsBounce: true,
+      reactBitsLiquidEtherAutoDemo: false,
+      reactBitsLiquidEtherAutoSpeed: 1.25,
+      reactBitsLiquidEtherAutoIntensity: 3.4,
+      reactBitsLiquidEtherAutoResumeDelay: 1500,
+      reactBitsLiquidEtherAutoRampDuration: 1.2,
+      reactBitsLiquidEtherOpacity: 0.72,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherPaletteMode,
+    )
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherPrimaryColor,
+    )
+    assert.equal(freeSettings.reactBitsLiquidEtherHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherHarmony)
+    assert.equal(freeSettings.reactBitsLiquidEtherColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorOne)
+    assert.equal(freeSettings.reactBitsLiquidEtherColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorTwo)
+    assert.equal(freeSettings.reactBitsLiquidEtherColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorThree)
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherCursorEnabled,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherCursorEnabled,
+    )
+    assert.equal(freeSettings.reactBitsLiquidEtherMouseForce, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherMouseForce)
+    assert.equal(freeSettings.reactBitsLiquidEtherCursorSize, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherCursorSize)
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherIsViscous,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIsViscous,
+    )
+    assert.equal(freeSettings.reactBitsLiquidEtherViscous, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherViscous)
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherIterationsViscous,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIterationsViscous,
+    )
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherIterationsPoisson,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIterationsPoisson,
+    )
+    assert.equal(freeSettings.reactBitsLiquidEtherDt, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherDt)
+    assert.equal(freeSettings.reactBitsLiquidEtherBfecc, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherBfecc)
+    assert.equal(freeSettings.reactBitsLiquidEtherResolution, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherResolution)
+    assert.equal(freeSettings.reactBitsLiquidEtherIsBounce, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIsBounce)
+    assert.equal(freeSettings.reactBitsLiquidEtherAutoDemo, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoDemo)
+    assert.equal(freeSettings.reactBitsLiquidEtherAutoSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoSpeed)
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherAutoIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoIntensity,
+    )
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherAutoResumeDelay,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoResumeDelay,
+    )
+    assert.equal(
+      freeSettings.reactBitsLiquidEtherAutoRampDuration,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoRampDuration,
+    )
+    assert.equal(freeSettings.reactBitsLiquidEtherOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherOpacity)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-liquid-ether")
+    assert.equal(premiumSettings.reactBitsLiquidEtherPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsLiquidEtherPrimaryColor, "#5227FF")
+    assert.equal(premiumSettings.reactBitsLiquidEtherHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsLiquidEtherColorOne, "#010203")
+    assert.equal(premiumSettings.reactBitsLiquidEtherColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.reactBitsLiquidEtherColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.reactBitsLiquidEtherCursorEnabled, true)
+    assert.equal(premiumSettings.reactBitsLiquidEtherMouseForce, 54)
+    assert.equal(premiumSettings.reactBitsLiquidEtherCursorSize, 180)
+    assert.equal(premiumSettings.reactBitsLiquidEtherIsViscous, true)
+    assert.equal(premiumSettings.reactBitsLiquidEtherViscous, 42)
+    assert.equal(premiumSettings.reactBitsLiquidEtherIterationsViscous, 24)
+    assert.equal(premiumSettings.reactBitsLiquidEtherIterationsPoisson, 40)
+    assert.equal(premiumSettings.reactBitsLiquidEtherDt, 0.02)
+    assert.equal(premiumSettings.reactBitsLiquidEtherBfecc, false)
+    assert.equal(premiumSettings.reactBitsLiquidEtherResolution, 0.75)
+    assert.equal(premiumSettings.reactBitsLiquidEtherIsBounce, true)
+    assert.equal(premiumSettings.reactBitsLiquidEtherAutoDemo, false)
+    assert.equal(premiumSettings.reactBitsLiquidEtherAutoSpeed, 1.25)
+    assert.equal(premiumSettings.reactBitsLiquidEtherAutoIntensity, 3.4)
+    assert.equal(premiumSettings.reactBitsLiquidEtherAutoResumeDelay, 1500)
+    assert.equal(premiumSettings.reactBitsLiquidEtherAutoRampDuration, 1.2)
+    assert.equal(premiumSettings.reactBitsLiquidEtherOpacity, 0.72)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

@@ -25,6 +25,7 @@ export interface BackgroundEffectProps {
   chamaacSynthesis?: ChamaacSynthesisOptions
   reactBitsFerrofluid?: ReactBitsFerrofluidOptions
   reactBitsLightfall?: ReactBitsLightfallOptions
+  reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -189,6 +190,27 @@ export interface ReactBitsLightfallOptions {
   mouseStrength?: number
   mouseRadius?: number
   mouseDampening?: number
+}
+
+export interface ReactBitsLiquidEtherOptions {
+  colors?: string[]
+  mouseInteraction?: boolean
+  mouseForce?: number
+  cursorSize?: number
+  isViscous?: boolean
+  viscous?: number
+  iterationsViscous?: number
+  iterationsPoisson?: number
+  dt?: number
+  bfecc?: boolean
+  resolution?: number
+  isBounce?: boolean
+  autoDemo?: boolean
+  autoSpeed?: number
+  autoIntensity?: number
+  autoResumeDelay?: number
+  autoRampDuration?: number
+  opacity?: number
 }
 
 export interface EldoraNovatrixOptions {

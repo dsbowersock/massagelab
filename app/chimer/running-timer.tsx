@@ -75,6 +75,7 @@ import {
   resolveChamaacSynthesisColors,
   resolveReactBitsFerrofluidColors,
   resolveReactBitsLightfallColors,
+  resolveReactBitsLiquidEtherColors,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
   resolveEldoraPhotonBeamColors,
@@ -86,6 +87,7 @@ import {
   type ChamaacSynthesisPaletteMode,
   type ReactBitsFerrofluidPaletteMode,
   type ReactBitsLightfallPaletteMode,
+  type ReactBitsLiquidEtherPaletteMode,
   type EldoraHackerPaletteMode,
   type EldoraNovatrixPaletteMode,
   type EldoraPhotonBeamPaletteMode,
@@ -253,6 +255,29 @@ interface RunningTimerProps {
   reactBitsLightfallCursorStrength: number
   reactBitsLightfallCursorRadius: number
   reactBitsLightfallCursorDampening: number
+  reactBitsLiquidEtherPaletteMode: ReactBitsLiquidEtherPaletteMode
+  reactBitsLiquidEtherPrimaryColor: string
+  reactBitsLiquidEtherHarmony: ColorHarmony
+  reactBitsLiquidEtherColorOne: string
+  reactBitsLiquidEtherColorTwo: string
+  reactBitsLiquidEtherColorThree: string
+  reactBitsLiquidEtherCursorEnabled: boolean
+  reactBitsLiquidEtherMouseForce: number
+  reactBitsLiquidEtherCursorSize: number
+  reactBitsLiquidEtherIsViscous: boolean
+  reactBitsLiquidEtherViscous: number
+  reactBitsLiquidEtherIterationsViscous: number
+  reactBitsLiquidEtherIterationsPoisson: number
+  reactBitsLiquidEtherDt: number
+  reactBitsLiquidEtherBfecc: boolean
+  reactBitsLiquidEtherResolution: number
+  reactBitsLiquidEtherIsBounce: boolean
+  reactBitsLiquidEtherAutoDemo: boolean
+  reactBitsLiquidEtherAutoSpeed: number
+  reactBitsLiquidEtherAutoIntensity: number
+  reactBitsLiquidEtherAutoResumeDelay: number
+  reactBitsLiquidEtherAutoRampDuration: number
+  reactBitsLiquidEtherOpacity: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -580,6 +605,29 @@ export function RunningTimer({
   reactBitsLightfallCursorStrength,
   reactBitsLightfallCursorRadius,
   reactBitsLightfallCursorDampening,
+  reactBitsLiquidEtherPaletteMode,
+  reactBitsLiquidEtherPrimaryColor,
+  reactBitsLiquidEtherHarmony,
+  reactBitsLiquidEtherColorOne,
+  reactBitsLiquidEtherColorTwo,
+  reactBitsLiquidEtherColorThree,
+  reactBitsLiquidEtherCursorEnabled,
+  reactBitsLiquidEtherMouseForce,
+  reactBitsLiquidEtherCursorSize,
+  reactBitsLiquidEtherIsViscous,
+  reactBitsLiquidEtherViscous,
+  reactBitsLiquidEtherIterationsViscous,
+  reactBitsLiquidEtherIterationsPoisson,
+  reactBitsLiquidEtherDt,
+  reactBitsLiquidEtherBfecc,
+  reactBitsLiquidEtherResolution,
+  reactBitsLiquidEtherIsBounce,
+  reactBitsLiquidEtherAutoDemo,
+  reactBitsLiquidEtherAutoSpeed,
+  reactBitsLiquidEtherAutoIntensity,
+  reactBitsLiquidEtherAutoResumeDelay,
+  reactBitsLiquidEtherAutoRampDuration,
+  reactBitsLiquidEtherOpacity,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -835,6 +883,14 @@ export function RunningTimer({
     reactBitsLightfallColorOne,
     reactBitsLightfallColorTwo,
     reactBitsLightfallColorThree,
+  })
+  const liquidEtherColors = resolveReactBitsLiquidEtherColors({
+    reactBitsLiquidEtherPaletteMode,
+    reactBitsLiquidEtherPrimaryColor,
+    reactBitsLiquidEtherHarmony,
+    reactBitsLiquidEtherColorOne,
+    reactBitsLiquidEtherColorTwo,
+    reactBitsLiquidEtherColorThree,
   })
   const novatrixSpeed = getEldoraNovatrixDisplaySpeed(eldoraNovatrixSpeed)
   const novatrixAmplitude = getEldoraNovatrixDisplayAmplitude(eldoraNovatrixAmplitude)
@@ -3356,6 +3412,316 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-liquid-ether" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLiquidEtherPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidEtherPaletteMode: event.target.value as ReactBitsLiquidEtherPaletteMode,
+              })}
+              aria-label="Liquid Ether color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLiquidEtherPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorOne: event.target.value })}
+                  aria-label="Liquid Ether first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorTwo: event.target.value })}
+                  aria-label="Liquid Ether second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorThree: event.target.value })}
+                  aria-label="Liquid Ether third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherPrimaryColor: event.target.value })}
+                  aria-label="Liquid Ether primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLiquidEtherHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Liquid Ether color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Cursor fluid push</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherCursorEnabled}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherCursorEnabled: event.target.checked })}
+              aria-label="Liquid Ether cursor fluid push"
+            />
+          </label>
+
+          {reactBitsLiquidEtherCursorEnabled && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Mouse force ({reactBitsLiquidEtherMouseForce.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="80"
+                  step="1"
+                  value={reactBitsLiquidEtherMouseForce}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherMouseForce: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether mouse force"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor size ({reactBitsLiquidEtherCursorSize.toFixed(0)}px)</span>
+                <input
+                  type="range"
+                  min="20"
+                  max="280"
+                  step="5"
+                  value={reactBitsLiquidEtherCursorSize}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherCursorSize: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether cursor size"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Auto demo motion</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherAutoDemo}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherAutoDemo: event.target.checked })}
+              aria-label="Liquid Ether auto demo motion"
+            />
+          </label>
+
+          {reactBitsLiquidEtherAutoDemo && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Auto speed ({reactBitsLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="2"
+                  step="0.05"
+                  value={reactBitsLiquidEtherAutoSpeed}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoSpeed: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto speed"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto intensity ({reactBitsLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={reactBitsLiquidEtherAutoIntensity}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoIntensity: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto intensity"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto resume ({(reactBitsLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min="250"
+                  max="5000"
+                  step="250"
+                  value={reactBitsLiquidEtherAutoResumeDelay}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoResumeDelay: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto resume delay"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto ramp ({reactBitsLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="3"
+                  step="0.1"
+                  value={reactBitsLiquidEtherAutoRampDuration}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoRampDuration: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto ramp duration"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Viscous fluid</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherIsViscous}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherIsViscous: event.target.checked })}
+              aria-label="Liquid Ether viscous fluid"
+            />
+          </label>
+
+          {reactBitsLiquidEtherIsViscous && (
+            <label className={styles.rangeRow}>
+              <span>Viscosity ({reactBitsLiquidEtherViscous.toFixed(0)})</span>
+              <input
+                type="range"
+                min="0"
+                max="80"
+                step="1"
+                value={reactBitsLiquidEtherViscous}
+                onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherViscous: Number(event.target.value) })}
+                aria-label="Liquid Ether viscosity"
+              />
+            </label>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Viscous iterations ({reactBitsLiquidEtherIterationsViscous.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              step="1"
+              value={reactBitsLiquidEtherIterationsViscous}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidEtherIterationsViscous: Number(event.target.value),
+              })}
+              aria-label="Liquid Ether viscous iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Poisson iterations ({reactBitsLiquidEtherIterationsPoisson.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              step="1"
+              value={reactBitsLiquidEtherIterationsPoisson}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidEtherIterationsPoisson: Number(event.target.value),
+              })}
+              aria-label="Liquid Ether Poisson iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Delta time ({reactBitsLiquidEtherDt.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.004"
+              max="0.04"
+              step="0.001"
+              value={reactBitsLiquidEtherDt}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherDt: Number(event.target.value) })}
+              aria-label="Liquid Ether delta time"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Resolution ({reactBitsLiquidEtherResolution.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="1"
+              step="0.05"
+              value={reactBitsLiquidEtherResolution}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherResolution: Number(event.target.value) })}
+              aria-label="Liquid Ether resolution"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>BFECC advection</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherBfecc}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherBfecc: event.target.checked })}
+              aria-label="Liquid Ether BFECC advection"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bounce edges</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherIsBounce}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherIsBounce: event.target.checked })}
+              aria-label="Liquid Ether bounce edges"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsLiquidEtherOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsLiquidEtherOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherOpacity: Number(event.target.value) })}
+              aria-label="Liquid Ether opacity"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -5362,6 +5728,26 @@ export function RunningTimer({
             mouseStrength: reactBitsLightfallCursorStrength,
             mouseRadius: reactBitsLightfallCursorRadius,
             mouseDampening: reactBitsLightfallCursorDampening,
+          }}
+          reactBitsLiquidEther={{
+            colors: liquidEtherColors,
+            mouseInteraction: reactBitsLiquidEtherCursorEnabled,
+            mouseForce: reactBitsLiquidEtherMouseForce,
+            cursorSize: reactBitsLiquidEtherCursorSize,
+            isViscous: reactBitsLiquidEtherIsViscous,
+            viscous: reactBitsLiquidEtherViscous,
+            iterationsViscous: reactBitsLiquidEtherIterationsViscous,
+            iterationsPoisson: reactBitsLiquidEtherIterationsPoisson,
+            dt: reactBitsLiquidEtherDt,
+            bfecc: reactBitsLiquidEtherBfecc,
+            resolution: reactBitsLiquidEtherResolution,
+            isBounce: reactBitsLiquidEtherIsBounce,
+            autoDemo: reactBitsLiquidEtherAutoDemo,
+            autoSpeed: reactBitsLiquidEtherAutoSpeed,
+            autoIntensity: reactBitsLiquidEtherAutoIntensity,
+            autoResumeDelay: reactBitsLiquidEtherAutoResumeDelay,
+            autoRampDuration: reactBitsLiquidEtherAutoRampDuration,
+            opacity: reactBitsLiquidEtherOpacity,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

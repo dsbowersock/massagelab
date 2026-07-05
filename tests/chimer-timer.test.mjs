@@ -877,6 +877,138 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Liquid Ether background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsLiquidEtherPaletteMode: "harmony",
+      reactBitsLiquidEtherPrimaryColor: "#5227ff",
+      reactBitsLiquidEtherHarmony: "triad",
+      reactBitsLiquidEtherColorOne: "#010203",
+      reactBitsLiquidEtherColorTwo: "#aabbcc",
+      reactBitsLiquidEtherColorThree: "white",
+      reactBitsLiquidEtherCursorEnabled: true,
+      reactBitsLiquidEtherMouseForce: 999,
+      reactBitsLiquidEtherCursorSize: 0,
+      reactBitsLiquidEtherIsViscous: true,
+      reactBitsLiquidEtherViscous: 999,
+      reactBitsLiquidEtherIterationsViscous: 99.9,
+      reactBitsLiquidEtherIterationsPoisson: 0,
+      reactBitsLiquidEtherDt: 0,
+      reactBitsLiquidEtherBfecc: false,
+      reactBitsLiquidEtherResolution: 99,
+      reactBitsLiquidEtherIsBounce: true,
+      reactBitsLiquidEtherAutoDemo: false,
+      reactBitsLiquidEtherAutoSpeed: 99,
+      reactBitsLiquidEtherAutoIntensity: -1,
+      reactBitsLiquidEtherAutoResumeDelay: 1,
+      reactBitsLiquidEtherAutoRampDuration: 9,
+      reactBitsLiquidEtherOpacity: 0,
+    })
+
+    assert.equal(settings.reactBitsLiquidEtherPaletteMode, "harmony")
+    assert.equal(settings.reactBitsLiquidEtherPrimaryColor, "#5227FF")
+    assert.equal(settings.reactBitsLiquidEtherHarmony, "triad")
+    assert.equal(settings.reactBitsLiquidEtherColorOne, "#010203")
+    assert.equal(settings.reactBitsLiquidEtherColorTwo, "#AABBCC")
+    assert.equal(settings.reactBitsLiquidEtherColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorThree)
+    assert.equal(settings.reactBitsLiquidEtherCursorEnabled, true)
+    assert.equal(settings.reactBitsLiquidEtherMouseForce, 80)
+    assert.equal(settings.reactBitsLiquidEtherCursorSize, 20)
+    assert.equal(settings.reactBitsLiquidEtherIsViscous, true)
+    assert.equal(settings.reactBitsLiquidEtherViscous, 80)
+    assert.equal(settings.reactBitsLiquidEtherIterationsViscous, 64)
+    assert.equal(settings.reactBitsLiquidEtherIterationsPoisson, 4)
+    assert.equal(settings.reactBitsLiquidEtherDt, 0.004)
+    assert.equal(settings.reactBitsLiquidEtherBfecc, false)
+    assert.equal(settings.reactBitsLiquidEtherResolution, 1)
+    assert.equal(settings.reactBitsLiquidEtherIsBounce, true)
+    assert.equal(settings.reactBitsLiquidEtherAutoDemo, false)
+    assert.equal(settings.reactBitsLiquidEtherAutoSpeed, 2)
+    assert.equal(settings.reactBitsLiquidEtherAutoIntensity, 0)
+    assert.equal(settings.reactBitsLiquidEtherAutoResumeDelay, 250)
+    assert.equal(settings.reactBitsLiquidEtherAutoRampDuration, 3)
+    assert.equal(settings.reactBitsLiquidEtherOpacity, 0.05)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherMouseForce: "strong" }).reactBitsLiquidEtherMouseForce,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherMouseForce,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherCursorSize: "wide" }).reactBitsLiquidEtherCursorSize,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherCursorSize,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherIsViscous: "yes" }).reactBitsLiquidEtherIsViscous,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIsViscous,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherViscous: "thick" }).reactBitsLiquidEtherViscous,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherViscous,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherIterationsViscous: "many" })
+        .reactBitsLiquidEtherIterationsViscous,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIterationsViscous,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherIterationsPoisson: "many" })
+        .reactBitsLiquidEtherIterationsPoisson,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIterationsPoisson,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherDt: "fast" }).reactBitsLiquidEtherDt,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherDt,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherBfecc: "yes" }).reactBitsLiquidEtherBfecc,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherBfecc,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherResolution: "sharp" }).reactBitsLiquidEtherResolution,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherResolution,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherIsBounce: "yes" }).reactBitsLiquidEtherIsBounce,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIsBounce,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherAutoDemo: "yes" }).reactBitsLiquidEtherAutoDemo,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoDemo,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherAutoSpeed: "fast" }).reactBitsLiquidEtherAutoSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherAutoIntensity: "strong" }).reactBitsLiquidEtherAutoIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherAutoResumeDelay: "soon" })
+        .reactBitsLiquidEtherAutoResumeDelay,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoResumeDelay,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherAutoRampDuration: "slow" })
+        .reactBitsLiquidEtherAutoRampDuration,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoRampDuration,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherOpacity: "clear" }).reactBitsLiquidEtherOpacity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherOpacity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherPaletteMode: "demo" }).reactBitsLiquidEtherPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherPrimaryColor: "purple" }).reactBitsLiquidEtherPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLiquidEtherHarmony: "rainbow" }).reactBitsLiquidEtherHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherHarmony,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

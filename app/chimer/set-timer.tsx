@@ -38,6 +38,7 @@ export type ChamaacWavesPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
 export type ReactBitsFerrofluidPaletteMode = "harmony" | "custom"
 export type ReactBitsLightfallPaletteMode = "harmony" | "custom"
+export type ReactBitsLiquidEtherPaletteMode = "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -541,6 +542,29 @@ export interface ChimerSettings {
   reactBitsLightfallCursorStrength: number
   reactBitsLightfallCursorRadius: number
   reactBitsLightfallCursorDampening: number
+  reactBitsLiquidEtherPaletteMode: ReactBitsLiquidEtherPaletteMode
+  reactBitsLiquidEtherPrimaryColor: string
+  reactBitsLiquidEtherHarmony: ColorHarmony
+  reactBitsLiquidEtherColorOne: string
+  reactBitsLiquidEtherColorTwo: string
+  reactBitsLiquidEtherColorThree: string
+  reactBitsLiquidEtherCursorEnabled: boolean
+  reactBitsLiquidEtherMouseForce: number
+  reactBitsLiquidEtherCursorSize: number
+  reactBitsLiquidEtherIsViscous: boolean
+  reactBitsLiquidEtherViscous: number
+  reactBitsLiquidEtherIterationsViscous: number
+  reactBitsLiquidEtherIterationsPoisson: number
+  reactBitsLiquidEtherDt: number
+  reactBitsLiquidEtherBfecc: boolean
+  reactBitsLiquidEtherResolution: number
+  reactBitsLiquidEtherIsBounce: boolean
+  reactBitsLiquidEtherAutoDemo: boolean
+  reactBitsLiquidEtherAutoSpeed: number
+  reactBitsLiquidEtherAutoIntensity: number
+  reactBitsLiquidEtherAutoResumeDelay: number
+  reactBitsLiquidEtherAutoRampDuration: number
+  reactBitsLiquidEtherOpacity: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -794,6 +818,16 @@ type ReactBitsLightfallColorSettings = Pick<
   | "reactBitsLightfallColorThree"
 >
 
+type ReactBitsLiquidEtherColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsLiquidEtherPaletteMode"
+  | "reactBitsLiquidEtherPrimaryColor"
+  | "reactBitsLiquidEtherHarmony"
+  | "reactBitsLiquidEtherColorOne"
+  | "reactBitsLiquidEtherColorTwo"
+  | "reactBitsLiquidEtherColorThree"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -928,6 +962,23 @@ export function resolveReactBitsLightfallColors(settings: ReactBitsLightfallColo
     settings.reactBitsLightfallColorOne,
     settings.reactBitsLightfallColorTwo,
     settings.reactBitsLightfallColorThree,
+  ]
+}
+
+export function resolveReactBitsLiquidEtherColors(
+  settings: ReactBitsLiquidEtherColorSettings,
+): [string, string, string] {
+  if (settings.reactBitsLiquidEtherPaletteMode === "harmony") {
+    return createReactBitsLiquidEtherHarmonyPalette(
+      settings.reactBitsLiquidEtherPrimaryColor,
+      settings.reactBitsLiquidEtherHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsLiquidEtherColorOne,
+    settings.reactBitsLiquidEtherColorTwo,
+    settings.reactBitsLiquidEtherColorThree,
   ]
 }
 
@@ -1294,6 +1345,69 @@ export function createReactBitsLightfallHarmonyPalette(
         hslToHex(hue - 28, vividSaturation * 0.76, highlightLightness),
         hslToHex(hue, vividSaturation, midLightness),
         hslToHex(hue + 32, Math.min(0.98, vividSaturation * 1.02), baseLightness),
+      ]
+  }
+}
+
+export function createReactBitsLiquidEtherHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const richSaturation = Math.min(0.98, Math.max(0.5, saturation))
+  const darkLightness = Math.min(0.2, Math.max(0.06, lightness * 0.34))
+  const midLightness = Math.min(0.58, Math.max(0.28, lightness))
+  const highlightLightness = Math.min(0.86, Math.max(0.62, lightness + 0.22))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, richSaturation * 0.74, darkLightness),
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 180, Math.min(0.98, richSaturation * 1.04), highlightLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue - 18, richSaturation * 0.72, darkLightness),
+        hslToHex(hue + 150, richSaturation * 0.96, midLightness),
+        hslToHex(hue + 210, Math.min(0.98, richSaturation * 1.04), highlightLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, richSaturation * 0.7, darkLightness),
+        hslToHex(hue + 120, richSaturation * 0.96, midLightness),
+        hslToHex(hue + 240, richSaturation, highlightLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 180, richSaturation * 0.68, darkLightness),
+        hslToHex(hue + 90, richSaturation * 0.92, midLightness),
+        hslToHex(hue + 270, Math.min(0.98, richSaturation * 1.02), highlightLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 16, richSaturation * 0.76, darkLightness),
+        hslToHex(hue + 18, richSaturation, midLightness),
+        hslToHex(hue + 178, Math.min(0.98, richSaturation * 1.04), highlightLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, richSaturation * 0.68, darkLightness),
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue, Math.min(0.96, richSaturation * 0.88), highlightLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, richSaturation * 0.72, darkLightness),
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue, Math.min(0.98, richSaturation * 0.92), highlightLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 28, richSaturation * 0.74, darkLightness),
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 28, Math.min(0.98, richSaturation * 1.02), highlightLightness),
       ]
   }
 }
@@ -4346,6 +4460,320 @@ export function SetTimer({
               </label>
             </>
           )}
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-liquid-ether") {
+      const useCustomPalette = settings.reactBitsLiquidEtherPaletteMode === "custom"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsLiquidEtherPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLiquidEtherPaletteMode: event.target.value as ReactBitsLiquidEtherPaletteMode,
+              })}
+              aria-label="Liquid Ether color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLiquidEtherColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsLiquidEtherColorOne: event.target.value })}
+                  aria-label="Liquid Ether first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLiquidEtherColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsLiquidEtherColorTwo: event.target.value })}
+                  aria-label="Liquid Ether second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLiquidEtherColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsLiquidEtherColorThree: event.target.value })}
+                  aria-label="Liquid Ether third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLiquidEtherPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLiquidEtherPrimaryColor: event.target.value })}
+                  aria-label="Liquid Ether primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsLiquidEtherHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Liquid Ether color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Cursor fluid push</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLiquidEtherCursorEnabled}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherCursorEnabled: event.target.checked })}
+              aria-label="Liquid Ether cursor fluid push"
+            />
+          </label>
+
+          {settings.reactBitsLiquidEtherCursorEnabled && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Mouse force ({settings.reactBitsLiquidEtherMouseForce.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="80"
+                  step="1"
+                  value={settings.reactBitsLiquidEtherMouseForce}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherMouseForce: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether mouse force"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor size ({settings.reactBitsLiquidEtherCursorSize.toFixed(0)}px)</span>
+                <input
+                  type="range"
+                  min="20"
+                  max="280"
+                  step="5"
+                  value={settings.reactBitsLiquidEtherCursorSize}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherCursorSize: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether cursor size"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Auto demo motion</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLiquidEtherAutoDemo}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherAutoDemo: event.target.checked })}
+              aria-label="Liquid Ether auto demo motion"
+            />
+          </label>
+
+          {settings.reactBitsLiquidEtherAutoDemo && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Auto speed ({settings.reactBitsLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="2"
+                  step="0.05"
+                  value={settings.reactBitsLiquidEtherAutoSpeed}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherAutoSpeed: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto speed"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto intensity ({settings.reactBitsLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={settings.reactBitsLiquidEtherAutoIntensity}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherAutoIntensity: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto intensity"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto resume ({(settings.reactBitsLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min="250"
+                  max="5000"
+                  step="250"
+                  value={settings.reactBitsLiquidEtherAutoResumeDelay}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherAutoResumeDelay: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto resume delay"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto ramp ({settings.reactBitsLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="3"
+                  step="0.1"
+                  value={settings.reactBitsLiquidEtherAutoRampDuration}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidEtherAutoRampDuration: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto ramp duration"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Viscous fluid</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLiquidEtherIsViscous}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherIsViscous: event.target.checked })}
+              aria-label="Liquid Ether viscous fluid"
+            />
+          </label>
+
+          {settings.reactBitsLiquidEtherIsViscous && (
+            <label className={styles.rangeRow}>
+              <span>Viscosity ({settings.reactBitsLiquidEtherViscous.toFixed(0)})</span>
+              <input
+                type="range"
+                min="0"
+                max="80"
+                step="1"
+                value={settings.reactBitsLiquidEtherViscous}
+                onChange={(event) => onSettingsChange({ reactBitsLiquidEtherViscous: Number(event.target.value) })}
+                aria-label="Liquid Ether viscosity"
+              />
+            </label>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Viscous iterations ({settings.reactBitsLiquidEtherIterationsViscous.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              step="1"
+              value={settings.reactBitsLiquidEtherIterationsViscous}
+              onChange={(event) => onSettingsChange({
+                reactBitsLiquidEtherIterationsViscous: Number(event.target.value),
+              })}
+              aria-label="Liquid Ether viscous iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Poisson iterations ({settings.reactBitsLiquidEtherIterationsPoisson.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              step="1"
+              value={settings.reactBitsLiquidEtherIterationsPoisson}
+              onChange={(event) => onSettingsChange({
+                reactBitsLiquidEtherIterationsPoisson: Number(event.target.value),
+              })}
+              aria-label="Liquid Ether Poisson iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Delta time ({settings.reactBitsLiquidEtherDt.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.004"
+              max="0.04"
+              step="0.001"
+              value={settings.reactBitsLiquidEtherDt}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherDt: Number(event.target.value) })}
+              aria-label="Liquid Ether delta time"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Resolution ({settings.reactBitsLiquidEtherResolution.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="1"
+              step="0.05"
+              value={settings.reactBitsLiquidEtherResolution}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherResolution: Number(event.target.value) })}
+              aria-label="Liquid Ether resolution"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>BFECC advection</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLiquidEtherBfecc}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherBfecc: event.target.checked })}
+              aria-label="Liquid Ether BFECC advection"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bounce edges</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLiquidEtherIsBounce}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherIsBounce: event.target.checked })}
+              aria-label="Liquid Ether bounce edges"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(settings.reactBitsLiquidEtherOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsLiquidEtherOpacity}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidEtherOpacity: Number(event.target.value) })}
+              aria-label="Liquid Ether opacity"
+            />
+          </label>
         </div>
       )
     }

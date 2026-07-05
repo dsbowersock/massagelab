@@ -27,6 +27,7 @@ import type {
   ChamaacSynthesisOptions,
   ReactBitsFerrofluidOptions,
   ReactBitsLightfallOptions,
+  ReactBitsLiquidEtherOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -69,6 +70,7 @@ interface BackgroundHostProps {
   chamaacSynthesis?: ChamaacSynthesisOptions
   reactBitsFerrofluid?: ReactBitsFerrofluidOptions
   reactBitsLightfall?: ReactBitsLightfallOptions
+  reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -127,6 +129,7 @@ export function BackgroundHost({
   chamaacSynthesis,
   reactBitsFerrofluid,
   reactBitsLightfall,
+  reactBitsLiquidEther,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -210,6 +213,7 @@ export function BackgroundHost({
           chamaacSynthesis={chamaacSynthesis}
           reactBitsFerrofluid={reactBitsFerrofluid}
           reactBitsLightfall={reactBitsLightfall}
+          reactBitsLiquidEther={reactBitsLiquidEther}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}
