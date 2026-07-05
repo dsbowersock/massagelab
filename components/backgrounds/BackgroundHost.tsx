@@ -39,6 +39,7 @@ import type {
   ReactBitsColorBendsOptions,
   ReactBitsEvilEyeOptions,
   ReactBitsLineWavesOptions,
+  ReactBitsRadarOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -93,6 +94,7 @@ interface BackgroundHostProps {
   reactBitsColorBends?: ReactBitsColorBendsOptions
   reactBitsEvilEye?: ReactBitsEvilEyeOptions
   reactBitsLineWaves?: ReactBitsLineWavesOptions
+  reactBitsRadar?: ReactBitsRadarOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -163,6 +165,7 @@ export function BackgroundHost({
   reactBitsColorBends,
   reactBitsEvilEye,
   reactBitsLineWaves,
+  reactBitsRadar,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -258,6 +261,7 @@ export function BackgroundHost({
           reactBitsColorBends={reactBitsColorBends}
           reactBitsEvilEye={reactBitsEvilEye}
           reactBitsLineWaves={reactBitsLineWaves}
+          reactBitsRadar={reactBitsRadar}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

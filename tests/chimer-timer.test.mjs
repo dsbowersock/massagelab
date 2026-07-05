@@ -1828,6 +1828,72 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Radar background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsRadarPaletteMode: "harmony",
+      reactBitsRadarPrimaryColor: "#ffffff",
+      reactBitsRadarHarmony: "triad",
+      reactBitsRadarColor: "#abcdef",
+      reactBitsRadarBackgroundColor: "#010203",
+      reactBitsRadarSpeed: 99,
+      reactBitsRadarScale: 99,
+      reactBitsRadarRingCount: 99,
+      reactBitsRadarSpokeCount: 99,
+      reactBitsRadarRingThickness: 99,
+      reactBitsRadarSpokeThickness: 99,
+      reactBitsRadarSweepSpeed: 99,
+      reactBitsRadarSweepWidth: 99,
+      reactBitsRadarSweepLobes: 99,
+      reactBitsRadarFalloff: 99,
+      reactBitsRadarBrightness: 99,
+      reactBitsRadarEnableMouseInteraction: true,
+      reactBitsRadarMouseInfluence: 99,
+    })
+
+    assert.equal(settings.reactBitsRadarPaletteMode, "harmony")
+    assert.equal(settings.reactBitsRadarPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsRadarHarmony, "triad")
+    assert.equal(settings.reactBitsRadarColor, "#ABCDEF")
+    assert.equal(settings.reactBitsRadarBackgroundColor, "#010203")
+    assert.equal(settings.reactBitsRadarSpeed, 3)
+    assert.equal(settings.reactBitsRadarScale, 2)
+    assert.equal(settings.reactBitsRadarRingCount, 40)
+    assert.equal(settings.reactBitsRadarSpokeCount, 40)
+    assert.equal(settings.reactBitsRadarRingThickness, 0.25)
+    assert.equal(settings.reactBitsRadarSpokeThickness, 0.1)
+    assert.equal(settings.reactBitsRadarSweepSpeed, 4)
+    assert.equal(settings.reactBitsRadarSweepWidth, 12)
+    assert.equal(settings.reactBitsRadarSweepLobes, 12)
+    assert.equal(settings.reactBitsRadarFalloff, 8)
+    assert.equal(settings.reactBitsRadarBrightness, 3)
+    assert.equal(settings.reactBitsRadarEnableMouseInteraction, true)
+    assert.equal(settings.reactBitsRadarMouseInfluence, 1)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRadarPaletteMode: "auto" }).reactBitsRadarPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRadarPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRadarPrimaryColor: "white" }).reactBitsRadarPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRadarPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRadarHarmony: "wild" }).reactBitsRadarHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRadarHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRadarColor: "white" }).reactBitsRadarColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRadarColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRadarSpeed: "fast" }).reactBitsRadarSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRadarSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsRadarEnableMouseInteraction: "yes" }).reactBitsRadarEnableMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsRadarEnableMouseInteraction,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

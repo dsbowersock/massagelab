@@ -63,6 +63,7 @@ export type ReactBitsPixelBlastVariant = "square" | "circle" | "triangle" | "dia
 export type ReactBitsColorBendsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsEvilEyePaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsLineWavesPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsRadarPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -769,6 +770,24 @@ export interface ChimerSettings {
   reactBitsLineWavesBrightness: number
   reactBitsLineWavesEnableMouseInteraction: boolean
   reactBitsLineWavesMouseInfluence: number
+  reactBitsRadarPaletteMode: ReactBitsRadarPaletteMode
+  reactBitsRadarPrimaryColor: string
+  reactBitsRadarHarmony: ColorHarmony
+  reactBitsRadarColor: string
+  reactBitsRadarBackgroundColor: string
+  reactBitsRadarSpeed: number
+  reactBitsRadarScale: number
+  reactBitsRadarRingCount: number
+  reactBitsRadarSpokeCount: number
+  reactBitsRadarRingThickness: number
+  reactBitsRadarSpokeThickness: number
+  reactBitsRadarSweepSpeed: number
+  reactBitsRadarSweepWidth: number
+  reactBitsRadarSweepLobes: number
+  reactBitsRadarFalloff: number
+  reactBitsRadarBrightness: number
+  reactBitsRadarEnableMouseInteraction: boolean
+  reactBitsRadarMouseInfluence: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1113,6 +1132,14 @@ type ReactBitsLineWavesColorSettings = Pick<
   | "reactBitsLineWavesColorThree"
 >
 
+type ReactBitsRadarColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsRadarPaletteMode"
+  | "reactBitsRadarPrimaryColor"
+  | "reactBitsRadarHarmony"
+  | "reactBitsRadarColor"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1419,6 +1446,21 @@ export function resolveReactBitsLineWavesColors(
     settings.reactBitsLineWavesColorTwo,
     settings.reactBitsLineWavesColorThree,
   ]
+}
+
+export function resolveReactBitsRadarColor(settings: ReactBitsRadarColorSettings): string {
+  if (settings.reactBitsRadarPaletteMode === "source") {
+    return "#9F29FF"
+  }
+
+  if (settings.reactBitsRadarPaletteMode === "harmony") {
+    return createReactBitsRadarHarmonyColor(
+      settings.reactBitsRadarPrimaryColor,
+      settings.reactBitsRadarHarmony,
+    )
+  }
+
+  return settings.reactBitsRadarColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -2266,6 +2308,35 @@ export function createReactBitsLineWavesHarmonyPalette(
         hslToHex(hue, lineSaturation * 0.82, midLightness),
         hslToHex(hue + 32, lineSaturation * 0.68, lowLightness),
       ]
+  }
+}
+
+export function createReactBitsRadarHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): string {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const radarSaturation = Math.min(0.96, Math.max(0.42, saturation))
+  const radarLightness = Math.min(0.76, Math.max(0.42, lightness + 0.04))
+
+  switch (harmony) {
+    case "complementary":
+      return hslToHex(hue + 180, Math.min(0.9, radarSaturation * 0.94), radarLightness)
+    case "split-complementary":
+      return hslToHex(hue + 150, Math.min(0.92, radarSaturation * 0.96), radarLightness)
+    case "triad":
+      return hslToHex(hue + 120, Math.min(0.94, radarSaturation * 0.98), radarLightness)
+    case "square":
+      return hslToHex(hue + 90, Math.min(0.9, radarSaturation * 0.94), radarLightness)
+    case "compound":
+      return hslToHex(hue - 24, Math.min(0.96, radarSaturation), Math.min(0.8, radarLightness + 0.02))
+    case "shades":
+      return hslToHex(hue, Math.min(0.78, radarSaturation * 0.78), Math.min(0.84, radarLightness + 0.08))
+    case "monochromatic":
+      return hslToHex(hue, Math.min(0.72, radarSaturation * 0.7), radarLightness)
+    case "analogous":
+    default:
+      return hslToHex(hue + 28, Math.min(0.94, radarSaturation * 0.96), radarLightness)
   }
 }
 
@@ -7900,6 +7971,250 @@ export function SetTimer({
               value={settings.reactBitsLineWavesMouseInfluence}
               onChange={(event) => onSettingsChange({ reactBitsLineWavesMouseInfluence: Number(event.target.value) })}
               aria-label="React Bits Line Waves mouse influence"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-radar") {
+      const useCustomColor = settings.reactBitsRadarPaletteMode === "custom"
+      const useHarmonyColor = settings.reactBitsRadarPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsRadarPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsRadarPaletteMode: event.target.value as ReactBitsRadarPaletteMode,
+              })}
+              aria-label="React Bits Radar color mode"
+            >
+              <option value="source">Source purple</option>
+              <option value="custom">Custom radar</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomColor && (
+            <label className={styles.colorRow}>
+              <span>Radar color</span>
+              <input
+                type="color"
+                value={settings.reactBitsRadarColor}
+                onChange={(event) => onSettingsChange({ reactBitsRadarColor: event.target.value })}
+                aria-label="React Bits Radar color"
+              />
+            </label>
+          )}
+
+          {useHarmonyColor && (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsRadarPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsRadarPrimaryColor: event.target.value })}
+                  aria-label="React Bits Radar primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsRadarHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsRadarHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Radar color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={settings.reactBitsRadarBackgroundColor}
+              onChange={(event) => onSettingsChange({ reactBitsRadarBackgroundColor: event.target.value })}
+              aria-label="React Bits Radar background color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsRadarEnableMouseInteraction}
+              onChange={(event) => onSettingsChange({
+                reactBitsRadarEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Radar pointer offset"
+            />
+            <span>Pointer offset</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsRadarSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsRadarSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsRadarSpeed: Number(event.target.value) })}
+              aria-label="React Bits Radar speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({settings.reactBitsRadarScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsRadarScale}
+              onChange={(event) => onSettingsChange({ reactBitsRadarScale: Number(event.target.value) })}
+              aria-label="React Bits Radar scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rings ({settings.reactBitsRadarRingCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="40"
+              step="1"
+              value={settings.reactBitsRadarRingCount}
+              onChange={(event) => onSettingsChange({ reactBitsRadarRingCount: Number(event.target.value) })}
+              aria-label="React Bits Radar ring count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spokes ({settings.reactBitsRadarSpokeCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="40"
+              step="1"
+              value={settings.reactBitsRadarSpokeCount}
+              onChange={(event) => onSettingsChange({ reactBitsRadarSpokeCount: Number(event.target.value) })}
+              aria-label="React Bits Radar spoke count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ring thickness ({settings.reactBitsRadarRingThickness.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.25"
+              step="0.001"
+              value={settings.reactBitsRadarRingThickness}
+              onChange={(event) => onSettingsChange({ reactBitsRadarRingThickness: Number(event.target.value) })}
+              aria-label="React Bits Radar ring thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spoke thickness ({settings.reactBitsRadarSpokeThickness.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.1"
+              step="0.001"
+              value={settings.reactBitsRadarSpokeThickness}
+              onChange={(event) => onSettingsChange({ reactBitsRadarSpokeThickness: Number(event.target.value) })}
+              aria-label="React Bits Radar spoke thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep speed ({settings.reactBitsRadarSweepSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsRadarSweepSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsRadarSweepSpeed: Number(event.target.value) })}
+              aria-label="React Bits Radar sweep speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep width ({settings.reactBitsRadarSweepWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={settings.reactBitsRadarSweepWidth}
+              onChange={(event) => onSettingsChange({ reactBitsRadarSweepWidth: Number(event.target.value) })}
+              aria-label="React Bits Radar sweep width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep lobes ({settings.reactBitsRadarSweepLobes.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="12"
+              step="1"
+              value={settings.reactBitsRadarSweepLobes}
+              onChange={(event) => onSettingsChange({ reactBitsRadarSweepLobes: Number(event.target.value) })}
+              aria-label="React Bits Radar sweep lobes"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Falloff ({settings.reactBitsRadarFalloff.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsRadarFalloff}
+              onChange={(event) => onSettingsChange({ reactBitsRadarFalloff: Number(event.target.value) })}
+              aria-label="React Bits Radar falloff"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({settings.reactBitsRadarBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsRadarBrightness}
+              onChange={(event) => onSettingsChange({ reactBitsRadarBrightness: Number(event.target.value) })}
+              aria-label="React Bits Radar brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({settings.reactBitsRadarMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsRadarMouseInfluence}
+              onChange={(event) => onSettingsChange({ reactBitsRadarMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Radar mouse influence"
             />
           </label>
         </div>

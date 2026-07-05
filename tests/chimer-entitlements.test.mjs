@@ -1257,6 +1257,78 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsLineWavesMouseInfluence, 2.8)
   })
 
+  it("resets React Bits Radar controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-radar",
+      reactBitsRadarPaletteMode: "harmony",
+      reactBitsRadarPrimaryColor: "#FFFFFF",
+      reactBitsRadarHarmony: "triad",
+      reactBitsRadarColor: "#ABCDEF",
+      reactBitsRadarBackgroundColor: "#010203",
+      reactBitsRadarSpeed: 1.6,
+      reactBitsRadarScale: 0.8,
+      reactBitsRadarRingCount: 18,
+      reactBitsRadarSpokeCount: 16,
+      reactBitsRadarRingThickness: 0.08,
+      reactBitsRadarSpokeThickness: 0.04,
+      reactBitsRadarSweepSpeed: 1.4,
+      reactBitsRadarSweepWidth: 4,
+      reactBitsRadarSweepLobes: 3,
+      reactBitsRadarFalloff: 3.2,
+      reactBitsRadarBrightness: 1.7,
+      reactBitsRadarEnableMouseInteraction: true,
+      reactBitsRadarMouseInfluence: 0.4,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsRadarPaletteMode",
+      "reactBitsRadarPrimaryColor",
+      "reactBitsRadarHarmony",
+      "reactBitsRadarColor",
+      "reactBitsRadarBackgroundColor",
+      "reactBitsRadarSpeed",
+      "reactBitsRadarScale",
+      "reactBitsRadarRingCount",
+      "reactBitsRadarSpokeCount",
+      "reactBitsRadarRingThickness",
+      "reactBitsRadarSpokeThickness",
+      "reactBitsRadarSweepSpeed",
+      "reactBitsRadarSweepWidth",
+      "reactBitsRadarSweepLobes",
+      "reactBitsRadarFalloff",
+      "reactBitsRadarBrightness",
+      "reactBitsRadarEnableMouseInteraction",
+      "reactBitsRadarMouseInfluence",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-radar")
+    assert.equal(premiumSettings.reactBitsRadarPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsRadarPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsRadarHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsRadarColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsRadarBackgroundColor, "#010203")
+    assert.equal(premiumSettings.reactBitsRadarSpeed, 1.6)
+    assert.equal(premiumSettings.reactBitsRadarScale, 0.8)
+    assert.equal(premiumSettings.reactBitsRadarRingCount, 18)
+    assert.equal(premiumSettings.reactBitsRadarSpokeCount, 16)
+    assert.equal(premiumSettings.reactBitsRadarRingThickness, 0.08)
+    assert.equal(premiumSettings.reactBitsRadarSpokeThickness, 0.04)
+    assert.equal(premiumSettings.reactBitsRadarSweepSpeed, 1.4)
+    assert.equal(premiumSettings.reactBitsRadarSweepWidth, 4)
+    assert.equal(premiumSettings.reactBitsRadarSweepLobes, 3)
+    assert.equal(premiumSettings.reactBitsRadarFalloff, 3.2)
+    assert.equal(premiumSettings.reactBitsRadarBrightness, 1.7)
+    assert.equal(premiumSettings.reactBitsRadarEnableMouseInteraction, true)
+    assert.equal(premiumSettings.reactBitsRadarMouseInfluence, 0.4)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

@@ -34,6 +34,7 @@ export type BackgroundId =
   | "react-bits-color-bends"
   | "react-bits-evil-eye"
   | "react-bits-line-waves"
+  | "react-bits-radar"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -112,6 +113,7 @@ const reactBitsPixelBlast = () => import("./effects/react-bits-pixel-blast-backg
 const reactBitsColorBends = () => import("./effects/react-bits-color-bends-background")
 const reactBitsEvilEye = () => import("./effects/react-bits-evil-eye-background")
 const reactBitsLineWaves = () => import("./effects/react-bits-line-waves-background")
+const reactBitsRadar = () => import("./effects/react-bits-radar-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -732,6 +734,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 38%), linear-gradient(135deg, #020617 0%, #05070d 100%)",
+    },
+  },
+  {
+    id: "react-bits-radar",
+    label: "Radar",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/radar",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium radar sweep shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony radar color, background, speed, scale, ring/spoke counts and thicknesses, sweep speed/width/lobes, falloff, brightness, optional mouse offset, and mouse influence; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsRadar().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(159,41,255,0.18), transparent 38%), linear-gradient(135deg, #000000 0%, #07030c 100%)",
     },
   },
   {

@@ -75,6 +75,7 @@ describe("premium background registry", () => {
       "react-bits-color-bends",
       "react-bits-evil-eye",
       "react-bits-line-waves",
+      "react-bits-radar",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -295,6 +296,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-color-bends"))
     assert.ok(chimerOptions.includes("react-bits-evil-eye"))
     assert.ok(chimerOptions.includes("react-bits-line-waves"))
+    assert.ok(chimerOptions.includes("react-bits-radar"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -343,6 +345,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-color-bends"))
     assert.ok(clockOptions.includes("react-bits-evil-eye"))
     assert.ok(clockOptions.includes("react-bits-line-waves"))
+    assert.ok(clockOptions.includes("react-bits-radar"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -392,6 +395,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-color-bends"))
     assert.ok(musicOptions.includes("react-bits-evil-eye"))
     assert.ok(musicOptions.includes("react-bits-line-waves"))
+    assert.ok(musicOptions.includes("react-bits-radar"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2483,6 +2487,117 @@ describe("premium background registry", () => {
       "reactBitsLineWavesBrightness",
       "reactBitsLineWavesEnableMouseInteraction",
       "reactBitsLineWavesMouseInfluence",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Radar source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-radar-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-radar/)
+    assert.match(registrySource, /Radar/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/radar/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsRadarBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_RADAR/)
+    assert.match(effectSource, /uRingCount/)
+    assert.match(effectSource, /uSpokeCount/)
+    assert.match(effectSource, /uRingThickness/)
+    assert.match(effectSource, /uSpokeThickness/)
+    assert.match(effectSource, /uSweepSpeed/)
+    assert.match(effectSource, /uSweepWidth/)
+    assert.match(effectSource, /uSweepLobes/)
+    assert.match(effectSource, /uFalloff/)
+    assert.match(effectSource, /uBrightness/)
+    assert.match(effectSource, /uEnableMouse/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /speed:\s*1/)
+    assert.match(effectSource, /scale:\s*0\.5/)
+    assert.match(effectSource, /ringCount:\s*10/)
+    assert.match(effectSource, /spokeCount:\s*10/)
+    assert.match(effectSource, /ringThickness:\s*0\.05/)
+    assert.match(effectSource, /spokeThickness:\s*0\.01/)
+    assert.match(effectSource, /sweepSpeed:\s*1/)
+    assert.match(effectSource, /sweepWidth:\s*2/)
+    assert.match(effectSource, /sweepLobes:\s*1/)
+    assert.match(effectSource, /color:\s*"#9F29FF"/)
+    assert.match(effectSource, /backgroundColor:\s*"#000000"/)
+    assert.match(effectSource, /falloff:\s*2/)
+    assert.match(effectSource, /brightness:\s*1/)
+    assert.match(effectSource, /enableMouseInteraction:\s*false/)
+    assert.match(effectSource, /mouseInfluence:\s*0\.1/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsRadar/)
+    assert.match(stylesSource, /reactBitsRadarCanvas/)
+
+    assert.match(hostSource, /reactBitsRadar/)
+    assert.match(cssEffectsSource, /ReactBitsRadarOptions/)
+    assert.match(setupSource, /resolveReactBitsRadarColor/)
+    assert.match(runningSource, /reactBitsRadar=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsRadar=\{\{/)
+    assert.match(docsSource, /Radar \| https:\/\/reactbits\.dev\/backgrounds\/radar/)
+    assert.match(docsSource, /Radar\.jsx/)
+    assert.match(docsSource, /Radar\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsRadarPaletteMode",
+      "reactBitsRadarPrimaryColor",
+      "reactBitsRadarHarmony",
+      "reactBitsRadarColor",
+      "reactBitsRadarBackgroundColor",
+      "reactBitsRadarSpeed",
+      "reactBitsRadarScale",
+      "reactBitsRadarRingCount",
+      "reactBitsRadarSpokeCount",
+      "reactBitsRadarRingThickness",
+      "reactBitsRadarSpokeThickness",
+      "reactBitsRadarSweepSpeed",
+      "reactBitsRadarSweepWidth",
+      "reactBitsRadarSweepLobes",
+      "reactBitsRadarFalloff",
+      "reactBitsRadarBrightness",
+      "reactBitsRadarEnableMouseInteraction",
+      "reactBitsRadarMouseInfluence",
     ]
 
     for (const settingKey of settingKeys) {
