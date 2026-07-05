@@ -84,6 +84,7 @@ describe("premium background registry", () => {
       "react-bits-grainient",
       "react-bits-grid-scan",
       "react-bits-beams",
+      "react-bits-pixel-snow",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -313,6 +314,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-grainient"))
     assert.ok(chimerOptions.includes("react-bits-grid-scan"))
     assert.ok(chimerOptions.includes("react-bits-beams"))
+    assert.ok(chimerOptions.includes("react-bits-pixel-snow"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -370,6 +372,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-grainient"))
     assert.ok(clockOptions.includes("react-bits-grid-scan"))
     assert.ok(clockOptions.includes("react-bits-beams"))
+    assert.ok(clockOptions.includes("react-bits-pixel-snow"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -428,6 +431,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-grainient"))
     assert.ok(musicOptions.includes("react-bits-grid-scan"))
     assert.ok(musicOptions.includes("react-bits-beams"))
+    assert.ok(musicOptions.includes("react-bits-pixel-snow"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3421,6 +3425,90 @@ describe("premium background registry", () => {
       "reactBitsBeamsNoiseIntensity",
       "reactBitsBeamsScale",
       "reactBitsBeamsRotation",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Pixel Snow source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-pixel-snow-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-pixel-snow/)
+    assert.match(registrySource, /Pixel Snow/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/pixel-snow/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsPixelSnowBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_PIXEL_SNOW/)
+    assert.match(effectSource, /snowflakeDist/)
+    assert.match(effectSource, /coord3/)
+    assert.match(effectSource, /getContext\("webgl2"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsPixelSnowCanvas/)
+    assert.match(hostSource, /reactBitsPixelSnow/)
+    assert.match(cssEffectsSource, /ReactBitsPixelSnowOptions/)
+    assert.match(setupSource, /resolveReactBitsPixelSnowColor/)
+    assert.match(setupSource, /createReactBitsPixelSnowHarmonyColor/)
+    assert.match(runningSource, /reactBitsPixelSnow=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsPixelSnow=\{\{/)
+    assert.match(docsSource, /Pixel Snow \| https:\/\/reactbits\.dev\/backgrounds\/pixel-snow/)
+    assert.match(docsSource, /PixelSnow\.jsx/)
+    assert.match(docsSource, /PixelSnow\.css/)
+    assert.match(docsSource, /raw WebGL2/)
+    assert.match(docsSource, /Three\/R3F/)
+
+    const settingKeys = [
+      "reactBitsPixelSnowPaletteMode",
+      "reactBitsPixelSnowPrimaryColor",
+      "reactBitsPixelSnowHarmony",
+      "reactBitsPixelSnowColor",
+      "reactBitsPixelSnowFlakeSize",
+      "reactBitsPixelSnowMinFlakeSize",
+      "reactBitsPixelSnowPixelResolution",
+      "reactBitsPixelSnowSpeed",
+      "reactBitsPixelSnowDepthFade",
+      "reactBitsPixelSnowFarPlane",
+      "reactBitsPixelSnowBrightness",
+      "reactBitsPixelSnowGamma",
+      "reactBitsPixelSnowDensity",
+      "reactBitsPixelSnowVariant",
+      "reactBitsPixelSnowDirection",
     ]
 
     for (const settingKey of settingKeys) {

@@ -93,6 +93,7 @@ import {
   resolveReactBitsGrainientColors,
   resolveReactBitsGridScanColors,
   resolveReactBitsBeamsColor,
+  resolveReactBitsPixelSnowColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -133,6 +134,8 @@ import {
   type ReactBitsGridScanLineStyle,
   type ReactBitsGridScanPaletteMode,
   type ReactBitsBeamsPaletteMode,
+  type ReactBitsPixelSnowPaletteMode,
+  type ReactBitsPixelSnowVariant,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -657,6 +660,21 @@ interface RunningTimerProps {
   reactBitsBeamsNoiseIntensity: number
   reactBitsBeamsScale: number
   reactBitsBeamsRotation: number
+  reactBitsPixelSnowPaletteMode: ReactBitsPixelSnowPaletteMode
+  reactBitsPixelSnowPrimaryColor: string
+  reactBitsPixelSnowHarmony: ColorHarmony
+  reactBitsPixelSnowColor: string
+  reactBitsPixelSnowFlakeSize: number
+  reactBitsPixelSnowMinFlakeSize: number
+  reactBitsPixelSnowPixelResolution: number
+  reactBitsPixelSnowSpeed: number
+  reactBitsPixelSnowDepthFade: number
+  reactBitsPixelSnowFarPlane: number
+  reactBitsPixelSnowBrightness: number
+  reactBitsPixelSnowGamma: number
+  reactBitsPixelSnowDensity: number
+  reactBitsPixelSnowVariant: ReactBitsPixelSnowVariant
+  reactBitsPixelSnowDirection: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1338,6 +1356,21 @@ export function RunningTimer({
   reactBitsBeamsNoiseIntensity,
   reactBitsBeamsScale,
   reactBitsBeamsRotation,
+  reactBitsPixelSnowPaletteMode,
+  reactBitsPixelSnowPrimaryColor,
+  reactBitsPixelSnowHarmony,
+  reactBitsPixelSnowColor,
+  reactBitsPixelSnowFlakeSize,
+  reactBitsPixelSnowMinFlakeSize,
+  reactBitsPixelSnowPixelResolution,
+  reactBitsPixelSnowSpeed,
+  reactBitsPixelSnowDepthFade,
+  reactBitsPixelSnowFarPlane,
+  reactBitsPixelSnowBrightness,
+  reactBitsPixelSnowGamma,
+  reactBitsPixelSnowDensity,
+  reactBitsPixelSnowVariant,
+  reactBitsPixelSnowDirection,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1718,6 +1751,12 @@ export function RunningTimer({
     reactBitsBeamsPrimaryColor,
     reactBitsBeamsHarmony,
     reactBitsBeamsLightColor,
+  })
+  const pixelSnowColor = resolveReactBitsPixelSnowColor({
+    reactBitsPixelSnowPaletteMode,
+    reactBitsPixelSnowPrimaryColor,
+    reactBitsPixelSnowHarmony,
+    reactBitsPixelSnowColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -8976,6 +9015,212 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-pixel-snow" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPixelSnowPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelSnowPaletteMode: event.target.value as ReactBitsPixelSnowPaletteMode,
+              })}
+              aria-label="React Bits Pixel Snow color mode"
+            >
+              <option value="source">Source white snow</option>
+              <option value="custom">Custom snow color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPixelSnowPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Snow color</span>
+              <input
+                type="color"
+                value={reactBitsPixelSnowColor}
+                onChange={(event) => handleSettingsChange({ reactBitsPixelSnowColor: event.target.value })}
+                aria-label="React Bits Pixel Snow color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsPixelSnowPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPixelSnowPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPixelSnowPrimaryColor: event.target.value })}
+                  aria-label="React Bits Pixel Snow primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPixelSnowHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPixelSnowHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Pixel Snow color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Variant</span>
+            <select
+              value={reactBitsPixelSnowVariant}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelSnowVariant: event.target.value as ReactBitsPixelSnowVariant,
+              })}
+              aria-label="React Bits Pixel Snow variant"
+            >
+              <option value="square">Square</option>
+              <option value="round">Round</option>
+              <option value="snowflake">Snowflake</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flake size ({reactBitsPixelSnowFlakeSize.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.08"
+              step="0.001"
+              value={reactBitsPixelSnowFlakeSize}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowFlakeSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow flake size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Minimum flake ({reactBitsPixelSnowMinFlakeSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="6"
+              step="0.05"
+              value={reactBitsPixelSnowMinFlakeSize}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowMinFlakeSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow minimum flake size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel resolution ({reactBitsPixelSnowPixelResolution.toFixed(0)})</span>
+            <input
+              type="range"
+              min="40"
+              max="640"
+              step="10"
+              value={reactBitsPixelSnowPixelResolution}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowPixelResolution: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow pixel resolution"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPixelSnowSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsPixelSnowSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Depth fade ({reactBitsPixelSnowDepthFade.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="40"
+              step="0.5"
+              value={reactBitsPixelSnowDepthFade}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDepthFade: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow depth fade"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Far plane ({reactBitsPixelSnowFarPlane.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="80"
+              step="1"
+              value={reactBitsPixelSnowFarPlane}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowFarPlane: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow far plane"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsPixelSnowBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsPixelSnowBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowBrightness: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Gamma ({reactBitsPixelSnowGamma.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.01"
+              value={reactBitsPixelSnowGamma}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowGamma: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow gamma"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsPixelSnowDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="1"
+              step="0.01"
+              value={reactBitsPixelSnowDensity}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDensity: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Direction ({reactBitsPixelSnowDirection.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value={reactBitsPixelSnowDirection}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDirection: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow direction"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -11310,6 +11555,20 @@ export function RunningTimer({
             noiseIntensity: reactBitsBeamsNoiseIntensity,
             scale: reactBitsBeamsScale,
             rotation: reactBitsBeamsRotation,
+          }}
+          reactBitsPixelSnow={{
+            color: pixelSnowColor,
+            flakeSize: reactBitsPixelSnowFlakeSize,
+            minFlakeSize: reactBitsPixelSnowMinFlakeSize,
+            pixelResolution: reactBitsPixelSnowPixelResolution,
+            speed: reactBitsPixelSnowSpeed,
+            depthFade: reactBitsPixelSnowDepthFade,
+            farPlane: reactBitsPixelSnowFarPlane,
+            brightness: reactBitsPixelSnowBrightness,
+            gamma: reactBitsPixelSnowGamma,
+            density: reactBitsPixelSnowDensity,
+            variant: reactBitsPixelSnowVariant,
+            direction: reactBitsPixelSnowDirection,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

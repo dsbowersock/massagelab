@@ -1872,6 +1872,69 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsBeamsRotation, 24)
   })
 
+  it("resets React Bits Pixel Snow controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-pixel-snow",
+      reactBitsPixelSnowPaletteMode: "harmony",
+      reactBitsPixelSnowPrimaryColor: "#ABCDEF",
+      reactBitsPixelSnowHarmony: "triad",
+      reactBitsPixelSnowColor: "#010203",
+      reactBitsPixelSnowFlakeSize: 0.04,
+      reactBitsPixelSnowMinFlakeSize: 2.5,
+      reactBitsPixelSnowPixelResolution: 320,
+      reactBitsPixelSnowSpeed: 2.5,
+      reactBitsPixelSnowDepthFade: 16,
+      reactBitsPixelSnowFarPlane: 36,
+      reactBitsPixelSnowBrightness: 2,
+      reactBitsPixelSnowGamma: 0.75,
+      reactBitsPixelSnowDensity: 0.6,
+      reactBitsPixelSnowVariant: "snowflake",
+      reactBitsPixelSnowDirection: 220,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsPixelSnowPaletteMode",
+      "reactBitsPixelSnowPrimaryColor",
+      "reactBitsPixelSnowHarmony",
+      "reactBitsPixelSnowColor",
+      "reactBitsPixelSnowFlakeSize",
+      "reactBitsPixelSnowMinFlakeSize",
+      "reactBitsPixelSnowPixelResolution",
+      "reactBitsPixelSnowSpeed",
+      "reactBitsPixelSnowDepthFade",
+      "reactBitsPixelSnowFarPlane",
+      "reactBitsPixelSnowBrightness",
+      "reactBitsPixelSnowGamma",
+      "reactBitsPixelSnowDensity",
+      "reactBitsPixelSnowVariant",
+      "reactBitsPixelSnowDirection",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-pixel-snow")
+    assert.equal(premiumSettings.reactBitsPixelSnowPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsPixelSnowPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsPixelSnowHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsPixelSnowColor, "#010203")
+    assert.equal(premiumSettings.reactBitsPixelSnowFlakeSize, 0.04)
+    assert.equal(premiumSettings.reactBitsPixelSnowMinFlakeSize, 2.5)
+    assert.equal(premiumSettings.reactBitsPixelSnowPixelResolution, 320)
+    assert.equal(premiumSettings.reactBitsPixelSnowSpeed, 2.5)
+    assert.equal(premiumSettings.reactBitsPixelSnowDepthFade, 16)
+    assert.equal(premiumSettings.reactBitsPixelSnowFarPlane, 36)
+    assert.equal(premiumSettings.reactBitsPixelSnowBrightness, 2)
+    assert.equal(premiumSettings.reactBitsPixelSnowGamma, 0.75)
+    assert.equal(premiumSettings.reactBitsPixelSnowDensity, 0.6)
+    assert.equal(premiumSettings.reactBitsPixelSnowVariant, "snowflake")
+    assert.equal(premiumSettings.reactBitsPixelSnowDirection, 220)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

@@ -43,6 +43,7 @@ export type BackgroundId =
   | "react-bits-grainient"
   | "react-bits-grid-scan"
   | "react-bits-beams"
+  | "react-bits-pixel-snow"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -130,6 +131,7 @@ const reactBitsGradientBlinds = () => import("./effects/react-bits-gradient-blin
 const reactBitsGrainient = () => import("./effects/react-bits-grainient-background")
 const reactBitsGridScan = () => import("./effects/react-bits-grid-scan-background")
 const reactBitsBeams = () => import("./effects/react-bits-beams-background")
+const reactBitsPixelSnow = () => import("./effects/react-bits-pixel-snow-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -960,6 +962,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 32%, rgba(255,255,255,0.14), transparent 34%), linear-gradient(180deg, #000000 0%, #050505 100%)",
+    },
+  },
+  {
+    id: "react-bits-pixel-snow",
+    label: "Pixel Snow",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/pixel-snow",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium pixelated ray-marched snow background for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "high",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source white or custom/harmony snow color plus source-shaped flake size, minimum flake size, pixel resolution, speed, depth fade, far plane, brightness, gamma, density, variant, and direction; WebGL2 port of the React Bits fragment shader without Three/R3F.",
+    component: () => reactBitsPixelSnow().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 42%, rgba(255,255,255,0.16), transparent 38%), linear-gradient(180deg, #020617 0%, #050505 100%)",
     },
   },
   {

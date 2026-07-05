@@ -46,6 +46,7 @@ export interface BackgroundEffectProps {
   reactBitsGrainient?: ReactBitsGrainientOptions
   reactBitsGridScan?: ReactBitsGridScanOptions
   reactBitsBeams?: ReactBitsBeamsOptions
+  reactBitsPixelSnow?: ReactBitsPixelSnowOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -559,6 +560,21 @@ export interface ReactBitsBeamsOptions {
   noiseIntensity?: number
   scale?: number
   rotation?: number
+}
+
+export interface ReactBitsPixelSnowOptions {
+  color?: string
+  flakeSize?: number
+  minFlakeSize?: number
+  pixelResolution?: number
+  speed?: number
+  depthFade?: number
+  farPlane?: number
+  brightness?: number
+  gamma?: number
+  density?: number
+  variant?: "square" | "round" | "snowflake"
+  direction?: number
 }
 
 export interface EldoraNovatrixOptions {

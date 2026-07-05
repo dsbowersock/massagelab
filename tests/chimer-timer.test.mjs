@@ -2430,6 +2430,67 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsBeamsRotation: -999 }).reactBitsBeamsRotation, -180)
   })
 
+  it("normalizes React Bits Pixel Snow background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsPixelSnowPaletteMode: "harmony",
+      reactBitsPixelSnowPrimaryColor: "#abcdef",
+      reactBitsPixelSnowHarmony: "triad",
+      reactBitsPixelSnowColor: "#010203",
+      reactBitsPixelSnowFlakeSize: 99,
+      reactBitsPixelSnowMinFlakeSize: 99,
+      reactBitsPixelSnowPixelResolution: 9999,
+      reactBitsPixelSnowSpeed: 99,
+      reactBitsPixelSnowDepthFade: 99,
+      reactBitsPixelSnowFarPlane: 999,
+      reactBitsPixelSnowBrightness: 99,
+      reactBitsPixelSnowGamma: 99,
+      reactBitsPixelSnowDensity: 99,
+      reactBitsPixelSnowVariant: "snowflake",
+      reactBitsPixelSnowDirection: 999,
+    })
+
+    assert.equal(settings.reactBitsPixelSnowPaletteMode, "harmony")
+    assert.equal(settings.reactBitsPixelSnowPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsPixelSnowHarmony, "triad")
+    assert.equal(settings.reactBitsPixelSnowColor, "#010203")
+    assert.equal(settings.reactBitsPixelSnowFlakeSize, 0.08)
+    assert.equal(settings.reactBitsPixelSnowMinFlakeSize, 6)
+    assert.equal(settings.reactBitsPixelSnowPixelResolution, 640)
+    assert.equal(settings.reactBitsPixelSnowSpeed, 5)
+    assert.equal(settings.reactBitsPixelSnowDepthFade, 40)
+    assert.equal(settings.reactBitsPixelSnowFarPlane, 80)
+    assert.equal(settings.reactBitsPixelSnowBrightness, 4)
+    assert.equal(settings.reactBitsPixelSnowGamma, 2)
+    assert.equal(settings.reactBitsPixelSnowDensity, 1)
+    assert.equal(settings.reactBitsPixelSnowVariant, "snowflake")
+    assert.equal(settings.reactBitsPixelSnowDirection, 360)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelSnowPaletteMode: "auto" }).reactBitsPixelSnowPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelSnowPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelSnowPrimaryColor: "white" }).reactBitsPixelSnowPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelSnowPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelSnowHarmony: "wild" }).reactBitsPixelSnowHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelSnowHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelSnowColor: "white" }).reactBitsPixelSnowColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelSnowColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelSnowSpeed: "fast" }).reactBitsPixelSnowSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelSnowSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPixelSnowVariant: "storm" }).reactBitsPixelSnowVariant,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPixelSnowVariant,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsPixelSnowDirection: -1 }).reactBitsPixelSnowDirection, 0)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
