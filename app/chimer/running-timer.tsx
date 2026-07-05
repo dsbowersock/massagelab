@@ -88,6 +88,7 @@ import {
   type ReactBitsFerrofluidPaletteMode,
   type ReactBitsLightfallPaletteMode,
   type ReactBitsLiquidEtherPaletteMode,
+  type ReactBitsPrismAnimationType,
   type EldoraHackerPaletteMode,
   type EldoraNovatrixPaletteMode,
   type EldoraPhotonBeamPaletteMode,
@@ -278,6 +279,21 @@ interface RunningTimerProps {
   reactBitsLiquidEtherAutoResumeDelay: number
   reactBitsLiquidEtherAutoRampDuration: number
   reactBitsLiquidEtherOpacity: number
+  reactBitsPrismHeight: number
+  reactBitsPrismBaseWidth: number
+  reactBitsPrismAnimationType: ReactBitsPrismAnimationType
+  reactBitsPrismGlow: number
+  reactBitsPrismOffsetX: number
+  reactBitsPrismOffsetY: number
+  reactBitsPrismNoise: number
+  reactBitsPrismTransparent: boolean
+  reactBitsPrismScale: number
+  reactBitsPrismHueShift: number
+  reactBitsPrismColorFrequency: number
+  reactBitsPrismHoverStrength: number
+  reactBitsPrismInertia: number
+  reactBitsPrismBloom: number
+  reactBitsPrismTimeScale: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -628,6 +644,21 @@ export function RunningTimer({
   reactBitsLiquidEtherAutoResumeDelay,
   reactBitsLiquidEtherAutoRampDuration,
   reactBitsLiquidEtherOpacity,
+  reactBitsPrismHeight,
+  reactBitsPrismBaseWidth,
+  reactBitsPrismAnimationType,
+  reactBitsPrismGlow,
+  reactBitsPrismOffsetX,
+  reactBitsPrismOffsetY,
+  reactBitsPrismNoise,
+  reactBitsPrismTransparent,
+  reactBitsPrismScale,
+  reactBitsPrismHueShift,
+  reactBitsPrismColorFrequency,
+  reactBitsPrismHoverStrength,
+  reactBitsPrismInertia,
+  reactBitsPrismBloom,
+  reactBitsPrismTimeScale,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -3722,6 +3753,208 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-prism" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Rotation mode</span>
+            <select
+              value={reactBitsPrismAnimationType}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismAnimationType: event.target.value as ReactBitsPrismAnimationType,
+              })}
+              aria-label="Prism rotation mode"
+            >
+              <option value="rotate">Source rotate</option>
+              <option value="3drotate">3D rotate</option>
+              <option value="hover">Hover cursor</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Height ({reactBitsPrismHeight.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsPrismHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismHeight: Number(event.target.value) })}
+              aria-label="Prism height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base width ({reactBitsPrismBaseWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="10"
+              step="0.1"
+              value={reactBitsPrismBaseWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismBaseWidth: Number(event.target.value) })}
+              aria-label="Prism base width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsPrismGlow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismGlow: Number(event.target.value) })}
+              aria-label="Prism glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom ({reactBitsPrismBloom.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismBloom}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismBloom: Number(event.target.value) })}
+              aria-label="Prism bloom"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsPrismNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.02"
+              value={reactBitsPrismNoise}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismNoise: Number(event.target.value) })}
+              aria-label="Prism noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsPrismScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="7"
+              step="0.1"
+              value={reactBitsPrismScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismScale: Number(event.target.value) })}
+              aria-label="Prism scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hue shift ({reactBitsPrismHueShift.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-3.1416"
+              max="3.1416"
+              step="0.05"
+              value={reactBitsPrismHueShift}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismHueShift: Number(event.target.value) })}
+              aria-label="Prism hue shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color frequency ({reactBitsPrismColorFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismColorFrequency}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismColorFrequency: Number(event.target.value) })}
+              aria-label="Prism color frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({reactBitsPrismTimeScale.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsPrismTimeScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismTimeScale: Number(event.target.value) })}
+              aria-label="Prism time scale"
+            />
+          </label>
+
+          {reactBitsPrismAnimationType === "hover" && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Hover strength ({reactBitsPrismHoverStrength.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="0.1"
+                  value={reactBitsPrismHoverStrength}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismHoverStrength: Number(event.target.value) })}
+                  aria-label="Prism hover strength"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Hover inertia ({reactBitsPrismInertia.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="0.4"
+                  step="0.01"
+                  value={reactBitsPrismInertia}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismInertia: Number(event.target.value) })}
+                  aria-label="Prism hover inertia"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Offset X ({reactBitsPrismOffsetX.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-400"
+              max="400"
+              step="10"
+              value={reactBitsPrismOffsetX}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismOffsetX: Number(event.target.value) })}
+              aria-label="Prism horizontal offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset Y ({reactBitsPrismOffsetY.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-400"
+              max="400"
+              step="10"
+              value={reactBitsPrismOffsetY}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismOffsetY: Number(event.target.value) })}
+              aria-label="Prism vertical offset"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Transparent blend</span>
+            <input
+              type="checkbox"
+              checked={reactBitsPrismTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismTransparent: event.target.checked })}
+              aria-label="Prism transparent blend"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -5748,6 +5981,23 @@ export function RunningTimer({
             autoResumeDelay: reactBitsLiquidEtherAutoResumeDelay,
             autoRampDuration: reactBitsLiquidEtherAutoRampDuration,
             opacity: reactBitsLiquidEtherOpacity,
+          }}
+          reactBitsPrism={{
+            height: reactBitsPrismHeight,
+            baseWidth: reactBitsPrismBaseWidth,
+            animationType: reactBitsPrismAnimationType,
+            glow: reactBitsPrismGlow,
+            offsetX: reactBitsPrismOffsetX,
+            offsetY: reactBitsPrismOffsetY,
+            noise: reactBitsPrismNoise,
+            transparent: reactBitsPrismTransparent,
+            scale: reactBitsPrismScale,
+            hueShift: reactBitsPrismHueShift,
+            colorFrequency: reactBitsPrismColorFrequency,
+            hoverStrength: reactBitsPrismHoverStrength,
+            inertia: reactBitsPrismInertia,
+            bloom: reactBitsPrismBloom,
+            timeScale: reactBitsPrismTimeScale,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

@@ -439,6 +439,65 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsLiquidEtherOpacity, 0.72)
   })
 
+  it("resets React Bits Prism controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-prism",
+      reactBitsPrismHeight: 6.2,
+      reactBitsPrismBaseWidth: 7.4,
+      reactBitsPrismAnimationType: "hover",
+      reactBitsPrismGlow: 2.4,
+      reactBitsPrismOffsetX: 120,
+      reactBitsPrismOffsetY: -80,
+      reactBitsPrismNoise: 0.2,
+      reactBitsPrismTransparent: false,
+      reactBitsPrismScale: 4.8,
+      reactBitsPrismHueShift: 1.2,
+      reactBitsPrismColorFrequency: 1.8,
+      reactBitsPrismHoverStrength: 3.2,
+      reactBitsPrismInertia: 0.18,
+      reactBitsPrismBloom: 2.6,
+      reactBitsPrismTimeScale: 1.3,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.reactBitsPrismHeight, DEFAULT_CHIMER_SETTINGS.reactBitsPrismHeight)
+    assert.equal(freeSettings.reactBitsPrismBaseWidth, DEFAULT_CHIMER_SETTINGS.reactBitsPrismBaseWidth)
+    assert.equal(freeSettings.reactBitsPrismAnimationType, DEFAULT_CHIMER_SETTINGS.reactBitsPrismAnimationType)
+    assert.equal(freeSettings.reactBitsPrismGlow, DEFAULT_CHIMER_SETTINGS.reactBitsPrismGlow)
+    assert.equal(freeSettings.reactBitsPrismOffsetX, DEFAULT_CHIMER_SETTINGS.reactBitsPrismOffsetX)
+    assert.equal(freeSettings.reactBitsPrismOffsetY, DEFAULT_CHIMER_SETTINGS.reactBitsPrismOffsetY)
+    assert.equal(freeSettings.reactBitsPrismNoise, DEFAULT_CHIMER_SETTINGS.reactBitsPrismNoise)
+    assert.equal(freeSettings.reactBitsPrismTransparent, DEFAULT_CHIMER_SETTINGS.reactBitsPrismTransparent)
+    assert.equal(freeSettings.reactBitsPrismScale, DEFAULT_CHIMER_SETTINGS.reactBitsPrismScale)
+    assert.equal(freeSettings.reactBitsPrismHueShift, DEFAULT_CHIMER_SETTINGS.reactBitsPrismHueShift)
+    assert.equal(freeSettings.reactBitsPrismColorFrequency, DEFAULT_CHIMER_SETTINGS.reactBitsPrismColorFrequency)
+    assert.equal(freeSettings.reactBitsPrismHoverStrength, DEFAULT_CHIMER_SETTINGS.reactBitsPrismHoverStrength)
+    assert.equal(freeSettings.reactBitsPrismInertia, DEFAULT_CHIMER_SETTINGS.reactBitsPrismInertia)
+    assert.equal(freeSettings.reactBitsPrismBloom, DEFAULT_CHIMER_SETTINGS.reactBitsPrismBloom)
+    assert.equal(freeSettings.reactBitsPrismTimeScale, DEFAULT_CHIMER_SETTINGS.reactBitsPrismTimeScale)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-prism")
+    assert.equal(premiumSettings.reactBitsPrismHeight, 6.2)
+    assert.equal(premiumSettings.reactBitsPrismBaseWidth, 7.4)
+    assert.equal(premiumSettings.reactBitsPrismAnimationType, "hover")
+    assert.equal(premiumSettings.reactBitsPrismGlow, 2.4)
+    assert.equal(premiumSettings.reactBitsPrismOffsetX, 120)
+    assert.equal(premiumSettings.reactBitsPrismOffsetY, -80)
+    assert.equal(premiumSettings.reactBitsPrismNoise, 0.2)
+    assert.equal(premiumSettings.reactBitsPrismTransparent, false)
+    assert.equal(premiumSettings.reactBitsPrismScale, 4.8)
+    assert.equal(premiumSettings.reactBitsPrismHueShift, 1.2)
+    assert.equal(premiumSettings.reactBitsPrismColorFrequency, 1.8)
+    assert.equal(premiumSettings.reactBitsPrismHoverStrength, 3.2)
+    assert.equal(premiumSettings.reactBitsPrismInertia, 0.18)
+    assert.equal(premiumSettings.reactBitsPrismBloom, 2.6)
+    assert.equal(premiumSettings.reactBitsPrismTimeScale, 1.3)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

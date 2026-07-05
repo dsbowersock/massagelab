@@ -26,6 +26,7 @@ export interface BackgroundEffectProps {
   reactBitsFerrofluid?: ReactBitsFerrofluidOptions
   reactBitsLightfall?: ReactBitsLightfallOptions
   reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
+  reactBitsPrism?: ReactBitsPrismOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -211,6 +212,24 @@ export interface ReactBitsLiquidEtherOptions {
   autoResumeDelay?: number
   autoRampDuration?: number
   opacity?: number
+}
+
+export interface ReactBitsPrismOptions {
+  height?: number
+  baseWidth?: number
+  animationType?: "rotate" | "3drotate" | "hover"
+  glow?: number
+  offsetX?: number
+  offsetY?: number
+  noise?: number
+  transparent?: boolean
+  scale?: number
+  hueShift?: number
+  colorFrequency?: number
+  hoverStrength?: number
+  inertia?: number
+  bloom?: number
+  timeScale?: number
 }
 
 export interface EldoraNovatrixOptions {

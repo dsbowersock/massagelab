@@ -312,6 +312,24 @@
   transform: translateZ(0);
 }
 
+.reactBitsPrism {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(190, 145, 255, 0.22), transparent 36%),
+    radial-gradient(circle at 64% 52%, rgba(255, 90, 198, 0.14), transparent 32%),
+    linear-gradient(145deg, #090214 0%, #17072f 58%, #02010a 100%);
+}
+
+.reactBitsPrismCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
 .eldoraNovatrixBackground {
   overflow: hidden;
   background:

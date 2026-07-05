@@ -1009,6 +1009,102 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Prism background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsPrismHeight: 99,
+      reactBitsPrismBaseWidth: 0,
+      reactBitsPrismAnimationType: "hover",
+      reactBitsPrismGlow: 99,
+      reactBitsPrismOffsetX: -999,
+      reactBitsPrismOffsetY: 999,
+      reactBitsPrismNoise: -1,
+      reactBitsPrismTransparent: false,
+      reactBitsPrismScale: 99,
+      reactBitsPrismHueShift: 99,
+      reactBitsPrismColorFrequency: 0,
+      reactBitsPrismHoverStrength: 99,
+      reactBitsPrismInertia: 0,
+      reactBitsPrismBloom: 99,
+      reactBitsPrismTimeScale: 99,
+    })
+
+    assert.equal(settings.reactBitsPrismHeight, 8)
+    assert.equal(settings.reactBitsPrismBaseWidth, 0.5)
+    assert.equal(settings.reactBitsPrismAnimationType, "hover")
+    assert.equal(settings.reactBitsPrismGlow, 3)
+    assert.equal(settings.reactBitsPrismOffsetX, -400)
+    assert.equal(settings.reactBitsPrismOffsetY, 400)
+    assert.equal(settings.reactBitsPrismNoise, 0)
+    assert.equal(settings.reactBitsPrismTransparent, false)
+    assert.equal(settings.reactBitsPrismScale, 7)
+    assert.equal(settings.reactBitsPrismHueShift, Math.PI)
+    assert.equal(settings.reactBitsPrismColorFrequency, 0.1)
+    assert.equal(settings.reactBitsPrismHoverStrength, 4)
+    assert.equal(settings.reactBitsPrismInertia, 0.01)
+    assert.equal(settings.reactBitsPrismBloom, 3)
+    assert.equal(settings.reactBitsPrismTimeScale, 2)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismHeight: "tall" }).reactBitsPrismHeight,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismHeight,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismBaseWidth: "wide" }).reactBitsPrismBaseWidth,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismBaseWidth,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismAnimationType: "orbit" }).reactBitsPrismAnimationType,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismAnimationType,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismGlow: "bright" }).reactBitsPrismGlow,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismGlow,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismOffsetX: "left" }).reactBitsPrismOffsetX,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismOffsetX,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismOffsetY: "up" }).reactBitsPrismOffsetY,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismOffsetY,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismNoise: "grainy" }).reactBitsPrismNoise,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismNoise,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismTransparent: "yes" }).reactBitsPrismTransparent,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismTransparent,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismScale: "large" }).reactBitsPrismScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismScale,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismHueShift: "purple" }).reactBitsPrismHueShift,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismHueShift,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismColorFrequency: "many" }).reactBitsPrismColorFrequency,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismColorFrequency,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismHoverStrength: "strong" }).reactBitsPrismHoverStrength,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismHoverStrength,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismInertia: "slow" }).reactBitsPrismInertia,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismInertia,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismBloom: "bright" }).reactBitsPrismBloom,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismBloom,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsPrismTimeScale: "fast" }).reactBitsPrismTimeScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsPrismTimeScale,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

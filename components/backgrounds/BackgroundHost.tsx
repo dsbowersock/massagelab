@@ -28,6 +28,7 @@ import type {
   ReactBitsFerrofluidOptions,
   ReactBitsLightfallOptions,
   ReactBitsLiquidEtherOptions,
+  ReactBitsPrismOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -71,6 +72,7 @@ interface BackgroundHostProps {
   reactBitsFerrofluid?: ReactBitsFerrofluidOptions
   reactBitsLightfall?: ReactBitsLightfallOptions
   reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
+  reactBitsPrism?: ReactBitsPrismOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -130,6 +132,7 @@ export function BackgroundHost({
   reactBitsFerrofluid,
   reactBitsLightfall,
   reactBitsLiquidEther,
+  reactBitsPrism,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -214,6 +217,7 @@ export function BackgroundHost({
           reactBitsFerrofluid={reactBitsFerrofluid}
           reactBitsLightfall={reactBitsLightfall}
           reactBitsLiquidEther={reactBitsLiquidEther}
+          reactBitsPrism={reactBitsPrism}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

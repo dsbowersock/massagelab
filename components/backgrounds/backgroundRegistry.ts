@@ -23,6 +23,7 @@ export type BackgroundId =
   | "react-bits-ferrofluid"
   | "react-bits-lightfall"
   | "react-bits-liquid-ether"
+  | "react-bits-prism"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -90,6 +91,7 @@ const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const reactBitsFerrofluid = () => import("./effects/react-bits-ferrofluid-background")
 const reactBitsLightfall = () => import("./effects/react-bits-lightfall-background")
 const reactBitsLiquidEther = () => import("./effects/react-bits-liquid-ether-background")
+const reactBitsPrism = () => import("./effects/react-bits-prism-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -479,6 +481,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 42% 46%, rgba(82,39,255,0.24), transparent 36%), radial-gradient(circle at 62% 58%, rgba(255,159,252,0.18), transparent 34%), linear-gradient(145deg, #070015 0%, #13072f 58%, #02010a 100%)",
+    },
+  },
+  {
+    id: "react-bits-prism",
+    label: "Prism",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/prism",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium ray-marched prism field for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source-shaped controls for prism height, base width, rotation mode including optional cursor hover, glow, bloom, noise, hue shift, color frequency, scale, time scale, transparency, and X/Y offset; source OGL shader adapted with native WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsPrism().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 48%, rgba(190,145,255,0.22), transparent 36%), radial-gradient(circle at 64% 52%, rgba(255,90,198,0.14), transparent 32%), linear-gradient(145deg, #090214 0%, #17072f 58%, #02010a 100%)",
     },
   },
   {

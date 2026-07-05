@@ -64,6 +64,7 @@ describe("premium background registry", () => {
       "react-bits-ferrofluid",
       "react-bits-lightfall",
       "react-bits-liquid-ether",
+      "react-bits-prism",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -152,6 +153,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Photon Beam/)
     assert.match(sourceDoc, /Ferrofluid/)
     assert.match(sourceDoc, /Liquid Ether/)
+    assert.match(sourceDoc, /Prism/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
@@ -165,9 +167,12 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Lightfall\.jsx/)
     assert.match(sourceDoc, /LiquidEther\.jsx/)
     assert.match(sourceDoc, /LiquidEther\.css/)
+    assert.match(sourceDoc, /Prism\.jsx/)
+    assert.match(sourceDoc, /Prism\.css/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/lightfall/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/liquid-ether/)
+    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/prism/)
     assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
@@ -263,6 +268,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("eldora-hacker-background"))
     assert.ok(chimerOptions.includes("eldora-photon-beam"))
     assert.ok(chimerOptions.includes("react-bits-liquid-ether"))
+    assert.ok(chimerOptions.includes("react-bits-prism"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -300,6 +306,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("eldora-hacker-background"))
     assert.ok(clockOptions.includes("eldora-photon-beam"))
     assert.ok(clockOptions.includes("react-bits-liquid-ether"))
+    assert.ok(clockOptions.includes("react-bits-prism"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -338,6 +345,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("eldora-hacker-background"))
     assert.ok(musicOptions.includes("eldora-photon-beam"))
     assert.ok(musicOptions.includes("react-bits-liquid-ether"))
+    assert.ok(musicOptions.includes("react-bits-prism"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1280,6 +1288,111 @@ describe("premium background registry", () => {
       "reactBitsLiquidEtherAutoResumeDelay",
       "reactBitsLiquidEtherAutoRampDuration",
       "reactBitsLiquidEtherOpacity",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Prism source-shaped, raw WebGL, and cursor-optional", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-prism-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-prism/)
+    assert.match(registrySource, /Prism/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/prism/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsPrismBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_PRISM/)
+    assert.match(effectSource, /height: 3\.5/)
+    assert.match(effectSource, /baseWidth: 5\.5/)
+    assert.match(effectSource, /animationType: "rotate"/)
+    assert.match(effectSource, /glow: 1/)
+    assert.match(effectSource, /offsetX: 0/)
+    assert.match(effectSource, /offsetY: 0/)
+    assert.match(effectSource, /noise: 0\.5/)
+    assert.match(effectSource, /transparent: true/)
+    assert.match(effectSource, /scale: 3\.6/)
+    assert.match(effectSource, /hueShift: 0/)
+    assert.match(effectSource, /colorFrequency: 1/)
+    assert.match(effectSource, /hoverStrength: 2/)
+    assert.match(effectSource, /inertia: 0\.05/)
+    assert.match(effectSource, /bloom: 1/)
+    assert.match(effectSource, /timeScale: 0\.5/)
+    assert.match(effectSource, /sdOctaAnisoInv/)
+    assert.match(effectSource, /sdPyramidUpInv/)
+    assert.match(effectSource, /hueRotation/)
+    assert.match(effectSource, /tanh4/)
+    assert.match(effectSource, /uUseBaseWobble/)
+    assert.match(effectSource, /setMat3FromEuler/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(stylesSource, /reactBitsPrism/)
+    assert.match(stylesSource, /reactBitsPrismCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsPrism/)
+    assert.match(cssEffectsSource, /ReactBitsPrismOptions/)
+    assert.match(runningSource, /reactBitsPrism=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsPrism=\{\{/)
+    assert.match(docsSource, /Prism \| https:\/\/reactbits\.dev\/backgrounds\/prism/)
+    assert.match(docsSource, /Prism\.jsx/)
+    assert.match(docsSource, /Prism\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /cursor hover/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    for (const settingKey of [
+      "reactBitsPrismHeight",
+      "reactBitsPrismBaseWidth",
+      "reactBitsPrismAnimationType",
+      "reactBitsPrismGlow",
+      "reactBitsPrismOffsetX",
+      "reactBitsPrismOffsetY",
+      "reactBitsPrismNoise",
+      "reactBitsPrismTransparent",
+      "reactBitsPrismScale",
+      "reactBitsPrismHueShift",
+      "reactBitsPrismColorFrequency",
+      "reactBitsPrismHoverStrength",
+      "reactBitsPrismInertia",
+      "reactBitsPrismBloom",
+      "reactBitsPrismTimeScale",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
