@@ -61,6 +61,7 @@ describe("premium background registry", () => {
       "chamaac-liquid-chrome",
       "chamaac-waves",
       "chamaac-synthesis",
+      "react-bits-ferrofluid",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -147,6 +148,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /Novatrix Background/)
     assert.match(sourceDoc, /Hacker Background/)
     assert.match(sourceDoc, /Photon Beam/)
+    assert.match(sourceDoc, /Ferrofluid/)
     assert.match(sourceDoc, /light-speed\.json/)
     assert.match(sourceDoc, /electric-mist\.json/)
     assert.match(sourceDoc, /astral-flow\.json/)
@@ -156,6 +158,10 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /novatrix-background\.json/)
     assert.match(sourceDoc, /hacker-background\.tsx/)
     assert.match(sourceDoc, /photon-beam\.tsx/)
+    assert.match(sourceDoc, /Ferrofluid\.jsx/)
+    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
+    assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
     assert.match(sourceDoc, /3d-globe\.json/)
     assert.match(sourceDoc, /realistic globe component with tooltips and avatar tips/)
@@ -928,6 +934,98 @@ describe("premium background registry", () => {
       "chamaacWavesSpeedX",
       "chamaacWavesSpeedY",
       "chamaacWavesAmplitude",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Ferrofluid source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-ferrofluid-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-ferrofluid/)
+    assert.match(registrySource, /Ferrofluid/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/ferrofluid/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsFerrofluidBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_FERROFLUID/)
+    assert.match(effectSource, /colors: \["#FFFFFF", "#FFFFFF", "#FFFFFF"\]/)
+    assert.match(effectSource, /speed: 0\.5/)
+    assert.match(effectSource, /scale: 1\.6/)
+    assert.match(effectSource, /turbulence: 1/)
+    assert.match(effectSource, /fluidity: 0\.1/)
+    assert.match(effectSource, /rimWidth: 0\.2/)
+    assert.match(effectSource, /sharpness: 2\.5/)
+    assert.match(effectSource, /shimmer: 1\.5/)
+    assert.match(effectSource, /glow: 2/)
+    assert.match(effectSource, /flowDirection: "down"/)
+    assert.match(effectSource, /opacity: 1/)
+    assert.match(effectSource, /uMouseEnabled/)
+    assert.match(effectSource, /uniform1f\(resources\.uniforms\.mouseEnabled, 0\)/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(stylesSource, /reactBitsFerrofluid/)
+    assert.match(stylesSource, /reactBitsFerrofluidCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsFerrofluid/)
+    assert.match(runningSource, /reactBitsFerrofluid=\{\{/)
+    assert.match(runningSource, /resolveReactBitsFerrofluidColors/)
+    assert.match(setupSource, /resolveReactBitsFerrofluidColors/)
+    assert.doesNotMatch(pageSource, /reactBitsFerrofluid=\{\{/)
+    assert.match(docsSource, /Ferrofluid \| https:\/\/reactbits\.dev\/backgrounds\/ferrofluid/)
+    assert.match(docsSource, /Ferrofluid\.jsx/)
+    assert.match(docsSource, /native WebGL/)
+    assert.match(docsSource, /cursor interaction is intentionally omitted/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    for (const settingKey of [
+      "reactBitsFerrofluidPaletteMode",
+      "reactBitsFerrofluidPrimaryColor",
+      "reactBitsFerrofluidHarmony",
+      "reactBitsFerrofluidColorOne",
+      "reactBitsFerrofluidColorTwo",
+      "reactBitsFerrofluidColorThree",
+      "reactBitsFerrofluidSpeed",
+      "reactBitsFerrofluidScale",
+      "reactBitsFerrofluidTurbulence",
+      "reactBitsFerrofluidFluidity",
+      "reactBitsFerrofluidRimWidth",
+      "reactBitsFerrofluidSharpness",
+      "reactBitsFerrofluidShimmer",
+      "reactBitsFerrofluidGlow",
+      "reactBitsFerrofluidFlowDirection",
+      "reactBitsFerrofluidOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

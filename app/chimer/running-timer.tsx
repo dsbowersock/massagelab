@@ -73,6 +73,7 @@ import {
   resolveChamaacLiquidChromeColors,
   resolveChamaacWavesColors,
   resolveChamaacSynthesisColors,
+  resolveReactBitsFerrofluidColors,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
   resolveEldoraPhotonBeamColors,
@@ -82,6 +83,7 @@ import {
   type ChamaacLiquidChromePaletteMode,
   type ChamaacWavesPaletteMode,
   type ChamaacSynthesisPaletteMode,
+  type ReactBitsFerrofluidPaletteMode,
   type EldoraHackerPaletteMode,
   type EldoraNovatrixPaletteMode,
   type EldoraPhotonBeamPaletteMode,
@@ -212,6 +214,22 @@ interface RunningTimerProps {
   chamaacWavesSpeedX: number
   chamaacWavesSpeedY: number
   chamaacWavesAmplitude: number
+  reactBitsFerrofluidPaletteMode: ReactBitsFerrofluidPaletteMode
+  reactBitsFerrofluidPrimaryColor: string
+  reactBitsFerrofluidHarmony: ColorHarmony
+  reactBitsFerrofluidColorOne: string
+  reactBitsFerrofluidColorTwo: string
+  reactBitsFerrofluidColorThree: string
+  reactBitsFerrofluidSpeed: number
+  reactBitsFerrofluidScale: number
+  reactBitsFerrofluidTurbulence: number
+  reactBitsFerrofluidFluidity: number
+  reactBitsFerrofluidRimWidth: number
+  reactBitsFerrofluidSharpness: number
+  reactBitsFerrofluidShimmer: number
+  reactBitsFerrofluidGlow: number
+  reactBitsFerrofluidFlowDirection: ChimerSettings["reactBitsFerrofluidFlowDirection"]
+  reactBitsFerrofluidOpacity: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -502,6 +520,22 @@ export function RunningTimer({
   chamaacWavesSpeedX,
   chamaacWavesSpeedY,
   chamaacWavesAmplitude,
+  reactBitsFerrofluidPaletteMode,
+  reactBitsFerrofluidPrimaryColor,
+  reactBitsFerrofluidHarmony,
+  reactBitsFerrofluidColorOne,
+  reactBitsFerrofluidColorTwo,
+  reactBitsFerrofluidColorThree,
+  reactBitsFerrofluidSpeed,
+  reactBitsFerrofluidScale,
+  reactBitsFerrofluidTurbulence,
+  reactBitsFerrofluidFluidity,
+  reactBitsFerrofluidRimWidth,
+  reactBitsFerrofluidSharpness,
+  reactBitsFerrofluidShimmer,
+  reactBitsFerrofluidGlow,
+  reactBitsFerrofluidFlowDirection,
+  reactBitsFerrofluidOpacity,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -741,6 +775,14 @@ export function RunningTimer({
     chamaacWavesColorOne,
     chamaacWavesColorTwo,
     chamaacWavesColorThree,
+  })
+  const ferrofluidColors = resolveReactBitsFerrofluidColors({
+    reactBitsFerrofluidPaletteMode,
+    reactBitsFerrofluidPrimaryColor,
+    reactBitsFerrofluidHarmony,
+    reactBitsFerrofluidColorOne,
+    reactBitsFerrofluidColorTwo,
+    reactBitsFerrofluidColorThree,
   })
   const novatrixSpeed = getEldoraNovatrixDisplaySpeed(eldoraNovatrixSpeed)
   const novatrixAmplitude = getEldoraNovatrixDisplayAmplitude(eldoraNovatrixAmplitude)
@@ -2774,6 +2816,217 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-ferrofluid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsFerrofluidPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFerrofluidPaletteMode: event.target.value as ReactBitsFerrofluidPaletteMode,
+              })}
+              aria-label="Ferrofluid color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsFerrofluidPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorOne: event.target.value })}
+                  aria-label="Ferrofluid first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorTwo: event.target.value })}
+                  aria-label="Ferrofluid second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorThree: event.target.value })}
+                  aria-label="Ferrofluid third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidPrimaryColor: event.target.value })}
+                  aria-label="Ferrofluid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsFerrofluidHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFerrofluidHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Ferrofluid color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Flow direction</span>
+            <select
+              value={reactBitsFerrofluidFlowDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFerrofluidFlowDirection: event.target.value as ChimerSettings["reactBitsFerrofluidFlowDirection"],
+              })}
+              aria-label="Ferrofluid flow direction"
+            >
+              <option value="down">Down</option>
+              <option value="up">Up</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsFerrofluidSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsFerrofluidSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidSpeed: Number(event.target.value) })}
+              aria-label="Ferrofluid animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsFerrofluidScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value={reactBitsFerrofluidScale}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidScale: Number(event.target.value) })}
+              aria-label="Ferrofluid scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Turbulence ({reactBitsFerrofluidTurbulence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsFerrofluidTurbulence}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidTurbulence: Number(event.target.value) })}
+              aria-label="Ferrofluid turbulence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fluidity ({reactBitsFerrofluidFluidity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.4"
+              step="0.001"
+              value={reactBitsFerrofluidFluidity}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidFluidity: Number(event.target.value) })}
+              aria-label="Ferrofluid fluidity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rim width ({reactBitsFerrofluidRimWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.03"
+              max="0.5"
+              step="0.01"
+              value={reactBitsFerrofluidRimWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidRimWidth: Number(event.target.value) })}
+              aria-label="Ferrofluid rim width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sharpness ({reactBitsFerrofluidSharpness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="6"
+              step="0.1"
+              value={reactBitsFerrofluidSharpness}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidSharpness: Number(event.target.value) })}
+              aria-label="Ferrofluid sharpness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Shimmer ({reactBitsFerrofluidShimmer.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={reactBitsFerrofluidShimmer}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidShimmer: Number(event.target.value) })}
+              aria-label="Ferrofluid shimmer"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsFerrofluidGlow.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={reactBitsFerrofluidGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidGlow: Number(event.target.value) })}
+              aria-label="Ferrofluid glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsFerrofluidOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsFerrofluidOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidOpacity: Number(event.target.value) })}
+              aria-label="Ferrofluid opacity"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -4749,6 +5002,19 @@ export function RunningTimer({
             waveSpeedX: chamaacWavesSpeedX,
             waveSpeedY: chamaacWavesSpeedY,
             waveAmpX: chamaacWavesAmplitude,
+          }}
+          reactBitsFerrofluid={{
+            colors: ferrofluidColors,
+            speed: reactBitsFerrofluidSpeed,
+            scale: reactBitsFerrofluidScale,
+            turbulence: reactBitsFerrofluidTurbulence,
+            fluidity: reactBitsFerrofluidFluidity,
+            rimWidth: reactBitsFerrofluidRimWidth,
+            sharpness: reactBitsFerrofluidSharpness,
+            shimmer: reactBitsFerrofluidShimmer,
+            glow: reactBitsFerrofluidGlow,
+            flowDirection: reactBitsFerrofluidFlowDirection,
+            opacity: reactBitsFerrofluidOpacity,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

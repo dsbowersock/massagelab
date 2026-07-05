@@ -36,6 +36,7 @@ export type ChamaacDeepSpaceNebulaPaletteMode = "harmony" | "custom"
 export type ChamaacLiquidChromePaletteMode = "harmony" | "custom"
 export type ChamaacWavesPaletteMode = "harmony" | "custom"
 export type ChamaacSynthesisPaletteMode = "harmony" | "custom"
+export type ReactBitsFerrofluidPaletteMode = "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -502,6 +503,22 @@ export interface ChimerSettings {
   chamaacWavesSpeedX: number
   chamaacWavesSpeedY: number
   chamaacWavesAmplitude: number
+  reactBitsFerrofluidPaletteMode: ReactBitsFerrofluidPaletteMode
+  reactBitsFerrofluidPrimaryColor: string
+  reactBitsFerrofluidHarmony: ColorHarmony
+  reactBitsFerrofluidColorOne: string
+  reactBitsFerrofluidColorTwo: string
+  reactBitsFerrofluidColorThree: string
+  reactBitsFerrofluidSpeed: number
+  reactBitsFerrofluidScale: number
+  reactBitsFerrofluidTurbulence: number
+  reactBitsFerrofluidFluidity: number
+  reactBitsFerrofluidRimWidth: number
+  reactBitsFerrofluidSharpness: number
+  reactBitsFerrofluidShimmer: number
+  reactBitsFerrofluidGlow: number
+  reactBitsFerrofluidFlowDirection: "up" | "down" | "left" | "right"
+  reactBitsFerrofluidOpacity: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -735,6 +752,16 @@ type ChamaacWavesColorSettings = Pick<
   | "chamaacWavesColorThree"
 >
 
+type ReactBitsFerrofluidColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsFerrofluidPaletteMode"
+  | "reactBitsFerrofluidPrimaryColor"
+  | "reactBitsFerrofluidHarmony"
+  | "reactBitsFerrofluidColorOne"
+  | "reactBitsFerrofluidColorTwo"
+  | "reactBitsFerrofluidColorThree"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -839,6 +866,21 @@ export function resolveChamaacWavesColors(settings: ChamaacWavesColorSettings): 
     settings.chamaacWavesColorOne,
     settings.chamaacWavesColorTwo,
     settings.chamaacWavesColorThree,
+  ]
+}
+
+export function resolveReactBitsFerrofluidColors(settings: ReactBitsFerrofluidColorSettings): [string, string, string] {
+  if (settings.reactBitsFerrofluidPaletteMode === "harmony") {
+    return createReactBitsFerrofluidHarmonyPalette(
+      settings.reactBitsFerrofluidPrimaryColor,
+      settings.reactBitsFerrofluidHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsFerrofluidColorOne,
+    settings.reactBitsFerrofluidColorTwo,
+    settings.reactBitsFerrofluidColorThree,
   ]
 }
 
@@ -1079,6 +1121,69 @@ export function createChamaacWavesHarmonyPalette(
         hslToHex(hue, waveSaturation, primaryLightness),
         hslToHex(hue + 24, Math.min(0.96, waveSaturation * 1.02), highlightLightness),
         hslToHex(hue - 28, waveSaturation * 0.84, valleyLightness),
+      ]
+  }
+}
+
+export function createReactBitsFerrofluidHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const richSaturation = Math.min(0.98, Math.max(0.42, saturation))
+  const darkLightness = Math.min(0.16, Math.max(0.04, lightness * 0.32))
+  const midLightness = Math.min(0.52, Math.max(0.24, lightness))
+  const highlightLightness = Math.min(0.9, Math.max(0.62, lightness + 0.2))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, richSaturation * 0.62, darkLightness),
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 180, Math.min(0.98, richSaturation * 1.04), highlightLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue - 12, richSaturation * 0.64, darkLightness),
+        hslToHex(hue + 150, richSaturation * 0.95, midLightness),
+        hslToHex(hue + 210, Math.min(0.98, richSaturation * 1.05), highlightLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, richSaturation * 0.62, darkLightness),
+        hslToHex(hue + 120, richSaturation * 0.96, midLightness),
+        hslToHex(hue + 240, richSaturation, highlightLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue + 180, richSaturation * 0.58, darkLightness),
+        hslToHex(hue + 90, richSaturation * 0.9, midLightness),
+        hslToHex(hue, richSaturation, highlightLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 26, richSaturation * 0.64, darkLightness),
+        hslToHex(hue, richSaturation * 0.92, midLightness),
+        hslToHex(hue + 184, Math.min(0.96, richSaturation * 0.92), highlightLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, richSaturation * 0.66, darkLightness),
+        hslToHex(hue, richSaturation * 0.82, midLightness),
+        hslToHex(hue, richSaturation * 0.62, highlightLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, richSaturation * 0.36, darkLightness),
+        hslToHex(hue, richSaturation * 0.58, midLightness),
+        hslToHex(hue, richSaturation * 0.42, highlightLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 32, richSaturation * 0.64, darkLightness),
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 32, Math.min(0.98, richSaturation * 1.02), highlightLightness),
       ]
   }
 }
@@ -3633,6 +3738,221 @@ export function SetTimer({
               value={settings.chamaacWavesAmplitude}
               onChange={(event) => onSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
               aria-label="Waves amplitude"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-ferrofluid") {
+      const useCustomPalette = settings.reactBitsFerrofluidPaletteMode === "custom"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsFerrofluidPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsFerrofluidPaletteMode: event.target.value as ReactBitsFerrofluidPaletteMode,
+              })}
+              aria-label="Ferrofluid color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomPalette ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsFerrofluidColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsFerrofluidColorOne: event.target.value })}
+                  aria-label="Ferrofluid first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsFerrofluidColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsFerrofluidColorTwo: event.target.value })}
+                  aria-label="Ferrofluid second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsFerrofluidColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsFerrofluidColorThree: event.target.value })}
+                  aria-label="Ferrofluid third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsFerrofluidPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsFerrofluidPrimaryColor: event.target.value })}
+                  aria-label="Ferrofluid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsFerrofluidHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsFerrofluidHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Ferrofluid color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Flow direction</span>
+            <select
+              value={settings.reactBitsFerrofluidFlowDirection}
+              onChange={(event) => onSettingsChange({
+                reactBitsFerrofluidFlowDirection: event.target.value as ChimerSettings["reactBitsFerrofluidFlowDirection"],
+              })}
+              aria-label="Ferrofluid flow direction"
+            >
+              <option value="down">Down</option>
+              <option value="up">Up</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({settings.reactBitsFerrofluidSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsFerrofluidSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidSpeed: Number(event.target.value) })}
+              aria-label="Ferrofluid animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({settings.reactBitsFerrofluidScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value={settings.reactBitsFerrofluidScale}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidScale: Number(event.target.value) })}
+              aria-label="Ferrofluid scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Turbulence ({settings.reactBitsFerrofluidTurbulence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsFerrofluidTurbulence}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidTurbulence: Number(event.target.value) })}
+              aria-label="Ferrofluid turbulence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fluidity ({settings.reactBitsFerrofluidFluidity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.4"
+              step="0.001"
+              value={settings.reactBitsFerrofluidFluidity}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidFluidity: Number(event.target.value) })}
+              aria-label="Ferrofluid fluidity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rim width ({settings.reactBitsFerrofluidRimWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.03"
+              max="0.5"
+              step="0.01"
+              value={settings.reactBitsFerrofluidRimWidth}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidRimWidth: Number(event.target.value) })}
+              aria-label="Ferrofluid rim width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sharpness ({settings.reactBitsFerrofluidSharpness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="6"
+              step="0.1"
+              value={settings.reactBitsFerrofluidSharpness}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidSharpness: Number(event.target.value) })}
+              aria-label="Ferrofluid sharpness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Shimmer ({settings.reactBitsFerrofluidShimmer.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={settings.reactBitsFerrofluidShimmer}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidShimmer: Number(event.target.value) })}
+              aria-label="Ferrofluid shimmer"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({settings.reactBitsFerrofluidGlow.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={settings.reactBitsFerrofluidGlow}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidGlow: Number(event.target.value) })}
+              aria-label="Ferrofluid glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(settings.reactBitsFerrofluidOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsFerrofluidOpacity}
+              onChange={(event) => onSettingsChange({ reactBitsFerrofluidOpacity: Number(event.target.value) })}
+              aria-label="Ferrofluid opacity"
             />
           </label>
         </div>

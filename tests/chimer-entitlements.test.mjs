@@ -157,6 +157,77 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.eldoraPhotonBeamBloomRadius, 1.1)
   })
 
+  it("resets React Bits Ferrofluid controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-ferrofluid",
+      reactBitsFerrofluidPaletteMode: "harmony",
+      reactBitsFerrofluidPrimaryColor: "#FFFFFF",
+      reactBitsFerrofluidHarmony: "triad",
+      reactBitsFerrofluidColorOne: "#010203",
+      reactBitsFerrofluidColorTwo: "#AABBCC",
+      reactBitsFerrofluidColorThree: "#DDEEFF",
+      reactBitsFerrofluidSpeed: 1.4,
+      reactBitsFerrofluidScale: 2.5,
+      reactBitsFerrofluidTurbulence: 1.6,
+      reactBitsFerrofluidFluidity: 0.2,
+      reactBitsFerrofluidRimWidth: 0.35,
+      reactBitsFerrofluidSharpness: 4.2,
+      reactBitsFerrofluidShimmer: 2.8,
+      reactBitsFerrofluidGlow: 3.4,
+      reactBitsFerrofluidFlowDirection: "left",
+      reactBitsFerrofluidOpacity: 0.72,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(
+      freeSettings.reactBitsFerrofluidPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidPaletteMode,
+    )
+    assert.equal(
+      freeSettings.reactBitsFerrofluidPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidPrimaryColor,
+    )
+    assert.equal(freeSettings.reactBitsFerrofluidHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidHarmony)
+    assert.equal(freeSettings.reactBitsFerrofluidColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorOne)
+    assert.equal(freeSettings.reactBitsFerrofluidColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorTwo)
+    assert.equal(freeSettings.reactBitsFerrofluidColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorThree)
+    assert.equal(freeSettings.reactBitsFerrofluidSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidSpeed)
+    assert.equal(freeSettings.reactBitsFerrofluidScale, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidScale)
+    assert.equal(freeSettings.reactBitsFerrofluidTurbulence, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidTurbulence)
+    assert.equal(freeSettings.reactBitsFerrofluidFluidity, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidFluidity)
+    assert.equal(freeSettings.reactBitsFerrofluidRimWidth, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidRimWidth)
+    assert.equal(freeSettings.reactBitsFerrofluidSharpness, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidSharpness)
+    assert.equal(freeSettings.reactBitsFerrofluidShimmer, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidShimmer)
+    assert.equal(freeSettings.reactBitsFerrofluidGlow, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidGlow)
+    assert.equal(
+      freeSettings.reactBitsFerrofluidFlowDirection,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidFlowDirection,
+    )
+    assert.equal(freeSettings.reactBitsFerrofluidOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidOpacity)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-ferrofluid")
+    assert.equal(premiumSettings.reactBitsFerrofluidPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsFerrofluidPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsFerrofluidHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsFerrofluidColorOne, "#010203")
+    assert.equal(premiumSettings.reactBitsFerrofluidColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.reactBitsFerrofluidColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.reactBitsFerrofluidSpeed, 1.4)
+    assert.equal(premiumSettings.reactBitsFerrofluidScale, 2.5)
+    assert.equal(premiumSettings.reactBitsFerrofluidTurbulence, 1.6)
+    assert.equal(premiumSettings.reactBitsFerrofluidFluidity, 0.2)
+    assert.equal(premiumSettings.reactBitsFerrofluidRimWidth, 0.35)
+    assert.equal(premiumSettings.reactBitsFerrofluidSharpness, 4.2)
+    assert.equal(premiumSettings.reactBitsFerrofluidShimmer, 2.8)
+    assert.equal(premiumSettings.reactBitsFerrofluidGlow, 3.4)
+    assert.equal(premiumSettings.reactBitsFerrofluidFlowDirection, "left")
+    assert.equal(premiumSettings.reactBitsFerrofluidOpacity, 0.72)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

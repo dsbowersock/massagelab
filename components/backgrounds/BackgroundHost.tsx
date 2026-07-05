@@ -25,6 +25,7 @@ import type {
   ChamaacLiquidChromeOptions,
   ChamaacWavesOptions,
   ChamaacSynthesisOptions,
+  ReactBitsFerrofluidOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -65,6 +66,7 @@ interface BackgroundHostProps {
   chamaacLiquidChrome?: ChamaacLiquidChromeOptions
   chamaacWaves?: ChamaacWavesOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
+  reactBitsFerrofluid?: ReactBitsFerrofluidOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -121,6 +123,7 @@ export function BackgroundHost({
   chamaacLiquidChrome,
   chamaacWaves,
   chamaacSynthesis,
+  reactBitsFerrofluid,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -202,6 +205,7 @@ export function BackgroundHost({
           chamaacLiquidChrome={chamaacLiquidChrome}
           chamaacWaves={chamaacWaves}
           chamaacSynthesis={chamaacSynthesis}
+          reactBitsFerrofluid={reactBitsFerrofluid}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

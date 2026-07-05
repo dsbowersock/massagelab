@@ -667,6 +667,96 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Ferrofluid background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsFerrofluidPaletteMode: "harmony",
+      reactBitsFerrofluidPrimaryColor: "#ffffff",
+      reactBitsFerrofluidHarmony: "triad",
+      reactBitsFerrofluidColorOne: "#010203",
+      reactBitsFerrofluidColorTwo: "#aabbcc",
+      reactBitsFerrofluidColorThree: "white",
+      reactBitsFerrofluidSpeed: 9,
+      reactBitsFerrofluidScale: 9,
+      reactBitsFerrofluidTurbulence: -1,
+      reactBitsFerrofluidFluidity: 0,
+      reactBitsFerrofluidRimWidth: 9,
+      reactBitsFerrofluidSharpness: 9,
+      reactBitsFerrofluidShimmer: 9,
+      reactBitsFerrofluidGlow: 0,
+      reactBitsFerrofluidFlowDirection: "left",
+      reactBitsFerrofluidOpacity: 0,
+    })
+
+    assert.equal(settings.reactBitsFerrofluidPaletteMode, "harmony")
+    assert.equal(settings.reactBitsFerrofluidPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsFerrofluidHarmony, "triad")
+    assert.equal(settings.reactBitsFerrofluidColorOne, "#010203")
+    assert.equal(settings.reactBitsFerrofluidColorTwo, "#AABBCC")
+    assert.equal(settings.reactBitsFerrofluidColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorThree)
+    assert.equal(settings.reactBitsFerrofluidSpeed, 2)
+    assert.equal(settings.reactBitsFerrofluidScale, 4)
+    assert.equal(settings.reactBitsFerrofluidTurbulence, 0)
+    assert.equal(settings.reactBitsFerrofluidFluidity, 0.001)
+    assert.equal(settings.reactBitsFerrofluidRimWidth, 0.5)
+    assert.equal(settings.reactBitsFerrofluidSharpness, 6)
+    assert.equal(settings.reactBitsFerrofluidShimmer, 4)
+    assert.equal(settings.reactBitsFerrofluidGlow, 0.1)
+    assert.equal(settings.reactBitsFerrofluidFlowDirection, "left")
+    assert.equal(settings.reactBitsFerrofluidOpacity, 0.05)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidSpeed: "fast" }).reactBitsFerrofluidSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidScale: "large" }).reactBitsFerrofluidScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidScale,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidTurbulence: "storm" }).reactBitsFerrofluidTurbulence,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidTurbulence,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidFluidity: "thin" }).reactBitsFerrofluidFluidity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidFluidity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidRimWidth: "wide" }).reactBitsFerrofluidRimWidth,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidRimWidth,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidSharpness: "crisp" }).reactBitsFerrofluidSharpness,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidSharpness,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidShimmer: "bright" }).reactBitsFerrofluidShimmer,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidShimmer,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidGlow: "bright" }).reactBitsFerrofluidGlow,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidGlow,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidFlowDirection: "diagonal" }).reactBitsFerrofluidFlowDirection,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidFlowDirection,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidOpacity: "clear" }).reactBitsFerrofluidOpacity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidOpacity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidPaletteMode: "demo" }).reactBitsFerrofluidPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidPrimaryColor: "white" }).reactBitsFerrofluidPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsFerrofluidHarmony: "rainbow" }).reactBitsFerrofluidHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidHarmony,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

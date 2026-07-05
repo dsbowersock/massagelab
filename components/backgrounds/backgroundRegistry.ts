@@ -20,6 +20,7 @@ export type BackgroundId =
   | "chamaac-liquid-chrome"
   | "chamaac-light-speed"
   | "chamaac-synthesis"
+  | "react-bits-ferrofluid"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -84,6 +85,7 @@ const chamaacGridBloom = () => import("./effects/chamaac-grid-bloom-background")
 const chamaacLiquidChrome = () => import("./effects/chamaac-liquid-chrome-background")
 const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
+const reactBitsFerrofluid = () => import("./effects/react-bits-ferrofluid-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -410,6 +412,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(176,38,255,0.18), transparent 38%), radial-gradient(circle at 52% 50%, rgba(51,178,255,0.1), transparent 48%), #000000",
+    },
+  },
+  {
+    id: "react-bits-ferrofluid",
+    label: "Ferrofluid",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/ferrofluid",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-04",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium glowing ferrofluid contour shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Custom or harmony-based color palettes plus source speed, scale, turbulence, fluidity, rim width, sharpness, shimmer, glow, flow direction, and opacity; source OGL shader adapted with native WebGL, pointer events disabled, and cursor interaction intentionally omitted.",
+    component: () => reactBitsFerrofluid().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 52% 48%, rgba(255,255,255,0.18), transparent 34%), radial-gradient(circle at 34% 72%, rgba(96,165,250,0.1), transparent 28%), linear-gradient(145deg, #020617 0%, #040711 58%, #000000 100%)",
     },
   },
   {
