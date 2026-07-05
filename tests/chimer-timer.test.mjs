@@ -2694,6 +2694,63 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsGalaxyRotationSpeed: -99 }).reactBitsGalaxyRotationSpeed, -2)
   })
 
+  it("normalizes React Bits Dither background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsDitherPaletteMode: "harmony",
+      reactBitsDitherPrimaryColor: "#abcdef",
+      reactBitsDitherHarmony: "triad",
+      reactBitsDitherColor: "#010203",
+      reactBitsDitherWaveSpeed: 99,
+      reactBitsDitherWaveFrequency: 99,
+      reactBitsDitherWaveAmplitude: 99,
+      reactBitsDitherColorNum: 99,
+      reactBitsDitherPixelSize: 99,
+      reactBitsDitherMouseInteraction: false,
+      reactBitsDitherMouseRadius: 99,
+    })
+
+    assert.equal(settings.reactBitsDitherPaletteMode, "harmony")
+    assert.equal(settings.reactBitsDitherPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsDitherHarmony, "triad")
+    assert.equal(settings.reactBitsDitherColor, "#010203")
+    assert.equal(settings.reactBitsDitherWaveSpeed, 0.5)
+    assert.equal(settings.reactBitsDitherWaveFrequency, 8)
+    assert.equal(settings.reactBitsDitherWaveAmplitude, 1)
+    assert.equal(settings.reactBitsDitherColorNum, 16)
+    assert.equal(settings.reactBitsDitherPixelSize, 24)
+    assert.equal(settings.reactBitsDitherMouseInteraction, false)
+    assert.equal(settings.reactBitsDitherMouseRadius, 3)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDitherPaletteMode: "auto" }).reactBitsDitherPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDitherPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDitherPrimaryColor: "white" }).reactBitsDitherPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDitherPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDitherHarmony: "wild" }).reactBitsDitherHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDitherHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDitherColor: "white" }).reactBitsDitherColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDitherColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDitherWaveSpeed: "fast" }).reactBitsDitherWaveSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDitherWaveSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsDitherMouseInteraction: "yes" }).reactBitsDitherMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsDitherMouseInteraction,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsDitherWaveFrequency: 0 }).reactBitsDitherWaveFrequency, 0.5)
+    assert.equal(sanitizeChimerSettings({ reactBitsDitherWaveAmplitude: -1 }).reactBitsDitherWaveAmplitude, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsDitherColorNum: 1 }).reactBitsDitherColorNum, 2)
+    assert.equal(sanitizeChimerSettings({ reactBitsDitherPixelSize: 0 }).reactBitsDitherPixelSize, 1)
+    assert.equal(sanitizeChimerSettings({ reactBitsDitherMouseRadius: 0 }).reactBitsDitherMouseRadius, 0.05)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

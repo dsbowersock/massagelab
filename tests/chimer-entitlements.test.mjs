@@ -2124,6 +2124,57 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsGalaxyTransparent, false)
   })
 
+  it("resets React Bits Dither controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-dither",
+      reactBitsDitherPaletteMode: "harmony",
+      reactBitsDitherPrimaryColor: "#ABCDEF",
+      reactBitsDitherHarmony: "triad",
+      reactBitsDitherColor: "#010203",
+      reactBitsDitherWaveSpeed: 0.22,
+      reactBitsDitherWaveFrequency: 5.5,
+      reactBitsDitherWaveAmplitude: 0.62,
+      reactBitsDitherColorNum: 9,
+      reactBitsDitherPixelSize: 8,
+      reactBitsDitherMouseInteraction: false,
+      reactBitsDitherMouseRadius: 1.75,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsDitherPaletteMode",
+      "reactBitsDitherPrimaryColor",
+      "reactBitsDitherHarmony",
+      "reactBitsDitherColor",
+      "reactBitsDitherWaveSpeed",
+      "reactBitsDitherWaveFrequency",
+      "reactBitsDitherWaveAmplitude",
+      "reactBitsDitherColorNum",
+      "reactBitsDitherPixelSize",
+      "reactBitsDitherMouseInteraction",
+      "reactBitsDitherMouseRadius",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-dither")
+    assert.equal(premiumSettings.reactBitsDitherPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsDitherPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsDitherHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsDitherColor, "#010203")
+    assert.equal(premiumSettings.reactBitsDitherWaveSpeed, 0.22)
+    assert.equal(premiumSettings.reactBitsDitherWaveFrequency, 5.5)
+    assert.equal(premiumSettings.reactBitsDitherWaveAmplitude, 0.62)
+    assert.equal(premiumSettings.reactBitsDitherColorNum, 9)
+    assert.equal(premiumSettings.reactBitsDitherPixelSize, 8)
+    assert.equal(premiumSettings.reactBitsDitherMouseInteraction, false)
+    assert.equal(premiumSettings.reactBitsDitherMouseRadius, 1.75)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

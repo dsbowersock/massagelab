@@ -50,6 +50,7 @@ export interface BackgroundEffectProps {
   reactBitsLightning?: ReactBitsLightningOptions
   reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
   reactBitsGalaxy?: ReactBitsGalaxyOptions
+  reactBitsDither?: ReactBitsDitherOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -618,6 +619,17 @@ export interface ReactBitsGalaxyOptions {
   rotationSpeed?: number
   autoCenterRepulsion?: number
   transparent?: boolean
+}
+
+export interface ReactBitsDitherOptions {
+  color?: string
+  waveSpeed?: number
+  waveFrequency?: number
+  waveAmplitude?: number
+  colorNum?: number
+  pixelSize?: number
+  mouseInteraction?: boolean
+  mouseRadius?: number
 }
 
 export interface EldoraNovatrixOptions {

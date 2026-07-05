@@ -1376,6 +1376,17 @@ export default function ChimerPage() {
             reactBitsGalaxyRotationSpeed={settings.reactBitsGalaxyRotationSpeed}
             reactBitsGalaxyAutoCenterRepulsion={settings.reactBitsGalaxyAutoCenterRepulsion}
             reactBitsGalaxyTransparent={settings.reactBitsGalaxyTransparent}
+            reactBitsDitherPaletteMode={settings.reactBitsDitherPaletteMode}
+            reactBitsDitherPrimaryColor={settings.reactBitsDitherPrimaryColor}
+            reactBitsDitherHarmony={settings.reactBitsDitherHarmony}
+            reactBitsDitherColor={settings.reactBitsDitherColor}
+            reactBitsDitherWaveSpeed={settings.reactBitsDitherWaveSpeed}
+            reactBitsDitherWaveFrequency={settings.reactBitsDitherWaveFrequency}
+            reactBitsDitherWaveAmplitude={settings.reactBitsDitherWaveAmplitude}
+            reactBitsDitherColorNum={settings.reactBitsDitherColorNum}
+            reactBitsDitherPixelSize={settings.reactBitsDitherPixelSize}
+            reactBitsDitherMouseInteraction={settings.reactBitsDitherMouseInteraction}
+            reactBitsDitherMouseRadius={settings.reactBitsDitherMouseRadius}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

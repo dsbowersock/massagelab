@@ -88,6 +88,7 @@ describe("premium background registry", () => {
       "react-bits-lightning",
       "react-bits-prismatic-burst",
       "react-bits-galaxy",
+      "react-bits-dither",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -321,6 +322,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-lightning"))
     assert.ok(chimerOptions.includes("react-bits-prismatic-burst"))
     assert.ok(chimerOptions.includes("react-bits-galaxy"))
+    assert.ok(chimerOptions.includes("react-bits-dither"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -382,6 +384,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-lightning"))
     assert.ok(clockOptions.includes("react-bits-prismatic-burst"))
     assert.ok(clockOptions.includes("react-bits-galaxy"))
+    assert.ok(clockOptions.includes("react-bits-dither"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -444,6 +447,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-lightning"))
     assert.ok(musicOptions.includes("react-bits-prismatic-burst"))
     assert.ok(musicOptions.includes("react-bits-galaxy"))
+    assert.ok(musicOptions.includes("react-bits-dither"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3794,6 +3798,97 @@ describe("premium background registry", () => {
       "reactBitsGalaxyRotationSpeed",
       "reactBitsGalaxyAutoCenterRepulsion",
       "reactBitsGalaxyTransparent",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Dither source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-dither-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-dither/)
+    assert.match(registrySource, /Dither/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dither/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsDitherBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_DITHER/)
+    assert.match(effectSource, /cnoise/)
+    assert.match(effectSource, /fbm/)
+    assert.match(effectSource, /pattern/)
+    assert.match(effectSource, /bayerMatrix8x8/)
+    assert.match(effectSource, /texture\(inputBuffer/)
+    assert.match(effectSource, /framebuffer/)
+    assert.match(effectSource, /#version 300 es/)
+    assert.match(effectSource, /getContext\("webgl2"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.match(effectSource, /deleteTexture/)
+    assert.match(effectSource, /deleteFramebuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.doesNotMatch(effectSource, /from "@react-three/)
+    assert.doesNotMatch(effectSource, /from "postprocessing"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsDitherCanvas/)
+    assert.match(hostSource, /reactBitsDither/)
+    assert.match(cssEffectsSource, /ReactBitsDitherOptions/)
+    assert.match(setupSource, /resolveReactBitsDitherColor/)
+    assert.match(setupSource, /createReactBitsDitherHarmonyColor/)
+    assert.match(runningSource, /reactBitsDither=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsDither=\{\{/)
+    assert.match(docsSource, /Dither \| https:\/\/reactbits\.dev\/backgrounds\/dither/)
+    assert.match(docsSource, /Dither\.jsx/)
+    assert.match(docsSource, /Dither\.css/)
+    assert.match(docsSource, /raw WebGL2/)
+    assert.match(docsSource, /Bayer/)
+
+    const settingKeys = [
+      "reactBitsDitherPaletteMode",
+      "reactBitsDitherPrimaryColor",
+      "reactBitsDitherHarmony",
+      "reactBitsDitherColor",
+      "reactBitsDitherWaveSpeed",
+      "reactBitsDitherWaveFrequency",
+      "reactBitsDitherWaveAmplitude",
+      "reactBitsDitherColorNum",
+      "reactBitsDitherPixelSize",
+      "reactBitsDitherMouseInteraction",
+      "reactBitsDitherMouseRadius",
     ]
 
     for (const settingKey of settingKeys) {

@@ -84,6 +84,7 @@ export type ReactBitsPrismaticBurstPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPrismaticBurstAnimationType = "rotate" | "rotate3d" | "hover"
 export type ReactBitsPrismaticBurstMixBlendMode = "lighten" | "screen" | "none"
 export type ReactBitsGalaxyPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsDitherPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1001,6 +1002,17 @@ export interface ChimerSettings {
   reactBitsGalaxyRotationSpeed: number
   reactBitsGalaxyAutoCenterRepulsion: number
   reactBitsGalaxyTransparent: boolean
+  reactBitsDitherPaletteMode: ReactBitsDitherPaletteMode
+  reactBitsDitherPrimaryColor: string
+  reactBitsDitherHarmony: ColorHarmony
+  reactBitsDitherColor: string
+  reactBitsDitherWaveSpeed: number
+  reactBitsDitherWaveFrequency: number
+  reactBitsDitherWaveAmplitude: number
+  reactBitsDitherColorNum: number
+  reactBitsDitherPixelSize: number
+  reactBitsDitherMouseInteraction: boolean
+  reactBitsDitherMouseRadius: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1460,6 +1472,14 @@ type ReactBitsGalaxyColorSettings = Pick<
   | "reactBitsGalaxyHarmony"
   | "reactBitsGalaxyColor"
   | "reactBitsGalaxyHueShift"
+>
+
+type ReactBitsDitherColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsDitherPaletteMode"
+  | "reactBitsDitherPrimaryColor"
+  | "reactBitsDitherHarmony"
+  | "reactBitsDitherColor"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -1990,6 +2010,21 @@ export function resolveReactBitsGalaxyHueShift(settings: ReactBitsGalaxyColorSet
   }
 
   return getHueFromHexColor(settings.reactBitsGalaxyColor)
+}
+
+export function resolveReactBitsDitherColor(settings: ReactBitsDitherColorSettings): string {
+  if (settings.reactBitsDitherPaletteMode === "source") {
+    return "#808080"
+  }
+
+  if (settings.reactBitsDitherPaletteMode === "harmony") {
+    return createReactBitsDitherHarmonyColor(
+      settings.reactBitsDitherPrimaryColor,
+      settings.reactBitsDitherHarmony,
+    )
+  }
+
+  return settings.reactBitsDitherColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3327,6 +3362,13 @@ export function createReactBitsGalaxyHarmonyHue(
   harmony: ColorHarmony,
 ): number {
   return createReactBitsLightningHarmonyHue(primaryColor, harmony)
+}
+
+export function createReactBitsDitherHarmonyColor(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): string {
+  return createReactBitsPixelSnowHarmonyColor(primaryColor, harmony)
 }
 
 export function createReactBitsPrismaticBurstHarmonyPalette(
@@ -11928,6 +11970,161 @@ export function SetTimer({
               aria-label="React Bits Galaxy center repulsion"
             />
           </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-dither") {
+      const useCustomDither = settings.reactBitsDitherPaletteMode === "custom"
+      const useHarmonyDither = settings.reactBitsDitherPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsDitherPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsDitherPaletteMode: event.target.value as ReactBitsDitherPaletteMode,
+              })}
+              aria-label="React Bits Dither color mode"
+            >
+              <option value="source">Source grey</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomDither ? (
+            <label className={styles.colorRow}>
+              <span>Dither color</span>
+              <input
+                type="color"
+                value={settings.reactBitsDitherColor}
+                onChange={(event) => onSettingsChange({ reactBitsDitherColor: event.target.value })}
+                aria-label="React Bits Dither color"
+              />
+            </label>
+          ) : null}
+
+          {useHarmonyDither ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsDitherPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsDitherPrimaryColor: event.target.value })}
+                  aria-label="React Bits Dither primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsDitherHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsDitherHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Dither color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsDitherMouseInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsDitherMouseInteraction: event.target.checked })}
+              aria-label="React Bits Dither cursor interaction"
+            />
+            <span>Cursor interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed ({settings.reactBitsDitherWaveSpeed.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.005"
+              value={settings.reactBitsDitherWaveSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsDitherWaveSpeed: Number(event.target.value) })}
+              aria-label="React Bits Dither wave speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave frequency ({settings.reactBitsDitherWaveFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsDitherWaveFrequency}
+              onChange={(event) => onSettingsChange({ reactBitsDitherWaveFrequency: Number(event.target.value) })}
+              aria-label="React Bits Dither wave frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave amplitude ({settings.reactBitsDitherWaveAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsDitherWaveAmplitude}
+              onChange={(event) => onSettingsChange({ reactBitsDitherWaveAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Dither wave amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color count ({settings.reactBitsDitherColorNum})</span>
+            <input
+              type="range"
+              min="2"
+              max="16"
+              step="1"
+              value={settings.reactBitsDitherColorNum}
+              onChange={(event) => onSettingsChange({ reactBitsDitherColorNum: Number(event.target.value) })}
+              aria-label="React Bits Dither color count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel size ({settings.reactBitsDitherPixelSize}px)</span>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              step="1"
+              value={settings.reactBitsDitherPixelSize}
+              onChange={(event) => onSettingsChange({ reactBitsDitherPixelSize: Number(event.target.value) })}
+              aria-label="React Bits Dither pixel size"
+            />
+          </label>
+
+          {settings.reactBitsDitherMouseInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Cursor radius ({settings.reactBitsDitherMouseRadius.toFixed(2)})</span>
+              <input
+                type="range"
+                min="0.05"
+                max="3"
+                step="0.05"
+                value={settings.reactBitsDitherMouseRadius}
+                onChange={(event) => onSettingsChange({ reactBitsDitherMouseRadius: Number(event.target.value) })}
+                aria-label="React Bits Dither cursor radius"
+              />
+            </label>
+          ) : null}
         </div>
       )
     }

@@ -47,6 +47,7 @@ export type BackgroundId =
   | "react-bits-lightning"
   | "react-bits-prismatic-burst"
   | "react-bits-galaxy"
+  | "react-bits-dither"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -138,6 +139,7 @@ const reactBitsPixelSnow = () => import("./effects/react-bits-pixel-snow-backgro
 const reactBitsLightning = () => import("./effects/react-bits-lightning-background")
 const reactBitsPrismaticBurst = () => import("./effects/react-bits-prismatic-burst-background")
 const reactBitsGalaxy = () => import("./effects/react-bits-galaxy-background")
+const reactBitsDither = () => import("./effects/react-bits-dither-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1052,6 +1054,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 44%, rgba(147,197,253,0.16), transparent 34%), radial-gradient(circle at 72% 24%, rgba(34,197,94,0.16), transparent 28%), #020617",
+    },
+  },
+  {
+    id: "react-bits-dither",
+    label: "Dither",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/dither",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium dithered wave/noise shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony wave color plus source-shaped wave speed, frequency, amplitude, color count, pixel size, cursor interaction, and mouse radius controls.",
+    component: () => reactBitsDither().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "linear-gradient(135deg, rgba(148,163,184,0.22), transparent 48%), repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 5px), #020617",
     },
   },
   {
