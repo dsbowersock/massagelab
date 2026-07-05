@@ -31,6 +31,7 @@ export interface BackgroundEffectProps {
   reactBitsLightPillar?: ReactBitsLightPillarOptions
   reactBitsSilk?: ReactBitsSilkOptions
   reactBitsFloatingLines?: ReactBitsFloatingLinesOptions
+  reactBitsSideRays?: ReactBitsSideRaysOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -297,6 +298,20 @@ export interface ReactBitsFloatingLinesOptions {
   parallax?: boolean
   parallaxStrength?: number
   mixBlendMode?: "screen" | "normal" | "lighten" | "plus-lighter"
+}
+
+export interface ReactBitsSideRaysOptions {
+  speed?: number
+  rayColor1?: string
+  rayColor2?: string
+  intensity?: number
+  spread?: number
+  origin?: "top-right" | "top-left" | "bottom-right" | "bottom-left"
+  tilt?: number
+  saturation?: number
+  blend?: number
+  falloff?: number
+  opacity?: number
 }
 
 export interface EldoraNovatrixOptions {

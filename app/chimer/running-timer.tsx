@@ -78,6 +78,7 @@ import {
   resolveReactBitsLiquidEtherColors,
   resolveReactBitsLightPillarColors,
   resolveReactBitsFloatingLinesGradient,
+  resolveReactBitsSideRaysColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -95,6 +96,8 @@ import {
   type ReactBitsLightPillarBlendMode,
   type ReactBitsFloatingLinesBlendMode,
   type ReactBitsFloatingLinesPaletteMode,
+  type ReactBitsSideRaysOrigin,
+  type ReactBitsSideRaysPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -365,6 +368,20 @@ interface RunningTimerProps {
   reactBitsFloatingLinesParallax: boolean
   reactBitsFloatingLinesParallaxStrength: number
   reactBitsFloatingLinesBlendMode: ReactBitsFloatingLinesBlendMode
+  reactBitsSideRaysPaletteMode: ReactBitsSideRaysPaletteMode
+  reactBitsSideRaysPrimaryColor: string
+  reactBitsSideRaysHarmony: ColorHarmony
+  reactBitsSideRaysColorOne: string
+  reactBitsSideRaysColorTwo: string
+  reactBitsSideRaysSpeed: number
+  reactBitsSideRaysIntensity: number
+  reactBitsSideRaysSpread: number
+  reactBitsSideRaysOrigin: ReactBitsSideRaysOrigin
+  reactBitsSideRaysTilt: number
+  reactBitsSideRaysSaturation: number
+  reactBitsSideRaysBlend: number
+  reactBitsSideRaysFalloff: number
+  reactBitsSideRaysOpacity: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -792,6 +809,20 @@ export function RunningTimer({
   reactBitsFloatingLinesParallax,
   reactBitsFloatingLinesParallaxStrength,
   reactBitsFloatingLinesBlendMode,
+  reactBitsSideRaysPaletteMode,
+  reactBitsSideRaysPrimaryColor,
+  reactBitsSideRaysHarmony,
+  reactBitsSideRaysColorOne,
+  reactBitsSideRaysColorTwo,
+  reactBitsSideRaysSpeed,
+  reactBitsSideRaysIntensity,
+  reactBitsSideRaysSpread,
+  reactBitsSideRaysOrigin,
+  reactBitsSideRaysTilt,
+  reactBitsSideRaysSaturation,
+  reactBitsSideRaysBlend,
+  reactBitsSideRaysFalloff,
+  reactBitsSideRaysOpacity,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1068,6 +1099,13 @@ export function RunningTimer({
     reactBitsFloatingLinesColorOne,
     reactBitsFloatingLinesColorTwo,
     reactBitsFloatingLinesColorThree,
+  })
+  const sideRaysColors = resolveReactBitsSideRaysColors({
+    reactBitsSideRaysPaletteMode,
+    reactBitsSideRaysPrimaryColor,
+    reactBitsSideRaysHarmony,
+    reactBitsSideRaysColorOne,
+    reactBitsSideRaysColorTwo,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -4957,6 +4995,198 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-side-rays" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsSideRaysPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSideRaysPaletteMode: event.target.value as ReactBitsSideRaysPaletteMode,
+              })}
+              aria-label="Side Rays color mode"
+            >
+              <option value="source">Source yellow/blue</option>
+              <option value="custom">Custom rays</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsSideRaysPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Ray color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsSideRaysColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysColorOne: event.target.value })}
+                  aria-label="Side Rays color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Ray color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsSideRaysColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysColorTwo: event.target.value })}
+                  aria-label="Side Rays color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsSideRaysPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsSideRaysPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysPrimaryColor: event.target.value })}
+                  aria-label="Side Rays primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsSideRaysHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsSideRaysHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Side Rays color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Origin</span>
+            <select
+              value={reactBitsSideRaysOrigin}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSideRaysOrigin: event.target.value as ReactBitsSideRaysOrigin,
+              })}
+              aria-label="Side Rays origin"
+            >
+              <option value="top-right">Top right</option>
+              <option value="top-left">Top left</option>
+              <option value="bottom-right">Bottom right</option>
+              <option value="bottom-left">Bottom left</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsSideRaysSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.1"
+              value={reactBitsSideRaysSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSpeed: Number(event.target.value) })}
+              aria-label="Side Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsSideRaysIntensity.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.1"
+              value={reactBitsSideRaysIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysIntensity: Number(event.target.value) })}
+              aria-label="Side Rays intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({reactBitsSideRaysSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={reactBitsSideRaysSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSpread: Number(event.target.value) })}
+              aria-label="Side Rays spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Tilt ({reactBitsSideRaysTilt.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-90"
+              max="90"
+              step="1"
+              value={reactBitsSideRaysTilt}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysTilt: Number(event.target.value) })}
+              aria-label="Side Rays tilt"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({reactBitsSideRaysSaturation.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={reactBitsSideRaysSaturation}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSaturation: Number(event.target.value) })}
+              aria-label="Side Rays saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blend ({reactBitsSideRaysBlend.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSideRaysBlend}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysBlend: Number(event.target.value) })}
+              aria-label="Side Rays blend"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Falloff ({reactBitsSideRaysFalloff.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.1"
+              value={reactBitsSideRaysFalloff}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysFalloff: Number(event.target.value) })}
+              aria-label="Side Rays falloff"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsSideRaysOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSideRaysOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysOpacity: Number(event.target.value) })}
+              aria-label="Side Rays opacity"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -7059,6 +7289,19 @@ export function RunningTimer({
             parallax: reactBitsFloatingLinesParallax,
             parallaxStrength: reactBitsFloatingLinesParallaxStrength,
             mixBlendMode: reactBitsFloatingLinesBlendMode,
+          }}
+          reactBitsSideRays={{
+            rayColor1: sideRaysColors[0],
+            rayColor2: sideRaysColors[1],
+            speed: reactBitsSideRaysSpeed,
+            intensity: reactBitsSideRaysIntensity,
+            spread: reactBitsSideRaysSpread,
+            origin: reactBitsSideRaysOrigin,
+            tilt: reactBitsSideRaysTilt,
+            saturation: reactBitsSideRaysSaturation,
+            blend: reactBitsSideRaysBlend,
+            falloff: reactBitsSideRaysFalloff,
+            opacity: reactBitsSideRaysOpacity,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

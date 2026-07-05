@@ -1402,6 +1402,68 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Side Rays background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsSideRaysPaletteMode: "harmony",
+      reactBitsSideRaysPrimaryColor: "#eab308",
+      reactBitsSideRaysHarmony: "triad",
+      reactBitsSideRaysColorOne: "#abcdef",
+      reactBitsSideRaysColorTwo: "#fedcba",
+      reactBitsSideRaysSpeed: 99,
+      reactBitsSideRaysIntensity: 99,
+      reactBitsSideRaysSpread: 0,
+      reactBitsSideRaysOrigin: "bottom-left",
+      reactBitsSideRaysTilt: -999,
+      reactBitsSideRaysSaturation: 99,
+      reactBitsSideRaysBlend: -1,
+      reactBitsSideRaysFalloff: 99,
+      reactBitsSideRaysOpacity: 2,
+    })
+
+    assert.equal(settings.reactBitsSideRaysPaletteMode, "harmony")
+    assert.equal(settings.reactBitsSideRaysPrimaryColor, "#EAB308")
+    assert.equal(settings.reactBitsSideRaysHarmony, "triad")
+    assert.equal(settings.reactBitsSideRaysColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsSideRaysColorTwo, "#FEDCBA")
+    assert.equal(settings.reactBitsSideRaysSpeed, 8)
+    assert.equal(settings.reactBitsSideRaysIntensity, 6)
+    assert.equal(settings.reactBitsSideRaysSpread, 0.1)
+    assert.equal(settings.reactBitsSideRaysOrigin, "bottom-left")
+    assert.equal(settings.reactBitsSideRaysTilt, -90)
+    assert.equal(settings.reactBitsSideRaysSaturation, 3)
+    assert.equal(settings.reactBitsSideRaysBlend, 0)
+    assert.equal(settings.reactBitsSideRaysFalloff, 4)
+    assert.equal(settings.reactBitsSideRaysOpacity, 1)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysPaletteMode: "auto" }).reactBitsSideRaysPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysPrimaryColor: "yellow" }).reactBitsSideRaysPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysHarmony: "wild" }).reactBitsSideRaysHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysColorOne: "gold" }).reactBitsSideRaysColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysColorTwo: "blue" }).reactBitsSideRaysColorTwo,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysColorTwo,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysOrigin: "center" }).reactBitsSideRaysOrigin,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysOrigin,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSideRaysSpeed: "fast" }).reactBitsSideRaysSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSpeed,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

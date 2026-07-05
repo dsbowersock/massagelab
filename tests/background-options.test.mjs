@@ -69,6 +69,7 @@ describe("premium background registry", () => {
       "react-bits-light-pillar",
       "react-bits-silk",
       "react-bits-floating-lines",
+      "react-bits-side-rays",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -283,6 +284,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-light-pillar"))
     assert.ok(chimerOptions.includes("react-bits-silk"))
     assert.ok(chimerOptions.includes("react-bits-floating-lines"))
+    assert.ok(chimerOptions.includes("react-bits-side-rays"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -325,6 +327,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-light-pillar"))
     assert.ok(clockOptions.includes("react-bits-silk"))
     assert.ok(clockOptions.includes("react-bits-floating-lines"))
+    assert.ok(clockOptions.includes("react-bits-side-rays"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -368,6 +371,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-light-pillar"))
     assert.ok(musicOptions.includes("react-bits-silk"))
     assert.ok(musicOptions.includes("react-bits-floating-lines"))
+    assert.ok(musicOptions.includes("react-bits-side-rays"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1837,6 +1841,104 @@ describe("premium background registry", () => {
       "reactBitsFloatingLinesParallax",
       "reactBitsFloatingLinesParallaxStrength",
       "reactBitsFloatingLinesBlendMode",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Side Rays source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-side-rays-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-side-rays/)
+    assert.match(registrySource, /Side Rays/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/side-rays/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsSideRaysBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_SIDE_RAYS/)
+    assert.match(effectSource, /rayStrength/)
+    assert.match(effectSource, /originToFlip/)
+    assert.match(effectSource, /iRayColor1/)
+    assert.match(effectSource, /iRayColor2/)
+    assert.match(effectSource, /iSpread/)
+    assert.match(effectSource, /iFalloff/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /speed:\s*2\.5/)
+    assert.match(effectSource, /rayColor1:\s*"#EAB308"/)
+    assert.match(effectSource, /rayColor2:\s*"#96C8FF"/)
+    assert.match(effectSource, /intensity:\s*2/)
+    assert.match(effectSource, /spread:\s*2/)
+    assert.match(effectSource, /origin:\s*"top-right"/)
+    assert.match(effectSource, /saturation:\s*1\.5/)
+    assert.match(effectSource, /blend:\s*0\.75/)
+    assert.match(effectSource, /falloff:\s*1\.6/)
+    assert.match(effectSource, /opacity:\s*1/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsSideRays/)
+    assert.match(stylesSource, /reactBitsSideRaysCanvas/)
+
+    assert.match(hostSource, /reactBitsSideRays/)
+    assert.match(cssEffectsSource, /ReactBitsSideRaysOptions/)
+    assert.match(setupSource, /resolveReactBitsSideRaysColors/)
+    assert.match(runningSource, /reactBitsSideRays=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsSideRays=\{\{/)
+    assert.match(docsSource, /Side Rays \| https:\/\/reactbits\.dev\/backgrounds\/side-rays/)
+    assert.match(docsSource, /SideRays\.jsx/)
+    assert.match(docsSource, /SideRays\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsSideRaysPaletteMode",
+      "reactBitsSideRaysPrimaryColor",
+      "reactBitsSideRaysHarmony",
+      "reactBitsSideRaysColorOne",
+      "reactBitsSideRaysColorTwo",
+      "reactBitsSideRaysSpeed",
+      "reactBitsSideRaysIntensity",
+      "reactBitsSideRaysSpread",
+      "reactBitsSideRaysOrigin",
+      "reactBitsSideRaysTilt",
+      "reactBitsSideRaysSaturation",
+      "reactBitsSideRaysBlend",
+      "reactBitsSideRaysFalloff",
+      "reactBitsSideRaysOpacity",
     ]
 
     for (const settingKey of settingKeys) {

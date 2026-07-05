@@ -848,6 +848,62 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsFloatingLinesBlendMode, "normal")
   })
 
+  it("resets React Bits Side Rays controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-side-rays",
+      reactBitsSideRaysPaletteMode: "harmony",
+      reactBitsSideRaysPrimaryColor: "#EAB308",
+      reactBitsSideRaysHarmony: "triad",
+      reactBitsSideRaysColorOne: "#ABCDEF",
+      reactBitsSideRaysColorTwo: "#FEDCBA",
+      reactBitsSideRaysSpeed: 3.5,
+      reactBitsSideRaysIntensity: 4,
+      reactBitsSideRaysSpread: 3,
+      reactBitsSideRaysOrigin: "bottom-left",
+      reactBitsSideRaysTilt: 22,
+      reactBitsSideRaysSaturation: 2,
+      reactBitsSideRaysBlend: 0.4,
+      reactBitsSideRaysFalloff: 2.2,
+      reactBitsSideRaysOpacity: 0.7,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.reactBitsSideRaysPaletteMode, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysPaletteMode)
+    assert.equal(freeSettings.reactBitsSideRaysPrimaryColor, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysPrimaryColor)
+    assert.equal(freeSettings.reactBitsSideRaysHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysHarmony)
+    assert.equal(freeSettings.reactBitsSideRaysColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysColorOne)
+    assert.equal(freeSettings.reactBitsSideRaysColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysColorTwo)
+    assert.equal(freeSettings.reactBitsSideRaysSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSpeed)
+    assert.equal(freeSettings.reactBitsSideRaysIntensity, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysIntensity)
+    assert.equal(freeSettings.reactBitsSideRaysSpread, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSpread)
+    assert.equal(freeSettings.reactBitsSideRaysOrigin, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysOrigin)
+    assert.equal(freeSettings.reactBitsSideRaysTilt, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysTilt)
+    assert.equal(freeSettings.reactBitsSideRaysSaturation, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSaturation)
+    assert.equal(freeSettings.reactBitsSideRaysBlend, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysBlend)
+    assert.equal(freeSettings.reactBitsSideRaysFalloff, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysFalloff)
+    assert.equal(freeSettings.reactBitsSideRaysOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysOpacity)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-side-rays")
+    assert.equal(premiumSettings.reactBitsSideRaysPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsSideRaysPrimaryColor, "#EAB308")
+    assert.equal(premiumSettings.reactBitsSideRaysHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsSideRaysColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsSideRaysColorTwo, "#FEDCBA")
+    assert.equal(premiumSettings.reactBitsSideRaysSpeed, 3.5)
+    assert.equal(premiumSettings.reactBitsSideRaysIntensity, 4)
+    assert.equal(premiumSettings.reactBitsSideRaysSpread, 3)
+    assert.equal(premiumSettings.reactBitsSideRaysOrigin, "bottom-left")
+    assert.equal(premiumSettings.reactBitsSideRaysTilt, 22)
+    assert.equal(premiumSettings.reactBitsSideRaysSaturation, 2)
+    assert.equal(premiumSettings.reactBitsSideRaysBlend, 0.4)
+    assert.equal(premiumSettings.reactBitsSideRaysFalloff, 2.2)
+    assert.equal(premiumSettings.reactBitsSideRaysOpacity, 0.7)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",
