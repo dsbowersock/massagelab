@@ -1329,6 +1329,75 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsRadarMouseInfluence, 0.4)
   })
 
+  it("resets React Bits Soft Aurora controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-soft-aurora",
+      reactBitsSoftAuroraPaletteMode: "harmony",
+      reactBitsSoftAuroraPrimaryColor: "#FFFFFF",
+      reactBitsSoftAuroraHarmony: "triad",
+      reactBitsSoftAuroraColorOne: "#ABCDEF",
+      reactBitsSoftAuroraColorTwo: "#010203",
+      reactBitsSoftAuroraSpeed: 1.6,
+      reactBitsSoftAuroraScale: 2.2,
+      reactBitsSoftAuroraBrightness: 1.7,
+      reactBitsSoftAuroraNoiseFrequency: 3.4,
+      reactBitsSoftAuroraNoiseAmplitude: 1.8,
+      reactBitsSoftAuroraBandHeight: 0.7,
+      reactBitsSoftAuroraBandSpread: 1.9,
+      reactBitsSoftAuroraOctaveDecay: 0.4,
+      reactBitsSoftAuroraLayerOffset: 2.5,
+      reactBitsSoftAuroraColorSpeed: 1.3,
+      reactBitsSoftAuroraEnableMouseInteraction: true,
+      reactBitsSoftAuroraMouseInfluence: 0.4,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsSoftAuroraPaletteMode",
+      "reactBitsSoftAuroraPrimaryColor",
+      "reactBitsSoftAuroraHarmony",
+      "reactBitsSoftAuroraColorOne",
+      "reactBitsSoftAuroraColorTwo",
+      "reactBitsSoftAuroraSpeed",
+      "reactBitsSoftAuroraScale",
+      "reactBitsSoftAuroraBrightness",
+      "reactBitsSoftAuroraNoiseFrequency",
+      "reactBitsSoftAuroraNoiseAmplitude",
+      "reactBitsSoftAuroraBandHeight",
+      "reactBitsSoftAuroraBandSpread",
+      "reactBitsSoftAuroraOctaveDecay",
+      "reactBitsSoftAuroraLayerOffset",
+      "reactBitsSoftAuroraColorSpeed",
+      "reactBitsSoftAuroraEnableMouseInteraction",
+      "reactBitsSoftAuroraMouseInfluence",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-soft-aurora")
+    assert.equal(premiumSettings.reactBitsSoftAuroraPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsSoftAuroraPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsSoftAuroraHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsSoftAuroraColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsSoftAuroraColorTwo, "#010203")
+    assert.equal(premiumSettings.reactBitsSoftAuroraSpeed, 1.6)
+    assert.equal(premiumSettings.reactBitsSoftAuroraScale, 2.2)
+    assert.equal(premiumSettings.reactBitsSoftAuroraBrightness, 1.7)
+    assert.equal(premiumSettings.reactBitsSoftAuroraNoiseFrequency, 3.4)
+    assert.equal(premiumSettings.reactBitsSoftAuroraNoiseAmplitude, 1.8)
+    assert.equal(premiumSettings.reactBitsSoftAuroraBandHeight, 0.7)
+    assert.equal(premiumSettings.reactBitsSoftAuroraBandSpread, 1.9)
+    assert.equal(premiumSettings.reactBitsSoftAuroraOctaveDecay, 0.4)
+    assert.equal(premiumSettings.reactBitsSoftAuroraLayerOffset, 2.5)
+    assert.equal(premiumSettings.reactBitsSoftAuroraColorSpeed, 1.3)
+    assert.equal(premiumSettings.reactBitsSoftAuroraEnableMouseInteraction, true)
+    assert.equal(premiumSettings.reactBitsSoftAuroraMouseInfluence, 0.4)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

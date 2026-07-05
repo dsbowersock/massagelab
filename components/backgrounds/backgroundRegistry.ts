@@ -35,6 +35,7 @@ export type BackgroundId =
   | "react-bits-evil-eye"
   | "react-bits-line-waves"
   | "react-bits-radar"
+  | "react-bits-soft-aurora"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -114,6 +115,7 @@ const reactBitsColorBends = () => import("./effects/react-bits-color-bends-backg
 const reactBitsEvilEye = () => import("./effects/react-bits-evil-eye-background")
 const reactBitsLineWaves = () => import("./effects/react-bits-line-waves-background")
 const reactBitsRadar = () => import("./effects/react-bits-radar-background")
+const reactBitsSoftAurora = () => import("./effects/react-bits-soft-aurora-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -755,6 +757,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 50%, rgba(159,41,255,0.18), transparent 38%), linear-gradient(135deg, #000000 0%, #07030c 100%)",
+    },
+  },
+  {
+    id: "react-bits-soft-aurora",
+    label: "Soft Aurora",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/soft-aurora",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium soft aurora band shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony aurora colors, speed, scale, brightness, noise frequency/amplitude, band height/spread, octave decay, layer offset, color speed, optional mouse shift, and mouse influence; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsSoftAurora().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 46% 64%, rgba(247,247,247,0.16), transparent 38%), radial-gradient(circle at 58% 66%, rgba(225,0,255,0.18), transparent 44%), linear-gradient(180deg, #05010d 0%, #10071e 58%, #020006 100%)",
     },
   },
   {

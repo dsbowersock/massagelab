@@ -76,6 +76,7 @@ describe("premium background registry", () => {
       "react-bits-evil-eye",
       "react-bits-line-waves",
       "react-bits-radar",
+      "react-bits-soft-aurora",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -297,6 +298,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-evil-eye"))
     assert.ok(chimerOptions.includes("react-bits-line-waves"))
     assert.ok(chimerOptions.includes("react-bits-radar"))
+    assert.ok(chimerOptions.includes("react-bits-soft-aurora"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -346,6 +348,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-evil-eye"))
     assert.ok(clockOptions.includes("react-bits-line-waves"))
     assert.ok(clockOptions.includes("react-bits-radar"))
+    assert.ok(clockOptions.includes("react-bits-soft-aurora"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -396,6 +399,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-evil-eye"))
     assert.ok(musicOptions.includes("react-bits-line-waves"))
     assert.ok(musicOptions.includes("react-bits-radar"))
+    assert.ok(musicOptions.includes("react-bits-soft-aurora"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2598,6 +2602,117 @@ describe("premium background registry", () => {
       "reactBitsRadarBrightness",
       "reactBitsRadarEnableMouseInteraction",
       "reactBitsRadarMouseInfluence",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Soft Aurora source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-soft-aurora-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-soft-aurora/)
+    assert.match(registrySource, /Soft Aurora/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/soft-aurora/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsSoftAuroraBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_SOFT_AURORA/)
+    assert.match(effectSource, /gradientHash/)
+    assert.match(effectSource, /perlin3D/)
+    assert.match(effectSource, /auroraGlow/)
+    assert.match(effectSource, /cosineGradient/)
+    assert.match(effectSource, /uNoiseFreq/)
+    assert.match(effectSource, /uNoiseAmp/)
+    assert.match(effectSource, /uBandHeight/)
+    assert.match(effectSource, /uBandSpread/)
+    assert.match(effectSource, /uOctaveDecay/)
+    assert.match(effectSource, /uLayerOffset/)
+    assert.match(effectSource, /uColorSpeed/)
+    assert.match(effectSource, /uEnableMouse/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /speed:\s*0\.6/)
+    assert.match(effectSource, /scale:\s*1\.5/)
+    assert.match(effectSource, /brightness:\s*1/)
+    assert.match(effectSource, /color1:\s*"#F7F7F7"/)
+    assert.match(effectSource, /color2:\s*"#E100FF"/)
+    assert.match(effectSource, /noiseFrequency:\s*2\.5/)
+    assert.match(effectSource, /noiseAmplitude:\s*1/)
+    assert.match(effectSource, /bandHeight:\s*0\.5/)
+    assert.match(effectSource, /bandSpread:\s*1/)
+    assert.match(effectSource, /octaveDecay:\s*0\.1/)
+    assert.match(effectSource, /layerOffset:\s*0/)
+    assert.match(effectSource, /colorSpeed:\s*1/)
+    assert.match(effectSource, /enableMouseInteraction:\s*false/)
+    assert.match(effectSource, /mouseInfluence:\s*0\.25/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsSoftAurora/)
+    assert.match(stylesSource, /reactBitsSoftAuroraCanvas/)
+
+    assert.match(hostSource, /reactBitsSoftAurora/)
+    assert.match(cssEffectsSource, /ReactBitsSoftAuroraOptions/)
+    assert.match(setupSource, /resolveReactBitsSoftAuroraColors/)
+    assert.match(runningSource, /reactBitsSoftAurora=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsSoftAurora=\{\{/)
+    assert.match(docsSource, /Soft Aurora \| https:\/\/reactbits\.dev\/backgrounds\/soft-aurora/)
+    assert.match(docsSource, /SoftAurora\.jsx/)
+    assert.match(docsSource, /SoftAurora\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsSoftAuroraPaletteMode",
+      "reactBitsSoftAuroraPrimaryColor",
+      "reactBitsSoftAuroraHarmony",
+      "reactBitsSoftAuroraColorOne",
+      "reactBitsSoftAuroraColorTwo",
+      "reactBitsSoftAuroraSpeed",
+      "reactBitsSoftAuroraScale",
+      "reactBitsSoftAuroraBrightness",
+      "reactBitsSoftAuroraNoiseFrequency",
+      "reactBitsSoftAuroraNoiseAmplitude",
+      "reactBitsSoftAuroraBandHeight",
+      "reactBitsSoftAuroraBandSpread",
+      "reactBitsSoftAuroraOctaveDecay",
+      "reactBitsSoftAuroraLayerOffset",
+      "reactBitsSoftAuroraColorSpeed",
+      "reactBitsSoftAuroraEnableMouseInteraction",
+      "reactBitsSoftAuroraMouseInfluence",
     ]
 
     for (const settingKey of settingKeys) {

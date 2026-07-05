@@ -1894,6 +1894,70 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Soft Aurora background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsSoftAuroraPaletteMode: "harmony",
+      reactBitsSoftAuroraPrimaryColor: "#ffffff",
+      reactBitsSoftAuroraHarmony: "triad",
+      reactBitsSoftAuroraColorOne: "#abcdef",
+      reactBitsSoftAuroraColorTwo: "#010203",
+      reactBitsSoftAuroraSpeed: 99,
+      reactBitsSoftAuroraScale: 99,
+      reactBitsSoftAuroraBrightness: 99,
+      reactBitsSoftAuroraNoiseFrequency: 99,
+      reactBitsSoftAuroraNoiseAmplitude: 99,
+      reactBitsSoftAuroraBandHeight: -99,
+      reactBitsSoftAuroraBandSpread: 99,
+      reactBitsSoftAuroraOctaveDecay: 99,
+      reactBitsSoftAuroraLayerOffset: -99,
+      reactBitsSoftAuroraColorSpeed: 99,
+      reactBitsSoftAuroraEnableMouseInteraction: true,
+      reactBitsSoftAuroraMouseInfluence: 99,
+    })
+
+    assert.equal(settings.reactBitsSoftAuroraPaletteMode, "harmony")
+    assert.equal(settings.reactBitsSoftAuroraPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsSoftAuroraHarmony, "triad")
+    assert.equal(settings.reactBitsSoftAuroraColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsSoftAuroraColorTwo, "#010203")
+    assert.equal(settings.reactBitsSoftAuroraSpeed, 3)
+    assert.equal(settings.reactBitsSoftAuroraScale, 4)
+    assert.equal(settings.reactBitsSoftAuroraBrightness, 3)
+    assert.equal(settings.reactBitsSoftAuroraNoiseFrequency, 8)
+    assert.equal(settings.reactBitsSoftAuroraNoiseAmplitude, 4)
+    assert.equal(settings.reactBitsSoftAuroraBandHeight, -1)
+    assert.equal(settings.reactBitsSoftAuroraBandSpread, 4)
+    assert.equal(settings.reactBitsSoftAuroraOctaveDecay, 1)
+    assert.equal(settings.reactBitsSoftAuroraLayerOffset, -6)
+    assert.equal(settings.reactBitsSoftAuroraColorSpeed, 4)
+    assert.equal(settings.reactBitsSoftAuroraEnableMouseInteraction, true)
+    assert.equal(settings.reactBitsSoftAuroraMouseInfluence, 1)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSoftAuroraPaletteMode: "auto" }).reactBitsSoftAuroraPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSoftAuroraPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSoftAuroraPrimaryColor: "white" }).reactBitsSoftAuroraPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSoftAuroraPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSoftAuroraHarmony: "wild" }).reactBitsSoftAuroraHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSoftAuroraHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSoftAuroraColorOne: "white" }).reactBitsSoftAuroraColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSoftAuroraColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSoftAuroraSpeed: "fast" }).reactBitsSoftAuroraSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSoftAuroraSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSoftAuroraEnableMouseInteraction: "yes" }).reactBitsSoftAuroraEnableMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSoftAuroraEnableMouseInteraction,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

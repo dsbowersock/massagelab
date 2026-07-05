@@ -85,6 +85,7 @@ import {
   resolveReactBitsEvilEyeColor,
   resolveReactBitsLineWavesColors,
   resolveReactBitsRadarColor,
+  resolveReactBitsSoftAuroraColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -112,6 +113,7 @@ import {
   type ReactBitsEvilEyePaletteMode,
   type ReactBitsLineWavesPaletteMode,
   type ReactBitsRadarPaletteMode,
+  type ReactBitsSoftAuroraPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -503,6 +505,23 @@ interface RunningTimerProps {
   reactBitsRadarBrightness: number
   reactBitsRadarEnableMouseInteraction: boolean
   reactBitsRadarMouseInfluence: number
+  reactBitsSoftAuroraPaletteMode: ReactBitsSoftAuroraPaletteMode
+  reactBitsSoftAuroraPrimaryColor: string
+  reactBitsSoftAuroraHarmony: ColorHarmony
+  reactBitsSoftAuroraColorOne: string
+  reactBitsSoftAuroraColorTwo: string
+  reactBitsSoftAuroraSpeed: number
+  reactBitsSoftAuroraScale: number
+  reactBitsSoftAuroraBrightness: number
+  reactBitsSoftAuroraNoiseFrequency: number
+  reactBitsSoftAuroraNoiseAmplitude: number
+  reactBitsSoftAuroraBandHeight: number
+  reactBitsSoftAuroraBandSpread: number
+  reactBitsSoftAuroraOctaveDecay: number
+  reactBitsSoftAuroraLayerOffset: number
+  reactBitsSoftAuroraColorSpeed: number
+  reactBitsSoftAuroraEnableMouseInteraction: boolean
+  reactBitsSoftAuroraMouseInfluence: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1051,6 +1070,23 @@ export function RunningTimer({
   reactBitsRadarBrightness,
   reactBitsRadarEnableMouseInteraction,
   reactBitsRadarMouseInfluence,
+  reactBitsSoftAuroraPaletteMode,
+  reactBitsSoftAuroraPrimaryColor,
+  reactBitsSoftAuroraHarmony,
+  reactBitsSoftAuroraColorOne,
+  reactBitsSoftAuroraColorTwo,
+  reactBitsSoftAuroraSpeed,
+  reactBitsSoftAuroraScale,
+  reactBitsSoftAuroraBrightness,
+  reactBitsSoftAuroraNoiseFrequency,
+  reactBitsSoftAuroraNoiseAmplitude,
+  reactBitsSoftAuroraBandHeight,
+  reactBitsSoftAuroraBandSpread,
+  reactBitsSoftAuroraOctaveDecay,
+  reactBitsSoftAuroraLayerOffset,
+  reactBitsSoftAuroraColorSpeed,
+  reactBitsSoftAuroraEnableMouseInteraction,
+  reactBitsSoftAuroraMouseInfluence,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1375,6 +1411,13 @@ export function RunningTimer({
     reactBitsRadarPrimaryColor,
     reactBitsRadarHarmony,
     reactBitsRadarColor,
+  })
+  const softAuroraColors = resolveReactBitsSoftAuroraColors({
+    reactBitsSoftAuroraPaletteMode,
+    reactBitsSoftAuroraPrimaryColor,
+    reactBitsSoftAuroraHarmony,
+    reactBitsSoftAuroraColorOne,
+    reactBitsSoftAuroraColorTwo,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -6855,6 +6898,239 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-soft-aurora" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsSoftAuroraPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraPaletteMode: event.target.value as ReactBitsSoftAuroraPaletteMode,
+              })}
+              aria-label="React Bits Soft Aurora color mode"
+            >
+              <option value="source">Source white and magenta</option>
+              <option value="custom">Custom aurora</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsSoftAuroraPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Aurora color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsSoftAuroraColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorOne: event.target.value })}
+                  aria-label="React Bits Soft Aurora color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Aurora color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsSoftAuroraColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorTwo: event.target.value })}
+                  aria-label="React Bits Soft Aurora color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsSoftAuroraPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsSoftAuroraPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraPrimaryColor: event.target.value })}
+                  aria-label="React Bits Soft Aurora primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsSoftAuroraHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsSoftAuroraHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Soft Aurora color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <span>Mouse shift</span>
+            <input
+              type="checkbox"
+              checked={reactBitsSoftAuroraEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Soft Aurora mouse shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsSoftAuroraSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsSoftAuroraSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraSpeed: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsSoftAuroraScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraScale}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraScale: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsSoftAuroraBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsSoftAuroraBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBrightness: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise frequency ({reactBitsSoftAuroraNoiseFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="8"
+              step="0.05"
+              value={reactBitsSoftAuroraNoiseFrequency}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraNoiseFrequency: Number(event.target.value),
+              })}
+              aria-label="React Bits Soft Aurora noise frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise amplitude ({reactBitsSoftAuroraNoiseAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraNoiseAmplitude}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraNoiseAmplitude: Number(event.target.value),
+              })}
+              aria-label="React Bits Soft Aurora noise amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band height ({reactBitsSoftAuroraBandHeight.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="2"
+              step="0.05"
+              value={reactBitsSoftAuroraBandHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBandHeight: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora band height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band spread ({reactBitsSoftAuroraBandSpread.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraBandSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBandSpread: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora band spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Octave decay ({reactBitsSoftAuroraOctaveDecay.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSoftAuroraOctaveDecay}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraOctaveDecay: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora octave decay"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Layer offset ({reactBitsSoftAuroraLayerOffset.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-6"
+              max="6"
+              step="0.05"
+              value={reactBitsSoftAuroraLayerOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraLayerOffset: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora layer offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color speed ({reactBitsSoftAuroraColorSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraColorSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorSpeed: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora color speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsSoftAuroraMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSoftAuroraMouseInfluence}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraMouseInfluence: Number(event.target.value),
+              })}
+              aria-label="React Bits Soft Aurora mouse influence"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -9068,6 +9344,22 @@ export function RunningTimer({
             brightness: reactBitsRadarBrightness,
             enableMouseInteraction: reactBitsRadarEnableMouseInteraction,
             mouseInfluence: reactBitsRadarMouseInfluence,
+          }}
+          reactBitsSoftAurora={{
+            color1: softAuroraColors[0],
+            color2: softAuroraColors[1],
+            speed: reactBitsSoftAuroraSpeed,
+            scale: reactBitsSoftAuroraScale,
+            brightness: reactBitsSoftAuroraBrightness,
+            noiseFrequency: reactBitsSoftAuroraNoiseFrequency,
+            noiseAmplitude: reactBitsSoftAuroraNoiseAmplitude,
+            bandHeight: reactBitsSoftAuroraBandHeight,
+            bandSpread: reactBitsSoftAuroraBandSpread,
+            octaveDecay: reactBitsSoftAuroraOctaveDecay,
+            layerOffset: reactBitsSoftAuroraLayerOffset,
+            colorSpeed: reactBitsSoftAuroraColorSpeed,
+            enableMouseInteraction: reactBitsSoftAuroraEnableMouseInteraction,
+            mouseInfluence: reactBitsSoftAuroraMouseInfluence,
           }}
           eldoraNovatrix={{
             color: novatrixColor,
