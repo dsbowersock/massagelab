@@ -366,6 +366,24 @@
   transform: translateZ(0);
 }
 
+.reactBitsSilk {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 48% 44%, rgba(123, 116, 129, 0.32), transparent 36%),
+    radial-gradient(circle at 58% 58%, rgba(203, 183, 218, 0.16), transparent 42%),
+    linear-gradient(145deg, #07060a 0%, #181320 58%, #040307 100%);
+}
+
+.reactBitsSilkCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
 .eldoraNovatrixBackground {
   overflow: hidden;
   background:

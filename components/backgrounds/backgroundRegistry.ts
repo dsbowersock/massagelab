@@ -26,6 +26,7 @@ export type BackgroundId =
   | "react-bits-prism"
   | "react-bits-dark-veil"
   | "react-bits-light-pillar"
+  | "react-bits-silk"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -96,6 +97,7 @@ const reactBitsLiquidEther = () => import("./effects/react-bits-liquid-ether-bac
 const reactBitsPrism = () => import("./effects/react-bits-prism-background")
 const reactBitsDarkVeil = () => import("./effects/react-bits-dark-veil-background")
 const reactBitsLightPillar = () => import("./effects/react-bits-light-pillar-background")
+const reactBitsSilk = () => import("./effects/react-bits-silk-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -548,6 +550,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 50% 46%, rgba(82,39,255,0.24), transparent 32%), radial-gradient(circle at 50% 54%, rgba(255,159,252,0.18), transparent 42%), linear-gradient(145deg, #050013 0%, #120424 56%, #020007 100%)",
+    },
+  },
+  {
+    id: "react-bits-silk",
+    label: "Silk",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/silk",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium silk-wave shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Custom or harmony-based color plus source-shaped speed, scale, noise intensity, and rotation controls; source Three/R3F shader adapted with native WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsSilk().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 48% 44%, rgba(123,116,129,0.32), transparent 36%), radial-gradient(circle at 58% 58%, rgba(203,183,218,0.16), transparent 42%), linear-gradient(145deg, #07060a 0%, #181320 58%, #040307 100%)",
     },
   },
   {

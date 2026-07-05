@@ -1022,6 +1022,14 @@ export default function ChimerPage() {
             reactBitsLightPillarBlendMode={settings.reactBitsLightPillarBlendMode}
             reactBitsLightPillarRotation={settings.reactBitsLightPillarRotation}
             reactBitsLightPillarQuality={settings.reactBitsLightPillarQuality}
+            reactBitsSilkPaletteMode={settings.reactBitsSilkPaletteMode}
+            reactBitsSilkPrimaryColor={settings.reactBitsSilkPrimaryColor}
+            reactBitsSilkHarmony={settings.reactBitsSilkHarmony}
+            reactBitsSilkColor={settings.reactBitsSilkColor}
+            reactBitsSilkSpeed={settings.reactBitsSilkSpeed}
+            reactBitsSilkScale={settings.reactBitsSilkScale}
+            reactBitsSilkNoiseIntensity={settings.reactBitsSilkNoiseIntensity}
+            reactBitsSilkRotation={settings.reactBitsSilkRotation}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

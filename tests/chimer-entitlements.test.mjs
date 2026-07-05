@@ -625,6 +625,44 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsLightPillarQuality, "medium")
   })
 
+  it("resets React Bits Silk controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-silk",
+      reactBitsSilkPaletteMode: "harmony",
+      reactBitsSilkPrimaryColor: "#123456",
+      reactBitsSilkHarmony: "triad",
+      reactBitsSilkColor: "#ABCDEF",
+      reactBitsSilkSpeed: 7.5,
+      reactBitsSilkScale: 2.4,
+      reactBitsSilkNoiseIntensity: 2.2,
+      reactBitsSilkRotation: 1.4,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.reactBitsSilkPaletteMode, DEFAULT_CHIMER_SETTINGS.reactBitsSilkPaletteMode)
+    assert.equal(freeSettings.reactBitsSilkPrimaryColor, DEFAULT_CHIMER_SETTINGS.reactBitsSilkPrimaryColor)
+    assert.equal(freeSettings.reactBitsSilkHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsSilkHarmony)
+    assert.equal(freeSettings.reactBitsSilkColor, DEFAULT_CHIMER_SETTINGS.reactBitsSilkColor)
+    assert.equal(freeSettings.reactBitsSilkSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsSilkSpeed)
+    assert.equal(freeSettings.reactBitsSilkScale, DEFAULT_CHIMER_SETTINGS.reactBitsSilkScale)
+    assert.equal(freeSettings.reactBitsSilkNoiseIntensity, DEFAULT_CHIMER_SETTINGS.reactBitsSilkNoiseIntensity)
+    assert.equal(freeSettings.reactBitsSilkRotation, DEFAULT_CHIMER_SETTINGS.reactBitsSilkRotation)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-silk")
+    assert.equal(premiumSettings.reactBitsSilkPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsSilkPrimaryColor, "#123456")
+    assert.equal(premiumSettings.reactBitsSilkHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsSilkColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsSilkSpeed, 7.5)
+    assert.equal(premiumSettings.reactBitsSilkScale, 2.4)
+    assert.equal(premiumSettings.reactBitsSilkNoiseIntensity, 2.2)
+    assert.equal(premiumSettings.reactBitsSilkRotation, 1.4)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

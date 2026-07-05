@@ -31,6 +31,7 @@ import type {
   ReactBitsPrismOptions,
   ReactBitsDarkVeilOptions,
   ReactBitsLightPillarOptions,
+  ReactBitsSilkOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -77,6 +78,7 @@ interface BackgroundHostProps {
   reactBitsPrism?: ReactBitsPrismOptions
   reactBitsDarkVeil?: ReactBitsDarkVeilOptions
   reactBitsLightPillar?: ReactBitsLightPillarOptions
+  reactBitsSilk?: ReactBitsSilkOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -139,6 +141,7 @@ export function BackgroundHost({
   reactBitsPrism,
   reactBitsDarkVeil,
   reactBitsLightPillar,
+  reactBitsSilk,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -226,6 +229,7 @@ export function BackgroundHost({
           reactBitsPrism={reactBitsPrism}
           reactBitsDarkVeil={reactBitsDarkVeil}
           reactBitsLightPillar={reactBitsLightPillar}
+          reactBitsSilk={reactBitsSilk}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

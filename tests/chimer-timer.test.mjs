@@ -1253,6 +1253,60 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Silk background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsSilkPaletteMode: "harmony",
+      reactBitsSilkPrimaryColor: "#123456",
+      reactBitsSilkHarmony: "triad",
+      reactBitsSilkColor: "#abcdef",
+      reactBitsSilkSpeed: 99,
+      reactBitsSilkScale: 0,
+      reactBitsSilkNoiseIntensity: 99,
+      reactBitsSilkRotation: 99,
+    })
+
+    assert.equal(settings.reactBitsSilkPaletteMode, "harmony")
+    assert.equal(settings.reactBitsSilkPrimaryColor, "#123456")
+    assert.equal(settings.reactBitsSilkHarmony, "triad")
+    assert.equal(settings.reactBitsSilkColor, "#ABCDEF")
+    assert.equal(settings.reactBitsSilkSpeed, 10)
+    assert.equal(settings.reactBitsSilkScale, 0.2)
+    assert.equal(settings.reactBitsSilkNoiseIntensity, 4)
+    assert.equal(settings.reactBitsSilkRotation, Math.PI)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkPaletteMode: "auto" }).reactBitsSilkPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkPrimaryColor: "purple" }).reactBitsSilkPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkHarmony: "wild" }).reactBitsSilkHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkColor: "violet" }).reactBitsSilkColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkSpeed: "fast" }).reactBitsSilkSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkScale: "large" }).reactBitsSilkScale,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkScale,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkNoiseIntensity: "grainy" }).reactBitsSilkNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkNoiseIntensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsSilkRotation: "tilted" }).reactBitsSilkRotation,
+      DEFAULT_CHIMER_SETTINGS.reactBitsSilkRotation,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

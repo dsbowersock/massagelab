@@ -43,6 +43,7 @@ export type ReactBitsPrismAnimationType = "rotate" | "3drotate" | "hover"
 export type ReactBitsLightPillarPaletteMode = "harmony" | "custom"
 export type ReactBitsLightPillarBlendMode = "screen" | "normal" | "lighten" | "plus-lighter"
 export type ReactBitsLightPillarQuality = "low" | "medium" | "high"
+export type ReactBitsSilkPaletteMode = "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -606,6 +607,14 @@ export interface ChimerSettings {
   reactBitsLightPillarBlendMode: ReactBitsLightPillarBlendMode
   reactBitsLightPillarRotation: number
   reactBitsLightPillarQuality: ReactBitsLightPillarQuality
+  reactBitsSilkPaletteMode: ReactBitsSilkPaletteMode
+  reactBitsSilkPrimaryColor: string
+  reactBitsSilkHarmony: ColorHarmony
+  reactBitsSilkColor: string
+  reactBitsSilkSpeed: number
+  reactBitsSilkScale: number
+  reactBitsSilkNoiseIntensity: number
+  reactBitsSilkRotation: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -878,6 +887,14 @@ type ReactBitsLightPillarColorSettings = Pick<
   | "reactBitsLightPillarBottomColor"
 >
 
+type ReactBitsSilkColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsSilkPaletteMode"
+  | "reactBitsSilkPrimaryColor"
+  | "reactBitsSilkHarmony"
+  | "reactBitsSilkColor"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1046,6 +1063,17 @@ export function resolveReactBitsLightPillarColors(
     settings.reactBitsLightPillarTopColor,
     settings.reactBitsLightPillarBottomColor,
   ]
+}
+
+export function resolveReactBitsSilkColor(settings: ReactBitsSilkColorSettings): string {
+  if (settings.reactBitsSilkPaletteMode === "harmony") {
+    return createReactBitsSilkHarmonyColor(
+      settings.reactBitsSilkPrimaryColor,
+      settings.reactBitsSilkHarmony,
+    )
+  }
+
+  return settings.reactBitsSilkColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -1466,6 +1494,32 @@ export function createReactBitsLightPillarHarmonyPalette(
         hslToHex(hue - 28, vividSaturation * 0.86, topLightness),
         hslToHex(hue + 32, Math.min(0.98, vividSaturation), bottomLightness),
       ]
+  }
+}
+
+export function createReactBitsSilkHarmonyColor(primaryColor: string, harmony: ColorHarmony): string {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const silkSaturation = Math.min(0.88, Math.max(0.24, saturation))
+  const silkLightness = Math.min(0.72, Math.max(0.28, lightness))
+
+  switch (harmony) {
+    case "complementary":
+      return hslToHex(hue + 180, Math.min(0.86, silkSaturation * 0.86), silkLightness)
+    case "split-complementary":
+      return hslToHex(hue + 150, Math.min(0.88, silkSaturation * 0.9), silkLightness)
+    case "triad":
+      return hslToHex(hue + 120, Math.min(0.88, silkSaturation * 0.92), silkLightness)
+    case "square":
+      return hslToHex(hue + 90, Math.min(0.84, silkSaturation * 0.88), silkLightness)
+    case "compound":
+      return hslToHex(hue + 184, Math.min(0.88, silkSaturation * 0.9), Math.min(0.74, silkLightness + 0.04))
+    case "shades":
+      return hslToHex(hue, Math.min(0.82, silkSaturation * 0.7), Math.min(0.78, silkLightness + 0.1))
+    case "monochromatic":
+      return hslToHex(hue, Math.min(0.78, silkSaturation * 0.58), Math.min(0.76, silkLightness + 0.06))
+    case "analogous":
+    default:
+      return hslToHex(hue + 28, Math.min(0.88, silkSaturation * 0.86), silkLightness)
   }
 }
 
@@ -5402,6 +5456,120 @@ export function SetTimer({
               value={settings.reactBitsLightPillarRotation}
               onChange={(event) => onSettingsChange({ reactBitsLightPillarRotation: Number(event.target.value) })}
               aria-label="Light Pillar rotation"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-silk") {
+      const useCustomColor = settings.reactBitsSilkPaletteMode === "custom"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsSilkPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsSilkPaletteMode: event.target.value as ReactBitsSilkPaletteMode,
+              })}
+              aria-label="Silk color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomColor ? (
+            <label className={styles.colorRow}>
+              <span>Silk color</span>
+              <input
+                type="color"
+                value={settings.reactBitsSilkColor}
+                onChange={(event) => onSettingsChange({ reactBitsSilkColor: event.target.value })}
+                aria-label="Silk color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsSilkPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsSilkPrimaryColor: event.target.value })}
+                  aria-label="Silk primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsSilkHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsSilkHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Silk color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsSilkSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.1"
+              value={settings.reactBitsSilkSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsSilkSpeed: Number(event.target.value) })}
+              aria-label="Silk speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({settings.reactBitsSilkScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsSilkScale}
+              onChange={(event) => onSettingsChange({ reactBitsSilkScale: Number(event.target.value) })}
+              aria-label="Silk scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsSilkNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsSilkNoiseIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsSilkNoiseIntensity: Number(event.target.value) })}
+              aria-label="Silk noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({settings.reactBitsSilkRotation.toFixed(2)} rad)</span>
+            <input
+              type="range"
+              min="-3.1416"
+              max="3.1416"
+              step="0.05"
+              value={settings.reactBitsSilkRotation}
+              onChange={(event) => onSettingsChange({ reactBitsSilkRotation: Number(event.target.value) })}
+              aria-label="Silk rotation"
             />
           </label>
         </div>

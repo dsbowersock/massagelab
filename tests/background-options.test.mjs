@@ -67,6 +67,7 @@ describe("premium background registry", () => {
       "react-bits-prism",
       "react-bits-dark-veil",
       "react-bits-light-pillar",
+      "react-bits-silk",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -279,6 +280,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-prism"))
     assert.ok(chimerOptions.includes("react-bits-dark-veil"))
     assert.ok(chimerOptions.includes("react-bits-light-pillar"))
+    assert.ok(chimerOptions.includes("react-bits-silk"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -319,6 +321,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-prism"))
     assert.ok(clockOptions.includes("react-bits-dark-veil"))
     assert.ok(clockOptions.includes("react-bits-light-pillar"))
+    assert.ok(clockOptions.includes("react-bits-silk"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -360,6 +363,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-prism"))
     assert.ok(musicOptions.includes("react-bits-dark-veil"))
     assert.ok(musicOptions.includes("react-bits-light-pillar"))
+    assert.ok(musicOptions.includes("react-bits-silk"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -1618,6 +1622,104 @@ describe("premium background registry", () => {
       "reactBitsLightPillarBlendMode",
       "reactBitsLightPillarRotation",
       "reactBitsLightPillarQuality",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Silk source-shaped, raw WebGL, customizable, and passive", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-silk-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-silk/)
+    assert.match(registrySource, /Silk/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/silk/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsSilkBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_SILK/)
+    assert.match(effectSource, /color: "#7B7481"/)
+    assert.match(effectSource, /speed: 5/)
+    assert.match(effectSource, /scale: 1/)
+    assert.match(effectSource, /noiseIntensity: 1\.5/)
+    assert.match(effectSource, /rotation: 0/)
+    assert.match(effectSource, /uniform float uTime/)
+    assert.match(effectSource, /uniform vec3\s+uColor/)
+    assert.match(effectSource, /uniform float uSpeed/)
+    assert.match(effectSource, /uniform float uScale/)
+    assert.match(effectSource, /uniform float uRotation/)
+    assert.match(effectSource, /uniform float uNoiseIntensity/)
+    assert.match(effectSource, /float noise\(vec2 texCoord\)/)
+    assert.match(effectSource, /vec2 rotateUvs\(vec2 uv, float angle\)/)
+    assert.match(effectSource, /vec2\s+uv\s+= rotateUvs\(vUv \* uScale, uRotation\)/)
+    assert.match(effectSource, /vec2\s+tex\s+= uv \* uScale/)
+    assert.match(effectSource, /tex\.y \+= 0\.03 \* sin\(8\.0 \* tex\.x - tOffset\)/)
+    assert.match(effectSource, /0\.02 \* tOffset/)
+    assert.match(effectSource, /0\.1 \* tOffset/)
+    assert.match(effectSource, /sourceTime = elapsedSeconds \* 0\.1/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("resize"/)
+    assert.match(effectSource, /window\.removeEventListener\("resize"/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(stylesSource, /reactBitsSilk/)
+    assert.match(stylesSource, /reactBitsSilkCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsSilk/)
+    assert.match(cssEffectsSource, /ReactBitsSilkOptions/)
+    assert.match(setupSource, /resolveReactBitsSilkColor/)
+    assert.match(runningSource, /reactBitsSilk=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsSilk=\{\{/)
+    assert.match(docsSource, /Silk \| https:\/\/reactbits\.dev\/backgrounds\/silk/)
+    assert.match(docsSource, /Silk\.jsx/)
+    assert.match(docsSource, /Silk\.css returned 404/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /Three\/R3F shader plane/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.doesNotMatch(effectSource, /pointermove/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    for (const settingKey of [
+      "reactBitsSilkPaletteMode",
+      "reactBitsSilkPrimaryColor",
+      "reactBitsSilkHarmony",
+      "reactBitsSilkColor",
+      "reactBitsSilkSpeed",
+      "reactBitsSilkScale",
+      "reactBitsSilkNoiseIntensity",
+      "reactBitsSilkRotation",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
