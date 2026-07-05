@@ -81,6 +81,7 @@ import {
   resolveReactBitsSideRaysColors,
   resolveReactBitsLightRaysColor,
   resolveReactBitsPixelBlastColor,
+  resolveReactBitsColorBendsColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -104,6 +105,7 @@ import {
   type ReactBitsLightRaysPaletteMode,
   type ReactBitsPixelBlastPaletteMode,
   type ReactBitsPixelBlastVariant,
+  type ReactBitsColorBendsPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -426,6 +428,27 @@ interface RunningTimerProps {
   reactBitsPixelBlastTransparent: boolean
   reactBitsPixelBlastEdgeFade: number
   reactBitsPixelBlastNoiseAmount: number
+  reactBitsColorBendsPaletteMode: ReactBitsColorBendsPaletteMode
+  reactBitsColorBendsPrimaryColor: string
+  reactBitsColorBendsHarmony: ColorHarmony
+  reactBitsColorBendsColorOne: string
+  reactBitsColorBendsColorTwo: string
+  reactBitsColorBendsColorThree: string
+  reactBitsColorBendsColorFour: string
+  reactBitsColorBendsRotation: number
+  reactBitsColorBendsSpeed: number
+  reactBitsColorBendsTransparent: boolean
+  reactBitsColorBendsAutoRotate: number
+  reactBitsColorBendsScale: number
+  reactBitsColorBendsFrequency: number
+  reactBitsColorBendsWarpStrength: number
+  reactBitsColorBendsInteractive: boolean
+  reactBitsColorBendsMouseInfluence: number
+  reactBitsColorBendsParallax: number
+  reactBitsColorBendsNoise: number
+  reactBitsColorBendsIterations: number
+  reactBitsColorBendsIntensity: number
+  reactBitsColorBendsBandWidth: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -905,6 +928,27 @@ export function RunningTimer({
   reactBitsPixelBlastTransparent,
   reactBitsPixelBlastEdgeFade,
   reactBitsPixelBlastNoiseAmount,
+  reactBitsColorBendsPaletteMode,
+  reactBitsColorBendsPrimaryColor,
+  reactBitsColorBendsHarmony,
+  reactBitsColorBendsColorOne,
+  reactBitsColorBendsColorTwo,
+  reactBitsColorBendsColorThree,
+  reactBitsColorBendsColorFour,
+  reactBitsColorBendsRotation,
+  reactBitsColorBendsSpeed,
+  reactBitsColorBendsTransparent,
+  reactBitsColorBendsAutoRotate,
+  reactBitsColorBendsScale,
+  reactBitsColorBendsFrequency,
+  reactBitsColorBendsWarpStrength,
+  reactBitsColorBendsInteractive,
+  reactBitsColorBendsMouseInfluence,
+  reactBitsColorBendsParallax,
+  reactBitsColorBendsNoise,
+  reactBitsColorBendsIterations,
+  reactBitsColorBendsIntensity,
+  reactBitsColorBendsBandWidth,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1200,6 +1244,15 @@ export function RunningTimer({
     reactBitsPixelBlastPrimaryColor,
     reactBitsPixelBlastHarmony,
     reactBitsPixelBlastColor,
+  })
+  const colorBendsColors = resolveReactBitsColorBendsColors({
+    reactBitsColorBendsPaletteMode,
+    reactBitsColorBendsPrimaryColor,
+    reactBitsColorBendsHarmony,
+    reactBitsColorBendsColorOne,
+    reactBitsColorBendsColorTwo,
+    reactBitsColorBendsColorThree,
+    reactBitsColorBendsColorFour,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -5794,6 +5847,252 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-color-bends" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsColorBendsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsColorBendsPaletteMode: event.target.value as ReactBitsColorBendsPaletteMode,
+              })}
+              aria-label="React Bits Color Bends color mode"
+            >
+              <option value="source">Source RGB bands</option>
+              <option value="custom">Custom bends</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsColorBendsPaletteMode === "custom" ? (
+            <>
+              {[
+                ["Color 1", "reactBitsColorBendsColorOne", reactBitsColorBendsColorOne],
+                ["Color 2", "reactBitsColorBendsColorTwo", reactBitsColorBendsColorTwo],
+                ["Color 3", "reactBitsColorBendsColorThree", reactBitsColorBendsColorThree],
+                ["Color 4", "reactBitsColorBendsColorFour", reactBitsColorBendsColorFour],
+              ].map(([label, key, value]) => (
+                <label key={key} className={styles.colorRow}>
+                  <span>{label}</span>
+                  <input
+                    type="color"
+                    value={value}
+                    onChange={(event) => handleSettingsChange({ [key]: event.target.value })}
+                    aria-label={`React Bits Color Bends ${label.toLowerCase()}`}
+                  />
+                </label>
+              ))}
+            </>
+          ) : null}
+
+          {reactBitsColorBendsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsColorBendsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsColorBendsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Color Bends primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsColorBendsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsColorBendsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Color Bends color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsColorBendsTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsTransparent: event.target.checked })}
+              aria-label="React Bits Color Bends transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsColorBendsInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsInteractive: event.target.checked })}
+              aria-label="React Bits Color Bends pointer interaction"
+            />
+            <span>Pointer interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsColorBendsRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-360"
+              max="360"
+              step="1"
+              value={reactBitsColorBendsRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsRotation: Number(event.target.value) })}
+              aria-label="React Bits Color Bends rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsColorBendsSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsColorBendsSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsSpeed: Number(event.target.value) })}
+              aria-label="React Bits Color Bends speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Auto rotate ({reactBitsColorBendsAutoRotate.toFixed(0)}deg/s)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsColorBendsAutoRotate}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsAutoRotate: Number(event.target.value) })}
+              aria-label="React Bits Color Bends auto rotate"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsColorBendsScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsColorBendsScale}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsScale: Number(event.target.value) })}
+              aria-label="React Bits Color Bends scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency ({reactBitsColorBendsFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsColorBendsFrequency}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsFrequency: Number(event.target.value) })}
+              aria-label="React Bits Color Bends frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({reactBitsColorBendsWarpStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsColorBendsWarpStrength}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsWarpStrength: Number(event.target.value) })}
+              aria-label="React Bits Color Bends warp strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsColorBendsMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsColorBendsMouseInfluence}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Color Bends mouse influence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Parallax ({reactBitsColorBendsParallax.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsColorBendsParallax}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsParallax: Number(event.target.value) })}
+              aria-label="React Bits Color Bends parallax"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsColorBendsNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsColorBendsNoise}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsNoise: Number(event.target.value) })}
+              aria-label="React Bits Color Bends noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Iterations ({reactBitsColorBendsIterations.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              value={reactBitsColorBendsIterations}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsIterations: Number(event.target.value) })}
+              aria-label="React Bits Color Bends iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsColorBendsIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsColorBendsIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsIntensity: Number(event.target.value) })}
+              aria-label="React Bits Color Bends intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band width ({reactBitsColorBendsBandWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="16"
+              step="0.1"
+              value={reactBitsColorBendsBandWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsBandWidth: Number(event.target.value) })}
+              aria-label="React Bits Color Bends band width"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -7945,6 +8244,23 @@ export function RunningTimer({
             transparent: reactBitsPixelBlastTransparent,
             edgeFade: reactBitsPixelBlastEdgeFade,
             noiseAmount: reactBitsPixelBlastNoiseAmount,
+          }}
+          reactBitsColorBends={{
+            rotation: reactBitsColorBendsRotation,
+            speed: reactBitsColorBendsSpeed,
+            colors: colorBendsColors,
+            transparent: reactBitsColorBendsTransparent,
+            autoRotate: reactBitsColorBendsAutoRotate,
+            scale: reactBitsColorBendsScale,
+            frequency: reactBitsColorBendsFrequency,
+            warpStrength: reactBitsColorBendsWarpStrength,
+            interactive: reactBitsColorBendsInteractive,
+            mouseInfluence: reactBitsColorBendsMouseInfluence,
+            parallax: reactBitsColorBendsParallax,
+            noise: reactBitsColorBendsNoise,
+            iterations: reactBitsColorBendsIterations,
+            intensity: reactBitsColorBendsIntensity,
+            bandWidth: reactBitsColorBendsBandWidth,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

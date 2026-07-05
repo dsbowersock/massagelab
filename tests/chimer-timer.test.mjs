@@ -1628,6 +1628,82 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Color Bends background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsColorBendsPaletteMode: "harmony",
+      reactBitsColorBendsPrimaryColor: "#ffffff",
+      reactBitsColorBendsHarmony: "triad",
+      reactBitsColorBendsColorOne: "#abcdef",
+      reactBitsColorBendsColorTwo: "#123456",
+      reactBitsColorBendsColorThree: "#654321",
+      reactBitsColorBendsColorFour: "#010203",
+      reactBitsColorBendsRotation: 999,
+      reactBitsColorBendsSpeed: 99,
+      reactBitsColorBendsTransparent: false,
+      reactBitsColorBendsAutoRotate: 999,
+      reactBitsColorBendsScale: 99,
+      reactBitsColorBendsFrequency: 99,
+      reactBitsColorBendsWarpStrength: 99,
+      reactBitsColorBendsInteractive: true,
+      reactBitsColorBendsMouseInfluence: 99,
+      reactBitsColorBendsParallax: 99,
+      reactBitsColorBendsNoise: 99,
+      reactBitsColorBendsIterations: 99,
+      reactBitsColorBendsIntensity: 99,
+      reactBitsColorBendsBandWidth: 99,
+    })
+
+    assert.equal(settings.reactBitsColorBendsPaletteMode, "harmony")
+    assert.equal(settings.reactBitsColorBendsPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsColorBendsHarmony, "triad")
+    assert.equal(settings.reactBitsColorBendsColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsColorBendsColorTwo, "#123456")
+    assert.equal(settings.reactBitsColorBendsColorThree, "#654321")
+    assert.equal(settings.reactBitsColorBendsColorFour, "#010203")
+    assert.equal(settings.reactBitsColorBendsRotation, 360)
+    assert.equal(settings.reactBitsColorBendsSpeed, 3)
+    assert.equal(settings.reactBitsColorBendsTransparent, false)
+    assert.equal(settings.reactBitsColorBendsAutoRotate, 180)
+    assert.equal(settings.reactBitsColorBendsScale, 4)
+    assert.equal(settings.reactBitsColorBendsFrequency, 4)
+    assert.equal(settings.reactBitsColorBendsWarpStrength, 3)
+    assert.equal(settings.reactBitsColorBendsInteractive, true)
+    assert.equal(settings.reactBitsColorBendsMouseInfluence, 3)
+    assert.equal(settings.reactBitsColorBendsParallax, 2)
+    assert.equal(settings.reactBitsColorBendsNoise, 1)
+    assert.equal(settings.reactBitsColorBendsIterations, 5)
+    assert.equal(settings.reactBitsColorBendsIntensity, 4)
+    assert.equal(settings.reactBitsColorBendsBandWidth, 16)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsPaletteMode: "auto" }).reactBitsColorBendsPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsPrimaryColor: "white" }).reactBitsColorBendsPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsHarmony: "wild" }).reactBitsColorBendsHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsColorOne: "white" }).reactBitsColorBendsColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsSpeed: "fast" }).reactBitsColorBendsSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsTransparent: "no" }).reactBitsColorBendsTransparent,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsTransparent,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsColorBendsInteractive: "yes" }).reactBitsColorBendsInteractive,
+      DEFAULT_CHIMER_SETTINGS.reactBitsColorBendsInteractive,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

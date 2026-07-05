@@ -31,6 +31,7 @@ export type BackgroundId =
   | "react-bits-side-rays"
   | "react-bits-light-rays"
   | "react-bits-pixel-blast"
+  | "react-bits-color-bends"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -106,6 +107,7 @@ const reactBitsFloatingLines = () => import("./effects/react-bits-floating-lines
 const reactBitsSideRays = () => import("./effects/react-bits-side-rays-background")
 const reactBitsLightRays = () => import("./effects/react-bits-light-rays-background")
 const reactBitsPixelBlast = () => import("./effects/react-bits-pixel-blast-background")
+const reactBitsColorBends = () => import("./effects/react-bits-color-bends-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -663,6 +665,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 48% 44%, rgba(180,151,207,0.26), transparent 38%), radial-gradient(circle at 62% 62%, rgba(82,39,255,0.16), transparent 42%), linear-gradient(145deg, #05020a 0%, #0f0820 58%, #020106 100%)",
+    },
+  },
+  {
+    id: "react-bits-color-bends",
+    label: "Color Bends",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/color-bends",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium animated color-bend shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source RGB bands or custom/harmony color arrays plus rotation, speed, auto-rotate, scale, frequency, warp, optional cursor influence, parallax, noise, iterations, intensity, band width, and transparency; source Three.js shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsColorBends().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 46% 48%, rgba(138,92,246,0.24), transparent 36%), radial-gradient(circle at 62% 52%, rgba(236,72,153,0.16), transparent 42%), linear-gradient(145deg, #05020a 0%, #10051e 58%, #020106 100%)",
     },
   },
   {

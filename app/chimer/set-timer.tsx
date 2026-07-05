@@ -60,6 +60,7 @@ export type ReactBitsLightRaysOrigin =
   | "bottom-right"
 export type ReactBitsPixelBlastPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsPixelBlastVariant = "square" | "circle" | "triangle" | "diamond"
+export type ReactBitsColorBendsPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -715,6 +716,27 @@ export interface ChimerSettings {
   reactBitsPixelBlastTransparent: boolean
   reactBitsPixelBlastEdgeFade: number
   reactBitsPixelBlastNoiseAmount: number
+  reactBitsColorBendsPaletteMode: ReactBitsColorBendsPaletteMode
+  reactBitsColorBendsPrimaryColor: string
+  reactBitsColorBendsHarmony: ColorHarmony
+  reactBitsColorBendsColorOne: string
+  reactBitsColorBendsColorTwo: string
+  reactBitsColorBendsColorThree: string
+  reactBitsColorBendsColorFour: string
+  reactBitsColorBendsRotation: number
+  reactBitsColorBendsSpeed: number
+  reactBitsColorBendsTransparent: boolean
+  reactBitsColorBendsAutoRotate: number
+  reactBitsColorBendsScale: number
+  reactBitsColorBendsFrequency: number
+  reactBitsColorBendsWarpStrength: number
+  reactBitsColorBendsInteractive: boolean
+  reactBitsColorBendsMouseInfluence: number
+  reactBitsColorBendsParallax: number
+  reactBitsColorBendsNoise: number
+  reactBitsColorBendsIterations: number
+  reactBitsColorBendsIntensity: number
+  reactBitsColorBendsBandWidth: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1030,6 +1052,17 @@ type ReactBitsPixelBlastColorSettings = Pick<
   | "reactBitsPixelBlastColor"
 >
 
+type ReactBitsColorBendsColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsColorBendsPaletteMode"
+  | "reactBitsColorBendsPrimaryColor"
+  | "reactBitsColorBendsHarmony"
+  | "reactBitsColorBendsColorOne"
+  | "reactBitsColorBendsColorTwo"
+  | "reactBitsColorBendsColorThree"
+  | "reactBitsColorBendsColorFour"
+>
+
 type EldoraNovatrixColorSettings = Pick<
   ChimerSettings,
   | "eldoraNovatrixPaletteMode"
@@ -1278,6 +1311,28 @@ export function resolveReactBitsPixelBlastColor(settings: ReactBitsPixelBlastCol
   }
 
   return settings.reactBitsPixelBlastColor
+}
+
+export function resolveReactBitsColorBendsColors(
+  settings: ReactBitsColorBendsColorSettings,
+): string[] | undefined {
+  if (settings.reactBitsColorBendsPaletteMode === "source") {
+    return undefined
+  }
+
+  if (settings.reactBitsColorBendsPaletteMode === "harmony") {
+    return createReactBitsColorBendsHarmonyPalette(
+      settings.reactBitsColorBendsPrimaryColor,
+      settings.reactBitsColorBendsHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsColorBendsColorOne,
+    settings.reactBitsColorBendsColorTwo,
+    settings.reactBitsColorBendsColorThree,
+    settings.reactBitsColorBendsColorFour,
+  ]
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -1962,6 +2017,77 @@ export function createReactBitsPixelBlastHarmonyColor(
     case "analogous":
     default:
       return hslToHex(hue + 28, Math.min(0.88, pixelSaturation * 0.94), pixelLightness)
+  }
+}
+
+export function createReactBitsColorBendsHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const richSaturation = Math.min(0.94, Math.max(0.42, saturation))
+  const lowLightness = Math.max(0.06, Math.min(0.2, lightness * 0.32))
+  const midLightness = Math.min(0.66, Math.max(0.34, lightness + 0.02))
+  const highLightness = Math.min(0.82, Math.max(0.48, lightness + 0.16))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 180, Math.min(0.86, richSaturation * 0.88), highLightness),
+        hslToHex(hue - 18, richSaturation * 0.8, lowLightness + 0.05),
+        hslToHex(hue + 180, richSaturation * 0.72, lowLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 150, richSaturation * 0.9, highLightness),
+        hslToHex(hue - 150, richSaturation * 0.86, midLightness * 0.8),
+        hslToHex(hue, richSaturation * 0.68, lowLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 120, richSaturation * 0.9, highLightness),
+        hslToHex(hue + 240, richSaturation * 0.82, Math.max(0.24, midLightness * 0.68)),
+        hslToHex(hue, richSaturation * 0.72, lowLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue, richSaturation, midLightness),
+        hslToHex(hue + 90, richSaturation * 0.84, highLightness),
+        hslToHex(hue + 180, richSaturation * 0.78, Math.max(0.24, midLightness * 0.7)),
+        hslToHex(hue + 270, richSaturation * 0.7, lowLightness + 0.04),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 24, richSaturation, midLightness),
+        hslToHex(hue + 28, richSaturation * 0.9, highLightness),
+        hslToHex(hue + 172, richSaturation * 0.74, Math.max(0.24, midLightness * 0.66)),
+        hslToHex(hue - 40, richSaturation * 0.72, lowLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, richSaturation, highLightness),
+        hslToHex(hue, richSaturation * 0.9, midLightness),
+        hslToHex(hue, richSaturation * 0.78, Math.max(0.24, midLightness * 0.66)),
+        hslToHex(hue, richSaturation * 0.68, lowLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, richSaturation * 0.72, highLightness),
+        hslToHex(hue, richSaturation * 0.58, midLightness),
+        hslToHex(hue, richSaturation * 0.46, Math.max(0.24, midLightness * 0.68)),
+        hslToHex(hue, richSaturation * 0.36, lowLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 28, richSaturation * 0.86, Math.max(0.28, midLightness * 0.82)),
+        hslToHex(hue, richSaturation, highLightness),
+        hslToHex(hue + 32, richSaturation * 0.94, midLightness),
+        hslToHex(hue + 8, richSaturation * 0.68, lowLightness),
+      ]
   }
 }
 
@@ -6940,6 +7066,257 @@ export function SetTimer({
               value={settings.reactBitsPixelBlastNoiseAmount}
               onChange={(event) => onSettingsChange({ reactBitsPixelBlastNoiseAmount: Number(event.target.value) })}
               aria-label="React Bits Pixel Blast noise amount"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-color-bends") {
+      const useCustomBendColors = settings.reactBitsColorBendsPaletteMode === "custom"
+      const useHarmonyBendColors = settings.reactBitsColorBendsPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsColorBendsPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsColorBendsPaletteMode: event.target.value as ReactBitsColorBendsPaletteMode,
+              })}
+              aria-label="React Bits Color Bends color mode"
+            >
+              <option value="source">Source RGB bands</option>
+              <option value="custom">Custom bends</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomBendColors && (
+            <>
+              {[
+                ["Color 1", "reactBitsColorBendsColorOne"],
+                ["Color 2", "reactBitsColorBendsColorTwo"],
+                ["Color 3", "reactBitsColorBendsColorThree"],
+                ["Color 4", "reactBitsColorBendsColorFour"],
+              ].map(([label, key]) => (
+                <label key={key} className={styles.colorRow}>
+                  <span>{label}</span>
+                  <input
+                    type="color"
+                    value={settings[key as keyof ChimerSettings] as string}
+                    onChange={(event) => onSettingsChange({ [key]: event.target.value })}
+                    aria-label={`React Bits Color Bends ${label.toLowerCase()}`}
+                  />
+                </label>
+              ))}
+            </>
+          )}
+
+          {useHarmonyBendColors && (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsColorBendsPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsColorBendsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Color Bends primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={settings.reactBitsColorBendsHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsColorBendsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Color Bends color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsColorBendsTransparent}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsTransparent: event.target.checked })}
+              aria-label="React Bits Color Bends transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsColorBendsInteractive}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsInteractive: event.target.checked })}
+              aria-label="React Bits Color Bends pointer interaction"
+            />
+            <span>Pointer interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({settings.reactBitsColorBendsRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-360"
+              max="360"
+              step="1"
+              value={settings.reactBitsColorBendsRotation}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsRotation: Number(event.target.value) })}
+              aria-label="React Bits Color Bends rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsColorBendsSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsColorBendsSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsSpeed: Number(event.target.value) })}
+              aria-label="React Bits Color Bends speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Auto rotate ({settings.reactBitsColorBendsAutoRotate.toFixed(0)}deg/s)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={settings.reactBitsColorBendsAutoRotate}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsAutoRotate: Number(event.target.value) })}
+              aria-label="React Bits Color Bends auto rotate"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({settings.reactBitsColorBendsScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsColorBendsScale}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsScale: Number(event.target.value) })}
+              aria-label="React Bits Color Bends scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency ({settings.reactBitsColorBendsFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsColorBendsFrequency}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsFrequency: Number(event.target.value) })}
+              aria-label="React Bits Color Bends frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({settings.reactBitsColorBendsWarpStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsColorBendsWarpStrength}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsWarpStrength: Number(event.target.value) })}
+              aria-label="React Bits Color Bends warp strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({settings.reactBitsColorBendsMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsColorBendsMouseInfluence}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Color Bends mouse influence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Parallax ({settings.reactBitsColorBendsParallax.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsColorBendsParallax}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsParallax: Number(event.target.value) })}
+              aria-label="React Bits Color Bends parallax"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({settings.reactBitsColorBendsNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsColorBendsNoise}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsNoise: Number(event.target.value) })}
+              aria-label="React Bits Color Bends noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Iterations ({settings.reactBitsColorBendsIterations.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              value={settings.reactBitsColorBendsIterations}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsIterations: Number(event.target.value) })}
+              aria-label="React Bits Color Bends iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({settings.reactBitsColorBendsIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsColorBendsIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsIntensity: Number(event.target.value) })}
+              aria-label="React Bits Color Bends intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band width ({settings.reactBitsColorBendsBandWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="16"
+              step="0.1"
+              value={settings.reactBitsColorBendsBandWidth}
+              onChange={(event) => onSettingsChange({ reactBitsColorBendsBandWidth: Number(event.target.value) })}
+              aria-label="React Bits Color Bends band width"
             />
           </label>
         </div>

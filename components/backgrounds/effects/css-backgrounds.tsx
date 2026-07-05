@@ -34,6 +34,7 @@ export interface BackgroundEffectProps {
   reactBitsSideRays?: ReactBitsSideRaysOptions
   reactBitsLightRays?: ReactBitsLightRaysOptions
   reactBitsPixelBlast?: ReactBitsPixelBlastOptions
+  reactBitsColorBends?: ReactBitsColorBendsOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -352,6 +353,24 @@ export interface ReactBitsPixelBlastOptions {
   transparent?: boolean
   edgeFade?: number
   noiseAmount?: number
+}
+
+export interface ReactBitsColorBendsOptions {
+  rotation?: number
+  speed?: number
+  colors?: string[]
+  transparent?: boolean
+  autoRotate?: number
+  scale?: number
+  frequency?: number
+  warpStrength?: number
+  mouseInfluence?: number
+  parallax?: number
+  noise?: number
+  iterations?: number
+  intensity?: number
+  bandWidth?: number
+  interactive?: boolean
 }
 
 export interface EldoraNovatrixOptions {

@@ -1050,6 +1050,87 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsPixelBlastNoiseAmount, 0.18)
   })
 
+  it("resets React Bits Color Bends controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-color-bends",
+      reactBitsColorBendsPaletteMode: "harmony",
+      reactBitsColorBendsPrimaryColor: "#FFFFFF",
+      reactBitsColorBendsHarmony: "triad",
+      reactBitsColorBendsColorOne: "#ABCDEF",
+      reactBitsColorBendsColorTwo: "#123456",
+      reactBitsColorBendsColorThree: "#654321",
+      reactBitsColorBendsColorFour: "#010203",
+      reactBitsColorBendsRotation: 180,
+      reactBitsColorBendsSpeed: 1.8,
+      reactBitsColorBendsTransparent: false,
+      reactBitsColorBendsAutoRotate: 42,
+      reactBitsColorBendsScale: 2.5,
+      reactBitsColorBendsFrequency: 2.2,
+      reactBitsColorBendsWarpStrength: 2.4,
+      reactBitsColorBendsInteractive: true,
+      reactBitsColorBendsMouseInfluence: 2.2,
+      reactBitsColorBendsParallax: 1.2,
+      reactBitsColorBendsNoise: 0.6,
+      reactBitsColorBendsIterations: 4,
+      reactBitsColorBendsIntensity: 2.5,
+      reactBitsColorBendsBandWidth: 10,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsColorBendsPaletteMode",
+      "reactBitsColorBendsPrimaryColor",
+      "reactBitsColorBendsHarmony",
+      "reactBitsColorBendsColorOne",
+      "reactBitsColorBendsColorTwo",
+      "reactBitsColorBendsColorThree",
+      "reactBitsColorBendsColorFour",
+      "reactBitsColorBendsRotation",
+      "reactBitsColorBendsSpeed",
+      "reactBitsColorBendsTransparent",
+      "reactBitsColorBendsAutoRotate",
+      "reactBitsColorBendsScale",
+      "reactBitsColorBendsFrequency",
+      "reactBitsColorBendsWarpStrength",
+      "reactBitsColorBendsInteractive",
+      "reactBitsColorBendsMouseInfluence",
+      "reactBitsColorBendsParallax",
+      "reactBitsColorBendsNoise",
+      "reactBitsColorBendsIterations",
+      "reactBitsColorBendsIntensity",
+      "reactBitsColorBendsBandWidth",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-color-bends")
+    assert.equal(premiumSettings.reactBitsColorBendsPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsColorBendsPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsColorBendsHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsColorBendsColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsColorBendsColorTwo, "#123456")
+    assert.equal(premiumSettings.reactBitsColorBendsColorThree, "#654321")
+    assert.equal(premiumSettings.reactBitsColorBendsColorFour, "#010203")
+    assert.equal(premiumSettings.reactBitsColorBendsRotation, 180)
+    assert.equal(premiumSettings.reactBitsColorBendsSpeed, 1.8)
+    assert.equal(premiumSettings.reactBitsColorBendsTransparent, false)
+    assert.equal(premiumSettings.reactBitsColorBendsAutoRotate, 42)
+    assert.equal(premiumSettings.reactBitsColorBendsScale, 2.5)
+    assert.equal(premiumSettings.reactBitsColorBendsFrequency, 2.2)
+    assert.equal(premiumSettings.reactBitsColorBendsWarpStrength, 2.4)
+    assert.equal(premiumSettings.reactBitsColorBendsInteractive, true)
+    assert.equal(premiumSettings.reactBitsColorBendsMouseInfluence, 2.2)
+    assert.equal(premiumSettings.reactBitsColorBendsParallax, 1.2)
+    assert.equal(premiumSettings.reactBitsColorBendsNoise, 0.6)
+    assert.equal(premiumSettings.reactBitsColorBendsIterations, 4)
+    assert.equal(premiumSettings.reactBitsColorBendsIntensity, 2.5)
+    assert.equal(premiumSettings.reactBitsColorBendsBandWidth, 10)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

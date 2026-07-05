@@ -72,6 +72,7 @@ describe("premium background registry", () => {
       "react-bits-side-rays",
       "react-bits-light-rays",
       "react-bits-pixel-blast",
+      "react-bits-color-bends",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -289,6 +290,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-side-rays"))
     assert.ok(chimerOptions.includes("react-bits-light-rays"))
     assert.ok(chimerOptions.includes("react-bits-pixel-blast"))
+    assert.ok(chimerOptions.includes("react-bits-color-bends"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -334,6 +336,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-side-rays"))
     assert.ok(clockOptions.includes("react-bits-light-rays"))
     assert.ok(clockOptions.includes("react-bits-pixel-blast"))
+    assert.ok(clockOptions.includes("react-bits-color-bends"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -380,6 +383,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-side-rays"))
     assert.ok(musicOptions.includes("react-bits-light-rays"))
     assert.ok(musicOptions.includes("react-bits-pixel-blast"))
+    assert.ok(musicOptions.includes("react-bits-color-bends"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2155,6 +2159,114 @@ describe("premium background registry", () => {
       "reactBitsPixelBlastTransparent",
       "reactBitsPixelBlastEdgeFade",
       "reactBitsPixelBlastNoiseAmount",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Color Bends source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-color-bends-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-color-bends/)
+    assert.match(registrySource, /Color Bends/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/color-bends/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsColorBendsBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_COLOR_BENDS/)
+    assert.match(effectSource, /uColorCount/)
+    assert.match(effectSource, /uColors\[MAX_COLORS\]/)
+    assert.match(effectSource, /uWarpStrength/)
+    assert.match(effectSource, /uPointer/)
+    assert.match(effectSource, /uMouseInfluence/)
+    assert.match(effectSource, /uBandWidth/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /rotation:\s*90/)
+    assert.match(effectSource, /speed:\s*0\.2/)
+    assert.match(effectSource, /colors:\s*\[\]/)
+    assert.match(effectSource, /autoRotate:\s*0/)
+    assert.match(effectSource, /scale:\s*1/)
+    assert.match(effectSource, /frequency:\s*1/)
+    assert.match(effectSource, /warpStrength:\s*1/)
+    assert.match(effectSource, /mouseInfluence:\s*1/)
+    assert.match(effectSource, /parallax:\s*0\.5/)
+    assert.match(effectSource, /noise:\s*0\.15/)
+    assert.match(effectSource, /iterations:\s*1/)
+    assert.match(effectSource, /intensity:\s*1\.5/)
+    assert.match(effectSource, /bandWidth:\s*6/)
+    assert.match(effectSource, /interactive:\s*false/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsColorBends/)
+    assert.match(stylesSource, /reactBitsColorBendsCanvas/)
+
+    assert.match(hostSource, /reactBitsColorBends/)
+    assert.match(cssEffectsSource, /ReactBitsColorBendsOptions/)
+    assert.match(setupSource, /resolveReactBitsColorBendsColors/)
+    assert.match(runningSource, /reactBitsColorBends=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsColorBends=\{\{/)
+    assert.match(docsSource, /Color Bends \| https:\/\/reactbits\.dev\/backgrounds\/color-bends/)
+    assert.match(docsSource, /ColorBends\.jsx/)
+    assert.match(docsSource, /ColorBends\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /Three\.js/)
+
+    const settingKeys = [
+      "reactBitsColorBendsPaletteMode",
+      "reactBitsColorBendsPrimaryColor",
+      "reactBitsColorBendsHarmony",
+      "reactBitsColorBendsColorOne",
+      "reactBitsColorBendsColorTwo",
+      "reactBitsColorBendsColorThree",
+      "reactBitsColorBendsColorFour",
+      "reactBitsColorBendsRotation",
+      "reactBitsColorBendsSpeed",
+      "reactBitsColorBendsTransparent",
+      "reactBitsColorBendsAutoRotate",
+      "reactBitsColorBendsScale",
+      "reactBitsColorBendsFrequency",
+      "reactBitsColorBendsWarpStrength",
+      "reactBitsColorBendsInteractive",
+      "reactBitsColorBendsMouseInfluence",
+      "reactBitsColorBendsParallax",
+      "reactBitsColorBendsNoise",
+      "reactBitsColorBendsIterations",
+      "reactBitsColorBendsIntensity",
+      "reactBitsColorBendsBandWidth",
     ]
 
     for (const settingKey of settingKeys) {
