@@ -92,6 +92,7 @@ import {
   resolveReactBitsGradientBlindsColors,
   resolveReactBitsGrainientColors,
   resolveReactBitsGridScanColors,
+  resolveReactBitsBeamsColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -131,6 +132,7 @@ import {
   type ReactBitsGridScanDirection,
   type ReactBitsGridScanLineStyle,
   type ReactBitsGridScanPaletteMode,
+  type ReactBitsBeamsPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -644,6 +646,17 @@ interface RunningTimerProps {
   reactBitsGridScanScanDelay: number
   reactBitsGridScanEnablePointerInteraction: boolean
   reactBitsGridScanScanOnClick: boolean
+  reactBitsBeamsPaletteMode: ReactBitsBeamsPaletteMode
+  reactBitsBeamsPrimaryColor: string
+  reactBitsBeamsHarmony: ColorHarmony
+  reactBitsBeamsLightColor: string
+  reactBitsBeamsBeamWidth: number
+  reactBitsBeamsBeamHeight: number
+  reactBitsBeamsBeamNumber: number
+  reactBitsBeamsSpeed: number
+  reactBitsBeamsNoiseIntensity: number
+  reactBitsBeamsScale: number
+  reactBitsBeamsRotation: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1314,6 +1327,17 @@ export function RunningTimer({
   reactBitsGridScanScanDelay,
   reactBitsGridScanEnablePointerInteraction,
   reactBitsGridScanScanOnClick,
+  reactBitsBeamsPaletteMode,
+  reactBitsBeamsPrimaryColor,
+  reactBitsBeamsHarmony,
+  reactBitsBeamsLightColor,
+  reactBitsBeamsBeamWidth,
+  reactBitsBeamsBeamHeight,
+  reactBitsBeamsBeamNumber,
+  reactBitsBeamsSpeed,
+  reactBitsBeamsNoiseIntensity,
+  reactBitsBeamsScale,
+  reactBitsBeamsRotation,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1688,6 +1712,12 @@ export function RunningTimer({
     reactBitsGridScanHarmony,
     reactBitsGridScanLinesColor,
     reactBitsGridScanScanColor,
+  })
+  const beamsColor = resolveReactBitsBeamsColor({
+    reactBitsBeamsPaletteMode,
+    reactBitsBeamsPrimaryColor,
+    reactBitsBeamsHarmony,
+    reactBitsBeamsLightColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -8794,6 +8824,158 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-beams" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsBeamsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsBeamsPaletteMode: event.target.value as ReactBitsBeamsPaletteMode,
+              })}
+              aria-label="React Bits Beams color mode"
+            >
+              <option value="source">Source white light</option>
+              <option value="custom">Custom light color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsBeamsPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Light color</span>
+              <input
+                type="color"
+                value={reactBitsBeamsLightColor}
+                onChange={(event) => handleSettingsChange({ reactBitsBeamsLightColor: event.target.value })}
+                aria-label="React Bits Beams light color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsBeamsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsBeamsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsBeamsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Beams primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsBeamsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsBeamsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Beams color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>Beam width ({reactBitsBeamsBeamWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="6"
+              step="0.1"
+              value={reactBitsBeamsBeamWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamWidth: Number(event.target.value) })}
+              aria-label="React Bits Beams width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam height ({reactBitsBeamsBeamHeight.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="32"
+              step="1"
+              value={reactBitsBeamsBeamHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamHeight: Number(event.target.value) })}
+              aria-label="React Bits Beams height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam count ({reactBitsBeamsBeamNumber.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="48"
+              step="1"
+              value={reactBitsBeamsBeamNumber}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamNumber: Number(event.target.value) })}
+              aria-label="React Bits Beams count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsBeamsSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.05"
+              value={reactBitsBeamsSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsSpeed: Number(event.target.value) })}
+              aria-label="React Bits Beams speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsBeamsNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsBeamsNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsNoiseIntensity: Number(event.target.value) })}
+              aria-label="React Bits Beams noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsBeamsScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="1.5"
+              step="0.01"
+              value={reactBitsBeamsScale}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsScale: Number(event.target.value) })}
+              aria-label="React Bits Beams scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsBeamsRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsBeamsRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsRotation: Number(event.target.value) })}
+              aria-label="React Bits Beams rotation"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -11118,6 +11300,16 @@ export function RunningTimer({
             scanDelay: reactBitsGridScanScanDelay,
             enablePointerInteraction: reactBitsGridScanEnablePointerInteraction,
             scanOnClick: reactBitsGridScanScanOnClick,
+          }}
+          reactBitsBeams={{
+            lightColor: beamsColor,
+            beamWidth: reactBitsBeamsBeamWidth,
+            beamHeight: reactBitsBeamsBeamHeight,
+            beamNumber: reactBitsBeamsBeamNumber,
+            speed: reactBitsBeamsSpeed,
+            noiseIntensity: reactBitsBeamsNoiseIntensity,
+            scale: reactBitsBeamsScale,
+            rotation: reactBitsBeamsRotation,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

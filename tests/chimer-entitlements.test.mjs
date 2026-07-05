@@ -1821,6 +1821,57 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsGridScanScanOnClick, true)
   })
 
+  it("resets React Bits Beams controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-beams",
+      reactBitsBeamsPaletteMode: "harmony",
+      reactBitsBeamsPrimaryColor: "#ABCDEF",
+      reactBitsBeamsHarmony: "triad",
+      reactBitsBeamsLightColor: "#010203",
+      reactBitsBeamsBeamWidth: 3.2,
+      reactBitsBeamsBeamHeight: 18,
+      reactBitsBeamsBeamNumber: 18,
+      reactBitsBeamsSpeed: 3.5,
+      reactBitsBeamsNoiseIntensity: 2.4,
+      reactBitsBeamsScale: 0.42,
+      reactBitsBeamsRotation: 24,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsBeamsPaletteMode",
+      "reactBitsBeamsPrimaryColor",
+      "reactBitsBeamsHarmony",
+      "reactBitsBeamsLightColor",
+      "reactBitsBeamsBeamWidth",
+      "reactBitsBeamsBeamHeight",
+      "reactBitsBeamsBeamNumber",
+      "reactBitsBeamsSpeed",
+      "reactBitsBeamsNoiseIntensity",
+      "reactBitsBeamsScale",
+      "reactBitsBeamsRotation",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-beams")
+    assert.equal(premiumSettings.reactBitsBeamsPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsBeamsPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsBeamsHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsBeamsLightColor, "#010203")
+    assert.equal(premiumSettings.reactBitsBeamsBeamWidth, 3.2)
+    assert.equal(premiumSettings.reactBitsBeamsBeamHeight, 18)
+    assert.equal(premiumSettings.reactBitsBeamsBeamNumber, 18)
+    assert.equal(premiumSettings.reactBitsBeamsSpeed, 3.5)
+    assert.equal(premiumSettings.reactBitsBeamsNoiseIntensity, 2.4)
+    assert.equal(premiumSettings.reactBitsBeamsScale, 0.42)
+    assert.equal(premiumSettings.reactBitsBeamsRotation, 24)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

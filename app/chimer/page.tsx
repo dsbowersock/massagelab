@@ -1305,6 +1305,17 @@ export default function ChimerPage() {
             reactBitsGridScanScanDelay={settings.reactBitsGridScanScanDelay}
             reactBitsGridScanEnablePointerInteraction={settings.reactBitsGridScanEnablePointerInteraction}
             reactBitsGridScanScanOnClick={settings.reactBitsGridScanScanOnClick}
+            reactBitsBeamsPaletteMode={settings.reactBitsBeamsPaletteMode}
+            reactBitsBeamsPrimaryColor={settings.reactBitsBeamsPrimaryColor}
+            reactBitsBeamsHarmony={settings.reactBitsBeamsHarmony}
+            reactBitsBeamsLightColor={settings.reactBitsBeamsLightColor}
+            reactBitsBeamsBeamWidth={settings.reactBitsBeamsBeamWidth}
+            reactBitsBeamsBeamHeight={settings.reactBitsBeamsBeamHeight}
+            reactBitsBeamsBeamNumber={settings.reactBitsBeamsBeamNumber}
+            reactBitsBeamsSpeed={settings.reactBitsBeamsSpeed}
+            reactBitsBeamsNoiseIntensity={settings.reactBitsBeamsNoiseIntensity}
+            reactBitsBeamsScale={settings.reactBitsBeamsScale}
+            reactBitsBeamsRotation={settings.reactBitsBeamsRotation}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

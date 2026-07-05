@@ -47,6 +47,7 @@ import type {
   ReactBitsGradientBlindsOptions,
   ReactBitsGrainientOptions,
   ReactBitsGridScanOptions,
+  ReactBitsBeamsOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -109,6 +110,7 @@ interface BackgroundHostProps {
   reactBitsGradientBlinds?: ReactBitsGradientBlindsOptions
   reactBitsGrainient?: ReactBitsGrainientOptions
   reactBitsGridScan?: ReactBitsGridScanOptions
+  reactBitsBeams?: ReactBitsBeamsOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -187,6 +189,7 @@ export function BackgroundHost({
   reactBitsGradientBlinds,
   reactBitsGrainient,
   reactBitsGridScan,
+  reactBitsBeams,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -290,6 +293,7 @@ export function BackgroundHost({
           reactBitsGradientBlinds={reactBitsGradientBlinds}
           reactBitsGrainient={reactBitsGrainient}
           reactBitsGridScan={reactBitsGridScan}
+          reactBitsBeams={reactBitsBeams}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

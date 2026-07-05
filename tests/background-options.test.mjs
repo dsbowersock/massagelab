@@ -83,6 +83,7 @@ describe("premium background registry", () => {
       "react-bits-gradient-blinds",
       "react-bits-grainient",
       "react-bits-grid-scan",
+      "react-bits-beams",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -311,6 +312,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-gradient-blinds"))
     assert.ok(chimerOptions.includes("react-bits-grainient"))
     assert.ok(chimerOptions.includes("react-bits-grid-scan"))
+    assert.ok(chimerOptions.includes("react-bits-beams"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -367,6 +369,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-gradient-blinds"))
     assert.ok(clockOptions.includes("react-bits-grainient"))
     assert.ok(clockOptions.includes("react-bits-grid-scan"))
+    assert.ok(clockOptions.includes("react-bits-beams"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -424,6 +427,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-gradient-blinds"))
     assert.ok(musicOptions.includes("react-bits-grainient"))
     assert.ok(musicOptions.includes("react-bits-grid-scan"))
+    assert.ok(musicOptions.includes("react-bits-beams"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3335,6 +3339,88 @@ describe("premium background registry", () => {
       "reactBitsGridScanScanDelay",
       "reactBitsGridScanEnablePointerInteraction",
       "reactBitsGridScanScanOnClick",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Beams source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-beams-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-beams/)
+    assert.match(registrySource, /Beams/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/beams/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsBeamsBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_BEAMS/)
+    assert.match(effectSource, /createStackedPlanesGeometry/)
+    assert.match(effectSource, /cnoise/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /@react-three\/drei/)
+
+    assert.match(stylesSource, /reactBitsBeams/)
+    assert.match(stylesSource, /reactBitsBeamsCanvas/)
+    assert.match(hostSource, /reactBitsBeams/)
+    assert.match(cssEffectsSource, /ReactBitsBeamsOptions/)
+    assert.match(setupSource, /resolveReactBitsBeamsColor/)
+    assert.match(setupSource, /createReactBitsBeamsHarmonyColor/)
+    assert.match(runningSource, /reactBitsBeams=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsBeams=\{\{/)
+    assert.match(docsSource, /Beams \| https:\/\/reactbits\.dev\/backgrounds\/beams/)
+    assert.match(docsSource, /Beams\.jsx/)
+    assert.match(docsSource, /Beams\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /Three\/R3F\/Drei/)
+
+    const settingKeys = [
+      "reactBitsBeamsPaletteMode",
+      "reactBitsBeamsPrimaryColor",
+      "reactBitsBeamsHarmony",
+      "reactBitsBeamsLightColor",
+      "reactBitsBeamsBeamWidth",
+      "reactBitsBeamsBeamHeight",
+      "reactBitsBeamsBeamNumber",
+      "reactBitsBeamsSpeed",
+      "reactBitsBeamsNoiseIntensity",
+      "reactBitsBeamsScale",
+      "reactBitsBeamsRotation",
     ]
 
     for (const settingKey of settingKeys) {

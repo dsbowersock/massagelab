@@ -42,6 +42,7 @@ export type BackgroundId =
   | "react-bits-gradient-blinds"
   | "react-bits-grainient"
   | "react-bits-grid-scan"
+  | "react-bits-beams"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -128,6 +129,7 @@ const reactBitsParticles = () => import("./effects/react-bits-particles-backgrou
 const reactBitsGradientBlinds = () => import("./effects/react-bits-gradient-blinds-background")
 const reactBitsGrainient = () => import("./effects/react-bits-grainient-background")
 const reactBitsGridScan = () => import("./effects/react-bits-grid-scan-background")
+const reactBitsBeams = () => import("./effects/react-bits-beams-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -937,6 +939,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 55% 42%, rgba(14,165,233,0.18), transparent 40%), radial-gradient(circle at 42% 55%, rgba(59,7,100,0.2), transparent 44%), linear-gradient(145deg, #0f172a 0%, #070512 56%, #020617 100%)",
+    },
+  },
+  {
+    id: "react-bits-beams",
+    label: "Beams",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/beams",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium stacked light-beam shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source white or custom/harmony light color plus source-shaped beam width, height, count, speed, noise, scale, and rotation; raw WebGL port of the React Bits stacked-plane displacement shader without Three/R3F.",
+    component: () => reactBitsBeams().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 32%, rgba(255,255,255,0.14), transparent 34%), linear-gradient(180deg, #000000 0%, #050505 100%)",
     },
   },
   {

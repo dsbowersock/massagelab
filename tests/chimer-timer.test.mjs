@@ -2380,6 +2380,56 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Beams background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsBeamsPaletteMode: "harmony",
+      reactBitsBeamsPrimaryColor: "#abcdef",
+      reactBitsBeamsHarmony: "triad",
+      reactBitsBeamsLightColor: "#010203",
+      reactBitsBeamsBeamWidth: 99,
+      reactBitsBeamsBeamHeight: 99,
+      reactBitsBeamsBeamNumber: 99,
+      reactBitsBeamsSpeed: 99,
+      reactBitsBeamsNoiseIntensity: 99,
+      reactBitsBeamsScale: 99,
+      reactBitsBeamsRotation: 999,
+    })
+
+    assert.equal(settings.reactBitsBeamsPaletteMode, "harmony")
+    assert.equal(settings.reactBitsBeamsPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsBeamsHarmony, "triad")
+    assert.equal(settings.reactBitsBeamsLightColor, "#010203")
+    assert.equal(settings.reactBitsBeamsBeamWidth, 6)
+    assert.equal(settings.reactBitsBeamsBeamHeight, 32)
+    assert.equal(settings.reactBitsBeamsBeamNumber, 48)
+    assert.equal(settings.reactBitsBeamsSpeed, 8)
+    assert.equal(settings.reactBitsBeamsNoiseIntensity, 4)
+    assert.equal(settings.reactBitsBeamsScale, 1.5)
+    assert.equal(settings.reactBitsBeamsRotation, 180)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsBeamsPaletteMode: "auto" }).reactBitsBeamsPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsBeamsPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsBeamsPrimaryColor: "white" }).reactBitsBeamsPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsBeamsPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsBeamsHarmony: "wild" }).reactBitsBeamsHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsBeamsHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsBeamsLightColor: "white" }).reactBitsBeamsLightColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsBeamsLightColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsBeamsSpeed: "fast" }).reactBitsBeamsSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsBeamsSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsBeamsBeamNumber: 4.9 }).reactBitsBeamsBeamNumber, 4)
+    assert.equal(sanitizeChimerSettings({ reactBitsBeamsRotation: -999 }).reactBitsBeamsRotation, -180)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
