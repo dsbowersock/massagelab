@@ -36,6 +36,7 @@ export interface BackgroundEffectProps {
   reactBitsPixelBlast?: ReactBitsPixelBlastOptions
   reactBitsColorBends?: ReactBitsColorBendsOptions
   reactBitsEvilEye?: ReactBitsEvilEyeOptions
+  reactBitsLineWaves?: ReactBitsLineWavesOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -386,6 +387,22 @@ export interface ReactBitsEvilEyeOptions {
   flameSpeed?: number
   backgroundColor?: string
   interactive?: boolean
+}
+
+export interface ReactBitsLineWavesOptions {
+  speed?: number
+  innerLineCount?: number
+  outerLineCount?: number
+  warpIntensity?: number
+  rotation?: number
+  edgeFadeWidth?: number
+  colorCycleSpeed?: number
+  brightness?: number
+  color1?: string
+  color2?: string
+  color3?: string
+  enableMouseInteraction?: boolean
+  mouseInfluence?: number
 }
 
 export interface EldoraNovatrixOptions {

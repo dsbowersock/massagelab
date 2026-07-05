@@ -1766,6 +1766,68 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Line Waves background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsLineWavesPaletteMode: "harmony",
+      reactBitsLineWavesPrimaryColor: "#ffffff",
+      reactBitsLineWavesHarmony: "triad",
+      reactBitsLineWavesColorOne: "#abcdef",
+      reactBitsLineWavesColorTwo: "#123456",
+      reactBitsLineWavesColorThree: "#654321",
+      reactBitsLineWavesSpeed: 99,
+      reactBitsLineWavesInnerLineCount: 999,
+      reactBitsLineWavesOuterLineCount: 999,
+      reactBitsLineWavesWarpIntensity: 99,
+      reactBitsLineWavesRotation: 999,
+      reactBitsLineWavesEdgeFadeWidth: 99,
+      reactBitsLineWavesColorCycleSpeed: 99,
+      reactBitsLineWavesBrightness: 99,
+      reactBitsLineWavesEnableMouseInteraction: true,
+      reactBitsLineWavesMouseInfluence: 99,
+    })
+
+    assert.equal(settings.reactBitsLineWavesPaletteMode, "harmony")
+    assert.equal(settings.reactBitsLineWavesPrimaryColor, "#FFFFFF")
+    assert.equal(settings.reactBitsLineWavesHarmony, "triad")
+    assert.equal(settings.reactBitsLineWavesColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsLineWavesColorTwo, "#123456")
+    assert.equal(settings.reactBitsLineWavesColorThree, "#654321")
+    assert.equal(settings.reactBitsLineWavesSpeed, 3)
+    assert.equal(settings.reactBitsLineWavesInnerLineCount, 96)
+    assert.equal(settings.reactBitsLineWavesOuterLineCount, 96)
+    assert.equal(settings.reactBitsLineWavesWarpIntensity, 3)
+    assert.equal(settings.reactBitsLineWavesRotation, 180)
+    assert.equal(settings.reactBitsLineWavesEdgeFadeWidth, 1)
+    assert.equal(settings.reactBitsLineWavesColorCycleSpeed, 4)
+    assert.equal(settings.reactBitsLineWavesBrightness, 1.5)
+    assert.equal(settings.reactBitsLineWavesEnableMouseInteraction, true)
+    assert.equal(settings.reactBitsLineWavesMouseInfluence, 4)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLineWavesPaletteMode: "auto" }).reactBitsLineWavesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLineWavesPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLineWavesPrimaryColor: "white" }).reactBitsLineWavesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLineWavesPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLineWavesHarmony: "wild" }).reactBitsLineWavesHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLineWavesHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLineWavesColorOne: "white" }).reactBitsLineWavesColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLineWavesColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLineWavesSpeed: "fast" }).reactBitsLineWavesSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLineWavesSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLineWavesEnableMouseInteraction: "yes" }).reactBitsLineWavesEnableMouseInteraction,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLineWavesEnableMouseInteraction,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

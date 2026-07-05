@@ -83,6 +83,7 @@ import {
   resolveReactBitsPixelBlastColor,
   resolveReactBitsColorBendsColors,
   resolveReactBitsEvilEyeColor,
+  resolveReactBitsLineWavesColors,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -108,6 +109,7 @@ import {
   type ReactBitsPixelBlastVariant,
   type ReactBitsColorBendsPaletteMode,
   type ReactBitsEvilEyePaletteMode,
+  type ReactBitsLineWavesPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -465,6 +467,22 @@ interface RunningTimerProps {
   reactBitsEvilEyePupilFollow: number
   reactBitsEvilEyeFlameSpeed: number
   reactBitsEvilEyeInteractive: boolean
+  reactBitsLineWavesPaletteMode: ReactBitsLineWavesPaletteMode
+  reactBitsLineWavesPrimaryColor: string
+  reactBitsLineWavesHarmony: ColorHarmony
+  reactBitsLineWavesColorOne: string
+  reactBitsLineWavesColorTwo: string
+  reactBitsLineWavesColorThree: string
+  reactBitsLineWavesSpeed: number
+  reactBitsLineWavesInnerLineCount: number
+  reactBitsLineWavesOuterLineCount: number
+  reactBitsLineWavesWarpIntensity: number
+  reactBitsLineWavesRotation: number
+  reactBitsLineWavesEdgeFadeWidth: number
+  reactBitsLineWavesColorCycleSpeed: number
+  reactBitsLineWavesBrightness: number
+  reactBitsLineWavesEnableMouseInteraction: boolean
+  reactBitsLineWavesMouseInfluence: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -979,6 +997,22 @@ export function RunningTimer({
   reactBitsEvilEyePupilFollow,
   reactBitsEvilEyeFlameSpeed,
   reactBitsEvilEyeInteractive,
+  reactBitsLineWavesPaletteMode,
+  reactBitsLineWavesPrimaryColor,
+  reactBitsLineWavesHarmony,
+  reactBitsLineWavesColorOne,
+  reactBitsLineWavesColorTwo,
+  reactBitsLineWavesColorThree,
+  reactBitsLineWavesSpeed,
+  reactBitsLineWavesInnerLineCount,
+  reactBitsLineWavesOuterLineCount,
+  reactBitsLineWavesWarpIntensity,
+  reactBitsLineWavesRotation,
+  reactBitsLineWavesEdgeFadeWidth,
+  reactBitsLineWavesColorCycleSpeed,
+  reactBitsLineWavesBrightness,
+  reactBitsLineWavesEnableMouseInteraction,
+  reactBitsLineWavesMouseInfluence,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -1289,6 +1323,14 @@ export function RunningTimer({
     reactBitsEvilEyePrimaryColor,
     reactBitsEvilEyeHarmony,
     reactBitsEvilEyeColor,
+  })
+  const lineWavesColors = resolveReactBitsLineWavesColors({
+    reactBitsLineWavesPaletteMode,
+    reactBitsLineWavesPrimaryColor,
+    reactBitsLineWavesHarmony,
+    reactBitsLineWavesColorOne,
+    reactBitsLineWavesColorTwo,
+    reactBitsLineWavesColorThree,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -6314,6 +6356,222 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-line-waves" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLineWavesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesPaletteMode: event.target.value as ReactBitsLineWavesPaletteMode,
+              })}
+              aria-label="React Bits Line Waves color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom lines</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLineWavesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorOne: event.target.value })}
+                  aria-label="React Bits Line Waves color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorTwo: event.target.value })}
+                  aria-label="React Bits Line Waves color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorThree: event.target.value })}
+                  aria-label="React Bits Line Waves color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsLineWavesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Line Waves primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLineWavesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLineWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Line Waves color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsLineWavesEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Line Waves mouse warp"
+            />
+            <span>Pointer warp</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsLineWavesSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsLineWavesSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesSpeed: Number(event.target.value) })}
+              aria-label="React Bits Line Waves speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Inner lines ({reactBitsLineWavesInnerLineCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="96"
+              step="1"
+              value={reactBitsLineWavesInnerLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesInnerLineCount: Number(event.target.value),
+              })}
+              aria-label="React Bits Line Waves inner line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Outer lines ({reactBitsLineWavesOuterLineCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="96"
+              step="1"
+              value={reactBitsLineWavesOuterLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesOuterLineCount: Number(event.target.value),
+              })}
+              aria-label="React Bits Line Waves outer line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({reactBitsLineWavesWarpIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsLineWavesWarpIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesWarpIntensity: Number(event.target.value) })}
+              aria-label="React Bits Line Waves warp intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsLineWavesRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsLineWavesRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesRotation: Number(event.target.value) })}
+              aria-label="React Bits Line Waves rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Edge fade ({reactBitsLineWavesEdgeFadeWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.05"
+              value={reactBitsLineWavesEdgeFadeWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesEdgeFadeWidth: Number(event.target.value) })}
+              aria-label="React Bits Line Waves edge fade width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color cycle ({reactBitsLineWavesColorCycleSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsLineWavesColorCycleSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesColorCycleSpeed: Number(event.target.value),
+              })}
+              aria-label="React Bits Line Waves color cycle speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsLineWavesBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={reactBitsLineWavesBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesBrightness: Number(event.target.value) })}
+              aria-label="React Bits Line Waves brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsLineWavesMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsLineWavesMouseInfluence}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Line Waves mouse influence"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -8495,6 +8753,21 @@ export function RunningTimer({
             flameSpeed: reactBitsEvilEyeFlameSpeed,
             backgroundColor: reactBitsEvilEyeBackgroundColor,
             interactive: reactBitsEvilEyeInteractive,
+          }}
+          reactBitsLineWaves={{
+            color1: lineWavesColors[0],
+            color2: lineWavesColors[1],
+            color3: lineWavesColors[2],
+            speed: reactBitsLineWavesSpeed,
+            innerLineCount: reactBitsLineWavesInnerLineCount,
+            outerLineCount: reactBitsLineWavesOuterLineCount,
+            warpIntensity: reactBitsLineWavesWarpIntensity,
+            rotation: reactBitsLineWavesRotation,
+            edgeFadeWidth: reactBitsLineWavesEdgeFadeWidth,
+            colorCycleSpeed: reactBitsLineWavesColorCycleSpeed,
+            brightness: reactBitsLineWavesBrightness,
+            enableMouseInteraction: reactBitsLineWavesEnableMouseInteraction,
+            mouseInfluence: reactBitsLineWavesMouseInfluence,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

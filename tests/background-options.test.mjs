@@ -74,6 +74,7 @@ describe("premium background registry", () => {
       "react-bits-pixel-blast",
       "react-bits-color-bends",
       "react-bits-evil-eye",
+      "react-bits-line-waves",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -293,6 +294,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-pixel-blast"))
     assert.ok(chimerOptions.includes("react-bits-color-bends"))
     assert.ok(chimerOptions.includes("react-bits-evil-eye"))
+    assert.ok(chimerOptions.includes("react-bits-line-waves"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -340,6 +342,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-pixel-blast"))
     assert.ok(clockOptions.includes("react-bits-color-bends"))
     assert.ok(clockOptions.includes("react-bits-evil-eye"))
+    assert.ok(clockOptions.includes("react-bits-line-waves"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -388,6 +391,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-pixel-blast"))
     assert.ok(musicOptions.includes("react-bits-color-bends"))
     assert.ok(musicOptions.includes("react-bits-evil-eye"))
+    assert.ok(musicOptions.includes("react-bits-line-waves"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -2373,6 +2377,112 @@ describe("premium background registry", () => {
       "reactBitsEvilEyePupilFollow",
       "reactBitsEvilEyeFlameSpeed",
       "reactBitsEvilEyeInteractive",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Line Waves source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-line-waves-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-line-waves/)
+    assert.match(registrySource, /Line Waves/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/line-waves/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsLineWavesBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_LINE_WAVES/)
+    assert.match(effectSource, /displaceA/)
+    assert.match(effectSource, /displaceB/)
+    assert.match(effectSource, /smoothNoise/)
+    assert.match(effectSource, /uInnerLines/)
+    assert.match(effectSource, /uOuterLines/)
+    assert.match(effectSource, /uWarpIntensity/)
+    assert.match(effectSource, /uColorCycleSpeed/)
+    assert.match(effectSource, /uMouseInfluence/)
+    assert.match(effectSource, /uEnableMouse/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /alpha:\s*true/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /speed:\s*0\.3/)
+    assert.match(effectSource, /innerLineCount:\s*32/)
+    assert.match(effectSource, /outerLineCount:\s*36/)
+    assert.match(effectSource, /warpIntensity:\s*1/)
+    assert.match(effectSource, /rotation:\s*-45/)
+    assert.match(effectSource, /edgeFadeWidth:\s*0/)
+    assert.match(effectSource, /colorCycleSpeed:\s*1/)
+    assert.match(effectSource, /brightness:\s*0\.2/)
+    assert.match(effectSource, /color1:\s*"#FFFFFF"/)
+    assert.match(effectSource, /color2:\s*"#FFFFFF"/)
+    assert.match(effectSource, /color3:\s*"#FFFFFF"/)
+    assert.match(effectSource, /enableMouseInteraction:\s*false/)
+    assert.match(effectSource, /mouseInfluence:\s*2/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsLineWaves/)
+    assert.match(stylesSource, /reactBitsLineWavesCanvas/)
+
+    assert.match(hostSource, /reactBitsLineWaves/)
+    assert.match(cssEffectsSource, /ReactBitsLineWavesOptions/)
+    assert.match(setupSource, /resolveReactBitsLineWavesColors/)
+    assert.match(runningSource, /reactBitsLineWaves=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsLineWaves=\{\{/)
+    assert.match(docsSource, /Line Waves \| https:\/\/reactbits\.dev\/backgrounds\/line-waves/)
+    assert.match(docsSource, /LineWaves\.jsx/)
+    assert.match(docsSource, /LineWaves\.css/)
+    assert.match(docsSource, /raw WebGL/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsLineWavesPaletteMode",
+      "reactBitsLineWavesPrimaryColor",
+      "reactBitsLineWavesHarmony",
+      "reactBitsLineWavesColorOne",
+      "reactBitsLineWavesColorTwo",
+      "reactBitsLineWavesColorThree",
+      "reactBitsLineWavesSpeed",
+      "reactBitsLineWavesInnerLineCount",
+      "reactBitsLineWavesOuterLineCount",
+      "reactBitsLineWavesWarpIntensity",
+      "reactBitsLineWavesRotation",
+      "reactBitsLineWavesEdgeFadeWidth",
+      "reactBitsLineWavesColorCycleSpeed",
+      "reactBitsLineWavesBrightness",
+      "reactBitsLineWavesEnableMouseInteraction",
+      "reactBitsLineWavesMouseInfluence",
     ]
 
     for (const settingKey of settingKeys) {

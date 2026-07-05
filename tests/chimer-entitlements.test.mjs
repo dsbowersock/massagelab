@@ -1191,6 +1191,72 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsEvilEyeInteractive, true)
   })
 
+  it("resets React Bits Line Waves controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-line-waves",
+      reactBitsLineWavesPaletteMode: "harmony",
+      reactBitsLineWavesPrimaryColor: "#FFFFFF",
+      reactBitsLineWavesHarmony: "triad",
+      reactBitsLineWavesColorOne: "#ABCDEF",
+      reactBitsLineWavesColorTwo: "#123456",
+      reactBitsLineWavesColorThree: "#654321",
+      reactBitsLineWavesSpeed: 1.5,
+      reactBitsLineWavesInnerLineCount: 48,
+      reactBitsLineWavesOuterLineCount: 60,
+      reactBitsLineWavesWarpIntensity: 1.8,
+      reactBitsLineWavesRotation: -24,
+      reactBitsLineWavesEdgeFadeWidth: 0.3,
+      reactBitsLineWavesColorCycleSpeed: 1.7,
+      reactBitsLineWavesBrightness: 0.8,
+      reactBitsLineWavesEnableMouseInteraction: true,
+      reactBitsLineWavesMouseInfluence: 2.8,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsLineWavesPaletteMode",
+      "reactBitsLineWavesPrimaryColor",
+      "reactBitsLineWavesHarmony",
+      "reactBitsLineWavesColorOne",
+      "reactBitsLineWavesColorTwo",
+      "reactBitsLineWavesColorThree",
+      "reactBitsLineWavesSpeed",
+      "reactBitsLineWavesInnerLineCount",
+      "reactBitsLineWavesOuterLineCount",
+      "reactBitsLineWavesWarpIntensity",
+      "reactBitsLineWavesRotation",
+      "reactBitsLineWavesEdgeFadeWidth",
+      "reactBitsLineWavesColorCycleSpeed",
+      "reactBitsLineWavesBrightness",
+      "reactBitsLineWavesEnableMouseInteraction",
+      "reactBitsLineWavesMouseInfluence",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-line-waves")
+    assert.equal(premiumSettings.reactBitsLineWavesPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsLineWavesPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.reactBitsLineWavesHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsLineWavesColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsLineWavesColorTwo, "#123456")
+    assert.equal(premiumSettings.reactBitsLineWavesColorThree, "#654321")
+    assert.equal(premiumSettings.reactBitsLineWavesSpeed, 1.5)
+    assert.equal(premiumSettings.reactBitsLineWavesInnerLineCount, 48)
+    assert.equal(premiumSettings.reactBitsLineWavesOuterLineCount, 60)
+    assert.equal(premiumSettings.reactBitsLineWavesWarpIntensity, 1.8)
+    assert.equal(premiumSettings.reactBitsLineWavesRotation, -24)
+    assert.equal(premiumSettings.reactBitsLineWavesEdgeFadeWidth, 0.3)
+    assert.equal(premiumSettings.reactBitsLineWavesColorCycleSpeed, 1.7)
+    assert.equal(premiumSettings.reactBitsLineWavesBrightness, 0.8)
+    assert.equal(premiumSettings.reactBitsLineWavesEnableMouseInteraction, true)
+    assert.equal(premiumSettings.reactBitsLineWavesMouseInfluence, 2.8)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",
