@@ -2217,6 +2217,88 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Grainient background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsGrainientPaletteMode: "harmony",
+      reactBitsGrainientPrimaryColor: "#ff9ffc",
+      reactBitsGrainientHarmony: "triad",
+      reactBitsGrainientColorOne: "#abcdef",
+      reactBitsGrainientColorTwo: "#010203",
+      reactBitsGrainientColorThree: "#111111",
+      reactBitsGrainientTimeSpeed: 99,
+      reactBitsGrainientColorBalance: 99,
+      reactBitsGrainientWarpStrength: 99,
+      reactBitsGrainientWarpFrequency: 99,
+      reactBitsGrainientWarpSpeed: 99,
+      reactBitsGrainientWarpAmplitude: 999,
+      reactBitsGrainientBlendAngle: 999,
+      reactBitsGrainientBlendSoftness: 99,
+      reactBitsGrainientRotationAmount: 9999,
+      reactBitsGrainientNoiseScale: 99,
+      reactBitsGrainientGrainAmount: 99,
+      reactBitsGrainientGrainScale: 99,
+      reactBitsGrainientGrainAnimated: true,
+      reactBitsGrainientContrast: 99,
+      reactBitsGrainientGamma: 99,
+      reactBitsGrainientSaturation: 99,
+      reactBitsGrainientCenterX: 99,
+      reactBitsGrainientCenterY: -99,
+      reactBitsGrainientZoom: 99,
+    })
+
+    assert.equal(settings.reactBitsGrainientPaletteMode, "harmony")
+    assert.equal(settings.reactBitsGrainientPrimaryColor, "#FF9FFC")
+    assert.equal(settings.reactBitsGrainientHarmony, "triad")
+    assert.equal(settings.reactBitsGrainientColorOne, "#ABCDEF")
+    assert.equal(settings.reactBitsGrainientColorTwo, "#010203")
+    assert.equal(settings.reactBitsGrainientColorThree, "#111111")
+    assert.equal(settings.reactBitsGrainientTimeSpeed, 2)
+    assert.equal(settings.reactBitsGrainientColorBalance, 1)
+    assert.equal(settings.reactBitsGrainientWarpStrength, 5)
+    assert.equal(settings.reactBitsGrainientWarpFrequency, 20)
+    assert.equal(settings.reactBitsGrainientWarpSpeed, 6)
+    assert.equal(settings.reactBitsGrainientWarpAmplitude, 160)
+    assert.equal(settings.reactBitsGrainientBlendAngle, 180)
+    assert.equal(settings.reactBitsGrainientBlendSoftness, 1)
+    assert.equal(settings.reactBitsGrainientRotationAmount, 1200)
+    assert.equal(settings.reactBitsGrainientNoiseScale, 8)
+    assert.equal(settings.reactBitsGrainientGrainAmount, 1)
+    assert.equal(settings.reactBitsGrainientGrainScale, 12)
+    assert.equal(settings.reactBitsGrainientGrainAnimated, true)
+    assert.equal(settings.reactBitsGrainientContrast, 4)
+    assert.equal(settings.reactBitsGrainientGamma, 4)
+    assert.equal(settings.reactBitsGrainientSaturation, 3)
+    assert.equal(settings.reactBitsGrainientCenterX, 1)
+    assert.equal(settings.reactBitsGrainientCenterY, -1)
+    assert.equal(settings.reactBitsGrainientZoom, 3)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGrainientPaletteMode: "auto" }).reactBitsGrainientPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGrainientPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGrainientPrimaryColor: "pink" }).reactBitsGrainientPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGrainientPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGrainientHarmony: "wild" }).reactBitsGrainientHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGrainientHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGrainientColorOne: "pink" }).reactBitsGrainientColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGrainientColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGrainientTimeSpeed: "fast" }).reactBitsGrainientTimeSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGrainientTimeSpeed,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsGrainientBlendAngle: -999 }).reactBitsGrainientBlendAngle, -180)
+    assert.equal(sanitizeChimerSettings({ reactBitsGrainientWarpFrequency: 0 }).reactBitsGrainientWarpFrequency, 0.1)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGrainientGrainAnimated: "yes" }).reactBitsGrainientGrainAnimated,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGrainientGrainAnimated,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

@@ -43,6 +43,7 @@ export interface BackgroundEffectProps {
   reactBitsPlasmaWave?: ReactBitsPlasmaWaveOptions
   reactBitsParticles?: ReactBitsParticlesOptions
   reactBitsGradientBlinds?: ReactBitsGradientBlindsOptions
+  reactBitsGrainient?: ReactBitsGrainientOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -499,6 +500,31 @@ export interface ReactBitsGradientBlindsOptions {
   shineDirection?: "left" | "right"
   mixBlendMode?: "normal" | "screen" | "lighten" | "plus-lighter"
   enableMouseInteraction?: boolean
+}
+
+export interface ReactBitsGrainientOptions {
+  timeSpeed?: number
+  colorBalance?: number
+  warpStrength?: number
+  warpFrequency?: number
+  warpSpeed?: number
+  warpAmplitude?: number
+  blendAngle?: number
+  blendSoftness?: number
+  rotationAmount?: number
+  noiseScale?: number
+  grainAmount?: number
+  grainScale?: number
+  grainAnimated?: boolean
+  contrast?: number
+  gamma?: number
+  saturation?: number
+  centerX?: number
+  centerY?: number
+  zoom?: number
+  color1?: string
+  color2?: string
+  color3?: string
 }
 
 export interface EldoraNovatrixOptions {

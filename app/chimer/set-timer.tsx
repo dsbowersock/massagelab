@@ -72,6 +72,7 @@ export type ReactBitsParticlesPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsGradientBlindsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsGradientBlindsShineDirection = "left" | "right"
 export type ReactBitsGradientBlindsBlendMode = "normal" | "screen" | "lighten" | "plus-lighter"
+export type ReactBitsGrainientPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -872,6 +873,31 @@ export interface ChimerSettings {
   reactBitsGradientBlindsBlendMode: ReactBitsGradientBlindsBlendMode
   reactBitsGradientBlindsDpr: number
   reactBitsGradientBlindsEnableMouseInteraction: boolean
+  reactBitsGrainientPaletteMode: ReactBitsGrainientPaletteMode
+  reactBitsGrainientPrimaryColor: string
+  reactBitsGrainientHarmony: ColorHarmony
+  reactBitsGrainientColorOne: string
+  reactBitsGrainientColorTwo: string
+  reactBitsGrainientColorThree: string
+  reactBitsGrainientTimeSpeed: number
+  reactBitsGrainientColorBalance: number
+  reactBitsGrainientWarpStrength: number
+  reactBitsGrainientWarpFrequency: number
+  reactBitsGrainientWarpSpeed: number
+  reactBitsGrainientWarpAmplitude: number
+  reactBitsGrainientBlendAngle: number
+  reactBitsGrainientBlendSoftness: number
+  reactBitsGrainientRotationAmount: number
+  reactBitsGrainientNoiseScale: number
+  reactBitsGrainientGrainAmount: number
+  reactBitsGrainientGrainScale: number
+  reactBitsGrainientGrainAnimated: boolean
+  reactBitsGrainientContrast: number
+  reactBitsGrainientGamma: number
+  reactBitsGrainientSaturation: number
+  reactBitsGrainientCenterX: number
+  reactBitsGrainientCenterY: number
+  reactBitsGrainientZoom: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1267,6 +1293,16 @@ type ReactBitsGradientBlindsColorSettings = Pick<
   | "reactBitsGradientBlindsHarmony"
   | "reactBitsGradientBlindsColorOne"
   | "reactBitsGradientBlindsColorTwo"
+>
+
+type ReactBitsGrainientColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsGrainientPaletteMode"
+  | "reactBitsGrainientPrimaryColor"
+  | "reactBitsGrainientHarmony"
+  | "reactBitsGrainientColorOne"
+  | "reactBitsGrainientColorTwo"
+  | "reactBitsGrainientColorThree"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -1677,6 +1713,25 @@ export function resolveReactBitsGradientBlindsColors(settings: ReactBitsGradient
   return [
     settings.reactBitsGradientBlindsColorOne,
     settings.reactBitsGradientBlindsColorTwo,
+  ]
+}
+
+export function resolveReactBitsGrainientColors(settings: ReactBitsGrainientColorSettings): string[] {
+  if (settings.reactBitsGrainientPaletteMode === "source") {
+    return ["#FF9FFC", "#5227FF", "#B497CF"]
+  }
+
+  if (settings.reactBitsGrainientPaletteMode === "harmony") {
+    return createReactBitsGrainientHarmonyColors(
+      settings.reactBitsGrainientPrimaryColor,
+      settings.reactBitsGrainientHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsGrainientColorOne,
+    settings.reactBitsGrainientColorTwo,
+    settings.reactBitsGrainientColorThree,
   ]
 }
 
@@ -2807,6 +2862,69 @@ export function createReactBitsGradientBlindsHarmonyColors(
       return [
         hslToHex(hue - 24, blindSaturation, firstLightness),
         hslToHex(hue + 32, Math.min(0.94, blindSaturation * 0.94), secondLightness),
+      ]
+  }
+}
+
+export function createReactBitsGrainientHarmonyColors(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
+  const grainSaturation = Math.min(0.95, Math.max(0.42, saturation))
+  const brightLightness = Math.min(0.82, Math.max(0.56, lightness + 0.08))
+  const midLightness = Math.min(0.72, Math.max(0.44, lightness - 0.02))
+  const softLightness = Math.min(0.86, Math.max(0.52, lightness + 0.12))
+
+  switch (harmony) {
+    case "complementary":
+      return [
+        hslToHex(hue, grainSaturation, brightLightness),
+        hslToHex(hue + 180, Math.min(0.92, grainSaturation * 0.95), midLightness),
+        hslToHex(hue + 210, Math.min(0.72, grainSaturation * 0.5), softLightness),
+      ]
+    case "split-complementary":
+      return [
+        hslToHex(hue, grainSaturation, brightLightness),
+        hslToHex(hue + 150, Math.min(0.92, grainSaturation * 0.92), midLightness),
+        hslToHex(hue + 210, Math.min(0.82, grainSaturation * 0.72), softLightness),
+      ]
+    case "triad":
+      return [
+        hslToHex(hue, grainSaturation, brightLightness),
+        hslToHex(hue + 120, Math.min(0.94, grainSaturation), midLightness),
+        hslToHex(hue + 240, Math.min(0.84, grainSaturation * 0.82), softLightness),
+      ]
+    case "square":
+      return [
+        hslToHex(hue, grainSaturation, brightLightness),
+        hslToHex(hue + 90, Math.min(0.9, grainSaturation * 0.9), midLightness),
+        hslToHex(hue + 180, Math.min(0.78, grainSaturation * 0.72), softLightness),
+      ]
+    case "compound":
+      return [
+        hslToHex(hue - 24, Math.min(0.9, grainSaturation * 0.9), brightLightness),
+        hslToHex(hue + 18, grainSaturation, midLightness),
+        hslToHex(hue + 180, Math.min(0.74, grainSaturation * 0.68), softLightness),
+      ]
+    case "shades":
+      return [
+        hslToHex(hue, Math.min(0.82, grainSaturation * 0.82), brightLightness),
+        hslToHex(hue, Math.min(0.64, grainSaturation * 0.64), midLightness),
+        hslToHex(hue, Math.min(0.42, grainSaturation * 0.42), softLightness),
+      ]
+    case "monochromatic":
+      return [
+        hslToHex(hue, grainSaturation, brightLightness),
+        hslToHex(hue, grainSaturation * 0.65, midLightness),
+        hslToHex(hue, grainSaturation * 0.35, softLightness),
+      ]
+    case "analogous":
+    default:
+      return [
+        hslToHex(hue - 24, grainSaturation, brightLightness),
+        hslToHex(hue + 18, Math.min(0.92, grainSaturation * 0.95), midLightness),
+        hslToHex(hue + 42, Math.min(0.74, grainSaturation * 0.58), softLightness),
       ]
   }
 }
@@ -9723,6 +9841,335 @@ export function SetTimer({
               value={settings.reactBitsGradientBlindsDpr}
               onChange={(event) => onSettingsChange({ reactBitsGradientBlindsDpr: Number(event.target.value) })}
               aria-label="React Bits Gradient Blinds dpr"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-grainient") {
+      const useCustomGrainient = settings.reactBitsGrainientPaletteMode === "custom"
+      const useHarmonyGrainient = settings.reactBitsGrainientPaletteMode === "harmony"
+
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsGrainientPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsGrainientPaletteMode: event.target.value as ReactBitsGrainientPaletteMode,
+              })}
+              aria-label="React Bits Grainient color mode"
+            >
+              <option value="source">Source magenta, violet, and mauve</option>
+              <option value="custom">Custom grain colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {useCustomGrainient ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGrainientColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsGrainientColorOne: event.target.value })}
+                  aria-label="React Bits Grainient color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGrainientColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsGrainientColorTwo: event.target.value })}
+                  aria-label="React Bits Grainient color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGrainientColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsGrainientColorThree: event.target.value })}
+                  aria-label="React Bits Grainient color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {useHarmonyGrainient ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGrainientPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGrainientPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grainient primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsGrainientHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsGrainientHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grainient color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGrainientGrainAnimated}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientGrainAnimated: event.target.checked })}
+            />
+            <span>Animated grain</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time speed ({settings.reactBitsGrainientTimeSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={settings.reactBitsGrainientTimeSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientTimeSpeed: Number(event.target.value) })}
+              aria-label="React Bits Grainient time speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color balance ({settings.reactBitsGrainientColorBalance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGrainientColorBalance}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientColorBalance: Number(event.target.value) })}
+              aria-label="React Bits Grainient color balance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp strength ({settings.reactBitsGrainientWarpStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={settings.reactBitsGrainientWarpStrength}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientWarpStrength: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp frequency ({settings.reactBitsGrainientWarpFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={settings.reactBitsGrainientWarpFrequency}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientWarpFrequency: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp speed ({settings.reactBitsGrainientWarpSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.05"
+              value={settings.reactBitsGrainientWarpSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientWarpSpeed: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp amplitude ({settings.reactBitsGrainientWarpAmplitude.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="160"
+              step="1"
+              value={settings.reactBitsGrainientWarpAmplitude}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientWarpAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blend angle ({settings.reactBitsGrainientBlendAngle.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={settings.reactBitsGrainientBlendAngle}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientBlendAngle: Number(event.target.value) })}
+              aria-label="React Bits Grainient blend angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blend softness ({settings.reactBitsGrainientBlendSoftness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGrainientBlendSoftness}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientBlendSoftness: Number(event.target.value) })}
+              aria-label="React Bits Grainient blend softness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation amount ({settings.reactBitsGrainientRotationAmount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1200"
+              step="10"
+              value={settings.reactBitsGrainientRotationAmount}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientRotationAmount: Number(event.target.value) })}
+              aria-label="React Bits Grainient rotation amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise scale ({settings.reactBitsGrainientNoiseScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsGrainientNoiseScale}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientNoiseScale: Number(event.target.value) })}
+              aria-label="React Bits Grainient noise scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grain amount ({settings.reactBitsGrainientGrainAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGrainientGrainAmount}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientGrainAmount: Number(event.target.value) })}
+              aria-label="React Bits Grainient grain amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grain scale ({settings.reactBitsGrainientGrainScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={settings.reactBitsGrainientGrainScale}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientGrainScale: Number(event.target.value) })}
+              aria-label="React Bits Grainient grain scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Contrast ({settings.reactBitsGrainientContrast.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsGrainientContrast}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientContrast: Number(event.target.value) })}
+              aria-label="React Bits Grainient contrast"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Gamma ({settings.reactBitsGrainientGamma.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsGrainientGamma}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientGamma: Number(event.target.value) })}
+              aria-label="React Bits Grainient gamma"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({settings.reactBitsGrainientSaturation.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsGrainientSaturation}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientSaturation: Number(event.target.value) })}
+              aria-label="React Bits Grainient saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Center X ({settings.reactBitsGrainientCenterX.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGrainientCenterX}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientCenterX: Number(event.target.value) })}
+              aria-label="React Bits Grainient center X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Center Y ({settings.reactBitsGrainientCenterY.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsGrainientCenterY}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientCenterY: Number(event.target.value) })}
+              aria-label="React Bits Grainient center Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Zoom ({settings.reactBitsGrainientZoom.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsGrainientZoom}
+              onChange={(event) => onSettingsChange({ reactBitsGrainientZoom: Number(event.target.value) })}
+              aria-label="React Bits Grainient zoom"
             />
           </label>
         </div>

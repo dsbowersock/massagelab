@@ -1647,6 +1647,99 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsGradientBlindsEnableMouseInteraction, true)
   })
 
+  it("resets React Bits Grainient controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-grainient",
+      reactBitsGrainientPaletteMode: "harmony",
+      reactBitsGrainientPrimaryColor: "#FF9FFC",
+      reactBitsGrainientHarmony: "triad",
+      reactBitsGrainientColorOne: "#ABCDEF",
+      reactBitsGrainientColorTwo: "#010203",
+      reactBitsGrainientColorThree: "#111111",
+      reactBitsGrainientTimeSpeed: 0.8,
+      reactBitsGrainientColorBalance: 0.4,
+      reactBitsGrainientWarpStrength: 1.7,
+      reactBitsGrainientWarpFrequency: 8,
+      reactBitsGrainientWarpSpeed: 2.4,
+      reactBitsGrainientWarpAmplitude: 64,
+      reactBitsGrainientBlendAngle: 22,
+      reactBitsGrainientBlendSoftness: 0.18,
+      reactBitsGrainientRotationAmount: 700,
+      reactBitsGrainientNoiseScale: 3,
+      reactBitsGrainientGrainAmount: 0.25,
+      reactBitsGrainientGrainScale: 4,
+      reactBitsGrainientGrainAnimated: true,
+      reactBitsGrainientContrast: 1.7,
+      reactBitsGrainientGamma: 1.2,
+      reactBitsGrainientSaturation: 1.3,
+      reactBitsGrainientCenterX: 0.2,
+      reactBitsGrainientCenterY: -0.2,
+      reactBitsGrainientZoom: 1.1,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsGrainientPaletteMode",
+      "reactBitsGrainientPrimaryColor",
+      "reactBitsGrainientHarmony",
+      "reactBitsGrainientColorOne",
+      "reactBitsGrainientColorTwo",
+      "reactBitsGrainientColorThree",
+      "reactBitsGrainientTimeSpeed",
+      "reactBitsGrainientColorBalance",
+      "reactBitsGrainientWarpStrength",
+      "reactBitsGrainientWarpFrequency",
+      "reactBitsGrainientWarpSpeed",
+      "reactBitsGrainientWarpAmplitude",
+      "reactBitsGrainientBlendAngle",
+      "reactBitsGrainientBlendSoftness",
+      "reactBitsGrainientRotationAmount",
+      "reactBitsGrainientNoiseScale",
+      "reactBitsGrainientGrainAmount",
+      "reactBitsGrainientGrainScale",
+      "reactBitsGrainientGrainAnimated",
+      "reactBitsGrainientContrast",
+      "reactBitsGrainientGamma",
+      "reactBitsGrainientSaturation",
+      "reactBitsGrainientCenterX",
+      "reactBitsGrainientCenterY",
+      "reactBitsGrainientZoom",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-grainient")
+    assert.equal(premiumSettings.reactBitsGrainientPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsGrainientPrimaryColor, "#FF9FFC")
+    assert.equal(premiumSettings.reactBitsGrainientHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsGrainientColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsGrainientColorTwo, "#010203")
+    assert.equal(premiumSettings.reactBitsGrainientColorThree, "#111111")
+    assert.equal(premiumSettings.reactBitsGrainientTimeSpeed, 0.8)
+    assert.equal(premiumSettings.reactBitsGrainientColorBalance, 0.4)
+    assert.equal(premiumSettings.reactBitsGrainientWarpStrength, 1.7)
+    assert.equal(premiumSettings.reactBitsGrainientWarpFrequency, 8)
+    assert.equal(premiumSettings.reactBitsGrainientWarpSpeed, 2.4)
+    assert.equal(premiumSettings.reactBitsGrainientWarpAmplitude, 64)
+    assert.equal(premiumSettings.reactBitsGrainientBlendAngle, 22)
+    assert.equal(premiumSettings.reactBitsGrainientBlendSoftness, 0.18)
+    assert.equal(premiumSettings.reactBitsGrainientRotationAmount, 700)
+    assert.equal(premiumSettings.reactBitsGrainientNoiseScale, 3)
+    assert.equal(premiumSettings.reactBitsGrainientGrainAmount, 0.25)
+    assert.equal(premiumSettings.reactBitsGrainientGrainScale, 4)
+    assert.equal(premiumSettings.reactBitsGrainientGrainAnimated, true)
+    assert.equal(premiumSettings.reactBitsGrainientContrast, 1.7)
+    assert.equal(premiumSettings.reactBitsGrainientGamma, 1.2)
+    assert.equal(premiumSettings.reactBitsGrainientSaturation, 1.3)
+    assert.equal(premiumSettings.reactBitsGrainientCenterX, 0.2)
+    assert.equal(premiumSettings.reactBitsGrainientCenterY, -0.2)
+    assert.equal(premiumSettings.reactBitsGrainientZoom, 1.1)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

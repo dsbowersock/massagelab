@@ -81,6 +81,7 @@ describe("premium background registry", () => {
       "react-bits-plasma-wave",
       "react-bits-particles",
       "react-bits-gradient-blinds",
+      "react-bits-grainient",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -307,6 +308,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-plasma-wave"))
     assert.ok(chimerOptions.includes("react-bits-particles"))
     assert.ok(chimerOptions.includes("react-bits-gradient-blinds"))
+    assert.ok(chimerOptions.includes("react-bits-grainient"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -361,6 +363,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-plasma-wave"))
     assert.ok(clockOptions.includes("react-bits-particles"))
     assert.ok(clockOptions.includes("react-bits-gradient-blinds"))
+    assert.ok(clockOptions.includes("react-bits-grainient"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -416,6 +419,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-plasma-wave"))
     assert.ok(musicOptions.includes("react-bits-particles"))
     assert.ok(musicOptions.includes("react-bits-gradient-blinds"))
+    assert.ok(musicOptions.includes("react-bits-grainient"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -3114,6 +3118,114 @@ describe("premium background registry", () => {
       "reactBitsGradientBlindsBlendMode",
       "reactBitsGradientBlindsDpr",
       "reactBitsGradientBlindsEnableMouseInteraction",
+    ]
+
+    for (const settingKey of settingKeys) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Grainient source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-grainient-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-grainient/)
+    assert.match(registrySource, /Grainient/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/grainient/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(registrySource, /enabled:\s*true/)
+
+    assert.match(effectSource, /ReactBitsGrainientBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_GRAINIENT/)
+    assert.match(effectSource, /#version 300 es/)
+    assert.match(effectSource, /getContext\("webgl2"/)
+    assert.match(effectSource, /uTimeSpeed/)
+    assert.match(effectSource, /uWarpStrength/)
+    assert.match(effectSource, /uGrainAmount/)
+    assert.match(effectSource, /timeSpeed:\s*0\.25/)
+    assert.match(effectSource, /warpFrequency:\s*5/)
+    assert.match(effectSource, /warpAmplitude:\s*50/)
+    assert.match(effectSource, /rotationAmount:\s*500/)
+    assert.match(effectSource, /grainAmount:\s*0\.1/)
+    assert.match(effectSource, /contrast:\s*1\.5/)
+    assert.match(effectSource, /zoom:\s*0\.9/)
+    assert.match(effectSource, /color1:\s*"#FF9FFC"/)
+    assert.match(effectSource, /color2:\s*"#5227FF"/)
+    assert.match(effectSource, /color3:\s*"#B497CF"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /visibilitychange/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+
+    assert.match(stylesSource, /reactBitsGrainient/)
+    assert.match(stylesSource, /reactBitsGrainientCanvas/)
+    assert.match(hostSource, /reactBitsGrainient/)
+    assert.match(cssEffectsSource, /ReactBitsGrainientOptions/)
+    assert.match(setupSource, /resolveReactBitsGrainientColors/)
+    assert.match(runningSource, /reactBitsGrainient=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsGrainient=\{\{/)
+    assert.match(docsSource, /Grainient \| https:\/\/reactbits\.dev\/backgrounds\/grainient/)
+    assert.match(docsSource, /Grainient\.jsx/)
+    assert.match(docsSource, /Grainient\.css/)
+    assert.match(docsSource, /raw WebGL2/)
+    assert.match(docsSource, /OGL/)
+
+    const settingKeys = [
+      "reactBitsGrainientPaletteMode",
+      "reactBitsGrainientPrimaryColor",
+      "reactBitsGrainientHarmony",
+      "reactBitsGrainientColorOne",
+      "reactBitsGrainientColorTwo",
+      "reactBitsGrainientColorThree",
+      "reactBitsGrainientTimeSpeed",
+      "reactBitsGrainientColorBalance",
+      "reactBitsGrainientWarpStrength",
+      "reactBitsGrainientWarpFrequency",
+      "reactBitsGrainientWarpSpeed",
+      "reactBitsGrainientWarpAmplitude",
+      "reactBitsGrainientBlendAngle",
+      "reactBitsGrainientBlendSoftness",
+      "reactBitsGrainientRotationAmount",
+      "reactBitsGrainientNoiseScale",
+      "reactBitsGrainientGrainAmount",
+      "reactBitsGrainientGrainScale",
+      "reactBitsGrainientGrainAnimated",
+      "reactBitsGrainientContrast",
+      "reactBitsGrainientGamma",
+      "reactBitsGrainientSaturation",
+      "reactBitsGrainientCenterX",
+      "reactBitsGrainientCenterY",
+      "reactBitsGrainientZoom",
     ]
 
     for (const settingKey of settingKeys) {

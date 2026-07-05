@@ -40,6 +40,7 @@ export type BackgroundId =
   | "react-bits-plasma-wave"
   | "react-bits-particles"
   | "react-bits-gradient-blinds"
+  | "react-bits-grainient"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -124,6 +125,7 @@ const reactBitsPlasma = () => import("./effects/react-bits-plasma-background")
 const reactBitsPlasmaWave = () => import("./effects/react-bits-plasma-wave-background")
 const reactBitsParticles = () => import("./effects/react-bits-particles-background")
 const reactBitsGradientBlinds = () => import("./effects/react-bits-gradient-blinds-background")
+const reactBitsGrainient = () => import("./effects/react-bits-grainient-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -870,6 +872,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "linear-gradient(90deg, rgba(255,159,252,0.28), rgba(82,39,255,0.3)), linear-gradient(145deg, #05010d 0%, #12051f 58%, #020006 100%)",
+    },
+  },
+  {
+    id: "react-bits-grainient",
+    label: "Grainient",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/grainient",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium grain-textured warped color field for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony three-color palette plus source-shaped time, color balance, warp, blend, rotation, noise, grain, contrast, gamma, saturation, center, and zoom controls; source OGL WebGL2 shader adapted with raw WebGL2 while the canvas remains pointer-events free.",
+    component: () => reactBitsGrainient().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 30% 28%, rgba(255,159,252,0.2), transparent 36%), radial-gradient(circle at 70% 58%, rgba(82,39,255,0.24), transparent 42%), linear-gradient(145deg, #090012 0%, #140729 58%, #05020a 100%)",
     },
   },
   {
