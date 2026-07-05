@@ -74,6 +74,7 @@ import {
   resolveChamaacWavesColors,
   resolveChamaacSynthesisColors,
   resolveReactBitsFerrofluidColors,
+  resolveReactBitsLightfallColors,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
   resolveEldoraPhotonBeamColors,
@@ -84,6 +85,7 @@ import {
   type ChamaacWavesPaletteMode,
   type ChamaacSynthesisPaletteMode,
   type ReactBitsFerrofluidPaletteMode,
+  type ReactBitsLightfallPaletteMode,
   type EldoraHackerPaletteMode,
   type EldoraNovatrixPaletteMode,
   type EldoraPhotonBeamPaletteMode,
@@ -230,6 +232,27 @@ interface RunningTimerProps {
   reactBitsFerrofluidGlow: number
   reactBitsFerrofluidFlowDirection: ChimerSettings["reactBitsFerrofluidFlowDirection"]
   reactBitsFerrofluidOpacity: number
+  reactBitsLightfallPaletteMode: ReactBitsLightfallPaletteMode
+  reactBitsLightfallPrimaryColor: string
+  reactBitsLightfallHarmony: ColorHarmony
+  reactBitsLightfallColorOne: string
+  reactBitsLightfallColorTwo: string
+  reactBitsLightfallColorThree: string
+  reactBitsLightfallBackgroundColor: string
+  reactBitsLightfallSpeed: number
+  reactBitsLightfallStreakCount: number
+  reactBitsLightfallStreakWidth: number
+  reactBitsLightfallStreakLength: number
+  reactBitsLightfallGlow: number
+  reactBitsLightfallDensity: number
+  reactBitsLightfallTwinkle: number
+  reactBitsLightfallZoom: number
+  reactBitsLightfallBackgroundGlow: number
+  reactBitsLightfallOpacity: number
+  reactBitsLightfallCursorEnabled: boolean
+  reactBitsLightfallCursorStrength: number
+  reactBitsLightfallCursorRadius: number
+  reactBitsLightfallCursorDampening: number
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -536,6 +559,27 @@ export function RunningTimer({
   reactBitsFerrofluidGlow,
   reactBitsFerrofluidFlowDirection,
   reactBitsFerrofluidOpacity,
+  reactBitsLightfallPaletteMode,
+  reactBitsLightfallPrimaryColor,
+  reactBitsLightfallHarmony,
+  reactBitsLightfallColorOne,
+  reactBitsLightfallColorTwo,
+  reactBitsLightfallColorThree,
+  reactBitsLightfallBackgroundColor,
+  reactBitsLightfallSpeed,
+  reactBitsLightfallStreakCount,
+  reactBitsLightfallStreakWidth,
+  reactBitsLightfallStreakLength,
+  reactBitsLightfallGlow,
+  reactBitsLightfallDensity,
+  reactBitsLightfallTwinkle,
+  reactBitsLightfallZoom,
+  reactBitsLightfallBackgroundGlow,
+  reactBitsLightfallOpacity,
+  reactBitsLightfallCursorEnabled,
+  reactBitsLightfallCursorStrength,
+  reactBitsLightfallCursorRadius,
+  reactBitsLightfallCursorDampening,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -783,6 +827,14 @@ export function RunningTimer({
     reactBitsFerrofluidColorOne,
     reactBitsFerrofluidColorTwo,
     reactBitsFerrofluidColorThree,
+  })
+  const lightfallColors = resolveReactBitsLightfallColors({
+    reactBitsLightfallPaletteMode,
+    reactBitsLightfallPrimaryColor,
+    reactBitsLightfallHarmony,
+    reactBitsLightfallColorOne,
+    reactBitsLightfallColorTwo,
+    reactBitsLightfallColorThree,
   })
   const novatrixSpeed = getEldoraNovatrixDisplaySpeed(eldoraNovatrixSpeed)
   const novatrixAmplitude = getEldoraNovatrixDisplayAmplitude(eldoraNovatrixAmplitude)
@@ -3027,6 +3079,283 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-lightfall" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightfallPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightfallPaletteMode: event.target.value as ReactBitsLightfallPaletteMode,
+              })}
+              aria-label="Lightfall color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightfallPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorOne: event.target.value })}
+                  aria-label="Lightfall first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorTwo: event.target.value })}
+                  aria-label="Lightfall second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorThree: event.target.value })}
+                  aria-label="Lightfall third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallPrimaryColor: event.target.value })}
+                  aria-label="Lightfall primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLightfallHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Lightfall color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={reactBitsLightfallBackgroundColor}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallBackgroundColor: event.target.value })}
+              aria-label="Lightfall background color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsLightfallSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsLightfallSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallSpeed: Number(event.target.value) })}
+              aria-label="Lightfall animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Streak count ({reactBitsLightfallStreakCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={reactBitsLightfallStreakCount}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakCount: Number(event.target.value) })}
+              aria-label="Lightfall streak count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Streak width ({reactBitsLightfallStreakWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.1"
+              value={reactBitsLightfallStreakWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakWidth: Number(event.target.value) })}
+              aria-label="Lightfall streak width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Streak length ({reactBitsLightfallStreakLength.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.1"
+              value={reactBitsLightfallStreakLength}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakLength: Number(event.target.value) })}
+              aria-label="Lightfall streak length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsLightfallGlow.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value={reactBitsLightfallGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallGlow: Number(event.target.value) })}
+              aria-label="Lightfall glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsLightfallDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsLightfallDensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallDensity: Number(event.target.value) })}
+              aria-label="Lightfall density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Twinkle ({Math.round(reactBitsLightfallTwinkle * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={reactBitsLightfallTwinkle}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallTwinkle: Number(event.target.value) })}
+              aria-label="Lightfall twinkle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Zoom ({reactBitsLightfallZoom.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="6"
+              step="0.1"
+              value={reactBitsLightfallZoom}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallZoom: Number(event.target.value) })}
+              aria-label="Lightfall zoom"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Background glow ({reactBitsLightfallBackgroundGlow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={reactBitsLightfallBackgroundGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallBackgroundGlow: Number(event.target.value) })}
+              aria-label="Lightfall background glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsLightfallOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsLightfallOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallOpacity: Number(event.target.value) })}
+              aria-label="Lightfall opacity"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor glow</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLightfallCursorEnabled}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallCursorEnabled: event.target.checked })}
+              aria-label="Lightfall cursor glow"
+            />
+          </label>
+
+          {reactBitsLightfallCursorEnabled && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Cursor strength ({reactBitsLightfallCursorStrength.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value={reactBitsLightfallCursorStrength}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallCursorStrength: Number(event.target.value),
+                  })}
+                  aria-label="Lightfall cursor strength"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor radius ({reactBitsLightfallCursorRadius.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="3"
+                  step="0.05"
+                  value={reactBitsLightfallCursorRadius}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallCursorRadius: Number(event.target.value),
+                  })}
+                  aria-label="Lightfall cursor radius"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor smoothing ({reactBitsLightfallCursorDampening.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={reactBitsLightfallCursorDampening}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallCursorDampening: Number(event.target.value),
+                  })}
+                  aria-label="Lightfall cursor smoothing"
+                />
+              </label>
+            </>
+          )}
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -5015,6 +5344,24 @@ export function RunningTimer({
             glow: reactBitsFerrofluidGlow,
             flowDirection: reactBitsFerrofluidFlowDirection,
             opacity: reactBitsFerrofluidOpacity,
+          }}
+          reactBitsLightfall={{
+            colors: lightfallColors,
+            backgroundColor: reactBitsLightfallBackgroundColor,
+            speed: reactBitsLightfallSpeed,
+            streakCount: reactBitsLightfallStreakCount,
+            streakWidth: reactBitsLightfallStreakWidth,
+            streakLength: reactBitsLightfallStreakLength,
+            glow: reactBitsLightfallGlow,
+            density: reactBitsLightfallDensity,
+            twinkle: reactBitsLightfallTwinkle,
+            zoom: reactBitsLightfallZoom,
+            backgroundGlow: reactBitsLightfallBackgroundGlow,
+            opacity: reactBitsLightfallOpacity,
+            mouseInteraction: reactBitsLightfallCursorEnabled,
+            mouseStrength: reactBitsLightfallCursorStrength,
+            mouseRadius: reactBitsLightfallCursorRadius,
+            mouseDampening: reactBitsLightfallCursorDampening,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

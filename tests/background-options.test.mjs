@@ -62,6 +62,7 @@ describe("premium background registry", () => {
       "chamaac-waves",
       "chamaac-synthesis",
       "react-bits-ferrofluid",
+      "react-bits-lightfall",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -159,7 +160,9 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /hacker-background\.tsx/)
     assert.match(sourceDoc, /photon-beam\.tsx/)
     assert.match(sourceDoc, /Ferrofluid\.jsx/)
+    assert.match(sourceDoc, /Lightfall\.jsx/)
     assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
+    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/lightfall/)
     assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
@@ -1026,6 +1029,110 @@ describe("premium background registry", () => {
       "reactBitsFerrofluidGlow",
       "reactBitsFerrofluidFlowDirection",
       "reactBitsFerrofluidOpacity",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Lightfall source-shaped, passive, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-lightfall-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-lightfall/)
+    assert.match(registrySource, /Lightfall/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/lightfall/)
+    assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(registrySource, /requiresSubscription:\s*true/)
+    assert.match(effectSource, /ReactBitsLightfallBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHTFALL/)
+    assert.match(effectSource, /colors: \["#A6C8FF", "#5227FF", "#FF9FFC"\]/)
+    assert.match(effectSource, /backgroundColor: "#0A29FF"/)
+    assert.match(effectSource, /speed: 0\.5/)
+    assert.match(effectSource, /streakCount: 2/)
+    assert.match(effectSource, /streakWidth: 1/)
+    assert.match(effectSource, /streakLength: 1/)
+    assert.match(effectSource, /glow: 1/)
+    assert.match(effectSource, /density: 0\.6/)
+    assert.match(effectSource, /twinkle: 1/)
+    assert.match(effectSource, /zoom: 3/)
+    assert.match(effectSource, /backgroundGlow: 0\.5/)
+    assert.match(effectSource, /opacity: 1/)
+    assert.match(effectSource, /mouseInteraction: false/)
+    assert.match(effectSource, /mouseStrength: 0\.5/)
+    assert.match(effectSource, /mouseRadius: 1/)
+    assert.match(effectSource, /mouseDampening: 0\.15/)
+    assert.match(effectSource, /uMouseEnabled/)
+    assert.match(effectSource, /uniform1f\(resources\.uniforms\.mouseEnabled, options\.mouseInteraction \? 1 : 0\)/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /fragmentShaderSource/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /cancelAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /deleteBuffer/)
+    assert.match(effectSource, /deleteProgram/)
+    assert.match(effectSource, /deleteShader/)
+    assert.match(stylesSource, /reactBitsLightfall/)
+    assert.match(stylesSource, /reactBitsLightfallCanvas/)
+    assert.match(stylesSource, /pointer-events: none/)
+    assert.match(hostSource, /reactBitsLightfall/)
+    assert.match(runningSource, /reactBitsLightfall=\{\{/)
+    assert.match(runningSource, /resolveReactBitsLightfallColors/)
+    assert.match(setupSource, /resolveReactBitsLightfallColors/)
+    assert.doesNotMatch(pageSource, /reactBitsLightfall=\{\{/)
+    assert.match(docsSource, /Lightfall \| https:\/\/reactbits\.dev\/backgrounds\/lightfall/)
+    assert.match(docsSource, /Lightfall\.jsx/)
+    assert.match(docsSource, /native WebGL/)
+    assert.match(docsSource, /cursor interaction is disabled by default/)
+    assert.match(docsSource, /cursor strength, radius, and smoothing controls/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /postprocessing/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.doesNotMatch(effectSource, /mousemove/)
+    for (const settingKey of [
+      "reactBitsLightfallPaletteMode",
+      "reactBitsLightfallPrimaryColor",
+      "reactBitsLightfallHarmony",
+      "reactBitsLightfallColorOne",
+      "reactBitsLightfallColorTwo",
+      "reactBitsLightfallColorThree",
+      "reactBitsLightfallBackgroundColor",
+      "reactBitsLightfallSpeed",
+      "reactBitsLightfallStreakCount",
+      "reactBitsLightfallStreakWidth",
+      "reactBitsLightfallStreakLength",
+      "reactBitsLightfallGlow",
+      "reactBitsLightfallDensity",
+      "reactBitsLightfallTwinkle",
+      "reactBitsLightfallZoom",
+      "reactBitsLightfallBackgroundGlow",
+      "reactBitsLightfallOpacity",
+      "reactBitsLightfallCursorEnabled",
+      "reactBitsLightfallCursorStrength",
+      "reactBitsLightfallCursorRadius",
+      "reactBitsLightfallCursorDampening",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

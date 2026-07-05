@@ -24,6 +24,7 @@ export interface BackgroundEffectProps {
   chamaacWaves?: ChamaacWavesOptions
   chamaacSynthesis?: ChamaacSynthesisOptions
   reactBitsFerrofluid?: ReactBitsFerrofluidOptions
+  reactBitsLightfall?: ReactBitsLightfallOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -169,6 +170,25 @@ export interface ReactBitsFerrofluidOptions {
   glow?: number
   flowDirection?: "up" | "down" | "left" | "right"
   opacity?: number
+}
+
+export interface ReactBitsLightfallOptions {
+  colors?: string[]
+  backgroundColor?: string
+  speed?: number
+  streakCount?: number
+  streakWidth?: number
+  streakLength?: number
+  glow?: number
+  density?: number
+  twinkle?: number
+  zoom?: number
+  backgroundGlow?: number
+  opacity?: number
+  mouseInteraction?: boolean
+  mouseStrength?: number
+  mouseRadius?: number
+  mouseDampening?: number
 }
 
 export interface EldoraNovatrixOptions {

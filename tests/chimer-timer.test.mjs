@@ -757,6 +757,126 @@ describe("Chimer timer helpers", () => {
     )
   })
 
+  it("normalizes React Bits Lightfall background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsLightfallPaletteMode: "harmony",
+      reactBitsLightfallPrimaryColor: "#a6c8ff",
+      reactBitsLightfallHarmony: "triad",
+      reactBitsLightfallColorOne: "#010203",
+      reactBitsLightfallColorTwo: "#aabbcc",
+      reactBitsLightfallColorThree: "white",
+      reactBitsLightfallBackgroundColor: "#0a29ff",
+      reactBitsLightfallSpeed: 9,
+      reactBitsLightfallStreakCount: 99,
+      reactBitsLightfallStreakWidth: 0,
+      reactBitsLightfallStreakLength: 9,
+      reactBitsLightfallGlow: 0,
+      reactBitsLightfallDensity: 0,
+      reactBitsLightfallTwinkle: 9,
+      reactBitsLightfallZoom: 99,
+      reactBitsLightfallBackgroundGlow: 99,
+      reactBitsLightfallOpacity: 0,
+      reactBitsLightfallCursorEnabled: true,
+      reactBitsLightfallCursorStrength: 9,
+      reactBitsLightfallCursorRadius: 0,
+      reactBitsLightfallCursorDampening: 9,
+    })
+
+    assert.equal(settings.reactBitsLightfallPaletteMode, "harmony")
+    assert.equal(settings.reactBitsLightfallPrimaryColor, "#A6C8FF")
+    assert.equal(settings.reactBitsLightfallHarmony, "triad")
+    assert.equal(settings.reactBitsLightfallColorOne, "#010203")
+    assert.equal(settings.reactBitsLightfallColorTwo, "#AABBCC")
+    assert.equal(settings.reactBitsLightfallColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorThree)
+    assert.equal(settings.reactBitsLightfallBackgroundColor, "#0A29FF")
+    assert.equal(settings.reactBitsLightfallSpeed, 2)
+    assert.equal(settings.reactBitsLightfallStreakCount, 16)
+    assert.equal(settings.reactBitsLightfallStreakWidth, 0.2)
+    assert.equal(settings.reactBitsLightfallStreakLength, 3)
+    assert.equal(settings.reactBitsLightfallGlow, 0.1)
+    assert.equal(settings.reactBitsLightfallDensity, 0.05)
+    assert.equal(settings.reactBitsLightfallTwinkle, 1)
+    assert.equal(settings.reactBitsLightfallZoom, 6)
+    assert.equal(settings.reactBitsLightfallBackgroundGlow, 1.5)
+    assert.equal(settings.reactBitsLightfallOpacity, 0.05)
+    assert.equal(settings.reactBitsLightfallCursorEnabled, true)
+    assert.equal(settings.reactBitsLightfallCursorStrength, 2)
+    assert.equal(settings.reactBitsLightfallCursorRadius, 0.05)
+    assert.equal(settings.reactBitsLightfallCursorDampening, 1)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallSpeed: "fast" }).reactBitsLightfallSpeed,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallSpeed,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallStreakCount: "many" }).reactBitsLightfallStreakCount,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakCount,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallStreakWidth: "wide" }).reactBitsLightfallStreakWidth,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakWidth,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallStreakLength: "long" }).reactBitsLightfallStreakLength,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakLength,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallGlow: "bright" }).reactBitsLightfallGlow,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallGlow,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallDensity: "dense" }).reactBitsLightfallDensity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallDensity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallTwinkle: "sparkly" }).reactBitsLightfallTwinkle,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallTwinkle,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallZoom: "close" }).reactBitsLightfallZoom,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallZoom,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallBackgroundGlow: "bright" }).reactBitsLightfallBackgroundGlow,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallBackgroundGlow,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallOpacity: "clear" }).reactBitsLightfallOpacity,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallOpacity,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallCursorEnabled: "yes" }).reactBitsLightfallCursorEnabled,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorEnabled,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallCursorStrength: "strong" }).reactBitsLightfallCursorStrength,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorStrength,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallCursorRadius: "wide" }).reactBitsLightfallCursorRadius,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorRadius,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallCursorDampening: "smooth" }).reactBitsLightfallCursorDampening,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorDampening,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallPaletteMode: "demo" }).reactBitsLightfallPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallPrimaryColor: "blue" }).reactBitsLightfallPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallHarmony: "rainbow" }).reactBitsLightfallHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsLightfallBackgroundColor: "blue" }).reactBitsLightfallBackgroundColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallBackgroundColor,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

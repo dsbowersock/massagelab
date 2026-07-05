@@ -228,6 +228,107 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsFerrofluidOpacity, 0.72)
   })
 
+  it("resets React Bits Lightfall controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-lightfall",
+      reactBitsLightfallPaletteMode: "harmony",
+      reactBitsLightfallPrimaryColor: "#A6C8FF",
+      reactBitsLightfallHarmony: "triad",
+      reactBitsLightfallColorOne: "#010203",
+      reactBitsLightfallColorTwo: "#AABBCC",
+      reactBitsLightfallColorThree: "#DDEEFF",
+      reactBitsLightfallBackgroundColor: "#0A29FF",
+      reactBitsLightfallSpeed: 1.4,
+      reactBitsLightfallStreakCount: 8,
+      reactBitsLightfallStreakWidth: 1.6,
+      reactBitsLightfallStreakLength: 2.4,
+      reactBitsLightfallGlow: 2.2,
+      reactBitsLightfallDensity: 1.2,
+      reactBitsLightfallTwinkle: 0.35,
+      reactBitsLightfallZoom: 4.2,
+      reactBitsLightfallBackgroundGlow: 0.9,
+      reactBitsLightfallOpacity: 0.72,
+      reactBitsLightfallCursorEnabled: true,
+      reactBitsLightfallCursorStrength: 1.3,
+      reactBitsLightfallCursorRadius: 1.7,
+      reactBitsLightfallCursorDampening: 0.25,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(
+      freeSettings.reactBitsLightfallPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallPaletteMode,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightfallPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallPrimaryColor,
+    )
+    assert.equal(freeSettings.reactBitsLightfallHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallHarmony)
+    assert.equal(freeSettings.reactBitsLightfallColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorOne)
+    assert.equal(freeSettings.reactBitsLightfallColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorTwo)
+    assert.equal(freeSettings.reactBitsLightfallColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorThree)
+    assert.equal(
+      freeSettings.reactBitsLightfallBackgroundColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallBackgroundColor,
+    )
+    assert.equal(freeSettings.reactBitsLightfallSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallSpeed)
+    assert.equal(freeSettings.reactBitsLightfallStreakCount, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakCount)
+    assert.equal(freeSettings.reactBitsLightfallStreakWidth, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakWidth)
+    assert.equal(freeSettings.reactBitsLightfallStreakLength, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakLength)
+    assert.equal(freeSettings.reactBitsLightfallGlow, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallGlow)
+    assert.equal(freeSettings.reactBitsLightfallDensity, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallDensity)
+    assert.equal(freeSettings.reactBitsLightfallTwinkle, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallTwinkle)
+    assert.equal(freeSettings.reactBitsLightfallZoom, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallZoom)
+    assert.equal(
+      freeSettings.reactBitsLightfallBackgroundGlow,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallBackgroundGlow,
+    )
+    assert.equal(freeSettings.reactBitsLightfallOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallOpacity)
+    assert.equal(
+      freeSettings.reactBitsLightfallCursorEnabled,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorEnabled,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightfallCursorStrength,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorStrength,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightfallCursorRadius,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorRadius,
+    )
+    assert.equal(
+      freeSettings.reactBitsLightfallCursorDampening,
+      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorDampening,
+    )
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-lightfall")
+    assert.equal(premiumSettings.reactBitsLightfallPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsLightfallPrimaryColor, "#A6C8FF")
+    assert.equal(premiumSettings.reactBitsLightfallHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsLightfallColorOne, "#010203")
+    assert.equal(premiumSettings.reactBitsLightfallColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.reactBitsLightfallColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.reactBitsLightfallBackgroundColor, "#0A29FF")
+    assert.equal(premiumSettings.reactBitsLightfallSpeed, 1.4)
+    assert.equal(premiumSettings.reactBitsLightfallStreakCount, 8)
+    assert.equal(premiumSettings.reactBitsLightfallStreakWidth, 1.6)
+    assert.equal(premiumSettings.reactBitsLightfallStreakLength, 2.4)
+    assert.equal(premiumSettings.reactBitsLightfallGlow, 2.2)
+    assert.equal(premiumSettings.reactBitsLightfallDensity, 1.2)
+    assert.equal(premiumSettings.reactBitsLightfallTwinkle, 0.35)
+    assert.equal(premiumSettings.reactBitsLightfallZoom, 4.2)
+    assert.equal(premiumSettings.reactBitsLightfallBackgroundGlow, 0.9)
+    assert.equal(premiumSettings.reactBitsLightfallOpacity, 0.72)
+    assert.equal(premiumSettings.reactBitsLightfallCursorEnabled, true)
+    assert.equal(premiumSettings.reactBitsLightfallCursorStrength, 1.3)
+    assert.equal(premiumSettings.reactBitsLightfallCursorRadius, 1.7)
+    assert.equal(premiumSettings.reactBitsLightfallCursorDampening, 0.25)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

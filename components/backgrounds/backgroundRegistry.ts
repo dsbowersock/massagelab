@@ -21,6 +21,7 @@ export type BackgroundId =
   | "chamaac-light-speed"
   | "chamaac-synthesis"
   | "react-bits-ferrofluid"
+  | "react-bits-lightfall"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -86,6 +87,7 @@ const chamaacLiquidChrome = () => import("./effects/chamaac-liquid-chrome-backgr
 const chamaacWaves = () => import("./effects/chamaac-waves-background")
 const chamaacSynthesis = () => import("./effects/chamaac-synthesis-background")
 const reactBitsFerrofluid = () => import("./effects/react-bits-ferrofluid-background")
+const reactBitsLightfall = () => import("./effects/react-bits-lightfall-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -433,6 +435,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 52% 48%, rgba(255,255,255,0.18), transparent 34%), radial-gradient(circle at 34% 72%, rgba(96,165,250,0.1), transparent 28%), linear-gradient(145deg, #020617 0%, #040711 58%, #000000 100%)",
+    },
+  },
+  {
+    id: "react-bits-lightfall",
+    label: "Lightfall",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/lightfall",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-04",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium falling light-streak shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Custom or harmony-based streak colors plus background color, source speed, streak count, width, length, glow, density, twinkle, zoom, background glow, opacity, and opt-in cursor glow controls; source OGL shader adapted with native WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsLightfall().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 44%, rgba(166,200,255,0.18), transparent 34%), radial-gradient(circle at 62% 58%, rgba(255,159,252,0.1), transparent 30%), linear-gradient(145deg, #0615a8 0%, #091d5c 54%, #030614 100%)",
     },
   },
   {
