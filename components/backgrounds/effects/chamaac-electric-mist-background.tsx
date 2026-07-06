@@ -10,6 +10,8 @@ type RgbColor = [number, number, number]
 
 type ResolvedElectricMistOptions = Required<ChamaacElectricMistOptions>
 
+const TIME_LOOP_SECONDS = 60 * Math.PI
+
 type ElectricMistWebGlResources = {
   program: WebGLProgram
   vertexShader: WebGLShader
@@ -197,7 +199,7 @@ export default function ChamaacElectricMistBackground({
         return
       }
 
-      const time = animate ? (timestamp / 1000) * (options.speed / 100) : 0
+      const time = animate ? ((timestamp / 1000) * (options.speed / 100)) % TIME_LOOP_SECONDS : 0
 
       context.viewport(0, 0, canvas.width, canvas.height)
       context.useProgram(resources.program)

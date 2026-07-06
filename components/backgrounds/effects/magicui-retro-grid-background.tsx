@@ -1,6 +1,6 @@
 "use client"
 
-import { type CSSProperties, useEffect, useRef, useState } from "react"
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 import type { BackgroundEffectProps, MagicRetroGridOptions } from "./css-backgrounds"
@@ -184,7 +184,32 @@ export default function MagicRetroGridBackground({
   className,
   magicRetroGrid,
 }: BackgroundEffectProps) {
-  const resolved = resolveRetroGridOptions(magicRetroGrid)
+  const {
+    angle,
+    backgroundColor,
+    cellSize,
+    darkLineColor,
+    lightLineColor,
+    opacity,
+  } = magicRetroGrid ?? {}
+  const resolved = useMemo(
+    () => resolveRetroGridOptions({
+      angle,
+      backgroundColor,
+      cellSize,
+      darkLineColor,
+      lightLineColor,
+      opacity,
+    }),
+    [
+      angle,
+      backgroundColor,
+      cellSize,
+      darkLineColor,
+      lightLineColor,
+      opacity,
+    ],
+  )
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const optionsRef = useRef(resolved)

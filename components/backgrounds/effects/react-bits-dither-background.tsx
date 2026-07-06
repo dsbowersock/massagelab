@@ -266,7 +266,6 @@ export default function ReactBitsDitherBackground({
         return
       }
 
-      resize()
       const elapsedSeconds = animate ? (timestamp - startTime) / 1000 : 0
       renderDither(gl, resources, elapsedSeconds, mouseRef.current, options)
 
@@ -312,12 +311,17 @@ export default function ReactBitsDitherBackground({
       requestRender()
     }
 
+    const handleResize = () => {
+      resize()
+      requestRender()
+    }
+
     motionQuery.addEventListener("change", handleVisibilityChange)
     compactViewportQuery.addEventListener("change", handleVisibilityChange)
 
-    resizeObserver = new ResizeObserver(() => requestRender())
+    resizeObserver = new ResizeObserver(handleResize)
     resizeObserver.observe(canvas)
-    window.addEventListener("resize", requestRender)
+    window.addEventListener("resize", handleResize)
     window.addEventListener("pointermove", handlePointerMove, { passive: true })
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
@@ -328,7 +332,7 @@ export default function ReactBitsDitherBackground({
       disposed = true
       window.cancelAnimationFrame(animationFrame)
       resizeObserver?.disconnect()
-      window.removeEventListener("resize", requestRender)
+      window.removeEventListener("resize", handleResize)
       window.removeEventListener("pointermove", handlePointerMove)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       motionQuery.removeEventListener("change", handleVisibilityChange)

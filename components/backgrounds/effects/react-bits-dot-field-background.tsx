@@ -147,7 +147,7 @@ export default function ReactBitsDotFieldBackground({
       window.clearTimeout(resizeTimer)
       resizeTimer = window.setTimeout(() => {
         resizeNow()
-        draw()
+        render()
       }, 100)
     }
 

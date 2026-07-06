@@ -304,6 +304,15 @@ function createBalatroResources(gl: WebGLRenderingContext): BalatroResources | n
   const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource)
   const program = gl.createProgram()
   if (!vertexShader || !fragmentShader || !program) {
+    if (vertexShader) {
+      gl.deleteShader(vertexShader)
+    }
+    if (fragmentShader) {
+      gl.deleteShader(fragmentShader)
+    }
+    if (program) {
+      gl.deleteProgram(program)
+    }
     return null
   }
 
@@ -311,12 +320,55 @@ function createBalatroResources(gl: WebGLRenderingContext): BalatroResources | n
   gl.attachShader(program, fragmentShader)
   gl.linkProgram(program)
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    gl.deleteProgram(program)
+    gl.deleteShader(vertexShader)
+    gl.deleteShader(fragmentShader)
     return null
   }
 
   const vertexBuffer = createBuffer(gl, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]))
   const uvBuffer = createBuffer(gl, new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]))
   if (!vertexBuffer || !uvBuffer) {
+    if (vertexBuffer) {
+      gl.deleteBuffer(vertexBuffer)
+    }
+    if (uvBuffer) {
+      gl.deleteBuffer(uvBuffer)
+    }
+    gl.deleteProgram(program)
+    gl.deleteShader(vertexShader)
+    gl.deleteShader(fragmentShader)
+    return null
+  }
+
+  const attributes = {
+    position: gl.getAttribLocation(program, "position"),
+    uv: gl.getAttribLocation(program, "uv"),
+  }
+  const uniforms = {
+    time: getUniformLocation(gl, program, "iTime"),
+    resolution: getUniformLocation(gl, program, "iResolution"),
+    spinRotation: getUniformLocation(gl, program, "uSpinRotation"),
+    spinSpeed: getUniformLocation(gl, program, "uSpinSpeed"),
+    offset: getUniformLocation(gl, program, "uOffset"),
+    color1: getUniformLocation(gl, program, "uColor1"),
+    color2: getUniformLocation(gl, program, "uColor2"),
+    color3: getUniformLocation(gl, program, "uColor3"),
+    contrast: getUniformLocation(gl, program, "uContrast"),
+    lighting: getUniformLocation(gl, program, "uLighting"),
+    spinAmount: getUniformLocation(gl, program, "uSpinAmount"),
+    pixelFilter: getUniformLocation(gl, program, "uPixelFilter"),
+    spinEase: getUniformLocation(gl, program, "uSpinEase"),
+    isRotate: getUniformLocation(gl, program, "uIsRotate"),
+    mouse: getUniformLocation(gl, program, "uMouse"),
+  }
+
+  if (attributes.position < 0 || attributes.uv < 0 || hasMissingUniforms(uniforms)) {
+    gl.deleteBuffer(vertexBuffer)
+    gl.deleteBuffer(uvBuffer)
+    gl.deleteProgram(program)
+    gl.deleteShader(vertexShader)
+    gl.deleteShader(fragmentShader)
     return null
   }
 
@@ -326,27 +378,8 @@ function createBalatroResources(gl: WebGLRenderingContext): BalatroResources | n
     fragmentShader,
     vertexBuffer,
     uvBuffer,
-    attributes: {
-      position: gl.getAttribLocation(program, "position"),
-      uv: gl.getAttribLocation(program, "uv"),
-    },
-    uniforms: {
-      time: getUniformLocation(gl, program, "iTime"),
-      resolution: getUniformLocation(gl, program, "iResolution"),
-      spinRotation: getUniformLocation(gl, program, "uSpinRotation"),
-      spinSpeed: getUniformLocation(gl, program, "uSpinSpeed"),
-      offset: getUniformLocation(gl, program, "uOffset"),
-      color1: getUniformLocation(gl, program, "uColor1"),
-      color2: getUniformLocation(gl, program, "uColor2"),
-      color3: getUniformLocation(gl, program, "uColor3"),
-      contrast: getUniformLocation(gl, program, "uContrast"),
-      lighting: getUniformLocation(gl, program, "uLighting"),
-      spinAmount: getUniformLocation(gl, program, "uSpinAmount"),
-      pixelFilter: getUniformLocation(gl, program, "uPixelFilter"),
-      spinEase: getUniformLocation(gl, program, "uSpinEase"),
-      isRotate: getUniformLocation(gl, program, "uIsRotate"),
-      mouse: getUniformLocation(gl, program, "uMouse"),
-    },
+    attributes,
+    uniforms: uniforms as BalatroResources["uniforms"],
   }
 }
 
@@ -383,11 +416,11 @@ function compileShader(gl: WebGLRenderingContext, type: number, source: string) 
 }
 
 function getUniformLocation(gl: WebGLRenderingContext, program: WebGLProgram, name: string) {
-  const location = gl.getUniformLocation(program, name)
-  if (!location) {
-    throw new Error(`Missing React Bits Balatro uniform: ${name}`)
-  }
-  return location
+  return gl.getUniformLocation(program, name)
+}
+
+function hasMissingUniforms(uniforms: Record<string, WebGLUniformLocation | null>) {
+  return Object.values(uniforms).some((location) => location === null)
 }
 
 function resolveBalatroOptions(options?: ReactBitsBalatroOptions): ResolvedBalatroOptions {

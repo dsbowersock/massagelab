@@ -80,8 +80,8 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
       return
     }
 
-    updateBackgroundId(DEFAULT_BACKGROUND_ID as BackgroundId)
-  }, [backgroundId, featureKeys, featureKeysLoading, updateBackgroundId])
+    setBackgroundId(DEFAULT_BACKGROUND_ID as BackgroundId)
+  }, [backgroundId, featureKeys, featureKeysLoading])
 
   // Keep background work small: warm only likely starter stations after initial
   // paint, then let user intent drive metadata/module warmups for the rest.

@@ -57,7 +57,7 @@ export function BackgroundSelector({
               className={cn(
                 "overflow-hidden rounded-md border border-border/80 bg-background/80 text-sm transition hover:border-primary/60 hover:bg-accent",
                 isSelected && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
-                !canUse && "cursor-not-allowed opacity-72",
+                !canUse && "cursor-not-allowed opacity-70",
               )}
             >
               <button

@@ -15,6 +15,10 @@ type TileGridFadeTimeControlProps = {
   fieldClassName: string
 }
 
+/**
+ * Edits a bounded tile-grid fade duration as clock-like parts while preserving
+ * the last valid total when one partial field would exceed the fade limit.
+ */
 export function TileGridFadeTimeControl({
   fadeSeconds,
   onFadeSecondsChange,

@@ -60,6 +60,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 - News and school module: add reputable content/news feeds and decide Moodle vs custom learning infrastructure only after source, licensing, editorial, and maintenance rules are clear.
 - Voice transcription and SOAP-assist feasibility: defer until a later branch; keep it documented as a goal, but do not route the next branch there.
 - Hosted clinical storage: remains future-only until HIPAA, BAA, audit, access-control, encryption, backup, legal, incident response, and operating-policy requirements are satisfied.
+- Chimer and premium-background refactors: keep prop-drilling reduction, shared canvas/WebGL lifecycle utilities, context-loss handling, CSS deduplication, self-hosted 3D globe textures, per-frame canvas allocation review, and repo-wide stylelint convention decisions as later cleanup unless a focused behavior branch needs one of them sooner.
 
 ## Decision Log
 

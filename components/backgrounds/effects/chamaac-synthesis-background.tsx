@@ -10,6 +10,8 @@ type RgbColor = [number, number, number]
 
 type ResolvedSynthesisOptions = Required<ChamaacSynthesisOptions>
 
+const TIME_LOOP_SECONDS = 60 * Math.PI
+
 type SynthesisWebGlResources = {
   program: WebGLProgram
   vertexShader: WebGLShader
@@ -185,7 +187,7 @@ export default function ChamaacSynthesisBackground({
         return
       }
 
-      const time = animate ? (timestamp / 1000) * options.speed : 0
+      const time = animate ? ((timestamp / 1000) * options.speed) % TIME_LOOP_SECONDS : 0
 
       context.viewport(0, 0, canvas.width, canvas.height)
       context.useProgram(resources.program)

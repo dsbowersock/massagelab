@@ -11,161 +11,16 @@ import {
   type BackgroundId,
 } from "@/components/backgrounds/backgroundRegistry"
 import type {
-  AnimateUiGradientOptions,
-  AnimateUiHoleOptions,
-  AnimateUiStarsOptions,
-  BackgroundLinesOptions,
-  CanvasRevealDotsOptions,
   BackgroundEffectProps,
-  ChamaacLightSpeedOptions,
-  ChamaacElectricMistOptions,
-  ChamaacAstralFlowOptions,
-  ChamaacDeepSpaceNebulaOptions,
-  ChamaacGridBloomOptions,
-  ChamaacLiquidChromeOptions,
-  ChamaacWavesOptions,
-  ChamaacSynthesisOptions,
-  ReactBitsFerrofluidOptions,
-  ReactBitsLightfallOptions,
-  ReactBitsLiquidEtherOptions,
-  ReactBitsPrismOptions,
-  ReactBitsDarkVeilOptions,
-  ReactBitsLightPillarOptions,
-  ReactBitsSilkOptions,
-  ReactBitsFloatingLinesOptions,
-  ReactBitsSideRaysOptions,
-  ReactBitsLightRaysOptions,
-  ReactBitsPixelBlastOptions,
-  ReactBitsColorBendsOptions,
-  ReactBitsEvilEyeOptions,
-  ReactBitsLineWavesOptions,
-  ReactBitsRadarOptions,
-  ReactBitsSoftAuroraOptions,
-  ReactBitsPlasmaOptions,
-  ReactBitsPlasmaWaveOptions,
-  ReactBitsParticlesOptions,
-  ReactBitsGradientBlindsOptions,
-  ReactBitsGrainientOptions,
-  ReactBitsGridScanOptions,
-  ReactBitsBeamsOptions,
-  ReactBitsPixelSnowOptions,
-  ReactBitsLightningOptions,
-  ReactBitsPrismaticBurstOptions,
-  ReactBitsGalaxyOptions,
-  ReactBitsDitherOptions,
-  ReactBitsFaultyTerminalOptions,
-  ReactBitsRippleGridOptions,
-  ReactBitsDotFieldOptions,
-  ReactBitsDotGridOptions,
-  ReactBitsThreadsOptions,
-  ReactBitsIridescenceOptions,
-  ReactBitsWavesOptions,
-  ReactBitsGridDistortionOptions,
-  ReactBitsOrbOptions,
-  ReactBitsLetterGlitchOptions,
-  ReactBitsGridMotionOptions,
-  ReactBitsShapeGridOptions,
-  ReactBitsLiquidChromeOptions,
-  ReactBitsBalatroOptions,
-  EldoraHackerOptions,
-  EldoraNovatrixOptions,
-  EldoraPhotonBeamOptions,
-  Aceternity3DGlobeOptions,
-  MagicLightRaysOptions,
-  GradientAnimationOptions,
-  HexGridOptions,
-  LampSectionOptions,
-  MagicRetroGridOptions,
-  PixelLiquidOptions,
-  SparklesBackgroundOptions,
-  SpotlightNewOptions,
-  ShootingStarsBackgroundOptions,
-  VortexBackgroundOptions,
-  AuroraBarsOptions,
-  TileGridOptions,
-  WavyBackgroundOptions,
 } from "@/components/backgrounds/effects/css-backgrounds"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
 
-interface BackgroundHostProps {
+const EMPTY_FEATURE_KEYS: string[] = []
+
+interface BackgroundHostProps extends BackgroundEffectProps {
   selectedId?: BackgroundId | string | null
   featureKeys?: string[]
   category?: BackgroundCategory
-  className?: string
-  mainColor?: string
-  orbColor?: string
-  sparkles?: SparklesBackgroundOptions
-  gradientAnimation?: GradientAnimationOptions
-  animateUiGradient?: AnimateUiGradientOptions
-  animateUiHole?: AnimateUiHoleOptions
-  animateUiStars?: AnimateUiStarsOptions
-  chamaacLightSpeed?: ChamaacLightSpeedOptions
-  chamaacElectricMist?: ChamaacElectricMistOptions
-  chamaacAstralFlow?: ChamaacAstralFlowOptions
-  chamaacDeepSpaceNebula?: ChamaacDeepSpaceNebulaOptions
-  chamaacGridBloom?: ChamaacGridBloomOptions
-  chamaacLiquidChrome?: ChamaacLiquidChromeOptions
-  chamaacWaves?: ChamaacWavesOptions
-  chamaacSynthesis?: ChamaacSynthesisOptions
-  reactBitsFerrofluid?: ReactBitsFerrofluidOptions
-  reactBitsLightfall?: ReactBitsLightfallOptions
-  reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
-  reactBitsPrism?: ReactBitsPrismOptions
-  reactBitsDarkVeil?: ReactBitsDarkVeilOptions
-  reactBitsLightPillar?: ReactBitsLightPillarOptions
-  reactBitsSilk?: ReactBitsSilkOptions
-  reactBitsFloatingLines?: ReactBitsFloatingLinesOptions
-  reactBitsSideRays?: ReactBitsSideRaysOptions
-  reactBitsLightRays?: ReactBitsLightRaysOptions
-  reactBitsPixelBlast?: ReactBitsPixelBlastOptions
-  reactBitsColorBends?: ReactBitsColorBendsOptions
-  reactBitsEvilEye?: ReactBitsEvilEyeOptions
-  reactBitsLineWaves?: ReactBitsLineWavesOptions
-  reactBitsRadar?: ReactBitsRadarOptions
-  reactBitsSoftAurora?: ReactBitsSoftAuroraOptions
-  reactBitsPlasma?: ReactBitsPlasmaOptions
-  reactBitsPlasmaWave?: ReactBitsPlasmaWaveOptions
-  reactBitsParticles?: ReactBitsParticlesOptions
-  reactBitsGradientBlinds?: ReactBitsGradientBlindsOptions
-  reactBitsGrainient?: ReactBitsGrainientOptions
-  reactBitsGridScan?: ReactBitsGridScanOptions
-  reactBitsBeams?: ReactBitsBeamsOptions
-  reactBitsPixelSnow?: ReactBitsPixelSnowOptions
-  reactBitsLightning?: ReactBitsLightningOptions
-  reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
-  reactBitsGalaxy?: ReactBitsGalaxyOptions
-  reactBitsDither?: ReactBitsDitherOptions
-  reactBitsFaultyTerminal?: ReactBitsFaultyTerminalOptions
-  reactBitsRippleGrid?: ReactBitsRippleGridOptions
-  reactBitsDotField?: ReactBitsDotFieldOptions
-  reactBitsDotGrid?: ReactBitsDotGridOptions
-  reactBitsThreads?: ReactBitsThreadsOptions
-  reactBitsIridescence?: ReactBitsIridescenceOptions
-  reactBitsWaves?: ReactBitsWavesOptions
-  reactBitsGridDistortion?: ReactBitsGridDistortionOptions
-  reactBitsOrb?: ReactBitsOrbOptions
-  reactBitsLetterGlitch?: ReactBitsLetterGlitchOptions
-  reactBitsGridMotion?: ReactBitsGridMotionOptions
-  reactBitsShapeGrid?: ReactBitsShapeGridOptions
-  reactBitsLiquidChrome?: ReactBitsLiquidChromeOptions
-  reactBitsBalatro?: ReactBitsBalatroOptions
-  eldoraNovatrix?: EldoraNovatrixOptions
-  eldoraHacker?: EldoraHackerOptions
-  eldoraPhotonBeam?: EldoraPhotonBeamOptions
-  aceternity3DGlobe?: Aceternity3DGlobeOptions
-  magicRetroGrid?: MagicRetroGridOptions
-  magicLightRays?: MagicLightRaysOptions
-  backgroundLines?: BackgroundLinesOptions
-  shootingStars?: ShootingStarsBackgroundOptions
-  canvasRevealDots?: CanvasRevealDotsOptions
-  spotlight?: SpotlightNewOptions
-  lamp?: LampSectionOptions
-  vortex?: VortexBackgroundOptions
-  wavy?: WavyBackgroundOptions
-  pixelLiquid?: PixelLiquidOptions
-  tileGrid?: TileGridOptions
-  hexGrid?: HexGridOptions
-  auroraBars?: AuroraBarsOptions
   style?: CSSProperties
   testId?: string
 }
@@ -187,7 +42,7 @@ function usePrefersReducedMotion() {
 
 export function BackgroundHost({
   selectedId,
-  featureKeys = [],
+  featureKeys = EMPTY_FEATURE_KEYS,
   category,
   className,
   mainColor,
@@ -290,11 +145,17 @@ export function BackgroundHost({
       }
     }
 
-    entry.component().then((module) => {
-      if (mounted) {
-        setBackgroundComponent(() => module.default)
-      }
-    })
+    entry.component()
+      .then((module) => {
+        if (mounted) {
+          setBackgroundComponent(() => module.default)
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setBackgroundComponent(null)
+        }
+      })
 
     return () => {
       mounted = false

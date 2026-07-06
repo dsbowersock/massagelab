@@ -343,6 +343,23 @@ function createNovatrixResources(context: WebGLRenderingContext): NovatrixWebGlR
   context.enableVertexAttribArray(position)
   context.vertexAttribPointer(position, 2, context.FLOAT, false, 0, 0)
 
+  const uniforms = {
+    time: getUniformLocation(context, program, "uTime"),
+    color: getUniformLocation(context, program, "uColor"),
+    resolution: getUniformLocation(context, program, "uResolution"),
+    mouse: getUniformLocation(context, program, "uMouse"),
+    amplitude: getUniformLocation(context, program, "uAmplitude"),
+    speed: getUniformLocation(context, program, "uSpeed"),
+  }
+
+  if (hasMissingUniforms(uniforms)) {
+    context.deleteBuffer(positionBuffer)
+    context.deleteProgram(program)
+    context.deleteShader(vertexShader)
+    context.deleteShader(fragmentShader)
+    return null
+  }
+
   return {
     program,
     vertexShader,
@@ -351,14 +368,7 @@ function createNovatrixResources(context: WebGLRenderingContext): NovatrixWebGlR
     attributes: {
       position,
     },
-    uniforms: {
-      time: getUniformLocation(context, program, "uTime"),
-      color: getUniformLocation(context, program, "uColor"),
-      resolution: getUniformLocation(context, program, "uResolution"),
-      mouse: getUniformLocation(context, program, "uMouse"),
-      amplitude: getUniformLocation(context, program, "uAmplitude"),
-      speed: getUniformLocation(context, program, "uSpeed"),
-    },
+    uniforms: uniforms as NovatrixWebGlResources["uniforms"],
   }
 }
 
@@ -381,13 +391,11 @@ function createShader(context: WebGLRenderingContext, type: number, source: stri
 }
 
 function getUniformLocation(context: WebGLRenderingContext, program: WebGLProgram, name: string) {
-  const location = context.getUniformLocation(program, name)
+  return context.getUniformLocation(program, name)
+}
 
-  if (location === null) {
-    throw new Error(`Missing Eldora Novatrix shader uniform: ${name}`)
-  }
-
-  return location
+function hasMissingUniforms(uniforms: Record<string, WebGLUniformLocation | null>) {
+  return Object.values(uniforms).some((location) => location === null)
 }
 
 function resolveNovatrixOptions(options: EldoraNovatrixOptions): ResolvedNovatrixOptions {

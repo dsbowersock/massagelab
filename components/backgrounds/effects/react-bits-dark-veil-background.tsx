@@ -47,7 +47,7 @@ const vertexShaderSource = `
 
 const fragmentShaderSource = `
   #ifdef GL_ES
-  precision lowp float;
+  precision highp float;
   #endif
   uniform vec2 uResolution;
   uniform float uTime;
