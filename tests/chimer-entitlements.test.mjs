@@ -2646,6 +2646,96 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsGridDistortionCursorInteraction, false)
   })
 
+  it("resets the latest React Bits background controls without premium background access", () => {
+    const expected = {
+      reactBitsOrbPaletteMode: "harmony",
+      reactBitsOrbPrimaryColor: "#ABCDEF",
+      reactBitsOrbHarmony: "triad",
+      reactBitsOrbColor: "#010203",
+      reactBitsOrbHue: 180,
+      reactBitsOrbHoverIntensity: 0.55,
+      reactBitsOrbRotateOnHover: false,
+      reactBitsOrbForceHoverState: true,
+      reactBitsOrbBackgroundColor: "#112233",
+      reactBitsOrbCursorInteraction: false,
+      reactBitsLetterGlitchPaletteMode: "harmony",
+      reactBitsLetterGlitchPrimaryColor: "#ABCDEF",
+      reactBitsLetterGlitchHarmony: "triad",
+      reactBitsLetterGlitchColorOne: "#010203",
+      reactBitsLetterGlitchColorTwo: "#040506",
+      reactBitsLetterGlitchColorThree: "#070809",
+      reactBitsLetterGlitchGlitchSpeed: 120,
+      reactBitsLetterGlitchCenterVignette: true,
+      reactBitsLetterGlitchOuterVignette: false,
+      reactBitsLetterGlitchSmooth: false,
+      reactBitsLetterGlitchCharacters: "ABCDE12345",
+      reactBitsGridMotionPaletteMode: "harmony",
+      reactBitsGridMotionPrimaryColor: "#ABCDEF",
+      reactBitsGridMotionHarmony: "triad",
+      reactBitsGridMotionGradientColor: "#010203",
+      reactBitsGridMotionTileColor: "#040506",
+      reactBitsGridMotionTextColor: "#070809",
+      reactBitsGridMotionMaxMoveAmount: 420,
+      reactBitsGridMotionBaseDuration: 1.2,
+      reactBitsGridMotionCursorInteraction: false,
+      reactBitsShapeGridPaletteMode: "harmony",
+      reactBitsShapeGridPrimaryColor: "#ABCDEF",
+      reactBitsShapeGridHarmony: "triad",
+      reactBitsShapeGridBorderColor: "#010203",
+      reactBitsShapeGridHoverFillColor: "#040506",
+      reactBitsShapeGridDirection: "diagonal",
+      reactBitsShapeGridSpeed: 2.5,
+      reactBitsShapeGridSquareSize: 48,
+      reactBitsShapeGridShape: "hexagon",
+      reactBitsShapeGridHoverTrailAmount: 4,
+      reactBitsShapeGridCursorInteraction: false,
+      reactBitsLiquidChromePaletteMode: "harmony",
+      reactBitsLiquidChromePrimaryColor: "#ABCDEF",
+      reactBitsLiquidChromeHarmony: "triad",
+      reactBitsLiquidChromeBaseColor: "#010203",
+      reactBitsLiquidChromeSpeed: 0.8,
+      reactBitsLiquidChromeAmplitude: 0.6,
+      reactBitsLiquidChromeFrequencyX: 5,
+      reactBitsLiquidChromeFrequencyY: 6,
+      reactBitsLiquidChromeInteractive: false,
+      reactBitsBalatroPaletteMode: "harmony",
+      reactBitsBalatroPrimaryColor: "#ABCDEF",
+      reactBitsBalatroHarmony: "triad",
+      reactBitsBalatroColorOne: "#010203",
+      reactBitsBalatroColorTwo: "#040506",
+      reactBitsBalatroColorThree: "#070809",
+      reactBitsBalatroSpinRotation: 3,
+      reactBitsBalatroSpinSpeed: 9,
+      reactBitsBalatroOffsetX: -0.2,
+      reactBitsBalatroOffsetY: 0.3,
+      reactBitsBalatroContrast: 4,
+      reactBitsBalatroLighting: 0.7,
+      reactBitsBalatroSpinAmount: 0.4,
+      reactBitsBalatroPixelFilter: 900,
+      reactBitsBalatroSpinEase: 1.5,
+      reactBitsBalatroIsRotate: true,
+      reactBitsBalatroMouseInteraction: false,
+    }
+    const input = {
+      backgroundId: "react-bits-balatro",
+      ...expected,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of Object.keys(expected)) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-balatro")
+    for (const [key, value] of Object.entries(expected)) {
+      assert.equal(premiumSettings[key], value)
+    }
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

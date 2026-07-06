@@ -56,6 +56,12 @@ export type BackgroundId =
   | "react-bits-iridescence"
   | "react-bits-waves"
   | "react-bits-grid-distortion"
+  | "react-bits-orb"
+  | "react-bits-letter-glitch"
+  | "react-bits-grid-motion"
+  | "react-bits-shape-grid"
+  | "react-bits-liquid-chrome"
+  | "react-bits-balatro"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -156,6 +162,12 @@ const reactBitsThreads = () => import("./effects/react-bits-threads-background")
 const reactBitsIridescence = () => import("./effects/react-bits-iridescence-background")
 const reactBitsWaves = () => import("./effects/react-bits-waves-background")
 const reactBitsGridDistortion = () => import("./effects/react-bits-grid-distortion-background")
+const reactBitsOrb = () => import("./effects/react-bits-orb-background")
+const reactBitsLetterGlitch = () => import("./effects/react-bits-letter-glitch-background")
+const reactBitsGridMotion = () => import("./effects/react-bits-grid-motion-background")
+const reactBitsShapeGrid = () => import("./effects/react-bits-shape-grid-background")
+const reactBitsLiquidChrome = () => import("./effects/react-bits-liquid-chrome-background")
+const reactBitsBalatro = () => import("./effects/react-bits-balatro-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1265,6 +1277,133 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 30% 30%, rgba(91,124,250,0.42), transparent 34%), radial-gradient(circle at 70% 66%, rgba(247,183,210,0.36), transparent 42%), linear-gradient(145deg, #101827 0%, #111827 100%)",
+    },
+  },
+  {
+    id: "react-bits-orb",
+    label: "Orb",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/orb",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium glowing orb shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony hue controls plus background color, hover intensity, hover rotation, forced hover state, and optional cursor interaction; source OGL shader adapted with raw WebGL.",
+    component: () => reactBitsOrb().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(156,67,254,0.68), transparent 28%), radial-gradient(circle at 58% 45%, rgba(76,194,233,0.46), transparent 34%), #000000",
+    },
+  },
+  {
+    id: "react-bits-letter-glitch",
+    label: "Letter Glitch",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/letter-glitch",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium text-glitch canvas field for deliberately styled opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "low",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony glitch colors plus speed, smooth transitions, vignette toggles, and character set; source canvas character-grid model adapted with deterministic internal random state.",
+    component: () => reactBitsLetterGlitch().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.35), transparent 42%), repeating-linear-gradient(90deg, rgba(97,220,163,0.2) 0 1px, transparent 1px 10px), #000000",
+    },
+  },
+  {
+    id: "react-bits-grid-motion",
+    label: "Grid Motion",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/grid-motion",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium cursor-reactive tile grid for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "low",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony gradient, tile, and text colors plus source-shaped cursor max movement, inertia duration, and cursor toggle; source GSAP row motion replaced with local RAF smoothing.",
+    component: () => reactBitsGridMotion().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.72), transparent 44%), repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0 12px, rgba(17,17,17,0.18) 12px 36px), #050505",
+    },
+  },
+  {
+    id: "react-bits-shape-grid",
+    label: "Shape Grid",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/shape-grid",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium moving geometric grid for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "low",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony border and hover-fill colors plus source-shaped direction, speed, shape, size, hover trail, and cursor toggle; source canvas drawing model preserved.",
+    component: () => reactBitsShapeGrid().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "linear-gradient(rgba(153,153,153,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(153,153,153,0.16) 1px, transparent 1px), #050505",
+      backgroundSize: "40px 40px",
+    },
+  },
+  {
+    id: "react-bits-liquid-chrome",
+    label: "Liquid Chrome",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/liquid-chrome",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium liquid-metal shader for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony base-color controls plus source-shaped speed, amplitude, X/Y frequencies, and optional pointer ripple; source OGL shader adapted with raw WebGL.",
+    component: () => reactBitsLiquidChrome().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 40% 35%, rgba(255,255,255,0.62), transparent 22%), radial-gradient(circle at 62% 64%, rgba(26,26,26,0.9), transparent 34%), #ffffff",
+    },
+  },
+  {
+    id: "react-bits-balatro",
+    label: "Balatro",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/balatro",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium high-style swirl shader for deliberate opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "high",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony color controls plus source-shaped spin, contrast, lighting, pixel filter, rotation, offset, and optional cursor influence; source OGL shader adapted with raw WebGL.",
+    component: () => reactBitsBalatro().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 40% 50%, rgba(222,68,59,0.7), transparent 32%), radial-gradient(circle at 62% 46%, rgba(0,107,180,0.64), transparent 34%), #162325",
     },
   },
   {

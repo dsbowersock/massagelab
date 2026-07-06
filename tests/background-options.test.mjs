@@ -97,6 +97,12 @@ describe("premium background registry", () => {
       "react-bits-iridescence",
       "react-bits-waves",
       "react-bits-grid-distortion",
+      "react-bits-orb",
+      "react-bits-letter-glitch",
+      "react-bits-grid-motion",
+      "react-bits-shape-grid",
+      "react-bits-liquid-chrome",
+      "react-bits-balatro",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -339,6 +345,12 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-iridescence"))
     assert.ok(chimerOptions.includes("react-bits-waves"))
     assert.ok(chimerOptions.includes("react-bits-grid-distortion"))
+    assert.ok(chimerOptions.includes("react-bits-orb"))
+    assert.ok(chimerOptions.includes("react-bits-letter-glitch"))
+    assert.ok(chimerOptions.includes("react-bits-grid-motion"))
+    assert.ok(chimerOptions.includes("react-bits-shape-grid"))
+    assert.ok(chimerOptions.includes("react-bits-liquid-chrome"))
+    assert.ok(chimerOptions.includes("react-bits-balatro"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -409,6 +421,12 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-iridescence"))
     assert.ok(clockOptions.includes("react-bits-waves"))
     assert.ok(clockOptions.includes("react-bits-grid-distortion"))
+    assert.ok(clockOptions.includes("react-bits-orb"))
+    assert.ok(clockOptions.includes("react-bits-letter-glitch"))
+    assert.ok(clockOptions.includes("react-bits-grid-motion"))
+    assert.ok(clockOptions.includes("react-bits-shape-grid"))
+    assert.ok(clockOptions.includes("react-bits-liquid-chrome"))
+    assert.ok(clockOptions.includes("react-bits-balatro"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -480,6 +498,12 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-iridescence"))
     assert.ok(musicOptions.includes("react-bits-waves"))
     assert.ok(musicOptions.includes("react-bits-grid-distortion"))
+    assert.ok(musicOptions.includes("react-bits-orb"))
+    assert.ok(musicOptions.includes("react-bits-letter-glitch"))
+    assert.ok(musicOptions.includes("react-bits-grid-motion"))
+    assert.ok(musicOptions.includes("react-bits-shape-grid"))
+    assert.ok(musicOptions.includes("react-bits-liquid-chrome"))
+    assert.ok(musicOptions.includes("react-bits-balatro"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -4605,6 +4629,276 @@ describe("premium background registry", () => {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
       assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps the latest React Bits background ports source-shaped, customizable, and dependency-free", () => {
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    const cases = [
+      {
+        id: "react-bits-orb",
+        label: "Orb",
+        sourcePath: "orb",
+        effectFile: "react-bits-orb-background.tsx",
+        hostProp: "reactBitsOrb",
+        optionType: "ReactBitsOrbOptions",
+        styleKeys: ["reactBitsOrbCanvas"],
+        docsPatterns: [/Orb \| https:\/\/reactbits\.dev\/backgrounds\/orb/, /Orb\.jsx/, /Orb\.css/],
+        effectPatterns: [
+          /ReactBitsOrbBackground/,
+          /DEFAULT_REACT_BITS_ORB/,
+          /snoise3/,
+          /adjustHue/,
+          /hoverIntensity/,
+          /rotateOnHover/,
+          /getContext\("webgl"/,
+          /shouldAnimateAmbientBackground/,
+          /window\.addEventListener\("pointermove"/,
+        ],
+        negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
+        setupPatterns: [/resolveReactBitsOrbHue/, /createReactBitsOrbHarmonyHue/],
+        settingKeys: [
+          "reactBitsOrbPaletteMode",
+          "reactBitsOrbPrimaryColor",
+          "reactBitsOrbHarmony",
+          "reactBitsOrbColor",
+          "reactBitsOrbHue",
+          "reactBitsOrbHoverIntensity",
+          "reactBitsOrbRotateOnHover",
+          "reactBitsOrbForceHoverState",
+          "reactBitsOrbBackgroundColor",
+          "reactBitsOrbCursorInteraction",
+        ],
+      },
+      {
+        id: "react-bits-letter-glitch",
+        label: "Letter Glitch",
+        sourcePath: "letter-glitch",
+        effectFile: "react-bits-letter-glitch-background.tsx",
+        hostProp: "reactBitsLetterGlitch",
+        optionType: "ReactBitsLetterGlitchOptions",
+        styleKeys: ["reactBitsLetterGlitch", "reactBitsLetterGlitchCanvas", "reactBitsLetterGlitchOuterVignette"],
+        docsPatterns: [/Letter Glitch \| https:\/\/reactbits\.dev\/backgrounds\/letter-glitch/, /LetterGlitch\.jsx/],
+        effectPatterns: [
+          /ReactBitsLetterGlitchBackground/,
+          /DEFAULT_REACT_BITS_LETTER_GLITCH/,
+          /FONT_SIZE/,
+          /CHAR_WIDTH/,
+          /interpolateColor/,
+          /reactBitsLetterGlitchOuterVignette/,
+        ],
+        negativePatterns: [/Math\.random/, /from "gsap"/, /from "three"/, /from "ogl"/],
+        setupPatterns: [/resolveReactBitsLetterGlitchColors/, /createReactBitsLetterGlitchHarmonyPalette/],
+        settingKeys: [
+          "reactBitsLetterGlitchPaletteMode",
+          "reactBitsLetterGlitchPrimaryColor",
+          "reactBitsLetterGlitchHarmony",
+          "reactBitsLetterGlitchColorOne",
+          "reactBitsLetterGlitchColorTwo",
+          "reactBitsLetterGlitchColorThree",
+          "reactBitsLetterGlitchGlitchSpeed",
+          "reactBitsLetterGlitchCenterVignette",
+          "reactBitsLetterGlitchOuterVignette",
+          "reactBitsLetterGlitchSmooth",
+          "reactBitsLetterGlitchCharacters",
+        ],
+      },
+      {
+        id: "react-bits-grid-motion",
+        label: "Grid Motion",
+        sourcePath: "grid-motion",
+        effectFile: "react-bits-grid-motion-background.tsx",
+        hostProp: "reactBitsGridMotion",
+        optionType: "ReactBitsGridMotionOptions",
+        styleKeys: ["reactBitsGridMotion", "reactBitsGridMotionRow", "reactBitsGridMotionItem"],
+        docsPatterns: [/Grid Motion \| https:\/\/reactbits\.dev\/backgrounds\/grid-motion/, /GridMotion\.jsx/, /GridMotion\.css/],
+        effectPatterns: [
+          /ReactBitsGridMotionBackground/,
+          /DEFAULT_REACT_BITS_GRID_MOTION/,
+          /maxMoveAmount/,
+          /baseDuration/,
+          /requestAnimationFrame/,
+        ],
+        negativePatterns: [/from "gsap"/, /from "three"/, /from "ogl"/],
+        setupPatterns: [/resolveReactBitsGridMotionColors/, /createReactBitsGridMotionHarmonyPalette/],
+        settingKeys: [
+          "reactBitsGridMotionPaletteMode",
+          "reactBitsGridMotionPrimaryColor",
+          "reactBitsGridMotionHarmony",
+          "reactBitsGridMotionGradientColor",
+          "reactBitsGridMotionTileColor",
+          "reactBitsGridMotionTextColor",
+          "reactBitsGridMotionMaxMoveAmount",
+          "reactBitsGridMotionBaseDuration",
+          "reactBitsGridMotionCursorInteraction",
+        ],
+      },
+      {
+        id: "react-bits-shape-grid",
+        label: "Shape Grid",
+        sourcePath: "shape-grid",
+        effectFile: "react-bits-shape-grid-background.tsx",
+        hostProp: "reactBitsShapeGrid",
+        optionType: "ReactBitsShapeGridOptions",
+        styleKeys: ["reactBitsShapeGridCanvas"],
+        docsPatterns: [/Shape Grid \| https:\/\/reactbits\.dev\/backgrounds\/shape-grid/, /ShapeGrid\.jsx/, /ShapeGrid\.css/],
+        effectPatterns: [
+          /ReactBitsShapeGridBackground/,
+          /DEFAULT_REACT_BITS_SHAPE_GRID/,
+          /drawHex/,
+          /drawTriangle/,
+          /hoverTrailAmount/,
+          /positiveModulo/,
+        ],
+        negativePatterns: [/from "gsap"/, /from "three"/, /from "ogl"/],
+        setupPatterns: [/resolveReactBitsShapeGridColors/, /createReactBitsShapeGridHarmonyPalette/],
+        settingKeys: [
+          "reactBitsShapeGridPaletteMode",
+          "reactBitsShapeGridPrimaryColor",
+          "reactBitsShapeGridHarmony",
+          "reactBitsShapeGridBorderColor",
+          "reactBitsShapeGridHoverFillColor",
+          "reactBitsShapeGridDirection",
+          "reactBitsShapeGridSpeed",
+          "reactBitsShapeGridSquareSize",
+          "reactBitsShapeGridShape",
+          "reactBitsShapeGridHoverTrailAmount",
+          "reactBitsShapeGridCursorInteraction",
+        ],
+      },
+      {
+        id: "react-bits-liquid-chrome",
+        label: "Liquid Chrome",
+        sourcePath: "liquid-chrome",
+        effectFile: "react-bits-liquid-chrome-background.tsx",
+        hostProp: "reactBitsLiquidChrome",
+        optionType: "ReactBitsLiquidChromeOptions",
+        styleKeys: ["reactBitsLiquidChromeCanvas"],
+        docsPatterns: [/Liquid Chrome \| https:\/\/reactbits\.dev\/backgrounds\/liquid-chrome/, /LiquidChrome\.jsx/, /LiquidChrome\.css/],
+        effectPatterns: [
+          /ReactBitsLiquidChromeBackground/,
+          /DEFAULT_REACT_BITS_LIQUID_CHROME/,
+          /renderImage/,
+          /uFrequencyX/,
+          /uMouse/,
+          /getContext\("webgl"/,
+        ],
+        negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
+        setupPatterns: [/resolveReactBitsLiquidChromeBaseColor/, /createReactBitsLiquidChromeHarmonyColor/],
+        settingKeys: [
+          "reactBitsLiquidChromePaletteMode",
+          "reactBitsLiquidChromePrimaryColor",
+          "reactBitsLiquidChromeHarmony",
+          "reactBitsLiquidChromeBaseColor",
+          "reactBitsLiquidChromeSpeed",
+          "reactBitsLiquidChromeAmplitude",
+          "reactBitsLiquidChromeFrequencyX",
+          "reactBitsLiquidChromeFrequencyY",
+          "reactBitsLiquidChromeInteractive",
+        ],
+      },
+      {
+        id: "react-bits-balatro",
+        label: "Balatro",
+        sourcePath: "balatro",
+        effectFile: "react-bits-balatro-background.tsx",
+        hostProp: "reactBitsBalatro",
+        optionType: "ReactBitsBalatroOptions",
+        styleKeys: ["reactBitsBalatroCanvas"],
+        docsPatterns: [/Balatro \| https:\/\/reactbits\.dev\/backgrounds\/balatro/, /Balatro\.jsx/, /Balatro\.css/],
+        effectPatterns: [
+          /ReactBitsBalatroBackground/,
+          /DEFAULT_REACT_BITS_BALATRO/,
+          /uSpinRotation/,
+          /uPixelFilter/,
+          /uIsRotate/,
+          /effect\(iResolution\.xy/,
+        ],
+        negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
+        setupPatterns: [/resolveReactBitsBalatroColors/, /createReactBitsBalatroHarmonyPalette/],
+        settingKeys: [
+          "reactBitsBalatroPaletteMode",
+          "reactBitsBalatroPrimaryColor",
+          "reactBitsBalatroHarmony",
+          "reactBitsBalatroColorOne",
+          "reactBitsBalatroColorTwo",
+          "reactBitsBalatroColorThree",
+          "reactBitsBalatroSpinRotation",
+          "reactBitsBalatroSpinSpeed",
+          "reactBitsBalatroOffsetX",
+          "reactBitsBalatroOffsetY",
+          "reactBitsBalatroContrast",
+          "reactBitsBalatroLighting",
+          "reactBitsBalatroSpinAmount",
+          "reactBitsBalatroPixelFilter",
+          "reactBitsBalatroSpinEase",
+          "reactBitsBalatroIsRotate",
+          "reactBitsBalatroMouseInteraction",
+        ],
+      },
+    ]
+
+    for (const background of cases) {
+      const effectSource = readFileSync(
+        new URL(`../components/backgrounds/effects/${background.effectFile}`, import.meta.url),
+        "utf8",
+      )
+
+      assert.match(registrySource, new RegExp(background.id))
+      assert.match(registrySource, new RegExp(background.label))
+      assert.match(registrySource, new RegExp(`https://reactbits\\.dev/backgrounds/${background.sourcePath}`))
+      assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05/)
+      assert.match(registrySource, /requiresSubscription:\s*true/)
+      assert.match(hostSource, new RegExp(background.hostProp))
+      assert.match(cssEffectsSource, new RegExp(background.optionType))
+      assert.match(runningSource, new RegExp(`${background.hostProp}=\\{\\{`))
+      assert.doesNotMatch(pageSource, new RegExp(`${background.hostProp}=\\{\\{`))
+
+      for (const styleKey of background.styleKeys) {
+        assert.match(stylesSource, new RegExp(styleKey))
+      }
+
+      for (const pattern of background.effectPatterns) {
+        assert.match(effectSource, pattern)
+      }
+
+      for (const pattern of background.negativePatterns) {
+        assert.doesNotMatch(effectSource, pattern)
+      }
+
+      for (const pattern of background.setupPatterns) {
+        assert.match(setupSource, pattern)
+      }
+
+      for (const pattern of background.docsPatterns) {
+        assert.match(docsSource, pattern)
+      }
+
+      for (const settingKey of background.settingKeys) {
+        assert.match(setupSource, new RegExp(settingKey))
+        assert.match(runningSource, new RegExp(settingKey))
+        assert.match(pageSource, new RegExp(settingKey))
+      }
     }
   })
 

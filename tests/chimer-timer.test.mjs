@@ -3227,6 +3227,158 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsGridDistortionRelaxation: 0 }).reactBitsGridDistortionRelaxation, 0.75)
   })
 
+  it("normalizes the latest React Bits background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsOrbPaletteMode: "harmony",
+      reactBitsOrbPrimaryColor: "#abcdef",
+      reactBitsOrbHarmony: "triad",
+      reactBitsOrbColor: "#010203",
+      reactBitsOrbHue: 999,
+      reactBitsOrbHoverIntensity: 999,
+      reactBitsOrbRotateOnHover: false,
+      reactBitsOrbForceHoverState: true,
+      reactBitsOrbBackgroundColor: "#112233",
+      reactBitsOrbCursorInteraction: false,
+      reactBitsLetterGlitchPaletteMode: "harmony",
+      reactBitsLetterGlitchPrimaryColor: "#abcdef",
+      reactBitsLetterGlitchHarmony: "triad",
+      reactBitsLetterGlitchColorOne: "#010203",
+      reactBitsLetterGlitchColorTwo: "#040506",
+      reactBitsLetterGlitchColorThree: "#070809",
+      reactBitsLetterGlitchGlitchSpeed: 999,
+      reactBitsLetterGlitchCenterVignette: true,
+      reactBitsLetterGlitchOuterVignette: false,
+      reactBitsLetterGlitchSmooth: false,
+      reactBitsLetterGlitchCharacters: "A".repeat(200),
+      reactBitsGridMotionPaletteMode: "harmony",
+      reactBitsGridMotionPrimaryColor: "#abcdef",
+      reactBitsGridMotionHarmony: "triad",
+      reactBitsGridMotionGradientColor: "#010203",
+      reactBitsGridMotionTileColor: "#040506",
+      reactBitsGridMotionTextColor: "#070809",
+      reactBitsGridMotionMaxMoveAmount: 999,
+      reactBitsGridMotionBaseDuration: 9,
+      reactBitsGridMotionCursorInteraction: false,
+      reactBitsShapeGridPaletteMode: "harmony",
+      reactBitsShapeGridPrimaryColor: "#abcdef",
+      reactBitsShapeGridHarmony: "triad",
+      reactBitsShapeGridBorderColor: "#010203",
+      reactBitsShapeGridHoverFillColor: "#040506",
+      reactBitsShapeGridDirection: "diagonal",
+      reactBitsShapeGridSpeed: 99,
+      reactBitsShapeGridSquareSize: 0,
+      reactBitsShapeGridShape: "hexagon",
+      reactBitsShapeGridHoverTrailAmount: 99,
+      reactBitsShapeGridCursorInteraction: false,
+      reactBitsLiquidChromePaletteMode: "harmony",
+      reactBitsLiquidChromePrimaryColor: "#abcdef",
+      reactBitsLiquidChromeHarmony: "triad",
+      reactBitsLiquidChromeBaseColor: "#010203",
+      reactBitsLiquidChromeSpeed: 9,
+      reactBitsLiquidChromeAmplitude: 9,
+      reactBitsLiquidChromeFrequencyX: 99,
+      reactBitsLiquidChromeFrequencyY: 0,
+      reactBitsLiquidChromeInteractive: false,
+      reactBitsBalatroPaletteMode: "harmony",
+      reactBitsBalatroPrimaryColor: "#abcdef",
+      reactBitsBalatroHarmony: "triad",
+      reactBitsBalatroColorOne: "#010203",
+      reactBitsBalatroColorTwo: "#040506",
+      reactBitsBalatroColorThree: "#070809",
+      reactBitsBalatroSpinRotation: 99,
+      reactBitsBalatroSpinSpeed: 99,
+      reactBitsBalatroOffsetX: -9,
+      reactBitsBalatroOffsetY: 9,
+      reactBitsBalatroContrast: 0,
+      reactBitsBalatroLighting: 9,
+      reactBitsBalatroSpinAmount: 9,
+      reactBitsBalatroPixelFilter: 9999,
+      reactBitsBalatroSpinEase: 9,
+      reactBitsBalatroIsRotate: true,
+      reactBitsBalatroMouseInteraction: false,
+    })
+
+    assert.equal(settings.reactBitsOrbPaletteMode, "harmony")
+    assert.equal(settings.reactBitsOrbPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsOrbHarmony, "triad")
+    assert.equal(settings.reactBitsOrbColor, "#010203")
+    assert.equal(settings.reactBitsOrbHue, 360)
+    assert.equal(settings.reactBitsOrbHoverIntensity, 1)
+    assert.equal(settings.reactBitsOrbRotateOnHover, false)
+    assert.equal(settings.reactBitsOrbForceHoverState, true)
+    assert.equal(settings.reactBitsOrbBackgroundColor, "#112233")
+    assert.equal(settings.reactBitsOrbCursorInteraction, false)
+    assert.equal(settings.reactBitsLetterGlitchPaletteMode, "harmony")
+    assert.equal(settings.reactBitsLetterGlitchPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsLetterGlitchHarmony, "triad")
+    assert.equal(settings.reactBitsLetterGlitchColorOne, "#010203")
+    assert.equal(settings.reactBitsLetterGlitchColorTwo, "#040506")
+    assert.equal(settings.reactBitsLetterGlitchColorThree, "#070809")
+    assert.equal(settings.reactBitsLetterGlitchGlitchSpeed, 500)
+    assert.equal(settings.reactBitsLetterGlitchCenterVignette, true)
+    assert.equal(settings.reactBitsLetterGlitchOuterVignette, false)
+    assert.equal(settings.reactBitsLetterGlitchSmooth, false)
+    assert.equal(settings.reactBitsLetterGlitchCharacters.length, 120)
+    assert.equal(settings.reactBitsGridMotionPaletteMode, "harmony")
+    assert.equal(settings.reactBitsGridMotionPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsGridMotionHarmony, "triad")
+    assert.equal(settings.reactBitsGridMotionGradientColor, "#010203")
+    assert.equal(settings.reactBitsGridMotionTileColor, "#040506")
+    assert.equal(settings.reactBitsGridMotionTextColor, "#070809")
+    assert.equal(settings.reactBitsGridMotionMaxMoveAmount, 600)
+    assert.equal(settings.reactBitsGridMotionBaseDuration, 2)
+    assert.equal(settings.reactBitsGridMotionCursorInteraction, false)
+    assert.equal(settings.reactBitsShapeGridPaletteMode, "harmony")
+    assert.equal(settings.reactBitsShapeGridPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsShapeGridHarmony, "triad")
+    assert.equal(settings.reactBitsShapeGridBorderColor, "#010203")
+    assert.equal(settings.reactBitsShapeGridHoverFillColor, "#040506")
+    assert.equal(settings.reactBitsShapeGridDirection, "diagonal")
+    assert.equal(settings.reactBitsShapeGridSpeed, 8)
+    assert.equal(settings.reactBitsShapeGridSquareSize, 12)
+    assert.equal(settings.reactBitsShapeGridShape, "hexagon")
+    assert.equal(settings.reactBitsShapeGridHoverTrailAmount, 24)
+    assert.equal(settings.reactBitsShapeGridCursorInteraction, false)
+    assert.equal(settings.reactBitsLiquidChromePaletteMode, "harmony")
+    assert.equal(settings.reactBitsLiquidChromePrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsLiquidChromeHarmony, "triad")
+    assert.equal(settings.reactBitsLiquidChromeBaseColor, "#010203")
+    assert.equal(settings.reactBitsLiquidChromeSpeed, 3)
+    assert.equal(settings.reactBitsLiquidChromeAmplitude, 1)
+    assert.equal(settings.reactBitsLiquidChromeFrequencyX, 12)
+    assert.equal(settings.reactBitsLiquidChromeFrequencyY, 0.1)
+    assert.equal(settings.reactBitsLiquidChromeInteractive, false)
+    assert.equal(settings.reactBitsBalatroPaletteMode, "harmony")
+    assert.equal(settings.reactBitsBalatroPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsBalatroHarmony, "triad")
+    assert.equal(settings.reactBitsBalatroColorOne, "#010203")
+    assert.equal(settings.reactBitsBalatroColorTwo, "#040506")
+    assert.equal(settings.reactBitsBalatroColorThree, "#070809")
+    assert.equal(settings.reactBitsBalatroSpinRotation, 8)
+    assert.equal(settings.reactBitsBalatroSpinSpeed, 14)
+    assert.equal(settings.reactBitsBalatroOffsetX, -1)
+    assert.equal(settings.reactBitsBalatroOffsetY, 1)
+    assert.equal(settings.reactBitsBalatroContrast, 0.5)
+    assert.equal(settings.reactBitsBalatroLighting, 1)
+    assert.equal(settings.reactBitsBalatroSpinAmount, 1)
+    assert.equal(settings.reactBitsBalatroPixelFilter, 1200)
+    assert.equal(settings.reactBitsBalatroSpinEase, 3)
+    assert.equal(settings.reactBitsBalatroIsRotate, true)
+    assert.equal(settings.reactBitsBalatroMouseInteraction, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsOrbPaletteMode: "auto" }).reactBitsOrbPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsOrbPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsShapeGridDirection: "sideways" }).reactBitsShapeGridDirection,
+      DEFAULT_CHIMER_SETTINGS.reactBitsShapeGridDirection,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsBalatroColorOne: "red" }).reactBitsBalatroColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsBalatroColorOne,
+    )
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

@@ -93,6 +93,12 @@ export type ReactBitsThreadsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsIridescencePaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsWavesPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsGridDistortionPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsOrbPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsLetterGlitchPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsGridMotionPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsShapeGridPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsLiquidChromePaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsBalatroPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1130,6 +1136,73 @@ export interface ChimerSettings {
   reactBitsGridDistortionStrength: number
   reactBitsGridDistortionRelaxation: number
   reactBitsGridDistortionCursorInteraction: boolean
+  reactBitsOrbPaletteMode: ReactBitsOrbPaletteMode
+  reactBitsOrbPrimaryColor: string
+  reactBitsOrbHarmony: ColorHarmony
+  reactBitsOrbColor: string
+  reactBitsOrbHue: number
+  reactBitsOrbHoverIntensity: number
+  reactBitsOrbRotateOnHover: boolean
+  reactBitsOrbForceHoverState: boolean
+  reactBitsOrbBackgroundColor: string
+  reactBitsOrbCursorInteraction: boolean
+  reactBitsLetterGlitchPaletteMode: ReactBitsLetterGlitchPaletteMode
+  reactBitsLetterGlitchPrimaryColor: string
+  reactBitsLetterGlitchHarmony: ColorHarmony
+  reactBitsLetterGlitchColorOne: string
+  reactBitsLetterGlitchColorTwo: string
+  reactBitsLetterGlitchColorThree: string
+  reactBitsLetterGlitchGlitchSpeed: number
+  reactBitsLetterGlitchCenterVignette: boolean
+  reactBitsLetterGlitchOuterVignette: boolean
+  reactBitsLetterGlitchSmooth: boolean
+  reactBitsLetterGlitchCharacters: string
+  reactBitsGridMotionPaletteMode: ReactBitsGridMotionPaletteMode
+  reactBitsGridMotionPrimaryColor: string
+  reactBitsGridMotionHarmony: ColorHarmony
+  reactBitsGridMotionGradientColor: string
+  reactBitsGridMotionTileColor: string
+  reactBitsGridMotionTextColor: string
+  reactBitsGridMotionMaxMoveAmount: number
+  reactBitsGridMotionBaseDuration: number
+  reactBitsGridMotionCursorInteraction: boolean
+  reactBitsShapeGridPaletteMode: ReactBitsShapeGridPaletteMode
+  reactBitsShapeGridPrimaryColor: string
+  reactBitsShapeGridHarmony: ColorHarmony
+  reactBitsShapeGridBorderColor: string
+  reactBitsShapeGridHoverFillColor: string
+  reactBitsShapeGridDirection: "right" | "left" | "up" | "down" | "diagonal"
+  reactBitsShapeGridSpeed: number
+  reactBitsShapeGridSquareSize: number
+  reactBitsShapeGridShape: "square" | "circle" | "triangle" | "hexagon"
+  reactBitsShapeGridHoverTrailAmount: number
+  reactBitsShapeGridCursorInteraction: boolean
+  reactBitsLiquidChromePaletteMode: ReactBitsLiquidChromePaletteMode
+  reactBitsLiquidChromePrimaryColor: string
+  reactBitsLiquidChromeHarmony: ColorHarmony
+  reactBitsLiquidChromeBaseColor: string
+  reactBitsLiquidChromeSpeed: number
+  reactBitsLiquidChromeAmplitude: number
+  reactBitsLiquidChromeFrequencyX: number
+  reactBitsLiquidChromeFrequencyY: number
+  reactBitsLiquidChromeInteractive: boolean
+  reactBitsBalatroPaletteMode: ReactBitsBalatroPaletteMode
+  reactBitsBalatroPrimaryColor: string
+  reactBitsBalatroHarmony: ColorHarmony
+  reactBitsBalatroColorOne: string
+  reactBitsBalatroColorTwo: string
+  reactBitsBalatroColorThree: string
+  reactBitsBalatroSpinRotation: number
+  reactBitsBalatroSpinSpeed: number
+  reactBitsBalatroOffsetX: number
+  reactBitsBalatroOffsetY: number
+  reactBitsBalatroContrast: number
+  reactBitsBalatroLighting: number
+  reactBitsBalatroSpinAmount: number
+  reactBitsBalatroPixelFilter: number
+  reactBitsBalatroSpinEase: number
+  reactBitsBalatroIsRotate: boolean
+  reactBitsBalatroMouseInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1668,6 +1741,62 @@ type ReactBitsGridDistortionColorSettings = Pick<
   | "reactBitsGridDistortionColorOne"
   | "reactBitsGridDistortionColorTwo"
   | "reactBitsGridDistortionColorThree"
+>
+
+type ReactBitsOrbColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsOrbPaletteMode"
+  | "reactBitsOrbPrimaryColor"
+  | "reactBitsOrbHarmony"
+  | "reactBitsOrbColor"
+  | "reactBitsOrbHue"
+>
+
+type ReactBitsLetterGlitchColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsLetterGlitchPaletteMode"
+  | "reactBitsLetterGlitchPrimaryColor"
+  | "reactBitsLetterGlitchHarmony"
+  | "reactBitsLetterGlitchColorOne"
+  | "reactBitsLetterGlitchColorTwo"
+  | "reactBitsLetterGlitchColorThree"
+>
+
+type ReactBitsGridMotionColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsGridMotionPaletteMode"
+  | "reactBitsGridMotionPrimaryColor"
+  | "reactBitsGridMotionHarmony"
+  | "reactBitsGridMotionGradientColor"
+  | "reactBitsGridMotionTileColor"
+  | "reactBitsGridMotionTextColor"
+>
+
+type ReactBitsShapeGridColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsShapeGridPaletteMode"
+  | "reactBitsShapeGridPrimaryColor"
+  | "reactBitsShapeGridHarmony"
+  | "reactBitsShapeGridBorderColor"
+  | "reactBitsShapeGridHoverFillColor"
+>
+
+type ReactBitsLiquidChromeColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsLiquidChromePaletteMode"
+  | "reactBitsLiquidChromePrimaryColor"
+  | "reactBitsLiquidChromeHarmony"
+  | "reactBitsLiquidChromeBaseColor"
+>
+
+type ReactBitsBalatroColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsBalatroPaletteMode"
+  | "reactBitsBalatroPrimaryColor"
+  | "reactBitsBalatroHarmony"
+  | "reactBitsBalatroColorOne"
+  | "reactBitsBalatroColorTwo"
+  | "reactBitsBalatroColorThree"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2355,6 +2484,111 @@ export function resolveReactBitsGridDistortionColors(
     settings.reactBitsGridDistortionColorOne,
     settings.reactBitsGridDistortionColorTwo,
     settings.reactBitsGridDistortionColorThree,
+  ]
+}
+
+export function resolveReactBitsOrbHue(settings: ReactBitsOrbColorSettings): number {
+  if (settings.reactBitsOrbPaletteMode === "source") {
+    return normalizeHue(settings.reactBitsOrbHue)
+  }
+
+  if (settings.reactBitsOrbPaletteMode === "harmony") {
+    return createReactBitsOrbHarmonyHue(settings.reactBitsOrbPrimaryColor, settings.reactBitsOrbHarmony)
+  }
+
+  return getHueFromHexColor(settings.reactBitsOrbColor)
+}
+
+export function resolveReactBitsLetterGlitchColors(
+  settings: ReactBitsLetterGlitchColorSettings,
+): [string, string, string] {
+  if (settings.reactBitsLetterGlitchPaletteMode === "source") {
+    return ["#2B4539", "#61DCA3", "#61B3DC"]
+  }
+
+  if (settings.reactBitsLetterGlitchPaletteMode === "harmony") {
+    return createReactBitsLetterGlitchHarmonyPalette(
+      settings.reactBitsLetterGlitchPrimaryColor,
+      settings.reactBitsLetterGlitchHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsLetterGlitchColorOne,
+    settings.reactBitsLetterGlitchColorTwo,
+    settings.reactBitsLetterGlitchColorThree,
+  ]
+}
+
+export function resolveReactBitsGridMotionColors(
+  settings: ReactBitsGridMotionColorSettings,
+): [string, string, string] {
+  if (settings.reactBitsGridMotionPaletteMode === "source") {
+    return ["#000000", "#111111", "#F8FAFC"]
+  }
+
+  if (settings.reactBitsGridMotionPaletteMode === "harmony") {
+    return createReactBitsGridMotionHarmonyPalette(
+      settings.reactBitsGridMotionPrimaryColor,
+      settings.reactBitsGridMotionHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsGridMotionGradientColor,
+    settings.reactBitsGridMotionTileColor,
+    settings.reactBitsGridMotionTextColor,
+  ]
+}
+
+export function resolveReactBitsShapeGridColors(
+  settings: ReactBitsShapeGridColorSettings,
+): [string, string] {
+  if (settings.reactBitsShapeGridPaletteMode === "source") {
+    return ["#999999", "#222222"]
+  }
+
+  if (settings.reactBitsShapeGridPaletteMode === "harmony") {
+    return createReactBitsShapeGridHarmonyPalette(
+      settings.reactBitsShapeGridPrimaryColor,
+      settings.reactBitsShapeGridHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsShapeGridBorderColor,
+    settings.reactBitsShapeGridHoverFillColor,
+  ]
+}
+
+export function resolveReactBitsLiquidChromeBaseColor(settings: ReactBitsLiquidChromeColorSettings): string {
+  if (settings.reactBitsLiquidChromePaletteMode === "source") {
+    return "#1A1A1A"
+  }
+
+  if (settings.reactBitsLiquidChromePaletteMode === "harmony") {
+    return createReactBitsLiquidChromeHarmonyColor(
+      settings.reactBitsLiquidChromePrimaryColor,
+      settings.reactBitsLiquidChromeHarmony,
+    )
+  }
+
+  return settings.reactBitsLiquidChromeBaseColor
+}
+
+export function resolveReactBitsBalatroColors(settings: ReactBitsBalatroColorSettings): [string, string, string] {
+  if (settings.reactBitsBalatroPaletteMode === "source") {
+    return ["#DE443B", "#006BB4", "#162325"]
+  }
+
+  if (settings.reactBitsBalatroPaletteMode === "harmony") {
+    return createReactBitsBalatroHarmonyPalette(settings.reactBitsBalatroPrimaryColor, settings.reactBitsBalatroHarmony)
+  }
+
+  return [
+    settings.reactBitsBalatroColorOne,
+    settings.reactBitsBalatroColorTwo,
+    settings.reactBitsBalatroColorThree,
   ]
 }
 
@@ -3800,6 +4034,44 @@ export function createReactBitsGridDistortionHarmonyPalette(
 ): [string, string, string] {
   const [first, second, third] = createReactBitsColorBendsHarmonyPalette(primaryColor, harmony)
   return [first, second, third]
+}
+
+export function createReactBitsOrbHarmonyHue(primaryColor: string, harmony: ColorHarmony): number {
+  return createReactBitsLightningHarmonyHue(primaryColor, harmony)
+}
+
+export function createReactBitsLetterGlitchHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  return createReactBitsGridDistortionHarmonyPalette(primaryColor, harmony)
+}
+
+export function createReactBitsGridMotionHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [first, second, third] = createReactBitsGridDistortionHarmonyPalette(primaryColor, harmony)
+  return ["#050507", second, third || first]
+}
+
+export function createReactBitsShapeGridHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string] {
+  const [first, second] = createReactBitsGridDistortionHarmonyPalette(primaryColor, harmony)
+  return [first, second]
+}
+
+export function createReactBitsLiquidChromeHarmonyColor(primaryColor: string, harmony: ColorHarmony): string {
+  return createReactBitsPixelSnowHarmonyColor(primaryColor, harmony)
+}
+
+export function createReactBitsBalatroHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  return createReactBitsGridDistortionHarmonyPalette(primaryColor, harmony)
 }
 
 export function createReactBitsPrismaticBurstHarmonyPalette(
@@ -13979,6 +14251,853 @@ export function SetTimer({
       )
     }
 
+    if (option.id === "react-bits-orb") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Orb color mode</span>
+            <select
+              value={settings.reactBitsOrbPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsOrbPaletteMode: event.target.value as ReactBitsOrbPaletteMode,
+              })}
+              aria-label="React Bits Orb color mode"
+            >
+              <option value="source">Source hue</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsOrbPaletteMode === "source" ? (
+            <label className={styles.rangeRow}>
+              <span>Hue ({settings.reactBitsOrbHue.toFixed(0)})</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={settings.reactBitsOrbHue}
+                onChange={(event) => onSettingsChange({ reactBitsOrbHue: Number(event.target.value) })}
+                aria-label="React Bits Orb hue"
+              />
+            </label>
+          ) : null}
+
+          {settings.reactBitsOrbPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Orb color</span>
+              <input
+                type="color"
+                value={settings.reactBitsOrbColor}
+                onChange={(event) => onSettingsChange({ reactBitsOrbColor: event.target.value })}
+                aria-label="React Bits Orb color"
+              />
+            </label>
+          ) : null}
+
+          {settings.reactBitsOrbPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsOrbPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsOrbPrimaryColor: event.target.value })}
+                  aria-label="React Bits Orb primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsOrbHarmony}
+                  onChange={(event) => onSettingsChange({ reactBitsOrbHarmony: event.target.value as ColorHarmony })}
+                  aria-label="React Bits Orb color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={settings.reactBitsOrbBackgroundColor}
+              onChange={(event) => onSettingsChange({ reactBitsOrbBackgroundColor: event.target.value })}
+              aria-label="React Bits Orb background color"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsOrbCursorInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsOrbCursorInteraction: event.target.checked })}
+              aria-label="React Bits Orb cursor interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Rotate on hover</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsOrbRotateOnHover}
+              onChange={(event) => onSettingsChange({ reactBitsOrbRotateOnHover: event.target.checked })}
+              aria-label="React Bits Orb rotate on hover"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Force hover state</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsOrbForceHoverState}
+              onChange={(event) => onSettingsChange({ reactBitsOrbForceHoverState: event.target.checked })}
+              aria-label="React Bits Orb force hover state"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover intensity ({settings.reactBitsOrbHoverIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsOrbHoverIntensity}
+              onChange={(event) => onSettingsChange({ reactBitsOrbHoverIntensity: Number(event.target.value) })}
+              aria-label="React Bits Orb hover intensity"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-letter-glitch") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Glitch color mode</span>
+            <select
+              value={settings.reactBitsLetterGlitchPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLetterGlitchPaletteMode: event.target.value as ReactBitsLetterGlitchPaletteMode,
+              })}
+              aria-label="React Bits Letter Glitch color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsLetterGlitchPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLetterGlitchColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsLetterGlitchColorOne: event.target.value })}
+                  aria-label="React Bits Letter Glitch color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLetterGlitchColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsLetterGlitchColorTwo: event.target.value })}
+                  aria-label="React Bits Letter Glitch color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLetterGlitchColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsLetterGlitchColorThree: event.target.value })}
+                  aria-label="React Bits Letter Glitch color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsLetterGlitchPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLetterGlitchPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLetterGlitchPrimaryColor: event.target.value })}
+                  aria-label="React Bits Letter Glitch primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsLetterGlitchHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLetterGlitchHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Letter Glitch color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Center vignette</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLetterGlitchCenterVignette}
+              onChange={(event) => onSettingsChange({ reactBitsLetterGlitchCenterVignette: event.target.checked })}
+              aria-label="React Bits Letter Glitch center vignette"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Outer vignette</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLetterGlitchOuterVignette}
+              onChange={(event) => onSettingsChange({ reactBitsLetterGlitchOuterVignette: event.target.checked })}
+              aria-label="React Bits Letter Glitch outer vignette"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Smooth colors</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLetterGlitchSmooth}
+              onChange={(event) => onSettingsChange({ reactBitsLetterGlitchSmooth: event.target.checked })}
+              aria-label="React Bits Letter Glitch smooth colors"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glitch speed ({settings.reactBitsLetterGlitchGlitchSpeed.toFixed(0)} ms)</span>
+            <input
+              type="range"
+              min="16"
+              max="500"
+              step="1"
+              value={settings.reactBitsLetterGlitchGlitchSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsLetterGlitchGlitchSpeed: Number(event.target.value) })}
+              aria-label="React Bits Letter Glitch speed"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-grid-motion") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Motion color mode</span>
+            <select
+              value={settings.reactBitsGridMotionPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridMotionPaletteMode: event.target.value as ReactBitsGridMotionPaletteMode,
+              })}
+              aria-label="React Bits Grid Motion color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsGridMotionPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridMotionGradientColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridMotionGradientColor: event.target.value })}
+                  aria-label="React Bits Grid Motion gradient color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Tile</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridMotionTileColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridMotionTileColor: event.target.value })}
+                  aria-label="React Bits Grid Motion tile color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Text</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridMotionTextColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridMotionTextColor: event.target.value })}
+                  aria-label="React Bits Grid Motion text color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsGridMotionPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridMotionPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridMotionPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grid Motion primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsGridMotionHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsGridMotionHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grid Motion color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGridMotionCursorInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsGridMotionCursorInteraction: event.target.checked })}
+              aria-label="React Bits Grid Motion cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Row travel ({settings.reactBitsGridMotionMaxMoveAmount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="600"
+              step="10"
+              value={settings.reactBitsGridMotionMaxMoveAmount}
+              onChange={(event) => onSettingsChange({ reactBitsGridMotionMaxMoveAmount: Number(event.target.value) })}
+              aria-label="React Bits Grid Motion row travel"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ease duration ({settings.reactBitsGridMotionBaseDuration.toFixed(2)}s)</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={settings.reactBitsGridMotionBaseDuration}
+              onChange={(event) => onSettingsChange({ reactBitsGridMotionBaseDuration: Number(event.target.value) })}
+              aria-label="React Bits Grid Motion base duration"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-shape-grid") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Grid color mode</span>
+            <select
+              value={settings.reactBitsShapeGridPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsShapeGridPaletteMode: event.target.value as ReactBitsShapeGridPaletteMode,
+              })}
+              aria-label="React Bits Shape Grid color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsShapeGridPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Border</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsShapeGridBorderColor}
+                  onChange={(event) => onSettingsChange({ reactBitsShapeGridBorderColor: event.target.value })}
+                  aria-label="React Bits Shape Grid border color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Hover fill</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsShapeGridHoverFillColor}
+                  onChange={(event) => onSettingsChange({ reactBitsShapeGridHoverFillColor: event.target.value })}
+                  aria-label="React Bits Shape Grid hover fill color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsShapeGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsShapeGridPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsShapeGridPrimaryColor: event.target.value })}
+                  aria-label="React Bits Shape Grid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsShapeGridHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsShapeGridHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Shape Grid color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Direction</span>
+            <select
+              value={settings.reactBitsShapeGridDirection}
+              onChange={(event) => onSettingsChange({
+                reactBitsShapeGridDirection: event.target.value as ChimerSettings["reactBitsShapeGridDirection"],
+              })}
+              aria-label="React Bits Shape Grid direction"
+            >
+              <option value="right">Right</option>
+              <option value="left">Left</option>
+              <option value="up">Up</option>
+              <option value="down">Down</option>
+              <option value="diagonal">Diagonal</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Shape</span>
+            <select
+              value={settings.reactBitsShapeGridShape}
+              onChange={(event) => onSettingsChange({
+                reactBitsShapeGridShape: event.target.value as ChimerSettings["reactBitsShapeGridShape"],
+              })}
+              aria-label="React Bits Shape Grid shape"
+            >
+              <option value="square">Square</option>
+              <option value="circle">Circle</option>
+              <option value="triangle">Triangle</option>
+              <option value="hexagon">Hexagon</option>
+            </select>
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsShapeGridCursorInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsShapeGridCursorInteraction: event.target.checked })}
+              aria-label="React Bits Shape Grid cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsShapeGridSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={settings.reactBitsShapeGridSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsShapeGridSpeed: Number(event.target.value) })}
+              aria-label="React Bits Shape Grid speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cell size ({settings.reactBitsShapeGridSquareSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="12"
+              max="96"
+              step="1"
+              value={settings.reactBitsShapeGridSquareSize}
+              onChange={(event) => onSettingsChange({ reactBitsShapeGridSquareSize: Number(event.target.value) })}
+              aria-label="React Bits Shape Grid cell size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover trail ({settings.reactBitsShapeGridHoverTrailAmount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="12"
+              step="1"
+              value={settings.reactBitsShapeGridHoverTrailAmount}
+              onChange={(event) => onSettingsChange({ reactBitsShapeGridHoverTrailAmount: Number(event.target.value) })}
+              aria-label="React Bits Shape Grid hover trail"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-liquid-chrome") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Chrome color mode</span>
+            <select
+              value={settings.reactBitsLiquidChromePaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsLiquidChromePaletteMode: event.target.value as ReactBitsLiquidChromePaletteMode,
+              })}
+              aria-label="React Bits Liquid Chrome color mode"
+            >
+              <option value="source">Source base color</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsLiquidChromePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Base color</span>
+              <input
+                type="color"
+                value={settings.reactBitsLiquidChromeBaseColor}
+                onChange={(event) => onSettingsChange({ reactBitsLiquidChromeBaseColor: event.target.value })}
+                aria-label="React Bits Liquid Chrome base color"
+              />
+            </label>
+          ) : null}
+
+          {settings.reactBitsLiquidChromePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsLiquidChromePrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsLiquidChromePrimaryColor: event.target.value })}
+                  aria-label="React Bits Liquid Chrome primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsLiquidChromeHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsLiquidChromeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Liquid Chrome color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsLiquidChromeInteractive}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidChromeInteractive: event.target.checked })}
+              aria-label="React Bits Liquid Chrome cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsLiquidChromeSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.01"
+              value={settings.reactBitsLiquidChromeSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidChromeSpeed: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({settings.reactBitsLiquidChromeAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsLiquidChromeAmplitude}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidChromeAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency X ({settings.reactBitsLiquidChromeFrequencyX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={settings.reactBitsLiquidChromeFrequencyX}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidChromeFrequencyX: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome frequency X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency Y ({settings.reactBitsLiquidChromeFrequencyY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={settings.reactBitsLiquidChromeFrequencyY}
+              onChange={(event) => onSettingsChange({ reactBitsLiquidChromeFrequencyY: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome frequency Y"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-balatro") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Balatro color mode</span>
+            <select
+              value={settings.reactBitsBalatroPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsBalatroPaletteMode: event.target.value as ReactBitsBalatroPaletteMode,
+              })}
+              aria-label="React Bits Balatro color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsBalatroPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsBalatroColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsBalatroColorOne: event.target.value })}
+                  aria-label="React Bits Balatro color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsBalatroColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsBalatroColorTwo: event.target.value })}
+                  aria-label="React Bits Balatro color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsBalatroColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsBalatroColorThree: event.target.value })}
+                  aria-label="React Bits Balatro color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsBalatroPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsBalatroPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsBalatroPrimaryColor: event.target.value })}
+                  aria-label="React Bits Balatro primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsBalatroHarmony}
+                  onChange={(event) => onSettingsChange({ reactBitsBalatroHarmony: event.target.value as ColorHarmony })}
+                  aria-label="React Bits Balatro color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsBalatroMouseInteraction}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroMouseInteraction: event.target.checked })}
+              aria-label="React Bits Balatro mouse interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Rotate field</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsBalatroIsRotate}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroIsRotate: event.target.checked })}
+              aria-label="React Bits Balatro rotate field"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin speed ({settings.reactBitsBalatroSpinSpeed.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="14"
+              step="0.1"
+              value={settings.reactBitsBalatroSpinSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroSpinSpeed: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin rotation ({settings.reactBitsBalatroSpinRotation.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-8"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsBalatroSpinRotation}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroSpinRotation: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Contrast ({settings.reactBitsBalatroContrast.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={settings.reactBitsBalatroContrast}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroContrast: Number(event.target.value) })}
+              aria-label="React Bits Balatro contrast"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Lighting ({settings.reactBitsBalatroLighting.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsBalatroLighting}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroLighting: Number(event.target.value) })}
+              aria-label="React Bits Balatro lighting"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin amount ({settings.reactBitsBalatroSpinAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsBalatroSpinAmount}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroSpinAmount: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel filter ({settings.reactBitsBalatroPixelFilter.toFixed(0)})</span>
+            <input
+              type="range"
+              min="120"
+              max="1200"
+              step="5"
+              value={settings.reactBitsBalatroPixelFilter}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroPixelFilter: Number(event.target.value) })}
+              aria-label="React Bits Balatro pixel filter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin ease ({settings.reactBitsBalatroSpinEase.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.01"
+              value={settings.reactBitsBalatroSpinEase}
+              onChange={(event) => onSettingsChange({ reactBitsBalatroSpinEase: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin ease"
+            />
+          </label>
+        </div>
+      )
+    }
+
     if (option.id === "eldora-photon-beam") {
       const useCustomPalette = settings.eldoraPhotonBeamPaletteMode === "custom"
       const photonSpeed = getEldoraPhotonBeamDisplaySpeed(settings.eldoraPhotonBeamSpeedGlobal)
@@ -14249,8 +15368,8 @@ export function SetTimer({
             <span>Curve length ({settings.eldoraPhotonBeamCurveLength.toFixed(0)})</span>
             <input
               type="range"
-              min="16"
-              max="120"
+              min="12"
+              max="96"
               step="1"
               value={settings.eldoraPhotonBeamCurveLength}
               onChange={(event) => onSettingsChange({ eldoraPhotonBeamCurveLength: Number(event.target.value) })}

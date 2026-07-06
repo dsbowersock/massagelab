@@ -59,6 +59,12 @@ export interface BackgroundEffectProps {
   reactBitsIridescence?: ReactBitsIridescenceOptions
   reactBitsWaves?: ReactBitsWavesOptions
   reactBitsGridDistortion?: ReactBitsGridDistortionOptions
+  reactBitsOrb?: ReactBitsOrbOptions
+  reactBitsLetterGlitch?: ReactBitsLetterGlitchOptions
+  reactBitsGridMotion?: ReactBitsGridMotionOptions
+  reactBitsShapeGrid?: ReactBitsShapeGridOptions
+  reactBitsLiquidChrome?: ReactBitsLiquidChromeOptions
+  reactBitsBalatro?: ReactBitsBalatroOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -746,6 +752,72 @@ export interface ReactBitsGridDistortionOptions {
   colorTwo?: string
   colorThree?: string
   cursorInteraction?: boolean
+}
+
+export interface ReactBitsOrbOptions {
+  hue?: number
+  hoverIntensity?: number
+  rotateOnHover?: boolean
+  forceHoverState?: boolean
+  backgroundColor?: string
+  cursorInteraction?: boolean
+}
+
+export interface ReactBitsLetterGlitchOptions {
+  colorOne?: string
+  colorTwo?: string
+  colorThree?: string
+  glitchSpeed?: number
+  centerVignette?: boolean
+  outerVignette?: boolean
+  smooth?: boolean
+  characters?: string
+}
+
+export interface ReactBitsGridMotionOptions {
+  gradientColor?: string
+  tileColor?: string
+  textColor?: string
+  maxMoveAmount?: number
+  baseDuration?: number
+  cursorInteraction?: boolean
+}
+
+export interface ReactBitsShapeGridOptions {
+  direction?: string
+  speed?: number
+  borderColor?: string
+  squareSize?: number
+  hoverFillColor?: string
+  shape?: string
+  hoverTrailAmount?: number
+  cursorInteraction?: boolean
+}
+
+export interface ReactBitsLiquidChromeOptions {
+  baseColor?: string
+  speed?: number
+  amplitude?: number
+  frequencyX?: number
+  frequencyY?: number
+  interactive?: boolean
+}
+
+export interface ReactBitsBalatroOptions {
+  spinRotation?: number
+  spinSpeed?: number
+  offsetX?: number
+  offsetY?: number
+  color1?: string
+  color2?: string
+  color3?: string
+  contrast?: number
+  lighting?: number
+  spinAmount?: number
+  pixelFilter?: number
+  spinEase?: number
+  isRotate?: boolean
+  mouseInteraction?: boolean
 }
 
 export interface EldoraNovatrixOptions {

@@ -61,6 +61,12 @@ import type {
   ReactBitsIridescenceOptions,
   ReactBitsWavesOptions,
   ReactBitsGridDistortionOptions,
+  ReactBitsOrbOptions,
+  ReactBitsLetterGlitchOptions,
+  ReactBitsGridMotionOptions,
+  ReactBitsShapeGridOptions,
+  ReactBitsLiquidChromeOptions,
+  ReactBitsBalatroOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -137,6 +143,12 @@ interface BackgroundHostProps {
   reactBitsIridescence?: ReactBitsIridescenceOptions
   reactBitsWaves?: ReactBitsWavesOptions
   reactBitsGridDistortion?: ReactBitsGridDistortionOptions
+  reactBitsOrb?: ReactBitsOrbOptions
+  reactBitsLetterGlitch?: ReactBitsLetterGlitchOptions
+  reactBitsGridMotion?: ReactBitsGridMotionOptions
+  reactBitsShapeGrid?: ReactBitsShapeGridOptions
+  reactBitsLiquidChrome?: ReactBitsLiquidChromeOptions
+  reactBitsBalatro?: ReactBitsBalatroOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -229,6 +241,12 @@ export function BackgroundHost({
   reactBitsIridescence,
   reactBitsWaves,
   reactBitsGridDistortion,
+  reactBitsOrb,
+  reactBitsLetterGlitch,
+  reactBitsGridMotion,
+  reactBitsShapeGrid,
+  reactBitsLiquidChrome,
+  reactBitsBalatro,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -346,6 +364,12 @@ export function BackgroundHost({
           reactBitsIridescence={reactBitsIridescence}
           reactBitsWaves={reactBitsWaves}
           reactBitsGridDistortion={reactBitsGridDistortion}
+          reactBitsOrb={reactBitsOrb}
+          reactBitsLetterGlitch={reactBitsLetterGlitch}
+          reactBitsGridMotion={reactBitsGridMotion}
+          reactBitsShapeGrid={reactBitsShapeGrid}
+          reactBitsLiquidChrome={reactBitsLiquidChrome}
+          reactBitsBalatro={reactBitsBalatro}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}
