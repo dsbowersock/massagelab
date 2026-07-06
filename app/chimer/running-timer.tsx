@@ -1,11 +1,190 @@
 "use client"
 
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Lock, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
+import { Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
+import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
+import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
+import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
+import { canUseBackgroundId, type BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
+import { MovingBackground } from "@/components/moving-background"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { ChimerSettings } from "./set-timer"
-import { MovingBackground } from "./moving-background"
+import {
+  ANIMATE_UI_GRADIENT_HARMONY_OPTIONS,
+  CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
+  CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN,
+  CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP,
+  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX,
+  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN,
+  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP,
+  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX,
+  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN,
+  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN,
+  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP,
+  CHAMAAC_WAVES_DISPLAY_SPEED_MAX,
+  CHAMAAC_WAVES_DISPLAY_SPEED_MIN,
+  CHAMAAC_WAVES_DISPLAY_SPEED_STEP,
+  CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX,
+  CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
+  CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
+  COLOR_HARMONY_OPTIONS,
+  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX,
+  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN,
+  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP,
+  ELDORA_NOVATRIX_DISPLAY_SPEED_MAX,
+  ELDORA_NOVATRIX_DISPLAY_SPEED_MIN,
+  ELDORA_NOVATRIX_DISPLAY_SPEED_STEP,
+  ELDORA_HACKER_DISPLAY_SPEED_MAX,
+  ELDORA_HACKER_DISPLAY_SPEED_MIN,
+  ELDORA_HACKER_DISPLAY_SPEED_STEP,
+  ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX,
+  ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN,
+  ELDORA_PHOTON_BEAM_DISPLAY_SPEED_STEP,
+  getChamaacAstralFlowDisplaySpeed,
+  getChamaacAstralFlowSourceSpeed,
+  getChamaacDeepSpaceNebulaDisplaySpeed,
+  getChamaacDeepSpaceNebulaSourceSpeed,
+  getChamaacGridBloomDisplaySpeed,
+  getChamaacGridBloomSourceSpeed,
+  getChamaacLiquidChromeDisplayFlowSpeed,
+  getChamaacLiquidChromeDisplayTimeScale,
+  getChamaacLiquidChromeSourceFlowSpeed,
+  getChamaacLiquidChromeSourceTimeScale,
+  getChamaacWavesDisplaySpeed,
+  getChamaacWavesSourceSpeed,
+  getChamaacSynthesisDisplaySpeed,
+  getChamaacSynthesisSourceSpeed,
+  getEldoraNovatrixDisplayAmplitude,
+  getEldoraNovatrixDisplaySpeed,
+  getEldoraNovatrixSourceAmplitude,
+  getEldoraNovatrixSourceSpeed,
+  getEldoraHackerDisplaySpeed,
+  getEldoraHackerSourceSpeed,
+  getAceternity3DGlobeScaleDisplayPercent,
+  getAceternity3DGlobeScaleFromDisplayPercent,
+  getEldoraPhotonBeamDisplaySpeed,
+  getEldoraPhotonBeamSourceSpeed,
+  resolveChamaacAstralFlowColors,
+  resolveChamaacDeepSpaceNebulaColors,
+  resolveChamaacLiquidChromeColors,
+  resolveChamaacWavesColors,
+  resolveChamaacSynthesisColors,
+  resolveReactBitsFerrofluidColors,
+  resolveReactBitsLightfallColors,
+  resolveReactBitsLiquidEtherColors,
+  resolveReactBitsLightPillarColors,
+  resolveReactBitsFloatingLinesGradient,
+  resolveReactBitsSideRaysColors,
+  resolveReactBitsLightRaysColor,
+  resolveReactBitsPixelBlastColor,
+  resolveReactBitsColorBendsColors,
+  resolveReactBitsEvilEyeColor,
+  resolveReactBitsLineWavesColors,
+  resolveReactBitsRadarColor,
+  resolveReactBitsSoftAuroraColors,
+  resolveReactBitsPlasmaColor,
+  resolveReactBitsPlasmaWaveColors,
+  resolveReactBitsParticlesColors,
+  resolveReactBitsGradientBlindsColors,
+  resolveReactBitsGrainientColors,
+  resolveReactBitsGridScanColors,
+  resolveReactBitsBeamsColor,
+  resolveReactBitsPixelSnowColor,
+  resolveReactBitsLightningHue,
+  resolveReactBitsPrismaticBurstColors,
+  resolveReactBitsGalaxyHueShift,
+  resolveReactBitsDitherColor,
+  resolveReactBitsFaultyTerminalTint,
+  resolveReactBitsRippleGridColor,
+  resolveReactBitsDotFieldColors,
+  resolveReactBitsDotGridColors,
+  resolveReactBitsThreadsColor,
+  resolveReactBitsIridescenceColor,
+  resolveReactBitsWavesLineColor,
+  resolveReactBitsGridDistortionColors,
+  resolveReactBitsOrbHue,
+  resolveReactBitsLetterGlitchColors,
+  resolveReactBitsGridMotionColors,
+  resolveReactBitsShapeGridColors,
+  resolveReactBitsLiquidChromeBaseColor,
+  resolveReactBitsBalatroColors,
+  resolveReactBitsSilkColor,
+  resolveEldoraHackerColor,
+  resolveEldoraNovatrixColor,
+  resolveEldoraPhotonBeamColors,
+  type AnimateUiGradientHarmony,
+  type ChamaacAstralFlowPaletteMode,
+  type ChamaacDeepSpaceNebulaPaletteMode,
+  type ChamaacLiquidChromePaletteMode,
+  type ChamaacWavesPaletteMode,
+  type ChamaacSynthesisPaletteMode,
+  type ReactBitsFerrofluidPaletteMode,
+  type ReactBitsLightfallPaletteMode,
+  type ReactBitsLiquidEtherPaletteMode,
+  type ReactBitsPrismAnimationType,
+  type ReactBitsLightPillarBlendMode,
+  type ReactBitsFloatingLinesBlendMode,
+  type ReactBitsFloatingLinesPaletteMode,
+  type ReactBitsSideRaysOrigin,
+  type ReactBitsSideRaysPaletteMode,
+  type ReactBitsLightRaysOrigin,
+  type ReactBitsLightRaysPaletteMode,
+  type ReactBitsPixelBlastPaletteMode,
+  type ReactBitsPixelBlastVariant,
+  type ReactBitsColorBendsPaletteMode,
+  type ReactBitsEvilEyePaletteMode,
+  type ReactBitsLineWavesPaletteMode,
+  type ReactBitsRadarPaletteMode,
+  type ReactBitsSoftAuroraPaletteMode,
+  type ReactBitsPlasmaDirection,
+  type ReactBitsPlasmaPaletteMode,
+  type ReactBitsPlasmaWavePaletteMode,
+  type ReactBitsParticlesPaletteMode,
+  type ReactBitsGradientBlindsBlendMode,
+  type ReactBitsGradientBlindsPaletteMode,
+  type ReactBitsGradientBlindsShineDirection,
+  type ReactBitsGrainientPaletteMode,
+  type ReactBitsGridScanDirection,
+  type ReactBitsGridScanLineStyle,
+  type ReactBitsGridScanPaletteMode,
+  type ReactBitsBeamsPaletteMode,
+  type ReactBitsPixelSnowPaletteMode,
+  type ReactBitsPixelSnowVariant,
+  type ReactBitsLightningPaletteMode,
+  type ReactBitsPrismaticBurstAnimationType,
+  type ReactBitsPrismaticBurstMixBlendMode,
+  type ReactBitsPrismaticBurstPaletteMode,
+  type ReactBitsGalaxyPaletteMode,
+  type ReactBitsDitherPaletteMode,
+  type ReactBitsFaultyTerminalPaletteMode,
+  type ReactBitsRippleGridPaletteMode,
+  type ReactBitsDotFieldPaletteMode,
+  type ReactBitsDotGridPaletteMode,
+  type ReactBitsThreadsPaletteMode,
+  type ReactBitsIridescencePaletteMode,
+  type ReactBitsWavesPaletteMode,
+  type ReactBitsGridDistortionPaletteMode,
+  type ReactBitsOrbPaletteMode,
+  type ReactBitsLetterGlitchPaletteMode,
+  type ReactBitsGridMotionPaletteMode,
+  type ReactBitsShapeGridPaletteMode,
+  type ReactBitsLiquidChromePaletteMode,
+  type ReactBitsBalatroPaletteMode,
+  type ReactBitsLightPillarPaletteMode,
+  type ReactBitsLightPillarQuality,
+  type ReactBitsSilkPaletteMode,
+  type EldoraHackerPaletteMode,
+  type EldoraNovatrixPaletteMode,
+  type EldoraPhotonBeamPaletteMode,
+  type ChimerSettings,
+  type ColorHarmony,
+} from "./set-timer"
 import styles from "./running-timer.module.css"
+import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 type PrimaryDisplay = "timer" | "currentTime"
 type SettingsTab = "timer" | "display" | "background"
@@ -41,6 +220,7 @@ interface RunningTimerProps {
   isAlerting: boolean
   fontSize: number
   movingBackgroundEnabled: boolean
+  backgroundId: ChimerSettings["backgroundId"]
   keepTimerScreenAwake: boolean
   showTimerSeconds: boolean
   showCurrentTimeSeconds: boolean
@@ -50,7 +230,904 @@ interface RunningTimerProps {
   clockModeFontColor: string
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
+  sparklesMaxSize: number
+  sparklesMinSize: number
+  sparklesParticleColor: string
+  sparklesParticleDensity: number
+  sparklesSpeed: number
+  gradientAnimationBackgroundStartColor: string
+  gradientAnimationBackgroundEndColor: string
+  gradientAnimationFirstColor: string
+  gradientAnimationSecondColor: string
+  gradientAnimationThirdColor: string
+  gradientAnimationFourthColor: string
+  gradientAnimationFifthColor: string
+  gradientAnimationSpeed: number
+  gradientAnimationSize: number
+  animateUiGradientPrimaryColor: string
+  animateUiGradientHarmony: AnimateUiGradientHarmony
+  animateUiGradientOpacity: number
+  animateUiStarsColor: string
+  animateUiStarsSpeed: number
+  animateUiStarsDensity: number
+  animateUiStarsParallax: number
+  animateUiHoleStrokeColor: string
+  animateUiHoleParticleColor: string
+  animateUiHoleLineCount: number
+  animateUiHoleDiscCount: number
+  chamaacLightSpeedWarpSpeed: number
+  chamaacLightSpeedParticleCount: number
+  chamaacLightSpeedLightColor: string
+  chamaacLightSpeedIntensity: number
+  chamaacLightSpeedRadius: number
+  chamaacLightSpeedCylinderLength: number
+  chamaacElectricMistColor: string
+  chamaacElectricMistSpeed: number
+  chamaacElectricMistDetail: number
+  chamaacElectricMistDistortion: number
+  chamaacElectricMistBrightness: number
+  chamaacAstralFlowPaletteMode: ChamaacAstralFlowPaletteMode
+  chamaacAstralFlowPrimaryColor: string
+  chamaacAstralFlowHarmony: ColorHarmony
+  chamaacAstralFlowColorOne: string
+  chamaacAstralFlowColorTwo: string
+  chamaacAstralFlowColorThree: string
+  chamaacAstralFlowSpeed: number
+  chamaacAstralFlowFlowMin: number
+  chamaacAstralFlowFlowMax: number
+  chamaacDeepSpaceNebulaPaletteMode: ChamaacDeepSpaceNebulaPaletteMode
+  chamaacDeepSpaceNebulaPrimaryColor: string
+  chamaacDeepSpaceNebulaHarmony: ColorHarmony
+  chamaacDeepSpaceNebulaColorOne: string
+  chamaacDeepSpaceNebulaColorTwo: string
+  chamaacDeepSpaceNebulaColorThree: string
+  chamaacDeepSpaceNebulaSpeed: number
+  chamaacGridBloomColor: string
+  chamaacGridBloomSpeed: number
+  chamaacGridBloomGridScale: number
+  chamaacGridBloomRotationSpeed: number
+  chamaacGridBloomFadeFalloff: number
+  chamaacGridBloomDistortionAmount: number
+  chamaacGridBloomFlowSpeedX: number
+  chamaacGridBloomFlowSpeedY: number
+  chamaacLiquidChromePaletteMode: ChamaacLiquidChromePaletteMode
+  chamaacLiquidChromePrimaryColor: string
+  chamaacLiquidChromeHarmony: ColorHarmony
+  chamaacLiquidChromeColorOne: string
+  chamaacLiquidChromeColorTwo: string
+  chamaacLiquidChromeFlowSpeed: number
+  chamaacLiquidChromeTimeScale: number
+  chamaacWavesPaletteMode: ChamaacWavesPaletteMode
+  chamaacWavesPrimaryColor: string
+  chamaacWavesHarmony: ColorHarmony
+  chamaacWavesBackgroundColor: string
+  chamaacWavesColorOne: string
+  chamaacWavesColorTwo: string
+  chamaacWavesColorThree: string
+  chamaacWavesSpeedX: number
+  chamaacWavesSpeedY: number
+  chamaacWavesAmplitude: number
+  reactBitsFerrofluidPaletteMode: ReactBitsFerrofluidPaletteMode
+  reactBitsFerrofluidPrimaryColor: string
+  reactBitsFerrofluidHarmony: ColorHarmony
+  reactBitsFerrofluidColorOne: string
+  reactBitsFerrofluidColorTwo: string
+  reactBitsFerrofluidColorThree: string
+  reactBitsFerrofluidSpeed: number
+  reactBitsFerrofluidScale: number
+  reactBitsFerrofluidTurbulence: number
+  reactBitsFerrofluidFluidity: number
+  reactBitsFerrofluidRimWidth: number
+  reactBitsFerrofluidSharpness: number
+  reactBitsFerrofluidShimmer: number
+  reactBitsFerrofluidGlow: number
+  reactBitsFerrofluidFlowDirection: ChimerSettings["reactBitsFerrofluidFlowDirection"]
+  reactBitsFerrofluidOpacity: number
+  reactBitsLightfallPaletteMode: ReactBitsLightfallPaletteMode
+  reactBitsLightfallPrimaryColor: string
+  reactBitsLightfallHarmony: ColorHarmony
+  reactBitsLightfallColorOne: string
+  reactBitsLightfallColorTwo: string
+  reactBitsLightfallColorThree: string
+  reactBitsLightfallBackgroundColor: string
+  reactBitsLightfallSpeed: number
+  reactBitsLightfallStreakCount: number
+  reactBitsLightfallStreakWidth: number
+  reactBitsLightfallStreakLength: number
+  reactBitsLightfallGlow: number
+  reactBitsLightfallDensity: number
+  reactBitsLightfallTwinkle: number
+  reactBitsLightfallZoom: number
+  reactBitsLightfallBackgroundGlow: number
+  reactBitsLightfallOpacity: number
+  reactBitsLightfallCursorEnabled: boolean
+  reactBitsLightfallCursorStrength: number
+  reactBitsLightfallCursorRadius: number
+  reactBitsLightfallCursorDampening: number
+  reactBitsLiquidEtherPaletteMode: ReactBitsLiquidEtherPaletteMode
+  reactBitsLiquidEtherPrimaryColor: string
+  reactBitsLiquidEtherHarmony: ColorHarmony
+  reactBitsLiquidEtherColorOne: string
+  reactBitsLiquidEtherColorTwo: string
+  reactBitsLiquidEtherColorThree: string
+  reactBitsLiquidEtherCursorEnabled: boolean
+  reactBitsLiquidEtherMouseForce: number
+  reactBitsLiquidEtherCursorSize: number
+  reactBitsLiquidEtherIsViscous: boolean
+  reactBitsLiquidEtherViscous: number
+  reactBitsLiquidEtherIterationsViscous: number
+  reactBitsLiquidEtherIterationsPoisson: number
+  reactBitsLiquidEtherDt: number
+  reactBitsLiquidEtherBfecc: boolean
+  reactBitsLiquidEtherResolution: number
+  reactBitsLiquidEtherIsBounce: boolean
+  reactBitsLiquidEtherAutoDemo: boolean
+  reactBitsLiquidEtherAutoSpeed: number
+  reactBitsLiquidEtherAutoIntensity: number
+  reactBitsLiquidEtherAutoResumeDelay: number
+  reactBitsLiquidEtherAutoRampDuration: number
+  reactBitsLiquidEtherOpacity: number
+  reactBitsPrismHeight: number
+  reactBitsPrismBaseWidth: number
+  reactBitsPrismAnimationType: ReactBitsPrismAnimationType
+  reactBitsPrismGlow: number
+  reactBitsPrismOffsetX: number
+  reactBitsPrismOffsetY: number
+  reactBitsPrismNoise: number
+  reactBitsPrismTransparent: boolean
+  reactBitsPrismScale: number
+  reactBitsPrismHueShift: number
+  reactBitsPrismColorFrequency: number
+  reactBitsPrismHoverStrength: number
+  reactBitsPrismInertia: number
+  reactBitsPrismBloom: number
+  reactBitsPrismTimeScale: number
+  reactBitsDarkVeilHueShift: number
+  reactBitsDarkVeilNoiseIntensity: number
+  reactBitsDarkVeilScanlineIntensity: number
+  reactBitsDarkVeilSpeed: number
+  reactBitsDarkVeilScanlineFrequency: number
+  reactBitsDarkVeilWarpAmount: number
+  reactBitsDarkVeilResolutionScale: number
+  reactBitsLightPillarPaletteMode: ReactBitsLightPillarPaletteMode
+  reactBitsLightPillarPrimaryColor: string
+  reactBitsLightPillarHarmony: ColorHarmony
+  reactBitsLightPillarTopColor: string
+  reactBitsLightPillarBottomColor: string
+  reactBitsLightPillarIntensity: number
+  reactBitsLightPillarRotationSpeed: number
+  reactBitsLightPillarInteractive: boolean
+  reactBitsLightPillarGlowAmount: number
+  reactBitsLightPillarWidth: number
+  reactBitsLightPillarHeight: number
+  reactBitsLightPillarNoiseIntensity: number
+  reactBitsLightPillarBlendMode: ReactBitsLightPillarBlendMode
+  reactBitsLightPillarRotation: number
+  reactBitsLightPillarQuality: ReactBitsLightPillarQuality
+  reactBitsSilkPaletteMode: ReactBitsSilkPaletteMode
+  reactBitsSilkPrimaryColor: string
+  reactBitsSilkHarmony: ColorHarmony
+  reactBitsSilkColor: string
+  reactBitsSilkSpeed: number
+  reactBitsSilkScale: number
+  reactBitsSilkNoiseIntensity: number
+  reactBitsSilkRotation: number
+  reactBitsFloatingLinesPaletteMode: ReactBitsFloatingLinesPaletteMode
+  reactBitsFloatingLinesPrimaryColor: string
+  reactBitsFloatingLinesHarmony: ColorHarmony
+  reactBitsFloatingLinesColorOne: string
+  reactBitsFloatingLinesColorTwo: string
+  reactBitsFloatingLinesColorThree: string
+  reactBitsFloatingLinesEnableTop: boolean
+  reactBitsFloatingLinesEnableMiddle: boolean
+  reactBitsFloatingLinesEnableBottom: boolean
+  reactBitsFloatingLinesTopLineCount: number
+  reactBitsFloatingLinesMiddleLineCount: number
+  reactBitsFloatingLinesBottomLineCount: number
+  reactBitsFloatingLinesTopLineDistance: number
+  reactBitsFloatingLinesMiddleLineDistance: number
+  reactBitsFloatingLinesBottomLineDistance: number
+  reactBitsFloatingLinesTopWaveX: number
+  reactBitsFloatingLinesTopWaveY: number
+  reactBitsFloatingLinesTopWaveRotate: number
+  reactBitsFloatingLinesMiddleWaveX: number
+  reactBitsFloatingLinesMiddleWaveY: number
+  reactBitsFloatingLinesMiddleWaveRotate: number
+  reactBitsFloatingLinesBottomWaveX: number
+  reactBitsFloatingLinesBottomWaveY: number
+  reactBitsFloatingLinesBottomWaveRotate: number
+  reactBitsFloatingLinesAnimationSpeed: number
+  reactBitsFloatingLinesInteractive: boolean
+  reactBitsFloatingLinesBendRadius: number
+  reactBitsFloatingLinesBendStrength: number
+  reactBitsFloatingLinesMouseDamping: number
+  reactBitsFloatingLinesParallax: boolean
+  reactBitsFloatingLinesParallaxStrength: number
+  reactBitsFloatingLinesBlendMode: ReactBitsFloatingLinesBlendMode
+  reactBitsSideRaysPaletteMode: ReactBitsSideRaysPaletteMode
+  reactBitsSideRaysPrimaryColor: string
+  reactBitsSideRaysHarmony: ColorHarmony
+  reactBitsSideRaysColorOne: string
+  reactBitsSideRaysColorTwo: string
+  reactBitsSideRaysSpeed: number
+  reactBitsSideRaysIntensity: number
+  reactBitsSideRaysSpread: number
+  reactBitsSideRaysOrigin: ReactBitsSideRaysOrigin
+  reactBitsSideRaysTilt: number
+  reactBitsSideRaysSaturation: number
+  reactBitsSideRaysBlend: number
+  reactBitsSideRaysFalloff: number
+  reactBitsSideRaysOpacity: number
+  reactBitsLightRaysPaletteMode: ReactBitsLightRaysPaletteMode
+  reactBitsLightRaysPrimaryColor: string
+  reactBitsLightRaysHarmony: ColorHarmony
+  reactBitsLightRaysColor: string
+  reactBitsLightRaysOrigin: ReactBitsLightRaysOrigin
+  reactBitsLightRaysSpeed: number
+  reactBitsLightRaysSpread: number
+  reactBitsLightRaysLength: number
+  reactBitsLightRaysPulsating: boolean
+  reactBitsLightRaysFadeDistance: number
+  reactBitsLightRaysSaturation: number
+  reactBitsLightRaysFollowMouse: boolean
+  reactBitsLightRaysMouseInfluence: number
+  reactBitsLightRaysNoiseAmount: number
+  reactBitsLightRaysDistortion: number
+  reactBitsPixelBlastPaletteMode: ReactBitsPixelBlastPaletteMode
+  reactBitsPixelBlastPrimaryColor: string
+  reactBitsPixelBlastHarmony: ColorHarmony
+  reactBitsPixelBlastColor: string
+  reactBitsPixelBlastVariant: ReactBitsPixelBlastVariant
+  reactBitsPixelBlastPixelSize: number
+  reactBitsPixelBlastAntialias: boolean
+  reactBitsPixelBlastPatternScale: number
+  reactBitsPixelBlastPatternDensity: number
+  reactBitsPixelBlastLiquid: boolean
+  reactBitsPixelBlastLiquidStrength: number
+  reactBitsPixelBlastLiquidRadius: number
+  reactBitsPixelBlastPixelSizeJitter: number
+  reactBitsPixelBlastEnableRipples: boolean
+  reactBitsPixelBlastRippleIntensityScale: number
+  reactBitsPixelBlastRippleThickness: number
+  reactBitsPixelBlastRippleSpeed: number
+  reactBitsPixelBlastLiquidWobbleSpeed: number
+  reactBitsPixelBlastAutoPauseOffscreen: boolean
+  reactBitsPixelBlastSpeed: number
+  reactBitsPixelBlastTransparent: boolean
+  reactBitsPixelBlastEdgeFade: number
+  reactBitsPixelBlastNoiseAmount: number
+  reactBitsColorBendsPaletteMode: ReactBitsColorBendsPaletteMode
+  reactBitsColorBendsPrimaryColor: string
+  reactBitsColorBendsHarmony: ColorHarmony
+  reactBitsColorBendsColorOne: string
+  reactBitsColorBendsColorTwo: string
+  reactBitsColorBendsColorThree: string
+  reactBitsColorBendsColorFour: string
+  reactBitsColorBendsRotation: number
+  reactBitsColorBendsSpeed: number
+  reactBitsColorBendsTransparent: boolean
+  reactBitsColorBendsAutoRotate: number
+  reactBitsColorBendsScale: number
+  reactBitsColorBendsFrequency: number
+  reactBitsColorBendsWarpStrength: number
+  reactBitsColorBendsInteractive: boolean
+  reactBitsColorBendsMouseInfluence: number
+  reactBitsColorBendsParallax: number
+  reactBitsColorBendsNoise: number
+  reactBitsColorBendsIterations: number
+  reactBitsColorBendsIntensity: number
+  reactBitsColorBendsBandWidth: number
+  reactBitsEvilEyePaletteMode: ReactBitsEvilEyePaletteMode
+  reactBitsEvilEyePrimaryColor: string
+  reactBitsEvilEyeHarmony: ColorHarmony
+  reactBitsEvilEyeColor: string
+  reactBitsEvilEyeBackgroundColor: string
+  reactBitsEvilEyeIntensity: number
+  reactBitsEvilEyePupilSize: number
+  reactBitsEvilEyeIrisWidth: number
+  reactBitsEvilEyeGlowIntensity: number
+  reactBitsEvilEyeScale: number
+  reactBitsEvilEyeNoiseScale: number
+  reactBitsEvilEyePupilFollow: number
+  reactBitsEvilEyeFlameSpeed: number
+  reactBitsEvilEyeInteractive: boolean
+  reactBitsLineWavesPaletteMode: ReactBitsLineWavesPaletteMode
+  reactBitsLineWavesPrimaryColor: string
+  reactBitsLineWavesHarmony: ColorHarmony
+  reactBitsLineWavesColorOne: string
+  reactBitsLineWavesColorTwo: string
+  reactBitsLineWavesColorThree: string
+  reactBitsLineWavesSpeed: number
+  reactBitsLineWavesInnerLineCount: number
+  reactBitsLineWavesOuterLineCount: number
+  reactBitsLineWavesWarpIntensity: number
+  reactBitsLineWavesRotation: number
+  reactBitsLineWavesEdgeFadeWidth: number
+  reactBitsLineWavesColorCycleSpeed: number
+  reactBitsLineWavesBrightness: number
+  reactBitsLineWavesEnableMouseInteraction: boolean
+  reactBitsLineWavesMouseInfluence: number
+  reactBitsRadarPaletteMode: ReactBitsRadarPaletteMode
+  reactBitsRadarPrimaryColor: string
+  reactBitsRadarHarmony: ColorHarmony
+  reactBitsRadarColor: string
+  reactBitsRadarBackgroundColor: string
+  reactBitsRadarSpeed: number
+  reactBitsRadarScale: number
+  reactBitsRadarRingCount: number
+  reactBitsRadarSpokeCount: number
+  reactBitsRadarRingThickness: number
+  reactBitsRadarSpokeThickness: number
+  reactBitsRadarSweepSpeed: number
+  reactBitsRadarSweepWidth: number
+  reactBitsRadarSweepLobes: number
+  reactBitsRadarFalloff: number
+  reactBitsRadarBrightness: number
+  reactBitsRadarEnableMouseInteraction: boolean
+  reactBitsRadarMouseInfluence: number
+  reactBitsSoftAuroraPaletteMode: ReactBitsSoftAuroraPaletteMode
+  reactBitsSoftAuroraPrimaryColor: string
+  reactBitsSoftAuroraHarmony: ColorHarmony
+  reactBitsSoftAuroraColorOne: string
+  reactBitsSoftAuroraColorTwo: string
+  reactBitsSoftAuroraSpeed: number
+  reactBitsSoftAuroraScale: number
+  reactBitsSoftAuroraBrightness: number
+  reactBitsSoftAuroraNoiseFrequency: number
+  reactBitsSoftAuroraNoiseAmplitude: number
+  reactBitsSoftAuroraBandHeight: number
+  reactBitsSoftAuroraBandSpread: number
+  reactBitsSoftAuroraOctaveDecay: number
+  reactBitsSoftAuroraLayerOffset: number
+  reactBitsSoftAuroraColorSpeed: number
+  reactBitsSoftAuroraEnableMouseInteraction: boolean
+  reactBitsSoftAuroraMouseInfluence: number
+  reactBitsPlasmaPaletteMode: ReactBitsPlasmaPaletteMode
+  reactBitsPlasmaPrimaryColor: string
+  reactBitsPlasmaHarmony: ColorHarmony
+  reactBitsPlasmaColor: string
+  reactBitsPlasmaSpeed: number
+  reactBitsPlasmaDirection: ReactBitsPlasmaDirection
+  reactBitsPlasmaScale: number
+  reactBitsPlasmaOpacity: number
+  reactBitsPlasmaMouseInteractive: boolean
+  reactBitsPlasmaWavePaletteMode: ReactBitsPlasmaWavePaletteMode
+  reactBitsPlasmaWavePrimaryColor: string
+  reactBitsPlasmaWaveHarmony: ColorHarmony
+  reactBitsPlasmaWaveColorOne: string
+  reactBitsPlasmaWaveColorTwo: string
+  reactBitsPlasmaWaveXOffset: number
+  reactBitsPlasmaWaveYOffset: number
+  reactBitsPlasmaWaveRotationDeg: number
+  reactBitsPlasmaWaveFocalLength: number
+  reactBitsPlasmaWaveSpeedOne: number
+  reactBitsPlasmaWaveSpeedTwo: number
+  reactBitsPlasmaWaveDirectionTwo: 1 | -1
+  reactBitsPlasmaWaveBendOne: number
+  reactBitsPlasmaWaveBendTwo: number
+  reactBitsParticlesPaletteMode: ReactBitsParticlesPaletteMode
+  reactBitsParticlesPrimaryColor: string
+  reactBitsParticlesHarmony: ColorHarmony
+  reactBitsParticlesColorOne: string
+  reactBitsParticlesColorTwo: string
+  reactBitsParticlesColorThree: string
+  reactBitsParticlesCount: number
+  reactBitsParticlesSpread: number
+  reactBitsParticlesSpeed: number
+  reactBitsParticlesMoveOnHover: boolean
+  reactBitsParticlesHoverFactor: number
+  reactBitsParticlesAlpha: boolean
+  reactBitsParticlesBaseSize: number
+  reactBitsParticlesSizeRandomness: number
+  reactBitsParticlesCameraDistance: number
+  reactBitsParticlesDisableRotation: boolean
+  reactBitsParticlesPixelRatio: number
+  reactBitsGradientBlindsPaletteMode: ReactBitsGradientBlindsPaletteMode
+  reactBitsGradientBlindsPrimaryColor: string
+  reactBitsGradientBlindsHarmony: ColorHarmony
+  reactBitsGradientBlindsColorOne: string
+  reactBitsGradientBlindsColorTwo: string
+  reactBitsGradientBlindsAngle: number
+  reactBitsGradientBlindsNoise: number
+  reactBitsGradientBlindsBlindCount: number
+  reactBitsGradientBlindsBlindMinWidth: number
+  reactBitsGradientBlindsMouseDampening: number
+  reactBitsGradientBlindsMirror: boolean
+  reactBitsGradientBlindsSpotlightRadius: number
+  reactBitsGradientBlindsSpotlightSoftness: number
+  reactBitsGradientBlindsSpotlightOpacity: number
+  reactBitsGradientBlindsDistort: number
+  reactBitsGradientBlindsShineDirection: ReactBitsGradientBlindsShineDirection
+  reactBitsGradientBlindsBlendMode: ReactBitsGradientBlindsBlendMode
+  reactBitsGradientBlindsDpr: number
+  reactBitsGradientBlindsEnableMouseInteraction: boolean
+  reactBitsGrainientPaletteMode: ReactBitsGrainientPaletteMode
+  reactBitsGrainientPrimaryColor: string
+  reactBitsGrainientHarmony: ColorHarmony
+  reactBitsGrainientColorOne: string
+  reactBitsGrainientColorTwo: string
+  reactBitsGrainientColorThree: string
+  reactBitsGrainientTimeSpeed: number
+  reactBitsGrainientColorBalance: number
+  reactBitsGrainientWarpStrength: number
+  reactBitsGrainientWarpFrequency: number
+  reactBitsGrainientWarpSpeed: number
+  reactBitsGrainientWarpAmplitude: number
+  reactBitsGrainientBlendAngle: number
+  reactBitsGrainientBlendSoftness: number
+  reactBitsGrainientRotationAmount: number
+  reactBitsGrainientNoiseScale: number
+  reactBitsGrainientGrainAmount: number
+  reactBitsGrainientGrainScale: number
+  reactBitsGrainientGrainAnimated: boolean
+  reactBitsGrainientContrast: number
+  reactBitsGrainientGamma: number
+  reactBitsGrainientSaturation: number
+  reactBitsGrainientCenterX: number
+  reactBitsGrainientCenterY: number
+  reactBitsGrainientZoom: number
+  reactBitsGridScanPaletteMode: ReactBitsGridScanPaletteMode
+  reactBitsGridScanPrimaryColor: string
+  reactBitsGridScanHarmony: ColorHarmony
+  reactBitsGridScanLinesColor: string
+  reactBitsGridScanScanColor: string
+  reactBitsGridScanSensitivity: number
+  reactBitsGridScanLineThickness: number
+  reactBitsGridScanScanOpacity: number
+  reactBitsGridScanGridScale: number
+  reactBitsGridScanLineStyle: ReactBitsGridScanLineStyle
+  reactBitsGridScanLineJitter: number
+  reactBitsGridScanDirection: ReactBitsGridScanDirection
+  reactBitsGridScanNoiseIntensity: number
+  reactBitsGridScanBloomOpacity: number
+  reactBitsGridScanScanGlow: number
+  reactBitsGridScanScanSoftness: number
+  reactBitsGridScanPhaseTaper: number
+  reactBitsGridScanScanDuration: number
+  reactBitsGridScanScanDelay: number
+  reactBitsGridScanEnablePointerInteraction: boolean
+  reactBitsGridScanScanOnClick: boolean
+  reactBitsBeamsPaletteMode: ReactBitsBeamsPaletteMode
+  reactBitsBeamsPrimaryColor: string
+  reactBitsBeamsHarmony: ColorHarmony
+  reactBitsBeamsLightColor: string
+  reactBitsBeamsBeamWidth: number
+  reactBitsBeamsBeamHeight: number
+  reactBitsBeamsBeamNumber: number
+  reactBitsBeamsSpeed: number
+  reactBitsBeamsNoiseIntensity: number
+  reactBitsBeamsScale: number
+  reactBitsBeamsRotation: number
+  reactBitsPixelSnowPaletteMode: ReactBitsPixelSnowPaletteMode
+  reactBitsPixelSnowPrimaryColor: string
+  reactBitsPixelSnowHarmony: ColorHarmony
+  reactBitsPixelSnowColor: string
+  reactBitsPixelSnowFlakeSize: number
+  reactBitsPixelSnowMinFlakeSize: number
+  reactBitsPixelSnowPixelResolution: number
+  reactBitsPixelSnowSpeed: number
+  reactBitsPixelSnowDepthFade: number
+  reactBitsPixelSnowFarPlane: number
+  reactBitsPixelSnowBrightness: number
+  reactBitsPixelSnowGamma: number
+  reactBitsPixelSnowDensity: number
+  reactBitsPixelSnowVariant: ReactBitsPixelSnowVariant
+  reactBitsPixelSnowDirection: number
+  reactBitsLightningPaletteMode: ReactBitsLightningPaletteMode
+  reactBitsLightningPrimaryColor: string
+  reactBitsLightningHarmony: ColorHarmony
+  reactBitsLightningColor: string
+  reactBitsLightningHue: number
+  reactBitsLightningXOffset: number
+  reactBitsLightningSpeed: number
+  reactBitsLightningIntensity: number
+  reactBitsLightningSize: number
+  reactBitsPrismaticBurstPaletteMode: ReactBitsPrismaticBurstPaletteMode
+  reactBitsPrismaticBurstPrimaryColor: string
+  reactBitsPrismaticBurstHarmony: ColorHarmony
+  reactBitsPrismaticBurstColorOne: string
+  reactBitsPrismaticBurstColorTwo: string
+  reactBitsPrismaticBurstColorThree: string
+  reactBitsPrismaticBurstColorFour: string
+  reactBitsPrismaticBurstIntensity: number
+  reactBitsPrismaticBurstSpeed: number
+  reactBitsPrismaticBurstAnimationType: ReactBitsPrismaticBurstAnimationType
+  reactBitsPrismaticBurstDistort: number
+  reactBitsPrismaticBurstOffsetX: number
+  reactBitsPrismaticBurstOffsetY: number
+  reactBitsPrismaticBurstHoverDampness: number
+  reactBitsPrismaticBurstRayCount: number
+  reactBitsPrismaticBurstMixBlendMode: ReactBitsPrismaticBurstMixBlendMode
+  reactBitsGalaxyPaletteMode: ReactBitsGalaxyPaletteMode
+  reactBitsGalaxyPrimaryColor: string
+  reactBitsGalaxyHarmony: ColorHarmony
+  reactBitsGalaxyColor: string
+  reactBitsGalaxyHueShift: number
+  reactBitsGalaxyFocalX: number
+  reactBitsGalaxyFocalY: number
+  reactBitsGalaxyRotationDeg: number
+  reactBitsGalaxyStarSpeed: number
+  reactBitsGalaxyDensity: number
+  reactBitsGalaxySpeed: number
+  reactBitsGalaxyMouseInteraction: boolean
+  reactBitsGalaxyGlowIntensity: number
+  reactBitsGalaxySaturation: number
+  reactBitsGalaxyMouseRepulsion: boolean
+  reactBitsGalaxyRepulsionStrength: number
+  reactBitsGalaxyTwinkleIntensity: number
+  reactBitsGalaxyRotationSpeed: number
+  reactBitsGalaxyAutoCenterRepulsion: number
+  reactBitsGalaxyTransparent: boolean
+  reactBitsDitherPaletteMode: ReactBitsDitherPaletteMode
+  reactBitsDitherPrimaryColor: string
+  reactBitsDitherHarmony: ColorHarmony
+  reactBitsDitherColor: string
+  reactBitsDitherWaveSpeed: number
+  reactBitsDitherWaveFrequency: number
+  reactBitsDitherWaveAmplitude: number
+  reactBitsDitherColorNum: number
+  reactBitsDitherPixelSize: number
+  reactBitsDitherMouseInteraction: boolean
+  reactBitsDitherMouseRadius: number
+  reactBitsFaultyTerminalPaletteMode: ReactBitsFaultyTerminalPaletteMode
+  reactBitsFaultyTerminalPrimaryColor: string
+  reactBitsFaultyTerminalHarmony: ColorHarmony
+  reactBitsFaultyTerminalTint: string
+  reactBitsFaultyTerminalScale: number
+  reactBitsFaultyTerminalGridMulX: number
+  reactBitsFaultyTerminalGridMulY: number
+  reactBitsFaultyTerminalDigitSize: number
+  reactBitsFaultyTerminalTimeScale: number
+  reactBitsFaultyTerminalScanlineIntensity: number
+  reactBitsFaultyTerminalGlitchAmount: number
+  reactBitsFaultyTerminalFlickerAmount: number
+  reactBitsFaultyTerminalNoiseAmp: number
+  reactBitsFaultyTerminalChromaticAberration: number
+  reactBitsFaultyTerminalDither: number
+  reactBitsFaultyTerminalCurvature: number
+  reactBitsFaultyTerminalMouseReact: boolean
+  reactBitsFaultyTerminalMouseStrength: number
+  reactBitsFaultyTerminalPageLoadAnimation: boolean
+  reactBitsFaultyTerminalBrightness: number
+  reactBitsRippleGridPaletteMode: ReactBitsRippleGridPaletteMode
+  reactBitsRippleGridPrimaryColor: string
+  reactBitsRippleGridHarmony: ColorHarmony
+  reactBitsRippleGridColor: string
+  reactBitsRippleGridRippleIntensity: number
+  reactBitsRippleGridGridSize: number
+  reactBitsRippleGridGridThickness: number
+  reactBitsRippleGridFadeDistance: number
+  reactBitsRippleGridVignetteStrength: number
+  reactBitsRippleGridGlowIntensity: number
+  reactBitsRippleGridOpacity: number
+  reactBitsRippleGridGridRotation: number
+  reactBitsRippleGridMouseInteraction: boolean
+  reactBitsRippleGridMouseInteractionRadius: number
+  reactBitsDotFieldPaletteMode: ReactBitsDotFieldPaletteMode
+  reactBitsDotFieldPrimaryColor: string
+  reactBitsDotFieldHarmony: ColorHarmony
+  reactBitsDotFieldGradientFromColor: string
+  reactBitsDotFieldGradientFromAlpha: number
+  reactBitsDotFieldGradientToColor: string
+  reactBitsDotFieldGradientToAlpha: number
+  reactBitsDotFieldGlowColor: string
+  reactBitsDotFieldDotRadius: number
+  reactBitsDotFieldDotSpacing: number
+  reactBitsDotFieldCursorRadius: number
+  reactBitsDotFieldCursorForce: number
+  reactBitsDotFieldBulgeOnly: boolean
+  reactBitsDotFieldBulgeStrength: number
+  reactBitsDotFieldGlowRadius: number
+  reactBitsDotFieldSparkle: boolean
+  reactBitsDotFieldWaveAmplitude: number
+  reactBitsDotFieldCursorInteraction: boolean
+  reactBitsDotGridPaletteMode: ReactBitsDotGridPaletteMode
+  reactBitsDotGridPrimaryColor: string
+  reactBitsDotGridHarmony: ColorHarmony
+  reactBitsDotGridBaseColor: string
+  reactBitsDotGridActiveColor: string
+  reactBitsDotGridDotSize: number
+  reactBitsDotGridGap: number
+  reactBitsDotGridProximity: number
+  reactBitsDotGridSpeedTrigger: number
+  reactBitsDotGridShockRadius: number
+  reactBitsDotGridShockStrength: number
+  reactBitsDotGridMaxSpeed: number
+  reactBitsDotGridResistance: number
+  reactBitsDotGridReturnDuration: number
+  reactBitsDotGridCursorInteraction: boolean
+  reactBitsDotGridClickShock: boolean
+  reactBitsThreadsPaletteMode: ReactBitsThreadsPaletteMode
+  reactBitsThreadsPrimaryColor: string
+  reactBitsThreadsHarmony: ColorHarmony
+  reactBitsThreadsColor: string
+  reactBitsThreadsAmplitude: number
+  reactBitsThreadsDistance: number
+  reactBitsThreadsEnableMouseInteraction: boolean
+  reactBitsIridescencePaletteMode: ReactBitsIridescencePaletteMode
+  reactBitsIridescencePrimaryColor: string
+  reactBitsIridescenceHarmony: ColorHarmony
+  reactBitsIridescenceColor: string
+  reactBitsIridescenceSpeed: number
+  reactBitsIridescenceAmplitude: number
+  reactBitsIridescenceMouseReact: boolean
+  reactBitsWavesPaletteMode: ReactBitsWavesPaletteMode
+  reactBitsWavesPrimaryColor: string
+  reactBitsWavesHarmony: ColorHarmony
+  reactBitsWavesLineColor: string
+  reactBitsWavesBackgroundColor: string
+  reactBitsWavesTransparentBackground: boolean
+  reactBitsWavesSpeedX: number
+  reactBitsWavesSpeedY: number
+  reactBitsWavesAmplitudeX: number
+  reactBitsWavesAmplitudeY: number
+  reactBitsWavesGapX: number
+  reactBitsWavesGapY: number
+  reactBitsWavesFriction: number
+  reactBitsWavesTension: number
+  reactBitsWavesMaxCursorMove: number
+  reactBitsWavesCursorInteraction: boolean
+  reactBitsGridDistortionPaletteMode: ReactBitsGridDistortionPaletteMode
+  reactBitsGridDistortionPrimaryColor: string
+  reactBitsGridDistortionHarmony: ColorHarmony
+  reactBitsGridDistortionColorOne: string
+  reactBitsGridDistortionColorTwo: string
+  reactBitsGridDistortionColorThree: string
+  reactBitsGridDistortionGrid: number
+  reactBitsGridDistortionMouse: number
+  reactBitsGridDistortionStrength: number
+  reactBitsGridDistortionRelaxation: number
+  reactBitsGridDistortionCursorInteraction: boolean
+  reactBitsOrbPaletteMode: ReactBitsOrbPaletteMode
+  reactBitsOrbPrimaryColor: string
+  reactBitsOrbHarmony: ColorHarmony
+  reactBitsOrbColor: string
+  reactBitsOrbHue: number
+  reactBitsOrbHoverIntensity: number
+  reactBitsOrbRotateOnHover: boolean
+  reactBitsOrbForceHoverState: boolean
+  reactBitsOrbBackgroundColor: string
+  reactBitsOrbCursorInteraction: boolean
+  reactBitsLetterGlitchPaletteMode: ReactBitsLetterGlitchPaletteMode
+  reactBitsLetterGlitchPrimaryColor: string
+  reactBitsLetterGlitchHarmony: ColorHarmony
+  reactBitsLetterGlitchColorOne: string
+  reactBitsLetterGlitchColorTwo: string
+  reactBitsLetterGlitchColorThree: string
+  reactBitsLetterGlitchGlitchSpeed: number
+  reactBitsLetterGlitchCenterVignette: boolean
+  reactBitsLetterGlitchOuterVignette: boolean
+  reactBitsLetterGlitchSmooth: boolean
+  reactBitsLetterGlitchCharacters: string
+  reactBitsGridMotionPaletteMode: ReactBitsGridMotionPaletteMode
+  reactBitsGridMotionPrimaryColor: string
+  reactBitsGridMotionHarmony: ColorHarmony
+  reactBitsGridMotionGradientColor: string
+  reactBitsGridMotionTileColor: string
+  reactBitsGridMotionTextColor: string
+  reactBitsGridMotionMaxMoveAmount: number
+  reactBitsGridMotionBaseDuration: number
+  reactBitsGridMotionCursorInteraction: boolean
+  reactBitsShapeGridPaletteMode: ReactBitsShapeGridPaletteMode
+  reactBitsShapeGridPrimaryColor: string
+  reactBitsShapeGridHarmony: ColorHarmony
+  reactBitsShapeGridBorderColor: string
+  reactBitsShapeGridHoverFillColor: string
+  reactBitsShapeGridDirection: ChimerSettings["reactBitsShapeGridDirection"]
+  reactBitsShapeGridSpeed: number
+  reactBitsShapeGridSquareSize: number
+  reactBitsShapeGridShape: ChimerSettings["reactBitsShapeGridShape"]
+  reactBitsShapeGridHoverTrailAmount: number
+  reactBitsShapeGridCursorInteraction: boolean
+  reactBitsLiquidChromePaletteMode: ReactBitsLiquidChromePaletteMode
+  reactBitsLiquidChromePrimaryColor: string
+  reactBitsLiquidChromeHarmony: ColorHarmony
+  reactBitsLiquidChromeBaseColor: string
+  reactBitsLiquidChromeSpeed: number
+  reactBitsLiquidChromeAmplitude: number
+  reactBitsLiquidChromeFrequencyX: number
+  reactBitsLiquidChromeFrequencyY: number
+  reactBitsLiquidChromeInteractive: boolean
+  reactBitsBalatroPaletteMode: ReactBitsBalatroPaletteMode
+  reactBitsBalatroPrimaryColor: string
+  reactBitsBalatroHarmony: ColorHarmony
+  reactBitsBalatroColorOne: string
+  reactBitsBalatroColorTwo: string
+  reactBitsBalatroColorThree: string
+  reactBitsBalatroSpinRotation: number
+  reactBitsBalatroSpinSpeed: number
+  reactBitsBalatroOffsetX: number
+  reactBitsBalatroOffsetY: number
+  reactBitsBalatroContrast: number
+  reactBitsBalatroLighting: number
+  reactBitsBalatroSpinAmount: number
+  reactBitsBalatroPixelFilter: number
+  reactBitsBalatroSpinEase: number
+  reactBitsBalatroIsRotate: boolean
+  reactBitsBalatroMouseInteraction: boolean
+  eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
+  eldoraNovatrixPrimaryColor: string
+  eldoraNovatrixHarmony: ColorHarmony
+  eldoraNovatrixColor: string
+  eldoraNovatrixSpeed: number
+  eldoraNovatrixAmplitude: number
+  eldoraHackerPaletteMode: EldoraHackerPaletteMode
+  eldoraHackerPrimaryColor: string
+  eldoraHackerHarmony: ColorHarmony
+  eldoraHackerColor: string
+  eldoraHackerSpeed: number
+  eldoraHackerFontSize: number
+  eldoraPhotonBeamPaletteMode: EldoraPhotonBeamPaletteMode
+  eldoraPhotonBeamPrimaryColor: string
+  eldoraPhotonBeamHarmony: ColorHarmony
+  eldoraPhotonBeamColorBg: string
+  eldoraPhotonBeamColorLine: string
+  eldoraPhotonBeamColorSignal: string
+  eldoraPhotonBeamUseColor2: boolean
+  eldoraPhotonBeamColorSignal2: string
+  eldoraPhotonBeamUseColor3: boolean
+  eldoraPhotonBeamColorSignal3: string
+  eldoraPhotonBeamLineCount: number
+  eldoraPhotonBeamSpreadHeight: number
+  eldoraPhotonBeamSpreadDepth: number
+  eldoraPhotonBeamCurveLength: number
+  eldoraPhotonBeamStraightLength: number
+  eldoraPhotonBeamCurvePower: number
+  eldoraPhotonBeamWaveSpeed: number
+  eldoraPhotonBeamWaveHeight: number
+  eldoraPhotonBeamLineOpacity: number
+  eldoraPhotonBeamSignalCount: number
+  eldoraPhotonBeamSpeedGlobal: number
+  eldoraPhotonBeamTrailLength: number
+  eldoraPhotonBeamBloomStrength: number
+  eldoraPhotonBeamBloomRadius: number
+  aceternity3DGlobeViewStyle: ChimerSettings["aceternity3DGlobeViewStyle"]
+  aceternity3DGlobeBackgroundColor: string
+  aceternity3DGlobeGlobeColor: string
+  aceternity3DGlobeGraphicMapColor: string
+  aceternity3DGlobeGraphicGlowColor: string
+  aceternity3DGlobeGraphicMarkerColor: string
+  aceternity3DGlobeGraphicMapSamples: number
+  aceternity3DGlobeAutoRotateSpeed: number
+  aceternity3DGlobeReverseSpin: boolean
+  aceternity3DGlobeScale: number
+  aceternity3DGlobeBumpScale: number
+  aceternity3DGlobeAmbientIntensity: number
+  aceternity3DGlobePointLightIntensity: number
+  aceternity3DGlobeLightingMode: "manual" | "sun"
+  aceternity3DGlobeEnablePan: boolean
+  aceternity3DGlobePanX: number
+  aceternity3DGlobePanY: number
+  aceternity3DGlobeShowTilt: boolean
+  aceternity3DGlobeShowAtmosphere: boolean
+  aceternity3DGlobeAtmosphereColor: string
+  aceternity3DGlobeAtmosphereIntensity: number
+  aceternity3DGlobeAtmosphereBlur: number
+  aceternity3DGlobeShowWireframe: boolean
+  aceternity3DGlobeWireframeColor: string
+  aceternity3DGlobeMarkerEnabled: boolean
+  aceternity3DGlobeMarkerLat: number
+  aceternity3DGlobeMarkerLng: number
+  aceternity3DGlobeMarkerLabel: string
+  aceternity3DGlobeMarkerIcon: "pin" | "person" | "heart" | "star" | "home"
+  aceternity3DGlobeMarkerSize: number
+  magicRetroGridBackgroundColor: string
+  magicRetroGridLightLineColor: string
+  magicRetroGridDarkLineColor: string
+  magicRetroGridAngle: number
+  magicRetroGridCellSize: number
+  magicRetroGridOpacity: number
+  magicLightRaysBackgroundColor: string
+  magicLightRaysColor: string
+  magicLightRaysCount: number
+  magicLightRaysBlur: number
+  magicLightRaysSpeed: number
+  magicLightRaysLength: number
+  magicLightRaysOpacity: number
+  chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
+  chamaacSynthesisPrimaryColor: string
+  chamaacSynthesisHarmony: ColorHarmony
+  chamaacSynthesisColorOne: string
+  chamaacSynthesisColorTwo: string
+  chamaacSynthesisColorThree: string
+  chamaacSynthesisSpeed: number
+  chamaacSynthesisComplexity: number
+  chamaacSynthesisScale: number
+  chamaacSynthesisDistortion: number
+  chamaacSynthesisGlowIntensity: number
+  chamaacSynthesisFlowFrequency: number
+  backgroundLinesDuration: number
+  shootingStarsStarColor: string
+  shootingStarsTrailColor: string
+  shootingStarsShootingStarColor: string
+  shootingStarsDensity: number
+  shootingStarsTwinkle: boolean
+  shootingStarsTwinkleSpeed: number
+  shootingStarsShootingSpeed: number
+  shootingStarsFrequency: number
+  canvasRevealDotsBackgroundColor: string
+  canvasRevealDotsDotColor: string
+  canvasRevealDotsAccentColor: string
+  canvasRevealDotsDotSize: number
+  canvasRevealDotsDotSpacing: number
+  canvasRevealDotsOpacity: number
+  canvasRevealDotsAnimationSpeed: number
+  canvasRevealDotsShowGradient: boolean
+  spotlightColor: string
+  spotlightOpacity: number
+  spotlightWidth: number
+  spotlightHeight: number
+  spotlightSmallWidth: number
+  spotlightTranslateY: number
+  spotlightDuration: number
+  spotlightXOffset: number
+  lampBackgroundColor: string
+  lampColor: string
+  lampGlowOpacity: number
+  lampBeamWidth: number
+  lampGlowWidth: number
+  lampVerticalOffset: number
+  lampPulseSpeed: number
+  vortexBackgroundColor: string
+  vortexBaseHue: number
+  vortexParticleCount: number
+  vortexRangeY: number
+  vortexBaseSpeed: number
+  vortexRangeSpeed: number
+  vortexBaseRadius: number
+  vortexRangeRadius: number
+  wavyBackgroundFill: string
+  wavyColorOne: string
+  wavyColorTwo: string
+  wavyColorThree: string
+  wavyColorFour: string
+  wavyColorFive: string
+  wavyWaveWidth: number
+  wavyBlur: number
+  wavySpeed: "slow" | "fast"
+  wavyWaveOpacity: number
+  auroraBarsBackgroundColor: string
+  auroraBarsPaletteMode: ChimerSettings["auroraBarsPaletteMode"]
+  auroraBarsPrimaryColor: string
+  auroraBarsColorOne: string
+  auroraBarsColorTwo: string
+  auroraBarsColorThree: string
+  auroraBarsColorFour: string
+  auroraBarsColorFive: string
+  auroraBarsBarCount: number
+  auroraBarsSpeed: number
+  auroraBarsBlur: number
+  auroraBarsGap: number
+  auroraBarsMaxHeightRatio: number
+  auroraBarsMinHeightRatio: number
+  pixelLiquidBackgroundColor: string
+  pixelLiquidBaseColor: string
+  pixelLiquidAccentColor: string
+  pixelLiquidHighlightColor: string
+  pixelLiquidPixelSize: number
+  pixelLiquidDetail: ChimerSettings["pixelLiquidDetail"]
+  pixelLiquidMotionSpeed: number
+  tileGridPaletteMode: ChimerSettings["tileGridPaletteMode"]
+  tileGridPrimaryColor: string
+  tileGridColorOne: string
+  tileGridColorTwo: string
+  tileGridColorThree: string
+  tileGridColorFour: string
+  tileGridColorFive: string
+  tileGridTileSize: number
+  tileGridJointSize: number
+  tileGridChangeFrequency: number
+  tileGridActivePercent: number
+  tileGridOpacity: number
+  hexGridPrimaryColor: string
+  hexGridHarmony: ColorHarmony
+  hexGridHexSize: number
+  hexGridJointSize: number
+  hexGridChangeFrequency: number
+  hexGridActivePercent: number
+  hexGridOpacity: number
   canUseCustomColors: boolean
+  featureKeys: string[]
   activeIntervalMinutes: number | null
   onClose: () => void
   onPause: () => void
@@ -71,6 +1148,7 @@ export function RunningTimer({
   isAlerting,
   fontSize,
   movingBackgroundEnabled,
+  backgroundId,
   keepTimerScreenAwake,
   showTimerSeconds,
   showCurrentTimeSeconds,
@@ -80,7 +1158,904 @@ export function RunningTimer({
   clockModeFontColor,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
+  sparklesMaxSize,
+  sparklesMinSize,
+  sparklesParticleColor,
+  sparklesParticleDensity,
+  sparklesSpeed,
+  gradientAnimationBackgroundStartColor,
+  gradientAnimationBackgroundEndColor,
+  gradientAnimationFirstColor,
+  gradientAnimationSecondColor,
+  gradientAnimationThirdColor,
+  gradientAnimationFourthColor,
+  gradientAnimationFifthColor,
+  gradientAnimationSpeed,
+  gradientAnimationSize,
+  animateUiGradientPrimaryColor,
+  animateUiGradientHarmony,
+  animateUiGradientOpacity,
+  animateUiStarsColor,
+  animateUiStarsSpeed,
+  animateUiStarsDensity,
+  animateUiStarsParallax,
+  animateUiHoleStrokeColor,
+  animateUiHoleParticleColor,
+  animateUiHoleLineCount,
+  animateUiHoleDiscCount,
+  chamaacLightSpeedWarpSpeed,
+  chamaacLightSpeedParticleCount,
+  chamaacLightSpeedLightColor,
+  chamaacLightSpeedIntensity,
+  chamaacLightSpeedRadius,
+  chamaacLightSpeedCylinderLength,
+  chamaacElectricMistColor,
+  chamaacElectricMistSpeed,
+  chamaacElectricMistDetail,
+  chamaacElectricMistDistortion,
+  chamaacElectricMistBrightness,
+  chamaacAstralFlowPaletteMode,
+  chamaacAstralFlowPrimaryColor,
+  chamaacAstralFlowHarmony,
+  chamaacAstralFlowColorOne,
+  chamaacAstralFlowColorTwo,
+  chamaacAstralFlowColorThree,
+  chamaacAstralFlowSpeed,
+  chamaacAstralFlowFlowMin,
+  chamaacAstralFlowFlowMax,
+  chamaacDeepSpaceNebulaPaletteMode,
+  chamaacDeepSpaceNebulaPrimaryColor,
+  chamaacDeepSpaceNebulaHarmony,
+  chamaacDeepSpaceNebulaColorOne,
+  chamaacDeepSpaceNebulaColorTwo,
+  chamaacDeepSpaceNebulaColorThree,
+  chamaacDeepSpaceNebulaSpeed,
+  chamaacGridBloomColor,
+  chamaacGridBloomSpeed,
+  chamaacGridBloomGridScale,
+  chamaacGridBloomRotationSpeed,
+  chamaacGridBloomFadeFalloff,
+  chamaacGridBloomDistortionAmount,
+  chamaacGridBloomFlowSpeedX,
+  chamaacGridBloomFlowSpeedY,
+  chamaacLiquidChromePaletteMode,
+  chamaacLiquidChromePrimaryColor,
+  chamaacLiquidChromeHarmony,
+  chamaacLiquidChromeColorOne,
+  chamaacLiquidChromeColorTwo,
+  chamaacLiquidChromeFlowSpeed,
+  chamaacLiquidChromeTimeScale,
+  chamaacWavesPaletteMode,
+  chamaacWavesPrimaryColor,
+  chamaacWavesHarmony,
+  chamaacWavesBackgroundColor,
+  chamaacWavesColorOne,
+  chamaacWavesColorTwo,
+  chamaacWavesColorThree,
+  chamaacWavesSpeedX,
+  chamaacWavesSpeedY,
+  chamaacWavesAmplitude,
+  reactBitsFerrofluidPaletteMode,
+  reactBitsFerrofluidPrimaryColor,
+  reactBitsFerrofluidHarmony,
+  reactBitsFerrofluidColorOne,
+  reactBitsFerrofluidColorTwo,
+  reactBitsFerrofluidColorThree,
+  reactBitsFerrofluidSpeed,
+  reactBitsFerrofluidScale,
+  reactBitsFerrofluidTurbulence,
+  reactBitsFerrofluidFluidity,
+  reactBitsFerrofluidRimWidth,
+  reactBitsFerrofluidSharpness,
+  reactBitsFerrofluidShimmer,
+  reactBitsFerrofluidGlow,
+  reactBitsFerrofluidFlowDirection,
+  reactBitsFerrofluidOpacity,
+  reactBitsLightfallPaletteMode,
+  reactBitsLightfallPrimaryColor,
+  reactBitsLightfallHarmony,
+  reactBitsLightfallColorOne,
+  reactBitsLightfallColorTwo,
+  reactBitsLightfallColorThree,
+  reactBitsLightfallBackgroundColor,
+  reactBitsLightfallSpeed,
+  reactBitsLightfallStreakCount,
+  reactBitsLightfallStreakWidth,
+  reactBitsLightfallStreakLength,
+  reactBitsLightfallGlow,
+  reactBitsLightfallDensity,
+  reactBitsLightfallTwinkle,
+  reactBitsLightfallZoom,
+  reactBitsLightfallBackgroundGlow,
+  reactBitsLightfallOpacity,
+  reactBitsLightfallCursorEnabled,
+  reactBitsLightfallCursorStrength,
+  reactBitsLightfallCursorRadius,
+  reactBitsLightfallCursorDampening,
+  reactBitsLiquidEtherPaletteMode,
+  reactBitsLiquidEtherPrimaryColor,
+  reactBitsLiquidEtherHarmony,
+  reactBitsLiquidEtherColorOne,
+  reactBitsLiquidEtherColorTwo,
+  reactBitsLiquidEtherColorThree,
+  reactBitsLiquidEtherCursorEnabled,
+  reactBitsLiquidEtherMouseForce,
+  reactBitsLiquidEtherCursorSize,
+  reactBitsLiquidEtherIsViscous,
+  reactBitsLiquidEtherViscous,
+  reactBitsLiquidEtherIterationsViscous,
+  reactBitsLiquidEtherIterationsPoisson,
+  reactBitsLiquidEtherDt,
+  reactBitsLiquidEtherBfecc,
+  reactBitsLiquidEtherResolution,
+  reactBitsLiquidEtherIsBounce,
+  reactBitsLiquidEtherAutoDemo,
+  reactBitsLiquidEtherAutoSpeed,
+  reactBitsLiquidEtherAutoIntensity,
+  reactBitsLiquidEtherAutoResumeDelay,
+  reactBitsLiquidEtherAutoRampDuration,
+  reactBitsLiquidEtherOpacity,
+  reactBitsPrismHeight,
+  reactBitsPrismBaseWidth,
+  reactBitsPrismAnimationType,
+  reactBitsPrismGlow,
+  reactBitsPrismOffsetX,
+  reactBitsPrismOffsetY,
+  reactBitsPrismNoise,
+  reactBitsPrismTransparent,
+  reactBitsPrismScale,
+  reactBitsPrismHueShift,
+  reactBitsPrismColorFrequency,
+  reactBitsPrismHoverStrength,
+  reactBitsPrismInertia,
+  reactBitsPrismBloom,
+  reactBitsPrismTimeScale,
+  reactBitsDarkVeilHueShift,
+  reactBitsDarkVeilNoiseIntensity,
+  reactBitsDarkVeilScanlineIntensity,
+  reactBitsDarkVeilSpeed,
+  reactBitsDarkVeilScanlineFrequency,
+  reactBitsDarkVeilWarpAmount,
+  reactBitsDarkVeilResolutionScale,
+  reactBitsLightPillarPaletteMode,
+  reactBitsLightPillarPrimaryColor,
+  reactBitsLightPillarHarmony,
+  reactBitsLightPillarTopColor,
+  reactBitsLightPillarBottomColor,
+  reactBitsLightPillarIntensity,
+  reactBitsLightPillarRotationSpeed,
+  reactBitsLightPillarInteractive,
+  reactBitsLightPillarGlowAmount,
+  reactBitsLightPillarWidth,
+  reactBitsLightPillarHeight,
+  reactBitsLightPillarNoiseIntensity,
+  reactBitsLightPillarBlendMode,
+  reactBitsLightPillarRotation,
+  reactBitsLightPillarQuality,
+  reactBitsSilkPaletteMode,
+  reactBitsSilkPrimaryColor,
+  reactBitsSilkHarmony,
+  reactBitsSilkColor,
+  reactBitsSilkSpeed,
+  reactBitsSilkScale,
+  reactBitsSilkNoiseIntensity,
+  reactBitsSilkRotation,
+  reactBitsFloatingLinesPaletteMode,
+  reactBitsFloatingLinesPrimaryColor,
+  reactBitsFloatingLinesHarmony,
+  reactBitsFloatingLinesColorOne,
+  reactBitsFloatingLinesColorTwo,
+  reactBitsFloatingLinesColorThree,
+  reactBitsFloatingLinesEnableTop,
+  reactBitsFloatingLinesEnableMiddle,
+  reactBitsFloatingLinesEnableBottom,
+  reactBitsFloatingLinesTopLineCount,
+  reactBitsFloatingLinesMiddleLineCount,
+  reactBitsFloatingLinesBottomLineCount,
+  reactBitsFloatingLinesTopLineDistance,
+  reactBitsFloatingLinesMiddleLineDistance,
+  reactBitsFloatingLinesBottomLineDistance,
+  reactBitsFloatingLinesTopWaveX,
+  reactBitsFloatingLinesTopWaveY,
+  reactBitsFloatingLinesTopWaveRotate,
+  reactBitsFloatingLinesMiddleWaveX,
+  reactBitsFloatingLinesMiddleWaveY,
+  reactBitsFloatingLinesMiddleWaveRotate,
+  reactBitsFloatingLinesBottomWaveX,
+  reactBitsFloatingLinesBottomWaveY,
+  reactBitsFloatingLinesBottomWaveRotate,
+  reactBitsFloatingLinesAnimationSpeed,
+  reactBitsFloatingLinesInteractive,
+  reactBitsFloatingLinesBendRadius,
+  reactBitsFloatingLinesBendStrength,
+  reactBitsFloatingLinesMouseDamping,
+  reactBitsFloatingLinesParallax,
+  reactBitsFloatingLinesParallaxStrength,
+  reactBitsFloatingLinesBlendMode,
+  reactBitsSideRaysPaletteMode,
+  reactBitsSideRaysPrimaryColor,
+  reactBitsSideRaysHarmony,
+  reactBitsSideRaysColorOne,
+  reactBitsSideRaysColorTwo,
+  reactBitsSideRaysSpeed,
+  reactBitsSideRaysIntensity,
+  reactBitsSideRaysSpread,
+  reactBitsSideRaysOrigin,
+  reactBitsSideRaysTilt,
+  reactBitsSideRaysSaturation,
+  reactBitsSideRaysBlend,
+  reactBitsSideRaysFalloff,
+  reactBitsSideRaysOpacity,
+  reactBitsLightRaysPaletteMode,
+  reactBitsLightRaysPrimaryColor,
+  reactBitsLightRaysHarmony,
+  reactBitsLightRaysColor,
+  reactBitsLightRaysOrigin,
+  reactBitsLightRaysSpeed,
+  reactBitsLightRaysSpread,
+  reactBitsLightRaysLength,
+  reactBitsLightRaysPulsating,
+  reactBitsLightRaysFadeDistance,
+  reactBitsLightRaysSaturation,
+  reactBitsLightRaysFollowMouse,
+  reactBitsLightRaysMouseInfluence,
+  reactBitsLightRaysNoiseAmount,
+  reactBitsLightRaysDistortion,
+  reactBitsPixelBlastPaletteMode,
+  reactBitsPixelBlastPrimaryColor,
+  reactBitsPixelBlastHarmony,
+  reactBitsPixelBlastColor,
+  reactBitsPixelBlastVariant,
+  reactBitsPixelBlastPixelSize,
+  reactBitsPixelBlastAntialias,
+  reactBitsPixelBlastPatternScale,
+  reactBitsPixelBlastPatternDensity,
+  reactBitsPixelBlastLiquid,
+  reactBitsPixelBlastLiquidStrength,
+  reactBitsPixelBlastLiquidRadius,
+  reactBitsPixelBlastPixelSizeJitter,
+  reactBitsPixelBlastEnableRipples,
+  reactBitsPixelBlastRippleIntensityScale,
+  reactBitsPixelBlastRippleThickness,
+  reactBitsPixelBlastRippleSpeed,
+  reactBitsPixelBlastLiquidWobbleSpeed,
+  reactBitsPixelBlastAutoPauseOffscreen,
+  reactBitsPixelBlastSpeed,
+  reactBitsPixelBlastTransparent,
+  reactBitsPixelBlastEdgeFade,
+  reactBitsPixelBlastNoiseAmount,
+  reactBitsColorBendsPaletteMode,
+  reactBitsColorBendsPrimaryColor,
+  reactBitsColorBendsHarmony,
+  reactBitsColorBendsColorOne,
+  reactBitsColorBendsColorTwo,
+  reactBitsColorBendsColorThree,
+  reactBitsColorBendsColorFour,
+  reactBitsColorBendsRotation,
+  reactBitsColorBendsSpeed,
+  reactBitsColorBendsTransparent,
+  reactBitsColorBendsAutoRotate,
+  reactBitsColorBendsScale,
+  reactBitsColorBendsFrequency,
+  reactBitsColorBendsWarpStrength,
+  reactBitsColorBendsInteractive,
+  reactBitsColorBendsMouseInfluence,
+  reactBitsColorBendsParallax,
+  reactBitsColorBendsNoise,
+  reactBitsColorBendsIterations,
+  reactBitsColorBendsIntensity,
+  reactBitsColorBendsBandWidth,
+  reactBitsEvilEyePaletteMode,
+  reactBitsEvilEyePrimaryColor,
+  reactBitsEvilEyeHarmony,
+  reactBitsEvilEyeColor,
+  reactBitsEvilEyeBackgroundColor,
+  reactBitsEvilEyeIntensity,
+  reactBitsEvilEyePupilSize,
+  reactBitsEvilEyeIrisWidth,
+  reactBitsEvilEyeGlowIntensity,
+  reactBitsEvilEyeScale,
+  reactBitsEvilEyeNoiseScale,
+  reactBitsEvilEyePupilFollow,
+  reactBitsEvilEyeFlameSpeed,
+  reactBitsEvilEyeInteractive,
+  reactBitsLineWavesPaletteMode,
+  reactBitsLineWavesPrimaryColor,
+  reactBitsLineWavesHarmony,
+  reactBitsLineWavesColorOne,
+  reactBitsLineWavesColorTwo,
+  reactBitsLineWavesColorThree,
+  reactBitsLineWavesSpeed,
+  reactBitsLineWavesInnerLineCount,
+  reactBitsLineWavesOuterLineCount,
+  reactBitsLineWavesWarpIntensity,
+  reactBitsLineWavesRotation,
+  reactBitsLineWavesEdgeFadeWidth,
+  reactBitsLineWavesColorCycleSpeed,
+  reactBitsLineWavesBrightness,
+  reactBitsLineWavesEnableMouseInteraction,
+  reactBitsLineWavesMouseInfluence,
+  reactBitsRadarPaletteMode,
+  reactBitsRadarPrimaryColor,
+  reactBitsRadarHarmony,
+  reactBitsRadarColor,
+  reactBitsRadarBackgroundColor,
+  reactBitsRadarSpeed,
+  reactBitsRadarScale,
+  reactBitsRadarRingCount,
+  reactBitsRadarSpokeCount,
+  reactBitsRadarRingThickness,
+  reactBitsRadarSpokeThickness,
+  reactBitsRadarSweepSpeed,
+  reactBitsRadarSweepWidth,
+  reactBitsRadarSweepLobes,
+  reactBitsRadarFalloff,
+  reactBitsRadarBrightness,
+  reactBitsRadarEnableMouseInteraction,
+  reactBitsRadarMouseInfluence,
+  reactBitsSoftAuroraPaletteMode,
+  reactBitsSoftAuroraPrimaryColor,
+  reactBitsSoftAuroraHarmony,
+  reactBitsSoftAuroraColorOne,
+  reactBitsSoftAuroraColorTwo,
+  reactBitsSoftAuroraSpeed,
+  reactBitsSoftAuroraScale,
+  reactBitsSoftAuroraBrightness,
+  reactBitsSoftAuroraNoiseFrequency,
+  reactBitsSoftAuroraNoiseAmplitude,
+  reactBitsSoftAuroraBandHeight,
+  reactBitsSoftAuroraBandSpread,
+  reactBitsSoftAuroraOctaveDecay,
+  reactBitsSoftAuroraLayerOffset,
+  reactBitsSoftAuroraColorSpeed,
+  reactBitsSoftAuroraEnableMouseInteraction,
+  reactBitsSoftAuroraMouseInfluence,
+  reactBitsPlasmaPaletteMode,
+  reactBitsPlasmaPrimaryColor,
+  reactBitsPlasmaHarmony,
+  reactBitsPlasmaColor,
+  reactBitsPlasmaSpeed,
+  reactBitsPlasmaDirection,
+  reactBitsPlasmaScale,
+  reactBitsPlasmaOpacity,
+  reactBitsPlasmaMouseInteractive,
+  reactBitsPlasmaWavePaletteMode,
+  reactBitsPlasmaWavePrimaryColor,
+  reactBitsPlasmaWaveHarmony,
+  reactBitsPlasmaWaveColorOne,
+  reactBitsPlasmaWaveColorTwo,
+  reactBitsPlasmaWaveXOffset,
+  reactBitsPlasmaWaveYOffset,
+  reactBitsPlasmaWaveRotationDeg,
+  reactBitsPlasmaWaveFocalLength,
+  reactBitsPlasmaWaveSpeedOne,
+  reactBitsPlasmaWaveSpeedTwo,
+  reactBitsPlasmaWaveDirectionTwo,
+  reactBitsPlasmaWaveBendOne,
+  reactBitsPlasmaWaveBendTwo,
+  reactBitsParticlesPaletteMode,
+  reactBitsParticlesPrimaryColor,
+  reactBitsParticlesHarmony,
+  reactBitsParticlesColorOne,
+  reactBitsParticlesColorTwo,
+  reactBitsParticlesColorThree,
+  reactBitsParticlesCount,
+  reactBitsParticlesSpread,
+  reactBitsParticlesSpeed,
+  reactBitsParticlesMoveOnHover,
+  reactBitsParticlesHoverFactor,
+  reactBitsParticlesAlpha,
+  reactBitsParticlesBaseSize,
+  reactBitsParticlesSizeRandomness,
+  reactBitsParticlesCameraDistance,
+  reactBitsParticlesDisableRotation,
+  reactBitsParticlesPixelRatio,
+  reactBitsGradientBlindsPaletteMode,
+  reactBitsGradientBlindsPrimaryColor,
+  reactBitsGradientBlindsHarmony,
+  reactBitsGradientBlindsColorOne,
+  reactBitsGradientBlindsColorTwo,
+  reactBitsGradientBlindsAngle,
+  reactBitsGradientBlindsNoise,
+  reactBitsGradientBlindsBlindCount,
+  reactBitsGradientBlindsBlindMinWidth,
+  reactBitsGradientBlindsMouseDampening,
+  reactBitsGradientBlindsMirror,
+  reactBitsGradientBlindsSpotlightRadius,
+  reactBitsGradientBlindsSpotlightSoftness,
+  reactBitsGradientBlindsSpotlightOpacity,
+  reactBitsGradientBlindsDistort,
+  reactBitsGradientBlindsShineDirection,
+  reactBitsGradientBlindsBlendMode,
+  reactBitsGradientBlindsDpr,
+  reactBitsGradientBlindsEnableMouseInteraction,
+  reactBitsGrainientPaletteMode,
+  reactBitsGrainientPrimaryColor,
+  reactBitsGrainientHarmony,
+  reactBitsGrainientColorOne,
+  reactBitsGrainientColorTwo,
+  reactBitsGrainientColorThree,
+  reactBitsGrainientTimeSpeed,
+  reactBitsGrainientColorBalance,
+  reactBitsGrainientWarpStrength,
+  reactBitsGrainientWarpFrequency,
+  reactBitsGrainientWarpSpeed,
+  reactBitsGrainientWarpAmplitude,
+  reactBitsGrainientBlendAngle,
+  reactBitsGrainientBlendSoftness,
+  reactBitsGrainientRotationAmount,
+  reactBitsGrainientNoiseScale,
+  reactBitsGrainientGrainAmount,
+  reactBitsGrainientGrainScale,
+  reactBitsGrainientGrainAnimated,
+  reactBitsGrainientContrast,
+  reactBitsGrainientGamma,
+  reactBitsGrainientSaturation,
+  reactBitsGrainientCenterX,
+  reactBitsGrainientCenterY,
+  reactBitsGrainientZoom,
+  reactBitsGridScanPaletteMode,
+  reactBitsGridScanPrimaryColor,
+  reactBitsGridScanHarmony,
+  reactBitsGridScanLinesColor,
+  reactBitsGridScanScanColor,
+  reactBitsGridScanSensitivity,
+  reactBitsGridScanLineThickness,
+  reactBitsGridScanScanOpacity,
+  reactBitsGridScanGridScale,
+  reactBitsGridScanLineStyle,
+  reactBitsGridScanLineJitter,
+  reactBitsGridScanDirection,
+  reactBitsGridScanNoiseIntensity,
+  reactBitsGridScanBloomOpacity,
+  reactBitsGridScanScanGlow,
+  reactBitsGridScanScanSoftness,
+  reactBitsGridScanPhaseTaper,
+  reactBitsGridScanScanDuration,
+  reactBitsGridScanScanDelay,
+  reactBitsGridScanEnablePointerInteraction,
+  reactBitsGridScanScanOnClick,
+  reactBitsBeamsPaletteMode,
+  reactBitsBeamsPrimaryColor,
+  reactBitsBeamsHarmony,
+  reactBitsBeamsLightColor,
+  reactBitsBeamsBeamWidth,
+  reactBitsBeamsBeamHeight,
+  reactBitsBeamsBeamNumber,
+  reactBitsBeamsSpeed,
+  reactBitsBeamsNoiseIntensity,
+  reactBitsBeamsScale,
+  reactBitsBeamsRotation,
+  reactBitsPixelSnowPaletteMode,
+  reactBitsPixelSnowPrimaryColor,
+  reactBitsPixelSnowHarmony,
+  reactBitsPixelSnowColor,
+  reactBitsPixelSnowFlakeSize,
+  reactBitsPixelSnowMinFlakeSize,
+  reactBitsPixelSnowPixelResolution,
+  reactBitsPixelSnowSpeed,
+  reactBitsPixelSnowDepthFade,
+  reactBitsPixelSnowFarPlane,
+  reactBitsPixelSnowBrightness,
+  reactBitsPixelSnowGamma,
+  reactBitsPixelSnowDensity,
+  reactBitsPixelSnowVariant,
+  reactBitsPixelSnowDirection,
+  reactBitsLightningPaletteMode,
+  reactBitsLightningPrimaryColor,
+  reactBitsLightningHarmony,
+  reactBitsLightningColor,
+  reactBitsLightningHue,
+  reactBitsLightningXOffset,
+  reactBitsLightningSpeed,
+  reactBitsLightningIntensity,
+  reactBitsLightningSize,
+  reactBitsPrismaticBurstPaletteMode,
+  reactBitsPrismaticBurstPrimaryColor,
+  reactBitsPrismaticBurstHarmony,
+  reactBitsPrismaticBurstColorOne,
+  reactBitsPrismaticBurstColorTwo,
+  reactBitsPrismaticBurstColorThree,
+  reactBitsPrismaticBurstColorFour,
+  reactBitsPrismaticBurstIntensity,
+  reactBitsPrismaticBurstSpeed,
+  reactBitsPrismaticBurstAnimationType,
+  reactBitsPrismaticBurstDistort,
+  reactBitsPrismaticBurstOffsetX,
+  reactBitsPrismaticBurstOffsetY,
+  reactBitsPrismaticBurstHoverDampness,
+  reactBitsPrismaticBurstRayCount,
+  reactBitsPrismaticBurstMixBlendMode,
+  reactBitsGalaxyPaletteMode,
+  reactBitsGalaxyPrimaryColor,
+  reactBitsGalaxyHarmony,
+  reactBitsGalaxyColor,
+  reactBitsGalaxyHueShift,
+  reactBitsGalaxyFocalX,
+  reactBitsGalaxyFocalY,
+  reactBitsGalaxyRotationDeg,
+  reactBitsGalaxyStarSpeed,
+  reactBitsGalaxyDensity,
+  reactBitsGalaxySpeed,
+  reactBitsGalaxyMouseInteraction,
+  reactBitsGalaxyGlowIntensity,
+  reactBitsGalaxySaturation,
+  reactBitsGalaxyMouseRepulsion,
+  reactBitsGalaxyRepulsionStrength,
+  reactBitsGalaxyTwinkleIntensity,
+  reactBitsGalaxyRotationSpeed,
+  reactBitsGalaxyAutoCenterRepulsion,
+  reactBitsGalaxyTransparent,
+  reactBitsDitherPaletteMode,
+  reactBitsDitherPrimaryColor,
+  reactBitsDitherHarmony,
+  reactBitsDitherColor,
+  reactBitsDitherWaveSpeed,
+  reactBitsDitherWaveFrequency,
+  reactBitsDitherWaveAmplitude,
+  reactBitsDitherColorNum,
+  reactBitsDitherPixelSize,
+  reactBitsDitherMouseInteraction,
+  reactBitsDitherMouseRadius,
+  reactBitsFaultyTerminalPaletteMode,
+  reactBitsFaultyTerminalPrimaryColor,
+  reactBitsFaultyTerminalHarmony,
+  reactBitsFaultyTerminalTint,
+  reactBitsFaultyTerminalScale,
+  reactBitsFaultyTerminalGridMulX,
+  reactBitsFaultyTerminalGridMulY,
+  reactBitsFaultyTerminalDigitSize,
+  reactBitsFaultyTerminalTimeScale,
+  reactBitsFaultyTerminalScanlineIntensity,
+  reactBitsFaultyTerminalGlitchAmount,
+  reactBitsFaultyTerminalFlickerAmount,
+  reactBitsFaultyTerminalNoiseAmp,
+  reactBitsFaultyTerminalChromaticAberration,
+  reactBitsFaultyTerminalDither,
+  reactBitsFaultyTerminalCurvature,
+  reactBitsFaultyTerminalMouseReact,
+  reactBitsFaultyTerminalMouseStrength,
+  reactBitsFaultyTerminalPageLoadAnimation,
+  reactBitsFaultyTerminalBrightness,
+  reactBitsRippleGridPaletteMode,
+  reactBitsRippleGridPrimaryColor,
+  reactBitsRippleGridHarmony,
+  reactBitsRippleGridColor,
+  reactBitsRippleGridRippleIntensity,
+  reactBitsRippleGridGridSize,
+  reactBitsRippleGridGridThickness,
+  reactBitsRippleGridFadeDistance,
+  reactBitsRippleGridVignetteStrength,
+  reactBitsRippleGridGlowIntensity,
+  reactBitsRippleGridOpacity,
+  reactBitsRippleGridGridRotation,
+  reactBitsRippleGridMouseInteraction,
+  reactBitsRippleGridMouseInteractionRadius,
+  reactBitsDotFieldPaletteMode,
+  reactBitsDotFieldPrimaryColor,
+  reactBitsDotFieldHarmony,
+  reactBitsDotFieldGradientFromColor,
+  reactBitsDotFieldGradientFromAlpha,
+  reactBitsDotFieldGradientToColor,
+  reactBitsDotFieldGradientToAlpha,
+  reactBitsDotFieldGlowColor,
+  reactBitsDotFieldDotRadius,
+  reactBitsDotFieldDotSpacing,
+  reactBitsDotFieldCursorRadius,
+  reactBitsDotFieldCursorForce,
+  reactBitsDotFieldBulgeOnly,
+  reactBitsDotFieldBulgeStrength,
+  reactBitsDotFieldGlowRadius,
+  reactBitsDotFieldSparkle,
+  reactBitsDotFieldWaveAmplitude,
+  reactBitsDotFieldCursorInteraction,
+  reactBitsDotGridPaletteMode,
+  reactBitsDotGridPrimaryColor,
+  reactBitsDotGridHarmony,
+  reactBitsDotGridBaseColor,
+  reactBitsDotGridActiveColor,
+  reactBitsDotGridDotSize,
+  reactBitsDotGridGap,
+  reactBitsDotGridProximity,
+  reactBitsDotGridSpeedTrigger,
+  reactBitsDotGridShockRadius,
+  reactBitsDotGridShockStrength,
+  reactBitsDotGridMaxSpeed,
+  reactBitsDotGridResistance,
+  reactBitsDotGridReturnDuration,
+  reactBitsDotGridCursorInteraction,
+  reactBitsDotGridClickShock,
+  reactBitsThreadsPaletteMode,
+  reactBitsThreadsPrimaryColor,
+  reactBitsThreadsHarmony,
+  reactBitsThreadsColor,
+  reactBitsThreadsAmplitude,
+  reactBitsThreadsDistance,
+  reactBitsThreadsEnableMouseInteraction,
+  reactBitsIridescencePaletteMode,
+  reactBitsIridescencePrimaryColor,
+  reactBitsIridescenceHarmony,
+  reactBitsIridescenceColor,
+  reactBitsIridescenceSpeed,
+  reactBitsIridescenceAmplitude,
+  reactBitsIridescenceMouseReact,
+  reactBitsWavesPaletteMode,
+  reactBitsWavesPrimaryColor,
+  reactBitsWavesHarmony,
+  reactBitsWavesLineColor,
+  reactBitsWavesBackgroundColor,
+  reactBitsWavesTransparentBackground,
+  reactBitsWavesSpeedX,
+  reactBitsWavesSpeedY,
+  reactBitsWavesAmplitudeX,
+  reactBitsWavesAmplitudeY,
+  reactBitsWavesGapX,
+  reactBitsWavesGapY,
+  reactBitsWavesFriction,
+  reactBitsWavesTension,
+  reactBitsWavesMaxCursorMove,
+  reactBitsWavesCursorInteraction,
+  reactBitsGridDistortionPaletteMode,
+  reactBitsGridDistortionPrimaryColor,
+  reactBitsGridDistortionHarmony,
+  reactBitsGridDistortionColorOne,
+  reactBitsGridDistortionColorTwo,
+  reactBitsGridDistortionColorThree,
+  reactBitsGridDistortionGrid,
+  reactBitsGridDistortionMouse,
+  reactBitsGridDistortionStrength,
+  reactBitsGridDistortionRelaxation,
+  reactBitsGridDistortionCursorInteraction,
+  reactBitsOrbPaletteMode,
+  reactBitsOrbPrimaryColor,
+  reactBitsOrbHarmony,
+  reactBitsOrbColor,
+  reactBitsOrbHue,
+  reactBitsOrbHoverIntensity,
+  reactBitsOrbRotateOnHover,
+  reactBitsOrbForceHoverState,
+  reactBitsOrbBackgroundColor,
+  reactBitsOrbCursorInteraction,
+  reactBitsLetterGlitchPaletteMode,
+  reactBitsLetterGlitchPrimaryColor,
+  reactBitsLetterGlitchHarmony,
+  reactBitsLetterGlitchColorOne,
+  reactBitsLetterGlitchColorTwo,
+  reactBitsLetterGlitchColorThree,
+  reactBitsLetterGlitchGlitchSpeed,
+  reactBitsLetterGlitchCenterVignette,
+  reactBitsLetterGlitchOuterVignette,
+  reactBitsLetterGlitchSmooth,
+  reactBitsLetterGlitchCharacters,
+  reactBitsGridMotionPaletteMode,
+  reactBitsGridMotionPrimaryColor,
+  reactBitsGridMotionHarmony,
+  reactBitsGridMotionGradientColor,
+  reactBitsGridMotionTileColor,
+  reactBitsGridMotionTextColor,
+  reactBitsGridMotionMaxMoveAmount,
+  reactBitsGridMotionBaseDuration,
+  reactBitsGridMotionCursorInteraction,
+  reactBitsShapeGridPaletteMode,
+  reactBitsShapeGridPrimaryColor,
+  reactBitsShapeGridHarmony,
+  reactBitsShapeGridBorderColor,
+  reactBitsShapeGridHoverFillColor,
+  reactBitsShapeGridDirection,
+  reactBitsShapeGridSpeed,
+  reactBitsShapeGridSquareSize,
+  reactBitsShapeGridShape,
+  reactBitsShapeGridHoverTrailAmount,
+  reactBitsShapeGridCursorInteraction,
+  reactBitsLiquidChromePaletteMode,
+  reactBitsLiquidChromePrimaryColor,
+  reactBitsLiquidChromeHarmony,
+  reactBitsLiquidChromeBaseColor,
+  reactBitsLiquidChromeSpeed,
+  reactBitsLiquidChromeAmplitude,
+  reactBitsLiquidChromeFrequencyX,
+  reactBitsLiquidChromeFrequencyY,
+  reactBitsLiquidChromeInteractive,
+  reactBitsBalatroPaletteMode,
+  reactBitsBalatroPrimaryColor,
+  reactBitsBalatroHarmony,
+  reactBitsBalatroColorOne,
+  reactBitsBalatroColorTwo,
+  reactBitsBalatroColorThree,
+  reactBitsBalatroSpinRotation,
+  reactBitsBalatroSpinSpeed,
+  reactBitsBalatroOffsetX,
+  reactBitsBalatroOffsetY,
+  reactBitsBalatroContrast,
+  reactBitsBalatroLighting,
+  reactBitsBalatroSpinAmount,
+  reactBitsBalatroPixelFilter,
+  reactBitsBalatroSpinEase,
+  reactBitsBalatroIsRotate,
+  reactBitsBalatroMouseInteraction,
+  eldoraNovatrixPaletteMode,
+  eldoraNovatrixPrimaryColor,
+  eldoraNovatrixHarmony,
+  eldoraNovatrixColor,
+  eldoraNovatrixSpeed,
+  eldoraNovatrixAmplitude,
+  eldoraHackerPaletteMode,
+  eldoraHackerPrimaryColor,
+  eldoraHackerHarmony,
+  eldoraHackerColor,
+  eldoraHackerSpeed,
+  eldoraHackerFontSize,
+  eldoraPhotonBeamPaletteMode,
+  eldoraPhotonBeamPrimaryColor,
+  eldoraPhotonBeamHarmony,
+  eldoraPhotonBeamColorBg,
+  eldoraPhotonBeamColorLine,
+  eldoraPhotonBeamColorSignal,
+  eldoraPhotonBeamUseColor2,
+  eldoraPhotonBeamColorSignal2,
+  eldoraPhotonBeamUseColor3,
+  eldoraPhotonBeamColorSignal3,
+  eldoraPhotonBeamLineCount,
+  eldoraPhotonBeamSpreadHeight,
+  eldoraPhotonBeamSpreadDepth,
+  eldoraPhotonBeamCurveLength,
+  eldoraPhotonBeamStraightLength,
+  eldoraPhotonBeamCurvePower,
+  eldoraPhotonBeamWaveSpeed,
+  eldoraPhotonBeamWaveHeight,
+  eldoraPhotonBeamLineOpacity,
+  eldoraPhotonBeamSignalCount,
+  eldoraPhotonBeamSpeedGlobal,
+  eldoraPhotonBeamTrailLength,
+  eldoraPhotonBeamBloomStrength,
+  eldoraPhotonBeamBloomRadius,
+  aceternity3DGlobeViewStyle,
+  aceternity3DGlobeBackgroundColor,
+  aceternity3DGlobeGlobeColor,
+  aceternity3DGlobeGraphicMapColor,
+  aceternity3DGlobeGraphicGlowColor,
+  aceternity3DGlobeGraphicMarkerColor,
+  aceternity3DGlobeGraphicMapSamples,
+  aceternity3DGlobeAutoRotateSpeed,
+  aceternity3DGlobeReverseSpin,
+  aceternity3DGlobeScale,
+  aceternity3DGlobeBumpScale,
+  aceternity3DGlobeAmbientIntensity,
+  aceternity3DGlobePointLightIntensity,
+  aceternity3DGlobeLightingMode,
+  aceternity3DGlobeEnablePan,
+  aceternity3DGlobePanX,
+  aceternity3DGlobePanY,
+  aceternity3DGlobeShowTilt,
+  aceternity3DGlobeShowAtmosphere,
+  aceternity3DGlobeAtmosphereColor,
+  aceternity3DGlobeAtmosphereIntensity,
+  aceternity3DGlobeAtmosphereBlur,
+  aceternity3DGlobeShowWireframe,
+  aceternity3DGlobeWireframeColor,
+  aceternity3DGlobeMarkerEnabled,
+  aceternity3DGlobeMarkerLat,
+  aceternity3DGlobeMarkerLng,
+  aceternity3DGlobeMarkerLabel,
+  aceternity3DGlobeMarkerIcon,
+  aceternity3DGlobeMarkerSize,
+  magicRetroGridBackgroundColor,
+  magicRetroGridLightLineColor,
+  magicRetroGridDarkLineColor,
+  magicRetroGridAngle,
+  magicRetroGridCellSize,
+  magicRetroGridOpacity,
+  magicLightRaysBackgroundColor,
+  magicLightRaysColor,
+  magicLightRaysCount,
+  magicLightRaysBlur,
+  magicLightRaysSpeed,
+  magicLightRaysLength,
+  magicLightRaysOpacity,
+  chamaacSynthesisPaletteMode,
+  chamaacSynthesisPrimaryColor,
+  chamaacSynthesisHarmony,
+  chamaacSynthesisColorOne,
+  chamaacSynthesisColorTwo,
+  chamaacSynthesisColorThree,
+  chamaacSynthesisSpeed,
+  chamaacSynthesisComplexity,
+  chamaacSynthesisScale,
+  chamaacSynthesisDistortion,
+  chamaacSynthesisGlowIntensity,
+  chamaacSynthesisFlowFrequency,
+  backgroundLinesDuration,
+  shootingStarsStarColor,
+  shootingStarsTrailColor,
+  shootingStarsShootingStarColor,
+  shootingStarsDensity,
+  shootingStarsTwinkle,
+  shootingStarsTwinkleSpeed,
+  shootingStarsShootingSpeed,
+  shootingStarsFrequency,
+  canvasRevealDotsBackgroundColor,
+  canvasRevealDotsDotColor,
+  canvasRevealDotsAccentColor,
+  canvasRevealDotsDotSize,
+  canvasRevealDotsDotSpacing,
+  canvasRevealDotsOpacity,
+  canvasRevealDotsAnimationSpeed,
+  canvasRevealDotsShowGradient,
+  spotlightColor,
+  spotlightOpacity,
+  spotlightWidth,
+  spotlightHeight,
+  spotlightSmallWidth,
+  spotlightTranslateY,
+  spotlightDuration,
+  spotlightXOffset,
+  lampBackgroundColor,
+  lampColor,
+  lampGlowOpacity,
+  lampBeamWidth,
+  lampGlowWidth,
+  lampVerticalOffset,
+  lampPulseSpeed,
+  vortexBackgroundColor,
+  vortexBaseHue,
+  vortexParticleCount,
+  vortexRangeY,
+  vortexBaseSpeed,
+  vortexRangeSpeed,
+  vortexBaseRadius,
+  vortexRangeRadius,
+  wavyBackgroundFill,
+  wavyColorOne,
+  wavyColorTwo,
+  wavyColorThree,
+  wavyColorFour,
+  wavyColorFive,
+  wavyWaveWidth,
+  wavyBlur,
+  wavySpeed,
+  wavyWaveOpacity,
+  auroraBarsBackgroundColor,
+  auroraBarsPaletteMode,
+  auroraBarsPrimaryColor,
+  auroraBarsColorOne,
+  auroraBarsColorTwo,
+  auroraBarsColorThree,
+  auroraBarsColorFour,
+  auroraBarsColorFive,
+  auroraBarsBarCount,
+  auroraBarsSpeed,
+  auroraBarsBlur,
+  auroraBarsGap,
+  auroraBarsMaxHeightRatio,
+  auroraBarsMinHeightRatio,
+  pixelLiquidBackgroundColor,
+  pixelLiquidBaseColor,
+  pixelLiquidAccentColor,
+  pixelLiquidHighlightColor,
+  pixelLiquidPixelSize,
+  pixelLiquidDetail,
+  pixelLiquidMotionSpeed,
+  tileGridPaletteMode,
+  tileGridPrimaryColor,
+  tileGridColorOne,
+  tileGridColorTwo,
+  tileGridColorThree,
+  tileGridColorFour,
+  tileGridColorFive,
+  tileGridTileSize,
+  tileGridJointSize,
+  tileGridChangeFrequency,
+  tileGridActivePercent,
+  tileGridOpacity,
+  hexGridPrimaryColor,
+  hexGridHarmony,
+  hexGridHexSize,
+  hexGridJointSize,
+  hexGridChangeFrequency,
+  hexGridActivePercent,
+  hexGridOpacity,
   canUseCustomColors,
+  featureKeys,
   activeIntervalMinutes,
   onClose,
   onPause,
@@ -95,6 +2070,369 @@ export function RunningTimer({
   const isComplete = status === "complete"
   const isClockMode = status === "clock"
   const canEditActiveTimer = status === "running" || status === "paused"
+  const backgroundCategory = isClockMode ? "clock" : "chimer"
+  // Preserve the original Lamp path; BackgroundHost owns static fallbacks for premium alternatives.
+  const useOriginalLampBackground = backgroundId === DEFAULT_BACKGROUND_ID
+    || !canUseBackgroundId(backgroundId, featureKeys, backgroundCategory)
+  const astralFlowDisplaySpeed = getChamaacAstralFlowDisplaySpeed(chamaacAstralFlowSpeed)
+  const astralFlowColors = resolveChamaacAstralFlowColors({
+    chamaacAstralFlowPaletteMode,
+    chamaacAstralFlowPrimaryColor,
+    chamaacAstralFlowHarmony,
+    chamaacAstralFlowColorOne,
+    chamaacAstralFlowColorTwo,
+    chamaacAstralFlowColorThree,
+  })
+  const deepSpaceNebulaDisplaySpeed = getChamaacDeepSpaceNebulaDisplaySpeed(chamaacDeepSpaceNebulaSpeed)
+  const deepSpaceNebulaColors = resolveChamaacDeepSpaceNebulaColors({
+    chamaacDeepSpaceNebulaPaletteMode,
+    chamaacDeepSpaceNebulaPrimaryColor,
+    chamaacDeepSpaceNebulaHarmony,
+    chamaacDeepSpaceNebulaColorOne,
+    chamaacDeepSpaceNebulaColorTwo,
+    chamaacDeepSpaceNebulaColorThree,
+  })
+  const gridBloomDisplaySpeed = getChamaacGridBloomDisplaySpeed(chamaacGridBloomSpeed)
+  const liquidChromeFlowSpeed = getChamaacLiquidChromeDisplayFlowSpeed(chamaacLiquidChromeFlowSpeed)
+  const liquidChromeTimeScale = getChamaacLiquidChromeDisplayTimeScale(chamaacLiquidChromeTimeScale)
+  const liquidChromeColors = resolveChamaacLiquidChromeColors({
+    chamaacLiquidChromePaletteMode,
+    chamaacLiquidChromePrimaryColor,
+    chamaacLiquidChromeHarmony,
+    chamaacLiquidChromeColorOne,
+    chamaacLiquidChromeColorTwo,
+  })
+  const wavesSpeedX = getChamaacWavesDisplaySpeed(chamaacWavesSpeedX)
+  const wavesSpeedY = getChamaacWavesDisplaySpeed(chamaacWavesSpeedY)
+  const wavesColors = resolveChamaacWavesColors({
+    chamaacWavesPaletteMode,
+    chamaacWavesPrimaryColor,
+    chamaacWavesHarmony,
+    chamaacWavesBackgroundColor,
+    chamaacWavesColorOne,
+    chamaacWavesColorTwo,
+    chamaacWavesColorThree,
+  })
+  const ferrofluidColors = resolveReactBitsFerrofluidColors({
+    reactBitsFerrofluidPaletteMode,
+    reactBitsFerrofluidPrimaryColor,
+    reactBitsFerrofluidHarmony,
+    reactBitsFerrofluidColorOne,
+    reactBitsFerrofluidColorTwo,
+    reactBitsFerrofluidColorThree,
+  })
+  const lightfallColors = resolveReactBitsLightfallColors({
+    reactBitsLightfallPaletteMode,
+    reactBitsLightfallPrimaryColor,
+    reactBitsLightfallHarmony,
+    reactBitsLightfallColorOne,
+    reactBitsLightfallColorTwo,
+    reactBitsLightfallColorThree,
+  })
+  const lightPillarColors = resolveReactBitsLightPillarColors({
+    reactBitsLightPillarPaletteMode,
+    reactBitsLightPillarPrimaryColor,
+    reactBitsLightPillarHarmony,
+    reactBitsLightPillarTopColor,
+    reactBitsLightPillarBottomColor,
+  })
+  const silkColor = resolveReactBitsSilkColor({
+    reactBitsSilkPaletteMode,
+    reactBitsSilkPrimaryColor,
+    reactBitsSilkHarmony,
+    reactBitsSilkColor,
+  })
+  const floatingLinesGradient = resolveReactBitsFloatingLinesGradient({
+    reactBitsFloatingLinesPaletteMode,
+    reactBitsFloatingLinesPrimaryColor,
+    reactBitsFloatingLinesHarmony,
+    reactBitsFloatingLinesColorOne,
+    reactBitsFloatingLinesColorTwo,
+    reactBitsFloatingLinesColorThree,
+  })
+  const sideRaysColors = resolveReactBitsSideRaysColors({
+    reactBitsSideRaysPaletteMode,
+    reactBitsSideRaysPrimaryColor,
+    reactBitsSideRaysHarmony,
+    reactBitsSideRaysColorOne,
+    reactBitsSideRaysColorTwo,
+  })
+  const lightRaysColor = resolveReactBitsLightRaysColor({
+    reactBitsLightRaysPaletteMode,
+    reactBitsLightRaysPrimaryColor,
+    reactBitsLightRaysHarmony,
+    reactBitsLightRaysColor,
+  })
+  const pixelBlastColor = resolveReactBitsPixelBlastColor({
+    reactBitsPixelBlastPaletteMode,
+    reactBitsPixelBlastPrimaryColor,
+    reactBitsPixelBlastHarmony,
+    reactBitsPixelBlastColor,
+  })
+  const colorBendsColors = resolveReactBitsColorBendsColors({
+    reactBitsColorBendsPaletteMode,
+    reactBitsColorBendsPrimaryColor,
+    reactBitsColorBendsHarmony,
+    reactBitsColorBendsColorOne,
+    reactBitsColorBendsColorTwo,
+    reactBitsColorBendsColorThree,
+    reactBitsColorBendsColorFour,
+  })
+  const evilEyeColor = resolveReactBitsEvilEyeColor({
+    reactBitsEvilEyePaletteMode,
+    reactBitsEvilEyePrimaryColor,
+    reactBitsEvilEyeHarmony,
+    reactBitsEvilEyeColor,
+  })
+  const lineWavesColors = resolveReactBitsLineWavesColors({
+    reactBitsLineWavesPaletteMode,
+    reactBitsLineWavesPrimaryColor,
+    reactBitsLineWavesHarmony,
+    reactBitsLineWavesColorOne,
+    reactBitsLineWavesColorTwo,
+    reactBitsLineWavesColorThree,
+  })
+  const radarColor = resolveReactBitsRadarColor({
+    reactBitsRadarPaletteMode,
+    reactBitsRadarPrimaryColor,
+    reactBitsRadarHarmony,
+    reactBitsRadarColor,
+  })
+  const softAuroraColors = resolveReactBitsSoftAuroraColors({
+    reactBitsSoftAuroraPaletteMode,
+    reactBitsSoftAuroraPrimaryColor,
+    reactBitsSoftAuroraHarmony,
+    reactBitsSoftAuroraColorOne,
+    reactBitsSoftAuroraColorTwo,
+  })
+  const plasmaColor = resolveReactBitsPlasmaColor({
+    reactBitsPlasmaPaletteMode,
+    reactBitsPlasmaPrimaryColor,
+    reactBitsPlasmaHarmony,
+    reactBitsPlasmaColor,
+  })
+  const plasmaWaveColors = resolveReactBitsPlasmaWaveColors({
+    reactBitsPlasmaWavePaletteMode,
+    reactBitsPlasmaWavePrimaryColor,
+    reactBitsPlasmaWaveHarmony,
+    reactBitsPlasmaWaveColorOne,
+    reactBitsPlasmaWaveColorTwo,
+  })
+  const particlesColors = resolveReactBitsParticlesColors({
+    reactBitsParticlesPaletteMode,
+    reactBitsParticlesPrimaryColor,
+    reactBitsParticlesHarmony,
+    reactBitsParticlesColorOne,
+    reactBitsParticlesColorTwo,
+    reactBitsParticlesColorThree,
+  })
+  const gradientBlindsColors = resolveReactBitsGradientBlindsColors({
+    reactBitsGradientBlindsPaletteMode,
+    reactBitsGradientBlindsPrimaryColor,
+    reactBitsGradientBlindsHarmony,
+    reactBitsGradientBlindsColorOne,
+    reactBitsGradientBlindsColorTwo,
+  })
+  const grainientColors = resolveReactBitsGrainientColors({
+    reactBitsGrainientPaletteMode,
+    reactBitsGrainientPrimaryColor,
+    reactBitsGrainientHarmony,
+    reactBitsGrainientColorOne,
+    reactBitsGrainientColorTwo,
+    reactBitsGrainientColorThree,
+  })
+  const gridScanColors = resolveReactBitsGridScanColors({
+    reactBitsGridScanPaletteMode,
+    reactBitsGridScanPrimaryColor,
+    reactBitsGridScanHarmony,
+    reactBitsGridScanLinesColor,
+    reactBitsGridScanScanColor,
+  })
+  const beamsColor = resolveReactBitsBeamsColor({
+    reactBitsBeamsPaletteMode,
+    reactBitsBeamsPrimaryColor,
+    reactBitsBeamsHarmony,
+    reactBitsBeamsLightColor,
+  })
+  const pixelSnowColor = resolveReactBitsPixelSnowColor({
+    reactBitsPixelSnowPaletteMode,
+    reactBitsPixelSnowPrimaryColor,
+    reactBitsPixelSnowHarmony,
+    reactBitsPixelSnowColor,
+  })
+  const lightningHue = resolveReactBitsLightningHue({
+    reactBitsLightningPaletteMode,
+    reactBitsLightningPrimaryColor,
+    reactBitsLightningHarmony,
+    reactBitsLightningColor,
+    reactBitsLightningHue,
+  })
+  const prismaticBurstColors = resolveReactBitsPrismaticBurstColors({
+    reactBitsPrismaticBurstPaletteMode,
+    reactBitsPrismaticBurstPrimaryColor,
+    reactBitsPrismaticBurstHarmony,
+    reactBitsPrismaticBurstColorOne,
+    reactBitsPrismaticBurstColorTwo,
+    reactBitsPrismaticBurstColorThree,
+    reactBitsPrismaticBurstColorFour,
+  })
+  const galaxyHueShift = resolveReactBitsGalaxyHueShift({
+    reactBitsGalaxyPaletteMode,
+    reactBitsGalaxyPrimaryColor,
+    reactBitsGalaxyHarmony,
+    reactBitsGalaxyColor,
+    reactBitsGalaxyHueShift,
+  })
+  const ditherColor = resolveReactBitsDitherColor({
+    reactBitsDitherPaletteMode,
+    reactBitsDitherPrimaryColor,
+    reactBitsDitherHarmony,
+    reactBitsDitherColor,
+  })
+  const faultyTerminalTint = resolveReactBitsFaultyTerminalTint({
+    reactBitsFaultyTerminalPaletteMode,
+    reactBitsFaultyTerminalPrimaryColor,
+    reactBitsFaultyTerminalHarmony,
+    reactBitsFaultyTerminalTint,
+  })
+  const rippleGridColor = resolveReactBitsRippleGridColor({
+    reactBitsRippleGridPaletteMode,
+    reactBitsRippleGridPrimaryColor,
+    reactBitsRippleGridHarmony,
+    reactBitsRippleGridColor,
+  })
+  const dotFieldColors = resolveReactBitsDotFieldColors({
+    reactBitsDotFieldPaletteMode,
+    reactBitsDotFieldPrimaryColor,
+    reactBitsDotFieldHarmony,
+    reactBitsDotFieldGradientFromColor,
+    reactBitsDotFieldGradientFromAlpha,
+    reactBitsDotFieldGradientToColor,
+    reactBitsDotFieldGradientToAlpha,
+    reactBitsDotFieldGlowColor,
+  })
+  const dotGridColors = resolveReactBitsDotGridColors({
+    reactBitsDotGridPaletteMode,
+    reactBitsDotGridPrimaryColor,
+    reactBitsDotGridHarmony,
+    reactBitsDotGridBaseColor,
+    reactBitsDotGridActiveColor,
+  })
+  const threadsColor = resolveReactBitsThreadsColor({
+    reactBitsThreadsPaletteMode,
+    reactBitsThreadsPrimaryColor,
+    reactBitsThreadsHarmony,
+    reactBitsThreadsColor,
+  })
+  const iridescenceColor = resolveReactBitsIridescenceColor({
+    reactBitsIridescencePaletteMode,
+    reactBitsIridescencePrimaryColor,
+    reactBitsIridescenceHarmony,
+    reactBitsIridescenceColor,
+  })
+  const wavesLineColor = resolveReactBitsWavesLineColor({
+    reactBitsWavesPaletteMode,
+    reactBitsWavesPrimaryColor,
+    reactBitsWavesHarmony,
+    reactBitsWavesLineColor,
+  })
+  const gridDistortionColors = resolveReactBitsGridDistortionColors({
+    reactBitsGridDistortionPaletteMode,
+    reactBitsGridDistortionPrimaryColor,
+    reactBitsGridDistortionHarmony,
+    reactBitsGridDistortionColorOne,
+    reactBitsGridDistortionColorTwo,
+    reactBitsGridDistortionColorThree,
+  })
+  const orbHue = resolveReactBitsOrbHue({
+    reactBitsOrbPaletteMode,
+    reactBitsOrbPrimaryColor,
+    reactBitsOrbHarmony,
+    reactBitsOrbColor,
+    reactBitsOrbHue,
+  })
+  const letterGlitchColors = resolveReactBitsLetterGlitchColors({
+    reactBitsLetterGlitchPaletteMode,
+    reactBitsLetterGlitchPrimaryColor,
+    reactBitsLetterGlitchHarmony,
+    reactBitsLetterGlitchColorOne,
+    reactBitsLetterGlitchColorTwo,
+    reactBitsLetterGlitchColorThree,
+  })
+  const gridMotionColors = resolveReactBitsGridMotionColors({
+    reactBitsGridMotionPaletteMode,
+    reactBitsGridMotionPrimaryColor,
+    reactBitsGridMotionHarmony,
+    reactBitsGridMotionGradientColor,
+    reactBitsGridMotionTileColor,
+    reactBitsGridMotionTextColor,
+  })
+  const shapeGridColors = resolveReactBitsShapeGridColors({
+    reactBitsShapeGridPaletteMode,
+    reactBitsShapeGridPrimaryColor,
+    reactBitsShapeGridHarmony,
+    reactBitsShapeGridBorderColor,
+    reactBitsShapeGridHoverFillColor,
+  })
+  const liquidChromeBaseColor = resolveReactBitsLiquidChromeBaseColor({
+    reactBitsLiquidChromePaletteMode,
+    reactBitsLiquidChromePrimaryColor,
+    reactBitsLiquidChromeHarmony,
+    reactBitsLiquidChromeBaseColor,
+  })
+  const balatroColors = resolveReactBitsBalatroColors({
+    reactBitsBalatroPaletteMode,
+    reactBitsBalatroPrimaryColor,
+    reactBitsBalatroHarmony,
+    reactBitsBalatroColorOne,
+    reactBitsBalatroColorTwo,
+    reactBitsBalatroColorThree,
+  })
+  const liquidEtherColors = resolveReactBitsLiquidEtherColors({
+    reactBitsLiquidEtherPaletteMode,
+    reactBitsLiquidEtherPrimaryColor,
+    reactBitsLiquidEtherHarmony,
+    reactBitsLiquidEtherColorOne,
+    reactBitsLiquidEtherColorTwo,
+    reactBitsLiquidEtherColorThree,
+  })
+  const novatrixSpeed = getEldoraNovatrixDisplaySpeed(eldoraNovatrixSpeed)
+  const novatrixAmplitude = getEldoraNovatrixDisplayAmplitude(eldoraNovatrixAmplitude)
+  const novatrixColor = resolveEldoraNovatrixColor({
+    eldoraNovatrixPaletteMode,
+    eldoraNovatrixPrimaryColor,
+    eldoraNovatrixHarmony,
+    eldoraNovatrixColor,
+  })
+  const hackerSpeed = getEldoraHackerDisplaySpeed(eldoraHackerSpeed)
+  const hackerColor = resolveEldoraHackerColor({
+    eldoraHackerPaletteMode,
+    eldoraHackerPrimaryColor,
+    eldoraHackerHarmony,
+    eldoraHackerColor,
+  })
+  const photonBeamSpeed = getEldoraPhotonBeamDisplaySpeed(eldoraPhotonBeamSpeedGlobal)
+  const photonBeamColors = resolveEldoraPhotonBeamColors({
+    eldoraPhotonBeamPaletteMode,
+    eldoraPhotonBeamPrimaryColor,
+    eldoraPhotonBeamHarmony,
+    eldoraPhotonBeamColorBg,
+    eldoraPhotonBeamColorLine,
+    eldoraPhotonBeamColorSignal,
+    eldoraPhotonBeamUseColor2,
+    eldoraPhotonBeamColorSignal2,
+    eldoraPhotonBeamUseColor3,
+    eldoraPhotonBeamColorSignal3,
+  })
+  const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
+  const synthesisColors = resolveChamaacSynthesisColors({
+    chamaacSynthesisPaletteMode,
+    chamaacSynthesisPrimaryColor,
+    chamaacSynthesisHarmony,
+    chamaacSynthesisColorOne,
+    chamaacSynthesisColorTwo,
+    chamaacSynthesisColorThree,
+  })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(isClockMode ? "display" : "timer")
@@ -479,6 +2817,11719 @@ export function RunningTimer({
     scheduleSettingsAutoClose()
   }
 
+  const useCurrentLocationForGlobe = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      handleSettingsChange({
+        aceternity3DGlobeMarkerEnabled: true,
+        aceternity3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
+        aceternity3DGlobeMarkerLng: Number(coords.longitude.toFixed(4)),
+      })
+    })
+  }
+
+  const aceternity3DGlobeScaleDisplayPercent = getAceternity3DGlobeScaleDisplayPercent(aceternity3DGlobeScale)
+  const isGraphicGlobe = aceternity3DGlobeViewStyle === "graphic"
+  const followSun = aceternity3DGlobeLightingMode === "sun"
+
+  const renderBackgroundControls = (option: BackgroundDefinition) => (
+    <div className={styles.backgroundCardControls}>
+      {!isClockMode && (
+        <label className={styles.colorRow}>
+          <span>Primary color</span>
+          <input
+            type="color"
+            value={resolvedPrimaryFontColor}
+            disabled={!canUseCustomColors}
+            onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
+            aria-label="Primary display color"
+          />
+        </label>
+      )}
+
+      <label className={styles.colorRow}>
+        <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
+        <input
+          type="color"
+          value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
+          disabled={!canUseCustomColors}
+          onChange={(event) => handleSettingsChange(
+            isClockMode
+              ? { clockModeFontColor: event.target.value }
+              : { secondaryFontColor: event.target.value },
+          )}
+          aria-label={isClockMode ? "Clock color" : "Secondary display color"}
+        />
+      </label>
+
+      {option.id === "massage-lab-moving-gradient" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Lamp main color</span>
+            <input
+              type="color"
+              value={movingBackgroundMainColor}
+              disabled={!canUseCustomColors}
+              onChange={(event) => handleSettingsChange({ movingBackgroundMainColor: event.target.value })}
+              aria-label="Lamp main color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Lamp orb color</span>
+            <input
+              type="color"
+              value={movingBackgroundOrbColor}
+              disabled={!canUseCustomColors}
+              onChange={(event) => handleSettingsChange({ movingBackgroundOrbColor: event.target.value })}
+              aria-label="Lamp orb color"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-gradient-animation" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Base start</span>
+            <input
+              type="color"
+              value={gradientAnimationBackgroundStartColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationBackgroundStartColor: event.target.value })}
+              aria-label="Gradient animation background start color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Base end</span>
+            <input
+              type="color"
+              value={gradientAnimationBackgroundEndColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationBackgroundEndColor: event.target.value })}
+              aria-label="Gradient animation background end color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Glow 1</span>
+            <input
+              type="color"
+              value={gradientAnimationFirstColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationFirstColor: event.target.value })}
+              aria-label="Gradient animation first glow color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Glow 2</span>
+            <input
+              type="color"
+              value={gradientAnimationSecondColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationSecondColor: event.target.value })}
+              aria-label="Gradient animation second glow color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Glow 3</span>
+            <input
+              type="color"
+              value={gradientAnimationThirdColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationThirdColor: event.target.value })}
+              aria-label="Gradient animation third glow color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Glow 4</span>
+            <input
+              type="color"
+              value={gradientAnimationFourthColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationFourthColor: event.target.value })}
+              aria-label="Gradient animation fourth glow color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Glow 5</span>
+            <input
+              type="color"
+              value={gradientAnimationFifthColor}
+              onChange={(event) => handleSettingsChange({ gradientAnimationFifthColor: event.target.value })}
+              aria-label="Gradient animation fifth glow color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed</span>
+            <input
+              type="range"
+              min="0.25"
+              max="2.5"
+              step="0.25"
+              value={gradientAnimationSpeed}
+              onChange={(event) => handleSettingsChange({ gradientAnimationSpeed: Number(event.target.value) })}
+              aria-label="Gradient animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow size</span>
+            <input
+              type="range"
+              min="45"
+              max="120"
+              step="5"
+              value={gradientAnimationSize}
+              onChange={(event) => handleSettingsChange({ gradientAnimationSize: Number(event.target.value) })}
+              aria-label="Gradient animation glow size"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "animate-ui-gradient" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Primary color</span>
+            <input
+              type="color"
+              value={animateUiGradientPrimaryColor}
+              onChange={(event) => handleSettingsChange({ animateUiGradientPrimaryColor: event.target.value })}
+              aria-label="Animate UI gradient primary color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Color harmony</span>
+            <select
+              value={animateUiGradientHarmony}
+              onChange={(event) => handleSettingsChange({
+                animateUiGradientHarmony: event.target.value as AnimateUiGradientHarmony,
+              })}
+              aria-label="Animate UI gradient color harmony"
+            >
+              {ANIMATE_UI_GRADIENT_HARMONY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(animateUiGradientOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.15"
+              max="1"
+              step="0.01"
+              value={animateUiGradientOpacity}
+              onChange={(event) => handleSettingsChange({ animateUiGradientOpacity: Number(event.target.value) })}
+              aria-label="Animate UI gradient opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "animate-ui-hole" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Grid line color</span>
+            <input
+              type="color"
+              value={animateUiHoleStrokeColor}
+              onChange={(event) => handleSettingsChange({ animateUiHoleStrokeColor: event.target.value })}
+              aria-label="Animate UI Hole grid line color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Particle color</span>
+            <input
+              type="color"
+              value={animateUiHoleParticleColor}
+              onChange={(event) => handleSettingsChange({ animateUiHoleParticleColor: event.target.value })}
+              aria-label="Animate UI Hole particle color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line count ({animateUiHoleLineCount})</span>
+            <input
+              type="range"
+              min="12"
+              max="96"
+              step="1"
+              value={animateUiHoleLineCount}
+              onChange={(event) => handleSettingsChange({ animateUiHoleLineCount: Number(event.target.value) })}
+              aria-label="Animate UI Hole line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Disc count ({animateUiHoleDiscCount})</span>
+            <input
+              type="range"
+              min="12"
+              max="96"
+              step="1"
+              value={animateUiHoleDiscCount}
+              onChange={(event) => handleSettingsChange({ animateUiHoleDiscCount: Number(event.target.value) })}
+              aria-label="Animate UI Hole disc count"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-light-speed" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Light color</span>
+            <input
+              type="color"
+              value={chamaacLightSpeedLightColor}
+              onChange={(event) => handleSettingsChange({ chamaacLightSpeedLightColor: event.target.value })}
+              aria-label="Light Speed light color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp speed ({chamaacLightSpeedWarpSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.1"
+              max="24"
+              step="0.01"
+              value={chamaacLightSpeedWarpSpeed}
+              onChange={(event) => handleSettingsChange({ chamaacLightSpeedWarpSpeed: Number(event.target.value) })}
+              aria-label="Light Speed warp speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Particles ({chamaacLightSpeedParticleCount})</span>
+            <input
+              type="range"
+              min="20"
+              max="200"
+              step="5"
+              value={chamaacLightSpeedParticleCount}
+              onChange={(event) => handleSettingsChange({ chamaacLightSpeedParticleCount: Number(event.target.value) })}
+              aria-label="Light Speed particle count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({chamaacLightSpeedIntensity.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.25"
+              max="6"
+              step="0.05"
+              value={chamaacLightSpeedIntensity}
+              onChange={(event) => handleSettingsChange({ chamaacLightSpeedIntensity: Number(event.target.value) })}
+              aria-label="Light Speed glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Tunnel radius ({chamaacLightSpeedRadius}px)</span>
+            <input
+              type="range"
+              min="6"
+              max="60"
+              step="1"
+              value={chamaacLightSpeedRadius}
+              onChange={(event) => handleSettingsChange({ chamaacLightSpeedRadius: Number(event.target.value) })}
+              aria-label="Light Speed tunnel radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Field length ({chamaacLightSpeedCylinderLength}px)</span>
+            <input
+              type="range"
+              min="40"
+              max="300"
+              step="5"
+              value={chamaacLightSpeedCylinderLength}
+              onChange={(event) => handleSettingsChange({ chamaacLightSpeedCylinderLength: Number(event.target.value) })}
+              aria-label="Light Speed field length"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "animate-ui-stars" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Star color</span>
+            <input
+              type="color"
+              value={animateUiStarsColor}
+              onChange={(event) => handleSettingsChange({ animateUiStarsColor: event.target.value })}
+              aria-label="Animate UI Stars star color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({animateUiStarsSpeed}s)</span>
+            <input
+              type="range"
+              min="18"
+              max="120"
+              step="1"
+              value={animateUiStarsSpeed}
+              onChange={(event) => handleSettingsChange({ animateUiStarsSpeed: Number(event.target.value) })}
+              aria-label="Animate UI Stars speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({Math.round(animateUiStarsDensity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.25"
+              max="1.5"
+              step="0.05"
+              value={animateUiStarsDensity}
+              onChange={(event) => handleSettingsChange({ animateUiStarsDensity: Number(event.target.value) })}
+              aria-label="Animate UI Stars density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Parallax ({Math.round(animateUiStarsParallax * 1000) / 10}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="0.12"
+              step="0.005"
+              value={animateUiStarsParallax}
+              onChange={(event) => handleSettingsChange({ animateUiStarsParallax: Number(event.target.value) })}
+              aria-label="Animate UI Stars parallax strength"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-sparkles" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Sparkle color</span>
+            <input
+              type="color"
+              value={sparklesParticleColor}
+              onChange={(event) => handleSettingsChange({ sparklesParticleColor: event.target.value })}
+              aria-label="Sparkles particle color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density</span>
+            <input
+              type="range"
+              min="20"
+              max="220"
+              step="1"
+              value={sparklesParticleDensity}
+              onChange={(event) => handleSettingsChange({ sparklesParticleDensity: Number(event.target.value) })}
+              aria-label="Sparkles particle density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.5"
+              value={sparklesSpeed}
+              onChange={(event) => handleSettingsChange({ sparklesSpeed: Number(event.target.value) })}
+              aria-label="Sparkles animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size</span>
+            <input
+              type="range"
+              min="1"
+              max="6"
+              step="0.5"
+              value={sparklesMaxSize}
+              onChange={(event) => handleSettingsChange({ sparklesMaxSize: Number(event.target.value) })}
+              aria-label="Sparkles particle size"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-electric-mist" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Lightning color</span>
+            <input
+              type="color"
+              value={chamaacElectricMistColor}
+              onChange={(event) => handleSettingsChange({ chamaacElectricMistColor: event.target.value })}
+              aria-label="Electric Mist lightning color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({Math.round(chamaacElectricMistSpeed)}%)</span>
+            <input
+              type="range"
+              min="1"
+              max="400"
+              step="1"
+              value={chamaacElectricMistSpeed}
+              onChange={(event) => handleSettingsChange({ chamaacElectricMistSpeed: Number(event.target.value) })}
+              aria-label="Electric Mist animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise detail ({chamaacElectricMistDetail.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value={chamaacElectricMistDetail}
+              onChange={(event) => handleSettingsChange({ chamaacElectricMistDetail: Number(event.target.value) })}
+              aria-label="Electric Mist noise detail"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({chamaacElectricMistDistortion.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.1"
+              value={chamaacElectricMistDistortion}
+              onChange={(event) => handleSettingsChange({ chamaacElectricMistDistortion: Number(event.target.value) })}
+              aria-label="Electric Mist distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({Math.round(chamaacElectricMistBrightness)}%)</span>
+            <input
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value={chamaacElectricMistBrightness}
+              onChange={(event) => handleSettingsChange({ chamaacElectricMistBrightness: Number(event.target.value) })}
+              aria-label="Electric Mist brightness"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-astral-flow" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacAstralFlowPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacAstralFlowPaletteMode: event.target.value as ChamaacAstralFlowPaletteMode,
+              })}
+              aria-label="Astral Flow color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacAstralFlowPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1 (deep)</span>
+                <input
+                  type="color"
+                  value={chamaacAstralFlowColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowColorOne: event.target.value })}
+                  aria-label="Astral Flow color 1"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 2 (mid)</span>
+                <input
+                  type="color"
+                  value={chamaacAstralFlowColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowColorTwo: event.target.value })}
+                  aria-label="Astral Flow color 2"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 3 (highlights)</span>
+                <input
+                  type="color"
+                  value={chamaacAstralFlowColorThree}
+                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowColorThree: event.target.value })}
+                  aria-label="Astral Flow color 3"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={chamaacAstralFlowPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowPrimaryColor: event.target.value })}
+                  aria-label="Astral Flow primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacAstralFlowHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacAstralFlowHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Astral Flow color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({astralFlowDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP}
+              value={astralFlowDisplaySpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacAstralFlowSpeed: getChamaacAstralFlowSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Astral Flow animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow min ({chamaacAstralFlowFlowMin.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="10"
+              step="0.1"
+              value={chamaacAstralFlowFlowMin}
+              onChange={(event) => handleSettingsChange({ chamaacAstralFlowFlowMin: Number(event.target.value) })}
+              aria-label="Astral Flow flow min"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow max ({chamaacAstralFlowFlowMax.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="12"
+              step="0.1"
+              value={chamaacAstralFlowFlowMax}
+              onChange={(event) => handleSettingsChange({ chamaacAstralFlowFlowMax: Number(event.target.value) })}
+              aria-label="Astral Flow flow max"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-deep-space-nebula" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacDeepSpaceNebulaPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacDeepSpaceNebulaPaletteMode: event.target.value as ChamaacDeepSpaceNebulaPaletteMode,
+              })}
+              aria-label="Deep Space Nebula color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacDeepSpaceNebulaPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Highlight</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorOne: event.target.value })}
+                  aria-label="Deep Space Nebula highlight color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Nebula cloud</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorTwo: event.target.value })}
+                  aria-label="Deep Space Nebula cloud color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Deep space</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaColorThree}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorThree: event.target.value })}
+                  aria-label="Deep Space Nebula deep-space color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Nebula color</span>
+                <input
+                  type="color"
+                  value={chamaacDeepSpaceNebulaPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaPrimaryColor: event.target.value })}
+                  aria-label="Deep Space Nebula primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacDeepSpaceNebulaHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacDeepSpaceNebulaHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Deep Space Nebula color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({deepSpaceNebulaDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP}
+              value={deepSpaceNebulaDisplaySpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacDeepSpaceNebulaSpeed: getChamaacDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Deep Space Nebula animation speed"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-grid-bloom" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Bloom color</span>
+            <input
+              type="color"
+              value={chamaacGridBloomColor}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomColor: event.target.value })}
+              aria-label="Grid Bloom bloom color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP}
+              value={gridBloomDisplaySpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacGridBloomSpeed: getChamaacGridBloomSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Grid Bloom animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid density ({chamaacGridBloomGridScale.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="32"
+              step="1"
+              value={chamaacGridBloomGridScale}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomGridScale: Number(event.target.value) })}
+              aria-label="Grid Bloom grid density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({chamaacGridBloomRotationSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="-3"
+              max="3"
+              step="0.1"
+              value={chamaacGridBloomRotationSpeed}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomRotationSpeed: Number(event.target.value) })}
+              aria-label="Grid Bloom rotation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fade falloff ({chamaacGridBloomFadeFalloff.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              step="0.5"
+              value={chamaacGridBloomFadeFalloff}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomFadeFalloff: Number(event.target.value) })}
+              aria-label="Grid Bloom fade falloff"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({chamaacGridBloomDistortionAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={chamaacGridBloomDistortionAmount}
+              onChange={(event) => handleSettingsChange({
+                chamaacGridBloomDistortionAmount: Number(event.target.value),
+              })}
+              aria-label="Grid Bloom distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow X ({chamaacGridBloomFlowSpeedX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.1"
+              value={chamaacGridBloomFlowSpeedX}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedX: Number(event.target.value) })}
+              aria-label="Grid Bloom flow X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow Y ({chamaacGridBloomFlowSpeedY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.1"
+              value={chamaacGridBloomFlowSpeedY}
+              onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedY: Number(event.target.value) })}
+              aria-label="Grid Bloom flow Y"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-liquid-chrome" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacLiquidChromePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacLiquidChromePaletteMode: event.target.value as ChamaacLiquidChromePaletteMode,
+              })}
+              aria-label="Liquid Chrome color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacLiquidChromePaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Chrome color</span>
+                <input
+                  type="color"
+                  value={chamaacLiquidChromeColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromeColorOne: event.target.value })}
+                  aria-label="Liquid Chrome chrome color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Shadow color</span>
+                <input
+                  type="color"
+                  value={chamaacLiquidChromeColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromeColorTwo: event.target.value })}
+                  aria-label="Liquid Chrome shadow color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary chrome</span>
+                <input
+                  type="color"
+                  value={chamaacLiquidChromePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromePrimaryColor: event.target.value })}
+                  aria-label="Liquid Chrome primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacLiquidChromeHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacLiquidChromeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Liquid Chrome color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Flow speed ({liquidChromeFlowSpeed}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN}
+              max={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX}
+              step={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP}
+              value={liquidChromeFlowSpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacLiquidChromeFlowSpeed: getChamaacLiquidChromeSourceFlowSpeed(Number(event.target.value)),
+              })}
+              aria-label="Liquid Chrome flow speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({liquidChromeTimeScale}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN}
+              max={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX}
+              step={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP}
+              value={liquidChromeTimeScale}
+              onChange={(event) => handleSettingsChange({
+                chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
+              })}
+              aria-label="Liquid Chrome time scale"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-3d-globe" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>View style</span>
+            <select
+              value={aceternity3DGlobeViewStyle}
+              onChange={(event) => handleSettingsChange({
+                aceternity3DGlobeViewStyle: event.target.value as ChimerSettings["aceternity3DGlobeViewStyle"],
+              })}
+              aria-label="3D Globe view style"
+            >
+              <option value="realistic">Realistic</option>
+              <option value="graphic">Graphic</option>
+            </select>
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={aceternity3DGlobeBackgroundColor}
+              onChange={(event) => handleSettingsChange({ aceternity3DGlobeBackgroundColor: event.target.value })}
+              aria-label="3D Globe background color"
+            />
+          </label>
+
+          {isGraphicGlobe ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Map dots</span>
+                <input
+                  type="color"
+                  value={aceternity3DGlobeGraphicMapColor}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicMapColor: event.target.value })}
+                  aria-label="3D Globe graphic map dot color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Outer Glow</span>
+                <input
+                  type="color"
+                  value={aceternity3DGlobeGraphicGlowColor}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicGlowColor: event.target.value })}
+                  aria-label="3D Globe graphic outer glow color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Marker dots</span>
+                <input
+                  type="color"
+                  value={aceternity3DGlobeGraphicMarkerColor}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicMarkerColor: event.target.value })}
+                  aria-label="3D Globe graphic marker color"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Dot density ({Math.round(aceternity3DGlobeGraphicMapSamples / 1000)}k)</span>
+                <input
+                  type="range"
+                  min="1000"
+                  max="10000"
+                  step="1000"
+                  value={aceternity3DGlobeGraphicMapSamples}
+                  onChange={(event) => handleSettingsChange({
+                    aceternity3DGlobeGraphicMapSamples: Number(event.target.value),
+                  })}
+                  aria-label="3D Globe graphic dot density"
+                />
+              </label>
+            </>
+          ) : (
+            <label className={styles.colorRow}>
+              <span>Globe tint</span>
+              <input
+                type="color"
+                value={aceternity3DGlobeGlobeColor}
+                onChange={(event) => handleSettingsChange({ aceternity3DGlobeGlobeColor: event.target.value })}
+                aria-label="3D Globe tint color"
+              />
+            </label>
+          )}
+
+          {!followSun && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Rotation speed ({aceternity3DGlobeAutoRotateSpeed.toFixed(2)}x)</span>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="2"
+                  step="0.01"
+                  value={aceternity3DGlobeAutoRotateSpeed}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAutoRotateSpeed: Number(event.target.value) })}
+                  aria-label="3D Globe rotation speed"
+                />
+              </label>
+
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Follow Sun</span>
+            <input
+              type="checkbox"
+              checked={followSun}
+              onChange={(event) => handleSettingsChange({ aceternity3DGlobeLightingMode: event.target.checked ? "sun" : "manual" })}
+              aria-label="3D Globe follow sun"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Pan controls</span>
+            <input
+              type="checkbox"
+              checked={aceternity3DGlobeEnablePan}
+              onChange={(event) => handleSettingsChange({ aceternity3DGlobeEnablePan: event.target.checked })}
+              aria-label="3D Globe pan controls"
+            />
+          </label>
+
+          {aceternity3DGlobeEnablePan && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Pan X Left/Right ({Math.round(aceternity3DGlobePanX)}%)</span>
+                <input
+                  type="range"
+                  min="-50"
+                  max="50"
+                  step="1"
+                  value={aceternity3DGlobePanX}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePanX: Number(event.target.value) })}
+                  aria-label="3D Globe pan X left right"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Pan Y Up/Down ({Math.round(aceternity3DGlobePanY)}%)</span>
+                <input
+                  type="range"
+                  min="-50"
+                  max="50"
+                  step="1"
+                  value={aceternity3DGlobePanY}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePanY: Number(event.target.value) })}
+                  aria-label="3D Globe pan Y up down"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Globe size ({aceternity3DGlobeScaleDisplayPercent}%)</span>
+            <input
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value={aceternity3DGlobeScaleDisplayPercent}
+              onChange={(event) => handleSettingsChange({
+                aceternity3DGlobeScale: getAceternity3DGlobeScaleFromDisplayPercent(Number(event.target.value)),
+              })}
+              aria-label="3D Globe size"
+            />
+          </label>
+
+          {!isGraphicGlobe && (
+            <label className={styles.rangeRow}>
+              <span>Bump scale ({aceternity3DGlobeBumpScale.toFixed(1)})</span>
+              <input
+                type="range"
+                min="0"
+                max="3"
+                step="0.1"
+                value={aceternity3DGlobeBumpScale}
+                onChange={(event) => handleSettingsChange({ aceternity3DGlobeBumpScale: Number(event.target.value) })}
+                aria-label="3D Globe bump scale"
+              />
+            </label>
+          )}
+
+          {!followSun && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Ambient light ({aceternity3DGlobeAmbientIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={aceternity3DGlobeAmbientIntensity}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAmbientIntensity: Number(event.target.value) })}
+                  aria-label="3D Globe ambient light"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Point light ({aceternity3DGlobePointLightIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="0.1"
+                  value={aceternity3DGlobePointLightIntensity}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePointLightIntensity: Number(event.target.value) })}
+                  aria-label="3D Globe point light"
+                />
+              </label>
+            </>
+          )}
+
+          {!isGraphicGlobe && (
+            <>
+              <label className={styles.switchRow}>
+                <span>Atmosphere</span>
+                <input
+                  type="checkbox"
+                  checked={aceternity3DGlobeShowAtmosphere}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowAtmosphere: event.target.checked })}
+                  aria-label="3D Globe show atmosphere"
+                />
+              </label>
+
+              {aceternity3DGlobeShowAtmosphere && (
+                <>
+                  <label className={styles.colorRow}>
+                    <span>Atmosphere color</span>
+                    <input
+                      type="color"
+                      value={aceternity3DGlobeAtmosphereColor}
+                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereColor: event.target.value })}
+                      aria-label="3D Globe atmosphere color"
+                    />
+                  </label>
+                  <label className={styles.rangeRow}>
+                    <span>Atmosphere ({aceternity3DGlobeAtmosphereIntensity.toFixed(1)})</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={aceternity3DGlobeAtmosphereIntensity}
+                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereIntensity: Number(event.target.value) })}
+                      aria-label="3D Globe atmosphere intensity"
+                    />
+                  </label>
+                  <label className={styles.rangeRow}>
+                    <span>Atmosphere blur ({aceternity3DGlobeAtmosphereBlur.toFixed(1)})</span>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5"
+                      step="0.1"
+                      value={aceternity3DGlobeAtmosphereBlur}
+                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereBlur: Number(event.target.value) })}
+                      aria-label="3D Globe atmosphere blur"
+                    />
+                  </label>
+                </>
+              )}
+
+              <label className={styles.switchRow}>
+                <span>Wireframe</span>
+                <input
+                  type="checkbox"
+                  checked={aceternity3DGlobeShowWireframe}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowWireframe: event.target.checked })}
+                  aria-label="3D Globe show wireframe"
+                />
+              </label>
+
+              {aceternity3DGlobeShowWireframe && (
+                <label className={styles.colorRow}>
+                  <span>Wireframe color</span>
+                  <input
+                    type="color"
+                    value={aceternity3DGlobeWireframeColor}
+                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeWireframeColor: event.target.value })}
+                    aria-label="3D Globe wireframe color"
+                  />
+                </label>
+              )}
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Location marker</span>
+            <input
+              type="checkbox"
+              checked={aceternity3DGlobeMarkerEnabled}
+              onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerEnabled: event.target.checked })}
+              aria-label="3D Globe location marker"
+            />
+          </label>
+
+          {aceternity3DGlobeMarkerEnabled && (
+            <>
+              <div className={styles.locationGrid}>
+                <label className={styles.textField}>
+                  <span>Latitude</span>
+                  <input
+                    type="number"
+                    min="-90"
+                    max="90"
+                    step="0.0001"
+                    value={aceternity3DGlobeMarkerLat}
+                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLat: Number(event.target.value) })}
+                    aria-label="3D Globe marker latitude"
+                  />
+                </label>
+                <label className={styles.textField}>
+                  <span>Longitude</span>
+                  <input
+                    type="number"
+                    min="-180"
+                    max="180"
+                    step="0.0001"
+                    value={aceternity3DGlobeMarkerLng}
+                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLng: Number(event.target.value) })}
+                    aria-label="3D Globe marker longitude"
+                  />
+                </label>
+              </div>
+              <button type="button" className={styles.inlineButton} onClick={useCurrentLocationForGlobe}>
+                Use my location
+              </button>
+              <label className={styles.textField}>
+                <span>Marker label</span>
+                <input
+                  type="text"
+                  placeholder="Optional"
+                  value={aceternity3DGlobeMarkerLabel}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLabel: event.target.value })}
+                  aria-label="3D Globe marker label"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Marker icon</span>
+                <select
+                  value={aceternity3DGlobeMarkerIcon}
+                  onChange={(event) => handleSettingsChange({
+                    aceternity3DGlobeMarkerIcon: event.target.value as ChimerSettings["aceternity3DGlobeMarkerIcon"],
+                  })}
+                  aria-label="3D Globe marker icon"
+                >
+                  <option value="pin">Pin</option>
+                  <option value="person">Person</option>
+                  <option value="heart">Heart</option>
+                  <option value="star">Star</option>
+                  <option value="home">Home</option>
+                </select>
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Marker size ({Math.round(aceternity3DGlobeMarkerSize * 100)}%)</span>
+                <input
+                  type="range"
+                  min="0.03"
+                  max="0.16"
+                  step="0.005"
+                  value={aceternity3DGlobeMarkerSize}
+                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerSize: Number(event.target.value) })}
+                  aria-label="3D Globe marker size"
+                />
+              </label>
+            </>
+          )}
+        </>
+      )}
+
+      {option.id === "magicui-retro-grid" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={magicRetroGridBackgroundColor}
+              onChange={(event) => handleSettingsChange({ magicRetroGridBackgroundColor: event.target.value })}
+              aria-label="Retro Grid background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Light line color</span>
+            <input
+              type="color"
+              value={magicRetroGridLightLineColor}
+              onChange={(event) => handleSettingsChange({ magicRetroGridLightLineColor: event.target.value })}
+              aria-label="Retro Grid light line color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Dark line color</span>
+            <input
+              type="color"
+              value={magicRetroGridDarkLineColor}
+              onChange={(event) => handleSettingsChange({ magicRetroGridDarkLineColor: event.target.value })}
+              aria-label="Retro Grid dark line color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Angle ({magicRetroGridAngle.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="1"
+              max="89"
+              step="1"
+              value={magicRetroGridAngle}
+              onChange={(event) => handleSettingsChange({ magicRetroGridAngle: Number(event.target.value) })}
+              aria-label="Retro Grid angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cell size ({magicRetroGridCellSize.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="12"
+              max="160"
+              step="1"
+              value={magicRetroGridCellSize}
+              onChange={(event) => handleSettingsChange({ magicRetroGridCellSize: Number(event.target.value) })}
+              aria-label="Retro Grid cell size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid opacity ({Math.round(magicRetroGridOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={magicRetroGridOpacity}
+              onChange={(event) => handleSettingsChange({ magicRetroGridOpacity: Number(event.target.value) })}
+              aria-label="Retro Grid opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "magicui-light-rays" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={magicLightRaysBackgroundColor}
+              onChange={(event) => handleSettingsChange({ magicLightRaysBackgroundColor: event.target.value })}
+              aria-label="Light Rays background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Ray color</span>
+            <input
+              type="color"
+              value={magicLightRaysColor}
+              onChange={(event) => handleSettingsChange({ magicLightRaysColor: event.target.value })}
+              aria-label="Light Rays color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray count ({magicLightRaysCount})</span>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={magicLightRaysCount}
+              onChange={(event) => handleSettingsChange({ magicLightRaysCount: Number(event.target.value) })}
+              aria-label="Light Rays count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blur ({magicLightRaysBlur.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="80"
+              step="1"
+              value={magicLightRaysBlur}
+              onChange={(event) => handleSettingsChange({ magicLightRaysBlur: Number(event.target.value) })}
+              aria-label="Light Rays blur"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({magicLightRaysSpeed.toFixed(1)}s)</span>
+            <input
+              type="range"
+              min="2"
+              max="40"
+              step="0.5"
+              value={magicLightRaysSpeed}
+              onChange={(event) => handleSettingsChange({ magicLightRaysSpeed: Number(event.target.value) })}
+              aria-label="Light Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray length ({magicLightRaysLength.toFixed(0)}vh)</span>
+            <input
+              type="range"
+              min="24"
+              max="120"
+              step="1"
+              value={magicLightRaysLength}
+              onChange={(event) => handleSettingsChange({ magicLightRaysLength: Number(event.target.value) })}
+              aria-label="Light Rays length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray opacity ({Math.round(magicLightRaysOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={magicLightRaysOpacity}
+              onChange={(event) => handleSettingsChange({ magicLightRaysOpacity: Number(event.target.value) })}
+              aria-label="Light Rays opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-waves" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacWavesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacWavesPaletteMode: event.target.value as ChamaacWavesPaletteMode,
+              })}
+              aria-label="Waves color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacWavesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Background</span>
+                <input
+                  type="color"
+                  value={chamaacWavesBackgroundColor}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesBackgroundColor: event.target.value })}
+                  aria-label="Waves background color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Primary wave</span>
+                <input
+                  type="color"
+                  value={chamaacWavesColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesColorOne: event.target.value })}
+                  aria-label="Waves primary wave color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Highlight</span>
+                <input
+                  type="color"
+                  value={chamaacWavesColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesColorTwo: event.target.value })}
+                  aria-label="Waves highlight color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Valley</span>
+                <input
+                  type="color"
+                  value={chamaacWavesColorThree}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesColorThree: event.target.value })}
+                  aria-label="Waves valley color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary wave</span>
+                <input
+                  type="color"
+                  value={chamaacWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacWavesPrimaryColor: event.target.value })}
+                  aria-label="Waves primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacWavesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Waves color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Speed X ({wavesSpeedX}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              value={wavesSpeedX}
+              onChange={(event) => handleSettingsChange({
+                chamaacWavesSpeedX: getChamaacWavesSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Waves speed X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed Y ({wavesSpeedY}%)</span>
+            <input
+              type="range"
+              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              value={wavesSpeedY}
+              onChange={(event) => handleSettingsChange({
+                chamaacWavesSpeedY: getChamaacWavesSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Waves speed Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({chamaacWavesAmplitude.toFixed(0)})</span>
+            <input
+              type="range"
+              min="8"
+              max="64"
+              step="1"
+              value={chamaacWavesAmplitude}
+              onChange={(event) => handleSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
+              aria-label="Waves amplitude"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-ferrofluid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsFerrofluidPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFerrofluidPaletteMode: event.target.value as ReactBitsFerrofluidPaletteMode,
+              })}
+              aria-label="Ferrofluid color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsFerrofluidPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorOne: event.target.value })}
+                  aria-label="Ferrofluid first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorTwo: event.target.value })}
+                  aria-label="Ferrofluid second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorThree: event.target.value })}
+                  aria-label="Ferrofluid third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsFerrofluidPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidPrimaryColor: event.target.value })}
+                  aria-label="Ferrofluid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsFerrofluidHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFerrofluidHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Ferrofluid color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Flow direction</span>
+            <select
+              value={reactBitsFerrofluidFlowDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFerrofluidFlowDirection: event.target.value as ChimerSettings["reactBitsFerrofluidFlowDirection"],
+              })}
+              aria-label="Ferrofluid flow direction"
+            >
+              <option value="down">Down</option>
+              <option value="up">Up</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsFerrofluidSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsFerrofluidSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidSpeed: Number(event.target.value) })}
+              aria-label="Ferrofluid animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsFerrofluidScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value={reactBitsFerrofluidScale}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidScale: Number(event.target.value) })}
+              aria-label="Ferrofluid scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Turbulence ({reactBitsFerrofluidTurbulence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsFerrofluidTurbulence}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidTurbulence: Number(event.target.value) })}
+              aria-label="Ferrofluid turbulence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fluidity ({reactBitsFerrofluidFluidity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.4"
+              step="0.001"
+              value={reactBitsFerrofluidFluidity}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidFluidity: Number(event.target.value) })}
+              aria-label="Ferrofluid fluidity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rim width ({reactBitsFerrofluidRimWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.03"
+              max="0.5"
+              step="0.01"
+              value={reactBitsFerrofluidRimWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidRimWidth: Number(event.target.value) })}
+              aria-label="Ferrofluid rim width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sharpness ({reactBitsFerrofluidSharpness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="6"
+              step="0.1"
+              value={reactBitsFerrofluidSharpness}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidSharpness: Number(event.target.value) })}
+              aria-label="Ferrofluid sharpness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Shimmer ({reactBitsFerrofluidShimmer.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={reactBitsFerrofluidShimmer}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidShimmer: Number(event.target.value) })}
+              aria-label="Ferrofluid shimmer"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsFerrofluidGlow.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={reactBitsFerrofluidGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidGlow: Number(event.target.value) })}
+              aria-label="Ferrofluid glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsFerrofluidOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsFerrofluidOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidOpacity: Number(event.target.value) })}
+              aria-label="Ferrofluid opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-lightfall" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightfallPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightfallPaletteMode: event.target.value as ReactBitsLightfallPaletteMode,
+              })}
+              aria-label="Lightfall color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightfallPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorOne: event.target.value })}
+                  aria-label="Lightfall first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorTwo: event.target.value })}
+                  aria-label="Lightfall second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorThree: event.target.value })}
+                  aria-label="Lightfall third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightfallPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightfallPrimaryColor: event.target.value })}
+                  aria-label="Lightfall primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLightfallHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Lightfall color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={reactBitsLightfallBackgroundColor}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallBackgroundColor: event.target.value })}
+              aria-label="Lightfall background color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsLightfallSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsLightfallSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallSpeed: Number(event.target.value) })}
+              aria-label="Lightfall animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Streak count ({reactBitsLightfallStreakCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={reactBitsLightfallStreakCount}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakCount: Number(event.target.value) })}
+              aria-label="Lightfall streak count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Streak width ({reactBitsLightfallStreakWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.1"
+              value={reactBitsLightfallStreakWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakWidth: Number(event.target.value) })}
+              aria-label="Lightfall streak width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Streak length ({reactBitsLightfallStreakLength.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.1"
+              value={reactBitsLightfallStreakLength}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakLength: Number(event.target.value) })}
+              aria-label="Lightfall streak length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsLightfallGlow.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value={reactBitsLightfallGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallGlow: Number(event.target.value) })}
+              aria-label="Lightfall glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsLightfallDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsLightfallDensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallDensity: Number(event.target.value) })}
+              aria-label="Lightfall density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Twinkle ({Math.round(reactBitsLightfallTwinkle * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={reactBitsLightfallTwinkle}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallTwinkle: Number(event.target.value) })}
+              aria-label="Lightfall twinkle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Zoom ({reactBitsLightfallZoom.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="6"
+              step="0.1"
+              value={reactBitsLightfallZoom}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallZoom: Number(event.target.value) })}
+              aria-label="Lightfall zoom"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Background glow ({reactBitsLightfallBackgroundGlow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={reactBitsLightfallBackgroundGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallBackgroundGlow: Number(event.target.value) })}
+              aria-label="Lightfall background glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsLightfallOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsLightfallOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallOpacity: Number(event.target.value) })}
+              aria-label="Lightfall opacity"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor glow</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLightfallCursorEnabled}
+              onChange={(event) => handleSettingsChange({ reactBitsLightfallCursorEnabled: event.target.checked })}
+              aria-label="Lightfall cursor glow"
+            />
+          </label>
+
+          {reactBitsLightfallCursorEnabled && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Cursor strength ({reactBitsLightfallCursorStrength.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value={reactBitsLightfallCursorStrength}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallCursorStrength: Number(event.target.value),
+                  })}
+                  aria-label="Lightfall cursor strength"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor radius ({reactBitsLightfallCursorRadius.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="3"
+                  step="0.05"
+                  value={reactBitsLightfallCursorRadius}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallCursorRadius: Number(event.target.value),
+                  })}
+                  aria-label="Lightfall cursor radius"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor smoothing ({reactBitsLightfallCursorDampening.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={reactBitsLightfallCursorDampening}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightfallCursorDampening: Number(event.target.value),
+                  })}
+                  aria-label="Lightfall cursor smoothing"
+                />
+              </label>
+            </>
+          )}
+        </>
+      )}
+
+      {option.id === "react-bits-liquid-ether" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLiquidEtherPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidEtherPaletteMode: event.target.value as ReactBitsLiquidEtherPaletteMode,
+              })}
+              aria-label="Liquid Ether color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLiquidEtherPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorOne: event.target.value })}
+                  aria-label="Liquid Ether first color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorTwo: event.target.value })}
+                  aria-label="Liquid Ether second color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorThree: event.target.value })}
+                  aria-label="Liquid Ether third color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidEtherPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherPrimaryColor: event.target.value })}
+                  aria-label="Liquid Ether primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLiquidEtherHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Liquid Ether color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Cursor fluid push</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherCursorEnabled}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherCursorEnabled: event.target.checked })}
+              aria-label="Liquid Ether cursor fluid push"
+            />
+          </label>
+
+          {reactBitsLiquidEtherCursorEnabled && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Mouse force ({reactBitsLiquidEtherMouseForce.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="80"
+                  step="1"
+                  value={reactBitsLiquidEtherMouseForce}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherMouseForce: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether mouse force"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Cursor size ({reactBitsLiquidEtherCursorSize.toFixed(0)}px)</span>
+                <input
+                  type="range"
+                  min="20"
+                  max="280"
+                  step="5"
+                  value={reactBitsLiquidEtherCursorSize}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherCursorSize: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether cursor size"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Auto demo motion</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherAutoDemo}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherAutoDemo: event.target.checked })}
+              aria-label="Liquid Ether auto demo motion"
+            />
+          </label>
+
+          {reactBitsLiquidEtherAutoDemo && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Auto speed ({reactBitsLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="2"
+                  step="0.05"
+                  value={reactBitsLiquidEtherAutoSpeed}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoSpeed: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto speed"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto intensity ({reactBitsLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={reactBitsLiquidEtherAutoIntensity}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoIntensity: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto intensity"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto resume ({(reactBitsLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min="250"
+                  max="5000"
+                  step="250"
+                  value={reactBitsLiquidEtherAutoResumeDelay}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoResumeDelay: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto resume delay"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Auto ramp ({reactBitsLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="3"
+                  step="0.1"
+                  value={reactBitsLiquidEtherAutoRampDuration}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidEtherAutoRampDuration: Number(event.target.value),
+                  })}
+                  aria-label="Liquid Ether auto ramp duration"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.switchRow}>
+            <span>Viscous fluid</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherIsViscous}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherIsViscous: event.target.checked })}
+              aria-label="Liquid Ether viscous fluid"
+            />
+          </label>
+
+          {reactBitsLiquidEtherIsViscous && (
+            <label className={styles.rangeRow}>
+              <span>Viscosity ({reactBitsLiquidEtherViscous.toFixed(0)})</span>
+              <input
+                type="range"
+                min="0"
+                max="80"
+                step="1"
+                value={reactBitsLiquidEtherViscous}
+                onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherViscous: Number(event.target.value) })}
+                aria-label="Liquid Ether viscosity"
+              />
+            </label>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Viscous iterations ({reactBitsLiquidEtherIterationsViscous.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              step="1"
+              value={reactBitsLiquidEtherIterationsViscous}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidEtherIterationsViscous: Number(event.target.value),
+              })}
+              aria-label="Liquid Ether viscous iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Poisson iterations ({reactBitsLiquidEtherIterationsPoisson.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              step="1"
+              value={reactBitsLiquidEtherIterationsPoisson}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidEtherIterationsPoisson: Number(event.target.value),
+              })}
+              aria-label="Liquid Ether Poisson iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Delta time ({reactBitsLiquidEtherDt.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.004"
+              max="0.04"
+              step="0.001"
+              value={reactBitsLiquidEtherDt}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherDt: Number(event.target.value) })}
+              aria-label="Liquid Ether delta time"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Resolution ({reactBitsLiquidEtherResolution.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="1"
+              step="0.05"
+              value={reactBitsLiquidEtherResolution}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherResolution: Number(event.target.value) })}
+              aria-label="Liquid Ether resolution"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>BFECC advection</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherBfecc}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherBfecc: event.target.checked })}
+              aria-label="Liquid Ether BFECC advection"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bounce edges</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidEtherIsBounce}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherIsBounce: event.target.checked })}
+              aria-label="Liquid Ether bounce edges"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsLiquidEtherOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsLiquidEtherOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherOpacity: Number(event.target.value) })}
+              aria-label="Liquid Ether opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-prism" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Rotation mode</span>
+            <select
+              value={reactBitsPrismAnimationType}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismAnimationType: event.target.value as ReactBitsPrismAnimationType,
+              })}
+              aria-label="Prism rotation mode"
+            >
+              <option value="rotate">Source rotate</option>
+              <option value="3drotate">3D rotate</option>
+              <option value="hover">Hover cursor</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Height ({reactBitsPrismHeight.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsPrismHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismHeight: Number(event.target.value) })}
+              aria-label="Prism height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base width ({reactBitsPrismBaseWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="10"
+              step="0.1"
+              value={reactBitsPrismBaseWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismBaseWidth: Number(event.target.value) })}
+              aria-label="Prism base width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsPrismGlow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismGlow: Number(event.target.value) })}
+              aria-label="Prism glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom ({reactBitsPrismBloom.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismBloom}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismBloom: Number(event.target.value) })}
+              aria-label="Prism bloom"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsPrismNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.02"
+              value={reactBitsPrismNoise}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismNoise: Number(event.target.value) })}
+              aria-label="Prism noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsPrismScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="7"
+              step="0.1"
+              value={reactBitsPrismScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismScale: Number(event.target.value) })}
+              aria-label="Prism scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hue shift ({reactBitsPrismHueShift.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-3.1416"
+              max="3.1416"
+              step="0.05"
+              value={reactBitsPrismHueShift}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismHueShift: Number(event.target.value) })}
+              aria-label="Prism hue shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color frequency ({reactBitsPrismColorFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismColorFrequency}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismColorFrequency: Number(event.target.value) })}
+              aria-label="Prism color frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({reactBitsPrismTimeScale.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsPrismTimeScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismTimeScale: Number(event.target.value) })}
+              aria-label="Prism time scale"
+            />
+          </label>
+
+          {reactBitsPrismAnimationType === "hover" && (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Hover strength ({reactBitsPrismHoverStrength.toFixed(1)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="4"
+                  step="0.1"
+                  value={reactBitsPrismHoverStrength}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismHoverStrength: Number(event.target.value) })}
+                  aria-label="Prism hover strength"
+                />
+              </label>
+
+              <label className={styles.rangeRow}>
+                <span>Hover inertia ({reactBitsPrismInertia.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="0.4"
+                  step="0.01"
+                  value={reactBitsPrismInertia}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismInertia: Number(event.target.value) })}
+                  aria-label="Prism hover inertia"
+                />
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Offset X ({reactBitsPrismOffsetX.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-400"
+              max="400"
+              step="10"
+              value={reactBitsPrismOffsetX}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismOffsetX: Number(event.target.value) })}
+              aria-label="Prism horizontal offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset Y ({reactBitsPrismOffsetY.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-400"
+              max="400"
+              step="10"
+              value={reactBitsPrismOffsetY}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismOffsetY: Number(event.target.value) })}
+              aria-label="Prism vertical offset"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Transparent blend</span>
+            <input
+              type="checkbox"
+              checked={reactBitsPrismTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismTransparent: event.target.checked })}
+              aria-label="Prism transparent blend"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-dark-veil" && (
+        <>
+          <label className={styles.rangeRow}>
+            <span>Hue shift ({reactBitsDarkVeilHueShift.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsDarkVeilHueShift}
+              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilHueShift: Number(event.target.value) })}
+              aria-label="Dark Veil hue shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsDarkVeilSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsDarkVeilSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilSpeed: Number(event.target.value) })}
+              aria-label="Dark Veil animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsDarkVeilNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsDarkVeilNoiseIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilNoiseIntensity: Number(event.target.value),
+              })}
+              aria-label="Dark Veil noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanline intensity ({reactBitsDarkVeilScanlineIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsDarkVeilScanlineIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilScanlineIntensity: Number(event.target.value),
+              })}
+              aria-label="Dark Veil scanline intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanline frequency ({reactBitsDarkVeilScanlineFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="40"
+              step="0.5"
+              value={reactBitsDarkVeilScanlineFrequency}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilScanlineFrequency: Number(event.target.value),
+              })}
+              aria-label="Dark Veil scanline frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({reactBitsDarkVeilWarpAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsDarkVeilWarpAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilWarpAmount: Number(event.target.value) })}
+              aria-label="Dark Veil warp amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Resolution scale ({reactBitsDarkVeilResolutionScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="1"
+              step="0.05"
+              value={reactBitsDarkVeilResolutionScale}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDarkVeilResolutionScale: Number(event.target.value),
+              })}
+              aria-label="Dark Veil resolution scale"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-light-pillar" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightPillarPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarPaletteMode: event.target.value as ReactBitsLightPillarPaletteMode,
+              })}
+              aria-label="Light Pillar color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightPillarPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Top color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightPillarTopColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarTopColor: event.target.value })}
+                  aria-label="Light Pillar top color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Bottom color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightPillarBottomColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarBottomColor: event.target.value })}
+                  aria-label="Light Pillar bottom color"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightPillarPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarPrimaryColor: event.target.value })}
+                  aria-label="Light Pillar primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLightPillarHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightPillarHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Light Pillar color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.selectRow}>
+            <span>Quality</span>
+            <select
+              value={reactBitsLightPillarQuality}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarQuality: event.target.value as ReactBitsLightPillarQuality,
+              })}
+              aria-label="Light Pillar quality"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={reactBitsLightPillarBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarBlendMode: event.target.value as ReactBitsLightPillarBlendMode,
+              })}
+              aria-label="Light Pillar blend mode"
+            >
+              <option value="screen">Screen</option>
+              <option value="normal">Normal</option>
+              <option value="lighten">Lighten</option>
+              <option value="plus-lighter">Plus lighter</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsLightPillarIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsLightPillarIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarIntensity: Number(event.target.value) })}
+              aria-label="Light Pillar intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({reactBitsLightPillarRotationSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsLightPillarRotationSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarRotationSpeed: Number(event.target.value),
+              })}
+              aria-label="Light Pillar rotation speed"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor rotation</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLightPillarInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarInteractive: event.target.checked })}
+              aria-label="Light Pillar cursor rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow amount ({reactBitsLightPillarGlowAmount.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.03"
+              step="0.001"
+              value={reactBitsLightPillarGlowAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarGlowAmount: Number(event.target.value) })}
+              aria-label="Light Pillar glow amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar width ({reactBitsLightPillarWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsLightPillarWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarWidth: Number(event.target.value) })}
+              aria-label="Light Pillar width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar height ({reactBitsLightPillarHeight.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={reactBitsLightPillarHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarHeight: Number(event.target.value) })}
+              aria-label="Light Pillar height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsLightPillarNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsLightPillarNoiseIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightPillarNoiseIntensity: Number(event.target.value),
+              })}
+              aria-label="Light Pillar noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pillar rotation ({reactBitsLightPillarRotation.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsLightPillarRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsLightPillarRotation: Number(event.target.value) })}
+              aria-label="Light Pillar rotation"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-silk" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsSilkPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSilkPaletteMode: event.target.value as ReactBitsSilkPaletteMode,
+              })}
+              aria-label="Silk color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsSilkPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Silk color</span>
+              <input
+                type="color"
+                value={reactBitsSilkColor}
+                onChange={(event) => handleSettingsChange({ reactBitsSilkColor: event.target.value })}
+                aria-label="Silk color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsSilkPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsSilkPrimaryColor: event.target.value })}
+                  aria-label="Silk primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsSilkHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsSilkHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Silk color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsSilkSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.1"
+              value={reactBitsSilkSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSilkSpeed: Number(event.target.value) })}
+              aria-label="Silk speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsSilkScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={reactBitsSilkScale}
+              onChange={(event) => handleSettingsChange({ reactBitsSilkScale: Number(event.target.value) })}
+              aria-label="Silk scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsSilkNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsSilkNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsSilkNoiseIntensity: Number(event.target.value) })}
+              aria-label="Silk noise intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsSilkRotation.toFixed(2)} rad)</span>
+            <input
+              type="range"
+              min="-3.1416"
+              max="3.1416"
+              step="0.05"
+              value={reactBitsSilkRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsSilkRotation: Number(event.target.value) })}
+              aria-label="Silk rotation"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-floating-lines" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsFloatingLinesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesPaletteMode: event.target.value as ReactBitsFloatingLinesPaletteMode,
+              })}
+              aria-label="Floating Lines color mode"
+            >
+              <option value="source">Source blue/pink</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsFloatingLinesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient 1</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorOne: event.target.value })}
+                  aria-label="Floating Lines gradient color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient 2</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorTwo: event.target.value })}
+                  aria-label="Floating Lines gradient color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient 3</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorThree: event.target.value })}
+                  aria-label="Floating Lines gradient color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsFloatingLinesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsFloatingLinesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFloatingLinesPrimaryColor: event.target.value,
+                  })}
+                  aria-label="Floating Lines primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsFloatingLinesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFloatingLinesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Floating Lines color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={reactBitsFloatingLinesBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBlendMode: event.target.value as ReactBitsFloatingLinesBlendMode,
+              })}
+              aria-label="Floating Lines blend mode"
+            >
+              <option value="screen">Screen</option>
+              <option value="normal">Normal</option>
+              <option value="lighten">Lighten</option>
+              <option value="plus-lighter">Plus lighter</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({reactBitsFloatingLinesAnimationSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesAnimationSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesAnimationSpeed: Number(event.target.value),
+              })}
+              aria-label="Floating Lines animation speed"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Top wave</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesEnableTop}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableTop: event.target.checked })}
+              aria-label="Floating Lines top wave"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top count ({reactBitsFloatingLinesTopLineCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="32"
+              step="1"
+              value={reactBitsFloatingLinesTopLineCount}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopLineCount: Number(event.target.value) })}
+              aria-label="Floating Lines top line count"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top spacing ({reactBitsFloatingLinesTopLineDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesTopLineDistance}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesTopLineDistance: Number(event.target.value),
+              })}
+              aria-label="Floating Lines top line spacing"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top X ({reactBitsFloatingLinesTopWaveX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesTopWaveX}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopWaveX: Number(event.target.value) })}
+              aria-label="Floating Lines top wave X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top Y ({reactBitsFloatingLinesTopWaveY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.1"
+              value={reactBitsFloatingLinesTopWaveY}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopWaveY: Number(event.target.value) })}
+              aria-label="Floating Lines top wave Y"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Top rotation ({reactBitsFloatingLinesTopWaveRotate.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesTopWaveRotate}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesTopWaveRotate: Number(event.target.value),
+              })}
+              aria-label="Floating Lines top wave rotation"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Middle wave</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesEnableMiddle}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableMiddle: event.target.checked })}
+              aria-label="Floating Lines middle wave"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle count ({reactBitsFloatingLinesMiddleLineCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="32"
+              step="1"
+              value={reactBitsFloatingLinesMiddleLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleLineCount: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle line count"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle spacing ({reactBitsFloatingLinesMiddleLineDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesMiddleLineDistance}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleLineDistance: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle line spacing"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle X ({reactBitsFloatingLinesMiddleWaveX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesMiddleWaveX}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleWaveX: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle wave X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle Y ({reactBitsFloatingLinesMiddleWaveY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.1"
+              value={reactBitsFloatingLinesMiddleWaveY}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleWaveY: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle wave Y"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Middle rotation ({reactBitsFloatingLinesMiddleWaveRotate.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesMiddleWaveRotate}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMiddleWaveRotate: Number(event.target.value),
+              })}
+              aria-label="Floating Lines middle wave rotation"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bottom wave</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesEnableBottom}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableBottom: event.target.checked })}
+              aria-label="Floating Lines bottom wave"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom count ({reactBitsFloatingLinesBottomLineCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="32"
+              step="1"
+              value={reactBitsFloatingLinesBottomLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomLineCount: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom line count"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom spacing ({reactBitsFloatingLinesBottomLineDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesBottomLineDistance}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomLineDistance: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom line spacing"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom X ({reactBitsFloatingLinesBottomWaveX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-20"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesBottomWaveX}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomWaveX: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom wave X"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom Y ({reactBitsFloatingLinesBottomWaveY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.1"
+              value={reactBitsFloatingLinesBottomWaveY}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomWaveY: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom wave Y"
+            />
+          </label>
+          <label className={styles.rangeRow}>
+            <span>Bottom rotation ({reactBitsFloatingLinesBottomWaveRotate.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-4"
+              max="4"
+              step="0.05"
+              value={reactBitsFloatingLinesBottomWaveRotate}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBottomWaveRotate: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bottom wave rotation"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor bend</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesInteractive}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesInteractive: event.target.checked,
+              })}
+              aria-label="Floating Lines cursor bend"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bend radius ({reactBitsFloatingLinesBendRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsFloatingLinesBendRadius}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBendRadius: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bend radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bend strength ({reactBitsFloatingLinesBendStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.05"
+              value={reactBitsFloatingLinesBendStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesBendStrength: Number(event.target.value),
+              })}
+              aria-label="Floating Lines bend strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse damping ({reactBitsFloatingLinesMouseDamping.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="1"
+              step="0.01"
+              value={reactBitsFloatingLinesMouseDamping}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesMouseDamping: Number(event.target.value),
+              })}
+              aria-label="Floating Lines mouse damping"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Parallax</span>
+            <input
+              type="checkbox"
+              checked={reactBitsFloatingLinesParallax}
+              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesParallax: event.target.checked })}
+              aria-label="Floating Lines parallax"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Parallax strength ({reactBitsFloatingLinesParallaxStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsFloatingLinesParallaxStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFloatingLinesParallaxStrength: Number(event.target.value),
+              })}
+              aria-label="Floating Lines parallax strength"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-side-rays" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsSideRaysPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSideRaysPaletteMode: event.target.value as ReactBitsSideRaysPaletteMode,
+              })}
+              aria-label="Side Rays color mode"
+            >
+              <option value="source">Source yellow/blue</option>
+              <option value="custom">Custom rays</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsSideRaysPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Ray color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsSideRaysColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysColorOne: event.target.value })}
+                  aria-label="Side Rays color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Ray color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsSideRaysColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysColorTwo: event.target.value })}
+                  aria-label="Side Rays color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsSideRaysPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsSideRaysPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysPrimaryColor: event.target.value })}
+                  aria-label="Side Rays primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsSideRaysHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsSideRaysHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Side Rays color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Origin</span>
+            <select
+              value={reactBitsSideRaysOrigin}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSideRaysOrigin: event.target.value as ReactBitsSideRaysOrigin,
+              })}
+              aria-label="Side Rays origin"
+            >
+              <option value="top-right">Top right</option>
+              <option value="top-left">Top left</option>
+              <option value="bottom-right">Bottom right</option>
+              <option value="bottom-left">Bottom left</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsSideRaysSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.1"
+              value={reactBitsSideRaysSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSpeed: Number(event.target.value) })}
+              aria-label="Side Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsSideRaysIntensity.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.1"
+              value={reactBitsSideRaysIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysIntensity: Number(event.target.value) })}
+              aria-label="Side Rays intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({reactBitsSideRaysSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={reactBitsSideRaysSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSpread: Number(event.target.value) })}
+              aria-label="Side Rays spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Tilt ({reactBitsSideRaysTilt.toFixed(0)} deg)</span>
+            <input
+              type="range"
+              min="-90"
+              max="90"
+              step="1"
+              value={reactBitsSideRaysTilt}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysTilt: Number(event.target.value) })}
+              aria-label="Side Rays tilt"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({reactBitsSideRaysSaturation.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={reactBitsSideRaysSaturation}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSaturation: Number(event.target.value) })}
+              aria-label="Side Rays saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blend ({reactBitsSideRaysBlend.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSideRaysBlend}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysBlend: Number(event.target.value) })}
+              aria-label="Side Rays blend"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Falloff ({reactBitsSideRaysFalloff.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.1"
+              value={reactBitsSideRaysFalloff}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysFalloff: Number(event.target.value) })}
+              aria-label="Side Rays falloff"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsSideRaysOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSideRaysOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsSideRaysOpacity: Number(event.target.value) })}
+              aria-label="Side Rays opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-light-rays" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightRaysPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightRaysPaletteMode: event.target.value as ReactBitsLightRaysPaletteMode,
+              })}
+              aria-label="React Bits Light Rays color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom ray</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightRaysPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Ray color</span>
+              <input
+                type="color"
+                value={reactBitsLightRaysColor}
+                onChange={(event) => handleSettingsChange({ reactBitsLightRaysColor: event.target.value })}
+                aria-label="React Bits Light Rays color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsLightRaysPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightRaysPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightRaysPrimaryColor: event.target.value })}
+                  aria-label="React Bits Light Rays primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLightRaysHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightRaysHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Light Rays color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Origin</span>
+            <select
+              value={reactBitsLightRaysOrigin}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightRaysOrigin: event.target.value as ReactBitsLightRaysOrigin,
+              })}
+              aria-label="React Bits Light Rays origin"
+            >
+              <option value="top-left">Top left</option>
+              <option value="top-center">Top center</option>
+              <option value="top-right">Top right</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+              <option value="bottom-left">Bottom left</option>
+              <option value="bottom-center">Bottom center</option>
+              <option value="bottom-right">Bottom right</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsLightRaysPulsating}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysPulsating: event.target.checked })}
+              aria-label="React Bits Light Rays pulsating"
+            />
+            <span>Pulsating rays</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsLightRaysFollowMouse}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysFollowMouse: event.target.checked })}
+              aria-label="React Bits Light Rays follow mouse"
+            />
+            <span>Follow cursor</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsLightRaysSpeed.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.1"
+              value={reactBitsLightRaysSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysSpeed: Number(event.target.value) })}
+              aria-label="React Bits Light Rays speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({reactBitsLightRaysSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.1"
+              value={reactBitsLightRaysSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysSpread: Number(event.target.value) })}
+              aria-label="React Bits Light Rays spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Length ({reactBitsLightRaysLength.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="5"
+              step="0.05"
+              value={reactBitsLightRaysLength}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysLength: Number(event.target.value) })}
+              aria-label="React Bits Light Rays length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fade distance ({reactBitsLightRaysFadeDistance.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value={reactBitsLightRaysFadeDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysFadeDistance: Number(event.target.value) })}
+              aria-label="React Bits Light Rays fade distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({reactBitsLightRaysSaturation.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={reactBitsLightRaysSaturation}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysSaturation: Number(event.target.value) })}
+              aria-label="React Bits Light Rays saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsLightRaysMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsLightRaysMouseInfluence}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Light Rays mouse influence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsLightRaysNoiseAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsLightRaysNoiseAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysNoiseAmount: Number(event.target.value) })}
+              aria-label="React Bits Light Rays noise amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({reactBitsLightRaysDistortion.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsLightRaysDistortion}
+              onChange={(event) => handleSettingsChange({ reactBitsLightRaysDistortion: Number(event.target.value) })}
+              aria-label="React Bits Light Rays distortion"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-pixel-blast" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPixelBlastPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastPaletteMode: event.target.value as ReactBitsPixelBlastPaletteMode,
+              })}
+              aria-label="React Bits Pixel Blast color mode"
+            >
+              <option value="source">Source lavender</option>
+              <option value="custom">Custom pixel</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPixelBlastPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Pixel color</span>
+              <input
+                type="color"
+                value={reactBitsPixelBlastColor}
+                onChange={(event) => handleSettingsChange({ reactBitsPixelBlastColor: event.target.value })}
+                aria-label="React Bits Pixel Blast color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsPixelBlastPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPixelBlastPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPrimaryColor: event.target.value })}
+                  aria-label="React Bits Pixel Blast primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsPixelBlastHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPixelBlastHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Pixel Blast color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Shape</span>
+            <select
+              value={reactBitsPixelBlastVariant}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastVariant: event.target.value as ReactBitsPixelBlastVariant,
+              })}
+              aria-label="React Bits Pixel Blast shape"
+            >
+              <option value="square">Square</option>
+              <option value="circle">Circle</option>
+              <option value="triangle">Triangle</option>
+              <option value="diamond">Diamond</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastAntialias}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastAntialias: event.target.checked })}
+              aria-label="React Bits Pixel Blast antialias"
+            />
+            <span>Antialias edges</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastEnableRipples}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastEnableRipples: event.target.checked })}
+              aria-label="React Bits Pixel Blast ripple clicks"
+            />
+            <span>Ripple clicks</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastLiquid}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastLiquid: event.target.checked })}
+              aria-label="React Bits Pixel Blast liquid pointer warp"
+            />
+            <span>Liquid pointer warp</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastTransparent: event.target.checked })}
+              aria-label="React Bits Pixel Blast transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsPixelBlastAutoPauseOffscreen}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastAutoPauseOffscreen: event.target.checked })}
+              aria-label="React Bits Pixel Blast pause offscreen"
+            />
+            <span>Pause offscreen</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel size ({reactBitsPixelBlastPixelSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={reactBitsPixelBlastPixelSize}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPixelSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pixel size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pattern scale ({reactBitsPixelBlastPatternScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="8"
+              step="0.05"
+              value={reactBitsPixelBlastPatternScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPatternScale: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast pattern scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsPixelBlastPatternDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsPixelBlastPatternDensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastPatternDensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast pattern density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPixelBlastSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPixelBlastSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel jitter ({reactBitsPixelBlastPixelSizeJitter.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPixelBlastPixelSizeJitter}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastPixelSizeJitter: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast pixel jitter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Edge fade ({reactBitsPixelBlastEdgeFade.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPixelBlastEdgeFade}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastEdgeFade: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast edge fade"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple intensity ({reactBitsPixelBlastRippleIntensityScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsPixelBlastRippleIntensityScale}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastRippleIntensityScale: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast ripple intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple thickness ({reactBitsPixelBlastRippleThickness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="0.5"
+              step="0.01"
+              value={reactBitsPixelBlastRippleThickness}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastRippleThickness: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast ripple thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple speed ({reactBitsPixelBlastRippleSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="2"
+              step="0.05"
+              value={reactBitsPixelBlastRippleSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastRippleSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast ripple speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid strength ({reactBitsPixelBlastLiquidStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.01"
+              value={reactBitsPixelBlastLiquidStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastLiquidStrength: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast liquid strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid radius ({reactBitsPixelBlastLiquidRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.1"
+              value={reactBitsPixelBlastLiquidRadius}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastLiquidRadius: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast liquid radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Liquid wobble ({reactBitsPixelBlastLiquidWobbleSpeed.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.1"
+              value={reactBitsPixelBlastLiquidWobbleSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelBlastLiquidWobbleSpeed: Number(event.target.value),
+              })}
+              aria-label="React Bits Pixel Blast liquid wobble speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsPixelBlastNoiseAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.4"
+              step="0.01"
+              value={reactBitsPixelBlastNoiseAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastNoiseAmount: Number(event.target.value) })}
+              aria-label="React Bits Pixel Blast noise amount"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-color-bends" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsColorBendsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsColorBendsPaletteMode: event.target.value as ReactBitsColorBendsPaletteMode,
+              })}
+              aria-label="React Bits Color Bends color mode"
+            >
+              <option value="source">Source RGB bands</option>
+              <option value="custom">Custom bends</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsColorBendsPaletteMode === "custom" ? (
+            <>
+              {[
+                ["Color 1", "reactBitsColorBendsColorOne", reactBitsColorBendsColorOne],
+                ["Color 2", "reactBitsColorBendsColorTwo", reactBitsColorBendsColorTwo],
+                ["Color 3", "reactBitsColorBendsColorThree", reactBitsColorBendsColorThree],
+                ["Color 4", "reactBitsColorBendsColorFour", reactBitsColorBendsColorFour],
+              ].map(([label, key, value]) => (
+                <label key={key} className={styles.colorRow}>
+                  <span>{label}</span>
+                  <input
+                    type="color"
+                    value={value}
+                    onChange={(event) => handleSettingsChange({ [key]: event.target.value })}
+                    aria-label={`React Bits Color Bends ${label.toLowerCase()}`}
+                  />
+                </label>
+              ))}
+            </>
+          ) : null}
+
+          {reactBitsColorBendsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsColorBendsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsColorBendsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Color Bends primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsColorBendsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsColorBendsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Color Bends color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsColorBendsTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsTransparent: event.target.checked })}
+              aria-label="React Bits Color Bends transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsColorBendsInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsInteractive: event.target.checked })}
+              aria-label="React Bits Color Bends pointer interaction"
+            />
+            <span>Pointer interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsColorBendsRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-360"
+              max="360"
+              step="1"
+              value={reactBitsColorBendsRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsRotation: Number(event.target.value) })}
+              aria-label="React Bits Color Bends rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsColorBendsSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsColorBendsSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsSpeed: Number(event.target.value) })}
+              aria-label="React Bits Color Bends speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Auto rotate ({reactBitsColorBendsAutoRotate.toFixed(0)}deg/s)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsColorBendsAutoRotate}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsAutoRotate: Number(event.target.value) })}
+              aria-label="React Bits Color Bends auto rotate"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsColorBendsScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsColorBendsScale}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsScale: Number(event.target.value) })}
+              aria-label="React Bits Color Bends scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency ({reactBitsColorBendsFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsColorBendsFrequency}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsFrequency: Number(event.target.value) })}
+              aria-label="React Bits Color Bends frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({reactBitsColorBendsWarpStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsColorBendsWarpStrength}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsWarpStrength: Number(event.target.value) })}
+              aria-label="React Bits Color Bends warp strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsColorBendsMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsColorBendsMouseInfluence}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Color Bends mouse influence"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Parallax ({reactBitsColorBendsParallax.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsColorBendsParallax}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsParallax: Number(event.target.value) })}
+              aria-label="React Bits Color Bends parallax"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsColorBendsNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsColorBendsNoise}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsNoise: Number(event.target.value) })}
+              aria-label="React Bits Color Bends noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Iterations ({reactBitsColorBendsIterations.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              value={reactBitsColorBendsIterations}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsIterations: Number(event.target.value) })}
+              aria-label="React Bits Color Bends iterations"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsColorBendsIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsColorBendsIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsIntensity: Number(event.target.value) })}
+              aria-label="React Bits Color Bends intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band width ({reactBitsColorBendsBandWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="16"
+              step="0.1"
+              value={reactBitsColorBendsBandWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsColorBendsBandWidth: Number(event.target.value) })}
+              aria-label="React Bits Color Bends band width"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-evil-eye" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsEvilEyePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsEvilEyePaletteMode: event.target.value as ReactBitsEvilEyePaletteMode,
+              })}
+              aria-label="React Bits Evil Eye color mode"
+            >
+              <option value="source">Source orange</option>
+              <option value="custom">Custom eye</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsEvilEyePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Eye color</span>
+              <input
+                type="color"
+                value={reactBitsEvilEyeColor}
+                onChange={(event) => handleSettingsChange({ reactBitsEvilEyeColor: event.target.value })}
+                aria-label="React Bits Evil Eye eye color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsEvilEyePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsEvilEyePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsEvilEyePrimaryColor: event.target.value })}
+                  aria-label="React Bits Evil Eye primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsEvilEyeHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsEvilEyeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Evil Eye color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={reactBitsEvilEyeBackgroundColor}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeBackgroundColor: event.target.value })}
+              aria-label="React Bits Evil Eye background color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsEvilEyeInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeInteractive: event.target.checked })}
+              aria-label="React Bits Evil Eye pointer interaction"
+            />
+            <span>Pointer pupil follow</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsEvilEyeIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsEvilEyeIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeIntensity: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pupil size ({reactBitsEvilEyePupilSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={reactBitsEvilEyePupilSize}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyePupilSize: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye pupil size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Iris width ({reactBitsEvilEyeIrisWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={reactBitsEvilEyeIrisWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeIrisWidth: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye iris width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsEvilEyeGlowIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={reactBitsEvilEyeGlowIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeGlowIntensity: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsEvilEyeScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="2"
+              step="0.05"
+              value={reactBitsEvilEyeScale}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeScale: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise scale ({reactBitsEvilEyeNoiseScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsEvilEyeNoiseScale}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeNoiseScale: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye noise scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pupil follow ({reactBitsEvilEyePupilFollow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsEvilEyePupilFollow}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyePupilFollow: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye pupil follow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flame speed ({reactBitsEvilEyeFlameSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsEvilEyeFlameSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeFlameSpeed: Number(event.target.value) })}
+              aria-label="React Bits Evil Eye flame speed"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-line-waves" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLineWavesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesPaletteMode: event.target.value as ReactBitsLineWavesPaletteMode,
+              })}
+              aria-label="React Bits Line Waves color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom lines</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLineWavesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorOne: event.target.value })}
+                  aria-label="React Bits Line Waves color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorTwo: event.target.value })}
+                  aria-label="React Bits Line Waves color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorThree: event.target.value })}
+                  aria-label="React Bits Line Waves color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsLineWavesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLineWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Line Waves primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsLineWavesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLineWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Line Waves color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsLineWavesEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Line Waves mouse warp"
+            />
+            <span>Pointer warp</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsLineWavesSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsLineWavesSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesSpeed: Number(event.target.value) })}
+              aria-label="React Bits Line Waves speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Inner lines ({reactBitsLineWavesInnerLineCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="96"
+              step="1"
+              value={reactBitsLineWavesInnerLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesInnerLineCount: Number(event.target.value),
+              })}
+              aria-label="React Bits Line Waves inner line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Outer lines ({reactBitsLineWavesOuterLineCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="96"
+              step="1"
+              value={reactBitsLineWavesOuterLineCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesOuterLineCount: Number(event.target.value),
+              })}
+              aria-label="React Bits Line Waves outer line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp ({reactBitsLineWavesWarpIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsLineWavesWarpIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesWarpIntensity: Number(event.target.value) })}
+              aria-label="React Bits Line Waves warp intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsLineWavesRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsLineWavesRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesRotation: Number(event.target.value) })}
+              aria-label="React Bits Line Waves rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Edge fade ({reactBitsLineWavesEdgeFadeWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.05"
+              value={reactBitsLineWavesEdgeFadeWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesEdgeFadeWidth: Number(event.target.value) })}
+              aria-label="React Bits Line Waves edge fade width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color cycle ({reactBitsLineWavesColorCycleSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsLineWavesColorCycleSpeed}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLineWavesColorCycleSpeed: Number(event.target.value),
+              })}
+              aria-label="React Bits Line Waves color cycle speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsLineWavesBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={reactBitsLineWavesBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesBrightness: Number(event.target.value) })}
+              aria-label="React Bits Line Waves brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsLineWavesMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsLineWavesMouseInfluence}
+              onChange={(event) => handleSettingsChange({ reactBitsLineWavesMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Line Waves mouse influence"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-radar" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsRadarPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRadarPaletteMode: event.target.value as ReactBitsRadarPaletteMode,
+              })}
+              aria-label="React Bits Radar color mode"
+            >
+              <option value="source">Source purple</option>
+              <option value="custom">Custom radar</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsRadarPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Radar color</span>
+              <input
+                type="color"
+                value={reactBitsRadarColor}
+                onChange={(event) => handleSettingsChange({ reactBitsRadarColor: event.target.value })}
+                aria-label="React Bits Radar color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsRadarPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsRadarPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsRadarPrimaryColor: event.target.value })}
+                  aria-label="React Bits Radar primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={reactBitsRadarHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsRadarHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Radar color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={reactBitsRadarBackgroundColor}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarBackgroundColor: event.target.value })}
+              aria-label="React Bits Radar background color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsRadarEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRadarEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Radar pointer offset"
+            />
+            <span>Pointer offset</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsRadarSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsRadarSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarSpeed: Number(event.target.value) })}
+              aria-label="React Bits Radar speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsRadarScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={reactBitsRadarScale}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarScale: Number(event.target.value) })}
+              aria-label="React Bits Radar scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rings ({reactBitsRadarRingCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="40"
+              step="1"
+              value={reactBitsRadarRingCount}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarRingCount: Number(event.target.value) })}
+              aria-label="React Bits Radar ring count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spokes ({reactBitsRadarSpokeCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="40"
+              step="1"
+              value={reactBitsRadarSpokeCount}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarSpokeCount: Number(event.target.value) })}
+              aria-label="React Bits Radar spoke count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ring thickness ({reactBitsRadarRingThickness.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.25"
+              step="0.001"
+              value={reactBitsRadarRingThickness}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarRingThickness: Number(event.target.value) })}
+              aria-label="React Bits Radar ring thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spoke thickness ({reactBitsRadarSpokeThickness.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.1"
+              step="0.001"
+              value={reactBitsRadarSpokeThickness}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarSpokeThickness: Number(event.target.value) })}
+              aria-label="React Bits Radar spoke thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep speed ({reactBitsRadarSweepSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsRadarSweepSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarSweepSpeed: Number(event.target.value) })}
+              aria-label="React Bits Radar sweep speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep width ({reactBitsRadarSweepWidth.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={reactBitsRadarSweepWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarSweepWidth: Number(event.target.value) })}
+              aria-label="React Bits Radar sweep width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep lobes ({reactBitsRadarSweepLobes.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="12"
+              step="1"
+              value={reactBitsRadarSweepLobes}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarSweepLobes: Number(event.target.value) })}
+              aria-label="React Bits Radar sweep lobes"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Falloff ({reactBitsRadarFalloff.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.1"
+              value={reactBitsRadarFalloff}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarFalloff: Number(event.target.value) })}
+              aria-label="React Bits Radar falloff"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsRadarBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsRadarBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarBrightness: Number(event.target.value) })}
+              aria-label="React Bits Radar brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsRadarMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsRadarMouseInfluence}
+              onChange={(event) => handleSettingsChange({ reactBitsRadarMouseInfluence: Number(event.target.value) })}
+              aria-label="React Bits Radar mouse influence"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-soft-aurora" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsSoftAuroraPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraPaletteMode: event.target.value as ReactBitsSoftAuroraPaletteMode,
+              })}
+              aria-label="React Bits Soft Aurora color mode"
+            >
+              <option value="source">Source white and magenta</option>
+              <option value="custom">Custom aurora</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsSoftAuroraPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Aurora color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsSoftAuroraColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorOne: event.target.value })}
+                  aria-label="React Bits Soft Aurora color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Aurora color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsSoftAuroraColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorTwo: event.target.value })}
+                  aria-label="React Bits Soft Aurora color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsSoftAuroraPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsSoftAuroraPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraPrimaryColor: event.target.value })}
+                  aria-label="React Bits Soft Aurora primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsSoftAuroraHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsSoftAuroraHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Soft Aurora color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <span>Mouse shift</span>
+            <input
+              type="checkbox"
+              checked={reactBitsSoftAuroraEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Soft Aurora mouse shift"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsSoftAuroraSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsSoftAuroraSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraSpeed: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsSoftAuroraScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraScale}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraScale: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsSoftAuroraBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsSoftAuroraBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBrightness: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise frequency ({reactBitsSoftAuroraNoiseFrequency.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="8"
+              step="0.05"
+              value={reactBitsSoftAuroraNoiseFrequency}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraNoiseFrequency: Number(event.target.value),
+              })}
+              aria-label="React Bits Soft Aurora noise frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise amplitude ({reactBitsSoftAuroraNoiseAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraNoiseAmplitude}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraNoiseAmplitude: Number(event.target.value),
+              })}
+              aria-label="React Bits Soft Aurora noise amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band height ({reactBitsSoftAuroraBandHeight.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="2"
+              step="0.05"
+              value={reactBitsSoftAuroraBandHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBandHeight: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora band height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Band spread ({reactBitsSoftAuroraBandSpread.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraBandSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBandSpread: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora band spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Octave decay ({reactBitsSoftAuroraOctaveDecay.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSoftAuroraOctaveDecay}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraOctaveDecay: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora octave decay"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Layer offset ({reactBitsSoftAuroraLayerOffset.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-6"
+              max="6"
+              step="0.05"
+              value={reactBitsSoftAuroraLayerOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraLayerOffset: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora layer offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color speed ({reactBitsSoftAuroraColorSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsSoftAuroraColorSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorSpeed: Number(event.target.value) })}
+              aria-label="React Bits Soft Aurora color speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse influence ({reactBitsSoftAuroraMouseInfluence.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsSoftAuroraMouseInfluence}
+              onChange={(event) => handleSettingsChange({
+                reactBitsSoftAuroraMouseInfluence: Number(event.target.value),
+              })}
+              aria-label="React Bits Soft Aurora mouse influence"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-plasma" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPlasmaPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaPaletteMode: event.target.value as ReactBitsPlasmaPaletteMode,
+              })}
+              aria-label="React Bits Plasma color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom plasma</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPlasmaPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Plasma color</span>
+              <input
+                type="color"
+                value={reactBitsPlasmaColor}
+                onChange={(event) => handleSettingsChange({ reactBitsPlasmaColor: event.target.value })}
+                aria-label="React Bits Plasma color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsPlasmaPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaPrimaryColor: event.target.value })}
+                  aria-label="React Bits Plasma primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPlasmaHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPlasmaHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Plasma color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Direction</span>
+            <select
+              value={reactBitsPlasmaDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaDirection: event.target.value as ReactBitsPlasmaDirection,
+              })}
+              aria-label="React Bits Plasma direction"
+            >
+              <option value="forward">Forward</option>
+              <option value="reverse">Reverse</option>
+              <option value="pingpong">Ping-pong</option>
+            </select>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <span>Mouse warp</span>
+            <input
+              type="checkbox"
+              checked={reactBitsPlasmaMouseInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaMouseInteractive: event.target.checked })}
+              aria-label="React Bits Plasma mouse warp"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPlasmaSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPlasmaSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaSpeed: Number(event.target.value) })}
+              aria-label="React Bits Plasma speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsPlasmaScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={reactBitsPlasmaScale}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaScale: Number(event.target.value) })}
+              aria-label="React Bits Plasma scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({Math.round(reactBitsPlasmaOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPlasmaOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaOpacity: Number(event.target.value) })}
+              aria-label="React Bits Plasma opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-plasma-wave" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPlasmaWavePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaWavePaletteMode: event.target.value as ReactBitsPlasmaWavePaletteMode,
+              })}
+              aria-label="React Bits Plasma Wave color mode"
+            >
+              <option value="source">Source violet and cyan</option>
+              <option value="custom">Custom waves</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPlasmaWavePaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Wave color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaWaveColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveColorOne: event.target.value })}
+                  aria-label="React Bits Plasma Wave color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Wave color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaWaveColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveColorTwo: event.target.value })}
+                  aria-label="React Bits Plasma Wave color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsPlasmaWavePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPlasmaWavePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWavePrimaryColor: event.target.value })}
+                  aria-label="React Bits Plasma Wave primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPlasmaWaveHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPlasmaWaveHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Plasma Wave color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Wave 2 direction</span>
+            <select
+              value={reactBitsPlasmaWaveDirectionTwo}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPlasmaWaveDirectionTwo: Number(event.target.value) as 1 | -1,
+              })}
+              aria-label="React Bits Plasma Wave secondary direction"
+            >
+              <option value={1}>Forward</option>
+              <option value={-1}>Reverse</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsPlasmaWaveRotationDeg.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsPlasmaWaveRotationDeg}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveRotationDeg: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Focal length ({reactBitsPlasmaWaveFocalLength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="2"
+              step="0.05"
+              value={reactBitsPlasmaWaveFocalLength}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveFocalLength: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave focal length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 1 speed ({reactBitsPlasmaWaveSpeedOne.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={reactBitsPlasmaWaveSpeedOne}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveSpeedOne: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave speed 1"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 2 speed ({reactBitsPlasmaWaveSpeedTwo.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={reactBitsPlasmaWaveSpeedTwo}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveSpeedTwo: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave speed 2"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 1 bend ({reactBitsPlasmaWaveBendOne.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPlasmaWaveBendOne}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveBendOne: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave bend 1"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave 2 bend ({reactBitsPlasmaWaveBendTwo.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPlasmaWaveBendTwo}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveBendTwo: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave bend 2"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>X offset ({reactBitsPlasmaWaveXOffset.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-800"
+              max="800"
+              step="10"
+              value={reactBitsPlasmaWaveXOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveXOffset: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave x offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Y offset ({reactBitsPlasmaWaveYOffset.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-800"
+              max="800"
+              step="10"
+              value={reactBitsPlasmaWaveYOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveYOffset: Number(event.target.value) })}
+              aria-label="React Bits Plasma Wave y offset"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-particles" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsParticlesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsParticlesPaletteMode: event.target.value as ReactBitsParticlesPaletteMode,
+              })}
+              aria-label="React Bits Particles color mode"
+            >
+              <option value="source">Source white particles</option>
+              <option value="custom">Custom particles</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsParticlesPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Particle color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorOne: event.target.value })}
+                  aria-label="React Bits Particles color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Particle color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorTwo: event.target.value })}
+                  aria-label="React Bits Particles color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Particle color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorThree: event.target.value })}
+                  aria-label="React Bits Particles color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsParticlesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsParticlesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsParticlesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Particles primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsParticlesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsParticlesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Particles color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsParticlesMoveOnHover}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesMoveOnHover: event.target.checked })}
+            />
+            <span>Move on cursor</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsParticlesAlpha}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesAlpha: event.target.checked })}
+            />
+            <span>Soft alpha particles</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={!reactBitsParticlesDisableRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesDisableRotation: !event.target.checked })}
+            />
+            <span>Rotate cloud</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Particle count ({reactBitsParticlesCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="20"
+              max="1500"
+              step="10"
+              value={reactBitsParticlesCount}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesCount: Number(event.target.value) })}
+              aria-label="React Bits Particles particle count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({reactBitsParticlesSpread.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="0.5"
+              value={reactBitsParticlesSpread}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesSpread: Number(event.target.value) })}
+              aria-label="React Bits Particles spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsParticlesSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsParticlesSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesSpeed: Number(event.target.value) })}
+              aria-label="React Bits Particles speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover push ({reactBitsParticlesHoverFactor.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={reactBitsParticlesHoverFactor}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesHoverFactor: Number(event.target.value) })}
+              aria-label="React Bits Particles hover push"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base size ({reactBitsParticlesBaseSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="10"
+              max="300"
+              step="5"
+              value={reactBitsParticlesBaseSize}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesBaseSize: Number(event.target.value) })}
+              aria-label="React Bits Particles base size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size randomness ({reactBitsParticlesSizeRandomness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={reactBitsParticlesSizeRandomness}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesSizeRandomness: Number(event.target.value) })}
+              aria-label="React Bits Particles size randomness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Camera distance ({reactBitsParticlesCameraDistance.toFixed(0)})</span>
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="1"
+              value={reactBitsParticlesCameraDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesCameraDistance: Number(event.target.value) })}
+              aria-label="React Bits Particles camera distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel ratio ({reactBitsParticlesPixelRatio.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={reactBitsParticlesPixelRatio}
+              onChange={(event) => handleSettingsChange({ reactBitsParticlesPixelRatio: Number(event.target.value) })}
+              aria-label="React Bits Particles pixel ratio"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-gradient-blinds" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsGradientBlindsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsPaletteMode: event.target.value as ReactBitsGradientBlindsPaletteMode,
+              })}
+              aria-label="React Bits Gradient Blinds color mode"
+            >
+              <option value="source">Source magenta and violet</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGradientBlindsPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsGradientBlindsColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsColorOne: event.target.value })}
+                  aria-label="React Bits Gradient Blinds color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsGradientBlindsColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsColorTwo: event.target.value })}
+                  aria-label="React Bits Gradient Blinds color 2"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsGradientBlindsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGradientBlindsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Gradient Blinds primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGradientBlindsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGradientBlindsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Gradient Blinds color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGradientBlindsEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsEnableMouseInteraction: event.target.checked,
+              })}
+            />
+            <span>Enable cursor spotlight</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGradientBlindsMirror}
+              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsMirror: event.target.checked })}
+            />
+            <span>Mirror gradient</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Shine direction</span>
+            <select
+              value={reactBitsGradientBlindsShineDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsShineDirection: event.target.value as ReactBitsGradientBlindsShineDirection,
+              })}
+              aria-label="React Bits Gradient Blinds shine direction"
+            >
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend mode</span>
+            <select
+              value={reactBitsGradientBlindsBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsBlendMode: event.target.value as ReactBitsGradientBlindsBlendMode,
+              })}
+              aria-label="React Bits Gradient Blinds blend mode"
+            >
+              <option value="normal">Normal</option>
+              <option value="screen">Screen</option>
+              <option value="lighten">Lighten</option>
+              <option value="plus-lighter">Plus lighter</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Angle ({reactBitsGradientBlindsAngle.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsGradientBlindsAngle}
+              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsAngle: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsGradientBlindsNoise.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGradientBlindsNoise}
+              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsNoise: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blind count ({reactBitsGradientBlindsBlindCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="80"
+              step="1"
+              value={reactBitsGradientBlindsBlindCount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsBlindCount: Number(event.target.value),
+              })}
+              aria-label="React Bits Gradient Blinds blind count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Min blind width ({reactBitsGradientBlindsBlindMinWidth.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="240"
+              step="5"
+              value={reactBitsGradientBlindsBlindMinWidth}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsBlindMinWidth: Number(event.target.value),
+              })}
+              aria-label="React Bits Gradient Blinds minimum blind width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse damping ({reactBitsGradientBlindsMouseDampening.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGradientBlindsMouseDampening}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsMouseDampening: Number(event.target.value),
+              })}
+              aria-label="React Bits Gradient Blinds mouse damping"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spotlight radius ({reactBitsGradientBlindsSpotlightRadius.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1.5"
+              step="0.01"
+              value={reactBitsGradientBlindsSpotlightRadius}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsSpotlightRadius: Number(event.target.value),
+              })}
+              aria-label="React Bits Gradient Blinds spotlight radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spotlight softness ({reactBitsGradientBlindsSpotlightSoftness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.1"
+              value={reactBitsGradientBlindsSpotlightSoftness}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsSpotlightSoftness: Number(event.target.value),
+              })}
+              aria-label="React Bits Gradient Blinds spotlight softness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spotlight opacity ({reactBitsGradientBlindsSpotlightOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsGradientBlindsSpotlightOpacity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGradientBlindsSpotlightOpacity: Number(event.target.value),
+              })}
+              aria-label="React Bits Gradient Blinds spotlight opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({reactBitsGradientBlindsDistort.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsGradientBlindsDistort}
+              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsDistort: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel ratio ({reactBitsGradientBlindsDpr.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={reactBitsGradientBlindsDpr}
+              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsDpr: Number(event.target.value) })}
+              aria-label="React Bits Gradient Blinds pixel ratio"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-grainient" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsGrainientPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGrainientPaletteMode: event.target.value as ReactBitsGrainientPaletteMode,
+              })}
+              aria-label="React Bits Grainient color mode"
+            >
+              <option value="source">Source magenta, violet, and mauve</option>
+              <option value="custom">Custom grain colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGrainientPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsGrainientColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsGrainientColorOne: event.target.value })}
+                  aria-label="React Bits Grainient color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsGrainientColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsGrainientColorTwo: event.target.value })}
+                  aria-label="React Bits Grainient color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsGrainientColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsGrainientColorThree: event.target.value })}
+                  aria-label="React Bits Grainient color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsGrainientPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGrainientPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGrainientPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grainient primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGrainientHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGrainientHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grainient color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGrainientGrainAnimated}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientGrainAnimated: event.target.checked })}
+            />
+            <span>Animated grain</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time speed ({reactBitsGrainientTimeSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsGrainientTimeSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientTimeSpeed: Number(event.target.value) })}
+              aria-label="React Bits Grainient time speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color balance ({reactBitsGrainientColorBalance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={reactBitsGrainientColorBalance}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientColorBalance: Number(event.target.value) })}
+              aria-label="React Bits Grainient color balance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp strength ({reactBitsGrainientWarpStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsGrainientWarpStrength}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpStrength: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp frequency ({reactBitsGrainientWarpFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="20"
+              step="0.1"
+              value={reactBitsGrainientWarpFrequency}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpFrequency: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp speed ({reactBitsGrainientWarpSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.05"
+              value={reactBitsGrainientWarpSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpSpeed: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Warp amplitude ({reactBitsGrainientWarpAmplitude.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="160"
+              step="1"
+              value={reactBitsGrainientWarpAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Grainient warp amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blend angle ({reactBitsGrainientBlendAngle.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsGrainientBlendAngle}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientBlendAngle: Number(event.target.value) })}
+              aria-label="React Bits Grainient blend angle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blend softness ({reactBitsGrainientBlendSoftness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGrainientBlendSoftness}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientBlendSoftness: Number(event.target.value) })}
+              aria-label="React Bits Grainient blend softness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation amount ({reactBitsGrainientRotationAmount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1200"
+              step="10"
+              value={reactBitsGrainientRotationAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientRotationAmount: Number(event.target.value) })}
+              aria-label="React Bits Grainient rotation amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise scale ({reactBitsGrainientNoiseScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="8"
+              step="0.1"
+              value={reactBitsGrainientNoiseScale}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientNoiseScale: Number(event.target.value) })}
+              aria-label="React Bits Grainient noise scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grain amount ({reactBitsGrainientGrainAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGrainientGrainAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientGrainAmount: Number(event.target.value) })}
+              aria-label="React Bits Grainient grain amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grain scale ({reactBitsGrainientGrainScale.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={reactBitsGrainientGrainScale}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientGrainScale: Number(event.target.value) })}
+              aria-label="React Bits Grainient grain scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Contrast ({reactBitsGrainientContrast.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={reactBitsGrainientContrast}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientContrast: Number(event.target.value) })}
+              aria-label="React Bits Grainient contrast"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Gamma ({reactBitsGrainientGamma.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="4"
+              step="0.05"
+              value={reactBitsGrainientGamma}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientGamma: Number(event.target.value) })}
+              aria-label="React Bits Grainient gamma"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({reactBitsGrainientSaturation.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsGrainientSaturation}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientSaturation: Number(event.target.value) })}
+              aria-label="React Bits Grainient saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Center X ({reactBitsGrainientCenterX.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={reactBitsGrainientCenterX}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientCenterX: Number(event.target.value) })}
+              aria-label="React Bits Grainient center X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Center Y ({reactBitsGrainientCenterY.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1"
+              step="0.01"
+              value={reactBitsGrainientCenterY}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientCenterY: Number(event.target.value) })}
+              aria-label="React Bits Grainient center Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Zoom ({reactBitsGrainientZoom.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="3"
+              step="0.05"
+              value={reactBitsGrainientZoom}
+              onChange={(event) => handleSettingsChange({ reactBitsGrainientZoom: Number(event.target.value) })}
+              aria-label="React Bits Grainient zoom"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-grid-scan" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsGridScanPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridScanPaletteMode: event.target.value as ReactBitsGridScanPaletteMode,
+              })}
+              aria-label="React Bits Grid Scan color mode"
+            >
+              <option value="source">Source dark grid and magenta scan</option>
+              <option value="custom">Custom grid and scan colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGridScanPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Grid lines</span>
+                <input
+                  type="color"
+                  value={reactBitsGridScanLinesColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridScanLinesColor: event.target.value })}
+                  aria-label="React Bits Grid Scan line color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Scan color</span>
+                <input
+                  type="color"
+                  value={reactBitsGridScanScanColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridScanScanColor: event.target.value })}
+                  aria-label="React Bits Grid Scan scan color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsGridScanPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGridScanPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridScanPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grid Scan primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGridScanHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGridScanHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grid Scan color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGridScanEnablePointerInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridScanEnablePointerInteraction: event.target.checked,
+              })}
+            />
+            <span>Pointer skew</span>
+          </label>
+
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGridScanScanOnClick}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanOnClick: event.target.checked })}
+            />
+            <span>Click scan pulses</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Line style</span>
+            <select
+              value={reactBitsGridScanLineStyle}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridScanLineStyle: event.target.value as ReactBitsGridScanLineStyle,
+              })}
+              aria-label="React Bits Grid Scan line style"
+            >
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Scan direction</span>
+            <select
+              value={reactBitsGridScanDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridScanDirection: event.target.value as ReactBitsGridScanDirection,
+              })}
+              aria-label="React Bits Grid Scan direction"
+            >
+              <option value="forward">Forward</option>
+              <option value="backward">Backward</option>
+              <option value="pingpong">Ping pong</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sensitivity ({reactBitsGridScanSensitivity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGridScanSensitivity}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanSensitivity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan sensitivity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line thickness ({reactBitsGridScanLineThickness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="6"
+              step="0.1"
+              value={reactBitsGridScanLineThickness}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanLineThickness: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan line thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan opacity ({reactBitsGridScanScanOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGridScanScanOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanOpacity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid scale ({reactBitsGridScanGridScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="0.5"
+              step="0.01"
+              value={reactBitsGridScanGridScale}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanGridScale: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan grid scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line jitter ({reactBitsGridScanLineJitter.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGridScanLineJitter}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanLineJitter: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan line jitter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsGridScanNoiseIntensity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.25"
+              step="0.005"
+              value={reactBitsGridScanNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanNoiseIntensity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom opacity ({reactBitsGridScanBloomOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={reactBitsGridScanBloomOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanBloomOpacity: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan bloom opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan glow ({reactBitsGridScanScanGlow.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsGridScanScanGlow}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanGlow: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan glow"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan softness ({reactBitsGridScanScanSoftness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="6"
+              step="0.1"
+              value={reactBitsGridScanScanSoftness}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanSoftness: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan softness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Phase taper ({reactBitsGridScanPhaseTaper.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.49"
+              step="0.01"
+              value={reactBitsGridScanPhaseTaper}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanPhaseTaper: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan phase taper"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan duration ({reactBitsGridScanScanDuration.toFixed(2)}s)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="10"
+              step="0.05"
+              value={reactBitsGridScanScanDuration}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanDuration: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan duration"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scan delay ({reactBitsGridScanScanDelay.toFixed(2)}s)</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.05"
+              value={reactBitsGridScanScanDelay}
+              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanDelay: Number(event.target.value) })}
+              aria-label="React Bits Grid Scan delay"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-beams" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsBeamsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsBeamsPaletteMode: event.target.value as ReactBitsBeamsPaletteMode,
+              })}
+              aria-label="React Bits Beams color mode"
+            >
+              <option value="source">Source white light</option>
+              <option value="custom">Custom light color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsBeamsPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Light color</span>
+              <input
+                type="color"
+                value={reactBitsBeamsLightColor}
+                onChange={(event) => handleSettingsChange({ reactBitsBeamsLightColor: event.target.value })}
+                aria-label="React Bits Beams light color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsBeamsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsBeamsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsBeamsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Beams primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsBeamsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsBeamsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Beams color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>Beam width ({reactBitsBeamsBeamWidth.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="6"
+              step="0.1"
+              value={reactBitsBeamsBeamWidth}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamWidth: Number(event.target.value) })}
+              aria-label="React Bits Beams width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam height ({reactBitsBeamsBeamHeight.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="32"
+              step="1"
+              value={reactBitsBeamsBeamHeight}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamHeight: Number(event.target.value) })}
+              aria-label="React Bits Beams height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam count ({reactBitsBeamsBeamNumber.toFixed(0)})</span>
+            <input
+              type="range"
+              min="1"
+              max="48"
+              step="1"
+              value={reactBitsBeamsBeamNumber}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamNumber: Number(event.target.value) })}
+              aria-label="React Bits Beams count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsBeamsSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.05"
+              value={reactBitsBeamsSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsSpeed: Number(event.target.value) })}
+              aria-label="React Bits Beams speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsBeamsNoiseIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsBeamsNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsNoiseIntensity: Number(event.target.value) })}
+              aria-label="React Bits Beams noise"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsBeamsScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="1.5"
+              step="0.01"
+              value={reactBitsBeamsScale}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsScale: Number(event.target.value) })}
+              aria-label="React Bits Beams scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsBeamsRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsBeamsRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsBeamsRotation: Number(event.target.value) })}
+              aria-label="React Bits Beams rotation"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-pixel-snow" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPixelSnowPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelSnowPaletteMode: event.target.value as ReactBitsPixelSnowPaletteMode,
+              })}
+              aria-label="React Bits Pixel Snow color mode"
+            >
+              <option value="source">Source white snow</option>
+              <option value="custom">Custom snow color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPixelSnowPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Snow color</span>
+              <input
+                type="color"
+                value={reactBitsPixelSnowColor}
+                onChange={(event) => handleSettingsChange({ reactBitsPixelSnowColor: event.target.value })}
+                aria-label="React Bits Pixel Snow color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsPixelSnowPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPixelSnowPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsPixelSnowPrimaryColor: event.target.value })}
+                  aria-label="React Bits Pixel Snow primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPixelSnowHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPixelSnowHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Pixel Snow color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Variant</span>
+            <select
+              value={reactBitsPixelSnowVariant}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPixelSnowVariant: event.target.value as ReactBitsPixelSnowVariant,
+              })}
+              aria-label="React Bits Pixel Snow variant"
+            >
+              <option value="square">Square</option>
+              <option value="round">Round</option>
+              <option value="snowflake">Snowflake</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flake size ({reactBitsPixelSnowFlakeSize.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.08"
+              step="0.001"
+              value={reactBitsPixelSnowFlakeSize}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowFlakeSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow flake size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Minimum flake ({reactBitsPixelSnowMinFlakeSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="6"
+              step="0.05"
+              value={reactBitsPixelSnowMinFlakeSize}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowMinFlakeSize: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow minimum flake size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel resolution ({reactBitsPixelSnowPixelResolution.toFixed(0)})</span>
+            <input
+              type="range"
+              min="40"
+              max="640"
+              step="10"
+              value={reactBitsPixelSnowPixelResolution}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowPixelResolution: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow pixel resolution"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPixelSnowSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsPixelSnowSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowSpeed: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Depth fade ({reactBitsPixelSnowDepthFade.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="40"
+              step="0.5"
+              value={reactBitsPixelSnowDepthFade}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDepthFade: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow depth fade"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Far plane ({reactBitsPixelSnowFarPlane.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="80"
+              step="1"
+              value={reactBitsPixelSnowFarPlane}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowFarPlane: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow far plane"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsPixelSnowBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.05"
+              value={reactBitsPixelSnowBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowBrightness: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow brightness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Gamma ({reactBitsPixelSnowGamma.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.01"
+              value={reactBitsPixelSnowGamma}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowGamma: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow gamma"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsPixelSnowDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="1"
+              step="0.01"
+              value={reactBitsPixelSnowDensity}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDensity: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Direction ({reactBitsPixelSnowDirection.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value={reactBitsPixelSnowDirection}
+              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDirection: Number(event.target.value) })}
+              aria-label="React Bits Pixel Snow direction"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-lightning" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsLightningPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLightningPaletteMode: event.target.value as ReactBitsLightningPaletteMode,
+              })}
+              aria-label="React Bits Lightning color mode"
+            >
+              <option value="source">Source hue</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLightningPaletteMode === "source" ? (
+            <label className={styles.rangeRow}>
+              <span>Hue ({reactBitsLightningHue.toFixed(0)}deg)</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={reactBitsLightningHue}
+                onChange={(event) => handleSettingsChange({ reactBitsLightningHue: Number(event.target.value) })}
+                aria-label="React Bits Lightning hue"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsLightningPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Lightning color</span>
+              <input
+                type="color"
+                value={reactBitsLightningColor}
+                onChange={(event) => handleSettingsChange({ reactBitsLightningColor: event.target.value })}
+                aria-label="React Bits Lightning color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsLightningPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLightningPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLightningPrimaryColor: event.target.value })}
+                  aria-label="React Bits Lightning primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsLightningHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLightningHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Lightning color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>X offset ({reactBitsLightningXOffset.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.05"
+              value={reactBitsLightningXOffset}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningXOffset: Number(event.target.value) })}
+              aria-label="React Bits Lightning X offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsLightningSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsLightningSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningSpeed: Number(event.target.value) })}
+              aria-label="React Bits Lightning speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsLightningIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.05"
+              value={reactBitsLightningIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningIntensity: Number(event.target.value) })}
+              aria-label="React Bits Lightning intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size ({reactBitsLightningSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="5"
+              step="0.05"
+              value={reactBitsLightningSize}
+              onChange={(event) => handleSettingsChange({ reactBitsLightningSize: Number(event.target.value) })}
+              aria-label="React Bits Lightning size"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-prismatic-burst" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsPrismaticBurstPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstPaletteMode: event.target.value as ReactBitsPrismaticBurstPaletteMode,
+              })}
+              aria-label="React Bits Prismatic Burst color mode"
+            >
+              <option value="source">Source spectrum</option>
+              <option value="custom">Custom gradient</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsPrismaticBurstPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorOne: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorTwo: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorThree}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPrismaticBurstColorThree: event.target.value,
+                  })}
+                  aria-label="React Bits Prismatic Burst color 3"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 4</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstColorFour}
+                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorFour: event.target.value })}
+                  aria-label="React Bits Prismatic Burst color 4"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsPrismaticBurstPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsPrismaticBurstPrimaryColor}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPrismaticBurstPrimaryColor: event.target.value,
+                  })}
+                  aria-label="React Bits Prismatic Burst primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsPrismaticBurstHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsPrismaticBurstHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Prismatic Burst color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Animation</span>
+            <select
+              value={reactBitsPrismaticBurstAnimationType}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstAnimationType: event.target.value as ReactBitsPrismaticBurstAnimationType,
+              })}
+              aria-label="React Bits Prismatic Burst animation"
+            >
+              <option value="rotate3d">Rotate 3D</option>
+              <option value="rotate">Rotate</option>
+              <option value="hover">Cursor hover</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Blend</span>
+            <select
+              value={reactBitsPrismaticBurstMixBlendMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstMixBlendMode: event.target.value as ReactBitsPrismaticBurstMixBlendMode,
+              })}
+              aria-label="React Bits Prismatic Burst blend mode"
+            >
+              <option value="lighten">Lighten</option>
+              <option value="screen">Screen</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity ({reactBitsPrismaticBurstIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsPrismaticBurstIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstIntensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsPrismaticBurstSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsPrismaticBurstSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstSpeed: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({reactBitsPrismaticBurstDistort.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              step="0.5"
+              value={reactBitsPrismaticBurstDistort}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstDistort: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset X ({reactBitsPrismaticBurstOffsetX.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-1000"
+              max="1000"
+              step="10"
+              value={reactBitsPrismaticBurstOffsetX}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstOffsetX: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst offset X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Offset Y ({reactBitsPrismaticBurstOffsetY.toFixed(0)}px)</span>
+            <input
+              type="range"
+              min="-1000"
+              max="1000"
+              step="10"
+              value={reactBitsPrismaticBurstOffsetY}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstOffsetY: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst offset Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover damping ({reactBitsPrismaticBurstHoverDampness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsPrismaticBurstHoverDampness}
+              onChange={(event) => handleSettingsChange({
+                reactBitsPrismaticBurstHoverDampness: Number(event.target.value),
+              })}
+              aria-label="React Bits Prismatic Burst hover damping"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ray count ({reactBitsPrismaticBurstRayCount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="64"
+              step="1"
+              value={reactBitsPrismaticBurstRayCount}
+              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstRayCount: Number(event.target.value) })}
+              aria-label="React Bits Prismatic Burst ray count"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-galaxy" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsGalaxyPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGalaxyPaletteMode: event.target.value as ReactBitsGalaxyPaletteMode,
+              })}
+              aria-label="React Bits Galaxy color mode"
+            >
+              <option value="source">Source hue shift</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGalaxyPaletteMode === "source" ? (
+            <label className={styles.rangeRow}>
+              <span>Hue shift ({reactBitsGalaxyHueShift.toFixed(0)}deg)</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={reactBitsGalaxyHueShift}
+                onChange={(event) => handleSettingsChange({ reactBitsGalaxyHueShift: Number(event.target.value) })}
+                aria-label="React Bits Galaxy hue shift"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsGalaxyPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Galaxy color</span>
+              <input
+                type="color"
+                value={reactBitsGalaxyColor}
+                onChange={(event) => handleSettingsChange({ reactBitsGalaxyColor: event.target.value })}
+                aria-label="React Bits Galaxy color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsGalaxyPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGalaxyPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGalaxyPrimaryColor: event.target.value })}
+                  aria-label="React Bits Galaxy primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGalaxyHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGalaxyHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Galaxy color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGalaxyTransparent}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyTransparent: event.target.checked })}
+              aria-label="React Bits Galaxy transparent background"
+            />
+            <span>Transparent background</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGalaxyMouseInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyMouseInteraction: event.target.checked })}
+              aria-label="React Bits Galaxy cursor interaction"
+            />
+            <span>Cursor interaction</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsGalaxyMouseRepulsion}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyMouseRepulsion: event.target.checked })}
+              aria-label="React Bits Galaxy cursor repulsion"
+            />
+            <span>Cursor repulsion</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Focal X ({reactBitsGalaxyFocalX.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGalaxyFocalX}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyFocalX: Number(event.target.value) })}
+              aria-label="React Bits Galaxy focal X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Focal Y ({reactBitsGalaxyFocalY.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGalaxyFocalY}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyFocalY: Number(event.target.value) })}
+              aria-label="React Bits Galaxy focal Y"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsGalaxyRotationDeg.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-360"
+              max="360"
+              step="1"
+              value={reactBitsGalaxyRotationDeg}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRotationDeg: Number(event.target.value) })}
+              aria-label="React Bits Galaxy rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Star speed ({reactBitsGalaxyStarSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsGalaxyStarSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyStarSpeed: Number(event.target.value) })}
+              aria-label="React Bits Galaxy star speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Density ({reactBitsGalaxyDensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={reactBitsGalaxyDensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyDensity: Number(event.target.value) })}
+              aria-label="React Bits Galaxy density"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsGalaxySpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.05"
+              value={reactBitsGalaxySpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxySpeed: Number(event.target.value) })}
+              aria-label="React Bits Galaxy speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsGalaxyGlowIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.01"
+              max="2"
+              step="0.01"
+              value={reactBitsGalaxyGlowIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyGlowIntensity: Number(event.target.value) })}
+              aria-label="React Bits Galaxy glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Saturation ({reactBitsGalaxySaturation.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsGalaxySaturation}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxySaturation: Number(event.target.value) })}
+              aria-label="React Bits Galaxy saturation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Twinkle ({reactBitsGalaxyTwinkleIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsGalaxyTwinkleIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyTwinkleIntensity: Number(event.target.value) })}
+              aria-label="React Bits Galaxy twinkle intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation speed ({reactBitsGalaxyRotationSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-2"
+              max="2"
+              step="0.01"
+              value={reactBitsGalaxyRotationSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRotationSpeed: Number(event.target.value) })}
+              aria-label="React Bits Galaxy rotation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Repulsion ({reactBitsGalaxyRepulsionStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.05"
+              value={reactBitsGalaxyRepulsionStrength}
+              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRepulsionStrength: Number(event.target.value) })}
+              aria-label="React Bits Galaxy repulsion strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Center repulsion ({reactBitsGalaxyAutoCenterRepulsion.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.05"
+              value={reactBitsGalaxyAutoCenterRepulsion}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGalaxyAutoCenterRepulsion: Number(event.target.value),
+              })}
+              aria-label="React Bits Galaxy center repulsion"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-dither" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsDitherPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDitherPaletteMode: event.target.value as ReactBitsDitherPaletteMode,
+              })}
+              aria-label="React Bits Dither color mode"
+            >
+              <option value="source">Source grey</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsDitherPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Dither color</span>
+              <input
+                type="color"
+                value={reactBitsDitherColor}
+                onChange={(event) => handleSettingsChange({ reactBitsDitherColor: event.target.value })}
+                aria-label="React Bits Dither color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsDitherPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsDitherPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsDitherPrimaryColor: event.target.value })}
+                  aria-label="React Bits Dither primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsDitherHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsDitherHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Dither color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsDitherMouseInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsDitherMouseInteraction: event.target.checked })}
+              aria-label="React Bits Dither cursor interaction"
+            />
+            <span>Cursor interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed ({reactBitsDitherWaveSpeed.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.005"
+              value={reactBitsDitherWaveSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsDitherWaveSpeed: Number(event.target.value) })}
+              aria-label="React Bits Dither wave speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave frequency ({reactBitsDitherWaveFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsDitherWaveFrequency}
+              onChange={(event) => handleSettingsChange({ reactBitsDitherWaveFrequency: Number(event.target.value) })}
+              aria-label="React Bits Dither wave frequency"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave amplitude ({reactBitsDitherWaveAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsDitherWaveAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsDitherWaveAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Dither wave amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Color count ({reactBitsDitherColorNum})</span>
+            <input
+              type="range"
+              min="2"
+              max="16"
+              step="1"
+              value={reactBitsDitherColorNum}
+              onChange={(event) => handleSettingsChange({ reactBitsDitherColorNum: Number(event.target.value) })}
+              aria-label="React Bits Dither color count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel size ({reactBitsDitherPixelSize}px)</span>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              step="1"
+              value={reactBitsDitherPixelSize}
+              onChange={(event) => handleSettingsChange({ reactBitsDitherPixelSize: Number(event.target.value) })}
+              aria-label="React Bits Dither pixel size"
+            />
+          </label>
+
+          {reactBitsDitherMouseInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Cursor radius ({reactBitsDitherMouseRadius.toFixed(2)})</span>
+              <input
+                type="range"
+                min="0.05"
+                max="3"
+                step="0.05"
+                value={reactBitsDitherMouseRadius}
+                onChange={(event) => handleSettingsChange({ reactBitsDitherMouseRadius: Number(event.target.value) })}
+                aria-label="React Bits Dither cursor radius"
+              />
+            </label>
+          ) : null}
+        </>
+      )}
+
+      {option.id === "react-bits-faulty-terminal" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Tint mode</span>
+            <select
+              value={reactBitsFaultyTerminalPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFaultyTerminalPaletteMode: event.target.value as ReactBitsFaultyTerminalPaletteMode,
+              })}
+              aria-label="React Bits Faulty Terminal tint mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom tint</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsFaultyTerminalPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Terminal tint</span>
+              <input
+                type="color"
+                value={reactBitsFaultyTerminalTint}
+                onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalTint: event.target.value })}
+                aria-label="React Bits Faulty Terminal tint"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsFaultyTerminalPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsFaultyTerminalPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalPrimaryColor: event.target.value })}
+                  aria-label="React Bits Faulty Terminal primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsFaultyTerminalHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsFaultyTerminalHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Faulty Terminal color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsFaultyTerminalMouseReact}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalMouseReact: event.target.checked })}
+              aria-label="React Bits Faulty Terminal cursor reaction"
+            />
+            <span>Cursor reaction</span>
+          </label>
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsFaultyTerminalPageLoadAnimation}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFaultyTerminalPageLoadAnimation: event.target.checked,
+              })}
+              aria-label="React Bits Faulty Terminal page-load animation"
+            />
+            <span>Page-load animation</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scale ({reactBitsFaultyTerminalScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="4"
+              step="0.05"
+              value={reactBitsFaultyTerminalScale}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalScale: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid X ({reactBitsFaultyTerminalGridMulX.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="6"
+              step="0.05"
+              value={reactBitsFaultyTerminalGridMulX}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalGridMulX: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal grid X multiplier"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid Y ({reactBitsFaultyTerminalGridMulY.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.25"
+              max="6"
+              step="0.05"
+              value={reactBitsFaultyTerminalGridMulY}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalGridMulY: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal grid Y multiplier"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Digit size ({reactBitsFaultyTerminalDigitSize.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.05"
+              value={reactBitsFaultyTerminalDigitSize}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalDigitSize: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal digit size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Time scale ({reactBitsFaultyTerminalTimeScale.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsFaultyTerminalTimeScale}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalTimeScale: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal time scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Scanlines ({reactBitsFaultyTerminalScanlineIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsFaultyTerminalScanlineIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFaultyTerminalScanlineIntensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal scanline intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glitch ({reactBitsFaultyTerminalGlitchAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.01"
+              value={reactBitsFaultyTerminalGlitchAmount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFaultyTerminalGlitchAmount: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal glitch amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flicker ({reactBitsFaultyTerminalFlickerAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsFaultyTerminalFlickerAmount}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFaultyTerminalFlickerAmount: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal flicker amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Noise ({reactBitsFaultyTerminalNoiseAmp.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              value={reactBitsFaultyTerminalNoiseAmp}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalNoiseAmp: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal noise amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Chromatic ({reactBitsFaultyTerminalChromaticAberration.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.1"
+              value={reactBitsFaultyTerminalChromaticAberration}
+              onChange={(event) => handleSettingsChange({
+                reactBitsFaultyTerminalChromaticAberration: Number(event.target.value),
+              })}
+              aria-label="React Bits Faulty Terminal chromatic aberration"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dither ({reactBitsFaultyTerminalDither.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="255"
+              step="1"
+              value={reactBitsFaultyTerminalDither}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalDither: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal dither"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Curvature ({reactBitsFaultyTerminalCurvature.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsFaultyTerminalCurvature}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalCurvature: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal curvature"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Brightness ({reactBitsFaultyTerminalBrightness.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.01"
+              value={reactBitsFaultyTerminalBrightness}
+              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalBrightness: Number(event.target.value) })}
+              aria-label="React Bits Faulty Terminal brightness"
+            />
+          </label>
+
+          {reactBitsFaultyTerminalMouseReact ? (
+            <label className={styles.rangeRow}>
+              <span>Cursor strength ({reactBitsFaultyTerminalMouseStrength.toFixed(2)})</span>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.01"
+                value={reactBitsFaultyTerminalMouseStrength}
+                onChange={(event) => handleSettingsChange({
+                  reactBitsFaultyTerminalMouseStrength: Number(event.target.value),
+                })}
+                aria-label="React Bits Faulty Terminal cursor strength"
+              />
+            </label>
+          ) : null}
+        </>
+      )}
+
+      {option.id === "react-bits-ripple-grid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsRippleGridPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRippleGridPaletteMode: event.target.value as ReactBitsRippleGridPaletteMode,
+              })}
+              aria-label="React Bits Ripple Grid color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="rainbow">Source rainbow</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsRippleGridPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Grid color</span>
+              <input
+                type="color"
+                value={reactBitsRippleGridColor}
+                onChange={(event) => handleSettingsChange({ reactBitsRippleGridColor: event.target.value })}
+                aria-label="React Bits Ripple Grid color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsRippleGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsRippleGridPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsRippleGridPrimaryColor: event.target.value })}
+                  aria-label="React Bits Ripple Grid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsRippleGridHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsRippleGridHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Ripple Grid color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <input
+              type="checkbox"
+              checked={reactBitsRippleGridMouseInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridMouseInteraction: event.target.checked })}
+              aria-label="React Bits Ripple Grid cursor interaction"
+            />
+            <span>Cursor interaction</span>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ripple ({reactBitsRippleGridRippleIntensity.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.3"
+              step="0.005"
+              value={reactBitsRippleGridRippleIntensity}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRippleGridRippleIntensity: Number(event.target.value),
+              })}
+              aria-label="React Bits Ripple Grid ripple intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid size ({reactBitsRippleGridGridSize.toFixed(1)})</span>
+            <input
+              type="range"
+              min="2"
+              max="30"
+              step="0.5"
+              value={reactBitsRippleGridGridSize}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridSize: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Thickness ({reactBitsRippleGridGridThickness.toFixed(1)})</span>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              step="0.5"
+              value={reactBitsRippleGridGridThickness}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridThickness: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid thickness"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Fade ({reactBitsRippleGridFadeDistance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="5"
+              step="0.05"
+              value={reactBitsRippleGridFadeDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridFadeDistance: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid fade distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Vignette ({reactBitsRippleGridVignetteStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="6"
+              step="0.05"
+              value={reactBitsRippleGridVignetteStrength}
+              onChange={(event) => handleSettingsChange({
+                reactBitsRippleGridVignetteStrength: Number(event.target.value),
+              })}
+              aria-label="React Bits Ripple Grid vignette strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow ({reactBitsRippleGridGlowIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsRippleGridGlowIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGlowIntensity: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity ({reactBitsRippleGridOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsRippleGridOpacity}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridOpacity: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Rotation ({reactBitsRippleGridGridRotation.toFixed(0)}deg)</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              value={reactBitsRippleGridGridRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridRotation: Number(event.target.value) })}
+              aria-label="React Bits Ripple Grid rotation"
+            />
+          </label>
+
+          {reactBitsRippleGridMouseInteraction ? (
+            <label className={styles.rangeRow}>
+              <span>Cursor radius ({reactBitsRippleGridMouseInteractionRadius.toFixed(2)})</span>
+              <input
+                type="range"
+                min="0.1"
+                max="5"
+                step="0.05"
+                value={reactBitsRippleGridMouseInteractionRadius}
+                onChange={(event) => handleSettingsChange({
+                  reactBitsRippleGridMouseInteractionRadius: Number(event.target.value),
+                })}
+                aria-label="React Bits Ripple Grid cursor radius"
+              />
+            </label>
+          ) : null}
+        </>
+      )}
+
+      {option.id === "react-bits-dot-field" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsDotFieldPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDotFieldPaletteMode: event.target.value as ReactBitsDotFieldPaletteMode,
+              })}
+              aria-label="React Bits Dot Field color mode"
+            >
+              <option value="source">Source purple</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsDotFieldPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient start</span>
+                <input
+                  type="color"
+                  value={reactBitsDotFieldGradientFromColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGradientFromColor: event.target.value })}
+                  aria-label="React Bits Dot Field gradient start color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Gradient end</span>
+                <input
+                  type="color"
+                  value={reactBitsDotFieldGradientToColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGradientToColor: event.target.value })}
+                  aria-label="React Bits Dot Field gradient end color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Glow color</span>
+                <input
+                  type="color"
+                  value={reactBitsDotFieldGlowColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGlowColor: event.target.value })}
+                  aria-label="React Bits Dot Field glow color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsDotFieldPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsDotFieldPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldPrimaryColor: event.target.value })}
+                  aria-label="React Bits Dot Field primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsDotFieldHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsDotFieldHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Dot Field color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsDotFieldPaletteMode !== "source" ? (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Start alpha ({reactBitsDotFieldGradientFromAlpha.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={reactBitsDotFieldGradientFromAlpha}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsDotFieldGradientFromAlpha: Number(event.target.value),
+                  })}
+                  aria-label="React Bits Dot Field gradient start alpha"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>End alpha ({reactBitsDotFieldGradientToAlpha.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={reactBitsDotFieldGradientToAlpha}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsDotFieldGradientToAlpha: Number(event.target.value),
+                  })}
+                  aria-label="React Bits Dot Field gradient end alpha"
+                />
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsDotFieldCursorInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsDotFieldCursorInteraction: event.target.checked })}
+              aria-label="React Bits Dot Field cursor interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Bulge mode</span>
+            <input
+              type="checkbox"
+              checked={reactBitsDotFieldBulgeOnly}
+              onChange={(event) => handleSettingsChange({ reactBitsDotFieldBulgeOnly: event.target.checked })}
+              aria-label="React Bits Dot Field bulge mode"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Sparkle</span>
+            <input
+              type="checkbox"
+              checked={reactBitsDotFieldSparkle}
+              onChange={(event) => handleSettingsChange({ reactBitsDotFieldSparkle: event.target.checked })}
+              aria-label="React Bits Dot Field sparkle"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dot radius ({reactBitsDotFieldDotRadius.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsDotFieldDotRadius}
+              onChange={(event) => handleSettingsChange({ reactBitsDotFieldDotRadius: Number(event.target.value) })}
+              aria-label="React Bits Dot Field dot radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dot spacing ({reactBitsDotFieldDotSpacing.toFixed(1)})</span>
+            <input
+              type="range"
+              min="4"
+              max="48"
+              step="0.5"
+              value={reactBitsDotFieldDotSpacing}
+              onChange={(event) => handleSettingsChange({ reactBitsDotFieldDotSpacing: Number(event.target.value) })}
+              aria-label="React Bits Dot Field dot spacing"
+            />
+          </label>
+
+          {reactBitsDotFieldCursorInteraction ? (
+            <>
+              <label className={styles.rangeRow}>
+                <span>Cursor radius ({reactBitsDotFieldCursorRadius.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="60"
+                  max="900"
+                  step="10"
+                  value={reactBitsDotFieldCursorRadius}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldCursorRadius: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field cursor radius"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Cursor force ({reactBitsDotFieldCursorForce.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="1"
+                  step="0.01"
+                  value={reactBitsDotFieldCursorForce}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldCursorForce: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field cursor force"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Bulge strength ({reactBitsDotFieldBulgeStrength.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="160"
+                  step="1"
+                  value={reactBitsDotFieldBulgeStrength}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldBulgeStrength: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field bulge strength"
+                />
+              </label>
+              <label className={styles.rangeRow}>
+                <span>Glow radius ({reactBitsDotFieldGlowRadius.toFixed(0)})</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="4"
+                  value={reactBitsDotFieldGlowRadius}
+                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGlowRadius: Number(event.target.value) })}
+                  aria-label="React Bits Dot Field glow radius"
+                />
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.rangeRow}>
+            <span>Wave ({reactBitsDotFieldWaveAmplitude.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="48"
+              step="0.5"
+              value={reactBitsDotFieldWaveAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsDotFieldWaveAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Dot Field wave amplitude"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-dot-grid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsDotGridPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsDotGridPaletteMode: event.target.value as ReactBitsDotGridPaletteMode,
+              })}
+              aria-label="React Bits Dot Grid color mode"
+            >
+              <option value="source">Source violet</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsDotGridPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Base color</span>
+                <input type="color" value={reactBitsDotGridBaseColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridBaseColor: event.target.value })} aria-label="React Bits Dot Grid base color" />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Active color</span>
+                <input type="color" value={reactBitsDotGridActiveColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridActiveColor: event.target.value })} aria-label="React Bits Dot Grid active color" />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsDotGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input type="color" value={reactBitsDotGridPrimaryColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridPrimaryColor: event.target.value })} aria-label="React Bits Dot Grid primary color" />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select value={reactBitsDotGridHarmony} onChange={(event) => handleSettingsChange({ reactBitsDotGridHarmony: event.target.value as ColorHarmony })} aria-label="React Bits Dot Grid color harmony">
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input type="checkbox" checked={reactBitsDotGridCursorInteraction} onChange={(event) => handleSettingsChange({ reactBitsDotGridCursorInteraction: event.target.checked })} aria-label="React Bits Dot Grid cursor interaction" />
+          </label>
+          <label className={styles.switchRow}>
+            <span>Click shock</span>
+            <input type="checkbox" checked={reactBitsDotGridClickShock} onChange={(event) => handleSettingsChange({ reactBitsDotGridClickShock: event.target.checked })} aria-label="React Bits Dot Grid click shock" />
+          </label>
+
+          <label className={styles.rangeRow}><span>Dot size ({reactBitsDotGridDotSize.toFixed(1)})</span><input type="range" min="2" max="40" step="0.5" value={reactBitsDotGridDotSize} onChange={(event) => handleSettingsChange({ reactBitsDotGridDotSize: Number(event.target.value) })} aria-label="React Bits Dot Grid dot size" /></label>
+          <label className={styles.rangeRow}><span>Gap ({reactBitsDotGridGap.toFixed(1)})</span><input type="range" min="4" max="80" step="0.5" value={reactBitsDotGridGap} onChange={(event) => handleSettingsChange({ reactBitsDotGridGap: Number(event.target.value) })} aria-label="React Bits Dot Grid gap" /></label>
+          <label className={styles.rangeRow}><span>Proximity ({reactBitsDotGridProximity.toFixed(0)})</span><input type="range" min="40" max="500" step="5" value={reactBitsDotGridProximity} onChange={(event) => handleSettingsChange({ reactBitsDotGridProximity: Number(event.target.value) })} aria-label="React Bits Dot Grid proximity" /></label>
+          <label className={styles.rangeRow}><span>Speed trigger ({reactBitsDotGridSpeedTrigger.toFixed(0)})</span><input type="range" min="0" max="1000" step="10" value={reactBitsDotGridSpeedTrigger} onChange={(event) => handleSettingsChange({ reactBitsDotGridSpeedTrigger: Number(event.target.value) })} aria-label="React Bits Dot Grid speed trigger" /></label>
+          <label className={styles.rangeRow}><span>Shock radius ({reactBitsDotGridShockRadius.toFixed(0)})</span><input type="range" min="40" max="700" step="10" value={reactBitsDotGridShockRadius} onChange={(event) => handleSettingsChange({ reactBitsDotGridShockRadius: Number(event.target.value) })} aria-label="React Bits Dot Grid shock radius" /></label>
+          <label className={styles.rangeRow}><span>Shock strength ({reactBitsDotGridShockStrength.toFixed(1)})</span><input type="range" min="0" max="12" step="0.1" value={reactBitsDotGridShockStrength} onChange={(event) => handleSettingsChange({ reactBitsDotGridShockStrength: Number(event.target.value) })} aria-label="React Bits Dot Grid shock strength" /></label>
+          <label className={styles.rangeRow}><span>Max speed ({reactBitsDotGridMaxSpeed.toFixed(0)})</span><input type="range" min="100" max="8000" step="100" value={reactBitsDotGridMaxSpeed} onChange={(event) => handleSettingsChange({ reactBitsDotGridMaxSpeed: Number(event.target.value) })} aria-label="React Bits Dot Grid max speed" /></label>
+          <label className={styles.rangeRow}><span>Resistance ({reactBitsDotGridResistance.toFixed(0)})</span><input type="range" min="120" max="1600" step="20" value={reactBitsDotGridResistance} onChange={(event) => handleSettingsChange({ reactBitsDotGridResistance: Number(event.target.value) })} aria-label="React Bits Dot Grid resistance" /></label>
+          <label className={styles.rangeRow}><span>Return ({reactBitsDotGridReturnDuration.toFixed(2)}s)</span><input type="range" min="0.1" max="4" step="0.05" value={reactBitsDotGridReturnDuration} onChange={(event) => handleSettingsChange({ reactBitsDotGridReturnDuration: Number(event.target.value) })} aria-label="React Bits Dot Grid return duration" /></label>
+        </>
+      )}
+
+      {option.id === "react-bits-threads" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsThreadsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsThreadsPaletteMode: event.target.value as ReactBitsThreadsPaletteMode,
+              })}
+              aria-label="React Bits Threads color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsThreadsPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Thread color</span>
+              <input
+                type="color"
+                value={reactBitsThreadsColor}
+                onChange={(event) => handleSettingsChange({ reactBitsThreadsColor: event.target.value })}
+                aria-label="React Bits Threads color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsThreadsPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsThreadsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsThreadsPrimaryColor: event.target.value })}
+                  aria-label="React Bits Threads primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsThreadsHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsThreadsHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Threads color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsThreadsEnableMouseInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsThreadsEnableMouseInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Threads mouse interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({reactBitsThreadsAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsThreadsAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsThreadsAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Threads amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distance ({reactBitsThreadsDistance.toFixed(2)})</span>
+            <input
+              type="range"
+              min="-1"
+              max="1.5"
+              step="0.05"
+              value={reactBitsThreadsDistance}
+              onChange={(event) => handleSettingsChange({ reactBitsThreadsDistance: Number(event.target.value) })}
+              aria-label="React Bits Threads distance"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-iridescence" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsIridescencePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsIridescencePaletteMode: event.target.value as ReactBitsIridescencePaletteMode,
+              })}
+              aria-label="React Bits Iridescence color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsIridescencePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Tint color</span>
+              <input
+                type="color"
+                value={reactBitsIridescenceColor}
+                onChange={(event) => handleSettingsChange({ reactBitsIridescenceColor: event.target.value })}
+                aria-label="React Bits Iridescence tint color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsIridescencePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsIridescencePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsIridescencePrimaryColor: event.target.value })}
+                  aria-label="React Bits Iridescence primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsIridescenceHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsIridescenceHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Iridescence color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse reaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsIridescenceMouseReact}
+              onChange={(event) => handleSettingsChange({
+                reactBitsIridescenceMouseReact: event.target.checked,
+              })}
+              aria-label="React Bits Iridescence mouse reaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsIridescenceSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsIridescenceSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsIridescenceSpeed: Number(event.target.value) })}
+              aria-label="React Bits Iridescence speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({reactBitsIridescenceAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsIridescenceAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsIridescenceAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Iridescence amplitude"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-waves" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Line color mode</span>
+            <select
+              value={reactBitsWavesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsWavesPaletteMode: event.target.value as ReactBitsWavesPaletteMode,
+              })}
+              aria-label="React Bits Waves line color mode"
+            >
+              <option value="source">Source black</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsWavesPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Line color</span>
+              <input
+                type="color"
+                value={reactBitsWavesLineColor}
+                onChange={(event) => handleSettingsChange({ reactBitsWavesLineColor: event.target.value })}
+                aria-label="React Bits Waves line color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsWavesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsWavesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Waves primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsWavesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Waves color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Transparent background</span>
+            <input
+              type="checkbox"
+              checked={reactBitsWavesTransparentBackground}
+              onChange={(event) => handleSettingsChange({
+                reactBitsWavesTransparentBackground: event.target.checked,
+              })}
+              aria-label="React Bits Waves transparent background"
+            />
+          </label>
+
+          {!reactBitsWavesTransparentBackground ? (
+            <label className={styles.colorRow}>
+              <span>Background color</span>
+              <input
+                type="color"
+                value={reactBitsWavesBackgroundColor}
+                onChange={(event) => handleSettingsChange({ reactBitsWavesBackgroundColor: event.target.value })}
+                aria-label="React Bits Waves background color"
+              />
+            </label>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsWavesCursorInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsWavesCursorInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Waves cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed X ({reactBitsWavesSpeedX.toFixed(4)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.05"
+              step="0.0005"
+              value={reactBitsWavesSpeedX}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesSpeedX: Number(event.target.value) })}
+              aria-label="React Bits Waves X speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed Y ({reactBitsWavesSpeedY.toFixed(4)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.05"
+              step="0.0005"
+              value={reactBitsWavesSpeedY}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesSpeedY: Number(event.target.value) })}
+              aria-label="React Bits Waves Y speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude X ({reactBitsWavesAmplitudeX.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="96"
+              step="1"
+              value={reactBitsWavesAmplitudeX}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesAmplitudeX: Number(event.target.value) })}
+              aria-label="React Bits Waves X amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude Y ({reactBitsWavesAmplitudeY.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="96"
+              step="1"
+              value={reactBitsWavesAmplitudeY}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesAmplitudeY: Number(event.target.value) })}
+              aria-label="React Bits Waves Y amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line gap X ({reactBitsWavesGapX.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="40"
+              step="1"
+              value={reactBitsWavesGapX}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesGapX: Number(event.target.value) })}
+              aria-label="React Bits Waves X gap"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Point gap Y ({reactBitsWavesGapY.toFixed(0)})</span>
+            <input
+              type="range"
+              min="8"
+              max="96"
+              step="1"
+              value={reactBitsWavesGapY}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesGapY: Number(event.target.value) })}
+              aria-label="React Bits Waves Y gap"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Friction ({reactBitsWavesFriction.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.8"
+              max="0.99"
+              step="0.005"
+              value={reactBitsWavesFriction}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesFriction: Number(event.target.value) })}
+              aria-label="React Bits Waves friction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Tension ({reactBitsWavesTension.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.05"
+              step="0.001"
+              value={reactBitsWavesTension}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesTension: Number(event.target.value) })}
+              aria-label="React Bits Waves tension"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cursor movement ({reactBitsWavesMaxCursorMove.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="240"
+              step="5"
+              value={reactBitsWavesMaxCursorMove}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesMaxCursorMove: Number(event.target.value) })}
+              aria-label="React Bits Waves max cursor movement"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-grid-distortion" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Texture color mode</span>
+            <select
+              value={reactBitsGridDistortionPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridDistortionPaletteMode: event.target.value as ReactBitsGridDistortionPaletteMode,
+              })}
+              aria-label="React Bits Grid Distortion color mode"
+            >
+              <option value="source">Source generated texture</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGridDistortionPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Texture color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsGridDistortionColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionColorOne: event.target.value })}
+                  aria-label="React Bits Grid Distortion texture color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Texture color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsGridDistortionColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionColorTwo: event.target.value })}
+                  aria-label="React Bits Grid Distortion texture color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Texture color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsGridDistortionColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionColorThree: event.target.value })}
+                  aria-label="React Bits Grid Distortion texture color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsGridDistortionPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGridDistortionPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grid Distortion primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGridDistortionHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGridDistortionHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grid Distortion color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsGridDistortionCursorInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridDistortionCursorInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Grid Distortion cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid ({reactBitsGridDistortionGrid.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="40"
+              step="1"
+              value={reactBitsGridDistortionGrid}
+              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionGrid: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion grid"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse radius ({reactBitsGridDistortionMouse.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="0.5"
+              step="0.01"
+              value={reactBitsGridDistortionMouse}
+              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionMouse: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion mouse radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Strength ({reactBitsGridDistortionStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.6"
+              step="0.01"
+              value={reactBitsGridDistortionStrength}
+              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionStrength: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Relaxation ({reactBitsGridDistortionRelaxation.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.75"
+              max="0.99"
+              step="0.01"
+              value={reactBitsGridDistortionRelaxation}
+              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionRelaxation: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion relaxation"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-orb" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Orb color mode</span>
+            <select
+              value={reactBitsOrbPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsOrbPaletteMode: event.target.value as ReactBitsOrbPaletteMode,
+              })}
+              aria-label="React Bits Orb color mode"
+            >
+              <option value="source">Source hue</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsOrbPaletteMode === "source" ? (
+            <label className={styles.rangeRow}>
+              <span>Hue ({reactBitsOrbHue.toFixed(0)})</span>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={reactBitsOrbHue}
+                onChange={(event) => handleSettingsChange({ reactBitsOrbHue: Number(event.target.value) })}
+                aria-label="React Bits Orb hue"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsOrbPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Orb color</span>
+              <input
+                type="color"
+                value={reactBitsOrbColor}
+                onChange={(event) => handleSettingsChange({ reactBitsOrbColor: event.target.value })}
+                aria-label="React Bits Orb color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsOrbPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsOrbPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsOrbPrimaryColor: event.target.value })}
+                  aria-label="React Bits Orb primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsOrbHarmony}
+                  onChange={(event) => handleSettingsChange({ reactBitsOrbHarmony: event.target.value as ColorHarmony })}
+                  aria-label="React Bits Orb color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={reactBitsOrbBackgroundColor}
+              onChange={(event) => handleSettingsChange({ reactBitsOrbBackgroundColor: event.target.value })}
+              aria-label="React Bits Orb background color"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsOrbCursorInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsOrbCursorInteraction: event.target.checked })}
+              aria-label="React Bits Orb cursor interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Rotate on hover</span>
+            <input
+              type="checkbox"
+              checked={reactBitsOrbRotateOnHover}
+              onChange={(event) => handleSettingsChange({ reactBitsOrbRotateOnHover: event.target.checked })}
+              aria-label="React Bits Orb rotate on hover"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Force hover state</span>
+            <input
+              type="checkbox"
+              checked={reactBitsOrbForceHoverState}
+              onChange={(event) => handleSettingsChange({ reactBitsOrbForceHoverState: event.target.checked })}
+              aria-label="React Bits Orb force hover state"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover intensity ({reactBitsOrbHoverIntensity.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsOrbHoverIntensity}
+              onChange={(event) => handleSettingsChange({ reactBitsOrbHoverIntensity: Number(event.target.value) })}
+              aria-label="React Bits Orb hover intensity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-letter-glitch" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Glitch color mode</span>
+            <select
+              value={reactBitsLetterGlitchPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLetterGlitchPaletteMode: event.target.value as ReactBitsLetterGlitchPaletteMode,
+              })}
+              aria-label="React Bits Letter Glitch color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLetterGlitchPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsLetterGlitchColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchColorOne: event.target.value })}
+                  aria-label="React Bits Letter Glitch color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsLetterGlitchColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchColorTwo: event.target.value })}
+                  aria-label="React Bits Letter Glitch color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsLetterGlitchColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchColorThree: event.target.value })}
+                  aria-label="React Bits Letter Glitch color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsLetterGlitchPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLetterGlitchPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchPrimaryColor: event.target.value })}
+                  aria-label="React Bits Letter Glitch primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsLetterGlitchHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLetterGlitchHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Letter Glitch color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Center vignette</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLetterGlitchCenterVignette}
+              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchCenterVignette: event.target.checked })}
+              aria-label="React Bits Letter Glitch center vignette"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Outer vignette</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLetterGlitchOuterVignette}
+              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchOuterVignette: event.target.checked })}
+              aria-label="React Bits Letter Glitch outer vignette"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Smooth colors</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLetterGlitchSmooth}
+              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchSmooth: event.target.checked })}
+              aria-label="React Bits Letter Glitch smooth colors"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glitch speed ({reactBitsLetterGlitchGlitchSpeed.toFixed(0)} ms)</span>
+            <input
+              type="range"
+              min="16"
+              max="500"
+              step="1"
+              value={reactBitsLetterGlitchGlitchSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchGlitchSpeed: Number(event.target.value) })}
+              aria-label="React Bits Letter Glitch speed"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-grid-motion" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Motion color mode</span>
+            <select
+              value={reactBitsGridMotionPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsGridMotionPaletteMode: event.target.value as ReactBitsGridMotionPaletteMode,
+              })}
+              aria-label="React Bits Grid Motion color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsGridMotionPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Gradient</span>
+                <input
+                  type="color"
+                  value={reactBitsGridMotionGradientColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionGradientColor: event.target.value })}
+                  aria-label="React Bits Grid Motion gradient color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Tile</span>
+                <input
+                  type="color"
+                  value={reactBitsGridMotionTileColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionTileColor: event.target.value })}
+                  aria-label="React Bits Grid Motion tile color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Text</span>
+                <input
+                  type="color"
+                  value={reactBitsGridMotionTextColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionTextColor: event.target.value })}
+                  aria-label="React Bits Grid Motion text color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsGridMotionPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsGridMotionPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grid Motion primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsGridMotionHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsGridMotionHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grid Motion color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsGridMotionCursorInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsGridMotionCursorInteraction: event.target.checked })}
+              aria-label="React Bits Grid Motion cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Row travel ({reactBitsGridMotionMaxMoveAmount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="600"
+              step="10"
+              value={reactBitsGridMotionMaxMoveAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsGridMotionMaxMoveAmount: Number(event.target.value) })}
+              aria-label="React Bits Grid Motion row travel"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Ease duration ({reactBitsGridMotionBaseDuration.toFixed(2)}s)</span>
+            <input
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={reactBitsGridMotionBaseDuration}
+              onChange={(event) => handleSettingsChange({ reactBitsGridMotionBaseDuration: Number(event.target.value) })}
+              aria-label="React Bits Grid Motion base duration"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-shape-grid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Grid color mode</span>
+            <select
+              value={reactBitsShapeGridPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsShapeGridPaletteMode: event.target.value as ReactBitsShapeGridPaletteMode,
+              })}
+              aria-label="React Bits Shape Grid color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsShapeGridPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Border</span>
+                <input
+                  type="color"
+                  value={reactBitsShapeGridBorderColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsShapeGridBorderColor: event.target.value })}
+                  aria-label="React Bits Shape Grid border color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Hover fill</span>
+                <input
+                  type="color"
+                  value={reactBitsShapeGridHoverFillColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsShapeGridHoverFillColor: event.target.value })}
+                  aria-label="React Bits Shape Grid hover fill color"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsShapeGridPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsShapeGridPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsShapeGridPrimaryColor: event.target.value })}
+                  aria-label="React Bits Shape Grid primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsShapeGridHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsShapeGridHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Shape Grid color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.selectRow}>
+            <span>Direction</span>
+            <select
+              value={reactBitsShapeGridDirection}
+              onChange={(event) => handleSettingsChange({
+                reactBitsShapeGridDirection: event.target.value as ChimerSettings["reactBitsShapeGridDirection"],
+              })}
+              aria-label="React Bits Shape Grid direction"
+            >
+              <option value="right">Right</option>
+              <option value="left">Left</option>
+              <option value="up">Up</option>
+              <option value="down">Down</option>
+              <option value="diagonal">Diagonal</option>
+            </select>
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Shape</span>
+            <select
+              value={reactBitsShapeGridShape}
+              onChange={(event) => handleSettingsChange({
+                reactBitsShapeGridShape: event.target.value as ChimerSettings["reactBitsShapeGridShape"],
+              })}
+              aria-label="React Bits Shape Grid shape"
+            >
+              <option value="square">Square</option>
+              <option value="circle">Circle</option>
+              <option value="triangle">Triangle</option>
+              <option value="hexagon">Hexagon</option>
+            </select>
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsShapeGridCursorInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsShapeGridCursorInteraction: event.target.checked })}
+              aria-label="React Bits Shape Grid cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsShapeGridSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.05"
+              value={reactBitsShapeGridSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsShapeGridSpeed: Number(event.target.value) })}
+              aria-label="React Bits Shape Grid speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cell size ({reactBitsShapeGridSquareSize.toFixed(0)})</span>
+            <input
+              type="range"
+              min="12"
+              max="96"
+              step="1"
+              value={reactBitsShapeGridSquareSize}
+              onChange={(event) => handleSettingsChange({ reactBitsShapeGridSquareSize: Number(event.target.value) })}
+              aria-label="React Bits Shape Grid cell size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hover trail ({reactBitsShapeGridHoverTrailAmount.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="12"
+              step="1"
+              value={reactBitsShapeGridHoverTrailAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsShapeGridHoverTrailAmount: Number(event.target.value) })}
+              aria-label="React Bits Shape Grid hover trail"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-liquid-chrome" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Chrome color mode</span>
+            <select
+              value={reactBitsLiquidChromePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsLiquidChromePaletteMode: event.target.value as ReactBitsLiquidChromePaletteMode,
+              })}
+              aria-label="React Bits Liquid Chrome color mode"
+            >
+              <option value="source">Source base color</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsLiquidChromePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Base color</span>
+              <input
+                type="color"
+                value={reactBitsLiquidChromeBaseColor}
+                onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeBaseColor: event.target.value })}
+                aria-label="React Bits Liquid Chrome base color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsLiquidChromePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsLiquidChromePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsLiquidChromePrimaryColor: event.target.value })}
+                  aria-label="React Bits Liquid Chrome primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsLiquidChromeHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsLiquidChromeHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Liquid Chrome color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsLiquidChromeInteractive}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeInteractive: event.target.checked })}
+              aria-label="React Bits Liquid Chrome cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsLiquidChromeSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.01"
+              value={reactBitsLiquidChromeSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeSpeed: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({reactBitsLiquidChromeAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsLiquidChromeAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency X ({reactBitsLiquidChromeFrequencyX.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={reactBitsLiquidChromeFrequencyX}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeFrequencyX: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome frequency X"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency Y ({reactBitsLiquidChromeFrequencyY.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.1"
+              max="12"
+              step="0.1"
+              value={reactBitsLiquidChromeFrequencyY}
+              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeFrequencyY: Number(event.target.value) })}
+              aria-label="React Bits Liquid Chrome frequency Y"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "react-bits-balatro" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Balatro color mode</span>
+            <select
+              value={reactBitsBalatroPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsBalatroPaletteMode: event.target.value as ReactBitsBalatroPaletteMode,
+              })}
+              aria-label="React Bits Balatro color mode"
+            >
+              <option value="source">Source colors</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsBalatroPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={reactBitsBalatroColorOne}
+                  onChange={(event) => handleSettingsChange({ reactBitsBalatroColorOne: event.target.value })}
+                  aria-label="React Bits Balatro color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={reactBitsBalatroColorTwo}
+                  onChange={(event) => handleSettingsChange({ reactBitsBalatroColorTwo: event.target.value })}
+                  aria-label="React Bits Balatro color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={reactBitsBalatroColorThree}
+                  onChange={(event) => handleSettingsChange({ reactBitsBalatroColorThree: event.target.value })}
+                  aria-label="React Bits Balatro color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {reactBitsBalatroPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsBalatroPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsBalatroPrimaryColor: event.target.value })}
+                  aria-label="React Bits Balatro primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsBalatroHarmony}
+                  onChange={(event) => handleSettingsChange({ reactBitsBalatroHarmony: event.target.value as ColorHarmony })}
+                  aria-label="React Bits Balatro color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsBalatroMouseInteraction}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroMouseInteraction: event.target.checked })}
+              aria-label="React Bits Balatro mouse interaction"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Rotate field</span>
+            <input
+              type="checkbox"
+              checked={reactBitsBalatroIsRotate}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroIsRotate: event.target.checked })}
+              aria-label="React Bits Balatro rotate field"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin speed ({reactBitsBalatroSpinSpeed.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="14"
+              step="0.1"
+              value={reactBitsBalatroSpinSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinSpeed: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin rotation ({reactBitsBalatroSpinRotation.toFixed(1)})</span>
+            <input
+              type="range"
+              min="-8"
+              max="8"
+              step="0.1"
+              value={reactBitsBalatroSpinRotation}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinRotation: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin rotation"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Contrast ({reactBitsBalatroContrast.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="8"
+              step="0.1"
+              value={reactBitsBalatroContrast}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroContrast: Number(event.target.value) })}
+              aria-label="React Bits Balatro contrast"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Lighting ({reactBitsBalatroLighting.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsBalatroLighting}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroLighting: Number(event.target.value) })}
+              aria-label="React Bits Balatro lighting"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin amount ({reactBitsBalatroSpinAmount.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsBalatroSpinAmount}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinAmount: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin amount"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel filter ({reactBitsBalatroPixelFilter.toFixed(0)})</span>
+            <input
+              type="range"
+              min="120"
+              max="1200"
+              step="5"
+              value={reactBitsBalatroPixelFilter}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroPixelFilter: Number(event.target.value) })}
+              aria-label="React Bits Balatro pixel filter"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spin ease ({reactBitsBalatroSpinEase.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.01"
+              value={reactBitsBalatroSpinEase}
+              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinEase: Number(event.target.value) })}
+              aria-label="React Bits Balatro spin ease"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "eldora-photon-beam" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={eldoraPhotonBeamPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                eldoraPhotonBeamPaletteMode: event.target.value as EldoraPhotonBeamPaletteMode,
+              })}
+              aria-label="Photon Beam color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {eldoraPhotonBeamPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Background</span>
+                <input
+                  type="color"
+                  value={eldoraPhotonBeamColorBg}
+                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorBg: event.target.value })}
+                  aria-label="Photon Beam background color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Beam lines</span>
+                <input
+                  type="color"
+                  value={eldoraPhotonBeamColorLine}
+                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorLine: event.target.value })}
+                  aria-label="Photon Beam line color"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Signal 1</span>
+                <input
+                  type="color"
+                  value={eldoraPhotonBeamColorSignal}
+                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorSignal: event.target.value })}
+                  aria-label="Photon Beam signal color"
+                />
+              </label>
+              <label className={styles.switchRow}>
+                <span>Signal 2</span>
+                <input
+                  type="checkbox"
+                  checked={eldoraPhotonBeamUseColor2}
+                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamUseColor2: event.target.checked })}
+                  aria-label="Photon Beam use second signal color"
+                />
+              </label>
+              {eldoraPhotonBeamUseColor2 && (
+                <label className={styles.colorRow}>
+                  <span>Signal 2 color</span>
+                  <input
+                    type="color"
+                    value={eldoraPhotonBeamColorSignal2}
+                    onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorSignal2: event.target.value })}
+                    aria-label="Photon Beam second signal color"
+                  />
+                </label>
+              )}
+              <label className={styles.switchRow}>
+                <span>Signal 3</span>
+                <input
+                  type="checkbox"
+                  checked={eldoraPhotonBeamUseColor3}
+                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamUseColor3: event.target.checked })}
+                  aria-label="Photon Beam use third signal color"
+                />
+              </label>
+              {eldoraPhotonBeamUseColor3 && (
+                <label className={styles.colorRow}>
+                  <span>Signal 3 color</span>
+                  <input
+                    type="color"
+                    value={eldoraPhotonBeamColorSignal3}
+                    onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorSignal3: event.target.value })}
+                    aria-label="Photon Beam third signal color"
+                  />
+                </label>
+              )}
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={eldoraPhotonBeamPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamPrimaryColor: event.target.value })}
+                  aria-label="Photon Beam primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={eldoraPhotonBeamHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    eldoraPhotonBeamHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Photon Beam color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({photonBeamSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN}
+              max={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX}
+              step={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_STEP}
+              value={photonBeamSpeed}
+              onChange={(event) => handleSettingsChange({
+                eldoraPhotonBeamSpeedGlobal: getEldoraPhotonBeamSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Photon Beam animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Lines ({eldoraPhotonBeamLineCount})</span>
+            <input
+              type="range"
+              min="12"
+              max="160"
+              step="1"
+              value={eldoraPhotonBeamLineCount}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamLineCount: Number(event.target.value) })}
+              aria-label="Photon Beam line count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Signals ({eldoraPhotonBeamSignalCount})</span>
+            <input
+              type="range"
+              min="0"
+              max="220"
+              step="1"
+              value={eldoraPhotonBeamSignalCount}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamSignalCount: Number(event.target.value) })}
+              aria-label="Photon Beam signal count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spread ({eldoraPhotonBeamSpreadHeight.toFixed(0)})</span>
+            <input
+              type="range"
+              min="5"
+              max="90"
+              step="1"
+              value={eldoraPhotonBeamSpreadHeight}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamSpreadHeight: Number(event.target.value) })}
+              aria-label="Photon Beam spread height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Depth ({eldoraPhotonBeamSpreadDepth.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="60"
+              step="1"
+              value={eldoraPhotonBeamSpreadDepth}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamSpreadDepth: Number(event.target.value) })}
+              aria-label="Photon Beam spread depth"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Trail length ({eldoraPhotonBeamTrailLength})</span>
+            <input
+              type="range"
+              min="1"
+              max="16"
+              step="1"
+              value={eldoraPhotonBeamTrailLength}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamTrailLength: Number(event.target.value) })}
+              aria-label="Photon Beam trail length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line opacity ({Math.round(eldoraPhotonBeamLineOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.01"
+              value={eldoraPhotonBeamLineOpacity}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamLineOpacity: Number(event.target.value) })}
+              aria-label="Photon Beam line opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom strength ({eldoraPhotonBeamBloomStrength.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0"
+              max="6"
+              step="0.1"
+              value={eldoraPhotonBeamBloomStrength}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamBloomStrength: Number(event.target.value) })}
+              aria-label="Photon Beam bloom strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Bloom radius ({eldoraPhotonBeamBloomRadius.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={eldoraPhotonBeamBloomRadius}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamBloomRadius: Number(event.target.value) })}
+              aria-label="Photon Beam bloom radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed ({eldoraPhotonBeamWaveSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="0.05"
+              value={eldoraPhotonBeamWaveSpeed}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamWaveSpeed: Number(event.target.value) })}
+              aria-label="Photon Beam wave speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave height ({eldoraPhotonBeamWaveHeight.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.005"
+              value={eldoraPhotonBeamWaveHeight}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamWaveHeight: Number(event.target.value) })}
+              aria-label="Photon Beam wave height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Curve length ({eldoraPhotonBeamCurveLength.toFixed(0)})</span>
+            <input
+              type="range"
+              min="16"
+              max="120"
+              step="1"
+              value={eldoraPhotonBeamCurveLength}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamCurveLength: Number(event.target.value) })}
+              aria-label="Photon Beam curve length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Straight length ({eldoraPhotonBeamStraightLength.toFixed(0)})</span>
+            <input
+              type="range"
+              min="40"
+              max="220"
+              step="1"
+              value={eldoraPhotonBeamStraightLength}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamStraightLength: Number(event.target.value) })}
+              aria-label="Photon Beam straight length"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Curve power ({eldoraPhotonBeamCurvePower.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.2"
+              max="2"
+              step="0.01"
+              value={eldoraPhotonBeamCurvePower}
+              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamCurvePower: Number(event.target.value) })}
+              aria-label="Photon Beam curve power"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "eldora-hacker-background" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={eldoraHackerPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                eldoraHackerPaletteMode: event.target.value as EldoraHackerPaletteMode,
+              })}
+              aria-label="Hacker Background color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {eldoraHackerPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Character color</span>
+              <input
+                type="color"
+                value={eldoraHackerColor}
+                onChange={(event) => handleSettingsChange({ eldoraHackerColor: event.target.value })}
+                aria-label="Hacker Background character color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={eldoraHackerPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ eldoraHackerPrimaryColor: event.target.value })}
+                  aria-label="Hacker Background primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={eldoraHackerHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    eldoraHackerHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Hacker Background color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({hackerSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_HACKER_DISPLAY_SPEED_MIN}
+              max={ELDORA_HACKER_DISPLAY_SPEED_MAX}
+              step={ELDORA_HACKER_DISPLAY_SPEED_STEP}
+              value={hackerSpeed}
+              onChange={(event) => handleSettingsChange({
+                eldoraHackerSpeed: getEldoraHackerSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Hacker Background animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Font size ({eldoraHackerFontSize}px)</span>
+            <input
+              type="range"
+              min="8"
+              max="28"
+              step="1"
+              value={eldoraHackerFontSize}
+              onChange={(event) => handleSettingsChange({ eldoraHackerFontSize: Number(event.target.value) })}
+              aria-label="Hacker Background font size"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "eldora-novatrix-background" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={eldoraNovatrixPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                eldoraNovatrixPaletteMode: event.target.value as EldoraNovatrixPaletteMode,
+              })}
+              aria-label="Novatrix color mode"
+            >
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {eldoraNovatrixPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Animation color</span>
+              <input
+                type="color"
+                value={eldoraNovatrixColor}
+                onChange={(event) => handleSettingsChange({ eldoraNovatrixColor: event.target.value })}
+                aria-label="Novatrix animation color"
+              />
+            </label>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={eldoraNovatrixPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ eldoraNovatrixPrimaryColor: event.target.value })}
+                  aria-label="Novatrix primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={eldoraNovatrixHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    eldoraNovatrixHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Novatrix color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({novatrixSpeed}%)</span>
+            <input
+              type="range"
+              min={ELDORA_NOVATRIX_DISPLAY_SPEED_MIN}
+              max={ELDORA_NOVATRIX_DISPLAY_SPEED_MAX}
+              step={ELDORA_NOVATRIX_DISPLAY_SPEED_STEP}
+              value={novatrixSpeed}
+              onChange={(event) => handleSettingsChange({
+                eldoraNovatrixSpeed: getEldoraNovatrixSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Novatrix animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({novatrixAmplitude}%)</span>
+            <input
+              type="range"
+              min={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN}
+              max={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX}
+              step={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP}
+              value={novatrixAmplitude}
+              onChange={(event) => handleSettingsChange({
+                eldoraNovatrixAmplitude: getEldoraNovatrixSourceAmplitude(Number(event.target.value)),
+              })}
+              aria-label="Novatrix amplitude"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "chamaac-synthesis" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={chamaacSynthesisPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                chamaacSynthesisPaletteMode: event.target.value as ChamaacSynthesisPaletteMode,
+              })}
+              aria-label="Synthesis color mode"
+            >
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {chamaacSynthesisPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={chamaacSynthesisColorOne}
+                  onChange={(event) => handleSettingsChange({ chamaacSynthesisColorOne: event.target.value })}
+                  aria-label="Synthesis color 1"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={chamaacSynthesisColorTwo}
+                  onChange={(event) => handleSettingsChange({ chamaacSynthesisColorTwo: event.target.value })}
+                  aria-label="Synthesis color 2"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={chamaacSynthesisColorThree}
+                  onChange={(event) => handleSettingsChange({ chamaacSynthesisColorThree: event.target.value })}
+                  aria-label="Synthesis color 3"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={chamaacSynthesisPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ chamaacSynthesisPrimaryColor: event.target.value })}
+                  aria-label="Synthesis primary color"
+                />
+              </label>
+
+              <label className={styles.selectRow}>
+                <span>Color harmony</span>
+                <select
+                  value={chamaacSynthesisHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    chamaacSynthesisHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="Synthesis color harmony"
+                >
+                  {COLOR_HARMONY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Animation speed ({synthesisDisplaySpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min={CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN}
+              max={CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX}
+              step={CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP}
+              value={synthesisDisplaySpeed}
+              onChange={(event) => handleSettingsChange({
+                chamaacSynthesisSpeed: getChamaacSynthesisSourceSpeed(Number(event.target.value)),
+              })}
+              aria-label="Synthesis animation speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Complexity ({chamaacSynthesisComplexity})</span>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={chamaacSynthesisComplexity}
+              onChange={(event) => handleSettingsChange({ chamaacSynthesisComplexity: Number(event.target.value) })}
+              aria-label="Synthesis complexity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Zoom scale ({chamaacSynthesisScale.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={chamaacSynthesisScale}
+              onChange={(event) => handleSettingsChange({ chamaacSynthesisScale: Number(event.target.value) })}
+              aria-label="Synthesis zoom scale"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Distortion ({chamaacSynthesisDistortion.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={chamaacSynthesisDistortion}
+              onChange={(event) => handleSettingsChange({ chamaacSynthesisDistortion: Number(event.target.value) })}
+              aria-label="Synthesis distortion"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow intensity ({chamaacSynthesisGlowIntensity.toFixed(1)}x)</span>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={chamaacSynthesisGlowIntensity}
+              onChange={(event) => handleSettingsChange({ chamaacSynthesisGlowIntensity: Number(event.target.value) })}
+              aria-label="Synthesis glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Flow frequency ({chamaacSynthesisFlowFrequency.toFixed(1)})</span>
+            <input
+              type="range"
+              min="0.5"
+              max="10"
+              step="0.5"
+              value={chamaacSynthesisFlowFrequency}
+              onChange={(event) => handleSettingsChange({ chamaacSynthesisFlowFrequency: Number(event.target.value) })}
+              aria-label="Synthesis flow frequency"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-background-lines" && (
+        <label className={styles.rangeRow}>
+          <span>Line duration</span>
+          <input
+            type="range"
+            min="4"
+            max="18"
+            step="1"
+            value={backgroundLinesDuration}
+            onChange={(event) => handleSettingsChange({ backgroundLinesDuration: Number(event.target.value) })}
+            aria-label="Background lines animation duration"
+          />
+        </label>
+      )}
+
+      {option.id === "aceternity-shooting-stars" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Stars</span>
+            <input
+              type="color"
+              value={shootingStarsStarColor}
+              onChange={(event) => handleSettingsChange({ shootingStarsStarColor: event.target.value })}
+              aria-label="Shooting stars background star color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Trail</span>
+            <input
+              type="color"
+              value={shootingStarsTrailColor}
+              onChange={(event) => handleSettingsChange({ shootingStarsTrailColor: event.target.value })}
+              aria-label="Shooting stars trail color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Shooting star</span>
+            <input
+              type="color"
+              value={shootingStarsShootingStarColor}
+              onChange={(event) => handleSettingsChange({ shootingStarsShootingStarColor: event.target.value })}
+              aria-label="Shooting star color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Star density</span>
+            <input
+              type="range"
+              min="0.00005"
+              max="0.00035"
+              step="0.00001"
+              value={shootingStarsDensity}
+              onChange={(event) => handleSettingsChange({ shootingStarsDensity: Number(event.target.value) })}
+              aria-label="Shooting stars background star density"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Twinkle stars</span>
+            <input
+              type="checkbox"
+              checked={shootingStarsTwinkle}
+              onChange={(event) => handleSettingsChange({ shootingStarsTwinkle: event.target.checked })}
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Twinkle speed</span>
+            <input
+              type="range"
+              min="0.4"
+              max="2.5"
+              step="0.1"
+              value={shootingStarsTwinkleSpeed}
+              onChange={(event) => handleSettingsChange({ shootingStarsTwinkleSpeed: Number(event.target.value) })}
+              aria-label="Shooting stars twinkle speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Shooting speed</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={shootingStarsShootingSpeed}
+              onChange={(event) => handleSettingsChange({ shootingStarsShootingSpeed: Number(event.target.value) })}
+              aria-label="Shooting star speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Frequency</span>
+            <input
+              type="range"
+              min="0.4"
+              max="2"
+              step="0.1"
+              value={shootingStarsFrequency}
+              onChange={(event) => handleSettingsChange({ shootingStarsFrequency: Number(event.target.value) })}
+              aria-label="Shooting star frequency"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-canvas-reveal-dots" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={canvasRevealDotsBackgroundColor}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsBackgroundColor: event.target.value })}
+              aria-label="Canvas reveal dots background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Dot color</span>
+            <input
+              type="color"
+              value={canvasRevealDotsDotColor}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsDotColor: event.target.value })}
+              aria-label="Canvas reveal dots dot color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Accent</span>
+            <input
+              type="color"
+              value={canvasRevealDotsAccentColor}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsAccentColor: event.target.value })}
+              aria-label="Canvas reveal dots accent color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Dot size</span>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="0.2"
+              value={canvasRevealDotsDotSize}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsDotSize: Number(event.target.value) })}
+              aria-label="Canvas reveal dots dot size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Spacing</span>
+            <input
+              type="range"
+              min="4"
+              max="24"
+              step="1"
+              value={canvasRevealDotsDotSpacing}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsDotSpacing: Number(event.target.value) })}
+              aria-label="Canvas reveal dots spacing"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity</span>
+            <input
+              type="range"
+              min="0.08"
+              max="1"
+              step="0.02"
+              value={canvasRevealDotsOpacity}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsOpacity: Number(event.target.value) })}
+              aria-label="Canvas reveal dots opacity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Motion speed</span>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.1"
+              value={canvasRevealDotsAnimationSpeed}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsAnimationSpeed: Number(event.target.value) })}
+              aria-label="Canvas reveal dots motion speed"
+            />
+          </label>
+
+          <label className={styles.switchRow}>
+            <span>Gradient overlay</span>
+            <input
+              type="checkbox"
+              checked={canvasRevealDotsShowGradient}
+              onChange={(event) => handleSettingsChange({ canvasRevealDotsShowGradient: event.target.checked })}
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-spotlight-new" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Spotlight color</span>
+            <input
+              type="color"
+              value={spotlightColor}
+              onChange={(event) => handleSettingsChange({ spotlightColor: event.target.value })}
+              aria-label="Spotlight color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Intensity</span>
+            <input
+              type="range"
+              min="0.25"
+              max="1.5"
+              step="0.05"
+              value={spotlightOpacity}
+              onChange={(event) => handleSettingsChange({ spotlightOpacity: Number(event.target.value) })}
+              aria-label="Spotlight intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam width</span>
+            <input
+              type="range"
+              min="240"
+              max="900"
+              step="20"
+              value={spotlightWidth}
+              onChange={(event) => handleSettingsChange({ spotlightWidth: Number(event.target.value) })}
+              aria-label="Spotlight beam width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam height</span>
+            <input
+              type="range"
+              min="600"
+              max="1800"
+              step="20"
+              value={spotlightHeight}
+              onChange={(event) => handleSettingsChange({ spotlightHeight: Number(event.target.value) })}
+              aria-label="Spotlight beam height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Small beams</span>
+            <input
+              type="range"
+              min="120"
+              max="420"
+              step="10"
+              value={spotlightSmallWidth}
+              onChange={(event) => handleSettingsChange({ spotlightSmallWidth: Number(event.target.value) })}
+              aria-label="Spotlight small beam width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Vertical offset</span>
+            <input
+              type="range"
+              min="-650"
+              max="120"
+              step="10"
+              value={spotlightTranslateY}
+              onChange={(event) => handleSettingsChange({ spotlightTranslateY: Number(event.target.value) })}
+              aria-label="Spotlight vertical offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Sweep</span>
+            <input
+              type="range"
+              min="0"
+              max="220"
+              step="10"
+              value={spotlightXOffset}
+              onChange={(event) => handleSettingsChange({ spotlightXOffset: Number(event.target.value) })}
+              aria-label="Spotlight sweep distance"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Duration</span>
+            <input
+              type="range"
+              min="3"
+              max="16"
+              step="0.5"
+              value={spotlightDuration}
+              onChange={(event) => handleSettingsChange({ spotlightDuration: Number(event.target.value) })}
+              aria-label="Spotlight animation duration"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-lamp-effect" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={lampBackgroundColor}
+              onChange={(event) => handleSettingsChange({ lampBackgroundColor: event.target.value })}
+              aria-label="Lamp background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Beam color</span>
+            <input
+              type="color"
+              value={lampColor}
+              onChange={(event) => handleSettingsChange({ lampColor: event.target.value })}
+              aria-label="Lamp beam color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow intensity</span>
+            <input
+              type="range"
+              min="0.18"
+              max="0.95"
+              step="0.05"
+              value={lampGlowOpacity}
+              onChange={(event) => handleSettingsChange({ lampGlowOpacity: Number(event.target.value) })}
+              aria-label="Lamp glow intensity"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Beam width</span>
+            <input
+              type="range"
+              min="240"
+              max="900"
+              step="20"
+              value={lampBeamWidth}
+              onChange={(event) => handleSettingsChange({ lampBeamWidth: Number(event.target.value) })}
+              aria-label="Lamp beam width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Glow width</span>
+            <input
+              type="range"
+              min="180"
+              max="900"
+              step="20"
+              value={lampGlowWidth}
+              onChange={(event) => handleSettingsChange({ lampGlowWidth: Number(event.target.value) })}
+              aria-label="Lamp glow width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Vertical offset</span>
+            <input
+              type="range"
+              min="-320"
+              max="160"
+              step="8"
+              value={lampVerticalOffset}
+              onChange={(event) => handleSettingsChange({ lampVerticalOffset: Number(event.target.value) })}
+              aria-label="Lamp vertical offset"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pulse speed</span>
+            <input
+              type="range"
+              min="4"
+              max="18"
+              step="0.5"
+              value={lampPulseSpeed}
+              onChange={(event) => handleSettingsChange({ lampPulseSpeed: Number(event.target.value) })}
+              aria-label="Lamp pulse speed"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-vortex" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={vortexBackgroundColor}
+              onChange={(event) => handleSettingsChange({ vortexBackgroundColor: event.target.value })}
+              aria-label="Vortex background color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hue</span>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              value={vortexBaseHue}
+              onChange={(event) => handleSettingsChange({ vortexBaseHue: Number(event.target.value) })}
+              aria-label="Vortex base hue"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Particles</span>
+            <input
+              type="range"
+              min="120"
+              max="700"
+              step="20"
+              value={vortexParticleCount}
+              onChange={(event) => handleSettingsChange({ vortexParticleCount: Number(event.target.value) })}
+              aria-label="Vortex particle count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Vertical spread</span>
+            <input
+              type="range"
+              min="40"
+              max="220"
+              step="10"
+              value={vortexRangeY}
+              onChange={(event) => handleSettingsChange({ vortexRangeY: Number(event.target.value) })}
+              aria-label="Vortex vertical spread"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base speed</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={vortexBaseSpeed}
+              onChange={(event) => handleSettingsChange({ vortexBaseSpeed: Number(event.target.value) })}
+              aria-label="Vortex base speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed range</span>
+            <input
+              type="range"
+              min="0.2"
+              max="2"
+              step="0.1"
+              value={vortexRangeSpeed}
+              onChange={(event) => handleSettingsChange({ vortexRangeSpeed: Number(event.target.value) })}
+              aria-label="Vortex speed range"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Base size</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2.5"
+              step="0.1"
+              value={vortexBaseRadius}
+              onChange={(event) => handleSettingsChange({ vortexBaseRadius: Number(event.target.value) })}
+              aria-label="Vortex base particle size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Size range</span>
+            <input
+              type="range"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value={vortexRangeRadius}
+              onChange={(event) => handleSettingsChange({ vortexRangeRadius: Number(event.target.value) })}
+              aria-label="Vortex particle size range"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "aceternity-wavy-background" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={wavyBackgroundFill}
+              onChange={(event) => handleSettingsChange({ wavyBackgroundFill: event.target.value })}
+              aria-label="Wavy background fill color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Wave 1</span>
+            <input
+              type="color"
+              value={wavyColorOne}
+              onChange={(event) => handleSettingsChange({ wavyColorOne: event.target.value })}
+              aria-label="Wavy first wave color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Wave 2</span>
+            <input
+              type="color"
+              value={wavyColorTwo}
+              onChange={(event) => handleSettingsChange({ wavyColorTwo: event.target.value })}
+              aria-label="Wavy second wave color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Wave 3</span>
+            <input
+              type="color"
+              value={wavyColorThree}
+              onChange={(event) => handleSettingsChange({ wavyColorThree: event.target.value })}
+              aria-label="Wavy third wave color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Wave 4</span>
+            <input
+              type="color"
+              value={wavyColorFour}
+              onChange={(event) => handleSettingsChange({ wavyColorFour: event.target.value })}
+              aria-label="Wavy fourth wave color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Wave 5</span>
+            <input
+              type="color"
+              value={wavyColorFive}
+              onChange={(event) => handleSettingsChange({ wavyColorFive: event.target.value })}
+              aria-label="Wavy fifth wave color"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave width</span>
+            <input
+              type="range"
+              min="10"
+              max="90"
+              step="5"
+              value={wavyWaveWidth}
+              onChange={(event) => handleSettingsChange({ wavyWaveWidth: Number(event.target.value) })}
+              aria-label="Wavy wave width"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blur</span>
+            <input
+              type="range"
+              min="0"
+              max="20"
+              step="1"
+              value={wavyBlur}
+              onChange={(event) => handleSettingsChange({ wavyBlur: Number(event.target.value) })}
+              aria-label="Wavy blur"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Opacity</span>
+            <input
+              type="range"
+              min="0.15"
+              max="0.85"
+              step="0.05"
+              value={wavyWaveOpacity}
+              onChange={(event) => handleSettingsChange({ wavyWaveOpacity: Number(event.target.value) })}
+              aria-label="Wavy wave opacity"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Speed</span>
+            <select
+              value={wavySpeed}
+              onChange={(event) => handleSettingsChange({ wavySpeed: event.target.value as ChimerSettings["wavySpeed"] })}
+              aria-label="Wavy animation speed"
+            >
+              <option value="slow">Slow</option>
+              <option value="fast">Fast</option>
+            </select>
+          </label>
+        </>
+      )}
+
+      {option.id === "unlumen-aurora-bars" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background</span>
+            <input
+              type="color"
+              value={auroraBarsBackgroundColor}
+              onChange={(event) => handleSettingsChange({ auroraBarsBackgroundColor: event.target.value })}
+              aria-label="Aurora bars background color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Palette</span>
+            <select
+              value={auroraBarsPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                auroraBarsPaletteMode: event.target.value as ChimerSettings["auroraBarsPaletteMode"],
+              })}
+              aria-label="Aurora bars palette mode"
+            >
+              <option value="auto">Auto monochrome</option>
+              <option value="custom">Custom five colors</option>
+            </select>
+          </label>
+
+          {auroraBarsPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Bar color 1</span>
+                <input
+                  type="color"
+                  value={auroraBarsColorOne}
+                  onChange={(event) => handleSettingsChange({ auroraBarsColorOne: event.target.value })}
+                  aria-label="Aurora bars first color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Bar color 2</span>
+                <input
+                  type="color"
+                  value={auroraBarsColorTwo}
+                  onChange={(event) => handleSettingsChange({ auroraBarsColorTwo: event.target.value })}
+                  aria-label="Aurora bars second color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Bar color 3</span>
+                <input
+                  type="color"
+                  value={auroraBarsColorThree}
+                  onChange={(event) => handleSettingsChange({ auroraBarsColorThree: event.target.value })}
+                  aria-label="Aurora bars third color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Bar color 4</span>
+                <input
+                  type="color"
+                  value={auroraBarsColorFour}
+                  onChange={(event) => handleSettingsChange({ auroraBarsColorFour: event.target.value })}
+                  aria-label="Aurora bars fourth color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Bar color 5</span>
+                <input
+                  type="color"
+                  value={auroraBarsColorFive}
+                  onChange={(event) => handleSettingsChange({ auroraBarsColorFive: event.target.value })}
+                  aria-label="Aurora bars fifth color"
+                />
+              </label>
+            </>
+          ) : (
+            <label className={styles.colorRow}>
+              <span>Primary color</span>
+              <input
+                type="color"
+                value={auroraBarsPrimaryColor}
+                onChange={(event) => handleSettingsChange({ auroraBarsPrimaryColor: event.target.value })}
+                aria-label="Aurora bars primary color"
+              />
+            </label>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Bars ({auroraBarsBarCount})</span>
+            <input
+              type="range"
+              min="8"
+              max="80"
+              step="1"
+              value={auroraBarsBarCount}
+              onChange={(event) => handleSettingsChange({ auroraBarsBarCount: Number(event.target.value) })}
+              aria-label="Aurora bars bar count"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({auroraBarsSpeed.toFixed(2)}x)</span>
+            <input
+              type="range"
+              min="0.08"
+              max="2"
+              step="0.04"
+              value={auroraBarsSpeed}
+              onChange={(event) => handleSettingsChange({ auroraBarsSpeed: Number(event.target.value) })}
+              aria-label="Aurora bars speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Blur ({auroraBarsBlur}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="18"
+              step="1"
+              value={auroraBarsBlur}
+              onChange={(event) => handleSettingsChange({ auroraBarsBlur: Number(event.target.value) })}
+              aria-label="Aurora bars blur"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Gap ({auroraBarsGap}px)</span>
+            <input
+              type="range"
+              min="0"
+              max="16"
+              step="1"
+              value={auroraBarsGap}
+              onChange={(event) => handleSettingsChange({ auroraBarsGap: Number(event.target.value) })}
+              aria-label="Aurora bars gap"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Max height ({Math.round(auroraBarsMaxHeightRatio * 100)}%)</span>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.01"
+              value={auroraBarsMaxHeightRatio}
+              onChange={(event) => handleSettingsChange({ auroraBarsMaxHeightRatio: Number(event.target.value) })}
+              aria-label="Aurora bars maximum height"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Min height ({Math.round(auroraBarsMinHeightRatio * 100)}%)</span>
+            <input
+              type="range"
+              min="0.04"
+              max="0.78"
+              step="0.01"
+              value={auroraBarsMinHeightRatio}
+              onChange={(event) => handleSettingsChange({ auroraBarsMinHeightRatio: Number(event.target.value) })}
+              aria-label="Aurora bars minimum height"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "unlumen-pixel-liquid" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Background color</span>
+            <input
+              type="color"
+              value={pixelLiquidBackgroundColor}
+              onChange={(event) => handleSettingsChange({ pixelLiquidBackgroundColor: event.target.value })}
+              aria-label="Pixel liquid background color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Base color</span>
+            <input
+              type="color"
+              value={pixelLiquidBaseColor}
+              onChange={(event) => handleSettingsChange({ pixelLiquidBaseColor: event.target.value })}
+              aria-label="Pixel liquid base color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Accent color</span>
+            <input
+              type="color"
+              value={pixelLiquidAccentColor}
+              onChange={(event) => handleSettingsChange({ pixelLiquidAccentColor: event.target.value })}
+              aria-label="Pixel liquid accent color"
+            />
+          </label>
+
+          <label className={styles.colorRow}>
+            <span>Highlight color</span>
+            <input
+              type="color"
+              value={pixelLiquidHighlightColor}
+              onChange={(event) => handleSettingsChange({ pixelLiquidHighlightColor: event.target.value })}
+              aria-label="Pixel liquid highlight color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Detail</span>
+            <select
+              value={pixelLiquidDetail}
+              onChange={(event) => handleSettingsChange({
+                pixelLiquidDetail: event.target.value as ChimerSettings["pixelLiquidDetail"],
+              })}
+              aria-label="Pixel liquid detail"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Pixel size</span>
+            <input
+              type="range"
+              min="4"
+              max="18"
+              step="1"
+              value={pixelLiquidPixelSize}
+              onChange={(event) => handleSettingsChange({ pixelLiquidPixelSize: Number(event.target.value) })}
+              aria-label="Pixel liquid pixel size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Motion speed</span>
+            <input
+              type="range"
+              min="0.2"
+              max="1.4"
+              step="0.05"
+              value={pixelLiquidMotionSpeed}
+              onChange={(event) => handleSettingsChange({ pixelLiquidMotionSpeed: Number(event.target.value) })}
+              aria-label="Pixel liquid motion speed"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "massage-lab-tile-grid" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Palette</span>
+            <select
+              value={tileGridPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                tileGridPaletteMode: event.target.value as ChimerSettings["tileGridPaletteMode"],
+              })}
+              aria-label="Tile grid palette mode"
+            >
+              <option value="auto">Auto from primary</option>
+              <option value="custom">Custom five colors</option>
+            </select>
+          </label>
+
+          {tileGridPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Color 1</span>
+                <input
+                  type="color"
+                  value={tileGridColorOne}
+                  onChange={(event) => handleSettingsChange({ tileGridColorOne: event.target.value })}
+                  aria-label="Tile grid first color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 2</span>
+                <input
+                  type="color"
+                  value={tileGridColorTwo}
+                  onChange={(event) => handleSettingsChange({ tileGridColorTwo: event.target.value })}
+                  aria-label="Tile grid second color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 3</span>
+                <input
+                  type="color"
+                  value={tileGridColorThree}
+                  onChange={(event) => handleSettingsChange({ tileGridColorThree: event.target.value })}
+                  aria-label="Tile grid third color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 4</span>
+                <input
+                  type="color"
+                  value={tileGridColorFour}
+                  onChange={(event) => handleSettingsChange({ tileGridColorFour: event.target.value })}
+                  aria-label="Tile grid fourth color"
+                />
+              </label>
+
+              <label className={styles.colorRow}>
+                <span>Color 5</span>
+                <input
+                  type="color"
+                  value={tileGridColorFive}
+                  onChange={(event) => handleSettingsChange({ tileGridColorFive: event.target.value })}
+                  aria-label="Tile grid fifth color"
+                />
+              </label>
+            </>
+          ) : (
+            <label className={styles.colorRow}>
+              <span>Primary color</span>
+              <input
+                type="color"
+                value={tileGridPrimaryColor}
+                onChange={(event) => handleSettingsChange({ tileGridPrimaryColor: event.target.value })}
+                aria-label="Tile grid primary color"
+              />
+            </label>
+          )}
+
+          <label className={styles.rangeRow}>
+            <span>Tile size ({tileGridTileSize}px)</span>
+            <input
+              type="range"
+              min="18"
+              max="120"
+              step="2"
+              value={tileGridTileSize}
+              onChange={(event) => handleSettingsChange({ tileGridTileSize: Number(event.target.value) })}
+              aria-label="Tile grid tile size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Joint size ({tileGridJointSize}px)</span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={tileGridJointSize}
+              onChange={(event) => handleSettingsChange({ tileGridJointSize: Number(event.target.value) })}
+              aria-label="Tile grid joint size"
+            />
+          </label>
+
+          <TileGridFadeTimeControl
+            fadeSeconds={tileGridChangeFrequency}
+            onFadeSecondsChange={(tileGridChangeFrequency) => handleSettingsChange({ tileGridChangeFrequency })}
+            rowClassName={styles.durationRow}
+            pickerClassName={styles.durationPicker}
+            fieldClassName={styles.durationField}
+          />
+
+          <label className={styles.rangeRow}>
+            <span>Active tiles ({tileGridActivePercent}%)</span>
+            <input
+              type="range"
+              min="1"
+              max="60"
+              step="1"
+              value={tileGridActivePercent}
+              onChange={(event) => handleSettingsChange({ tileGridActivePercent: Number(event.target.value) })}
+              aria-label="Tile grid active tile percentage"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Tile opacity ({Math.round(tileGridOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.15"
+              max="1"
+              step="0.01"
+              value={tileGridOpacity}
+              onChange={(event) => handleSettingsChange({ tileGridOpacity: Number(event.target.value) })}
+              aria-label="Tile grid tile opacity"
+            />
+          </label>
+        </>
+      )}
+
+      {option.id === "massage-lab-hex-grid" && (
+        <>
+          <label className={styles.colorRow}>
+            <span>Primary color</span>
+            <input
+              type="color"
+              value={hexGridPrimaryColor}
+              onChange={(event) => handleSettingsChange({ hexGridPrimaryColor: event.target.value })}
+              aria-label="Hex grid primary color"
+            />
+          </label>
+
+          <label className={styles.selectRow}>
+            <span>Color harmony</span>
+            <select
+              value={hexGridHarmony}
+              onChange={(event) => handleSettingsChange({
+                hexGridHarmony: event.target.value as ChimerSettings["hexGridHarmony"],
+              })}
+              aria-label="Hex grid color harmony"
+            >
+              {COLOR_HARMONY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hex size ({hexGridHexSize}px)</span>
+            <input
+              type="range"
+              min="18"
+              max="120"
+              step="2"
+              value={hexGridHexSize}
+              onChange={(event) => handleSettingsChange({ hexGridHexSize: Number(event.target.value) })}
+              aria-label="Hex grid hex size"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Joint size ({hexGridJointSize}px)</span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={hexGridJointSize}
+              onChange={(event) => handleSettingsChange({ hexGridJointSize: Number(event.target.value) })}
+              aria-label="Hex grid joint size"
+            />
+          </label>
+
+          <TileGridFadeTimeControl
+            fadeSeconds={hexGridChangeFrequency}
+            onFadeSecondsChange={(hexGridChangeFrequency) => handleSettingsChange({ hexGridChangeFrequency })}
+            rowClassName={styles.durationRow}
+            pickerClassName={styles.durationPicker}
+            fieldClassName={styles.durationField}
+          />
+
+          <label className={styles.rangeRow}>
+            <span>Active hexes ({hexGridActivePercent}%)</span>
+            <input
+              type="range"
+              min="1"
+              max="60"
+              step="1"
+              value={hexGridActivePercent}
+              onChange={(event) => handleSettingsChange({ hexGridActivePercent: Number(event.target.value) })}
+              aria-label="Hex grid active hex percentage"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Hex opacity ({Math.round(hexGridOpacity * 100)}%)</span>
+            <input
+              type="range"
+              min="0.15"
+              max="1"
+              step="0.01"
+              value={hexGridOpacity}
+              onChange={(event) => handleSettingsChange({ hexGridOpacity: Number(event.target.value) })}
+              aria-label="Hex grid hex opacity"
+            />
+          </label>
+        </>
+      )}
+    </div>
+  )
+
   const renderTimerUnitLabel = (label: "h" | "m" | "s") => (
     <span className={styles.timerUnitLabel} aria-hidden="true">{label}</span>
   )
@@ -574,6 +14625,24 @@ export function RunningTimer({
   const currentTimeSwapClass = swapAnimationTarget
     ? swapAnimationTarget === "currentTime" ? styles.swapToPrimary : styles.swapToSecondary
     : ""
+  const premiumBackgroundClassName = [
+    styles.runningBackground,
+    isFullscreen && backgroundId === "aceternity-lamp-effect" ? styles.runningLampFullscreenBackground : "",
+  ].filter(Boolean).join(" ")
+  const fullscreenLampBeamScale = Math.min(4.2, Math.max(2.75, 2.25 + fontSize * 0.03))
+  const fullscreenLampGlowScale = Math.min(3.65, Math.max(2.35, 1.95 + fontSize * 0.026))
+  const fullscreenLampLineWidth = Math.min(78, Math.max(62, 48 + fontSize * 0.42))
+  const fullscreenLampGlowWidth = Math.min(68, Math.max(52, 42 + fontSize * 0.36))
+  const fullscreenLampCoreGlowWidth = Math.min(42, Math.max(30, 24 + fontSize * 0.2))
+  const premiumBackgroundStyle = isFullscreen && backgroundId === "aceternity-lamp-effect"
+    ? {
+      "--ml-lamp-beam-scale": fullscreenLampBeamScale,
+      "--ml-lamp-glow-scale": fullscreenLampGlowScale,
+      "--ml-lamp-min-render-width": `${fullscreenLampLineWidth}vw`,
+      "--ml-lamp-min-glow-width": `${fullscreenLampGlowWidth}vw`,
+      "--ml-lamp-min-core-glow-width": `${fullscreenLampCoreGlowWidth}vw`,
+    } as CSSProperties
+    : undefined
 
   return (
     <section
@@ -581,11 +14650,905 @@ export function RunningTimer({
       aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
       style={containerStyle}
     >
-      {movingBackgroundEnabled && (
+      {movingBackgroundEnabled && useOriginalLampBackground && (
         <MovingBackground
           className={styles.runningBackground}
           mainColor={movingBackgroundMainColor}
           orbColor={movingBackgroundOrbColor}
+          testId="chimer-premium-background"
+        />
+      )}
+
+      {movingBackgroundEnabled && !useOriginalLampBackground && (
+        <BackgroundHost
+          className={premiumBackgroundClassName}
+          style={premiumBackgroundStyle}
+          selectedId={backgroundId}
+          featureKeys={featureKeys}
+          category={backgroundCategory}
+          mainColor={movingBackgroundMainColor}
+          orbColor={movingBackgroundOrbColor}
+          sparkles={{
+            maxSize: sparklesMaxSize,
+            minSize: sparklesMinSize,
+            particleColor: sparklesParticleColor,
+            particleDensity: sparklesParticleDensity,
+            speed: sparklesSpeed,
+          }}
+          gradientAnimation={{
+            backgroundStartColor: gradientAnimationBackgroundStartColor,
+            backgroundEndColor: gradientAnimationBackgroundEndColor,
+            firstColor: gradientAnimationFirstColor,
+            secondColor: gradientAnimationSecondColor,
+            thirdColor: gradientAnimationThirdColor,
+            fourthColor: gradientAnimationFourthColor,
+            fifthColor: gradientAnimationFifthColor,
+            speed: gradientAnimationSpeed,
+            size: gradientAnimationSize,
+          }}
+          animateUiGradient={{
+            primaryColor: animateUiGradientPrimaryColor,
+            harmony: animateUiGradientHarmony,
+            opacity: animateUiGradientOpacity,
+          }}
+          animateUiStars={{
+            starColor: animateUiStarsColor,
+            speed: animateUiStarsSpeed,
+            density: animateUiStarsDensity,
+            factor: animateUiStarsParallax,
+          }}
+          animateUiHole={{
+            strokeColor: animateUiHoleStrokeColor,
+            particleColor: animateUiHoleParticleColor,
+            numberOfLines: animateUiHoleLineCount,
+            numberOfDiscs: animateUiHoleDiscCount,
+          }}
+          chamaacLightSpeed={{
+            warpSpeed: chamaacLightSpeedWarpSpeed,
+            particleCount: chamaacLightSpeedParticleCount,
+            lightColor: chamaacLightSpeedLightColor,
+            intensity: chamaacLightSpeedIntensity,
+            radius: chamaacLightSpeedRadius,
+            cylinderLength: chamaacLightSpeedCylinderLength,
+          }}
+          chamaacElectricMist={{
+            color: chamaacElectricMistColor,
+            speed: chamaacElectricMistSpeed,
+            detail: chamaacElectricMistDetail,
+            distortion: chamaacElectricMistDistortion,
+            brightness: chamaacElectricMistBrightness,
+          }}
+          chamaacAstralFlow={{
+            color1: astralFlowColors[0],
+            color2: astralFlowColors[1],
+            color3: astralFlowColors[2],
+            speed: chamaacAstralFlowSpeed,
+            flowMin: chamaacAstralFlowFlowMin,
+            flowMax: chamaacAstralFlowFlowMax,
+          }}
+          chamaacDeepSpaceNebula={{
+            color1: deepSpaceNebulaColors[0],
+            color2: deepSpaceNebulaColors[1],
+            color3: deepSpaceNebulaColors[2],
+            speed: chamaacDeepSpaceNebulaSpeed,
+          }}
+          chamaacGridBloom={{
+            color: chamaacGridBloomColor,
+            speed: chamaacGridBloomSpeed,
+            gridScale: chamaacGridBloomGridScale,
+            rotationSpeed: chamaacGridBloomRotationSpeed,
+            fadeFalloff: chamaacGridBloomFadeFalloff,
+            distortionAmount: chamaacGridBloomDistortionAmount,
+            flowSpeedX: chamaacGridBloomFlowSpeedX,
+            flowSpeedY: chamaacGridBloomFlowSpeedY,
+          }}
+          chamaacLiquidChrome={{
+            color: liquidChromeColors[0],
+            color2: liquidChromeColors[1],
+            speed: chamaacLiquidChromeFlowSpeed,
+            timeScale: chamaacLiquidChromeTimeScale,
+          }}
+          chamaacWaves={{
+            backgroundColor: wavesColors[0],
+            waveColor1: wavesColors[1],
+            waveColor2: wavesColors[2],
+            waveColor3: wavesColors[3],
+            waveSpeedX: chamaacWavesSpeedX,
+            waveSpeedY: chamaacWavesSpeedY,
+            waveAmpX: chamaacWavesAmplitude,
+          }}
+          reactBitsFerrofluid={{
+            colors: ferrofluidColors,
+            speed: reactBitsFerrofluidSpeed,
+            scale: reactBitsFerrofluidScale,
+            turbulence: reactBitsFerrofluidTurbulence,
+            fluidity: reactBitsFerrofluidFluidity,
+            rimWidth: reactBitsFerrofluidRimWidth,
+            sharpness: reactBitsFerrofluidSharpness,
+            shimmer: reactBitsFerrofluidShimmer,
+            glow: reactBitsFerrofluidGlow,
+            flowDirection: reactBitsFerrofluidFlowDirection,
+            opacity: reactBitsFerrofluidOpacity,
+          }}
+          reactBitsLightfall={{
+            colors: lightfallColors,
+            backgroundColor: reactBitsLightfallBackgroundColor,
+            speed: reactBitsLightfallSpeed,
+            streakCount: reactBitsLightfallStreakCount,
+            streakWidth: reactBitsLightfallStreakWidth,
+            streakLength: reactBitsLightfallStreakLength,
+            glow: reactBitsLightfallGlow,
+            density: reactBitsLightfallDensity,
+            twinkle: reactBitsLightfallTwinkle,
+            zoom: reactBitsLightfallZoom,
+            backgroundGlow: reactBitsLightfallBackgroundGlow,
+            opacity: reactBitsLightfallOpacity,
+            mouseInteraction: reactBitsLightfallCursorEnabled,
+            mouseStrength: reactBitsLightfallCursorStrength,
+            mouseRadius: reactBitsLightfallCursorRadius,
+            mouseDampening: reactBitsLightfallCursorDampening,
+          }}
+          reactBitsLiquidEther={{
+            colors: liquidEtherColors,
+            mouseInteraction: reactBitsLiquidEtherCursorEnabled,
+            mouseForce: reactBitsLiquidEtherMouseForce,
+            cursorSize: reactBitsLiquidEtherCursorSize,
+            isViscous: reactBitsLiquidEtherIsViscous,
+            viscous: reactBitsLiquidEtherViscous,
+            iterationsViscous: reactBitsLiquidEtherIterationsViscous,
+            iterationsPoisson: reactBitsLiquidEtherIterationsPoisson,
+            dt: reactBitsLiquidEtherDt,
+            bfecc: reactBitsLiquidEtherBfecc,
+            resolution: reactBitsLiquidEtherResolution,
+            isBounce: reactBitsLiquidEtherIsBounce,
+            autoDemo: reactBitsLiquidEtherAutoDemo,
+            autoSpeed: reactBitsLiquidEtherAutoSpeed,
+            autoIntensity: reactBitsLiquidEtherAutoIntensity,
+            autoResumeDelay: reactBitsLiquidEtherAutoResumeDelay,
+            autoRampDuration: reactBitsLiquidEtherAutoRampDuration,
+            opacity: reactBitsLiquidEtherOpacity,
+          }}
+          reactBitsPrism={{
+            height: reactBitsPrismHeight,
+            baseWidth: reactBitsPrismBaseWidth,
+            animationType: reactBitsPrismAnimationType,
+            glow: reactBitsPrismGlow,
+            offsetX: reactBitsPrismOffsetX,
+            offsetY: reactBitsPrismOffsetY,
+            noise: reactBitsPrismNoise,
+            transparent: reactBitsPrismTransparent,
+            scale: reactBitsPrismScale,
+            hueShift: reactBitsPrismHueShift,
+            colorFrequency: reactBitsPrismColorFrequency,
+            hoverStrength: reactBitsPrismHoverStrength,
+            inertia: reactBitsPrismInertia,
+            bloom: reactBitsPrismBloom,
+            timeScale: reactBitsPrismTimeScale,
+          }}
+          reactBitsDarkVeil={{
+            hueShift: reactBitsDarkVeilHueShift,
+            noiseIntensity: reactBitsDarkVeilNoiseIntensity,
+            scanlineIntensity: reactBitsDarkVeilScanlineIntensity,
+            speed: reactBitsDarkVeilSpeed,
+            scanlineFrequency: reactBitsDarkVeilScanlineFrequency,
+            warpAmount: reactBitsDarkVeilWarpAmount,
+            resolutionScale: reactBitsDarkVeilResolutionScale,
+          }}
+          reactBitsLightPillar={{
+            topColor: lightPillarColors[0],
+            bottomColor: lightPillarColors[1],
+            intensity: reactBitsLightPillarIntensity,
+            rotationSpeed: reactBitsLightPillarRotationSpeed,
+            interactive: reactBitsLightPillarInteractive,
+            glowAmount: reactBitsLightPillarGlowAmount,
+            pillarWidth: reactBitsLightPillarWidth,
+            pillarHeight: reactBitsLightPillarHeight,
+            noiseIntensity: reactBitsLightPillarNoiseIntensity,
+            mixBlendMode: reactBitsLightPillarBlendMode,
+            pillarRotation: reactBitsLightPillarRotation,
+            quality: reactBitsLightPillarQuality,
+          }}
+          reactBitsSilk={{
+            color: silkColor,
+            speed: reactBitsSilkSpeed,
+            scale: reactBitsSilkScale,
+            noiseIntensity: reactBitsSilkNoiseIntensity,
+            rotation: reactBitsSilkRotation,
+          }}
+          reactBitsFloatingLines={{
+            linesGradient: floatingLinesGradient,
+            enableTop: reactBitsFloatingLinesEnableTop,
+            enableMiddle: reactBitsFloatingLinesEnableMiddle,
+            enableBottom: reactBitsFloatingLinesEnableBottom,
+            topLineCount: reactBitsFloatingLinesTopLineCount,
+            middleLineCount: reactBitsFloatingLinesMiddleLineCount,
+            bottomLineCount: reactBitsFloatingLinesBottomLineCount,
+            topLineDistance: reactBitsFloatingLinesTopLineDistance,
+            middleLineDistance: reactBitsFloatingLinesMiddleLineDistance,
+            bottomLineDistance: reactBitsFloatingLinesBottomLineDistance,
+            topWaveX: reactBitsFloatingLinesTopWaveX,
+            topWaveY: reactBitsFloatingLinesTopWaveY,
+            topWaveRotate: reactBitsFloatingLinesTopWaveRotate,
+            middleWaveX: reactBitsFloatingLinesMiddleWaveX,
+            middleWaveY: reactBitsFloatingLinesMiddleWaveY,
+            middleWaveRotate: reactBitsFloatingLinesMiddleWaveRotate,
+            bottomWaveX: reactBitsFloatingLinesBottomWaveX,
+            bottomWaveY: reactBitsFloatingLinesBottomWaveY,
+            bottomWaveRotate: reactBitsFloatingLinesBottomWaveRotate,
+            animationSpeed: reactBitsFloatingLinesAnimationSpeed,
+            interactive: reactBitsFloatingLinesInteractive,
+            bendRadius: reactBitsFloatingLinesBendRadius,
+            bendStrength: reactBitsFloatingLinesBendStrength,
+            mouseDamping: reactBitsFloatingLinesMouseDamping,
+            parallax: reactBitsFloatingLinesParallax,
+            parallaxStrength: reactBitsFloatingLinesParallaxStrength,
+            mixBlendMode: reactBitsFloatingLinesBlendMode,
+          }}
+          reactBitsSideRays={{
+            rayColor1: sideRaysColors[0],
+            rayColor2: sideRaysColors[1],
+            speed: reactBitsSideRaysSpeed,
+            intensity: reactBitsSideRaysIntensity,
+            spread: reactBitsSideRaysSpread,
+            origin: reactBitsSideRaysOrigin,
+            tilt: reactBitsSideRaysTilt,
+            saturation: reactBitsSideRaysSaturation,
+            blend: reactBitsSideRaysBlend,
+            falloff: reactBitsSideRaysFalloff,
+            opacity: reactBitsSideRaysOpacity,
+          }}
+          reactBitsLightRays={{
+            raysOrigin: reactBitsLightRaysOrigin,
+            raysColor: lightRaysColor,
+            raysSpeed: reactBitsLightRaysSpeed,
+            lightSpread: reactBitsLightRaysSpread,
+            rayLength: reactBitsLightRaysLength,
+            pulsating: reactBitsLightRaysPulsating,
+            fadeDistance: reactBitsLightRaysFadeDistance,
+            saturation: reactBitsLightRaysSaturation,
+            followMouse: reactBitsLightRaysFollowMouse,
+            mouseInfluence: reactBitsLightRaysMouseInfluence,
+            noiseAmount: reactBitsLightRaysNoiseAmount,
+            distortion: reactBitsLightRaysDistortion,
+          }}
+          reactBitsPixelBlast={{
+            variant: reactBitsPixelBlastVariant,
+            pixelSize: reactBitsPixelBlastPixelSize,
+            color: pixelBlastColor,
+            antialias: reactBitsPixelBlastAntialias,
+            patternScale: reactBitsPixelBlastPatternScale,
+            patternDensity: reactBitsPixelBlastPatternDensity,
+            liquid: reactBitsPixelBlastLiquid,
+            liquidStrength: reactBitsPixelBlastLiquidStrength,
+            liquidRadius: reactBitsPixelBlastLiquidRadius,
+            pixelSizeJitter: reactBitsPixelBlastPixelSizeJitter,
+            enableRipples: reactBitsPixelBlastEnableRipples,
+            rippleIntensityScale: reactBitsPixelBlastRippleIntensityScale,
+            rippleThickness: reactBitsPixelBlastRippleThickness,
+            rippleSpeed: reactBitsPixelBlastRippleSpeed,
+            liquidWobbleSpeed: reactBitsPixelBlastLiquidWobbleSpeed,
+            autoPauseOffscreen: reactBitsPixelBlastAutoPauseOffscreen,
+            speed: reactBitsPixelBlastSpeed,
+            transparent: reactBitsPixelBlastTransparent,
+            edgeFade: reactBitsPixelBlastEdgeFade,
+            noiseAmount: reactBitsPixelBlastNoiseAmount,
+          }}
+          reactBitsColorBends={{
+            rotation: reactBitsColorBendsRotation,
+            speed: reactBitsColorBendsSpeed,
+            colors: colorBendsColors,
+            transparent: reactBitsColorBendsTransparent,
+            autoRotate: reactBitsColorBendsAutoRotate,
+            scale: reactBitsColorBendsScale,
+            frequency: reactBitsColorBendsFrequency,
+            warpStrength: reactBitsColorBendsWarpStrength,
+            interactive: reactBitsColorBendsInteractive,
+            mouseInfluence: reactBitsColorBendsMouseInfluence,
+            parallax: reactBitsColorBendsParallax,
+            noise: reactBitsColorBendsNoise,
+            iterations: reactBitsColorBendsIterations,
+            intensity: reactBitsColorBendsIntensity,
+            bandWidth: reactBitsColorBendsBandWidth,
+          }}
+          reactBitsEvilEye={{
+            eyeColor: evilEyeColor,
+            intensity: reactBitsEvilEyeIntensity,
+            pupilSize: reactBitsEvilEyePupilSize,
+            irisWidth: reactBitsEvilEyeIrisWidth,
+            glowIntensity: reactBitsEvilEyeGlowIntensity,
+            scale: reactBitsEvilEyeScale,
+            noiseScale: reactBitsEvilEyeNoiseScale,
+            pupilFollow: reactBitsEvilEyePupilFollow,
+            flameSpeed: reactBitsEvilEyeFlameSpeed,
+            backgroundColor: reactBitsEvilEyeBackgroundColor,
+            interactive: reactBitsEvilEyeInteractive,
+          }}
+          reactBitsLineWaves={{
+            color1: lineWavesColors[0],
+            color2: lineWavesColors[1],
+            color3: lineWavesColors[2],
+            speed: reactBitsLineWavesSpeed,
+            innerLineCount: reactBitsLineWavesInnerLineCount,
+            outerLineCount: reactBitsLineWavesOuterLineCount,
+            warpIntensity: reactBitsLineWavesWarpIntensity,
+            rotation: reactBitsLineWavesRotation,
+            edgeFadeWidth: reactBitsLineWavesEdgeFadeWidth,
+            colorCycleSpeed: reactBitsLineWavesColorCycleSpeed,
+            brightness: reactBitsLineWavesBrightness,
+            enableMouseInteraction: reactBitsLineWavesEnableMouseInteraction,
+            mouseInfluence: reactBitsLineWavesMouseInfluence,
+          }}
+          reactBitsRadar={{
+            color: radarColor,
+            backgroundColor: reactBitsRadarBackgroundColor,
+            speed: reactBitsRadarSpeed,
+            scale: reactBitsRadarScale,
+            ringCount: reactBitsRadarRingCount,
+            spokeCount: reactBitsRadarSpokeCount,
+            ringThickness: reactBitsRadarRingThickness,
+            spokeThickness: reactBitsRadarSpokeThickness,
+            sweepSpeed: reactBitsRadarSweepSpeed,
+            sweepWidth: reactBitsRadarSweepWidth,
+            sweepLobes: reactBitsRadarSweepLobes,
+            falloff: reactBitsRadarFalloff,
+            brightness: reactBitsRadarBrightness,
+            enableMouseInteraction: reactBitsRadarEnableMouseInteraction,
+            mouseInfluence: reactBitsRadarMouseInfluence,
+          }}
+          reactBitsSoftAurora={{
+            color1: softAuroraColors[0],
+            color2: softAuroraColors[1],
+            speed: reactBitsSoftAuroraSpeed,
+            scale: reactBitsSoftAuroraScale,
+            brightness: reactBitsSoftAuroraBrightness,
+            noiseFrequency: reactBitsSoftAuroraNoiseFrequency,
+            noiseAmplitude: reactBitsSoftAuroraNoiseAmplitude,
+            bandHeight: reactBitsSoftAuroraBandHeight,
+            bandSpread: reactBitsSoftAuroraBandSpread,
+            octaveDecay: reactBitsSoftAuroraOctaveDecay,
+            layerOffset: reactBitsSoftAuroraLayerOffset,
+            colorSpeed: reactBitsSoftAuroraColorSpeed,
+            enableMouseInteraction: reactBitsSoftAuroraEnableMouseInteraction,
+            mouseInfluence: reactBitsSoftAuroraMouseInfluence,
+          }}
+          reactBitsPlasma={{
+            color: plasmaColor,
+            speed: reactBitsPlasmaSpeed,
+            direction: reactBitsPlasmaDirection,
+            scale: reactBitsPlasmaScale,
+            opacity: reactBitsPlasmaOpacity,
+            mouseInteractive: reactBitsPlasmaMouseInteractive,
+          }}
+          reactBitsPlasmaWave={{
+            colors: plasmaWaveColors,
+            xOffset: reactBitsPlasmaWaveXOffset,
+            yOffset: reactBitsPlasmaWaveYOffset,
+            rotationDeg: reactBitsPlasmaWaveRotationDeg,
+            focalLength: reactBitsPlasmaWaveFocalLength,
+            speed1: reactBitsPlasmaWaveSpeedOne,
+            speed2: reactBitsPlasmaWaveSpeedTwo,
+            dir2: reactBitsPlasmaWaveDirectionTwo,
+            bend1: reactBitsPlasmaWaveBendOne,
+            bend2: reactBitsPlasmaWaveBendTwo,
+          }}
+          reactBitsParticles={{
+            colors: particlesColors,
+            particleCount: reactBitsParticlesCount,
+            particleSpread: reactBitsParticlesSpread,
+            speed: reactBitsParticlesSpeed,
+            moveParticlesOnHover: reactBitsParticlesMoveOnHover,
+            particleHoverFactor: reactBitsParticlesHoverFactor,
+            alphaParticles: reactBitsParticlesAlpha,
+            particleBaseSize: reactBitsParticlesBaseSize,
+            sizeRandomness: reactBitsParticlesSizeRandomness,
+            cameraDistance: reactBitsParticlesCameraDistance,
+            disableRotation: reactBitsParticlesDisableRotation,
+            pixelRatio: reactBitsParticlesPixelRatio,
+          }}
+          reactBitsGradientBlinds={{
+            dpr: reactBitsGradientBlindsDpr,
+            gradientColors: gradientBlindsColors,
+            angle: reactBitsGradientBlindsAngle,
+            noise: reactBitsGradientBlindsNoise,
+            blindCount: reactBitsGradientBlindsBlindCount,
+            blindMinWidth: reactBitsGradientBlindsBlindMinWidth,
+            mouseDampening: reactBitsGradientBlindsMouseDampening,
+            mirrorGradient: reactBitsGradientBlindsMirror,
+            spotlightRadius: reactBitsGradientBlindsSpotlightRadius,
+            spotlightSoftness: reactBitsGradientBlindsSpotlightSoftness,
+            spotlightOpacity: reactBitsGradientBlindsSpotlightOpacity,
+            distortAmount: reactBitsGradientBlindsDistort,
+            shineDirection: reactBitsGradientBlindsShineDirection,
+            mixBlendMode: reactBitsGradientBlindsBlendMode,
+            enableMouseInteraction: reactBitsGradientBlindsEnableMouseInteraction,
+          }}
+          reactBitsGrainient={{
+            color1: grainientColors[0],
+            color2: grainientColors[1],
+            color3: grainientColors[2],
+            timeSpeed: reactBitsGrainientTimeSpeed,
+            colorBalance: reactBitsGrainientColorBalance,
+            warpStrength: reactBitsGrainientWarpStrength,
+            warpFrequency: reactBitsGrainientWarpFrequency,
+            warpSpeed: reactBitsGrainientWarpSpeed,
+            warpAmplitude: reactBitsGrainientWarpAmplitude,
+            blendAngle: reactBitsGrainientBlendAngle,
+            blendSoftness: reactBitsGrainientBlendSoftness,
+            rotationAmount: reactBitsGrainientRotationAmount,
+            noiseScale: reactBitsGrainientNoiseScale,
+            grainAmount: reactBitsGrainientGrainAmount,
+            grainScale: reactBitsGrainientGrainScale,
+            grainAnimated: reactBitsGrainientGrainAnimated,
+            contrast: reactBitsGrainientContrast,
+            gamma: reactBitsGrainientGamma,
+            saturation: reactBitsGrainientSaturation,
+            centerX: reactBitsGrainientCenterX,
+            centerY: reactBitsGrainientCenterY,
+            zoom: reactBitsGrainientZoom,
+          }}
+          reactBitsGridScan={{
+            linesColor: gridScanColors[0],
+            scanColor: gridScanColors[1],
+            sensitivity: reactBitsGridScanSensitivity,
+            lineThickness: reactBitsGridScanLineThickness,
+            scanOpacity: reactBitsGridScanScanOpacity,
+            gridScale: reactBitsGridScanGridScale,
+            lineStyle: reactBitsGridScanLineStyle,
+            lineJitter: reactBitsGridScanLineJitter,
+            scanDirection: reactBitsGridScanDirection,
+            noiseIntensity: reactBitsGridScanNoiseIntensity,
+            bloomOpacity: reactBitsGridScanBloomOpacity,
+            scanGlow: reactBitsGridScanScanGlow,
+            scanSoftness: reactBitsGridScanScanSoftness,
+            scanPhaseTaper: reactBitsGridScanPhaseTaper,
+            scanDuration: reactBitsGridScanScanDuration,
+            scanDelay: reactBitsGridScanScanDelay,
+            enablePointerInteraction: reactBitsGridScanEnablePointerInteraction,
+            scanOnClick: reactBitsGridScanScanOnClick,
+          }}
+          reactBitsBeams={{
+            lightColor: beamsColor,
+            beamWidth: reactBitsBeamsBeamWidth,
+            beamHeight: reactBitsBeamsBeamHeight,
+            beamNumber: reactBitsBeamsBeamNumber,
+            speed: reactBitsBeamsSpeed,
+            noiseIntensity: reactBitsBeamsNoiseIntensity,
+            scale: reactBitsBeamsScale,
+            rotation: reactBitsBeamsRotation,
+          }}
+          reactBitsPixelSnow={{
+            color: pixelSnowColor,
+            flakeSize: reactBitsPixelSnowFlakeSize,
+            minFlakeSize: reactBitsPixelSnowMinFlakeSize,
+            pixelResolution: reactBitsPixelSnowPixelResolution,
+            speed: reactBitsPixelSnowSpeed,
+            depthFade: reactBitsPixelSnowDepthFade,
+            farPlane: reactBitsPixelSnowFarPlane,
+            brightness: reactBitsPixelSnowBrightness,
+            gamma: reactBitsPixelSnowGamma,
+            density: reactBitsPixelSnowDensity,
+            variant: reactBitsPixelSnowVariant,
+            direction: reactBitsPixelSnowDirection,
+          }}
+          reactBitsLightning={{
+            hue: lightningHue,
+            xOffset: reactBitsLightningXOffset,
+            speed: reactBitsLightningSpeed,
+            intensity: reactBitsLightningIntensity,
+            size: reactBitsLightningSize,
+          }}
+          reactBitsPrismaticBurst={{
+            colors: prismaticBurstColors,
+            intensity: reactBitsPrismaticBurstIntensity,
+            speed: reactBitsPrismaticBurstSpeed,
+            animationType: reactBitsPrismaticBurstAnimationType,
+            distort: reactBitsPrismaticBurstDistort,
+            offsetX: reactBitsPrismaticBurstOffsetX,
+            offsetY: reactBitsPrismaticBurstOffsetY,
+            hoverDampness: reactBitsPrismaticBurstHoverDampness,
+            rayCount: reactBitsPrismaticBurstRayCount,
+            mixBlendMode: reactBitsPrismaticBurstMixBlendMode,
+          }}
+          reactBitsGalaxy={{
+            focalX: reactBitsGalaxyFocalX,
+            focalY: reactBitsGalaxyFocalY,
+            rotationDeg: reactBitsGalaxyRotationDeg,
+            starSpeed: reactBitsGalaxyStarSpeed,
+            density: reactBitsGalaxyDensity,
+            hueShift: galaxyHueShift,
+            speed: reactBitsGalaxySpeed,
+            mouseInteraction: reactBitsGalaxyMouseInteraction,
+            glowIntensity: reactBitsGalaxyGlowIntensity,
+            saturation: reactBitsGalaxySaturation,
+            mouseRepulsion: reactBitsGalaxyMouseRepulsion,
+            repulsionStrength: reactBitsGalaxyRepulsionStrength,
+            twinkleIntensity: reactBitsGalaxyTwinkleIntensity,
+            rotationSpeed: reactBitsGalaxyRotationSpeed,
+            autoCenterRepulsion: reactBitsGalaxyAutoCenterRepulsion,
+            transparent: reactBitsGalaxyTransparent,
+          }}
+          reactBitsDither={{
+            color: ditherColor,
+            waveSpeed: reactBitsDitherWaveSpeed,
+            waveFrequency: reactBitsDitherWaveFrequency,
+            waveAmplitude: reactBitsDitherWaveAmplitude,
+            colorNum: reactBitsDitherColorNum,
+            pixelSize: reactBitsDitherPixelSize,
+            mouseInteraction: reactBitsDitherMouseInteraction,
+            mouseRadius: reactBitsDitherMouseRadius,
+          }}
+          reactBitsFaultyTerminal={{
+            tint: faultyTerminalTint,
+            scale: reactBitsFaultyTerminalScale,
+            gridMulX: reactBitsFaultyTerminalGridMulX,
+            gridMulY: reactBitsFaultyTerminalGridMulY,
+            digitSize: reactBitsFaultyTerminalDigitSize,
+            timeScale: reactBitsFaultyTerminalTimeScale,
+            scanlineIntensity: reactBitsFaultyTerminalScanlineIntensity,
+            glitchAmount: reactBitsFaultyTerminalGlitchAmount,
+            flickerAmount: reactBitsFaultyTerminalFlickerAmount,
+            noiseAmp: reactBitsFaultyTerminalNoiseAmp,
+            chromaticAberration: reactBitsFaultyTerminalChromaticAberration,
+            dither: reactBitsFaultyTerminalDither,
+            curvature: reactBitsFaultyTerminalCurvature,
+            mouseReact: reactBitsFaultyTerminalMouseReact,
+            mouseStrength: reactBitsFaultyTerminalMouseStrength,
+            pageLoadAnimation: reactBitsFaultyTerminalPageLoadAnimation,
+            brightness: reactBitsFaultyTerminalBrightness,
+          }}
+          reactBitsRippleGrid={{
+            enableRainbow: reactBitsRippleGridPaletteMode === "rainbow",
+            gridColor: rippleGridColor,
+            rippleIntensity: reactBitsRippleGridRippleIntensity,
+            gridSize: reactBitsRippleGridGridSize,
+            gridThickness: reactBitsRippleGridGridThickness,
+            fadeDistance: reactBitsRippleGridFadeDistance,
+            vignetteStrength: reactBitsRippleGridVignetteStrength,
+            glowIntensity: reactBitsRippleGridGlowIntensity,
+            opacity: reactBitsRippleGridOpacity,
+            gridRotation: reactBitsRippleGridGridRotation,
+            mouseInteraction: reactBitsRippleGridMouseInteraction,
+            mouseInteractionRadius: reactBitsRippleGridMouseInteractionRadius,
+          }}
+          reactBitsDotField={{
+            dotRadius: reactBitsDotFieldDotRadius,
+            dotSpacing: reactBitsDotFieldDotSpacing,
+            cursorRadius: reactBitsDotFieldCursorRadius,
+            cursorForce: reactBitsDotFieldCursorForce,
+            bulgeOnly: reactBitsDotFieldBulgeOnly,
+            bulgeStrength: reactBitsDotFieldBulgeStrength,
+            glowRadius: reactBitsDotFieldGlowRadius,
+            sparkle: reactBitsDotFieldSparkle,
+            waveAmplitude: reactBitsDotFieldWaveAmplitude,
+            gradientFrom: dotFieldColors.gradientFrom,
+            gradientTo: dotFieldColors.gradientTo,
+            glowColor: dotFieldColors.glowColor,
+            cursorInteraction: reactBitsDotFieldCursorInteraction,
+          }}
+          reactBitsDotGrid={{
+            dotSize: reactBitsDotGridDotSize,
+            gap: reactBitsDotGridGap,
+            baseColor: dotGridColors[0],
+            activeColor: dotGridColors[1],
+            proximity: reactBitsDotGridProximity,
+            speedTrigger: reactBitsDotGridSpeedTrigger,
+            shockRadius: reactBitsDotGridShockRadius,
+            shockStrength: reactBitsDotGridShockStrength,
+            maxSpeed: reactBitsDotGridMaxSpeed,
+            resistance: reactBitsDotGridResistance,
+            returnDuration: reactBitsDotGridReturnDuration,
+            cursorInteraction: reactBitsDotGridCursorInteraction,
+            clickShock: reactBitsDotGridClickShock,
+          }}
+          reactBitsThreads={{
+            color: threadsColor,
+            amplitude: reactBitsThreadsAmplitude,
+            distance: reactBitsThreadsDistance,
+            enableMouseInteraction: reactBitsThreadsEnableMouseInteraction,
+          }}
+          reactBitsIridescence={{
+            color: iridescenceColor,
+            speed: reactBitsIridescenceSpeed,
+            amplitude: reactBitsIridescenceAmplitude,
+            mouseReact: reactBitsIridescenceMouseReact,
+          }}
+          reactBitsWaves={{
+            lineColor: wavesLineColor,
+            backgroundColor: reactBitsWavesBackgroundColor,
+            transparentBackground: reactBitsWavesTransparentBackground,
+            waveSpeedX: reactBitsWavesSpeedX,
+            waveSpeedY: reactBitsWavesSpeedY,
+            waveAmpX: reactBitsWavesAmplitudeX,
+            waveAmpY: reactBitsWavesAmplitudeY,
+            xGap: reactBitsWavesGapX,
+            yGap: reactBitsWavesGapY,
+            friction: reactBitsWavesFriction,
+            tension: reactBitsWavesTension,
+            maxCursorMove: reactBitsWavesMaxCursorMove,
+            cursorInteraction: reactBitsWavesCursorInteraction,
+          }}
+          reactBitsGridDistortion={{
+            colorOne: gridDistortionColors[0],
+            colorTwo: gridDistortionColors[1],
+            colorThree: gridDistortionColors[2],
+            grid: reactBitsGridDistortionGrid,
+            mouse: reactBitsGridDistortionMouse,
+            strength: reactBitsGridDistortionStrength,
+            relaxation: reactBitsGridDistortionRelaxation,
+            cursorInteraction: reactBitsGridDistortionCursorInteraction,
+          }}
+          reactBitsOrb={{
+            hue: orbHue,
+            hoverIntensity: reactBitsOrbHoverIntensity,
+            rotateOnHover: reactBitsOrbRotateOnHover,
+            forceHoverState: reactBitsOrbForceHoverState,
+            backgroundColor: reactBitsOrbBackgroundColor,
+            cursorInteraction: reactBitsOrbCursorInteraction,
+          }}
+          reactBitsLetterGlitch={{
+            colorOne: letterGlitchColors[0],
+            colorTwo: letterGlitchColors[1],
+            colorThree: letterGlitchColors[2],
+            glitchSpeed: reactBitsLetterGlitchGlitchSpeed,
+            centerVignette: reactBitsLetterGlitchCenterVignette,
+            outerVignette: reactBitsLetterGlitchOuterVignette,
+            smooth: reactBitsLetterGlitchSmooth,
+            characters: reactBitsLetterGlitchCharacters,
+          }}
+          reactBitsGridMotion={{
+            gradientColor: gridMotionColors[0],
+            tileColor: gridMotionColors[1],
+            textColor: gridMotionColors[2],
+            maxMoveAmount: reactBitsGridMotionMaxMoveAmount,
+            baseDuration: reactBitsGridMotionBaseDuration,
+            cursorInteraction: reactBitsGridMotionCursorInteraction,
+          }}
+          reactBitsShapeGrid={{
+            borderColor: shapeGridColors[0],
+            hoverFillColor: shapeGridColors[1],
+            direction: reactBitsShapeGridDirection,
+            speed: reactBitsShapeGridSpeed,
+            squareSize: reactBitsShapeGridSquareSize,
+            shape: reactBitsShapeGridShape,
+            hoverTrailAmount: reactBitsShapeGridHoverTrailAmount,
+            cursorInteraction: reactBitsShapeGridCursorInteraction,
+          }}
+          reactBitsLiquidChrome={{
+            baseColor: liquidChromeBaseColor,
+            speed: reactBitsLiquidChromeSpeed,
+            amplitude: reactBitsLiquidChromeAmplitude,
+            frequencyX: reactBitsLiquidChromeFrequencyX,
+            frequencyY: reactBitsLiquidChromeFrequencyY,
+            interactive: reactBitsLiquidChromeInteractive,
+          }}
+          reactBitsBalatro={{
+            color1: balatroColors[0],
+            color2: balatroColors[1],
+            color3: balatroColors[2],
+            spinRotation: reactBitsBalatroSpinRotation,
+            spinSpeed: reactBitsBalatroSpinSpeed,
+            offsetX: reactBitsBalatroOffsetX,
+            offsetY: reactBitsBalatroOffsetY,
+            contrast: reactBitsBalatroContrast,
+            lighting: reactBitsBalatroLighting,
+            spinAmount: reactBitsBalatroSpinAmount,
+            pixelFilter: reactBitsBalatroPixelFilter,
+            spinEase: reactBitsBalatroSpinEase,
+            isRotate: reactBitsBalatroIsRotate,
+            mouseInteraction: reactBitsBalatroMouseInteraction,
+          }}
+          eldoraNovatrix={{
+            color: novatrixColor,
+            speed: eldoraNovatrixSpeed,
+            amplitude: eldoraNovatrixAmplitude,
+          }}
+          eldoraHacker={{
+            color: hackerColor,
+            speed: eldoraHackerSpeed,
+            fontSize: eldoraHackerFontSize,
+          }}
+          eldoraPhotonBeam={{
+            colorBg: photonBeamColors[0],
+            colorLine: photonBeamColors[1],
+            colorSignal: photonBeamColors[2],
+            useColor2: photonBeamColors[3],
+            colorSignal2: photonBeamColors[4],
+            useColor3: photonBeamColors[5],
+            colorSignal3: photonBeamColors[6],
+            lineCount: eldoraPhotonBeamLineCount,
+            spreadHeight: eldoraPhotonBeamSpreadHeight,
+            spreadDepth: eldoraPhotonBeamSpreadDepth,
+            curveLength: eldoraPhotonBeamCurveLength,
+            straightLength: eldoraPhotonBeamStraightLength,
+            curvePower: eldoraPhotonBeamCurvePower,
+            waveSpeed: eldoraPhotonBeamWaveSpeed,
+            waveHeight: eldoraPhotonBeamWaveHeight,
+            lineOpacity: eldoraPhotonBeamLineOpacity,
+            signalCount: eldoraPhotonBeamSignalCount,
+            speedGlobal: eldoraPhotonBeamSpeedGlobal,
+            trailLength: eldoraPhotonBeamTrailLength,
+            bloomStrength: eldoraPhotonBeamBloomStrength,
+            bloomRadius: eldoraPhotonBeamBloomRadius,
+          }}
+          aceternity3DGlobe={{
+            viewStyle: aceternity3DGlobeViewStyle,
+            backgroundColor: aceternity3DGlobeBackgroundColor,
+            globeColor: aceternity3DGlobeGlobeColor,
+            graphicMapColor: aceternity3DGlobeGraphicMapColor,
+            graphicGlowColor: aceternity3DGlobeGraphicGlowColor,
+            graphicMarkerColor: aceternity3DGlobeGraphicMarkerColor,
+            graphicMapSamples: aceternity3DGlobeGraphicMapSamples,
+            autoRotateSpeed: aceternity3DGlobeAutoRotateSpeed,
+            reverseSpin: aceternity3DGlobeReverseSpin,
+            globeScale: aceternity3DGlobeScale,
+            bumpScale: aceternity3DGlobeBumpScale,
+            ambientIntensity: aceternity3DGlobeAmbientIntensity,
+            pointLightIntensity: aceternity3DGlobePointLightIntensity,
+            lightingMode: aceternity3DGlobeLightingMode,
+            enablePan: aceternity3DGlobeEnablePan,
+            panX: aceternity3DGlobePanX,
+            panY: aceternity3DGlobePanY,
+            showTilt: aceternity3DGlobeShowTilt,
+            showAtmosphere: aceternity3DGlobeShowAtmosphere,
+            atmosphereColor: aceternity3DGlobeAtmosphereColor,
+            atmosphereIntensity: aceternity3DGlobeAtmosphereIntensity,
+            atmosphereBlur: aceternity3DGlobeAtmosphereBlur,
+            showWireframe: aceternity3DGlobeShowWireframe,
+            wireframeColor: aceternity3DGlobeWireframeColor,
+            markerEnabled: aceternity3DGlobeMarkerEnabled,
+            markerLat: aceternity3DGlobeMarkerLat,
+            markerLng: aceternity3DGlobeMarkerLng,
+            markerLabel: aceternity3DGlobeMarkerLabel,
+            markerIcon: aceternity3DGlobeMarkerIcon,
+            markerSize: aceternity3DGlobeMarkerSize,
+          }}
+          magicRetroGrid={{
+            backgroundColor: magicRetroGridBackgroundColor,
+            lightLineColor: magicRetroGridLightLineColor,
+            darkLineColor: magicRetroGridDarkLineColor,
+            angle: magicRetroGridAngle,
+            cellSize: magicRetroGridCellSize,
+            opacity: magicRetroGridOpacity,
+          }}
+          magicLightRays={{
+            backgroundColor: magicLightRaysBackgroundColor,
+            color: magicLightRaysColor,
+            count: magicLightRaysCount,
+            blur: magicLightRaysBlur,
+            speed: magicLightRaysSpeed,
+            length: magicLightRaysLength,
+            opacity: magicLightRaysOpacity,
+          }}
+          chamaacSynthesis={{
+            color1: synthesisColors[0],
+            color2: synthesisColors[1],
+            color3: synthesisColors[2],
+            speed: chamaacSynthesisSpeed,
+            complexity: chamaacSynthesisComplexity,
+            scale: chamaacSynthesisScale,
+            distortion: chamaacSynthesisDistortion,
+            glowIntensity: chamaacSynthesisGlowIntensity,
+            flowFrequency: chamaacSynthesisFlowFrequency,
+          }}
+          backgroundLines={{
+            duration: backgroundLinesDuration,
+          }}
+          shootingStars={{
+            starColor: shootingStarsStarColor,
+            trailColor: shootingStarsTrailColor,
+            shootingStarColor: shootingStarsShootingStarColor,
+            starDensity: shootingStarsDensity,
+            twinkle: shootingStarsTwinkle,
+            twinkleSpeed: shootingStarsTwinkleSpeed,
+            shootingStarSpeed: shootingStarsShootingSpeed,
+            shootingStarFrequency: shootingStarsFrequency,
+          }}
+          canvasRevealDots={{
+            backgroundColor: canvasRevealDotsBackgroundColor,
+            dotColor: canvasRevealDotsDotColor,
+            accentColor: canvasRevealDotsAccentColor,
+            dotSize: canvasRevealDotsDotSize,
+            dotSpacing: canvasRevealDotsDotSpacing,
+            opacity: canvasRevealDotsOpacity,
+            animationSpeed: canvasRevealDotsAnimationSpeed,
+            showGradient: canvasRevealDotsShowGradient,
+          }}
+          spotlight={{
+            color: spotlightColor,
+            opacity: spotlightOpacity,
+            width: spotlightWidth,
+            height: spotlightHeight,
+            smallWidth: spotlightSmallWidth,
+            translateY: spotlightTranslateY,
+            duration: spotlightDuration,
+            xOffset: spotlightXOffset,
+          }}
+          lamp={{
+            backgroundColor: lampBackgroundColor,
+            color: lampColor,
+            glowOpacity: lampGlowOpacity,
+            beamWidth: lampBeamWidth,
+            glowWidth: lampGlowWidth,
+            verticalOffset: lampVerticalOffset,
+            pulseSpeed: lampPulseSpeed,
+          }}
+          vortex={{
+            backgroundColor: vortexBackgroundColor,
+            baseHue: vortexBaseHue,
+            particleCount: vortexParticleCount,
+            rangeY: vortexRangeY,
+            baseSpeed: vortexBaseSpeed,
+            rangeSpeed: vortexRangeSpeed,
+            baseRadius: vortexBaseRadius,
+            rangeRadius: vortexRangeRadius,
+          }}
+          wavy={{
+            backgroundFill: wavyBackgroundFill,
+            colors: [
+              wavyColorOne,
+              wavyColorTwo,
+              wavyColorThree,
+              wavyColorFour,
+              wavyColorFive,
+            ],
+            waveWidth: wavyWaveWidth,
+            blur: wavyBlur,
+            speed: wavySpeed,
+            waveOpacity: wavyWaveOpacity,
+          }}
+          auroraBars={{
+            background: auroraBarsBackgroundColor,
+            paletteMode: auroraBarsPaletteMode,
+            primaryColor: auroraBarsPrimaryColor,
+            colors: [
+              auroraBarsColorOne,
+              auroraBarsColorTwo,
+              auroraBarsColorThree,
+              auroraBarsColorFour,
+              auroraBarsColorFive,
+            ],
+            barCount: auroraBarsBarCount,
+            speed: auroraBarsSpeed,
+            blur: auroraBarsBlur,
+            gap: auroraBarsGap,
+            maxHeightRatio: auroraBarsMaxHeightRatio,
+            minHeightRatio: auroraBarsMinHeightRatio,
+          }}
+          pixelLiquid={{
+            backgroundColor: pixelLiquidBackgroundColor,
+            baseColor: pixelLiquidBaseColor,
+            accentColor: pixelLiquidAccentColor,
+            highlightColor: pixelLiquidHighlightColor,
+            pixelSize: pixelLiquidPixelSize,
+            detail: pixelLiquidDetail,
+            motionSpeed: pixelLiquidMotionSpeed,
+          }}
+          tileGrid={{
+            paletteMode: tileGridPaletteMode,
+            primaryColor: tileGridPrimaryColor,
+            colors: [
+              tileGridColorOne,
+              tileGridColorTwo,
+              tileGridColorThree,
+              tileGridColorFour,
+              tileGridColorFive,
+            ],
+            tileSize: tileGridTileSize,
+            jointSize: tileGridJointSize,
+            changeFrequency: tileGridChangeFrequency,
+            activePercent: tileGridActivePercent,
+            opacity: tileGridOpacity,
+          }}
+          hexGrid={{
+            primaryColor: hexGridPrimaryColor,
+            harmony: hexGridHarmony,
+            hexSize: hexGridHexSize,
+            jointSize: hexGridJointSize,
+            changeFrequency: hexGridChangeFrequency,
+            activePercent: hexGridActivePercent,
+            opacity: hexGridOpacity,
+          }}
+          testId="chimer-premium-background"
         />
       )}
 
@@ -680,7 +15643,7 @@ export function RunningTimer({
                   <TabsTrigger value="timer" className={styles.settingsTabTrigger}>Timer</TabsTrigger>
                 )}
                 <TabsTrigger value="display" className={styles.settingsTabTrigger}>Display</TabsTrigger>
-                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Colors</TabsTrigger>
+                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Visuals</TabsTrigger>
               </TabsList>
 
               {!isClockMode && (
@@ -805,42 +15768,8 @@ export function RunningTimer({
               </TabsContent>
 
               <TabsContent value="background" className={styles.settingsTabContent}>
-                {!canUseCustomColors && (
-                  <div className={styles.settingsEmptyState}>
-                    <Lock className="inline h-4 w-4" aria-hidden="true" /> Membership unlocks custom Chimer colors.
-                  </div>
-                )}
-
-                {!isClockMode && (
-                  <label className={styles.colorRow}>
-                    <span>Primary color</span>
-                    <input
-                      type="color"
-                      value={resolvedPrimaryFontColor}
-                      disabled={!canUseCustomColors}
-                      onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
-                      aria-label="Primary display color"
-                    />
-                  </label>
-                )}
-
-                <label className={styles.colorRow}>
-                  <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
-                  <input
-                    type="color"
-                    value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
-                    disabled={!canUseCustomColors}
-                    onChange={(event) => handleSettingsChange(
-                      isClockMode
-                        ? { clockModeFontColor: event.target.value }
-                        : { secondaryFontColor: event.target.value },
-                    )}
-                    aria-label={isClockMode ? "Clock color" : "Secondary display color"}
-                  />
-                </label>
-
                 <label className={styles.switchRow}>
-                  <span>Moving background</span>
+                  <span>Visual background</span>
                   <input
                     type="checkbox"
                     checked={movingBackgroundEnabled}
@@ -848,27 +15777,17 @@ export function RunningTimer({
                   />
                 </label>
 
-                <label className={styles.colorRow}>
-                  <span>Main color</span>
-                  <input
-                    type="color"
-                    value={movingBackgroundMainColor}
-                    disabled={!canUseCustomColors}
-                    onChange={(event) => handleSettingsChange({ movingBackgroundMainColor: event.target.value })}
-                    aria-label="Moving background main color"
+                {movingBackgroundEnabled && (
+                  <BackgroundSelector
+                    compact
+                    value={backgroundId}
+                    onChange={(nextBackgroundId) => handleSettingsChange({ backgroundId: nextBackgroundId })}
+                    featureKeys={featureKeys}
+                    category={isClockMode ? "clock" : "chimer"}
+                    description="Premium visual candidates are paused while we review and add them one at a time."
+                    renderSelectedControls={renderBackgroundControls}
                   />
-                </label>
-
-                <label className={styles.colorRow}>
-                  <span>Orb color</span>
-                  <input
-                    type="color"
-                    value={movingBackgroundOrbColor}
-                    disabled={!canUseCustomColors}
-                    onChange={(event) => handleSettingsChange({ movingBackgroundOrbColor: event.target.value })}
-                    aria-label="Moving background orb color"
-                  />
-                </label>
+                )}
               </TabsContent>
             </Tabs>
           </div>

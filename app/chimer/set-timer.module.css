@@ -193,6 +193,164 @@
   box-shadow: 0 0 0 2px hsl(var(--brand-orange) / 0.25);
 }
 
+.backgroundSettings {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  background: rgba(17, 17, 17, 0.62);
+}
+
+.switchRow {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #e8e8e8;
+  font-weight: 600;
+}
+
+.switchRow input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: hsl(var(--brand-orange));
+}
+
+.backgroundCardControls {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.colorRow,
+.rangeRow,
+.durationRow,
+.selectRow {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  color: #e8e8e8;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.durationRow {
+  align-items: flex-start;
+}
+
+.colorRow input[type="color"] {
+  width: 3rem;
+  height: 2rem;
+  padding: 0.125rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rangeRow input[type="range"] {
+  width: min(9rem, 44vw);
+  accent-color: hsl(var(--brand-orange));
+}
+
+.locationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.textField {
+  display: grid;
+  gap: 0.35rem;
+  color: #e8e8e8;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.textField input {
+  min-height: 2.25rem;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0 0.65rem;
+}
+
+.textField input:focus {
+  border-color: hsl(var(--brand-orange));
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--brand-orange) / 0.24);
+}
+
+.inlineButton {
+  min-height: 2.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.inlineButton:hover {
+  border-color: hsl(var(--brand-orange));
+  background: hsl(var(--brand-orange));
+}
+
+.durationPicker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(2.8rem, 1fr));
+  gap: 0.35rem;
+  width: min(13rem, 54vw);
+}
+
+.durationField {
+  display: grid;
+  gap: 0.2rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.durationField input {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.durationField input:focus {
+  border-color: hsl(var(--brand-orange));
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--brand-orange) / 0.24);
+}
+
+.selectRow select {
+  min-width: 6rem;
+  min-height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 700;
+}
+
 .actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -272,5 +430,13 @@
 
   .actions {
     grid-template-columns: 1fr;
+  }
+
+  .durationRow {
+    display: grid;
+  }
+
+  .durationPicker {
+    width: 100%;
   }
 }

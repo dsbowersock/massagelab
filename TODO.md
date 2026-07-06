@@ -36,6 +36,7 @@ Current project state now lives in [docs/project-state.md](docs/project-state.md
 - [ ] Anatomy content expansion and review workflow.
 - [x] Education/flashcards design using shared anatomy data.
 - [x] Setup-first flashcards with sourced prompt modes, anonymous temporary decks, public deck browsing, signed-in saved templates, and progress/achievement tracking.
+- [ ] Chimer and premium background refactor follow-ups: collapse long background-option prop drilling into grouped settings, deduplicate repeated canvas-layer CSS and timer background blocks, self-host 3D globe texture assets with documented licenses, add shared WebGL context-loss/resource utilities, review per-frame canvas allocation hotspots, and decide whether stylelint naming/blank-line conventions should be enforced repo-wide.
 - [ ] Repo-wide docstring pass: add useful JSDoc/docstrings to shared helpers, domain rules, server actions, data adapters, and non-obvious UI components so future code reading has better inline context.
 
 ## Payload CMS Planning

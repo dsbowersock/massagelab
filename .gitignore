@@ -20,6 +20,7 @@
 /public/audio/atmosphere/observable-streams-vsco-adaptation/samples/
 
 # local Codex workspace artifacts
+/.codex-dev/
 /.codex-dev-server.*
 /.codex-remote-attachments/
 

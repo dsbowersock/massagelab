@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
 import { usePathname } from "next/navigation"
 import { CalendarOperatorTopBar } from "@/components/calendar/calendar-operator-top-bar"
 import { CalendarOperatorToolbarProvider } from "@/components/calendar/calendar-operator-toolbar-context"
@@ -26,13 +26,19 @@ export function LayoutWrapper({
   const isCalendarOperatorRoute = pathname === "/calendar" || pathname.startsWith("/calendar/")
   const isCalendarWorkspaceRoute = pathname === "/calendar"
   const isPublicBookingRoute = pathname.startsWith("/book/")
-  const routeOwnsBackground = pathname.startsWith("/chimer")
-    || pathname.startsWith("/clock")
+  const isChimerRoute = pathname.startsWith("/chimer") || pathname.startsWith("/clock")
+  const routeOwnsBackground = isChimerRoute
     || pathname.startsWith("/anatomime")
-  // Chimer and Clock setup own their background but still need bottom controls; active states hide them by body class.
+  // Active Chimer and Clock views hide global bars with body classes; clear stale classes after route changes.
+  useEffect(() => {
+    if (!isChimerRoute) {
+      document.body.classList.remove("chimer-running", "chimer-alerting")
+    }
+  }, [isChimerRoute])
+
+  // Chimer and Clock setup still need bottom controls; active states hide them by body class.
   const routeShowsMobileMainBar = !routeOwnsBackground
-    || pathname.startsWith("/chimer")
-    || pathname.startsWith("/clock")
+    || isChimerRoute
   const appBarIsBottom = settings.appBarPosition === "bottom"
   const musicPlayerPlacement = getMusicPlayerPlacement(settings)
   const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />

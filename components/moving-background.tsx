@@ -1,6 +1,7 @@
 "use client"
 
 import { type CSSProperties, useEffect, useRef } from "react"
+import { useSettings } from "@/components/providers/settings-provider"
 import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
 
 interface GradientOrb {
@@ -26,6 +27,7 @@ export function MovingBackground({
   orbColor = "#4169E1",
   testId = "chimer-moving-background",
 }: MovingBackgroundProps) {
+  const { settings } = useSettings()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const fallbackStyle = {
     "--ml-background-main": mainColor,
@@ -39,15 +41,19 @@ export function MovingBackground({
       return undefined
     }
 
-    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const compactViewportQuery = window.matchMedia("(max-width: 767px)")
     const gradients: GradientOrb[] = []
     let animationFrame = 0
-    let initialized = false
+    let shouldRun = false
+    let viewportWidth = 1
+    let viewportHeight = 1
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const compactViewportQuery = window.matchMedia("(max-width: 640px)")
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
+      viewportWidth = canvas.width
+      viewportHeight = canvas.height
 
       gradients.forEach((gradient) => {
         gradient.x = Math.min(gradient.x, canvas.width)
@@ -56,27 +62,21 @@ export function MovingBackground({
       })
     }
 
-    const initializeGradients = () => {
-      if (initialized) {
-        return
-      }
+    resizeCanvas()
 
-      initialized = true
-
-      for (let index = 0; index < 8; index += 1) {
-        gradients.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.5,
-          radius: canvas.width * (0.3 + Math.random() * 0.2),
-          color: index % 2 === 0 ? mainColor : orbColor,
-          alpha: 0.4 + Math.random() * 0.2,
-        })
-      }
+    for (let index = 0; index < 8; index += 1) {
+      gradients.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        radius: canvas.width * (0.3 + Math.random() * 0.2),
+        color: index % 2 === 0 ? mainColor : orbColor,
+        alpha: 0.4 + Math.random() * 0.2,
+      })
     }
 
-    const animate = () => {
+    const drawFrame = () => {
       context.fillStyle = "rgba(0, 0, 0, 0.01)"
       context.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -109,36 +109,42 @@ export function MovingBackground({
         context.fillStyle = radialGradient
         context.fillRect(0, 0, canvas.width, canvas.height)
       })
+    }
 
+    const animate = () => {
+      if (!shouldRun) {
+        return
+      }
+
+      drawFrame()
       animationFrame = window.requestAnimationFrame(animate)
     }
 
     const stopAnimation = () => {
+      shouldRun = false
       if (animationFrame) {
         window.cancelAnimationFrame(animationFrame)
         animationFrame = 0
       }
-
-      canvas.hidden = true
       context.clearRect(0, 0, canvas.width, canvas.height)
     }
 
     const startAnimation = () => {
-      if (animationFrame) {
+      if (shouldRun) {
         return
       }
 
-      canvas.hidden = false
-      resizeCanvas()
-      initializeGradients()
-      animate()
+      shouldRun = true
+      animationFrame = window.requestAnimationFrame(animate)
     }
 
     const updateAnimationState = () => {
       const shouldAnimate = shouldAnimateAmbientBackground({
         prefersReducedMotion: reducedMotionQuery.matches,
-        compactViewport: compactViewportQuery.matches,
+        compactViewport: Math.min(viewportWidth, viewportHeight) < 360 || compactViewportQuery.matches,
+        allowCompactViewport: true,
         documentHidden: document.hidden,
+        ambientMotionMode: settings.ambientMotionMode,
       })
 
       if (shouldAnimate) {
@@ -148,7 +154,12 @@ export function MovingBackground({
       }
     }
 
-    window.addEventListener("resize", resizeCanvas)
+    const handleResize = () => {
+      resizeCanvas()
+      updateAnimationState()
+    }
+
+    window.addEventListener("resize", handleResize)
     reducedMotionQuery.addEventListener("change", updateAnimationState)
     compactViewportQuery.addEventListener("change", updateAnimationState)
     document.addEventListener("visibilitychange", updateAnimationState)
@@ -156,12 +167,12 @@ export function MovingBackground({
 
     return () => {
       stopAnimation()
-      window.removeEventListener("resize", resizeCanvas)
+      window.removeEventListener("resize", handleResize)
       reducedMotionQuery.removeEventListener("change", updateAnimationState)
       compactViewportQuery.removeEventListener("change", updateAnimationState)
       document.removeEventListener("visibilitychange", updateAnimationState)
     }
-  }, [mainColor, orbColor])
+  }, [mainColor, orbColor, settings.ambientMotionMode])
 
   return (
     <div aria-hidden="true" className={className} data-testid={testId}>

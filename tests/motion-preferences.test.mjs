@@ -1,6 +1,10 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { shouldAnimateAmbientBackground } from "../lib/motion-preferences.js"
+import {
+  normalizeAmbientMotionMode,
+  shouldAnimateAmbientBackground,
+  shouldReduceAmbientMotion,
+} from "../lib/motion-preferences.js"
 
 test("shouldAnimateAmbientBackground disables ambient animation for reduced motion", () => {
   assert.equal(shouldAnimateAmbientBackground({
@@ -18,6 +22,15 @@ test("shouldAnimateAmbientBackground disables ambient animation on compact viewp
   }), false)
 })
 
+test("shouldAnimateAmbientBackground can allow compact viewport animation for route-owned effects", () => {
+  assert.equal(shouldAnimateAmbientBackground({
+    prefersReducedMotion: false,
+    compactViewport: true,
+    allowCompactViewport: true,
+    documentHidden: false,
+  }), true)
+})
+
 test("shouldAnimateAmbientBackground disables ambient animation while hidden", () => {
   assert.equal(shouldAnimateAmbientBackground({
     prefersReducedMotion: false,
@@ -32,4 +45,16 @@ test("shouldAnimateAmbientBackground allows ambient animation on visible desktop
     compactViewport: false,
     documentHidden: false,
   }), true)
+})
+
+test("ambient motion mode can force low-motion backgrounds", () => {
+  assert.equal(normalizeAmbientMotionMode("reduced"), "reduced")
+  assert.equal(normalizeAmbientMotionMode("full-motion"), "system")
+  assert.equal(shouldReduceAmbientMotion({ ambientMotionMode: "reduced", prefersReducedMotion: false }), true)
+  assert.equal(shouldAnimateAmbientBackground({
+    ambientMotionMode: "reduced",
+    prefersReducedMotion: false,
+    compactViewport: false,
+    documentHidden: false,
+  }), false)
 })

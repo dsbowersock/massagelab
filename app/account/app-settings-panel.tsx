@@ -1,7 +1,7 @@
 "use client"
 
-import { Layout, Monitor, Moon, PanelBottom, PanelLeft, PanelTop, Sun, UserRound } from "lucide-react"
-import type { AppBarPosition, ThemeMode } from "@/components/providers/settings-provider"
+import { Layout, Monitor, Moon, PanelBottom, PanelLeft, PanelTop, Sun, UserRound, Waves } from "lucide-react"
+import type { AmbientMotionMode, AppBarPosition, ThemeMode } from "@/components/providers/settings-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { useTherapistSettings } from "@/components/providers/therapist-settings-provider"
 import { getSidebarButtonPosition, resolveSidebarButtonSettings } from "@/lib/app-settings"
@@ -68,6 +68,21 @@ const themeModes = [
     label: "Light",
     description: "Use the lighter MassageLab interface.",
     icon: Sun,
+  },
+]
+
+const ambientMotionModes = [
+  {
+    value: "system",
+    label: "System",
+    description: "Follow this device's reduced-motion preference.",
+    icon: Monitor,
+  },
+  {
+    value: "reduced",
+    label: "Low motion",
+    description: "Use static visual backgrounds in MassageLab.",
+    icon: Waves,
   },
 ]
 
@@ -150,37 +165,73 @@ export function AccountAppSettingsPanel() {
 
       <SettingsSurface
         id="app-theme-settings"
-        title="Theme"
-        description="Set the app color mode for this browser."
+        title="Theme and motion"
+        description="Set the app color mode and ambient visual motion for this browser."
         icon={<PanelLeft data-icon="inline-start" aria-hidden="true" />}
       >
-        <RadioGroup
-          value={settings.themeMode}
-          onValueChange={(value) => updateSettings({ themeMode: value as ThemeMode })}
-          className="grid gap-3 sm:grid-cols-3"
-        >
-          {themeModes.map((option) => {
-            const Icon = option.icon
+        <div className="flex flex-col gap-3">
+          <Label className="text-base">Color mode</Label>
+          <RadioGroup
+            value={settings.themeMode}
+            onValueChange={(value) => updateSettings({ themeMode: value as ThemeMode })}
+            className="grid gap-3 sm:grid-cols-3"
+          >
+            {themeModes.map((option) => {
+              const Icon = option.icon
 
-            return (
-              <label
-                key={option.value}
-                htmlFor={`theme-${option.value}`}
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent",
-                  settings.themeMode === option.value && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
-                )}
-              >
-                <RadioGroupItem id={`theme-${option.value}`} value={option.value} className="mt-1" />
-                <Icon data-icon="inline-start" className="mt-0.5 text-primary" aria-hidden="true" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{option.label}</span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
-                </span>
-              </label>
-            )
-          })}
-        </RadioGroup>
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={`theme-${option.value}`}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent",
+                    settings.themeMode === option.value && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
+                  )}
+                >
+                  <RadioGroupItem id={`theme-${option.value}`} value={option.value} className="mt-1" />
+                  <Icon data-icon="inline-start" className="mt-0.5 text-primary" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </RadioGroup>
+        </div>
+
+        <SettingsSectionSeparator />
+
+        <div className="flex flex-col gap-3">
+          <Label className="text-base">Visual background motion</Label>
+          <RadioGroup
+            value={settings.ambientMotionMode}
+            onValueChange={(value) => updateSettings({ ambientMotionMode: value as AmbientMotionMode })}
+            className="grid gap-3 sm:grid-cols-2"
+          >
+            {ambientMotionModes.map((option) => {
+              const Icon = option.icon
+
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={`ambient-motion-${option.value}`}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-left shadow-sm transition hover:border-primary/60 hover:bg-accent",
+                    settings.ambientMotionMode === option.value && "border-primary/70 bg-primary/10 shadow-md shadow-primary/10",
+                  )}
+                >
+                  <RadioGroupItem id={`ambient-motion-${option.value}`} value={option.value} className="mt-1" />
+                  <Icon data-icon="inline-start" className="mt-0.5 text-primary" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </RadioGroup>
+        </div>
       </SettingsSurface>
     </div>
   )
