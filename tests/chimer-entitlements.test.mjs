@@ -2490,6 +2490,45 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsThreadsEnableMouseInteraction, true)
   })
 
+  it("resets React Bits Iridescence controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-iridescence",
+      reactBitsIridescencePaletteMode: "harmony",
+      reactBitsIridescencePrimaryColor: "#ABCDEF",
+      reactBitsIridescenceHarmony: "triad",
+      reactBitsIridescenceColor: "#010203",
+      reactBitsIridescenceSpeed: 2.4,
+      reactBitsIridescenceAmplitude: 0.85,
+      reactBitsIridescenceMouseReact: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsIridescencePaletteMode",
+      "reactBitsIridescencePrimaryColor",
+      "reactBitsIridescenceHarmony",
+      "reactBitsIridescenceColor",
+      "reactBitsIridescenceSpeed",
+      "reactBitsIridescenceAmplitude",
+      "reactBitsIridescenceMouseReact",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-iridescence")
+    assert.equal(premiumSettings.reactBitsIridescencePaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsIridescencePrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsIridescenceHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsIridescenceColor, "#010203")
+    assert.equal(premiumSettings.reactBitsIridescenceSpeed, 2.4)
+    assert.equal(premiumSettings.reactBitsIridescenceAmplitude, 0.85)
+    assert.equal(premiumSettings.reactBitsIridescenceMouseReact, false)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

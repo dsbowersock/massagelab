@@ -90,6 +90,7 @@ export type ReactBitsRippleGridPaletteMode = "source" | "rainbow" | "harmony" | 
 export type ReactBitsDotFieldPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsDotGridPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsThreadsPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsIridescencePaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1093,6 +1094,13 @@ export interface ChimerSettings {
   reactBitsThreadsAmplitude: number
   reactBitsThreadsDistance: number
   reactBitsThreadsEnableMouseInteraction: boolean
+  reactBitsIridescencePaletteMode: ReactBitsIridescencePaletteMode
+  reactBitsIridescencePrimaryColor: string
+  reactBitsIridescenceHarmony: ColorHarmony
+  reactBitsIridescenceColor: string
+  reactBitsIridescenceSpeed: number
+  reactBitsIridescenceAmplitude: number
+  reactBitsIridescenceMouseReact: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1605,6 +1613,14 @@ type ReactBitsThreadsColorSettings = Pick<
   | "reactBitsThreadsPrimaryColor"
   | "reactBitsThreadsHarmony"
   | "reactBitsThreadsColor"
+>
+
+type ReactBitsIridescenceColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsIridescencePaletteMode"
+  | "reactBitsIridescencePrimaryColor"
+  | "reactBitsIridescenceHarmony"
+  | "reactBitsIridescenceColor"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2245,6 +2261,21 @@ export function resolveReactBitsThreadsColor(settings: ReactBitsThreadsColorSett
   }
 
   return settings.reactBitsThreadsColor
+}
+
+export function resolveReactBitsIridescenceColor(settings: ReactBitsIridescenceColorSettings): string {
+  if (settings.reactBitsIridescencePaletteMode === "source") {
+    return "#FFFFFF"
+  }
+
+  if (settings.reactBitsIridescencePaletteMode === "harmony") {
+    return createReactBitsIridescenceHarmonyColor(
+      settings.reactBitsIridescencePrimaryColor,
+      settings.reactBitsIridescenceHarmony,
+    )
+  }
+
+  return settings.reactBitsIridescenceColor
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3672,6 +3703,10 @@ export function createReactBitsDotGridHarmonyColors(
 }
 
 export function createReactBitsThreadsHarmonyColor(primaryColor: string, harmony: ColorHarmony): string {
+  return createReactBitsSilkHarmonyColor(primaryColor, harmony)
+}
+
+export function createReactBitsIridescenceHarmonyColor(primaryColor: string, harmony: ColorHarmony): string {
   return createReactBitsSilkHarmonyColor(primaryColor, harmony)
 }
 
@@ -13382,6 +13417,107 @@ export function SetTimer({
               value={settings.reactBitsThreadsDistance}
               onChange={(event) => onSettingsChange({ reactBitsThreadsDistance: Number(event.target.value) })}
               aria-label="React Bits Threads distance"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-iridescence") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={settings.reactBitsIridescencePaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsIridescencePaletteMode: event.target.value as ReactBitsIridescencePaletteMode,
+              })}
+              aria-label="React Bits Iridescence color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsIridescencePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Tint color</span>
+              <input
+                type="color"
+                value={settings.reactBitsIridescenceColor}
+                onChange={(event) => onSettingsChange({ reactBitsIridescenceColor: event.target.value })}
+                aria-label="React Bits Iridescence tint color"
+              />
+            </label>
+          ) : null}
+
+          {settings.reactBitsIridescencePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsIridescencePrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsIridescencePrimaryColor: event.target.value })}
+                  aria-label="React Bits Iridescence primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsIridescenceHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsIridescenceHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Iridescence color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse reaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsIridescenceMouseReact}
+              onChange={(event) => onSettingsChange({
+                reactBitsIridescenceMouseReact: event.target.checked,
+              })}
+              aria-label="React Bits Iridescence mouse reaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({settings.reactBitsIridescenceSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={settings.reactBitsIridescenceSpeed}
+              onChange={(event) => onSettingsChange({ reactBitsIridescenceSpeed: Number(event.target.value) })}
+              aria-label="React Bits Iridescence speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({settings.reactBitsIridescenceAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.reactBitsIridescenceAmplitude}
+              onChange={(event) => onSettingsChange({ reactBitsIridescenceAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Iridescence amplitude"
             />
           </label>
         </div>

@@ -94,6 +94,7 @@ describe("premium background registry", () => {
       "react-bits-dot-field",
       "react-bits-dot-grid",
       "react-bits-threads",
+      "react-bits-iridescence",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -333,6 +334,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-dot-field"))
     assert.ok(chimerOptions.includes("react-bits-dot-grid"))
     assert.ok(chimerOptions.includes("react-bits-threads"))
+    assert.ok(chimerOptions.includes("react-bits-iridescence"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -400,6 +402,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-dot-field"))
     assert.ok(clockOptions.includes("react-bits-dot-grid"))
     assert.ok(clockOptions.includes("react-bits-threads"))
+    assert.ok(clockOptions.includes("react-bits-iridescence"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -468,6 +471,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-dot-field"))
     assert.ok(musicOptions.includes("react-bits-dot-grid"))
     assert.ok(musicOptions.includes("react-bits-threads"))
+    assert.ok(musicOptions.includes("react-bits-iridescence"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -4354,6 +4358,79 @@ describe("premium background registry", () => {
       "reactBitsThreadsAmplitude",
       "reactBitsThreadsDistance",
       "reactBitsThreadsEnableMouseInteraction",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Iridescence source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-iridescence-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-iridescence/)
+    assert.match(registrySource, /Iridescence/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/iridescence/)
+    assert.match(effectSource, /ReactBitsIridescenceBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_IRIDESCENCE/)
+    assert.match(effectSource, /uAmplitude/)
+    assert.match(effectSource, /uSpeed/)
+    assert.match(effectSource, /uMouse/)
+    assert.match(effectSource, /for \(float i = 0\.0; i < 8\.0; \+\+i\)/)
+    assert.match(effectSource, /MAX_RENDER_DIMENSION/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /requestAnimationFrame/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.match(stylesSource, /reactBitsIridescence/)
+    assert.match(stylesSource, /reactBitsIridescenceCanvas/)
+    assert.match(hostSource, /reactBitsIridescence/)
+    assert.match(cssEffectsSource, /ReactBitsIridescenceOptions/)
+    assert.match(setupSource, /resolveReactBitsIridescenceColor/)
+    assert.match(setupSource, /createReactBitsIridescenceHarmonyColor/)
+    assert.match(runningSource, /reactBitsIridescence=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsIridescence=\{\{/)
+    assert.match(docsSource, /Iridescence \| https:\/\/reactbits\.dev\/backgrounds\/iridescence/)
+    assert.match(docsSource, /Iridescence\.jsx/)
+    assert.match(docsSource, /Iridescence\.css/)
+    assert.match(docsSource, /OGL/)
+
+    for (const settingKey of [
+      "reactBitsIridescencePaletteMode",
+      "reactBitsIridescencePrimaryColor",
+      "reactBitsIridescenceHarmony",
+      "reactBitsIridescenceColor",
+      "reactBitsIridescenceSpeed",
+      "reactBitsIridescenceAmplitude",
+      "reactBitsIridescenceMouseReact",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

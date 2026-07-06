@@ -103,6 +103,7 @@ import {
   resolveReactBitsDotFieldColors,
   resolveReactBitsDotGridColors,
   resolveReactBitsThreadsColor,
+  resolveReactBitsIridescenceColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -156,6 +157,7 @@ import {
   type ReactBitsDotFieldPaletteMode,
   type ReactBitsDotGridPaletteMode,
   type ReactBitsThreadsPaletteMode,
+  type ReactBitsIridescencePaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -826,6 +828,13 @@ interface RunningTimerProps {
   reactBitsThreadsAmplitude: number
   reactBitsThreadsDistance: number
   reactBitsThreadsEnableMouseInteraction: boolean
+  reactBitsIridescencePaletteMode: ReactBitsIridescencePaletteMode
+  reactBitsIridescencePrimaryColor: string
+  reactBitsIridescenceHarmony: ColorHarmony
+  reactBitsIridescenceColor: string
+  reactBitsIridescenceSpeed: number
+  reactBitsIridescenceAmplitude: number
+  reactBitsIridescenceMouseReact: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1653,6 +1662,13 @@ export function RunningTimer({
   reactBitsThreadsAmplitude,
   reactBitsThreadsDistance,
   reactBitsThreadsEnableMouseInteraction,
+  reactBitsIridescencePaletteMode,
+  reactBitsIridescencePrimaryColor,
+  reactBitsIridescenceHarmony,
+  reactBitsIridescenceColor,
+  reactBitsIridescenceSpeed,
+  reactBitsIridescenceAmplitude,
+  reactBitsIridescenceMouseReact,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -2103,6 +2119,12 @@ export function RunningTimer({
     reactBitsThreadsPrimaryColor,
     reactBitsThreadsHarmony,
     reactBitsThreadsColor,
+  })
+  const iridescenceColor = resolveReactBitsIridescenceColor({
+    reactBitsIridescencePaletteMode,
+    reactBitsIridescencePrimaryColor,
+    reactBitsIridescenceHarmony,
+    reactBitsIridescenceColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -11204,6 +11226,105 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-iridescence" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Color mode</span>
+            <select
+              value={reactBitsIridescencePaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsIridescencePaletteMode: event.target.value as ReactBitsIridescencePaletteMode,
+              })}
+              aria-label="React Bits Iridescence color mode"
+            >
+              <option value="source">Source white</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsIridescencePaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Tint color</span>
+              <input
+                type="color"
+                value={reactBitsIridescenceColor}
+                onChange={(event) => handleSettingsChange({ reactBitsIridescenceColor: event.target.value })}
+                aria-label="React Bits Iridescence tint color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsIridescencePaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsIridescencePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsIridescencePrimaryColor: event.target.value })}
+                  aria-label="React Bits Iridescence primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsIridescenceHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsIridescenceHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Iridescence color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Mouse reaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsIridescenceMouseReact}
+              onChange={(event) => handleSettingsChange({
+                reactBitsIridescenceMouseReact: event.target.checked,
+              })}
+              aria-label="React Bits Iridescence mouse reaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Speed ({reactBitsIridescenceSpeed.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.05"
+              value={reactBitsIridescenceSpeed}
+              onChange={(event) => handleSettingsChange({ reactBitsIridescenceSpeed: Number(event.target.value) })}
+              aria-label="React Bits Iridescence speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude ({reactBitsIridescenceAmplitude.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={reactBitsIridescenceAmplitude}
+              onChange={(event) => handleSettingsChange({ reactBitsIridescenceAmplitude: Number(event.target.value) })}
+              aria-label="React Bits Iridescence amplitude"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -13668,6 +13789,12 @@ export function RunningTimer({
             amplitude: reactBitsThreadsAmplitude,
             distance: reactBitsThreadsDistance,
             enableMouseInteraction: reactBitsThreadsEnableMouseInteraction,
+          }}
+          reactBitsIridescence={{
+            color: iridescenceColor,
+            speed: reactBitsIridescenceSpeed,
+            amplitude: reactBitsIridescenceAmplitude,
+            mouseReact: reactBitsIridescenceMouseReact,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

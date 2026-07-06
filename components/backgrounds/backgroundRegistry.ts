@@ -53,6 +53,7 @@ export type BackgroundId =
   | "react-bits-dot-field"
   | "react-bits-dot-grid"
   | "react-bits-threads"
+  | "react-bits-iridescence"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -150,6 +151,7 @@ const reactBitsRippleGrid = () => import("./effects/react-bits-ripple-grid-backg
 const reactBitsDotField = () => import("./effects/react-bits-dot-field-background")
 const reactBitsDotGrid = () => import("./effects/react-bits-dot-grid-background")
 const reactBitsThreads = () => import("./effects/react-bits-threads-background")
+const reactBitsIridescence = () => import("./effects/react-bits-iridescence-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1196,6 +1198,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 58% 48%, rgba(255,255,255,0.16), transparent 34%), linear-gradient(145deg, #05040a 0%, #0f1018 58%, #020204 100%)",
+    },
+  },
+  {
+    id: "react-bits-iridescence",
+    label: "Iridescence",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/iridescence",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium iridescent shader wash for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony tint color plus source-shaped speed, amplitude, and optional mouse reaction; source OGL shader adapted with raw WebGL while the canvas remains pointer-events free.",
+    component: () => reactBitsIridescence().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 40% 42%, rgba(255,255,255,0.22), transparent 34%), radial-gradient(circle at 64% 56%, rgba(140,120,255,0.2), transparent 40%), linear-gradient(145deg, #f5f7ff 0%, #b5c4ff 46%, #f7a6d8 100%)",
     },
   },
   {

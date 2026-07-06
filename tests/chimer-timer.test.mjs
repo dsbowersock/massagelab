@@ -3068,6 +3068,44 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsThreadsDistance: -9 }).reactBitsThreadsDistance, -1)
   })
 
+  it("normalizes React Bits Iridescence background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsIridescencePaletteMode: "harmony",
+      reactBitsIridescencePrimaryColor: "#abcdef",
+      reactBitsIridescenceHarmony: "triad",
+      reactBitsIridescenceColor: "#010203",
+      reactBitsIridescenceSpeed: 99,
+      reactBitsIridescenceAmplitude: 99,
+      reactBitsIridescenceMouseReact: false,
+    })
+
+    assert.equal(settings.reactBitsIridescencePaletteMode, "harmony")
+    assert.equal(settings.reactBitsIridescencePrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsIridescenceHarmony, "triad")
+    assert.equal(settings.reactBitsIridescenceColor, "#010203")
+    assert.equal(settings.reactBitsIridescenceSpeed, 3)
+    assert.equal(settings.reactBitsIridescenceAmplitude, 1)
+    assert.equal(settings.reactBitsIridescenceMouseReact, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsIridescencePaletteMode: "auto" }).reactBitsIridescencePaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsIridescencePaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsIridescencePrimaryColor: "white" }).reactBitsIridescencePrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsIridescencePrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsIridescenceHarmony: "wild" }).reactBitsIridescenceHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsIridescenceHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsIridescenceColor: "white" }).reactBitsIridescenceColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsIridescenceColor,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsIridescenceSpeed: -1 }).reactBitsIridescenceSpeed, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsIridescenceAmplitude: -1 }).reactBitsIridescenceAmplitude, 0)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",
