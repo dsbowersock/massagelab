@@ -10,6 +10,8 @@ type RgbColor = [number, number, number]
 
 type ResolvedSynthesisOptions = Required<ChamaacSynthesisOptions>
 
+// 60 * Math.PI keeps shader time bounded as a precision guard while avoiding a
+// simplified cycle that would make the synthesis pattern visibly repeat.
 const TIME_LOOP_SECONDS = 60 * Math.PI
 
 type SynthesisWebGlResources = {

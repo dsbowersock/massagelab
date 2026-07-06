@@ -10,6 +10,8 @@ type RgbColor = [number, number, number]
 
 type ResolvedElectricMistOptions = Required<ChamaacElectricMistOptions>
 
+// 60 * Math.PI intentionally bounds shader time before float precision drift can
+// show while avoiding a visible loop snap in the mist animation.
 const TIME_LOOP_SECONDS = 60 * Math.PI
 
 type ElectricMistWebGlResources = {
