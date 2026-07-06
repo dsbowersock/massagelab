@@ -60,6 +60,7 @@ import type {
   ReactBitsThreadsOptions,
   ReactBitsIridescenceOptions,
   ReactBitsWavesOptions,
+  ReactBitsGridDistortionOptions,
   EldoraHackerOptions,
   EldoraNovatrixOptions,
   EldoraPhotonBeamOptions,
@@ -135,6 +136,7 @@ interface BackgroundHostProps {
   reactBitsThreads?: ReactBitsThreadsOptions
   reactBitsIridescence?: ReactBitsIridescenceOptions
   reactBitsWaves?: ReactBitsWavesOptions
+  reactBitsGridDistortion?: ReactBitsGridDistortionOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -226,6 +228,7 @@ export function BackgroundHost({
   reactBitsThreads,
   reactBitsIridescence,
   reactBitsWaves,
+  reactBitsGridDistortion,
   eldoraNovatrix,
   eldoraHacker,
   eldoraPhotonBeam,
@@ -342,6 +345,7 @@ export function BackgroundHost({
           reactBitsThreads={reactBitsThreads}
           reactBitsIridescence={reactBitsIridescence}
           reactBitsWaves={reactBitsWaves}
+          reactBitsGridDistortion={reactBitsGridDistortion}
           eldoraNovatrix={eldoraNovatrix}
           eldoraHacker={eldoraHacker}
           eldoraPhotonBeam={eldoraPhotonBeam}

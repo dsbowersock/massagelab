@@ -1485,6 +1485,17 @@ export default function ChimerPage() {
             reactBitsWavesTension={settings.reactBitsWavesTension}
             reactBitsWavesMaxCursorMove={settings.reactBitsWavesMaxCursorMove}
             reactBitsWavesCursorInteraction={settings.reactBitsWavesCursorInteraction}
+            reactBitsGridDistortionPaletteMode={settings.reactBitsGridDistortionPaletteMode}
+            reactBitsGridDistortionPrimaryColor={settings.reactBitsGridDistortionPrimaryColor}
+            reactBitsGridDistortionHarmony={settings.reactBitsGridDistortionHarmony}
+            reactBitsGridDistortionColorOne={settings.reactBitsGridDistortionColorOne}
+            reactBitsGridDistortionColorTwo={settings.reactBitsGridDistortionColorTwo}
+            reactBitsGridDistortionColorThree={settings.reactBitsGridDistortionColorThree}
+            reactBitsGridDistortionGrid={settings.reactBitsGridDistortionGrid}
+            reactBitsGridDistortionMouse={settings.reactBitsGridDistortionMouse}
+            reactBitsGridDistortionStrength={settings.reactBitsGridDistortionStrength}
+            reactBitsGridDistortionRelaxation={settings.reactBitsGridDistortionRelaxation}
+            reactBitsGridDistortionCursorInteraction={settings.reactBitsGridDistortionCursorInteraction}
             eldoraNovatrixPaletteMode={settings.eldoraNovatrixPaletteMode}
             eldoraNovatrixPrimaryColor={settings.eldoraNovatrixPrimaryColor}
             eldoraNovatrixHarmony={settings.eldoraNovatrixHarmony}

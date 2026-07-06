@@ -3171,6 +3171,62 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsWavesMaxCursorMove: -1 }).reactBitsWavesMaxCursorMove, 0)
   })
 
+  it("normalizes React Bits Grid Distortion background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsGridDistortionPaletteMode: "harmony",
+      reactBitsGridDistortionPrimaryColor: "#abcdef",
+      reactBitsGridDistortionHarmony: "triad",
+      reactBitsGridDistortionColorOne: "#010203",
+      reactBitsGridDistortionColorTwo: "#040506",
+      reactBitsGridDistortionColorThree: "#070809",
+      reactBitsGridDistortionGrid: 999,
+      reactBitsGridDistortionMouse: 999,
+      reactBitsGridDistortionStrength: 999,
+      reactBitsGridDistortionRelaxation: 999,
+      reactBitsGridDistortionCursorInteraction: false,
+    })
+
+    assert.equal(settings.reactBitsGridDistortionPaletteMode, "harmony")
+    assert.equal(settings.reactBitsGridDistortionPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsGridDistortionHarmony, "triad")
+    assert.equal(settings.reactBitsGridDistortionColorOne, "#010203")
+    assert.equal(settings.reactBitsGridDistortionColorTwo, "#040506")
+    assert.equal(settings.reactBitsGridDistortionColorThree, "#070809")
+    assert.equal(settings.reactBitsGridDistortionGrid, 40)
+    assert.equal(settings.reactBitsGridDistortionMouse, 0.5)
+    assert.equal(settings.reactBitsGridDistortionStrength, 0.6)
+    assert.equal(settings.reactBitsGridDistortionRelaxation, 0.99)
+    assert.equal(settings.reactBitsGridDistortionCursorInteraction, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridDistortionPaletteMode: "auto" }).reactBitsGridDistortionPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridDistortionPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridDistortionPrimaryColor: "white" }).reactBitsGridDistortionPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridDistortionPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridDistortionHarmony: "wild" }).reactBitsGridDistortionHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridDistortionHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridDistortionColorOne: "black" }).reactBitsGridDistortionColorOne,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridDistortionColorOne,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridDistortionColorTwo: "black" }).reactBitsGridDistortionColorTwo,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridDistortionColorTwo,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsGridDistortionColorThree: "black" }).reactBitsGridDistortionColorThree,
+      DEFAULT_CHIMER_SETTINGS.reactBitsGridDistortionColorThree,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsGridDistortionGrid: 0 }).reactBitsGridDistortionGrid, 4)
+    assert.equal(sanitizeChimerSettings({ reactBitsGridDistortionMouse: 0 }).reactBitsGridDistortionMouse, 0.02)
+    assert.equal(sanitizeChimerSettings({ reactBitsGridDistortionStrength: -1 }).reactBitsGridDistortionStrength, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsGridDistortionRelaxation: 0 }).reactBitsGridDistortionRelaxation, 0.75)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

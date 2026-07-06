@@ -92,6 +92,7 @@ export type ReactBitsDotGridPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsThreadsPaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsIridescencePaletteMode = "source" | "harmony" | "custom"
 export type ReactBitsWavesPaletteMode = "source" | "harmony" | "custom"
+export type ReactBitsGridDistortionPaletteMode = "source" | "harmony" | "custom"
 export type EldoraNovatrixPaletteMode = "harmony" | "custom"
 export type EldoraHackerPaletteMode = "harmony" | "custom"
 export type EldoraPhotonBeamPaletteMode = "harmony" | "custom"
@@ -1118,6 +1119,17 @@ export interface ChimerSettings {
   reactBitsWavesTension: number
   reactBitsWavesMaxCursorMove: number
   reactBitsWavesCursorInteraction: boolean
+  reactBitsGridDistortionPaletteMode: ReactBitsGridDistortionPaletteMode
+  reactBitsGridDistortionPrimaryColor: string
+  reactBitsGridDistortionHarmony: ColorHarmony
+  reactBitsGridDistortionColorOne: string
+  reactBitsGridDistortionColorTwo: string
+  reactBitsGridDistortionColorThree: string
+  reactBitsGridDistortionGrid: number
+  reactBitsGridDistortionMouse: number
+  reactBitsGridDistortionStrength: number
+  reactBitsGridDistortionRelaxation: number
+  reactBitsGridDistortionCursorInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1646,6 +1658,16 @@ type ReactBitsWavesColorSettings = Pick<
   | "reactBitsWavesPrimaryColor"
   | "reactBitsWavesHarmony"
   | "reactBitsWavesLineColor"
+>
+
+type ReactBitsGridDistortionColorSettings = Pick<
+  ChimerSettings,
+  | "reactBitsGridDistortionPaletteMode"
+  | "reactBitsGridDistortionPrimaryColor"
+  | "reactBitsGridDistortionHarmony"
+  | "reactBitsGridDistortionColorOne"
+  | "reactBitsGridDistortionColorTwo"
+  | "reactBitsGridDistortionColorThree"
 >
 
 type EldoraNovatrixColorSettings = Pick<
@@ -2313,6 +2335,27 @@ export function resolveReactBitsWavesLineColor(settings: ReactBitsWavesColorSett
   }
 
   return settings.reactBitsWavesLineColor
+}
+
+export function resolveReactBitsGridDistortionColors(
+  settings: ReactBitsGridDistortionColorSettings,
+): [string, string, string] {
+  if (settings.reactBitsGridDistortionPaletteMode === "source") {
+    return ["#101827", "#5B7CFA", "#F7B7D2"]
+  }
+
+  if (settings.reactBitsGridDistortionPaletteMode === "harmony") {
+    return createReactBitsGridDistortionHarmonyPalette(
+      settings.reactBitsGridDistortionPrimaryColor,
+      settings.reactBitsGridDistortionHarmony,
+    )
+  }
+
+  return [
+    settings.reactBitsGridDistortionColorOne,
+    settings.reactBitsGridDistortionColorTwo,
+    settings.reactBitsGridDistortionColorThree,
+  ]
 }
 
 export function resolveEldoraNovatrixColor(settings: EldoraNovatrixColorSettings): string {
@@ -3749,6 +3792,14 @@ export function createReactBitsIridescenceHarmonyColor(primaryColor: string, har
 
 export function createReactBitsWavesHarmonyColor(primaryColor: string, harmony: ColorHarmony): string {
   return createReactBitsSilkHarmonyColor(primaryColor, harmony)
+}
+
+export function createReactBitsGridDistortionHarmonyPalette(
+  primaryColor: string,
+  harmony: ColorHarmony,
+): [string, string, string] {
+  const [first, second, third] = createReactBitsColorBendsHarmonyPalette(primaryColor, harmony)
+  return [first, second, third]
 }
 
 export function createReactBitsPrismaticBurstHarmonyPalette(
@@ -13775,6 +13826,153 @@ export function SetTimer({
               value={settings.reactBitsWavesMaxCursorMove}
               onChange={(event) => onSettingsChange({ reactBitsWavesMaxCursorMove: Number(event.target.value) })}
               aria-label="React Bits Waves max cursor movement"
+            />
+          </label>
+        </div>
+      )
+    }
+
+    if (option.id === "react-bits-grid-distortion") {
+      return (
+        <div className={styles.backgroundCardControls}>
+          <label className={styles.selectRow}>
+            <span>Texture color mode</span>
+            <select
+              value={settings.reactBitsGridDistortionPaletteMode}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridDistortionPaletteMode: event.target.value as ReactBitsGridDistortionPaletteMode,
+              })}
+              aria-label="React Bits Grid Distortion color mode"
+            >
+              <option value="source">Source generated texture</option>
+              <option value="custom">Custom colors</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {settings.reactBitsGridDistortionPaletteMode === "custom" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Texture color 1</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridDistortionColorOne}
+                  onChange={(event) => onSettingsChange({ reactBitsGridDistortionColorOne: event.target.value })}
+                  aria-label="React Bits Grid Distortion texture color 1"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Texture color 2</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridDistortionColorTwo}
+                  onChange={(event) => onSettingsChange({ reactBitsGridDistortionColorTwo: event.target.value })}
+                  aria-label="React Bits Grid Distortion texture color 2"
+                />
+              </label>
+              <label className={styles.colorRow}>
+                <span>Texture color 3</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridDistortionColorThree}
+                  onChange={(event) => onSettingsChange({ reactBitsGridDistortionColorThree: event.target.value })}
+                  aria-label="React Bits Grid Distortion texture color 3"
+                />
+              </label>
+            </>
+          ) : null}
+
+          {settings.reactBitsGridDistortionPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={settings.reactBitsGridDistortionPrimaryColor}
+                  onChange={(event) => onSettingsChange({ reactBitsGridDistortionPrimaryColor: event.target.value })}
+                  aria-label="React Bits Grid Distortion primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={settings.reactBitsGridDistortionHarmony}
+                  onChange={(event) => onSettingsChange({
+                    reactBitsGridDistortionHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Grid Distortion color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={settings.reactBitsGridDistortionCursorInteraction}
+              onChange={(event) => onSettingsChange({
+                reactBitsGridDistortionCursorInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Grid Distortion cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Grid ({settings.reactBitsGridDistortionGrid.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="40"
+              step="1"
+              value={settings.reactBitsGridDistortionGrid}
+              onChange={(event) => onSettingsChange({ reactBitsGridDistortionGrid: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion grid"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Mouse radius ({settings.reactBitsGridDistortionMouse.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.02"
+              max="0.5"
+              step="0.01"
+              value={settings.reactBitsGridDistortionMouse}
+              onChange={(event) => onSettingsChange({ reactBitsGridDistortionMouse: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion mouse radius"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Strength ({settings.reactBitsGridDistortionStrength.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.6"
+              step="0.01"
+              value={settings.reactBitsGridDistortionStrength}
+              onChange={(event) => onSettingsChange({ reactBitsGridDistortionStrength: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion strength"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Relaxation ({settings.reactBitsGridDistortionRelaxation.toFixed(2)})</span>
+            <input
+              type="range"
+              min="0.75"
+              max="0.99"
+              step="0.01"
+              value={settings.reactBitsGridDistortionRelaxation}
+              onChange={(event) => onSettingsChange({ reactBitsGridDistortionRelaxation: Number(event.target.value) })}
+              aria-label="React Bits Grid Distortion relaxation"
             />
           </label>
         </div>

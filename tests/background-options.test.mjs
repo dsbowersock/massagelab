@@ -96,6 +96,7 @@ describe("premium background registry", () => {
       "react-bits-threads",
       "react-bits-iridescence",
       "react-bits-waves",
+      "react-bits-grid-distortion",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -337,6 +338,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-threads"))
     assert.ok(chimerOptions.includes("react-bits-iridescence"))
     assert.ok(chimerOptions.includes("react-bits-waves"))
+    assert.ok(chimerOptions.includes("react-bits-grid-distortion"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -406,6 +408,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-threads"))
     assert.ok(clockOptions.includes("react-bits-iridescence"))
     assert.ok(clockOptions.includes("react-bits-waves"))
+    assert.ok(clockOptions.includes("react-bits-grid-distortion"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -476,6 +479,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-threads"))
     assert.ok(musicOptions.includes("react-bits-iridescence"))
     assert.ok(musicOptions.includes("react-bits-waves"))
+    assert.ok(musicOptions.includes("react-bits-grid-distortion"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -4517,6 +4521,86 @@ describe("premium background registry", () => {
       "reactBitsWavesTension",
       "reactBitsWavesMaxCursorMove",
       "reactBitsWavesCursorInteraction",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Grid Distortion source-shaped, raw WebGL, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-grid-distortion-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-grid-distortion/)
+    assert.match(registrySource, /Grid Distortion/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/grid-distortion/)
+    assert.match(effectSource, /ReactBitsGridDistortionBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_GRID_DISTORTION/)
+    assert.match(effectSource, /OES_texture_float/)
+    assert.match(effectSource, /uDataTexture/)
+    assert.match(effectSource, /uTexture/)
+    assert.match(effectSource, /texture2D\(uTexture, uv - 0\.02 \* offset\.rg\)/)
+    assert.match(effectSource, /texSubImage2D/)
+    assert.match(effectSource, /strength \* 100/)
+    assert.match(effectSource, /relaxation/)
+    assert.match(effectSource, /getContext\("webgl"/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.doesNotMatch(effectSource, /new Image/)
+    assert.doesNotMatch(effectSource, /imageSrc/)
+    assert.match(stylesSource, /reactBitsGridDistortion/)
+    assert.match(stylesSource, /reactBitsGridDistortionCanvas/)
+    assert.match(hostSource, /reactBitsGridDistortion/)
+    assert.match(cssEffectsSource, /ReactBitsGridDistortionOptions/)
+    assert.match(setupSource, /resolveReactBitsGridDistortionColors/)
+    assert.match(setupSource, /createReactBitsGridDistortionHarmonyPalette/)
+    assert.match(runningSource, /reactBitsGridDistortion=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsGridDistortion=\{\{/)
+    assert.match(docsSource, /Grid Distortion \| https:\/\/reactbits\.dev\/backgrounds\/grid-distortion/)
+    assert.match(docsSource, /GridDistortion\.jsx/)
+    assert.match(docsSource, /GridDistortion\.css/)
+    assert.match(docsSource, /DataTexture|data texture/)
+
+    for (const settingKey of [
+      "reactBitsGridDistortionPaletteMode",
+      "reactBitsGridDistortionPrimaryColor",
+      "reactBitsGridDistortionHarmony",
+      "reactBitsGridDistortionColorOne",
+      "reactBitsGridDistortionColorTwo",
+      "reactBitsGridDistortionColorThree",
+      "reactBitsGridDistortionGrid",
+      "reactBitsGridDistortionMouse",
+      "reactBitsGridDistortionStrength",
+      "reactBitsGridDistortionRelaxation",
+      "reactBitsGridDistortionCursorInteraction",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

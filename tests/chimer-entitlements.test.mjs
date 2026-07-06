@@ -2595,6 +2595,57 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsWavesCursorInteraction, false)
   })
 
+  it("resets React Bits Grid Distortion controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-grid-distortion",
+      reactBitsGridDistortionPaletteMode: "harmony",
+      reactBitsGridDistortionPrimaryColor: "#ABCDEF",
+      reactBitsGridDistortionHarmony: "triad",
+      reactBitsGridDistortionColorOne: "#010203",
+      reactBitsGridDistortionColorTwo: "#040506",
+      reactBitsGridDistortionColorThree: "#070809",
+      reactBitsGridDistortionGrid: 30,
+      reactBitsGridDistortionMouse: 0.32,
+      reactBitsGridDistortionStrength: 0.48,
+      reactBitsGridDistortionRelaxation: 0.83,
+      reactBitsGridDistortionCursorInteraction: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsGridDistortionPaletteMode",
+      "reactBitsGridDistortionPrimaryColor",
+      "reactBitsGridDistortionHarmony",
+      "reactBitsGridDistortionColorOne",
+      "reactBitsGridDistortionColorTwo",
+      "reactBitsGridDistortionColorThree",
+      "reactBitsGridDistortionGrid",
+      "reactBitsGridDistortionMouse",
+      "reactBitsGridDistortionStrength",
+      "reactBitsGridDistortionRelaxation",
+      "reactBitsGridDistortionCursorInteraction",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-grid-distortion")
+    assert.equal(premiumSettings.reactBitsGridDistortionPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsGridDistortionPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsGridDistortionHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsGridDistortionColorOne, "#010203")
+    assert.equal(premiumSettings.reactBitsGridDistortionColorTwo, "#040506")
+    assert.equal(premiumSettings.reactBitsGridDistortionColorThree, "#070809")
+    assert.equal(premiumSettings.reactBitsGridDistortionGrid, 30)
+    assert.equal(premiumSettings.reactBitsGridDistortionMouse, 0.32)
+    assert.equal(premiumSettings.reactBitsGridDistortionStrength, 0.48)
+    assert.equal(premiumSettings.reactBitsGridDistortionRelaxation, 0.83)
+    assert.equal(premiumSettings.reactBitsGridDistortionCursorInteraction, false)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

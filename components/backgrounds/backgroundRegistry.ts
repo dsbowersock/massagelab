@@ -55,6 +55,7 @@ export type BackgroundId =
   | "react-bits-threads"
   | "react-bits-iridescence"
   | "react-bits-waves"
+  | "react-bits-grid-distortion"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -154,6 +155,7 @@ const reactBitsDotGrid = () => import("./effects/react-bits-dot-grid-background"
 const reactBitsThreads = () => import("./effects/react-bits-threads-background")
 const reactBitsIridescence = () => import("./effects/react-bits-iridescence-background")
 const reactBitsWaves = () => import("./effects/react-bits-waves-background")
+const reactBitsGridDistortion = () => import("./effects/react-bits-grid-distortion-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1242,6 +1244,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0 1px, transparent 1px 22px), linear-gradient(145deg, #f8fafc 0%, #e5e7eb 46%, #dbeafe 100%)",
+    },
+  },
+  {
+    id: "react-bits-grid-distortion",
+    label: "Grid Distortion",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/grid-distortion",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium image-distortion WebGL texture field for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Custom/harmony generated texture colors plus source-shaped grid, mouse radius, strength, relaxation, and optional cursor interaction; source Three.js data-texture distortion adapted with raw WebGL and no arbitrary image URLs.",
+    component: () => reactBitsGridDistortion().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "radial-gradient(circle at 30% 30%, rgba(91,124,250,0.42), transparent 34%), radial-gradient(circle at 70% 66%, rgba(247,183,210,0.36), transparent 42%), linear-gradient(145deg, #101827 0%, #111827 100%)",
     },
   },
   {

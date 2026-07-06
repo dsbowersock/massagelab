@@ -58,6 +58,7 @@ export interface BackgroundEffectProps {
   reactBitsThreads?: ReactBitsThreadsOptions
   reactBitsIridescence?: ReactBitsIridescenceOptions
   reactBitsWaves?: ReactBitsWavesOptions
+  reactBitsGridDistortion?: ReactBitsGridDistortionOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -733,6 +734,17 @@ export interface ReactBitsWavesOptions {
   friction?: number
   tension?: number
   maxCursorMove?: number
+  cursorInteraction?: boolean
+}
+
+export interface ReactBitsGridDistortionOptions {
+  grid?: number
+  mouse?: number
+  strength?: number
+  relaxation?: number
+  colorOne?: string
+  colorTwo?: string
+  colorThree?: string
   cursorInteraction?: boolean
 }
 
