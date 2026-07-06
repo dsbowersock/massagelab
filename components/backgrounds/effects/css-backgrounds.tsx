@@ -57,6 +57,7 @@ export interface BackgroundEffectProps {
   reactBitsDotGrid?: ReactBitsDotGridOptions
   reactBitsThreads?: ReactBitsThreadsOptions
   reactBitsIridescence?: ReactBitsIridescenceOptions
+  reactBitsWaves?: ReactBitsWavesOptions
   eldoraNovatrix?: EldoraNovatrixOptions
   eldoraHacker?: EldoraHackerOptions
   eldoraPhotonBeam?: EldoraPhotonBeamOptions
@@ -717,6 +718,22 @@ export interface ReactBitsIridescenceOptions {
   speed?: number
   amplitude?: number
   mouseReact?: boolean
+}
+
+export interface ReactBitsWavesOptions {
+  lineColor?: string
+  backgroundColor?: string
+  transparentBackground?: boolean
+  waveSpeedX?: number
+  waveSpeedY?: number
+  waveAmpX?: number
+  waveAmpY?: number
+  xGap?: number
+  yGap?: number
+  friction?: number
+  tension?: number
+  maxCursorMove?: number
+  cursorInteraction?: boolean
 }
 
 export interface EldoraNovatrixOptions {

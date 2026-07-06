@@ -95,6 +95,7 @@ describe("premium background registry", () => {
       "react-bits-dot-grid",
       "react-bits-threads",
       "react-bits-iridescence",
+      "react-bits-waves",
       "eldora-novatrix-background",
       "eldora-hacker-background",
       "eldora-photon-beam",
@@ -335,6 +336,7 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("react-bits-dot-grid"))
     assert.ok(chimerOptions.includes("react-bits-threads"))
     assert.ok(chimerOptions.includes("react-bits-iridescence"))
+    assert.ok(chimerOptions.includes("react-bits-waves"))
     assert.ok(clockOptions.includes("aceternity-dotted-glow"))
     assert.ok(clockOptions.includes("aceternity-sparkles"))
     assert.ok(clockOptions.includes("aceternity-gradient-animation"))
@@ -403,6 +405,7 @@ describe("premium background registry", () => {
     assert.ok(clockOptions.includes("react-bits-dot-grid"))
     assert.ok(clockOptions.includes("react-bits-threads"))
     assert.ok(clockOptions.includes("react-bits-iridescence"))
+    assert.ok(clockOptions.includes("react-bits-waves"))
     assert.ok(musicOptions.includes("aceternity-aurora"))
     assert.ok(musicOptions.includes("aceternity-dotted-glow"))
     assert.ok(musicOptions.includes("aceternity-sparkles"))
@@ -472,6 +475,7 @@ describe("premium background registry", () => {
     assert.ok(musicOptions.includes("react-bits-dot-grid"))
     assert.ok(musicOptions.includes("react-bits-threads"))
     assert.ok(musicOptions.includes("react-bits-iridescence"))
+    assert.ok(musicOptions.includes("react-bits-waves"))
     assert.equal(chimerOptions.includes("magic-noise-texture"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
@@ -4431,6 +4435,88 @@ describe("premium background registry", () => {
       "reactBitsIridescenceSpeed",
       "reactBitsIridescenceAmplitude",
       "reactBitsIridescenceMouseReact",
+    ]) {
+      assert.match(setupSource, new RegExp(settingKey))
+      assert.match(runningSource, new RegExp(settingKey))
+      assert.match(pageSource, new RegExp(settingKey))
+    }
+  })
+
+  it("keeps React Bits Waves source-shaped, canvas-based, customizable, and dependency-free", () => {
+    const effectSource = readFileSync(
+      new URL("../components/backgrounds/effects/react-bits-waves-background.tsx", import.meta.url),
+      "utf8",
+    )
+    const registrySource = readFileSync(
+      new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
+      "utf8",
+    )
+    const hostSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+      "utf8",
+    )
+    const stylesSource = readFileSync(
+      new URL("../components/backgrounds/BackgroundHost.module.css", import.meta.url),
+      "utf8",
+    )
+    const cssEffectsSource = readFileSync(
+      new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
+      "utf8",
+    )
+    const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
+    const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
+    const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
+
+    assert.match(registrySource, /react-bits-waves/)
+    assert.match(registrySource, /Waves/)
+    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/waves/)
+    assert.match(effectSource, /ReactBitsWavesBackground/)
+    assert.match(effectSource, /DEFAULT_REACT_BITS_WAVES/)
+    assert.match(effectSource, /class Noise/)
+    assert.match(effectSource, /perlin2/)
+    assert.match(effectSource, /waveSpeedX/)
+    assert.match(effectSource, /waveAmpX/)
+    assert.match(effectSource, /maxCursorMove/)
+    assert.match(effectSource, /getContext\("2d"/)
+    assert.match(effectSource, /ResizeObserver/)
+    assert.match(effectSource, /shouldAnimateAmbientBackground/)
+    assert.match(effectSource, /window\.addEventListener\("pointermove"/)
+    assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
+    assert.doesNotMatch(effectSource, /Math\.random/)
+    assert.doesNotMatch(effectSource, /from "ogl"/)
+    assert.doesNotMatch(effectSource, /from "three"/)
+    assert.doesNotMatch(effectSource, /@react-three/)
+    assert.match(stylesSource, /reactBitsWaves/)
+    assert.match(stylesSource, /reactBitsWavesCanvas/)
+    assert.match(hostSource, /reactBitsWaves/)
+    assert.match(cssEffectsSource, /ReactBitsWavesOptions/)
+    assert.match(setupSource, /resolveReactBitsWavesLineColor/)
+    assert.match(setupSource, /createReactBitsWavesHarmonyColor/)
+    assert.match(runningSource, /reactBitsWaves=\{\{/)
+    assert.doesNotMatch(pageSource, /reactBitsWaves=\{\{/)
+    assert.match(docsSource, /Waves \| https:\/\/reactbits\.dev\/backgrounds\/waves/)
+    assert.match(docsSource, /Waves\.jsx/)
+    assert.match(docsSource, /Waves\.css/)
+    assert.match(docsSource, /Perlin/)
+
+    for (const settingKey of [
+      "reactBitsWavesPaletteMode",
+      "reactBitsWavesPrimaryColor",
+      "reactBitsWavesHarmony",
+      "reactBitsWavesLineColor",
+      "reactBitsWavesBackgroundColor",
+      "reactBitsWavesTransparentBackground",
+      "reactBitsWavesSpeedX",
+      "reactBitsWavesSpeedY",
+      "reactBitsWavesAmplitudeX",
+      "reactBitsWavesAmplitudeY",
+      "reactBitsWavesGapX",
+      "reactBitsWavesGapY",
+      "reactBitsWavesFriction",
+      "reactBitsWavesTension",
+      "reactBitsWavesMaxCursorMove",
+      "reactBitsWavesCursorInteraction",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))

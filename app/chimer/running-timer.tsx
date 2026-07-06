@@ -104,6 +104,7 @@ import {
   resolveReactBitsDotGridColors,
   resolveReactBitsThreadsColor,
   resolveReactBitsIridescenceColor,
+  resolveReactBitsWavesLineColor,
   resolveReactBitsSilkColor,
   resolveEldoraHackerColor,
   resolveEldoraNovatrixColor,
@@ -158,6 +159,7 @@ import {
   type ReactBitsDotGridPaletteMode,
   type ReactBitsThreadsPaletteMode,
   type ReactBitsIridescencePaletteMode,
+  type ReactBitsWavesPaletteMode,
   type ReactBitsLightPillarPaletteMode,
   type ReactBitsLightPillarQuality,
   type ReactBitsSilkPaletteMode,
@@ -835,6 +837,22 @@ interface RunningTimerProps {
   reactBitsIridescenceSpeed: number
   reactBitsIridescenceAmplitude: number
   reactBitsIridescenceMouseReact: boolean
+  reactBitsWavesPaletteMode: ReactBitsWavesPaletteMode
+  reactBitsWavesPrimaryColor: string
+  reactBitsWavesHarmony: ColorHarmony
+  reactBitsWavesLineColor: string
+  reactBitsWavesBackgroundColor: string
+  reactBitsWavesTransparentBackground: boolean
+  reactBitsWavesSpeedX: number
+  reactBitsWavesSpeedY: number
+  reactBitsWavesAmplitudeX: number
+  reactBitsWavesAmplitudeY: number
+  reactBitsWavesGapX: number
+  reactBitsWavesGapY: number
+  reactBitsWavesFriction: number
+  reactBitsWavesTension: number
+  reactBitsWavesMaxCursorMove: number
+  reactBitsWavesCursorInteraction: boolean
   eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
   eldoraNovatrixPrimaryColor: string
   eldoraNovatrixHarmony: ColorHarmony
@@ -1669,6 +1687,22 @@ export function RunningTimer({
   reactBitsIridescenceSpeed,
   reactBitsIridescenceAmplitude,
   reactBitsIridescenceMouseReact,
+  reactBitsWavesPaletteMode,
+  reactBitsWavesPrimaryColor,
+  reactBitsWavesHarmony,
+  reactBitsWavesLineColor,
+  reactBitsWavesBackgroundColor,
+  reactBitsWavesTransparentBackground,
+  reactBitsWavesSpeedX,
+  reactBitsWavesSpeedY,
+  reactBitsWavesAmplitudeX,
+  reactBitsWavesAmplitudeY,
+  reactBitsWavesGapX,
+  reactBitsWavesGapY,
+  reactBitsWavesFriction,
+  reactBitsWavesTension,
+  reactBitsWavesMaxCursorMove,
+  reactBitsWavesCursorInteraction,
   eldoraNovatrixPaletteMode,
   eldoraNovatrixPrimaryColor,
   eldoraNovatrixHarmony,
@@ -2125,6 +2159,12 @@ export function RunningTimer({
     reactBitsIridescencePrimaryColor,
     reactBitsIridescenceHarmony,
     reactBitsIridescenceColor,
+  })
+  const wavesLineColor = resolveReactBitsWavesLineColor({
+    reactBitsWavesPaletteMode,
+    reactBitsWavesPrimaryColor,
+    reactBitsWavesHarmony,
+    reactBitsWavesLineColor,
   })
   const liquidEtherColors = resolveReactBitsLiquidEtherColors({
     reactBitsLiquidEtherPaletteMode,
@@ -11325,6 +11365,220 @@ export function RunningTimer({
         </>
       )}
 
+      {option.id === "react-bits-waves" && (
+        <>
+          <label className={styles.selectRow}>
+            <span>Line color mode</span>
+            <select
+              value={reactBitsWavesPaletteMode}
+              onChange={(event) => handleSettingsChange({
+                reactBitsWavesPaletteMode: event.target.value as ReactBitsWavesPaletteMode,
+              })}
+              aria-label="React Bits Waves line color mode"
+            >
+              <option value="source">Source black</option>
+              <option value="custom">Custom color</option>
+              <option value="harmony">Harmony from primary</option>
+            </select>
+          </label>
+
+          {reactBitsWavesPaletteMode === "custom" ? (
+            <label className={styles.colorRow}>
+              <span>Line color</span>
+              <input
+                type="color"
+                value={reactBitsWavesLineColor}
+                onChange={(event) => handleSettingsChange({ reactBitsWavesLineColor: event.target.value })}
+                aria-label="React Bits Waves line color"
+              />
+            </label>
+          ) : null}
+
+          {reactBitsWavesPaletteMode === "harmony" ? (
+            <>
+              <label className={styles.colorRow}>
+                <span>Primary color</span>
+                <input
+                  type="color"
+                  value={reactBitsWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ reactBitsWavesPrimaryColor: event.target.value })}
+                  aria-label="React Bits Waves primary color"
+                />
+              </label>
+              <label className={styles.selectRow}>
+                <span>Harmony</span>
+                <select
+                  value={reactBitsWavesHarmony}
+                  onChange={(event) => handleSettingsChange({
+                    reactBitsWavesHarmony: event.target.value as ColorHarmony,
+                  })}
+                  aria-label="React Bits Waves color harmony"
+                >
+                  <option value="monochromatic">Monochromatic</option>
+                  <option value="analogous">Analogous</option>
+                  <option value="complementary">Complementary</option>
+                  <option value="triad">Triad</option>
+                  <option value="square">Square</option>
+                </select>
+              </label>
+            </>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Transparent background</span>
+            <input
+              type="checkbox"
+              checked={reactBitsWavesTransparentBackground}
+              onChange={(event) => handleSettingsChange({
+                reactBitsWavesTransparentBackground: event.target.checked,
+              })}
+              aria-label="React Bits Waves transparent background"
+            />
+          </label>
+
+          {!reactBitsWavesTransparentBackground ? (
+            <label className={styles.colorRow}>
+              <span>Background color</span>
+              <input
+                type="color"
+                value={reactBitsWavesBackgroundColor}
+                onChange={(event) => handleSettingsChange({ reactBitsWavesBackgroundColor: event.target.value })}
+                aria-label="React Bits Waves background color"
+              />
+            </label>
+          ) : null}
+
+          <label className={styles.switchRow}>
+            <span>Cursor interaction</span>
+            <input
+              type="checkbox"
+              checked={reactBitsWavesCursorInteraction}
+              onChange={(event) => handleSettingsChange({
+                reactBitsWavesCursorInteraction: event.target.checked,
+              })}
+              aria-label="React Bits Waves cursor interaction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed X ({reactBitsWavesSpeedX.toFixed(4)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.05"
+              step="0.0005"
+              value={reactBitsWavesSpeedX}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesSpeedX: Number(event.target.value) })}
+              aria-label="React Bits Waves X speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Wave speed Y ({reactBitsWavesSpeedY.toFixed(4)})</span>
+            <input
+              type="range"
+              min="0"
+              max="0.05"
+              step="0.0005"
+              value={reactBitsWavesSpeedY}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesSpeedY: Number(event.target.value) })}
+              aria-label="React Bits Waves Y speed"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude X ({reactBitsWavesAmplitudeX.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="96"
+              step="1"
+              value={reactBitsWavesAmplitudeX}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesAmplitudeX: Number(event.target.value) })}
+              aria-label="React Bits Waves X amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Amplitude Y ({reactBitsWavesAmplitudeY.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="96"
+              step="1"
+              value={reactBitsWavesAmplitudeY}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesAmplitudeY: Number(event.target.value) })}
+              aria-label="React Bits Waves Y amplitude"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Line gap X ({reactBitsWavesGapX.toFixed(0)})</span>
+            <input
+              type="range"
+              min="4"
+              max="40"
+              step="1"
+              value={reactBitsWavesGapX}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesGapX: Number(event.target.value) })}
+              aria-label="React Bits Waves X gap"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Point gap Y ({reactBitsWavesGapY.toFixed(0)})</span>
+            <input
+              type="range"
+              min="8"
+              max="96"
+              step="1"
+              value={reactBitsWavesGapY}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesGapY: Number(event.target.value) })}
+              aria-label="React Bits Waves Y gap"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Friction ({reactBitsWavesFriction.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.8"
+              max="0.99"
+              step="0.005"
+              value={reactBitsWavesFriction}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesFriction: Number(event.target.value) })}
+              aria-label="React Bits Waves friction"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Tension ({reactBitsWavesTension.toFixed(3)})</span>
+            <input
+              type="range"
+              min="0.001"
+              max="0.05"
+              step="0.001"
+              value={reactBitsWavesTension}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesTension: Number(event.target.value) })}
+              aria-label="React Bits Waves tension"
+            />
+          </label>
+
+          <label className={styles.rangeRow}>
+            <span>Cursor movement ({reactBitsWavesMaxCursorMove.toFixed(0)})</span>
+            <input
+              type="range"
+              min="0"
+              max="240"
+              step="5"
+              value={reactBitsWavesMaxCursorMove}
+              onChange={(event) => handleSettingsChange({ reactBitsWavesMaxCursorMove: Number(event.target.value) })}
+              aria-label="React Bits Waves max cursor movement"
+            />
+          </label>
+        </>
+      )}
+
       {option.id === "eldora-photon-beam" && (
         <>
           <label className={styles.selectRow}>
@@ -13795,6 +14049,21 @@ export function RunningTimer({
             speed: reactBitsIridescenceSpeed,
             amplitude: reactBitsIridescenceAmplitude,
             mouseReact: reactBitsIridescenceMouseReact,
+          }}
+          reactBitsWaves={{
+            lineColor: wavesLineColor,
+            backgroundColor: reactBitsWavesBackgroundColor,
+            transparentBackground: reactBitsWavesTransparentBackground,
+            waveSpeedX: reactBitsWavesSpeedX,
+            waveSpeedY: reactBitsWavesSpeedY,
+            waveAmpX: reactBitsWavesAmplitudeX,
+            waveAmpY: reactBitsWavesAmplitudeY,
+            xGap: reactBitsWavesGapX,
+            yGap: reactBitsWavesGapY,
+            friction: reactBitsWavesFriction,
+            tension: reactBitsWavesTension,
+            maxCursorMove: reactBitsWavesMaxCursorMove,
+            cursorInteraction: reactBitsWavesCursorInteraction,
           }}
           eldoraNovatrix={{
             color: novatrixColor,

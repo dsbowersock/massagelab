@@ -2529,6 +2529,72 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(premiumSettings.reactBitsIridescenceMouseReact, false)
   })
 
+  it("resets React Bits Waves controls without premium background access", () => {
+    const input = {
+      backgroundId: "react-bits-waves",
+      reactBitsWavesPaletteMode: "harmony",
+      reactBitsWavesPrimaryColor: "#ABCDEF",
+      reactBitsWavesHarmony: "triad",
+      reactBitsWavesLineColor: "#010203",
+      reactBitsWavesBackgroundColor: "#040506",
+      reactBitsWavesTransparentBackground: false,
+      reactBitsWavesSpeedX: 0.03,
+      reactBitsWavesSpeedY: 0.02,
+      reactBitsWavesAmplitudeX: 72,
+      reactBitsWavesAmplitudeY: 44,
+      reactBitsWavesGapX: 18,
+      reactBitsWavesGapY: 52,
+      reactBitsWavesFriction: 0.88,
+      reactBitsWavesTension: 0.018,
+      reactBitsWavesMaxCursorMove: 180,
+      reactBitsWavesCursorInteraction: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "reactBitsWavesPaletteMode",
+      "reactBitsWavesPrimaryColor",
+      "reactBitsWavesHarmony",
+      "reactBitsWavesLineColor",
+      "reactBitsWavesBackgroundColor",
+      "reactBitsWavesTransparentBackground",
+      "reactBitsWavesSpeedX",
+      "reactBitsWavesSpeedY",
+      "reactBitsWavesAmplitudeX",
+      "reactBitsWavesAmplitudeY",
+      "reactBitsWavesGapX",
+      "reactBitsWavesGapY",
+      "reactBitsWavesFriction",
+      "reactBitsWavesTension",
+      "reactBitsWavesMaxCursorMove",
+      "reactBitsWavesCursorInteraction",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "react-bits-waves")
+    assert.equal(premiumSettings.reactBitsWavesPaletteMode, "harmony")
+    assert.equal(premiumSettings.reactBitsWavesPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.reactBitsWavesHarmony, "triad")
+    assert.equal(premiumSettings.reactBitsWavesLineColor, "#010203")
+    assert.equal(premiumSettings.reactBitsWavesBackgroundColor, "#040506")
+    assert.equal(premiumSettings.reactBitsWavesTransparentBackground, false)
+    assert.equal(premiumSettings.reactBitsWavesSpeedX, 0.03)
+    assert.equal(premiumSettings.reactBitsWavesSpeedY, 0.02)
+    assert.equal(premiumSettings.reactBitsWavesAmplitudeX, 72)
+    assert.equal(premiumSettings.reactBitsWavesAmplitudeY, 44)
+    assert.equal(premiumSettings.reactBitsWavesGapX, 18)
+    assert.equal(premiumSettings.reactBitsWavesGapY, 52)
+    assert.equal(premiumSettings.reactBitsWavesFriction, 0.88)
+    assert.equal(premiumSettings.reactBitsWavesTension, 0.018)
+    assert.equal(premiumSettings.reactBitsWavesMaxCursorMove, 180)
+    assert.equal(premiumSettings.reactBitsWavesCursorInteraction, false)
+  })
+
   it("resets Aceternity 3D Globe controls without premium background access", () => {
     const input = {
       backgroundId: "aceternity-3d-globe",

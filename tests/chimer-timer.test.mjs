@@ -3106,6 +3106,71 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({ reactBitsIridescenceAmplitude: -1 }).reactBitsIridescenceAmplitude, 0)
   })
 
+  it("normalizes React Bits Waves background controls", () => {
+    const settings = sanitizeChimerSettings({
+      reactBitsWavesPaletteMode: "harmony",
+      reactBitsWavesPrimaryColor: "#abcdef",
+      reactBitsWavesHarmony: "triad",
+      reactBitsWavesLineColor: "#010203",
+      reactBitsWavesBackgroundColor: "#040506",
+      reactBitsWavesTransparentBackground: false,
+      reactBitsWavesSpeedX: 99,
+      reactBitsWavesSpeedY: 99,
+      reactBitsWavesAmplitudeX: 999,
+      reactBitsWavesAmplitudeY: 999,
+      reactBitsWavesGapX: 999,
+      reactBitsWavesGapY: 999,
+      reactBitsWavesFriction: 99,
+      reactBitsWavesTension: 99,
+      reactBitsWavesMaxCursorMove: 999,
+      reactBitsWavesCursorInteraction: false,
+    })
+
+    assert.equal(settings.reactBitsWavesPaletteMode, "harmony")
+    assert.equal(settings.reactBitsWavesPrimaryColor, "#ABCDEF")
+    assert.equal(settings.reactBitsWavesHarmony, "triad")
+    assert.equal(settings.reactBitsWavesLineColor, "#010203")
+    assert.equal(settings.reactBitsWavesBackgroundColor, "#040506")
+    assert.equal(settings.reactBitsWavesTransparentBackground, false)
+    assert.equal(settings.reactBitsWavesSpeedX, 0.05)
+    assert.equal(settings.reactBitsWavesSpeedY, 0.05)
+    assert.equal(settings.reactBitsWavesAmplitudeX, 96)
+    assert.equal(settings.reactBitsWavesAmplitudeY, 96)
+    assert.equal(settings.reactBitsWavesGapX, 40)
+    assert.equal(settings.reactBitsWavesGapY, 96)
+    assert.equal(settings.reactBitsWavesFriction, 0.99)
+    assert.equal(settings.reactBitsWavesTension, 0.05)
+    assert.equal(settings.reactBitsWavesMaxCursorMove, 240)
+    assert.equal(settings.reactBitsWavesCursorInteraction, false)
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsWavesPaletteMode: "auto" }).reactBitsWavesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.reactBitsWavesPaletteMode,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsWavesPrimaryColor: "white" }).reactBitsWavesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsWavesPrimaryColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsWavesHarmony: "wild" }).reactBitsWavesHarmony,
+      DEFAULT_CHIMER_SETTINGS.reactBitsWavesHarmony,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsWavesLineColor: "black" }).reactBitsWavesLineColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsWavesLineColor,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ reactBitsWavesBackgroundColor: "black" }).reactBitsWavesBackgroundColor,
+      DEFAULT_CHIMER_SETTINGS.reactBitsWavesBackgroundColor,
+    )
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesSpeedX: -1 }).reactBitsWavesSpeedX, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesSpeedY: -1 }).reactBitsWavesSpeedY, 0)
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesGapX: 0 }).reactBitsWavesGapX, 4)
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesGapY: 0 }).reactBitsWavesGapY, 8)
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesFriction: 0 }).reactBitsWavesFriction, 0.8)
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesTension: 0 }).reactBitsWavesTension, 0.001)
+    assert.equal(sanitizeChimerSettings({ reactBitsWavesMaxCursorMove: -1 }).reactBitsWavesMaxCursorMove, 0)
+  })
+
   it("normalizes Eldora Novatrix background controls", () => {
     const settings = sanitizeChimerSettings({
       eldoraNovatrixPaletteMode: "harmony",

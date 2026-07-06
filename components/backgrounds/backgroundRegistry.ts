@@ -54,6 +54,7 @@ export type BackgroundId =
   | "react-bits-dot-grid"
   | "react-bits-threads"
   | "react-bits-iridescence"
+  | "react-bits-waves"
   | "eldora-novatrix-background"
   | "eldora-hacker-background"
   | "eldora-photon-beam"
@@ -152,6 +153,7 @@ const reactBitsDotField = () => import("./effects/react-bits-dot-field-backgroun
 const reactBitsDotGrid = () => import("./effects/react-bits-dot-grid-background")
 const reactBitsThreads = () => import("./effects/react-bits-threads-background")
 const reactBitsIridescence = () => import("./effects/react-bits-iridescence-background")
+const reactBitsWaves = () => import("./effects/react-bits-waves-background")
 const eldoraNovatrix = () => import("./effects/eldora-novatrix-background")
 const eldoraHacker = () => import("./effects/eldora-hacker-background")
 const eldoraPhotonBeam = () => import("./effects/eldora-photon-beam-background")
@@ -1219,6 +1221,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     fallbackStyle: {
       background:
         "radial-gradient(circle at 40% 42%, rgba(255,255,255,0.22), transparent 34%), radial-gradient(circle at 64% 56%, rgba(140,120,255,0.2), transparent 40%), linear-gradient(145deg, #f5f7ff 0%, #b5c4ff 46%, #f7a6d8 100%)",
+    },
+  },
+  {
+    id: "react-bits-waves",
+    label: "Waves",
+    provider: "React Bits",
+    sourceUrl: "https://reactbits.dev/backgrounds/waves",
+    license: "MIT + Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05",
+    licenseStatus: "caution",
+    category: ["chimer", "clock", "music", "ambient"],
+    recommendedUse: "Premium canvas wave-line field for opt-in Chimer, Clock, Music, and future ambient mode.",
+    motionIntensity: "medium",
+    performanceCost: "medium",
+    requiresSubscription: true,
+    enabled: true,
+    customizationSummary:
+      "Source/custom/harmony line color, optional transparent/custom background, source-shaped wave speed, amplitude, grid gap, friction, tension, max cursor movement, and optional cursor interaction; source canvas simulation adapted without new dependencies.",
+    component: () => reactBitsWaves().then((module) => ({ default: module.default })),
+    fallbackStyle: {
+      background:
+        "repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0 1px, transparent 1px 22px), linear-gradient(145deg, #f8fafc 0%, #e5e7eb 46%, #dbeafe 100%)",
     },
   },
   {
