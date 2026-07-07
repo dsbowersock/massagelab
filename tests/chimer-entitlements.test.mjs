@@ -7,2717 +7,2717 @@ import {
 } from "../lib/chimer-timer.js"
 
 describe("Chimer entitlement-aware settings", () => {
-  it("resets Eldora Novatrix controls without premium background access", () => {
+  it("resets MassageLab Novatrix controls without premium background access", () => {
     const input = {
-      backgroundId: "eldora-novatrix-background",
-      eldoraNovatrixPaletteMode: "harmony",
-      eldoraNovatrixPrimaryColor: "#AABBCC",
-      eldoraNovatrixHarmony: "triad",
-      eldoraNovatrixColor: "#DDEEFF",
-      eldoraNovatrixSpeed: 2.4,
-      eldoraNovatrixAmplitude: 0.3,
+      backgroundId: "massage-lab-novatrix",
+      massageLabNovatrixPaletteMode: "harmony",
+      massageLabNovatrixPrimaryColor: "#AABBCC",
+      massageLabNovatrixHarmony: "triad",
+      massageLabNovatrixColor: "#DDEEFF",
+      massageLabNovatrixSpeed: 2.4,
+      massageLabNovatrixAmplitude: 0.3,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.eldoraNovatrixPaletteMode, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixPaletteMode)
-    assert.equal(freeSettings.eldoraNovatrixPrimaryColor, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixPrimaryColor)
-    assert.equal(freeSettings.eldoraNovatrixHarmony, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixHarmony)
-    assert.equal(freeSettings.eldoraNovatrixColor, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixColor)
-    assert.equal(freeSettings.eldoraNovatrixSpeed, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixSpeed)
-    assert.equal(freeSettings.eldoraNovatrixAmplitude, DEFAULT_CHIMER_SETTINGS.eldoraNovatrixAmplitude)
+    assert.equal(freeSettings.massageLabNovatrixPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixPaletteMode)
+    assert.equal(freeSettings.massageLabNovatrixPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixPrimaryColor)
+    assert.equal(freeSettings.massageLabNovatrixHarmony, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixHarmony)
+    assert.equal(freeSettings.massageLabNovatrixColor, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixColor)
+    assert.equal(freeSettings.massageLabNovatrixSpeed, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixSpeed)
+    assert.equal(freeSettings.massageLabNovatrixAmplitude, DEFAULT_CHIMER_SETTINGS.massageLabNovatrixAmplitude)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "eldora-novatrix-background")
-    assert.equal(premiumSettings.eldoraNovatrixPaletteMode, "harmony")
-    assert.equal(premiumSettings.eldoraNovatrixPrimaryColor, "#AABBCC")
-    assert.equal(premiumSettings.eldoraNovatrixHarmony, "triad")
-    assert.equal(premiumSettings.eldoraNovatrixColor, "#DDEEFF")
-    assert.equal(premiumSettings.eldoraNovatrixSpeed, 2.4)
-    assert.equal(premiumSettings.eldoraNovatrixAmplitude, 0.3)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-novatrix")
+    assert.equal(premiumSettings.massageLabNovatrixPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabNovatrixPrimaryColor, "#AABBCC")
+    assert.equal(premiumSettings.massageLabNovatrixHarmony, "triad")
+    assert.equal(premiumSettings.massageLabNovatrixColor, "#DDEEFF")
+    assert.equal(premiumSettings.massageLabNovatrixSpeed, 2.4)
+    assert.equal(premiumSettings.massageLabNovatrixAmplitude, 0.3)
   })
 
-  it("resets Eldora Hacker controls without premium background access", () => {
+  it("resets MassageLab Matrix Rain controls without premium background access", () => {
     const input = {
-      backgroundId: "eldora-hacker-background",
-      eldoraHackerPaletteMode: "harmony",
-      eldoraHackerPrimaryColor: "#00D4FF",
-      eldoraHackerHarmony: "triad",
-      eldoraHackerColor: "#22D3EE",
-      eldoraHackerSpeed: 2.4,
-      eldoraHackerFontSize: 22,
+      backgroundId: "massage-lab-matrix-rain",
+      massageLabMatrixRainPaletteMode: "harmony",
+      massageLabMatrixRainPrimaryColor: "#00D4FF",
+      massageLabMatrixRainHarmony: "triad",
+      massageLabMatrixRainColor: "#22D3EE",
+      massageLabMatrixRainSpeed: 2.4,
+      massageLabMatrixRainFontSize: 22,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.eldoraHackerPaletteMode, DEFAULT_CHIMER_SETTINGS.eldoraHackerPaletteMode)
-    assert.equal(freeSettings.eldoraHackerPrimaryColor, DEFAULT_CHIMER_SETTINGS.eldoraHackerPrimaryColor)
-    assert.equal(freeSettings.eldoraHackerHarmony, DEFAULT_CHIMER_SETTINGS.eldoraHackerHarmony)
-    assert.equal(freeSettings.eldoraHackerColor, DEFAULT_CHIMER_SETTINGS.eldoraHackerColor)
-    assert.equal(freeSettings.eldoraHackerSpeed, DEFAULT_CHIMER_SETTINGS.eldoraHackerSpeed)
-    assert.equal(freeSettings.eldoraHackerFontSize, DEFAULT_CHIMER_SETTINGS.eldoraHackerFontSize)
+    assert.equal(freeSettings.massageLabMatrixRainPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainPaletteMode)
+    assert.equal(freeSettings.massageLabMatrixRainPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainPrimaryColor)
+    assert.equal(freeSettings.massageLabMatrixRainHarmony, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainHarmony)
+    assert.equal(freeSettings.massageLabMatrixRainColor, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainColor)
+    assert.equal(freeSettings.massageLabMatrixRainSpeed, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainSpeed)
+    assert.equal(freeSettings.massageLabMatrixRainFontSize, DEFAULT_CHIMER_SETTINGS.massageLabMatrixRainFontSize)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "eldora-hacker-background")
-    assert.equal(premiumSettings.eldoraHackerPaletteMode, "harmony")
-    assert.equal(premiumSettings.eldoraHackerPrimaryColor, "#00D4FF")
-    assert.equal(premiumSettings.eldoraHackerHarmony, "triad")
-    assert.equal(premiumSettings.eldoraHackerColor, "#22D3EE")
-    assert.equal(premiumSettings.eldoraHackerSpeed, 2.4)
-    assert.equal(premiumSettings.eldoraHackerFontSize, 22)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-matrix-rain")
+    assert.equal(premiumSettings.massageLabMatrixRainPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabMatrixRainPrimaryColor, "#00D4FF")
+    assert.equal(premiumSettings.massageLabMatrixRainHarmony, "triad")
+    assert.equal(premiumSettings.massageLabMatrixRainColor, "#22D3EE")
+    assert.equal(premiumSettings.massageLabMatrixRainSpeed, 2.4)
+    assert.equal(premiumSettings.massageLabMatrixRainFontSize, 22)
   })
 
-  it("resets Eldora Photon Beam controls without premium background access", () => {
+  it("resets MassageLab Photon Beam controls without premium background access", () => {
     const input = {
-      backgroundId: "eldora-photon-beam",
-      eldoraPhotonBeamPaletteMode: "harmony",
-      eldoraPhotonBeamPrimaryColor: "#00D4FF",
-      eldoraPhotonBeamHarmony: "triad",
-      eldoraPhotonBeamColorBg: "#010203",
-      eldoraPhotonBeamColorLine: "#123456",
-      eldoraPhotonBeamColorSignal: "#ABCDEF",
-      eldoraPhotonBeamUseColor2: true,
-      eldoraPhotonBeamColorSignal2: "#FEDCBA",
-      eldoraPhotonBeamUseColor3: true,
-      eldoraPhotonBeamColorSignal3: "#22D3EE",
-      eldoraPhotonBeamLineCount: 120,
-      eldoraPhotonBeamSpreadHeight: 64,
-      eldoraPhotonBeamSpreadDepth: 18,
-      eldoraPhotonBeamCurveLength: 80,
-      eldoraPhotonBeamStraightLength: 160,
-      eldoraPhotonBeamCurvePower: 1.25,
-      eldoraPhotonBeamWaveSpeed: 4.5,
-      eldoraPhotonBeamWaveHeight: 0.6,
-      eldoraPhotonBeamLineOpacity: 0.82,
-      eldoraPhotonBeamSignalCount: 140,
-      eldoraPhotonBeamSpeedGlobal: 1.4,
-      eldoraPhotonBeamTrailLength: 8,
-      eldoraPhotonBeamBloomStrength: 4.2,
-      eldoraPhotonBeamBloomRadius: 1.1,
+      backgroundId: "massage-lab-photon-beam",
+      massageLabPhotonBeamPaletteMode: "harmony",
+      massageLabPhotonBeamPrimaryColor: "#00D4FF",
+      massageLabPhotonBeamHarmony: "triad",
+      massageLabPhotonBeamColorBg: "#010203",
+      massageLabPhotonBeamColorLine: "#123456",
+      massageLabPhotonBeamColorSignal: "#ABCDEF",
+      massageLabPhotonBeamUseColor2: true,
+      massageLabPhotonBeamColorSignal2: "#FEDCBA",
+      massageLabPhotonBeamUseColor3: true,
+      massageLabPhotonBeamColorSignal3: "#22D3EE",
+      massageLabPhotonBeamLineCount: 120,
+      massageLabPhotonBeamSpreadHeight: 64,
+      massageLabPhotonBeamSpreadDepth: 18,
+      massageLabPhotonBeamCurveLength: 80,
+      massageLabPhotonBeamStraightLength: 160,
+      massageLabPhotonBeamCurvePower: 1.25,
+      massageLabPhotonBeamWaveSpeed: 4.5,
+      massageLabPhotonBeamWaveHeight: 0.6,
+      massageLabPhotonBeamLineOpacity: 0.82,
+      massageLabPhotonBeamSignalCount: 140,
+      massageLabPhotonBeamSpeedGlobal: 1.4,
+      massageLabPhotonBeamTrailLength: 8,
+      massageLabPhotonBeamBloomStrength: 4.2,
+      massageLabPhotonBeamBloomRadius: 1.1,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.eldoraPhotonBeamPaletteMode, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamPaletteMode)
-    assert.equal(freeSettings.eldoraPhotonBeamPrimaryColor, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamPrimaryColor)
-    assert.equal(freeSettings.eldoraPhotonBeamHarmony, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamHarmony)
-    assert.equal(freeSettings.eldoraPhotonBeamColorBg, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorBg)
-    assert.equal(freeSettings.eldoraPhotonBeamColorLine, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorLine)
-    assert.equal(freeSettings.eldoraPhotonBeamColorSignal, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorSignal)
-    assert.equal(freeSettings.eldoraPhotonBeamUseColor2, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamUseColor2)
-    assert.equal(freeSettings.eldoraPhotonBeamColorSignal2, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorSignal2)
-    assert.equal(freeSettings.eldoraPhotonBeamUseColor3, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamUseColor3)
-    assert.equal(freeSettings.eldoraPhotonBeamColorSignal3, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamColorSignal3)
-    assert.equal(freeSettings.eldoraPhotonBeamLineCount, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamLineCount)
-    assert.equal(freeSettings.eldoraPhotonBeamSpreadHeight, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpreadHeight)
-    assert.equal(freeSettings.eldoraPhotonBeamSpreadDepth, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpreadDepth)
-    assert.equal(freeSettings.eldoraPhotonBeamCurveLength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamCurveLength)
-    assert.equal(freeSettings.eldoraPhotonBeamStraightLength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamStraightLength)
-    assert.equal(freeSettings.eldoraPhotonBeamCurvePower, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamCurvePower)
-    assert.equal(freeSettings.eldoraPhotonBeamWaveSpeed, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamWaveSpeed)
-    assert.equal(freeSettings.eldoraPhotonBeamWaveHeight, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamWaveHeight)
-    assert.equal(freeSettings.eldoraPhotonBeamLineOpacity, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamLineOpacity)
-    assert.equal(freeSettings.eldoraPhotonBeamSignalCount, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSignalCount)
-    assert.equal(freeSettings.eldoraPhotonBeamSpeedGlobal, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamSpeedGlobal)
-    assert.equal(freeSettings.eldoraPhotonBeamTrailLength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamTrailLength)
-    assert.equal(freeSettings.eldoraPhotonBeamBloomStrength, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamBloomStrength)
-    assert.equal(freeSettings.eldoraPhotonBeamBloomRadius, DEFAULT_CHIMER_SETTINGS.eldoraPhotonBeamBloomRadius)
+    assert.equal(freeSettings.massageLabPhotonBeamPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamPaletteMode)
+    assert.equal(freeSettings.massageLabPhotonBeamPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamPrimaryColor)
+    assert.equal(freeSettings.massageLabPhotonBeamHarmony, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamHarmony)
+    assert.equal(freeSettings.massageLabPhotonBeamColorBg, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamColorBg)
+    assert.equal(freeSettings.massageLabPhotonBeamColorLine, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamColorLine)
+    assert.equal(freeSettings.massageLabPhotonBeamColorSignal, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamColorSignal)
+    assert.equal(freeSettings.massageLabPhotonBeamUseColor2, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamUseColor2)
+    assert.equal(freeSettings.massageLabPhotonBeamColorSignal2, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamColorSignal2)
+    assert.equal(freeSettings.massageLabPhotonBeamUseColor3, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamUseColor3)
+    assert.equal(freeSettings.massageLabPhotonBeamColorSignal3, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamColorSignal3)
+    assert.equal(freeSettings.massageLabPhotonBeamLineCount, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamLineCount)
+    assert.equal(freeSettings.massageLabPhotonBeamSpreadHeight, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpreadHeight)
+    assert.equal(freeSettings.massageLabPhotonBeamSpreadDepth, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpreadDepth)
+    assert.equal(freeSettings.massageLabPhotonBeamCurveLength, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamCurveLength)
+    assert.equal(freeSettings.massageLabPhotonBeamStraightLength, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamStraightLength)
+    assert.equal(freeSettings.massageLabPhotonBeamCurvePower, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamCurvePower)
+    assert.equal(freeSettings.massageLabPhotonBeamWaveSpeed, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamWaveSpeed)
+    assert.equal(freeSettings.massageLabPhotonBeamWaveHeight, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamWaveHeight)
+    assert.equal(freeSettings.massageLabPhotonBeamLineOpacity, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamLineOpacity)
+    assert.equal(freeSettings.massageLabPhotonBeamSignalCount, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSignalCount)
+    assert.equal(freeSettings.massageLabPhotonBeamSpeedGlobal, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamSpeedGlobal)
+    assert.equal(freeSettings.massageLabPhotonBeamTrailLength, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamTrailLength)
+    assert.equal(freeSettings.massageLabPhotonBeamBloomStrength, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamBloomStrength)
+    assert.equal(freeSettings.massageLabPhotonBeamBloomRadius, DEFAULT_CHIMER_SETTINGS.massageLabPhotonBeamBloomRadius)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
 
-    assert.equal(premiumSettings.backgroundId, "eldora-photon-beam")
-    assert.equal(premiumSettings.eldoraPhotonBeamPaletteMode, "harmony")
-    assert.equal(premiumSettings.eldoraPhotonBeamPrimaryColor, "#00D4FF")
-    assert.equal(premiumSettings.eldoraPhotonBeamHarmony, "triad")
-    assert.equal(premiumSettings.eldoraPhotonBeamColorBg, "#010203")
-    assert.equal(premiumSettings.eldoraPhotonBeamColorLine, "#123456")
-    assert.equal(premiumSettings.eldoraPhotonBeamColorSignal, "#ABCDEF")
-    assert.equal(premiumSettings.eldoraPhotonBeamUseColor2, true)
-    assert.equal(premiumSettings.eldoraPhotonBeamColorSignal2, "#FEDCBA")
-    assert.equal(premiumSettings.eldoraPhotonBeamUseColor3, true)
-    assert.equal(premiumSettings.eldoraPhotonBeamColorSignal3, "#22D3EE")
-    assert.equal(premiumSettings.eldoraPhotonBeamLineCount, 120)
-    assert.equal(premiumSettings.eldoraPhotonBeamSpreadHeight, 64)
-    assert.equal(premiumSettings.eldoraPhotonBeamSpreadDepth, 18)
-    assert.equal(premiumSettings.eldoraPhotonBeamCurveLength, 80)
-    assert.equal(premiumSettings.eldoraPhotonBeamStraightLength, 160)
-    assert.equal(premiumSettings.eldoraPhotonBeamCurvePower, 1.25)
-    assert.equal(premiumSettings.eldoraPhotonBeamWaveSpeed, 4.5)
-    assert.equal(premiumSettings.eldoraPhotonBeamWaveHeight, 0.6)
-    assert.equal(premiumSettings.eldoraPhotonBeamLineOpacity, 0.82)
-    assert.equal(premiumSettings.eldoraPhotonBeamSignalCount, 140)
-    assert.equal(premiumSettings.eldoraPhotonBeamSpeedGlobal, 1.4)
-    assert.equal(premiumSettings.eldoraPhotonBeamTrailLength, 8)
-    assert.equal(premiumSettings.eldoraPhotonBeamBloomStrength, 4.2)
-    assert.equal(premiumSettings.eldoraPhotonBeamBloomRadius, 1.1)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-photon-beam")
+    assert.equal(premiumSettings.massageLabPhotonBeamPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabPhotonBeamPrimaryColor, "#00D4FF")
+    assert.equal(premiumSettings.massageLabPhotonBeamHarmony, "triad")
+    assert.equal(premiumSettings.massageLabPhotonBeamColorBg, "#010203")
+    assert.equal(premiumSettings.massageLabPhotonBeamColorLine, "#123456")
+    assert.equal(premiumSettings.massageLabPhotonBeamColorSignal, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabPhotonBeamUseColor2, true)
+    assert.equal(premiumSettings.massageLabPhotonBeamColorSignal2, "#FEDCBA")
+    assert.equal(premiumSettings.massageLabPhotonBeamUseColor3, true)
+    assert.equal(premiumSettings.massageLabPhotonBeamColorSignal3, "#22D3EE")
+    assert.equal(premiumSettings.massageLabPhotonBeamLineCount, 120)
+    assert.equal(premiumSettings.massageLabPhotonBeamSpreadHeight, 64)
+    assert.equal(premiumSettings.massageLabPhotonBeamSpreadDepth, 18)
+    assert.equal(premiumSettings.massageLabPhotonBeamCurveLength, 80)
+    assert.equal(premiumSettings.massageLabPhotonBeamStraightLength, 160)
+    assert.equal(premiumSettings.massageLabPhotonBeamCurvePower, 1.25)
+    assert.equal(premiumSettings.massageLabPhotonBeamWaveSpeed, 4.5)
+    assert.equal(premiumSettings.massageLabPhotonBeamWaveHeight, 0.6)
+    assert.equal(premiumSettings.massageLabPhotonBeamLineOpacity, 0.82)
+    assert.equal(premiumSettings.massageLabPhotonBeamSignalCount, 140)
+    assert.equal(premiumSettings.massageLabPhotonBeamSpeedGlobal, 1.4)
+    assert.equal(premiumSettings.massageLabPhotonBeamTrailLength, 8)
+    assert.equal(premiumSettings.massageLabPhotonBeamBloomStrength, 4.2)
+    assert.equal(premiumSettings.massageLabPhotonBeamBloomRadius, 1.1)
   })
 
-  it("resets React Bits Ferrofluid controls without premium background access", () => {
+  it("resets MassageLab Ferrofluid controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-ferrofluid",
-      reactBitsFerrofluidPaletteMode: "harmony",
-      reactBitsFerrofluidPrimaryColor: "#FFFFFF",
-      reactBitsFerrofluidHarmony: "triad",
-      reactBitsFerrofluidColorOne: "#010203",
-      reactBitsFerrofluidColorTwo: "#AABBCC",
-      reactBitsFerrofluidColorThree: "#DDEEFF",
-      reactBitsFerrofluidSpeed: 1.4,
-      reactBitsFerrofluidScale: 2.5,
-      reactBitsFerrofluidTurbulence: 1.6,
-      reactBitsFerrofluidFluidity: 0.2,
-      reactBitsFerrofluidRimWidth: 0.35,
-      reactBitsFerrofluidSharpness: 4.2,
-      reactBitsFerrofluidShimmer: 2.8,
-      reactBitsFerrofluidGlow: 3.4,
-      reactBitsFerrofluidFlowDirection: "left",
-      reactBitsFerrofluidOpacity: 0.72,
+      backgroundId: "massage-lab-ferrofluid",
+      massageLabFerrofluidPaletteMode: "harmony",
+      massageLabFerrofluidPrimaryColor: "#FFFFFF",
+      massageLabFerrofluidHarmony: "triad",
+      massageLabFerrofluidColorOne: "#010203",
+      massageLabFerrofluidColorTwo: "#AABBCC",
+      massageLabFerrofluidColorThree: "#DDEEFF",
+      massageLabFerrofluidSpeed: 1.4,
+      massageLabFerrofluidScale: 2.5,
+      massageLabFerrofluidTurbulence: 1.6,
+      massageLabFerrofluidFluidity: 0.2,
+      massageLabFerrofluidRimWidth: 0.35,
+      massageLabFerrofluidSharpness: 4.2,
+      massageLabFerrofluidShimmer: 2.8,
+      massageLabFerrofluidGlow: 3.4,
+      massageLabFerrofluidFlowDirection: "left",
+      massageLabFerrofluidOpacity: 0.72,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     assert.equal(
-      freeSettings.reactBitsFerrofluidPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidPaletteMode,
+      freeSettings.massageLabFerrofluidPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidPaletteMode,
     )
     assert.equal(
-      freeSettings.reactBitsFerrofluidPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidPrimaryColor,
+      freeSettings.massageLabFerrofluidPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidPrimaryColor,
     )
-    assert.equal(freeSettings.reactBitsFerrofluidHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidHarmony)
-    assert.equal(freeSettings.reactBitsFerrofluidColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorOne)
-    assert.equal(freeSettings.reactBitsFerrofluidColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorTwo)
-    assert.equal(freeSettings.reactBitsFerrofluidColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidColorThree)
-    assert.equal(freeSettings.reactBitsFerrofluidSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidSpeed)
-    assert.equal(freeSettings.reactBitsFerrofluidScale, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidScale)
-    assert.equal(freeSettings.reactBitsFerrofluidTurbulence, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidTurbulence)
-    assert.equal(freeSettings.reactBitsFerrofluidFluidity, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidFluidity)
-    assert.equal(freeSettings.reactBitsFerrofluidRimWidth, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidRimWidth)
-    assert.equal(freeSettings.reactBitsFerrofluidSharpness, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidSharpness)
-    assert.equal(freeSettings.reactBitsFerrofluidShimmer, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidShimmer)
-    assert.equal(freeSettings.reactBitsFerrofluidGlow, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidGlow)
+    assert.equal(freeSettings.massageLabFerrofluidHarmony, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidHarmony)
+    assert.equal(freeSettings.massageLabFerrofluidColorOne, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidColorOne)
+    assert.equal(freeSettings.massageLabFerrofluidColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidColorTwo)
+    assert.equal(freeSettings.massageLabFerrofluidColorThree, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidColorThree)
+    assert.equal(freeSettings.massageLabFerrofluidSpeed, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidSpeed)
+    assert.equal(freeSettings.massageLabFerrofluidScale, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidScale)
+    assert.equal(freeSettings.massageLabFerrofluidTurbulence, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidTurbulence)
+    assert.equal(freeSettings.massageLabFerrofluidFluidity, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidFluidity)
+    assert.equal(freeSettings.massageLabFerrofluidRimWidth, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidRimWidth)
+    assert.equal(freeSettings.massageLabFerrofluidSharpness, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidSharpness)
+    assert.equal(freeSettings.massageLabFerrofluidShimmer, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidShimmer)
+    assert.equal(freeSettings.massageLabFerrofluidGlow, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidGlow)
     assert.equal(
-      freeSettings.reactBitsFerrofluidFlowDirection,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidFlowDirection,
+      freeSettings.massageLabFerrofluidFlowDirection,
+      DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidFlowDirection,
     )
-    assert.equal(freeSettings.reactBitsFerrofluidOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsFerrofluidOpacity)
+    assert.equal(freeSettings.massageLabFerrofluidOpacity, DEFAULT_CHIMER_SETTINGS.massageLabFerrofluidOpacity)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-ferrofluid")
-    assert.equal(premiumSettings.reactBitsFerrofluidPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsFerrofluidPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsFerrofluidHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsFerrofluidColorOne, "#010203")
-    assert.equal(premiumSettings.reactBitsFerrofluidColorTwo, "#AABBCC")
-    assert.equal(premiumSettings.reactBitsFerrofluidColorThree, "#DDEEFF")
-    assert.equal(premiumSettings.reactBitsFerrofluidSpeed, 1.4)
-    assert.equal(premiumSettings.reactBitsFerrofluidScale, 2.5)
-    assert.equal(premiumSettings.reactBitsFerrofluidTurbulence, 1.6)
-    assert.equal(premiumSettings.reactBitsFerrofluidFluidity, 0.2)
-    assert.equal(premiumSettings.reactBitsFerrofluidRimWidth, 0.35)
-    assert.equal(premiumSettings.reactBitsFerrofluidSharpness, 4.2)
-    assert.equal(premiumSettings.reactBitsFerrofluidShimmer, 2.8)
-    assert.equal(premiumSettings.reactBitsFerrofluidGlow, 3.4)
-    assert.equal(premiumSettings.reactBitsFerrofluidFlowDirection, "left")
-    assert.equal(premiumSettings.reactBitsFerrofluidOpacity, 0.72)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-ferrofluid")
+    assert.equal(premiumSettings.massageLabFerrofluidPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabFerrofluidPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabFerrofluidHarmony, "triad")
+    assert.equal(premiumSettings.massageLabFerrofluidColorOne, "#010203")
+    assert.equal(premiumSettings.massageLabFerrofluidColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.massageLabFerrofluidColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.massageLabFerrofluidSpeed, 1.4)
+    assert.equal(premiumSettings.massageLabFerrofluidScale, 2.5)
+    assert.equal(premiumSettings.massageLabFerrofluidTurbulence, 1.6)
+    assert.equal(premiumSettings.massageLabFerrofluidFluidity, 0.2)
+    assert.equal(premiumSettings.massageLabFerrofluidRimWidth, 0.35)
+    assert.equal(premiumSettings.massageLabFerrofluidSharpness, 4.2)
+    assert.equal(premiumSettings.massageLabFerrofluidShimmer, 2.8)
+    assert.equal(premiumSettings.massageLabFerrofluidGlow, 3.4)
+    assert.equal(premiumSettings.massageLabFerrofluidFlowDirection, "left")
+    assert.equal(premiumSettings.massageLabFerrofluidOpacity, 0.72)
   })
 
-  it("resets React Bits Lightfall controls without premium background access", () => {
+  it("resets MassageLab Lightfall controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-lightfall",
-      reactBitsLightfallPaletteMode: "harmony",
-      reactBitsLightfallPrimaryColor: "#A6C8FF",
-      reactBitsLightfallHarmony: "triad",
-      reactBitsLightfallColorOne: "#010203",
-      reactBitsLightfallColorTwo: "#AABBCC",
-      reactBitsLightfallColorThree: "#DDEEFF",
-      reactBitsLightfallBackgroundColor: "#0A29FF",
-      reactBitsLightfallSpeed: 1.4,
-      reactBitsLightfallStreakCount: 8,
-      reactBitsLightfallStreakWidth: 1.6,
-      reactBitsLightfallStreakLength: 2.4,
-      reactBitsLightfallGlow: 2.2,
-      reactBitsLightfallDensity: 1.2,
-      reactBitsLightfallTwinkle: 0.35,
-      reactBitsLightfallZoom: 4.2,
-      reactBitsLightfallBackgroundGlow: 0.9,
-      reactBitsLightfallOpacity: 0.72,
-      reactBitsLightfallCursorEnabled: true,
-      reactBitsLightfallCursorStrength: 1.3,
-      reactBitsLightfallCursorRadius: 1.7,
-      reactBitsLightfallCursorDampening: 0.25,
+      backgroundId: "massage-lab-lightfall",
+      massageLabLightfallPaletteMode: "harmony",
+      massageLabLightfallPrimaryColor: "#A6C8FF",
+      massageLabLightfallHarmony: "triad",
+      massageLabLightfallColorOne: "#010203",
+      massageLabLightfallColorTwo: "#AABBCC",
+      massageLabLightfallColorThree: "#DDEEFF",
+      massageLabLightfallBackgroundColor: "#0A29FF",
+      massageLabLightfallSpeed: 1.4,
+      massageLabLightfallStreakCount: 8,
+      massageLabLightfallStreakWidth: 1.6,
+      massageLabLightfallStreakLength: 2.4,
+      massageLabLightfallGlow: 2.2,
+      massageLabLightfallDensity: 1.2,
+      massageLabLightfallTwinkle: 0.35,
+      massageLabLightfallZoom: 4.2,
+      massageLabLightfallBackgroundGlow: 0.9,
+      massageLabLightfallOpacity: 0.72,
+      massageLabLightfallCursorEnabled: true,
+      massageLabLightfallCursorStrength: 1.3,
+      massageLabLightfallCursorRadius: 1.7,
+      massageLabLightfallCursorDampening: 0.25,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     assert.equal(
-      freeSettings.reactBitsLightfallPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallPaletteMode,
+      freeSettings.massageLabLightfallPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallPaletteMode,
     )
     assert.equal(
-      freeSettings.reactBitsLightfallPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallPrimaryColor,
+      freeSettings.massageLabLightfallPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallPrimaryColor,
     )
-    assert.equal(freeSettings.reactBitsLightfallHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallHarmony)
-    assert.equal(freeSettings.reactBitsLightfallColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorOne)
-    assert.equal(freeSettings.reactBitsLightfallColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorTwo)
-    assert.equal(freeSettings.reactBitsLightfallColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallColorThree)
+    assert.equal(freeSettings.massageLabLightfallHarmony, DEFAULT_CHIMER_SETTINGS.massageLabLightfallHarmony)
+    assert.equal(freeSettings.massageLabLightfallColorOne, DEFAULT_CHIMER_SETTINGS.massageLabLightfallColorOne)
+    assert.equal(freeSettings.massageLabLightfallColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabLightfallColorTwo)
+    assert.equal(freeSettings.massageLabLightfallColorThree, DEFAULT_CHIMER_SETTINGS.massageLabLightfallColorThree)
     assert.equal(
-      freeSettings.reactBitsLightfallBackgroundColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallBackgroundColor,
+      freeSettings.massageLabLightfallBackgroundColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallBackgroundColor,
     )
-    assert.equal(freeSettings.reactBitsLightfallSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallSpeed)
-    assert.equal(freeSettings.reactBitsLightfallStreakCount, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakCount)
-    assert.equal(freeSettings.reactBitsLightfallStreakWidth, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakWidth)
-    assert.equal(freeSettings.reactBitsLightfallStreakLength, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallStreakLength)
-    assert.equal(freeSettings.reactBitsLightfallGlow, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallGlow)
-    assert.equal(freeSettings.reactBitsLightfallDensity, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallDensity)
-    assert.equal(freeSettings.reactBitsLightfallTwinkle, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallTwinkle)
-    assert.equal(freeSettings.reactBitsLightfallZoom, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallZoom)
+    assert.equal(freeSettings.massageLabLightfallSpeed, DEFAULT_CHIMER_SETTINGS.massageLabLightfallSpeed)
+    assert.equal(freeSettings.massageLabLightfallStreakCount, DEFAULT_CHIMER_SETTINGS.massageLabLightfallStreakCount)
+    assert.equal(freeSettings.massageLabLightfallStreakWidth, DEFAULT_CHIMER_SETTINGS.massageLabLightfallStreakWidth)
+    assert.equal(freeSettings.massageLabLightfallStreakLength, DEFAULT_CHIMER_SETTINGS.massageLabLightfallStreakLength)
+    assert.equal(freeSettings.massageLabLightfallGlow, DEFAULT_CHIMER_SETTINGS.massageLabLightfallGlow)
+    assert.equal(freeSettings.massageLabLightfallDensity, DEFAULT_CHIMER_SETTINGS.massageLabLightfallDensity)
+    assert.equal(freeSettings.massageLabLightfallTwinkle, DEFAULT_CHIMER_SETTINGS.massageLabLightfallTwinkle)
+    assert.equal(freeSettings.massageLabLightfallZoom, DEFAULT_CHIMER_SETTINGS.massageLabLightfallZoom)
     assert.equal(
-      freeSettings.reactBitsLightfallBackgroundGlow,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallBackgroundGlow,
+      freeSettings.massageLabLightfallBackgroundGlow,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallBackgroundGlow,
     )
-    assert.equal(freeSettings.reactBitsLightfallOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsLightfallOpacity)
+    assert.equal(freeSettings.massageLabLightfallOpacity, DEFAULT_CHIMER_SETTINGS.massageLabLightfallOpacity)
     assert.equal(
-      freeSettings.reactBitsLightfallCursorEnabled,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorEnabled,
-    )
-    assert.equal(
-      freeSettings.reactBitsLightfallCursorStrength,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorStrength,
+      freeSettings.massageLabLightfallCursorEnabled,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallCursorEnabled,
     )
     assert.equal(
-      freeSettings.reactBitsLightfallCursorRadius,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorRadius,
+      freeSettings.massageLabLightfallCursorStrength,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallCursorStrength,
     )
     assert.equal(
-      freeSettings.reactBitsLightfallCursorDampening,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightfallCursorDampening,
-    )
-
-    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
-
-    assert.equal(premiumSettings.backgroundId, "react-bits-lightfall")
-    assert.equal(premiumSettings.reactBitsLightfallPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsLightfallPrimaryColor, "#A6C8FF")
-    assert.equal(premiumSettings.reactBitsLightfallHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsLightfallColorOne, "#010203")
-    assert.equal(premiumSettings.reactBitsLightfallColorTwo, "#AABBCC")
-    assert.equal(premiumSettings.reactBitsLightfallColorThree, "#DDEEFF")
-    assert.equal(premiumSettings.reactBitsLightfallBackgroundColor, "#0A29FF")
-    assert.equal(premiumSettings.reactBitsLightfallSpeed, 1.4)
-    assert.equal(premiumSettings.reactBitsLightfallStreakCount, 8)
-    assert.equal(premiumSettings.reactBitsLightfallStreakWidth, 1.6)
-    assert.equal(premiumSettings.reactBitsLightfallStreakLength, 2.4)
-    assert.equal(premiumSettings.reactBitsLightfallGlow, 2.2)
-    assert.equal(premiumSettings.reactBitsLightfallDensity, 1.2)
-    assert.equal(premiumSettings.reactBitsLightfallTwinkle, 0.35)
-    assert.equal(premiumSettings.reactBitsLightfallZoom, 4.2)
-    assert.equal(premiumSettings.reactBitsLightfallBackgroundGlow, 0.9)
-    assert.equal(premiumSettings.reactBitsLightfallOpacity, 0.72)
-    assert.equal(premiumSettings.reactBitsLightfallCursorEnabled, true)
-    assert.equal(premiumSettings.reactBitsLightfallCursorStrength, 1.3)
-    assert.equal(premiumSettings.reactBitsLightfallCursorRadius, 1.7)
-    assert.equal(premiumSettings.reactBitsLightfallCursorDampening, 0.25)
-  })
-
-  it("resets React Bits Liquid Ether controls without premium background access", () => {
-    const input = {
-      backgroundId: "react-bits-liquid-ether",
-      reactBitsLiquidEtherPaletteMode: "harmony",
-      reactBitsLiquidEtherPrimaryColor: "#5227FF",
-      reactBitsLiquidEtherHarmony: "triad",
-      reactBitsLiquidEtherColorOne: "#010203",
-      reactBitsLiquidEtherColorTwo: "#AABBCC",
-      reactBitsLiquidEtherColorThree: "#DDEEFF",
-      reactBitsLiquidEtherCursorEnabled: true,
-      reactBitsLiquidEtherMouseForce: 54,
-      reactBitsLiquidEtherCursorSize: 180,
-      reactBitsLiquidEtherIsViscous: true,
-      reactBitsLiquidEtherViscous: 42,
-      reactBitsLiquidEtherIterationsViscous: 24,
-      reactBitsLiquidEtherIterationsPoisson: 40,
-      reactBitsLiquidEtherDt: 0.02,
-      reactBitsLiquidEtherBfecc: false,
-      reactBitsLiquidEtherResolution: 0.75,
-      reactBitsLiquidEtherIsBounce: true,
-      reactBitsLiquidEtherAutoDemo: false,
-      reactBitsLiquidEtherAutoSpeed: 1.25,
-      reactBitsLiquidEtherAutoIntensity: 3.4,
-      reactBitsLiquidEtherAutoResumeDelay: 1500,
-      reactBitsLiquidEtherAutoRampDuration: 1.2,
-      reactBitsLiquidEtherOpacity: 0.72,
-    }
-
-    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
-
-    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherPaletteMode,
+      freeSettings.massageLabLightfallCursorRadius,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallCursorRadius,
     )
     assert.equal(
-      freeSettings.reactBitsLiquidEtherPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherPrimaryColor,
-    )
-    assert.equal(freeSettings.reactBitsLiquidEtherHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherHarmony)
-    assert.equal(freeSettings.reactBitsLiquidEtherColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorOne)
-    assert.equal(freeSettings.reactBitsLiquidEtherColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorTwo)
-    assert.equal(freeSettings.reactBitsLiquidEtherColorThree, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherColorThree)
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherCursorEnabled,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherCursorEnabled,
-    )
-    assert.equal(freeSettings.reactBitsLiquidEtherMouseForce, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherMouseForce)
-    assert.equal(freeSettings.reactBitsLiquidEtherCursorSize, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherCursorSize)
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherIsViscous,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIsViscous,
-    )
-    assert.equal(freeSettings.reactBitsLiquidEtherViscous, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherViscous)
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherIterationsViscous,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIterationsViscous,
-    )
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherIterationsPoisson,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIterationsPoisson,
-    )
-    assert.equal(freeSettings.reactBitsLiquidEtherDt, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherDt)
-    assert.equal(freeSettings.reactBitsLiquidEtherBfecc, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherBfecc)
-    assert.equal(freeSettings.reactBitsLiquidEtherResolution, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherResolution)
-    assert.equal(freeSettings.reactBitsLiquidEtherIsBounce, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherIsBounce)
-    assert.equal(freeSettings.reactBitsLiquidEtherAutoDemo, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoDemo)
-    assert.equal(freeSettings.reactBitsLiquidEtherAutoSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoSpeed)
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherAutoIntensity,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoIntensity,
-    )
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherAutoResumeDelay,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoResumeDelay,
-    )
-    assert.equal(
-      freeSettings.reactBitsLiquidEtherAutoRampDuration,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherAutoRampDuration,
-    )
-    assert.equal(freeSettings.reactBitsLiquidEtherOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsLiquidEtherOpacity)
-
-    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
-
-    assert.equal(premiumSettings.backgroundId, "react-bits-liquid-ether")
-    assert.equal(premiumSettings.reactBitsLiquidEtherPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsLiquidEtherPrimaryColor, "#5227FF")
-    assert.equal(premiumSettings.reactBitsLiquidEtherHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsLiquidEtherColorOne, "#010203")
-    assert.equal(premiumSettings.reactBitsLiquidEtherColorTwo, "#AABBCC")
-    assert.equal(premiumSettings.reactBitsLiquidEtherColorThree, "#DDEEFF")
-    assert.equal(premiumSettings.reactBitsLiquidEtherCursorEnabled, true)
-    assert.equal(premiumSettings.reactBitsLiquidEtherMouseForce, 54)
-    assert.equal(premiumSettings.reactBitsLiquidEtherCursorSize, 180)
-    assert.equal(premiumSettings.reactBitsLiquidEtherIsViscous, true)
-    assert.equal(premiumSettings.reactBitsLiquidEtherViscous, 42)
-    assert.equal(premiumSettings.reactBitsLiquidEtherIterationsViscous, 24)
-    assert.equal(premiumSettings.reactBitsLiquidEtherIterationsPoisson, 40)
-    assert.equal(premiumSettings.reactBitsLiquidEtherDt, 0.02)
-    assert.equal(premiumSettings.reactBitsLiquidEtherBfecc, false)
-    assert.equal(premiumSettings.reactBitsLiquidEtherResolution, 0.75)
-    assert.equal(premiumSettings.reactBitsLiquidEtherIsBounce, true)
-    assert.equal(premiumSettings.reactBitsLiquidEtherAutoDemo, false)
-    assert.equal(premiumSettings.reactBitsLiquidEtherAutoSpeed, 1.25)
-    assert.equal(premiumSettings.reactBitsLiquidEtherAutoIntensity, 3.4)
-    assert.equal(premiumSettings.reactBitsLiquidEtherAutoResumeDelay, 1500)
-    assert.equal(premiumSettings.reactBitsLiquidEtherAutoRampDuration, 1.2)
-    assert.equal(premiumSettings.reactBitsLiquidEtherOpacity, 0.72)
-  })
-
-  it("resets React Bits Prism controls without premium background access", () => {
-    const input = {
-      backgroundId: "react-bits-prism",
-      reactBitsPrismHeight: 6.2,
-      reactBitsPrismBaseWidth: 7.4,
-      reactBitsPrismAnimationType: "hover",
-      reactBitsPrismGlow: 2.4,
-      reactBitsPrismOffsetX: 120,
-      reactBitsPrismOffsetY: -80,
-      reactBitsPrismNoise: 0.2,
-      reactBitsPrismTransparent: false,
-      reactBitsPrismScale: 4.8,
-      reactBitsPrismHueShift: 1.2,
-      reactBitsPrismColorFrequency: 1.8,
-      reactBitsPrismHoverStrength: 3.2,
-      reactBitsPrismInertia: 0.18,
-      reactBitsPrismBloom: 2.6,
-      reactBitsPrismTimeScale: 1.3,
-    }
-
-    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
-
-    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.reactBitsPrismHeight, DEFAULT_CHIMER_SETTINGS.reactBitsPrismHeight)
-    assert.equal(freeSettings.reactBitsPrismBaseWidth, DEFAULT_CHIMER_SETTINGS.reactBitsPrismBaseWidth)
-    assert.equal(freeSettings.reactBitsPrismAnimationType, DEFAULT_CHIMER_SETTINGS.reactBitsPrismAnimationType)
-    assert.equal(freeSettings.reactBitsPrismGlow, DEFAULT_CHIMER_SETTINGS.reactBitsPrismGlow)
-    assert.equal(freeSettings.reactBitsPrismOffsetX, DEFAULT_CHIMER_SETTINGS.reactBitsPrismOffsetX)
-    assert.equal(freeSettings.reactBitsPrismOffsetY, DEFAULT_CHIMER_SETTINGS.reactBitsPrismOffsetY)
-    assert.equal(freeSettings.reactBitsPrismNoise, DEFAULT_CHIMER_SETTINGS.reactBitsPrismNoise)
-    assert.equal(freeSettings.reactBitsPrismTransparent, DEFAULT_CHIMER_SETTINGS.reactBitsPrismTransparent)
-    assert.equal(freeSettings.reactBitsPrismScale, DEFAULT_CHIMER_SETTINGS.reactBitsPrismScale)
-    assert.equal(freeSettings.reactBitsPrismHueShift, DEFAULT_CHIMER_SETTINGS.reactBitsPrismHueShift)
-    assert.equal(freeSettings.reactBitsPrismColorFrequency, DEFAULT_CHIMER_SETTINGS.reactBitsPrismColorFrequency)
-    assert.equal(freeSettings.reactBitsPrismHoverStrength, DEFAULT_CHIMER_SETTINGS.reactBitsPrismHoverStrength)
-    assert.equal(freeSettings.reactBitsPrismInertia, DEFAULT_CHIMER_SETTINGS.reactBitsPrismInertia)
-    assert.equal(freeSettings.reactBitsPrismBloom, DEFAULT_CHIMER_SETTINGS.reactBitsPrismBloom)
-    assert.equal(freeSettings.reactBitsPrismTimeScale, DEFAULT_CHIMER_SETTINGS.reactBitsPrismTimeScale)
-
-    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
-
-    assert.equal(premiumSettings.backgroundId, "react-bits-prism")
-    assert.equal(premiumSettings.reactBitsPrismHeight, 6.2)
-    assert.equal(premiumSettings.reactBitsPrismBaseWidth, 7.4)
-    assert.equal(premiumSettings.reactBitsPrismAnimationType, "hover")
-    assert.equal(premiumSettings.reactBitsPrismGlow, 2.4)
-    assert.equal(premiumSettings.reactBitsPrismOffsetX, 120)
-    assert.equal(premiumSettings.reactBitsPrismOffsetY, -80)
-    assert.equal(premiumSettings.reactBitsPrismNoise, 0.2)
-    assert.equal(premiumSettings.reactBitsPrismTransparent, false)
-    assert.equal(premiumSettings.reactBitsPrismScale, 4.8)
-    assert.equal(premiumSettings.reactBitsPrismHueShift, 1.2)
-    assert.equal(premiumSettings.reactBitsPrismColorFrequency, 1.8)
-    assert.equal(premiumSettings.reactBitsPrismHoverStrength, 3.2)
-    assert.equal(premiumSettings.reactBitsPrismInertia, 0.18)
-    assert.equal(premiumSettings.reactBitsPrismBloom, 2.6)
-    assert.equal(premiumSettings.reactBitsPrismTimeScale, 1.3)
-  })
-
-  it("resets React Bits Dark Veil controls without premium background access", () => {
-    const input = {
-      backgroundId: "react-bits-dark-veil",
-      reactBitsDarkVeilHueShift: 72,
-      reactBitsDarkVeilNoiseIntensity: 0.24,
-      reactBitsDarkVeilScanlineIntensity: 0.42,
-      reactBitsDarkVeilSpeed: 1.3,
-      reactBitsDarkVeilScanlineFrequency: 18,
-      reactBitsDarkVeilWarpAmount: 0.7,
-      reactBitsDarkVeilResolutionScale: 0.65,
-    }
-
-    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
-
-    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.reactBitsDarkVeilHueShift, DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilHueShift)
-    assert.equal(
-      freeSettings.reactBitsDarkVeilNoiseIntensity,
-      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilNoiseIntensity,
-    )
-    assert.equal(
-      freeSettings.reactBitsDarkVeilScanlineIntensity,
-      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilScanlineIntensity,
-    )
-    assert.equal(freeSettings.reactBitsDarkVeilSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilSpeed)
-    assert.equal(
-      freeSettings.reactBitsDarkVeilScanlineFrequency,
-      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilScanlineFrequency,
-    )
-    assert.equal(freeSettings.reactBitsDarkVeilWarpAmount, DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilWarpAmount)
-    assert.equal(
-      freeSettings.reactBitsDarkVeilResolutionScale,
-      DEFAULT_CHIMER_SETTINGS.reactBitsDarkVeilResolutionScale,
+      freeSettings.massageLabLightfallCursorDampening,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightfallCursorDampening,
     )
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-dark-veil")
-    assert.equal(premiumSettings.reactBitsDarkVeilHueShift, 72)
-    assert.equal(premiumSettings.reactBitsDarkVeilNoiseIntensity, 0.24)
-    assert.equal(premiumSettings.reactBitsDarkVeilScanlineIntensity, 0.42)
-    assert.equal(premiumSettings.reactBitsDarkVeilSpeed, 1.3)
-    assert.equal(premiumSettings.reactBitsDarkVeilScanlineFrequency, 18)
-    assert.equal(premiumSettings.reactBitsDarkVeilWarpAmount, 0.7)
-    assert.equal(premiumSettings.reactBitsDarkVeilResolutionScale, 0.65)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-lightfall")
+    assert.equal(premiumSettings.massageLabLightfallPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabLightfallPrimaryColor, "#A6C8FF")
+    assert.equal(premiumSettings.massageLabLightfallHarmony, "triad")
+    assert.equal(premiumSettings.massageLabLightfallColorOne, "#010203")
+    assert.equal(premiumSettings.massageLabLightfallColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.massageLabLightfallColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.massageLabLightfallBackgroundColor, "#0A29FF")
+    assert.equal(premiumSettings.massageLabLightfallSpeed, 1.4)
+    assert.equal(premiumSettings.massageLabLightfallStreakCount, 8)
+    assert.equal(premiumSettings.massageLabLightfallStreakWidth, 1.6)
+    assert.equal(premiumSettings.massageLabLightfallStreakLength, 2.4)
+    assert.equal(premiumSettings.massageLabLightfallGlow, 2.2)
+    assert.equal(premiumSettings.massageLabLightfallDensity, 1.2)
+    assert.equal(premiumSettings.massageLabLightfallTwinkle, 0.35)
+    assert.equal(premiumSettings.massageLabLightfallZoom, 4.2)
+    assert.equal(premiumSettings.massageLabLightfallBackgroundGlow, 0.9)
+    assert.equal(premiumSettings.massageLabLightfallOpacity, 0.72)
+    assert.equal(premiumSettings.massageLabLightfallCursorEnabled, true)
+    assert.equal(premiumSettings.massageLabLightfallCursorStrength, 1.3)
+    assert.equal(premiumSettings.massageLabLightfallCursorRadius, 1.7)
+    assert.equal(premiumSettings.massageLabLightfallCursorDampening, 0.25)
   })
 
-  it("resets React Bits Light Pillar controls without premium background access", () => {
+  it("resets MassageLab Liquid Ether controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-light-pillar",
-      reactBitsLightPillarPaletteMode: "harmony",
-      reactBitsLightPillarPrimaryColor: "#123456",
-      reactBitsLightPillarHarmony: "triad",
-      reactBitsLightPillarTopColor: "#ABCDEF",
-      reactBitsLightPillarBottomColor: "#FEDCBA",
-      reactBitsLightPillarIntensity: 2.4,
-      reactBitsLightPillarRotationSpeed: 1.2,
-      reactBitsLightPillarInteractive: true,
-      reactBitsLightPillarGlowAmount: 0.02,
-      reactBitsLightPillarWidth: 5.4,
-      reactBitsLightPillarHeight: 1.2,
-      reactBitsLightPillarNoiseIntensity: 0.7,
-      reactBitsLightPillarBlendMode: "normal",
-      reactBitsLightPillarRotation: 44,
-      reactBitsLightPillarQuality: "medium",
+      backgroundId: "massage-lab-liquid-ether",
+      massageLabLiquidEtherPaletteMode: "harmony",
+      massageLabLiquidEtherPrimaryColor: "#5227FF",
+      massageLabLiquidEtherHarmony: "triad",
+      massageLabLiquidEtherColorOne: "#010203",
+      massageLabLiquidEtherColorTwo: "#AABBCC",
+      massageLabLiquidEtherColorThree: "#DDEEFF",
+      massageLabLiquidEtherCursorEnabled: true,
+      massageLabLiquidEtherMouseForce: 54,
+      massageLabLiquidEtherCursorSize: 180,
+      massageLabLiquidEtherIsViscous: true,
+      massageLabLiquidEtherViscous: 42,
+      massageLabLiquidEtherIterationsViscous: 24,
+      massageLabLiquidEtherIterationsPoisson: 40,
+      massageLabLiquidEtherDt: 0.02,
+      massageLabLiquidEtherBfecc: false,
+      massageLabLiquidEtherResolution: 0.75,
+      massageLabLiquidEtherIsBounce: true,
+      massageLabLiquidEtherAutoDemo: false,
+      massageLabLiquidEtherAutoSpeed: 1.25,
+      massageLabLiquidEtherAutoIntensity: 3.4,
+      massageLabLiquidEtherAutoResumeDelay: 1500,
+      massageLabLiquidEtherAutoRampDuration: 1.2,
+      massageLabLiquidEtherOpacity: 0.72,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     assert.equal(
-      freeSettings.reactBitsLightPillarPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarPaletteMode,
+      freeSettings.massageLabLiquidEtherPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherPaletteMode,
     )
     assert.equal(
-      freeSettings.reactBitsLightPillarPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarPrimaryColor,
+      freeSettings.massageLabLiquidEtherPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherPrimaryColor,
     )
-    assert.equal(freeSettings.reactBitsLightPillarHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarHarmony)
-    assert.equal(freeSettings.reactBitsLightPillarTopColor, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarTopColor)
+    assert.equal(freeSettings.massageLabLiquidEtherHarmony, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherHarmony)
+    assert.equal(freeSettings.massageLabLiquidEtherColorOne, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherColorOne)
+    assert.equal(freeSettings.massageLabLiquidEtherColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherColorTwo)
+    assert.equal(freeSettings.massageLabLiquidEtherColorThree, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherColorThree)
     assert.equal(
-      freeSettings.reactBitsLightPillarBottomColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarBottomColor,
+      freeSettings.massageLabLiquidEtherCursorEnabled,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherCursorEnabled,
     )
-    assert.equal(freeSettings.reactBitsLightPillarIntensity, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarIntensity)
+    assert.equal(freeSettings.massageLabLiquidEtherMouseForce, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherMouseForce)
+    assert.equal(freeSettings.massageLabLiquidEtherCursorSize, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherCursorSize)
     assert.equal(
-      freeSettings.reactBitsLightPillarRotationSpeed,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarRotationSpeed,
+      freeSettings.massageLabLiquidEtherIsViscous,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherIsViscous,
+    )
+    assert.equal(freeSettings.massageLabLiquidEtherViscous, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherViscous)
+    assert.equal(
+      freeSettings.massageLabLiquidEtherIterationsViscous,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherIterationsViscous,
     )
     assert.equal(
-      freeSettings.reactBitsLightPillarInteractive,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarInteractive,
+      freeSettings.massageLabLiquidEtherIterationsPoisson,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherIterationsPoisson,
+    )
+    assert.equal(freeSettings.massageLabLiquidEtherDt, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherDt)
+    assert.equal(freeSettings.massageLabLiquidEtherBfecc, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherBfecc)
+    assert.equal(freeSettings.massageLabLiquidEtherResolution, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherResolution)
+    assert.equal(freeSettings.massageLabLiquidEtherIsBounce, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherIsBounce)
+    assert.equal(freeSettings.massageLabLiquidEtherAutoDemo, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherAutoDemo)
+    assert.equal(freeSettings.massageLabLiquidEtherAutoSpeed, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherAutoSpeed)
+    assert.equal(
+      freeSettings.massageLabLiquidEtherAutoIntensity,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherAutoIntensity,
     )
     assert.equal(
-      freeSettings.reactBitsLightPillarGlowAmount,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarGlowAmount,
+      freeSettings.massageLabLiquidEtherAutoResumeDelay,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherAutoResumeDelay,
     )
-    assert.equal(freeSettings.reactBitsLightPillarWidth, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarWidth)
-    assert.equal(freeSettings.reactBitsLightPillarHeight, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarHeight)
     assert.equal(
-      freeSettings.reactBitsLightPillarNoiseIntensity,
-      DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarNoiseIntensity,
+      freeSettings.massageLabLiquidEtherAutoRampDuration,
+      DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherAutoRampDuration,
     )
-    assert.equal(freeSettings.reactBitsLightPillarBlendMode, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarBlendMode)
-    assert.equal(freeSettings.reactBitsLightPillarRotation, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarRotation)
-    assert.equal(freeSettings.reactBitsLightPillarQuality, DEFAULT_CHIMER_SETTINGS.reactBitsLightPillarQuality)
+    assert.equal(freeSettings.massageLabLiquidEtherOpacity, DEFAULT_CHIMER_SETTINGS.massageLabLiquidEtherOpacity)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "massage-lab-liquid-ether")
+    assert.equal(premiumSettings.massageLabLiquidEtherPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabLiquidEtherPrimaryColor, "#5227FF")
+    assert.equal(premiumSettings.massageLabLiquidEtherHarmony, "triad")
+    assert.equal(premiumSettings.massageLabLiquidEtherColorOne, "#010203")
+    assert.equal(premiumSettings.massageLabLiquidEtherColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.massageLabLiquidEtherColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.massageLabLiquidEtherCursorEnabled, true)
+    assert.equal(premiumSettings.massageLabLiquidEtherMouseForce, 54)
+    assert.equal(premiumSettings.massageLabLiquidEtherCursorSize, 180)
+    assert.equal(premiumSettings.massageLabLiquidEtherIsViscous, true)
+    assert.equal(premiumSettings.massageLabLiquidEtherViscous, 42)
+    assert.equal(premiumSettings.massageLabLiquidEtherIterationsViscous, 24)
+    assert.equal(premiumSettings.massageLabLiquidEtherIterationsPoisson, 40)
+    assert.equal(premiumSettings.massageLabLiquidEtherDt, 0.02)
+    assert.equal(premiumSettings.massageLabLiquidEtherBfecc, false)
+    assert.equal(premiumSettings.massageLabLiquidEtherResolution, 0.75)
+    assert.equal(premiumSettings.massageLabLiquidEtherIsBounce, true)
+    assert.equal(premiumSettings.massageLabLiquidEtherAutoDemo, false)
+    assert.equal(premiumSettings.massageLabLiquidEtherAutoSpeed, 1.25)
+    assert.equal(premiumSettings.massageLabLiquidEtherAutoIntensity, 3.4)
+    assert.equal(premiumSettings.massageLabLiquidEtherAutoResumeDelay, 1500)
+    assert.equal(premiumSettings.massageLabLiquidEtherAutoRampDuration, 1.2)
+    assert.equal(premiumSettings.massageLabLiquidEtherOpacity, 0.72)
+  })
+
+  it("resets MassageLab Prism controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-prism",
+      massageLabPrismHeight: 6.2,
+      massageLabPrismBaseWidth: 7.4,
+      massageLabPrismAnimationType: "hover",
+      massageLabPrismGlow: 2.4,
+      massageLabPrismOffsetX: 120,
+      massageLabPrismOffsetY: -80,
+      massageLabPrismNoise: 0.2,
+      massageLabPrismTransparent: false,
+      massageLabPrismScale: 4.8,
+      massageLabPrismHueShift: 1.2,
+      massageLabPrismColorFrequency: 1.8,
+      massageLabPrismHoverStrength: 3.2,
+      massageLabPrismInertia: 0.18,
+      massageLabPrismBloom: 2.6,
+      massageLabPrismTimeScale: 1.3,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.massageLabPrismHeight, DEFAULT_CHIMER_SETTINGS.massageLabPrismHeight)
+    assert.equal(freeSettings.massageLabPrismBaseWidth, DEFAULT_CHIMER_SETTINGS.massageLabPrismBaseWidth)
+    assert.equal(freeSettings.massageLabPrismAnimationType, DEFAULT_CHIMER_SETTINGS.massageLabPrismAnimationType)
+    assert.equal(freeSettings.massageLabPrismGlow, DEFAULT_CHIMER_SETTINGS.massageLabPrismGlow)
+    assert.equal(freeSettings.massageLabPrismOffsetX, DEFAULT_CHIMER_SETTINGS.massageLabPrismOffsetX)
+    assert.equal(freeSettings.massageLabPrismOffsetY, DEFAULT_CHIMER_SETTINGS.massageLabPrismOffsetY)
+    assert.equal(freeSettings.massageLabPrismNoise, DEFAULT_CHIMER_SETTINGS.massageLabPrismNoise)
+    assert.equal(freeSettings.massageLabPrismTransparent, DEFAULT_CHIMER_SETTINGS.massageLabPrismTransparent)
+    assert.equal(freeSettings.massageLabPrismScale, DEFAULT_CHIMER_SETTINGS.massageLabPrismScale)
+    assert.equal(freeSettings.massageLabPrismHueShift, DEFAULT_CHIMER_SETTINGS.massageLabPrismHueShift)
+    assert.equal(freeSettings.massageLabPrismColorFrequency, DEFAULT_CHIMER_SETTINGS.massageLabPrismColorFrequency)
+    assert.equal(freeSettings.massageLabPrismHoverStrength, DEFAULT_CHIMER_SETTINGS.massageLabPrismHoverStrength)
+    assert.equal(freeSettings.massageLabPrismInertia, DEFAULT_CHIMER_SETTINGS.massageLabPrismInertia)
+    assert.equal(freeSettings.massageLabPrismBloom, DEFAULT_CHIMER_SETTINGS.massageLabPrismBloom)
+    assert.equal(freeSettings.massageLabPrismTimeScale, DEFAULT_CHIMER_SETTINGS.massageLabPrismTimeScale)
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "massage-lab-prism")
+    assert.equal(premiumSettings.massageLabPrismHeight, 6.2)
+    assert.equal(premiumSettings.massageLabPrismBaseWidth, 7.4)
+    assert.equal(premiumSettings.massageLabPrismAnimationType, "hover")
+    assert.equal(premiumSettings.massageLabPrismGlow, 2.4)
+    assert.equal(premiumSettings.massageLabPrismOffsetX, 120)
+    assert.equal(premiumSettings.massageLabPrismOffsetY, -80)
+    assert.equal(premiumSettings.massageLabPrismNoise, 0.2)
+    assert.equal(premiumSettings.massageLabPrismTransparent, false)
+    assert.equal(premiumSettings.massageLabPrismScale, 4.8)
+    assert.equal(premiumSettings.massageLabPrismHueShift, 1.2)
+    assert.equal(premiumSettings.massageLabPrismColorFrequency, 1.8)
+    assert.equal(premiumSettings.massageLabPrismHoverStrength, 3.2)
+    assert.equal(premiumSettings.massageLabPrismInertia, 0.18)
+    assert.equal(premiumSettings.massageLabPrismBloom, 2.6)
+    assert.equal(premiumSettings.massageLabPrismTimeScale, 1.3)
+  })
+
+  it("resets MassageLab Dark Veil controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-dark-veil",
+      massageLabDarkVeilHueShift: 72,
+      massageLabDarkVeilNoiseIntensity: 0.24,
+      massageLabDarkVeilScanlineIntensity: 0.42,
+      massageLabDarkVeilSpeed: 1.3,
+      massageLabDarkVeilScanlineFrequency: 18,
+      massageLabDarkVeilWarpAmount: 0.7,
+      massageLabDarkVeilResolutionScale: 0.65,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(freeSettings.massageLabDarkVeilHueShift, DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilHueShift)
+    assert.equal(
+      freeSettings.massageLabDarkVeilNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilNoiseIntensity,
+    )
+    assert.equal(
+      freeSettings.massageLabDarkVeilScanlineIntensity,
+      DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilScanlineIntensity,
+    )
+    assert.equal(freeSettings.massageLabDarkVeilSpeed, DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilSpeed)
+    assert.equal(
+      freeSettings.massageLabDarkVeilScanlineFrequency,
+      DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilScanlineFrequency,
+    )
+    assert.equal(freeSettings.massageLabDarkVeilWarpAmount, DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilWarpAmount)
+    assert.equal(
+      freeSettings.massageLabDarkVeilResolutionScale,
+      DEFAULT_CHIMER_SETTINGS.massageLabDarkVeilResolutionScale,
+    )
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "massage-lab-dark-veil")
+    assert.equal(premiumSettings.massageLabDarkVeilHueShift, 72)
+    assert.equal(premiumSettings.massageLabDarkVeilNoiseIntensity, 0.24)
+    assert.equal(premiumSettings.massageLabDarkVeilScanlineIntensity, 0.42)
+    assert.equal(premiumSettings.massageLabDarkVeilSpeed, 1.3)
+    assert.equal(premiumSettings.massageLabDarkVeilScanlineFrequency, 18)
+    assert.equal(premiumSettings.massageLabDarkVeilWarpAmount, 0.7)
+    assert.equal(premiumSettings.massageLabDarkVeilResolutionScale, 0.65)
+  })
+
+  it("resets MassageLab Light Pillar controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-light-pillar",
+      massageLabLightPillarPaletteMode: "harmony",
+      massageLabLightPillarPrimaryColor: "#123456",
+      massageLabLightPillarHarmony: "triad",
+      massageLabLightPillarTopColor: "#ABCDEF",
+      massageLabLightPillarBottomColor: "#FEDCBA",
+      massageLabLightPillarIntensity: 2.4,
+      massageLabLightPillarRotationSpeed: 1.2,
+      massageLabLightPillarInteractive: true,
+      massageLabLightPillarGlowAmount: 0.02,
+      massageLabLightPillarWidth: 5.4,
+      massageLabLightPillarHeight: 1.2,
+      massageLabLightPillarNoiseIntensity: 0.7,
+      massageLabLightPillarBlendMode: "normal",
+      massageLabLightPillarRotation: 44,
+      massageLabLightPillarQuality: "medium",
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    assert.equal(
+      freeSettings.massageLabLightPillarPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarPaletteMode,
+    )
+    assert.equal(
+      freeSettings.massageLabLightPillarPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarPrimaryColor,
+    )
+    assert.equal(freeSettings.massageLabLightPillarHarmony, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarHarmony)
+    assert.equal(freeSettings.massageLabLightPillarTopColor, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarTopColor)
+    assert.equal(
+      freeSettings.massageLabLightPillarBottomColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarBottomColor,
+    )
+    assert.equal(freeSettings.massageLabLightPillarIntensity, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarIntensity)
+    assert.equal(
+      freeSettings.massageLabLightPillarRotationSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarRotationSpeed,
+    )
+    assert.equal(
+      freeSettings.massageLabLightPillarInteractive,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarInteractive,
+    )
+    assert.equal(
+      freeSettings.massageLabLightPillarGlowAmount,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarGlowAmount,
+    )
+    assert.equal(freeSettings.massageLabLightPillarWidth, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarWidth)
+    assert.equal(freeSettings.massageLabLightPillarHeight, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarHeight)
+    assert.equal(
+      freeSettings.massageLabLightPillarNoiseIntensity,
+      DEFAULT_CHIMER_SETTINGS.massageLabLightPillarNoiseIntensity,
+    )
+    assert.equal(freeSettings.massageLabLightPillarBlendMode, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarBlendMode)
+    assert.equal(freeSettings.massageLabLightPillarRotation, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarRotation)
+    assert.equal(freeSettings.massageLabLightPillarQuality, DEFAULT_CHIMER_SETTINGS.massageLabLightPillarQuality)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-light-pillar")
-    assert.equal(premiumSettings.reactBitsLightPillarPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsLightPillarPrimaryColor, "#123456")
-    assert.equal(premiumSettings.reactBitsLightPillarHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsLightPillarTopColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsLightPillarBottomColor, "#FEDCBA")
-    assert.equal(premiumSettings.reactBitsLightPillarIntensity, 2.4)
-    assert.equal(premiumSettings.reactBitsLightPillarRotationSpeed, 1.2)
-    assert.equal(premiumSettings.reactBitsLightPillarInteractive, true)
-    assert.equal(premiumSettings.reactBitsLightPillarGlowAmount, 0.02)
-    assert.equal(premiumSettings.reactBitsLightPillarWidth, 5.4)
-    assert.equal(premiumSettings.reactBitsLightPillarHeight, 1.2)
-    assert.equal(premiumSettings.reactBitsLightPillarNoiseIntensity, 0.7)
-    assert.equal(premiumSettings.reactBitsLightPillarBlendMode, "normal")
-    assert.equal(premiumSettings.reactBitsLightPillarRotation, 44)
-    assert.equal(premiumSettings.reactBitsLightPillarQuality, "medium")
+    assert.equal(premiumSettings.backgroundId, "massage-lab-light-pillar")
+    assert.equal(premiumSettings.massageLabLightPillarPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabLightPillarPrimaryColor, "#123456")
+    assert.equal(premiumSettings.massageLabLightPillarHarmony, "triad")
+    assert.equal(premiumSettings.massageLabLightPillarTopColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabLightPillarBottomColor, "#FEDCBA")
+    assert.equal(premiumSettings.massageLabLightPillarIntensity, 2.4)
+    assert.equal(premiumSettings.massageLabLightPillarRotationSpeed, 1.2)
+    assert.equal(premiumSettings.massageLabLightPillarInteractive, true)
+    assert.equal(premiumSettings.massageLabLightPillarGlowAmount, 0.02)
+    assert.equal(premiumSettings.massageLabLightPillarWidth, 5.4)
+    assert.equal(premiumSettings.massageLabLightPillarHeight, 1.2)
+    assert.equal(premiumSettings.massageLabLightPillarNoiseIntensity, 0.7)
+    assert.equal(premiumSettings.massageLabLightPillarBlendMode, "normal")
+    assert.equal(premiumSettings.massageLabLightPillarRotation, 44)
+    assert.equal(premiumSettings.massageLabLightPillarQuality, "medium")
   })
 
-  it("resets React Bits Silk controls without premium background access", () => {
+  it("resets MassageLab Silk controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-silk",
-      reactBitsSilkPaletteMode: "harmony",
-      reactBitsSilkPrimaryColor: "#123456",
-      reactBitsSilkHarmony: "triad",
-      reactBitsSilkColor: "#ABCDEF",
-      reactBitsSilkSpeed: 7.5,
-      reactBitsSilkScale: 2.4,
-      reactBitsSilkNoiseIntensity: 2.2,
-      reactBitsSilkRotation: 1.4,
+      backgroundId: "massage-lab-silk",
+      massageLabSilkPaletteMode: "harmony",
+      massageLabSilkPrimaryColor: "#123456",
+      massageLabSilkHarmony: "triad",
+      massageLabSilkColor: "#ABCDEF",
+      massageLabSilkSpeed: 7.5,
+      massageLabSilkScale: 2.4,
+      massageLabSilkNoiseIntensity: 2.2,
+      massageLabSilkRotation: 1.4,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.reactBitsSilkPaletteMode, DEFAULT_CHIMER_SETTINGS.reactBitsSilkPaletteMode)
-    assert.equal(freeSettings.reactBitsSilkPrimaryColor, DEFAULT_CHIMER_SETTINGS.reactBitsSilkPrimaryColor)
-    assert.equal(freeSettings.reactBitsSilkHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsSilkHarmony)
-    assert.equal(freeSettings.reactBitsSilkColor, DEFAULT_CHIMER_SETTINGS.reactBitsSilkColor)
-    assert.equal(freeSettings.reactBitsSilkSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsSilkSpeed)
-    assert.equal(freeSettings.reactBitsSilkScale, DEFAULT_CHIMER_SETTINGS.reactBitsSilkScale)
-    assert.equal(freeSettings.reactBitsSilkNoiseIntensity, DEFAULT_CHIMER_SETTINGS.reactBitsSilkNoiseIntensity)
-    assert.equal(freeSettings.reactBitsSilkRotation, DEFAULT_CHIMER_SETTINGS.reactBitsSilkRotation)
+    assert.equal(freeSettings.massageLabSilkPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabSilkPaletteMode)
+    assert.equal(freeSettings.massageLabSilkPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabSilkPrimaryColor)
+    assert.equal(freeSettings.massageLabSilkHarmony, DEFAULT_CHIMER_SETTINGS.massageLabSilkHarmony)
+    assert.equal(freeSettings.massageLabSilkColor, DEFAULT_CHIMER_SETTINGS.massageLabSilkColor)
+    assert.equal(freeSettings.massageLabSilkSpeed, DEFAULT_CHIMER_SETTINGS.massageLabSilkSpeed)
+    assert.equal(freeSettings.massageLabSilkScale, DEFAULT_CHIMER_SETTINGS.massageLabSilkScale)
+    assert.equal(freeSettings.massageLabSilkNoiseIntensity, DEFAULT_CHIMER_SETTINGS.massageLabSilkNoiseIntensity)
+    assert.equal(freeSettings.massageLabSilkRotation, DEFAULT_CHIMER_SETTINGS.massageLabSilkRotation)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-silk")
-    assert.equal(premiumSettings.reactBitsSilkPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsSilkPrimaryColor, "#123456")
-    assert.equal(premiumSettings.reactBitsSilkHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsSilkColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsSilkSpeed, 7.5)
-    assert.equal(premiumSettings.reactBitsSilkScale, 2.4)
-    assert.equal(premiumSettings.reactBitsSilkNoiseIntensity, 2.2)
-    assert.equal(premiumSettings.reactBitsSilkRotation, 1.4)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-silk")
+    assert.equal(premiumSettings.massageLabSilkPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabSilkPrimaryColor, "#123456")
+    assert.equal(premiumSettings.massageLabSilkHarmony, "triad")
+    assert.equal(premiumSettings.massageLabSilkColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabSilkSpeed, 7.5)
+    assert.equal(premiumSettings.massageLabSilkScale, 2.4)
+    assert.equal(premiumSettings.massageLabSilkNoiseIntensity, 2.2)
+    assert.equal(premiumSettings.massageLabSilkRotation, 1.4)
   })
 
-  it("resets React Bits Floating Lines controls without premium background access", () => {
+  it("resets MassageLab Floating Lines controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-floating-lines",
-      reactBitsFloatingLinesPaletteMode: "harmony",
-      reactBitsFloatingLinesPrimaryColor: "#123456",
-      reactBitsFloatingLinesHarmony: "triad",
-      reactBitsFloatingLinesColorOne: "#ABCDEF",
-      reactBitsFloatingLinesColorTwo: "#FEDCBA",
-      reactBitsFloatingLinesColorThree: "#010203",
-      reactBitsFloatingLinesEnableTop: false,
-      reactBitsFloatingLinesEnableMiddle: false,
-      reactBitsFloatingLinesEnableBottom: true,
-      reactBitsFloatingLinesTopLineCount: 12,
-      reactBitsFloatingLinesMiddleLineCount: 10,
-      reactBitsFloatingLinesBottomLineCount: 8,
-      reactBitsFloatingLinesTopLineDistance: 4.5,
-      reactBitsFloatingLinesMiddleLineDistance: 3.5,
-      reactBitsFloatingLinesBottomLineDistance: 2.5,
-      reactBitsFloatingLinesTopWaveX: 4.4,
-      reactBitsFloatingLinesTopWaveY: 0.4,
-      reactBitsFloatingLinesTopWaveRotate: -0.3,
-      reactBitsFloatingLinesMiddleWaveX: 3.3,
-      reactBitsFloatingLinesMiddleWaveY: 0.2,
-      reactBitsFloatingLinesMiddleWaveRotate: 0.5,
-      reactBitsFloatingLinesBottomWaveX: 2.2,
-      reactBitsFloatingLinesBottomWaveY: -0.6,
-      reactBitsFloatingLinesBottomWaveRotate: -0.9,
-      reactBitsFloatingLinesAnimationSpeed: 1.5,
-      reactBitsFloatingLinesInteractive: false,
-      reactBitsFloatingLinesBendRadius: 7,
-      reactBitsFloatingLinesBendStrength: -0.8,
-      reactBitsFloatingLinesMouseDamping: 0.08,
-      reactBitsFloatingLinesParallax: false,
-      reactBitsFloatingLinesParallaxStrength: 0.4,
-      reactBitsFloatingLinesBlendMode: "normal",
+      backgroundId: "massage-lab-floating-lines",
+      massageLabFloatingLinesPaletteMode: "harmony",
+      massageLabFloatingLinesPrimaryColor: "#123456",
+      massageLabFloatingLinesHarmony: "triad",
+      massageLabFloatingLinesColorOne: "#ABCDEF",
+      massageLabFloatingLinesColorTwo: "#FEDCBA",
+      massageLabFloatingLinesColorThree: "#010203",
+      massageLabFloatingLinesEnableTop: false,
+      massageLabFloatingLinesEnableMiddle: false,
+      massageLabFloatingLinesEnableBottom: true,
+      massageLabFloatingLinesTopLineCount: 12,
+      massageLabFloatingLinesMiddleLineCount: 10,
+      massageLabFloatingLinesBottomLineCount: 8,
+      massageLabFloatingLinesTopLineDistance: 4.5,
+      massageLabFloatingLinesMiddleLineDistance: 3.5,
+      massageLabFloatingLinesBottomLineDistance: 2.5,
+      massageLabFloatingLinesTopWaveX: 4.4,
+      massageLabFloatingLinesTopWaveY: 0.4,
+      massageLabFloatingLinesTopWaveRotate: -0.3,
+      massageLabFloatingLinesMiddleWaveX: 3.3,
+      massageLabFloatingLinesMiddleWaveY: 0.2,
+      massageLabFloatingLinesMiddleWaveRotate: 0.5,
+      massageLabFloatingLinesBottomWaveX: 2.2,
+      massageLabFloatingLinesBottomWaveY: -0.6,
+      massageLabFloatingLinesBottomWaveRotate: -0.9,
+      massageLabFloatingLinesAnimationSpeed: 1.5,
+      massageLabFloatingLinesInteractive: false,
+      massageLabFloatingLinesBendRadius: 7,
+      massageLabFloatingLinesBendStrength: -0.8,
+      massageLabFloatingLinesMouseDamping: 0.08,
+      massageLabFloatingLinesParallax: false,
+      massageLabFloatingLinesParallaxStrength: 0.4,
+      massageLabFloatingLinesBlendMode: "normal",
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     assert.equal(
-      freeSettings.reactBitsFloatingLinesPaletteMode,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesPaletteMode,
+      freeSettings.massageLabFloatingLinesPaletteMode,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesPaletteMode,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesPrimaryColor,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesPrimaryColor,
+      freeSettings.massageLabFloatingLinesPrimaryColor,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesPrimaryColor,
     )
-    assert.equal(freeSettings.reactBitsFloatingLinesHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesHarmony)
-    assert.equal(freeSettings.reactBitsFloatingLinesColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesColorOne)
-    assert.equal(freeSettings.reactBitsFloatingLinesColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesColorTwo)
+    assert.equal(freeSettings.massageLabFloatingLinesHarmony, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesHarmony)
+    assert.equal(freeSettings.massageLabFloatingLinesColorOne, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesColorOne)
+    assert.equal(freeSettings.massageLabFloatingLinesColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesColorTwo)
     assert.equal(
-      freeSettings.reactBitsFloatingLinesColorThree,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesColorThree,
+      freeSettings.massageLabFloatingLinesColorThree,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesColorThree,
     )
-    assert.equal(freeSettings.reactBitsFloatingLinesEnableTop, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesEnableTop)
+    assert.equal(freeSettings.massageLabFloatingLinesEnableTop, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesEnableTop)
     assert.equal(
-      freeSettings.reactBitsFloatingLinesEnableMiddle,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesEnableMiddle,
-    )
-    assert.equal(
-      freeSettings.reactBitsFloatingLinesEnableBottom,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesEnableBottom,
+      freeSettings.massageLabFloatingLinesEnableMiddle,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesEnableMiddle,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesTopLineCount,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopLineCount,
+      freeSettings.massageLabFloatingLinesEnableBottom,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesEnableBottom,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesMiddleLineCount,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleLineCount,
+      freeSettings.massageLabFloatingLinesTopLineCount,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesTopLineCount,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBottomLineCount,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomLineCount,
+      freeSettings.massageLabFloatingLinesMiddleLineCount,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesMiddleLineCount,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesTopLineDistance,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopLineDistance,
+      freeSettings.massageLabFloatingLinesBottomLineCount,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBottomLineCount,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesMiddleLineDistance,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleLineDistance,
+      freeSettings.massageLabFloatingLinesTopLineDistance,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesTopLineDistance,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBottomLineDistance,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomLineDistance,
-    )
-    assert.equal(freeSettings.reactBitsFloatingLinesTopWaveX, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopWaveX)
-    assert.equal(freeSettings.reactBitsFloatingLinesTopWaveY, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopWaveY)
-    assert.equal(
-      freeSettings.reactBitsFloatingLinesTopWaveRotate,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesTopWaveRotate,
+      freeSettings.massageLabFloatingLinesMiddleLineDistance,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesMiddleLineDistance,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesMiddleWaveX,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleWaveX,
+      freeSettings.massageLabFloatingLinesBottomLineDistance,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBottomLineDistance,
+    )
+    assert.equal(freeSettings.massageLabFloatingLinesTopWaveX, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesTopWaveX)
+    assert.equal(freeSettings.massageLabFloatingLinesTopWaveY, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesTopWaveY)
+    assert.equal(
+      freeSettings.massageLabFloatingLinesTopWaveRotate,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesTopWaveRotate,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesMiddleWaveY,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleWaveY,
+      freeSettings.massageLabFloatingLinesMiddleWaveX,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesMiddleWaveX,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesMiddleWaveRotate,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMiddleWaveRotate,
+      freeSettings.massageLabFloatingLinesMiddleWaveY,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesMiddleWaveY,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBottomWaveX,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomWaveX,
+      freeSettings.massageLabFloatingLinesMiddleWaveRotate,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesMiddleWaveRotate,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBottomWaveY,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomWaveY,
+      freeSettings.massageLabFloatingLinesBottomWaveX,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBottomWaveX,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBottomWaveRotate,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBottomWaveRotate,
+      freeSettings.massageLabFloatingLinesBottomWaveY,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBottomWaveY,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesAnimationSpeed,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesAnimationSpeed,
+      freeSettings.massageLabFloatingLinesBottomWaveRotate,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBottomWaveRotate,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesInteractive,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesInteractive,
+      freeSettings.massageLabFloatingLinesAnimationSpeed,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesAnimationSpeed,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBendRadius,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBendRadius,
+      freeSettings.massageLabFloatingLinesInteractive,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesInteractive,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBendStrength,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBendStrength,
+      freeSettings.massageLabFloatingLinesBendRadius,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBendRadius,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesMouseDamping,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesMouseDamping,
-    )
-    assert.equal(freeSettings.reactBitsFloatingLinesParallax, DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesParallax)
-    assert.equal(
-      freeSettings.reactBitsFloatingLinesParallaxStrength,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesParallaxStrength,
+      freeSettings.massageLabFloatingLinesBendStrength,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBendStrength,
     )
     assert.equal(
-      freeSettings.reactBitsFloatingLinesBlendMode,
-      DEFAULT_CHIMER_SETTINGS.reactBitsFloatingLinesBlendMode,
+      freeSettings.massageLabFloatingLinesMouseDamping,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesMouseDamping,
+    )
+    assert.equal(freeSettings.massageLabFloatingLinesParallax, DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesParallax)
+    assert.equal(
+      freeSettings.massageLabFloatingLinesParallaxStrength,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesParallaxStrength,
+    )
+    assert.equal(
+      freeSettings.massageLabFloatingLinesBlendMode,
+      DEFAULT_CHIMER_SETTINGS.massageLabFloatingLinesBlendMode,
     )
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, ["premium_backgrounds"])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-floating-lines")
-    assert.equal(premiumSettings.reactBitsFloatingLinesPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsFloatingLinesPrimaryColor, "#123456")
-    assert.equal(premiumSettings.reactBitsFloatingLinesHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsFloatingLinesColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsFloatingLinesColorTwo, "#FEDCBA")
-    assert.equal(premiumSettings.reactBitsFloatingLinesColorThree, "#010203")
-    assert.equal(premiumSettings.reactBitsFloatingLinesEnableTop, false)
-    assert.equal(premiumSettings.reactBitsFloatingLinesEnableMiddle, false)
-    assert.equal(premiumSettings.reactBitsFloatingLinesEnableBottom, true)
-    assert.equal(premiumSettings.reactBitsFloatingLinesTopLineCount, 12)
-    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleLineCount, 10)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBottomLineCount, 8)
-    assert.equal(premiumSettings.reactBitsFloatingLinesTopLineDistance, 4.5)
-    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleLineDistance, 3.5)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBottomLineDistance, 2.5)
-    assert.equal(premiumSettings.reactBitsFloatingLinesTopWaveX, 4.4)
-    assert.equal(premiumSettings.reactBitsFloatingLinesTopWaveY, 0.4)
-    assert.equal(premiumSettings.reactBitsFloatingLinesTopWaveRotate, -0.3)
-    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleWaveX, 3.3)
-    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleWaveY, 0.2)
-    assert.equal(premiumSettings.reactBitsFloatingLinesMiddleWaveRotate, 0.5)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBottomWaveX, 2.2)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBottomWaveY, -0.6)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBottomWaveRotate, -0.9)
-    assert.equal(premiumSettings.reactBitsFloatingLinesAnimationSpeed, 1.5)
-    assert.equal(premiumSettings.reactBitsFloatingLinesInteractive, false)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBendRadius, 7)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBendStrength, -0.8)
-    assert.equal(premiumSettings.reactBitsFloatingLinesMouseDamping, 0.08)
-    assert.equal(premiumSettings.reactBitsFloatingLinesParallax, false)
-    assert.equal(premiumSettings.reactBitsFloatingLinesParallaxStrength, 0.4)
-    assert.equal(premiumSettings.reactBitsFloatingLinesBlendMode, "normal")
+    assert.equal(premiumSettings.backgroundId, "massage-lab-floating-lines")
+    assert.equal(premiumSettings.massageLabFloatingLinesPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabFloatingLinesPrimaryColor, "#123456")
+    assert.equal(premiumSettings.massageLabFloatingLinesHarmony, "triad")
+    assert.equal(premiumSettings.massageLabFloatingLinesColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabFloatingLinesColorTwo, "#FEDCBA")
+    assert.equal(premiumSettings.massageLabFloatingLinesColorThree, "#010203")
+    assert.equal(premiumSettings.massageLabFloatingLinesEnableTop, false)
+    assert.equal(premiumSettings.massageLabFloatingLinesEnableMiddle, false)
+    assert.equal(premiumSettings.massageLabFloatingLinesEnableBottom, true)
+    assert.equal(premiumSettings.massageLabFloatingLinesTopLineCount, 12)
+    assert.equal(premiumSettings.massageLabFloatingLinesMiddleLineCount, 10)
+    assert.equal(premiumSettings.massageLabFloatingLinesBottomLineCount, 8)
+    assert.equal(premiumSettings.massageLabFloatingLinesTopLineDistance, 4.5)
+    assert.equal(premiumSettings.massageLabFloatingLinesMiddleLineDistance, 3.5)
+    assert.equal(premiumSettings.massageLabFloatingLinesBottomLineDistance, 2.5)
+    assert.equal(premiumSettings.massageLabFloatingLinesTopWaveX, 4.4)
+    assert.equal(premiumSettings.massageLabFloatingLinesTopWaveY, 0.4)
+    assert.equal(premiumSettings.massageLabFloatingLinesTopWaveRotate, -0.3)
+    assert.equal(premiumSettings.massageLabFloatingLinesMiddleWaveX, 3.3)
+    assert.equal(premiumSettings.massageLabFloatingLinesMiddleWaveY, 0.2)
+    assert.equal(premiumSettings.massageLabFloatingLinesMiddleWaveRotate, 0.5)
+    assert.equal(premiumSettings.massageLabFloatingLinesBottomWaveX, 2.2)
+    assert.equal(premiumSettings.massageLabFloatingLinesBottomWaveY, -0.6)
+    assert.equal(premiumSettings.massageLabFloatingLinesBottomWaveRotate, -0.9)
+    assert.equal(premiumSettings.massageLabFloatingLinesAnimationSpeed, 1.5)
+    assert.equal(premiumSettings.massageLabFloatingLinesInteractive, false)
+    assert.equal(premiumSettings.massageLabFloatingLinesBendRadius, 7)
+    assert.equal(premiumSettings.massageLabFloatingLinesBendStrength, -0.8)
+    assert.equal(premiumSettings.massageLabFloatingLinesMouseDamping, 0.08)
+    assert.equal(premiumSettings.massageLabFloatingLinesParallax, false)
+    assert.equal(premiumSettings.massageLabFloatingLinesParallaxStrength, 0.4)
+    assert.equal(premiumSettings.massageLabFloatingLinesBlendMode, "normal")
   })
 
-  it("resets React Bits Side Rays controls without premium background access", () => {
+  it("resets MassageLab Side Rays controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-side-rays",
-      reactBitsSideRaysPaletteMode: "harmony",
-      reactBitsSideRaysPrimaryColor: "#EAB308",
-      reactBitsSideRaysHarmony: "triad",
-      reactBitsSideRaysColorOne: "#ABCDEF",
-      reactBitsSideRaysColorTwo: "#FEDCBA",
-      reactBitsSideRaysSpeed: 3.5,
-      reactBitsSideRaysIntensity: 4,
-      reactBitsSideRaysSpread: 3,
-      reactBitsSideRaysOrigin: "bottom-left",
-      reactBitsSideRaysTilt: 22,
-      reactBitsSideRaysSaturation: 2,
-      reactBitsSideRaysBlend: 0.4,
-      reactBitsSideRaysFalloff: 2.2,
-      reactBitsSideRaysOpacity: 0.7,
+      backgroundId: "massage-lab-side-rays",
+      massageLabSideRaysPaletteMode: "harmony",
+      massageLabSideRaysPrimaryColor: "#EAB308",
+      massageLabSideRaysHarmony: "triad",
+      massageLabSideRaysColorOne: "#ABCDEF",
+      massageLabSideRaysColorTwo: "#FEDCBA",
+      massageLabSideRaysSpeed: 3.5,
+      massageLabSideRaysIntensity: 4,
+      massageLabSideRaysSpread: 3,
+      massageLabSideRaysOrigin: "bottom-left",
+      massageLabSideRaysTilt: 22,
+      massageLabSideRaysSaturation: 2,
+      massageLabSideRaysBlend: 0.4,
+      massageLabSideRaysFalloff: 2.2,
+      massageLabSideRaysOpacity: 0.7,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.reactBitsSideRaysPaletteMode, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysPaletteMode)
-    assert.equal(freeSettings.reactBitsSideRaysPrimaryColor, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysPrimaryColor)
-    assert.equal(freeSettings.reactBitsSideRaysHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysHarmony)
-    assert.equal(freeSettings.reactBitsSideRaysColorOne, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysColorOne)
-    assert.equal(freeSettings.reactBitsSideRaysColorTwo, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysColorTwo)
-    assert.equal(freeSettings.reactBitsSideRaysSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSpeed)
-    assert.equal(freeSettings.reactBitsSideRaysIntensity, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysIntensity)
-    assert.equal(freeSettings.reactBitsSideRaysSpread, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSpread)
-    assert.equal(freeSettings.reactBitsSideRaysOrigin, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysOrigin)
-    assert.equal(freeSettings.reactBitsSideRaysTilt, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysTilt)
-    assert.equal(freeSettings.reactBitsSideRaysSaturation, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysSaturation)
-    assert.equal(freeSettings.reactBitsSideRaysBlend, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysBlend)
-    assert.equal(freeSettings.reactBitsSideRaysFalloff, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysFalloff)
-    assert.equal(freeSettings.reactBitsSideRaysOpacity, DEFAULT_CHIMER_SETTINGS.reactBitsSideRaysOpacity)
+    assert.equal(freeSettings.massageLabSideRaysPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysPaletteMode)
+    assert.equal(freeSettings.massageLabSideRaysPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysPrimaryColor)
+    assert.equal(freeSettings.massageLabSideRaysHarmony, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysHarmony)
+    assert.equal(freeSettings.massageLabSideRaysColorOne, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysColorOne)
+    assert.equal(freeSettings.massageLabSideRaysColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysColorTwo)
+    assert.equal(freeSettings.massageLabSideRaysSpeed, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysSpeed)
+    assert.equal(freeSettings.massageLabSideRaysIntensity, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysIntensity)
+    assert.equal(freeSettings.massageLabSideRaysSpread, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysSpread)
+    assert.equal(freeSettings.massageLabSideRaysOrigin, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysOrigin)
+    assert.equal(freeSettings.massageLabSideRaysTilt, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysTilt)
+    assert.equal(freeSettings.massageLabSideRaysSaturation, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysSaturation)
+    assert.equal(freeSettings.massageLabSideRaysBlend, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysBlend)
+    assert.equal(freeSettings.massageLabSideRaysFalloff, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysFalloff)
+    assert.equal(freeSettings.massageLabSideRaysOpacity, DEFAULT_CHIMER_SETTINGS.massageLabSideRaysOpacity)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-side-rays")
-    assert.equal(premiumSettings.reactBitsSideRaysPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsSideRaysPrimaryColor, "#EAB308")
-    assert.equal(premiumSettings.reactBitsSideRaysHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsSideRaysColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsSideRaysColorTwo, "#FEDCBA")
-    assert.equal(premiumSettings.reactBitsSideRaysSpeed, 3.5)
-    assert.equal(premiumSettings.reactBitsSideRaysIntensity, 4)
-    assert.equal(premiumSettings.reactBitsSideRaysSpread, 3)
-    assert.equal(premiumSettings.reactBitsSideRaysOrigin, "bottom-left")
-    assert.equal(premiumSettings.reactBitsSideRaysTilt, 22)
-    assert.equal(premiumSettings.reactBitsSideRaysSaturation, 2)
-    assert.equal(premiumSettings.reactBitsSideRaysBlend, 0.4)
-    assert.equal(premiumSettings.reactBitsSideRaysFalloff, 2.2)
-    assert.equal(premiumSettings.reactBitsSideRaysOpacity, 0.7)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-side-rays")
+    assert.equal(premiumSettings.massageLabSideRaysPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabSideRaysPrimaryColor, "#EAB308")
+    assert.equal(premiumSettings.massageLabSideRaysHarmony, "triad")
+    assert.equal(premiumSettings.massageLabSideRaysColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabSideRaysColorTwo, "#FEDCBA")
+    assert.equal(premiumSettings.massageLabSideRaysSpeed, 3.5)
+    assert.equal(premiumSettings.massageLabSideRaysIntensity, 4)
+    assert.equal(premiumSettings.massageLabSideRaysSpread, 3)
+    assert.equal(premiumSettings.massageLabSideRaysOrigin, "bottom-left")
+    assert.equal(premiumSettings.massageLabSideRaysTilt, 22)
+    assert.equal(premiumSettings.massageLabSideRaysSaturation, 2)
+    assert.equal(premiumSettings.massageLabSideRaysBlend, 0.4)
+    assert.equal(premiumSettings.massageLabSideRaysFalloff, 2.2)
+    assert.equal(premiumSettings.massageLabSideRaysOpacity, 0.7)
   })
 
-  it("resets React Bits Light Rays controls without premium background access", () => {
+  it("resets Light Rays controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-light-rays",
-      reactBitsLightRaysPaletteMode: "harmony",
-      reactBitsLightRaysPrimaryColor: "#FFFFFF",
-      reactBitsLightRaysHarmony: "triad",
-      reactBitsLightRaysColor: "#ABCDEF",
-      reactBitsLightRaysOrigin: "bottom-center",
-      reactBitsLightRaysSpeed: 3.5,
-      reactBitsLightRaysSpread: 3,
-      reactBitsLightRaysLength: 4,
-      reactBitsLightRaysPulsating: true,
-      reactBitsLightRaysFadeDistance: 2.2,
-      reactBitsLightRaysSaturation: 2,
-      reactBitsLightRaysFollowMouse: true,
-      reactBitsLightRaysMouseInfluence: 0.7,
-      reactBitsLightRaysNoiseAmount: 0.45,
-      reactBitsLightRaysDistortion: 1.5,
+      backgroundId: "massage-lab-light-rays",
+      massageLabLightRaysPaletteMode: "harmony",
+      massageLabLightRaysPrimaryColor: "#FFFFFF",
+      massageLabLightRaysHarmony: "triad",
+      massageLabLightRaysColor: "#ABCDEF",
+      massageLabLightRaysOrigin: "bottom-center",
+      massageLabLightRaysSpeed: 3.5,
+      massageLabLightRaysSpread: 3,
+      massageLabLightRaysLength: 4,
+      massageLabLightRaysPulsating: true,
+      massageLabLightRaysFadeDistance: 2.2,
+      massageLabLightRaysSaturation: 2,
+      massageLabLightRaysFollowMouse: true,
+      massageLabLightRaysMouseInfluence: 0.7,
+      massageLabLightRaysNoiseAmount: 0.45,
+      massageLabLightRaysDistortion: 1.5,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.reactBitsLightRaysPaletteMode, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysPaletteMode)
-    assert.equal(freeSettings.reactBitsLightRaysPrimaryColor, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysPrimaryColor)
-    assert.equal(freeSettings.reactBitsLightRaysHarmony, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysHarmony)
-    assert.equal(freeSettings.reactBitsLightRaysColor, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysColor)
-    assert.equal(freeSettings.reactBitsLightRaysOrigin, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysOrigin)
-    assert.equal(freeSettings.reactBitsLightRaysSpeed, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysSpeed)
-    assert.equal(freeSettings.reactBitsLightRaysSpread, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysSpread)
-    assert.equal(freeSettings.reactBitsLightRaysLength, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysLength)
-    assert.equal(freeSettings.reactBitsLightRaysPulsating, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysPulsating)
-    assert.equal(freeSettings.reactBitsLightRaysFadeDistance, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysFadeDistance)
-    assert.equal(freeSettings.reactBitsLightRaysSaturation, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysSaturation)
-    assert.equal(freeSettings.reactBitsLightRaysFollowMouse, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysFollowMouse)
-    assert.equal(freeSettings.reactBitsLightRaysMouseInfluence, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysMouseInfluence)
-    assert.equal(freeSettings.reactBitsLightRaysNoiseAmount, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysNoiseAmount)
-    assert.equal(freeSettings.reactBitsLightRaysDistortion, DEFAULT_CHIMER_SETTINGS.reactBitsLightRaysDistortion)
+    assert.equal(freeSettings.massageLabLightRaysPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysPaletteMode)
+    assert.equal(freeSettings.massageLabLightRaysPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysPrimaryColor)
+    assert.equal(freeSettings.massageLabLightRaysHarmony, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysHarmony)
+    assert.equal(freeSettings.massageLabLightRaysColor, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysColor)
+    assert.equal(freeSettings.massageLabLightRaysOrigin, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysOrigin)
+    assert.equal(freeSettings.massageLabLightRaysSpeed, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysSpeed)
+    assert.equal(freeSettings.massageLabLightRaysSpread, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysSpread)
+    assert.equal(freeSettings.massageLabLightRaysLength, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysLength)
+    assert.equal(freeSettings.massageLabLightRaysPulsating, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysPulsating)
+    assert.equal(freeSettings.massageLabLightRaysFadeDistance, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysFadeDistance)
+    assert.equal(freeSettings.massageLabLightRaysSaturation, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysSaturation)
+    assert.equal(freeSettings.massageLabLightRaysFollowMouse, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysFollowMouse)
+    assert.equal(freeSettings.massageLabLightRaysMouseInfluence, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysMouseInfluence)
+    assert.equal(freeSettings.massageLabLightRaysNoiseAmount, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysNoiseAmount)
+    assert.equal(freeSettings.massageLabLightRaysDistortion, DEFAULT_CHIMER_SETTINGS.massageLabLightRaysDistortion)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-light-rays")
-    assert.equal(premiumSettings.reactBitsLightRaysPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsLightRaysPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsLightRaysHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsLightRaysColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsLightRaysOrigin, "bottom-center")
-    assert.equal(premiumSettings.reactBitsLightRaysSpeed, 3.5)
-    assert.equal(premiumSettings.reactBitsLightRaysSpread, 3)
-    assert.equal(premiumSettings.reactBitsLightRaysLength, 4)
-    assert.equal(premiumSettings.reactBitsLightRaysPulsating, true)
-    assert.equal(premiumSettings.reactBitsLightRaysFadeDistance, 2.2)
-    assert.equal(premiumSettings.reactBitsLightRaysSaturation, 2)
-    assert.equal(premiumSettings.reactBitsLightRaysFollowMouse, true)
-    assert.equal(premiumSettings.reactBitsLightRaysMouseInfluence, 0.7)
-    assert.equal(premiumSettings.reactBitsLightRaysNoiseAmount, 0.45)
-    assert.equal(premiumSettings.reactBitsLightRaysDistortion, 1.5)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-light-rays")
+    assert.equal(premiumSettings.massageLabLightRaysPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabLightRaysPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabLightRaysHarmony, "triad")
+    assert.equal(premiumSettings.massageLabLightRaysColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabLightRaysOrigin, "bottom-center")
+    assert.equal(premiumSettings.massageLabLightRaysSpeed, 3.5)
+    assert.equal(premiumSettings.massageLabLightRaysSpread, 3)
+    assert.equal(premiumSettings.massageLabLightRaysLength, 4)
+    assert.equal(premiumSettings.massageLabLightRaysPulsating, true)
+    assert.equal(premiumSettings.massageLabLightRaysFadeDistance, 2.2)
+    assert.equal(premiumSettings.massageLabLightRaysSaturation, 2)
+    assert.equal(premiumSettings.massageLabLightRaysFollowMouse, true)
+    assert.equal(premiumSettings.massageLabLightRaysMouseInfluence, 0.7)
+    assert.equal(premiumSettings.massageLabLightRaysNoiseAmount, 0.45)
+    assert.equal(premiumSettings.massageLabLightRaysDistortion, 1.5)
   })
 
-  it("resets React Bits Pixel Blast controls without premium background access", () => {
+  it("resets MassageLab Pixel Blast controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-pixel-blast",
-      reactBitsPixelBlastPaletteMode: "harmony",
-      reactBitsPixelBlastPrimaryColor: "#FFFFFF",
-      reactBitsPixelBlastHarmony: "triad",
-      reactBitsPixelBlastColor: "#ABCDEF",
-      reactBitsPixelBlastVariant: "diamond",
-      reactBitsPixelBlastPixelSize: 12,
-      reactBitsPixelBlastAntialias: false,
-      reactBitsPixelBlastPatternScale: 4,
-      reactBitsPixelBlastPatternDensity: 1.5,
-      reactBitsPixelBlastLiquid: true,
-      reactBitsPixelBlastLiquidStrength: 0.24,
-      reactBitsPixelBlastLiquidRadius: 2.5,
-      reactBitsPixelBlastPixelSizeJitter: 0.4,
-      reactBitsPixelBlastEnableRipples: false,
-      reactBitsPixelBlastRippleIntensityScale: 2.5,
-      reactBitsPixelBlastRippleThickness: 0.24,
-      reactBitsPixelBlastRippleSpeed: 1.2,
-      reactBitsPixelBlastLiquidWobbleSpeed: 6,
-      reactBitsPixelBlastAutoPauseOffscreen: false,
-      reactBitsPixelBlastSpeed: 1.8,
-      reactBitsPixelBlastTransparent: false,
-      reactBitsPixelBlastEdgeFade: 0.2,
-      reactBitsPixelBlastNoiseAmount: 0.18,
-    }
-
-    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
-
-    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    for (const key of [
-      "reactBitsPixelBlastPaletteMode",
-      "reactBitsPixelBlastPrimaryColor",
-      "reactBitsPixelBlastHarmony",
-      "reactBitsPixelBlastColor",
-      "reactBitsPixelBlastVariant",
-      "reactBitsPixelBlastPixelSize",
-      "reactBitsPixelBlastAntialias",
-      "reactBitsPixelBlastPatternScale",
-      "reactBitsPixelBlastPatternDensity",
-      "reactBitsPixelBlastLiquid",
-      "reactBitsPixelBlastLiquidStrength",
-      "reactBitsPixelBlastLiquidRadius",
-      "reactBitsPixelBlastPixelSizeJitter",
-      "reactBitsPixelBlastEnableRipples",
-      "reactBitsPixelBlastRippleIntensityScale",
-      "reactBitsPixelBlastRippleThickness",
-      "reactBitsPixelBlastRippleSpeed",
-      "reactBitsPixelBlastLiquidWobbleSpeed",
-      "reactBitsPixelBlastAutoPauseOffscreen",
-      "reactBitsPixelBlastSpeed",
-      "reactBitsPixelBlastTransparent",
-      "reactBitsPixelBlastEdgeFade",
-      "reactBitsPixelBlastNoiseAmount",
-    ]) {
-      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
-    }
-
-    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
-
-    assert.equal(premiumSettings.backgroundId, "react-bits-pixel-blast")
-    assert.equal(premiumSettings.reactBitsPixelBlastPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsPixelBlastPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsPixelBlastHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsPixelBlastColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsPixelBlastVariant, "diamond")
-    assert.equal(premiumSettings.reactBitsPixelBlastPixelSize, 12)
-    assert.equal(premiumSettings.reactBitsPixelBlastAntialias, false)
-    assert.equal(premiumSettings.reactBitsPixelBlastPatternScale, 4)
-    assert.equal(premiumSettings.reactBitsPixelBlastPatternDensity, 1.5)
-    assert.equal(premiumSettings.reactBitsPixelBlastLiquid, true)
-    assert.equal(premiumSettings.reactBitsPixelBlastLiquidStrength, 0.24)
-    assert.equal(premiumSettings.reactBitsPixelBlastLiquidRadius, 2.5)
-    assert.equal(premiumSettings.reactBitsPixelBlastPixelSizeJitter, 0.4)
-    assert.equal(premiumSettings.reactBitsPixelBlastEnableRipples, false)
-    assert.equal(premiumSettings.reactBitsPixelBlastRippleIntensityScale, 2.5)
-    assert.equal(premiumSettings.reactBitsPixelBlastRippleThickness, 0.24)
-    assert.equal(premiumSettings.reactBitsPixelBlastRippleSpeed, 1.2)
-    assert.equal(premiumSettings.reactBitsPixelBlastLiquidWobbleSpeed, 6)
-    assert.equal(premiumSettings.reactBitsPixelBlastAutoPauseOffscreen, false)
-    assert.equal(premiumSettings.reactBitsPixelBlastSpeed, 1.8)
-    assert.equal(premiumSettings.reactBitsPixelBlastTransparent, false)
-    assert.equal(premiumSettings.reactBitsPixelBlastEdgeFade, 0.2)
-    assert.equal(premiumSettings.reactBitsPixelBlastNoiseAmount, 0.18)
-  })
-
-  it("resets React Bits Color Bends controls without premium background access", () => {
-    const input = {
-      backgroundId: "react-bits-color-bends",
-      reactBitsColorBendsPaletteMode: "harmony",
-      reactBitsColorBendsPrimaryColor: "#FFFFFF",
-      reactBitsColorBendsHarmony: "triad",
-      reactBitsColorBendsColorOne: "#ABCDEF",
-      reactBitsColorBendsColorTwo: "#123456",
-      reactBitsColorBendsColorThree: "#654321",
-      reactBitsColorBendsColorFour: "#010203",
-      reactBitsColorBendsRotation: 180,
-      reactBitsColorBendsSpeed: 1.8,
-      reactBitsColorBendsTransparent: false,
-      reactBitsColorBendsAutoRotate: 42,
-      reactBitsColorBendsScale: 2.5,
-      reactBitsColorBendsFrequency: 2.2,
-      reactBitsColorBendsWarpStrength: 2.4,
-      reactBitsColorBendsInteractive: true,
-      reactBitsColorBendsMouseInfluence: 2.2,
-      reactBitsColorBendsParallax: 1.2,
-      reactBitsColorBendsNoise: 0.6,
-      reactBitsColorBendsIterations: 4,
-      reactBitsColorBendsIntensity: 2.5,
-      reactBitsColorBendsBandWidth: 10,
+      backgroundId: "massage-lab-pixel-blast",
+      massageLabPixelBlastPaletteMode: "harmony",
+      massageLabPixelBlastPrimaryColor: "#FFFFFF",
+      massageLabPixelBlastHarmony: "triad",
+      massageLabPixelBlastColor: "#ABCDEF",
+      massageLabPixelBlastVariant: "diamond",
+      massageLabPixelBlastPixelSize: 12,
+      massageLabPixelBlastAntialias: false,
+      massageLabPixelBlastPatternScale: 4,
+      massageLabPixelBlastPatternDensity: 1.5,
+      massageLabPixelBlastLiquid: true,
+      massageLabPixelBlastLiquidStrength: 0.24,
+      massageLabPixelBlastLiquidRadius: 2.5,
+      massageLabPixelBlastPixelSizeJitter: 0.4,
+      massageLabPixelBlastEnableRipples: false,
+      massageLabPixelBlastRippleIntensityScale: 2.5,
+      massageLabPixelBlastRippleThickness: 0.24,
+      massageLabPixelBlastRippleSpeed: 1.2,
+      massageLabPixelBlastLiquidWobbleSpeed: 6,
+      massageLabPixelBlastAutoPauseOffscreen: false,
+      massageLabPixelBlastSpeed: 1.8,
+      massageLabPixelBlastTransparent: false,
+      massageLabPixelBlastEdgeFade: 0.2,
+      massageLabPixelBlastNoiseAmount: 0.18,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsColorBendsPaletteMode",
-      "reactBitsColorBendsPrimaryColor",
-      "reactBitsColorBendsHarmony",
-      "reactBitsColorBendsColorOne",
-      "reactBitsColorBendsColorTwo",
-      "reactBitsColorBendsColorThree",
-      "reactBitsColorBendsColorFour",
-      "reactBitsColorBendsRotation",
-      "reactBitsColorBendsSpeed",
-      "reactBitsColorBendsTransparent",
-      "reactBitsColorBendsAutoRotate",
-      "reactBitsColorBendsScale",
-      "reactBitsColorBendsFrequency",
-      "reactBitsColorBendsWarpStrength",
-      "reactBitsColorBendsInteractive",
-      "reactBitsColorBendsMouseInfluence",
-      "reactBitsColorBendsParallax",
-      "reactBitsColorBendsNoise",
-      "reactBitsColorBendsIterations",
-      "reactBitsColorBendsIntensity",
-      "reactBitsColorBendsBandWidth",
+      "massageLabPixelBlastPaletteMode",
+      "massageLabPixelBlastPrimaryColor",
+      "massageLabPixelBlastHarmony",
+      "massageLabPixelBlastColor",
+      "massageLabPixelBlastVariant",
+      "massageLabPixelBlastPixelSize",
+      "massageLabPixelBlastAntialias",
+      "massageLabPixelBlastPatternScale",
+      "massageLabPixelBlastPatternDensity",
+      "massageLabPixelBlastLiquid",
+      "massageLabPixelBlastLiquidStrength",
+      "massageLabPixelBlastLiquidRadius",
+      "massageLabPixelBlastPixelSizeJitter",
+      "massageLabPixelBlastEnableRipples",
+      "massageLabPixelBlastRippleIntensityScale",
+      "massageLabPixelBlastRippleThickness",
+      "massageLabPixelBlastRippleSpeed",
+      "massageLabPixelBlastLiquidWobbleSpeed",
+      "massageLabPixelBlastAutoPauseOffscreen",
+      "massageLabPixelBlastSpeed",
+      "massageLabPixelBlastTransparent",
+      "massageLabPixelBlastEdgeFade",
+      "massageLabPixelBlastNoiseAmount",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-color-bends")
-    assert.equal(premiumSettings.reactBitsColorBendsPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsColorBendsPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsColorBendsHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsColorBendsColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsColorBendsColorTwo, "#123456")
-    assert.equal(premiumSettings.reactBitsColorBendsColorThree, "#654321")
-    assert.equal(premiumSettings.reactBitsColorBendsColorFour, "#010203")
-    assert.equal(premiumSettings.reactBitsColorBendsRotation, 180)
-    assert.equal(premiumSettings.reactBitsColorBendsSpeed, 1.8)
-    assert.equal(premiumSettings.reactBitsColorBendsTransparent, false)
-    assert.equal(premiumSettings.reactBitsColorBendsAutoRotate, 42)
-    assert.equal(premiumSettings.reactBitsColorBendsScale, 2.5)
-    assert.equal(premiumSettings.reactBitsColorBendsFrequency, 2.2)
-    assert.equal(premiumSettings.reactBitsColorBendsWarpStrength, 2.4)
-    assert.equal(premiumSettings.reactBitsColorBendsInteractive, true)
-    assert.equal(premiumSettings.reactBitsColorBendsMouseInfluence, 2.2)
-    assert.equal(premiumSettings.reactBitsColorBendsParallax, 1.2)
-    assert.equal(premiumSettings.reactBitsColorBendsNoise, 0.6)
-    assert.equal(premiumSettings.reactBitsColorBendsIterations, 4)
-    assert.equal(premiumSettings.reactBitsColorBendsIntensity, 2.5)
-    assert.equal(premiumSettings.reactBitsColorBendsBandWidth, 10)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-pixel-blast")
+    assert.equal(premiumSettings.massageLabPixelBlastPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabPixelBlastPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabPixelBlastHarmony, "triad")
+    assert.equal(premiumSettings.massageLabPixelBlastColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabPixelBlastVariant, "diamond")
+    assert.equal(premiumSettings.massageLabPixelBlastPixelSize, 12)
+    assert.equal(premiumSettings.massageLabPixelBlastAntialias, false)
+    assert.equal(premiumSettings.massageLabPixelBlastPatternScale, 4)
+    assert.equal(premiumSettings.massageLabPixelBlastPatternDensity, 1.5)
+    assert.equal(premiumSettings.massageLabPixelBlastLiquid, true)
+    assert.equal(premiumSettings.massageLabPixelBlastLiquidStrength, 0.24)
+    assert.equal(premiumSettings.massageLabPixelBlastLiquidRadius, 2.5)
+    assert.equal(premiumSettings.massageLabPixelBlastPixelSizeJitter, 0.4)
+    assert.equal(premiumSettings.massageLabPixelBlastEnableRipples, false)
+    assert.equal(premiumSettings.massageLabPixelBlastRippleIntensityScale, 2.5)
+    assert.equal(premiumSettings.massageLabPixelBlastRippleThickness, 0.24)
+    assert.equal(premiumSettings.massageLabPixelBlastRippleSpeed, 1.2)
+    assert.equal(premiumSettings.massageLabPixelBlastLiquidWobbleSpeed, 6)
+    assert.equal(premiumSettings.massageLabPixelBlastAutoPauseOffscreen, false)
+    assert.equal(premiumSettings.massageLabPixelBlastSpeed, 1.8)
+    assert.equal(premiumSettings.massageLabPixelBlastTransparent, false)
+    assert.equal(premiumSettings.massageLabPixelBlastEdgeFade, 0.2)
+    assert.equal(premiumSettings.massageLabPixelBlastNoiseAmount, 0.18)
   })
 
-  it("resets React Bits Evil Eye controls without premium background access", () => {
+  it("resets MassageLab Color Bends controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-evil-eye",
-      reactBitsEvilEyePaletteMode: "harmony",
-      reactBitsEvilEyePrimaryColor: "#FFFFFF",
-      reactBitsEvilEyeHarmony: "triad",
-      reactBitsEvilEyeColor: "#ABCDEF",
-      reactBitsEvilEyeBackgroundColor: "#010203",
-      reactBitsEvilEyeIntensity: 2.2,
-      reactBitsEvilEyePupilSize: 1.2,
-      reactBitsEvilEyeIrisWidth: 0.4,
-      reactBitsEvilEyeGlowIntensity: 0.8,
-      reactBitsEvilEyeScale: 1.3,
-      reactBitsEvilEyeNoiseScale: 2.2,
-      reactBitsEvilEyePupilFollow: 1.4,
-      reactBitsEvilEyeFlameSpeed: 1.8,
-      reactBitsEvilEyeInteractive: true,
+      backgroundId: "massage-lab-color-bends",
+      massageLabColorBendsPaletteMode: "harmony",
+      massageLabColorBendsPrimaryColor: "#FFFFFF",
+      massageLabColorBendsHarmony: "triad",
+      massageLabColorBendsColorOne: "#ABCDEF",
+      massageLabColorBendsColorTwo: "#123456",
+      massageLabColorBendsColorThree: "#654321",
+      massageLabColorBendsColorFour: "#010203",
+      massageLabColorBendsRotation: 180,
+      massageLabColorBendsSpeed: 1.8,
+      massageLabColorBendsTransparent: false,
+      massageLabColorBendsAutoRotate: 42,
+      massageLabColorBendsScale: 2.5,
+      massageLabColorBendsFrequency: 2.2,
+      massageLabColorBendsWarpStrength: 2.4,
+      massageLabColorBendsInteractive: true,
+      massageLabColorBendsMouseInfluence: 2.2,
+      massageLabColorBendsParallax: 1.2,
+      massageLabColorBendsNoise: 0.6,
+      massageLabColorBendsIterations: 4,
+      massageLabColorBendsIntensity: 2.5,
+      massageLabColorBendsBandWidth: 10,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsEvilEyePaletteMode",
-      "reactBitsEvilEyePrimaryColor",
-      "reactBitsEvilEyeHarmony",
-      "reactBitsEvilEyeColor",
-      "reactBitsEvilEyeBackgroundColor",
-      "reactBitsEvilEyeIntensity",
-      "reactBitsEvilEyePupilSize",
-      "reactBitsEvilEyeIrisWidth",
-      "reactBitsEvilEyeGlowIntensity",
-      "reactBitsEvilEyeScale",
-      "reactBitsEvilEyeNoiseScale",
-      "reactBitsEvilEyePupilFollow",
-      "reactBitsEvilEyeFlameSpeed",
-      "reactBitsEvilEyeInteractive",
+      "massageLabColorBendsPaletteMode",
+      "massageLabColorBendsPrimaryColor",
+      "massageLabColorBendsHarmony",
+      "massageLabColorBendsColorOne",
+      "massageLabColorBendsColorTwo",
+      "massageLabColorBendsColorThree",
+      "massageLabColorBendsColorFour",
+      "massageLabColorBendsRotation",
+      "massageLabColorBendsSpeed",
+      "massageLabColorBendsTransparent",
+      "massageLabColorBendsAutoRotate",
+      "massageLabColorBendsScale",
+      "massageLabColorBendsFrequency",
+      "massageLabColorBendsWarpStrength",
+      "massageLabColorBendsInteractive",
+      "massageLabColorBendsMouseInfluence",
+      "massageLabColorBendsParallax",
+      "massageLabColorBendsNoise",
+      "massageLabColorBendsIterations",
+      "massageLabColorBendsIntensity",
+      "massageLabColorBendsBandWidth",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-evil-eye")
-    assert.equal(premiumSettings.reactBitsEvilEyePaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsEvilEyePrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsEvilEyeHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsEvilEyeColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsEvilEyeBackgroundColor, "#010203")
-    assert.equal(premiumSettings.reactBitsEvilEyeIntensity, 2.2)
-    assert.equal(premiumSettings.reactBitsEvilEyePupilSize, 1.2)
-    assert.equal(premiumSettings.reactBitsEvilEyeIrisWidth, 0.4)
-    assert.equal(premiumSettings.reactBitsEvilEyeGlowIntensity, 0.8)
-    assert.equal(premiumSettings.reactBitsEvilEyeScale, 1.3)
-    assert.equal(premiumSettings.reactBitsEvilEyeNoiseScale, 2.2)
-    assert.equal(premiumSettings.reactBitsEvilEyePupilFollow, 1.4)
-    assert.equal(premiumSettings.reactBitsEvilEyeFlameSpeed, 1.8)
-    assert.equal(premiumSettings.reactBitsEvilEyeInteractive, true)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-color-bends")
+    assert.equal(premiumSettings.massageLabColorBendsPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabColorBendsPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabColorBendsHarmony, "triad")
+    assert.equal(premiumSettings.massageLabColorBendsColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabColorBendsColorTwo, "#123456")
+    assert.equal(premiumSettings.massageLabColorBendsColorThree, "#654321")
+    assert.equal(premiumSettings.massageLabColorBendsColorFour, "#010203")
+    assert.equal(premiumSettings.massageLabColorBendsRotation, 180)
+    assert.equal(premiumSettings.massageLabColorBendsSpeed, 1.8)
+    assert.equal(premiumSettings.massageLabColorBendsTransparent, false)
+    assert.equal(premiumSettings.massageLabColorBendsAutoRotate, 42)
+    assert.equal(premiumSettings.massageLabColorBendsScale, 2.5)
+    assert.equal(premiumSettings.massageLabColorBendsFrequency, 2.2)
+    assert.equal(premiumSettings.massageLabColorBendsWarpStrength, 2.4)
+    assert.equal(premiumSettings.massageLabColorBendsInteractive, true)
+    assert.equal(premiumSettings.massageLabColorBendsMouseInfluence, 2.2)
+    assert.equal(premiumSettings.massageLabColorBendsParallax, 1.2)
+    assert.equal(premiumSettings.massageLabColorBendsNoise, 0.6)
+    assert.equal(premiumSettings.massageLabColorBendsIterations, 4)
+    assert.equal(premiumSettings.massageLabColorBendsIntensity, 2.5)
+    assert.equal(premiumSettings.massageLabColorBendsBandWidth, 10)
   })
 
-  it("resets React Bits Line Waves controls without premium background access", () => {
+  it("resets MassageLab Evil Eye controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-line-waves",
-      reactBitsLineWavesPaletteMode: "harmony",
-      reactBitsLineWavesPrimaryColor: "#FFFFFF",
-      reactBitsLineWavesHarmony: "triad",
-      reactBitsLineWavesColorOne: "#ABCDEF",
-      reactBitsLineWavesColorTwo: "#123456",
-      reactBitsLineWavesColorThree: "#654321",
-      reactBitsLineWavesSpeed: 1.5,
-      reactBitsLineWavesInnerLineCount: 48,
-      reactBitsLineWavesOuterLineCount: 60,
-      reactBitsLineWavesWarpIntensity: 1.8,
-      reactBitsLineWavesRotation: -24,
-      reactBitsLineWavesEdgeFadeWidth: 0.3,
-      reactBitsLineWavesColorCycleSpeed: 1.7,
-      reactBitsLineWavesBrightness: 0.8,
-      reactBitsLineWavesEnableMouseInteraction: true,
-      reactBitsLineWavesMouseInfluence: 2.8,
+      backgroundId: "massage-lab-evil-eye",
+      massageLabEvilEyePaletteMode: "harmony",
+      massageLabEvilEyePrimaryColor: "#FFFFFF",
+      massageLabEvilEyeHarmony: "triad",
+      massageLabEvilEyeColor: "#ABCDEF",
+      massageLabEvilEyeBackgroundColor: "#010203",
+      massageLabEvilEyeIntensity: 2.2,
+      massageLabEvilEyePupilSize: 1.2,
+      massageLabEvilEyeIrisWidth: 0.4,
+      massageLabEvilEyeGlowIntensity: 0.8,
+      massageLabEvilEyeScale: 1.3,
+      massageLabEvilEyeNoiseScale: 2.2,
+      massageLabEvilEyePupilFollow: 1.4,
+      massageLabEvilEyeFlameSpeed: 1.8,
+      massageLabEvilEyeInteractive: true,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsLineWavesPaletteMode",
-      "reactBitsLineWavesPrimaryColor",
-      "reactBitsLineWavesHarmony",
-      "reactBitsLineWavesColorOne",
-      "reactBitsLineWavesColorTwo",
-      "reactBitsLineWavesColorThree",
-      "reactBitsLineWavesSpeed",
-      "reactBitsLineWavesInnerLineCount",
-      "reactBitsLineWavesOuterLineCount",
-      "reactBitsLineWavesWarpIntensity",
-      "reactBitsLineWavesRotation",
-      "reactBitsLineWavesEdgeFadeWidth",
-      "reactBitsLineWavesColorCycleSpeed",
-      "reactBitsLineWavesBrightness",
-      "reactBitsLineWavesEnableMouseInteraction",
-      "reactBitsLineWavesMouseInfluence",
+      "massageLabEvilEyePaletteMode",
+      "massageLabEvilEyePrimaryColor",
+      "massageLabEvilEyeHarmony",
+      "massageLabEvilEyeColor",
+      "massageLabEvilEyeBackgroundColor",
+      "massageLabEvilEyeIntensity",
+      "massageLabEvilEyePupilSize",
+      "massageLabEvilEyeIrisWidth",
+      "massageLabEvilEyeGlowIntensity",
+      "massageLabEvilEyeScale",
+      "massageLabEvilEyeNoiseScale",
+      "massageLabEvilEyePupilFollow",
+      "massageLabEvilEyeFlameSpeed",
+      "massageLabEvilEyeInteractive",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-line-waves")
-    assert.equal(premiumSettings.reactBitsLineWavesPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsLineWavesPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsLineWavesHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsLineWavesColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsLineWavesColorTwo, "#123456")
-    assert.equal(premiumSettings.reactBitsLineWavesColorThree, "#654321")
-    assert.equal(premiumSettings.reactBitsLineWavesSpeed, 1.5)
-    assert.equal(premiumSettings.reactBitsLineWavesInnerLineCount, 48)
-    assert.equal(premiumSettings.reactBitsLineWavesOuterLineCount, 60)
-    assert.equal(premiumSettings.reactBitsLineWavesWarpIntensity, 1.8)
-    assert.equal(premiumSettings.reactBitsLineWavesRotation, -24)
-    assert.equal(premiumSettings.reactBitsLineWavesEdgeFadeWidth, 0.3)
-    assert.equal(premiumSettings.reactBitsLineWavesColorCycleSpeed, 1.7)
-    assert.equal(premiumSettings.reactBitsLineWavesBrightness, 0.8)
-    assert.equal(premiumSettings.reactBitsLineWavesEnableMouseInteraction, true)
-    assert.equal(premiumSettings.reactBitsLineWavesMouseInfluence, 2.8)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-evil-eye")
+    assert.equal(premiumSettings.massageLabEvilEyePaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabEvilEyePrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabEvilEyeHarmony, "triad")
+    assert.equal(premiumSettings.massageLabEvilEyeColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabEvilEyeBackgroundColor, "#010203")
+    assert.equal(premiumSettings.massageLabEvilEyeIntensity, 2.2)
+    assert.equal(premiumSettings.massageLabEvilEyePupilSize, 1.2)
+    assert.equal(premiumSettings.massageLabEvilEyeIrisWidth, 0.4)
+    assert.equal(premiumSettings.massageLabEvilEyeGlowIntensity, 0.8)
+    assert.equal(premiumSettings.massageLabEvilEyeScale, 1.3)
+    assert.equal(premiumSettings.massageLabEvilEyeNoiseScale, 2.2)
+    assert.equal(premiumSettings.massageLabEvilEyePupilFollow, 1.4)
+    assert.equal(premiumSettings.massageLabEvilEyeFlameSpeed, 1.8)
+    assert.equal(premiumSettings.massageLabEvilEyeInteractive, true)
   })
 
-  it("resets React Bits Radar controls without premium background access", () => {
+  it("resets MassageLab Line Waves controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-radar",
-      reactBitsRadarPaletteMode: "harmony",
-      reactBitsRadarPrimaryColor: "#FFFFFF",
-      reactBitsRadarHarmony: "triad",
-      reactBitsRadarColor: "#ABCDEF",
-      reactBitsRadarBackgroundColor: "#010203",
-      reactBitsRadarSpeed: 1.6,
-      reactBitsRadarScale: 0.8,
-      reactBitsRadarRingCount: 18,
-      reactBitsRadarSpokeCount: 16,
-      reactBitsRadarRingThickness: 0.08,
-      reactBitsRadarSpokeThickness: 0.04,
-      reactBitsRadarSweepSpeed: 1.4,
-      reactBitsRadarSweepWidth: 4,
-      reactBitsRadarSweepLobes: 3,
-      reactBitsRadarFalloff: 3.2,
-      reactBitsRadarBrightness: 1.7,
-      reactBitsRadarEnableMouseInteraction: true,
-      reactBitsRadarMouseInfluence: 0.4,
+      backgroundId: "massage-lab-line-waves",
+      massageLabLineWavesPaletteMode: "harmony",
+      massageLabLineWavesPrimaryColor: "#FFFFFF",
+      massageLabLineWavesHarmony: "triad",
+      massageLabLineWavesColorOne: "#ABCDEF",
+      massageLabLineWavesColorTwo: "#123456",
+      massageLabLineWavesColorThree: "#654321",
+      massageLabLineWavesSpeed: 1.5,
+      massageLabLineWavesInnerLineCount: 48,
+      massageLabLineWavesOuterLineCount: 60,
+      massageLabLineWavesWarpIntensity: 1.8,
+      massageLabLineWavesRotation: -24,
+      massageLabLineWavesEdgeFadeWidth: 0.3,
+      massageLabLineWavesColorCycleSpeed: 1.7,
+      massageLabLineWavesBrightness: 0.8,
+      massageLabLineWavesEnableMouseInteraction: true,
+      massageLabLineWavesMouseInfluence: 2.8,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsRadarPaletteMode",
-      "reactBitsRadarPrimaryColor",
-      "reactBitsRadarHarmony",
-      "reactBitsRadarColor",
-      "reactBitsRadarBackgroundColor",
-      "reactBitsRadarSpeed",
-      "reactBitsRadarScale",
-      "reactBitsRadarRingCount",
-      "reactBitsRadarSpokeCount",
-      "reactBitsRadarRingThickness",
-      "reactBitsRadarSpokeThickness",
-      "reactBitsRadarSweepSpeed",
-      "reactBitsRadarSweepWidth",
-      "reactBitsRadarSweepLobes",
-      "reactBitsRadarFalloff",
-      "reactBitsRadarBrightness",
-      "reactBitsRadarEnableMouseInteraction",
-      "reactBitsRadarMouseInfluence",
+      "massageLabLineWavesPaletteMode",
+      "massageLabLineWavesPrimaryColor",
+      "massageLabLineWavesHarmony",
+      "massageLabLineWavesColorOne",
+      "massageLabLineWavesColorTwo",
+      "massageLabLineWavesColorThree",
+      "massageLabLineWavesSpeed",
+      "massageLabLineWavesInnerLineCount",
+      "massageLabLineWavesOuterLineCount",
+      "massageLabLineWavesWarpIntensity",
+      "massageLabLineWavesRotation",
+      "massageLabLineWavesEdgeFadeWidth",
+      "massageLabLineWavesColorCycleSpeed",
+      "massageLabLineWavesBrightness",
+      "massageLabLineWavesEnableMouseInteraction",
+      "massageLabLineWavesMouseInfluence",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-radar")
-    assert.equal(premiumSettings.reactBitsRadarPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsRadarPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsRadarHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsRadarColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsRadarBackgroundColor, "#010203")
-    assert.equal(premiumSettings.reactBitsRadarSpeed, 1.6)
-    assert.equal(premiumSettings.reactBitsRadarScale, 0.8)
-    assert.equal(premiumSettings.reactBitsRadarRingCount, 18)
-    assert.equal(premiumSettings.reactBitsRadarSpokeCount, 16)
-    assert.equal(premiumSettings.reactBitsRadarRingThickness, 0.08)
-    assert.equal(premiumSettings.reactBitsRadarSpokeThickness, 0.04)
-    assert.equal(premiumSettings.reactBitsRadarSweepSpeed, 1.4)
-    assert.equal(premiumSettings.reactBitsRadarSweepWidth, 4)
-    assert.equal(premiumSettings.reactBitsRadarSweepLobes, 3)
-    assert.equal(premiumSettings.reactBitsRadarFalloff, 3.2)
-    assert.equal(premiumSettings.reactBitsRadarBrightness, 1.7)
-    assert.equal(premiumSettings.reactBitsRadarEnableMouseInteraction, true)
-    assert.equal(premiumSettings.reactBitsRadarMouseInfluence, 0.4)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-line-waves")
+    assert.equal(premiumSettings.massageLabLineWavesPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabLineWavesPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabLineWavesHarmony, "triad")
+    assert.equal(premiumSettings.massageLabLineWavesColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabLineWavesColorTwo, "#123456")
+    assert.equal(premiumSettings.massageLabLineWavesColorThree, "#654321")
+    assert.equal(premiumSettings.massageLabLineWavesSpeed, 1.5)
+    assert.equal(premiumSettings.massageLabLineWavesInnerLineCount, 48)
+    assert.equal(premiumSettings.massageLabLineWavesOuterLineCount, 60)
+    assert.equal(premiumSettings.massageLabLineWavesWarpIntensity, 1.8)
+    assert.equal(premiumSettings.massageLabLineWavesRotation, -24)
+    assert.equal(premiumSettings.massageLabLineWavesEdgeFadeWidth, 0.3)
+    assert.equal(premiumSettings.massageLabLineWavesColorCycleSpeed, 1.7)
+    assert.equal(premiumSettings.massageLabLineWavesBrightness, 0.8)
+    assert.equal(premiumSettings.massageLabLineWavesEnableMouseInteraction, true)
+    assert.equal(premiumSettings.massageLabLineWavesMouseInfluence, 2.8)
   })
 
-  it("resets React Bits Soft Aurora controls without premium background access", () => {
+  it("resets MassageLab Radar controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-soft-aurora",
-      reactBitsSoftAuroraPaletteMode: "harmony",
-      reactBitsSoftAuroraPrimaryColor: "#FFFFFF",
-      reactBitsSoftAuroraHarmony: "triad",
-      reactBitsSoftAuroraColorOne: "#ABCDEF",
-      reactBitsSoftAuroraColorTwo: "#010203",
-      reactBitsSoftAuroraSpeed: 1.6,
-      reactBitsSoftAuroraScale: 2.2,
-      reactBitsSoftAuroraBrightness: 1.7,
-      reactBitsSoftAuroraNoiseFrequency: 3.4,
-      reactBitsSoftAuroraNoiseAmplitude: 1.8,
-      reactBitsSoftAuroraBandHeight: 0.7,
-      reactBitsSoftAuroraBandSpread: 1.9,
-      reactBitsSoftAuroraOctaveDecay: 0.4,
-      reactBitsSoftAuroraLayerOffset: 2.5,
-      reactBitsSoftAuroraColorSpeed: 1.3,
-      reactBitsSoftAuroraEnableMouseInteraction: true,
-      reactBitsSoftAuroraMouseInfluence: 0.4,
+      backgroundId: "massage-lab-radar",
+      massageLabRadarPaletteMode: "harmony",
+      massageLabRadarPrimaryColor: "#FFFFFF",
+      massageLabRadarHarmony: "triad",
+      massageLabRadarColor: "#ABCDEF",
+      massageLabRadarBackgroundColor: "#010203",
+      massageLabRadarSpeed: 1.6,
+      massageLabRadarScale: 0.8,
+      massageLabRadarRingCount: 18,
+      massageLabRadarSpokeCount: 16,
+      massageLabRadarRingThickness: 0.08,
+      massageLabRadarSpokeThickness: 0.04,
+      massageLabRadarSweepSpeed: 1.4,
+      massageLabRadarSweepWidth: 4,
+      massageLabRadarSweepLobes: 3,
+      massageLabRadarFalloff: 3.2,
+      massageLabRadarBrightness: 1.7,
+      massageLabRadarEnableMouseInteraction: true,
+      massageLabRadarMouseInfluence: 0.4,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsSoftAuroraPaletteMode",
-      "reactBitsSoftAuroraPrimaryColor",
-      "reactBitsSoftAuroraHarmony",
-      "reactBitsSoftAuroraColorOne",
-      "reactBitsSoftAuroraColorTwo",
-      "reactBitsSoftAuroraSpeed",
-      "reactBitsSoftAuroraScale",
-      "reactBitsSoftAuroraBrightness",
-      "reactBitsSoftAuroraNoiseFrequency",
-      "reactBitsSoftAuroraNoiseAmplitude",
-      "reactBitsSoftAuroraBandHeight",
-      "reactBitsSoftAuroraBandSpread",
-      "reactBitsSoftAuroraOctaveDecay",
-      "reactBitsSoftAuroraLayerOffset",
-      "reactBitsSoftAuroraColorSpeed",
-      "reactBitsSoftAuroraEnableMouseInteraction",
-      "reactBitsSoftAuroraMouseInfluence",
+      "massageLabRadarPaletteMode",
+      "massageLabRadarPrimaryColor",
+      "massageLabRadarHarmony",
+      "massageLabRadarColor",
+      "massageLabRadarBackgroundColor",
+      "massageLabRadarSpeed",
+      "massageLabRadarScale",
+      "massageLabRadarRingCount",
+      "massageLabRadarSpokeCount",
+      "massageLabRadarRingThickness",
+      "massageLabRadarSpokeThickness",
+      "massageLabRadarSweepSpeed",
+      "massageLabRadarSweepWidth",
+      "massageLabRadarSweepLobes",
+      "massageLabRadarFalloff",
+      "massageLabRadarBrightness",
+      "massageLabRadarEnableMouseInteraction",
+      "massageLabRadarMouseInfluence",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-soft-aurora")
-    assert.equal(premiumSettings.reactBitsSoftAuroraPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsSoftAuroraPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsSoftAuroraHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsSoftAuroraColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsSoftAuroraColorTwo, "#010203")
-    assert.equal(premiumSettings.reactBitsSoftAuroraSpeed, 1.6)
-    assert.equal(premiumSettings.reactBitsSoftAuroraScale, 2.2)
-    assert.equal(premiumSettings.reactBitsSoftAuroraBrightness, 1.7)
-    assert.equal(premiumSettings.reactBitsSoftAuroraNoiseFrequency, 3.4)
-    assert.equal(premiumSettings.reactBitsSoftAuroraNoiseAmplitude, 1.8)
-    assert.equal(premiumSettings.reactBitsSoftAuroraBandHeight, 0.7)
-    assert.equal(premiumSettings.reactBitsSoftAuroraBandSpread, 1.9)
-    assert.equal(premiumSettings.reactBitsSoftAuroraOctaveDecay, 0.4)
-    assert.equal(premiumSettings.reactBitsSoftAuroraLayerOffset, 2.5)
-    assert.equal(premiumSettings.reactBitsSoftAuroraColorSpeed, 1.3)
-    assert.equal(premiumSettings.reactBitsSoftAuroraEnableMouseInteraction, true)
-    assert.equal(premiumSettings.reactBitsSoftAuroraMouseInfluence, 0.4)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-radar")
+    assert.equal(premiumSettings.massageLabRadarPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabRadarPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabRadarHarmony, "triad")
+    assert.equal(premiumSettings.massageLabRadarColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabRadarBackgroundColor, "#010203")
+    assert.equal(premiumSettings.massageLabRadarSpeed, 1.6)
+    assert.equal(premiumSettings.massageLabRadarScale, 0.8)
+    assert.equal(premiumSettings.massageLabRadarRingCount, 18)
+    assert.equal(premiumSettings.massageLabRadarSpokeCount, 16)
+    assert.equal(premiumSettings.massageLabRadarRingThickness, 0.08)
+    assert.equal(premiumSettings.massageLabRadarSpokeThickness, 0.04)
+    assert.equal(premiumSettings.massageLabRadarSweepSpeed, 1.4)
+    assert.equal(premiumSettings.massageLabRadarSweepWidth, 4)
+    assert.equal(premiumSettings.massageLabRadarSweepLobes, 3)
+    assert.equal(premiumSettings.massageLabRadarFalloff, 3.2)
+    assert.equal(premiumSettings.massageLabRadarBrightness, 1.7)
+    assert.equal(premiumSettings.massageLabRadarEnableMouseInteraction, true)
+    assert.equal(premiumSettings.massageLabRadarMouseInfluence, 0.4)
   })
 
-  it("resets React Bits Plasma controls without premium background access", () => {
+  it("resets MassageLab Soft Aurora controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-plasma",
-      reactBitsPlasmaPaletteMode: "harmony",
-      reactBitsPlasmaPrimaryColor: "#FFFFFF",
-      reactBitsPlasmaHarmony: "triad",
-      reactBitsPlasmaColor: "#ABCDEF",
-      reactBitsPlasmaSpeed: 1.6,
-      reactBitsPlasmaDirection: "pingpong",
-      reactBitsPlasmaScale: 2.2,
-      reactBitsPlasmaOpacity: 0.7,
-      reactBitsPlasmaMouseInteractive: true,
+      backgroundId: "massage-lab-soft-aurora",
+      massageLabSoftAuroraPaletteMode: "harmony",
+      massageLabSoftAuroraPrimaryColor: "#FFFFFF",
+      massageLabSoftAuroraHarmony: "triad",
+      massageLabSoftAuroraColorOne: "#ABCDEF",
+      massageLabSoftAuroraColorTwo: "#010203",
+      massageLabSoftAuroraSpeed: 1.6,
+      massageLabSoftAuroraScale: 2.2,
+      massageLabSoftAuroraBrightness: 1.7,
+      massageLabSoftAuroraNoiseFrequency: 3.4,
+      massageLabSoftAuroraNoiseAmplitude: 1.8,
+      massageLabSoftAuroraBandHeight: 0.7,
+      massageLabSoftAuroraBandSpread: 1.9,
+      massageLabSoftAuroraOctaveDecay: 0.4,
+      massageLabSoftAuroraLayerOffset: 2.5,
+      massageLabSoftAuroraColorSpeed: 1.3,
+      massageLabSoftAuroraEnableMouseInteraction: true,
+      massageLabSoftAuroraMouseInfluence: 0.4,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsPlasmaPaletteMode",
-      "reactBitsPlasmaPrimaryColor",
-      "reactBitsPlasmaHarmony",
-      "reactBitsPlasmaColor",
-      "reactBitsPlasmaSpeed",
-      "reactBitsPlasmaDirection",
-      "reactBitsPlasmaScale",
-      "reactBitsPlasmaOpacity",
-      "reactBitsPlasmaMouseInteractive",
+      "massageLabSoftAuroraPaletteMode",
+      "massageLabSoftAuroraPrimaryColor",
+      "massageLabSoftAuroraHarmony",
+      "massageLabSoftAuroraColorOne",
+      "massageLabSoftAuroraColorTwo",
+      "massageLabSoftAuroraSpeed",
+      "massageLabSoftAuroraScale",
+      "massageLabSoftAuroraBrightness",
+      "massageLabSoftAuroraNoiseFrequency",
+      "massageLabSoftAuroraNoiseAmplitude",
+      "massageLabSoftAuroraBandHeight",
+      "massageLabSoftAuroraBandSpread",
+      "massageLabSoftAuroraOctaveDecay",
+      "massageLabSoftAuroraLayerOffset",
+      "massageLabSoftAuroraColorSpeed",
+      "massageLabSoftAuroraEnableMouseInteraction",
+      "massageLabSoftAuroraMouseInfluence",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-plasma")
-    assert.equal(premiumSettings.reactBitsPlasmaPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsPlasmaPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsPlasmaHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsPlasmaColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsPlasmaSpeed, 1.6)
-    assert.equal(premiumSettings.reactBitsPlasmaDirection, "pingpong")
-    assert.equal(premiumSettings.reactBitsPlasmaScale, 2.2)
-    assert.equal(premiumSettings.reactBitsPlasmaOpacity, 0.7)
-    assert.equal(premiumSettings.reactBitsPlasmaMouseInteractive, true)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-soft-aurora")
+    assert.equal(premiumSettings.massageLabSoftAuroraPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabSoftAuroraPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabSoftAuroraHarmony, "triad")
+    assert.equal(premiumSettings.massageLabSoftAuroraColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabSoftAuroraColorTwo, "#010203")
+    assert.equal(premiumSettings.massageLabSoftAuroraSpeed, 1.6)
+    assert.equal(premiumSettings.massageLabSoftAuroraScale, 2.2)
+    assert.equal(premiumSettings.massageLabSoftAuroraBrightness, 1.7)
+    assert.equal(premiumSettings.massageLabSoftAuroraNoiseFrequency, 3.4)
+    assert.equal(premiumSettings.massageLabSoftAuroraNoiseAmplitude, 1.8)
+    assert.equal(premiumSettings.massageLabSoftAuroraBandHeight, 0.7)
+    assert.equal(premiumSettings.massageLabSoftAuroraBandSpread, 1.9)
+    assert.equal(premiumSettings.massageLabSoftAuroraOctaveDecay, 0.4)
+    assert.equal(premiumSettings.massageLabSoftAuroraLayerOffset, 2.5)
+    assert.equal(premiumSettings.massageLabSoftAuroraColorSpeed, 1.3)
+    assert.equal(premiumSettings.massageLabSoftAuroraEnableMouseInteraction, true)
+    assert.equal(premiumSettings.massageLabSoftAuroraMouseInfluence, 0.4)
   })
 
-  it("resets React Bits Plasma Wave controls without premium background access", () => {
+  it("resets MassageLab Plasma controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-plasma-wave",
-      reactBitsPlasmaWavePaletteMode: "harmony",
-      reactBitsPlasmaWavePrimaryColor: "#FFFFFF",
-      reactBitsPlasmaWaveHarmony: "triad",
-      reactBitsPlasmaWaveColorOne: "#ABCDEF",
-      reactBitsPlasmaWaveColorTwo: "#010203",
-      reactBitsPlasmaWaveXOffset: 120,
-      reactBitsPlasmaWaveYOffset: -140,
-      reactBitsPlasmaWaveRotationDeg: 35,
-      reactBitsPlasmaWaveFocalLength: 1.2,
-      reactBitsPlasmaWaveSpeedOne: 0.2,
-      reactBitsPlasmaWaveSpeedTwo: 0.3,
-      reactBitsPlasmaWaveDirectionTwo: -1,
-      reactBitsPlasmaWaveBendOne: 1.4,
-      reactBitsPlasmaWaveBendTwo: 0.8,
+      backgroundId: "massage-lab-plasma",
+      massageLabPlasmaPaletteMode: "harmony",
+      massageLabPlasmaPrimaryColor: "#FFFFFF",
+      massageLabPlasmaHarmony: "triad",
+      massageLabPlasmaColor: "#ABCDEF",
+      massageLabPlasmaSpeed: 1.6,
+      massageLabPlasmaDirection: "pingpong",
+      massageLabPlasmaScale: 2.2,
+      massageLabPlasmaOpacity: 0.7,
+      massageLabPlasmaMouseInteractive: true,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsPlasmaWavePaletteMode",
-      "reactBitsPlasmaWavePrimaryColor",
-      "reactBitsPlasmaWaveHarmony",
-      "reactBitsPlasmaWaveColorOne",
-      "reactBitsPlasmaWaveColorTwo",
-      "reactBitsPlasmaWaveXOffset",
-      "reactBitsPlasmaWaveYOffset",
-      "reactBitsPlasmaWaveRotationDeg",
-      "reactBitsPlasmaWaveFocalLength",
-      "reactBitsPlasmaWaveSpeedOne",
-      "reactBitsPlasmaWaveSpeedTwo",
-      "reactBitsPlasmaWaveDirectionTwo",
-      "reactBitsPlasmaWaveBendOne",
-      "reactBitsPlasmaWaveBendTwo",
+      "massageLabPlasmaPaletteMode",
+      "massageLabPlasmaPrimaryColor",
+      "massageLabPlasmaHarmony",
+      "massageLabPlasmaColor",
+      "massageLabPlasmaSpeed",
+      "massageLabPlasmaDirection",
+      "massageLabPlasmaScale",
+      "massageLabPlasmaOpacity",
+      "massageLabPlasmaMouseInteractive",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-plasma-wave")
-    assert.equal(premiumSettings.reactBitsPlasmaWavePaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsPlasmaWavePrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsPlasmaWaveHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsPlasmaWaveColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsPlasmaWaveColorTwo, "#010203")
-    assert.equal(premiumSettings.reactBitsPlasmaWaveXOffset, 120)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveYOffset, -140)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveRotationDeg, 35)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveFocalLength, 1.2)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveSpeedOne, 0.2)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveSpeedTwo, 0.3)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveDirectionTwo, -1)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveBendOne, 1.4)
-    assert.equal(premiumSettings.reactBitsPlasmaWaveBendTwo, 0.8)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-plasma")
+    assert.equal(premiumSettings.massageLabPlasmaPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabPlasmaPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabPlasmaHarmony, "triad")
+    assert.equal(premiumSettings.massageLabPlasmaColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabPlasmaSpeed, 1.6)
+    assert.equal(premiumSettings.massageLabPlasmaDirection, "pingpong")
+    assert.equal(premiumSettings.massageLabPlasmaScale, 2.2)
+    assert.equal(premiumSettings.massageLabPlasmaOpacity, 0.7)
+    assert.equal(premiumSettings.massageLabPlasmaMouseInteractive, true)
   })
 
-  it("resets React Bits Particles controls without premium background access", () => {
+  it("resets MassageLab Plasma Wave controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-particles",
-      reactBitsParticlesPaletteMode: "harmony",
-      reactBitsParticlesPrimaryColor: "#FFFFFF",
-      reactBitsParticlesHarmony: "triad",
-      reactBitsParticlesColorOne: "#ABCDEF",
-      reactBitsParticlesColorTwo: "#010203",
-      reactBitsParticlesColorThree: "#111111",
-      reactBitsParticlesCount: 420,
-      reactBitsParticlesSpread: 12,
-      reactBitsParticlesSpeed: 0.4,
-      reactBitsParticlesMoveOnHover: true,
-      reactBitsParticlesHoverFactor: 1.6,
-      reactBitsParticlesAlpha: true,
-      reactBitsParticlesBaseSize: 130,
-      reactBitsParticlesSizeRandomness: 1.5,
-      reactBitsParticlesCameraDistance: 24,
-      reactBitsParticlesDisableRotation: true,
-      reactBitsParticlesPixelRatio: 1.4,
+      backgroundId: "massage-lab-plasma-wave",
+      massageLabPlasmaWavePaletteMode: "harmony",
+      massageLabPlasmaWavePrimaryColor: "#FFFFFF",
+      massageLabPlasmaWaveHarmony: "triad",
+      massageLabPlasmaWaveColorOne: "#ABCDEF",
+      massageLabPlasmaWaveColorTwo: "#010203",
+      massageLabPlasmaWaveXOffset: 120,
+      massageLabPlasmaWaveYOffset: -140,
+      massageLabPlasmaWaveRotationDeg: 35,
+      massageLabPlasmaWaveFocalLength: 1.2,
+      massageLabPlasmaWaveSpeedOne: 0.2,
+      massageLabPlasmaWaveSpeedTwo: 0.3,
+      massageLabPlasmaWaveDirectionTwo: -1,
+      massageLabPlasmaWaveBendOne: 1.4,
+      massageLabPlasmaWaveBendTwo: 0.8,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsParticlesPaletteMode",
-      "reactBitsParticlesPrimaryColor",
-      "reactBitsParticlesHarmony",
-      "reactBitsParticlesColorOne",
-      "reactBitsParticlesColorTwo",
-      "reactBitsParticlesColorThree",
-      "reactBitsParticlesCount",
-      "reactBitsParticlesSpread",
-      "reactBitsParticlesSpeed",
-      "reactBitsParticlesMoveOnHover",
-      "reactBitsParticlesHoverFactor",
-      "reactBitsParticlesAlpha",
-      "reactBitsParticlesBaseSize",
-      "reactBitsParticlesSizeRandomness",
-      "reactBitsParticlesCameraDistance",
-      "reactBitsParticlesDisableRotation",
-      "reactBitsParticlesPixelRatio",
+      "massageLabPlasmaWavePaletteMode",
+      "massageLabPlasmaWavePrimaryColor",
+      "massageLabPlasmaWaveHarmony",
+      "massageLabPlasmaWaveColorOne",
+      "massageLabPlasmaWaveColorTwo",
+      "massageLabPlasmaWaveXOffset",
+      "massageLabPlasmaWaveYOffset",
+      "massageLabPlasmaWaveRotationDeg",
+      "massageLabPlasmaWaveFocalLength",
+      "massageLabPlasmaWaveSpeedOne",
+      "massageLabPlasmaWaveSpeedTwo",
+      "massageLabPlasmaWaveDirectionTwo",
+      "massageLabPlasmaWaveBendOne",
+      "massageLabPlasmaWaveBendTwo",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-particles")
-    assert.equal(premiumSettings.reactBitsParticlesPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsParticlesPrimaryColor, "#FFFFFF")
-    assert.equal(premiumSettings.reactBitsParticlesHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsParticlesColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsParticlesColorTwo, "#010203")
-    assert.equal(premiumSettings.reactBitsParticlesColorThree, "#111111")
-    assert.equal(premiumSettings.reactBitsParticlesCount, 420)
-    assert.equal(premiumSettings.reactBitsParticlesSpread, 12)
-    assert.equal(premiumSettings.reactBitsParticlesSpeed, 0.4)
-    assert.equal(premiumSettings.reactBitsParticlesMoveOnHover, true)
-    assert.equal(premiumSettings.reactBitsParticlesHoverFactor, 1.6)
-    assert.equal(premiumSettings.reactBitsParticlesAlpha, true)
-    assert.equal(premiumSettings.reactBitsParticlesBaseSize, 130)
-    assert.equal(premiumSettings.reactBitsParticlesSizeRandomness, 1.5)
-    assert.equal(premiumSettings.reactBitsParticlesCameraDistance, 24)
-    assert.equal(premiumSettings.reactBitsParticlesDisableRotation, true)
-    assert.equal(premiumSettings.reactBitsParticlesPixelRatio, 1.4)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-plasma-wave")
+    assert.equal(premiumSettings.massageLabPlasmaWavePaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabPlasmaWavePrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabPlasmaWaveHarmony, "triad")
+    assert.equal(premiumSettings.massageLabPlasmaWaveColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabPlasmaWaveColorTwo, "#010203")
+    assert.equal(premiumSettings.massageLabPlasmaWaveXOffset, 120)
+    assert.equal(premiumSettings.massageLabPlasmaWaveYOffset, -140)
+    assert.equal(premiumSettings.massageLabPlasmaWaveRotationDeg, 35)
+    assert.equal(premiumSettings.massageLabPlasmaWaveFocalLength, 1.2)
+    assert.equal(premiumSettings.massageLabPlasmaWaveSpeedOne, 0.2)
+    assert.equal(premiumSettings.massageLabPlasmaWaveSpeedTwo, 0.3)
+    assert.equal(premiumSettings.massageLabPlasmaWaveDirectionTwo, -1)
+    assert.equal(premiumSettings.massageLabPlasmaWaveBendOne, 1.4)
+    assert.equal(premiumSettings.massageLabPlasmaWaveBendTwo, 0.8)
   })
 
-  it("resets React Bits Gradient Blinds controls without premium background access", () => {
+  it("resets MassageLab Particles controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-gradient-blinds",
-      reactBitsGradientBlindsPaletteMode: "harmony",
-      reactBitsGradientBlindsPrimaryColor: "#FF9FFC",
-      reactBitsGradientBlindsHarmony: "triad",
-      reactBitsGradientBlindsColorOne: "#ABCDEF",
-      reactBitsGradientBlindsColorTwo: "#010203",
-      reactBitsGradientBlindsAngle: 30,
-      reactBitsGradientBlindsNoise: 0.44,
-      reactBitsGradientBlindsBlindCount: 24,
-      reactBitsGradientBlindsBlindMinWidth: 72,
-      reactBitsGradientBlindsMouseDampening: 0.32,
-      reactBitsGradientBlindsMirror: true,
-      reactBitsGradientBlindsSpotlightRadius: 0.8,
-      reactBitsGradientBlindsSpotlightSoftness: 1.6,
-      reactBitsGradientBlindsSpotlightOpacity: 1.2,
-      reactBitsGradientBlindsDistort: 1.8,
-      reactBitsGradientBlindsShineDirection: "right",
-      reactBitsGradientBlindsBlendMode: "screen",
-      reactBitsGradientBlindsDpr: 1.4,
-      reactBitsGradientBlindsEnableMouseInteraction: true,
+      backgroundId: "massage-lab-particles",
+      massageLabParticlesPaletteMode: "harmony",
+      massageLabParticlesPrimaryColor: "#FFFFFF",
+      massageLabParticlesHarmony: "triad",
+      massageLabParticlesColorOne: "#ABCDEF",
+      massageLabParticlesColorTwo: "#010203",
+      massageLabParticlesColorThree: "#111111",
+      massageLabParticlesCount: 420,
+      massageLabParticlesSpread: 12,
+      massageLabParticlesSpeed: 0.4,
+      massageLabParticlesMoveOnHover: true,
+      massageLabParticlesHoverFactor: 1.6,
+      massageLabParticlesAlpha: true,
+      massageLabParticlesBaseSize: 130,
+      massageLabParticlesSizeRandomness: 1.5,
+      massageLabParticlesCameraDistance: 24,
+      massageLabParticlesDisableRotation: true,
+      massageLabParticlesPixelRatio: 1.4,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsGradientBlindsPaletteMode",
-      "reactBitsGradientBlindsPrimaryColor",
-      "reactBitsGradientBlindsHarmony",
-      "reactBitsGradientBlindsColorOne",
-      "reactBitsGradientBlindsColorTwo",
-      "reactBitsGradientBlindsAngle",
-      "reactBitsGradientBlindsNoise",
-      "reactBitsGradientBlindsBlindCount",
-      "reactBitsGradientBlindsBlindMinWidth",
-      "reactBitsGradientBlindsMouseDampening",
-      "reactBitsGradientBlindsMirror",
-      "reactBitsGradientBlindsSpotlightRadius",
-      "reactBitsGradientBlindsSpotlightSoftness",
-      "reactBitsGradientBlindsSpotlightOpacity",
-      "reactBitsGradientBlindsDistort",
-      "reactBitsGradientBlindsShineDirection",
-      "reactBitsGradientBlindsBlendMode",
-      "reactBitsGradientBlindsDpr",
-      "reactBitsGradientBlindsEnableMouseInteraction",
+      "massageLabParticlesPaletteMode",
+      "massageLabParticlesPrimaryColor",
+      "massageLabParticlesHarmony",
+      "massageLabParticlesColorOne",
+      "massageLabParticlesColorTwo",
+      "massageLabParticlesColorThree",
+      "massageLabParticlesCount",
+      "massageLabParticlesSpread",
+      "massageLabParticlesSpeed",
+      "massageLabParticlesMoveOnHover",
+      "massageLabParticlesHoverFactor",
+      "massageLabParticlesAlpha",
+      "massageLabParticlesBaseSize",
+      "massageLabParticlesSizeRandomness",
+      "massageLabParticlesCameraDistance",
+      "massageLabParticlesDisableRotation",
+      "massageLabParticlesPixelRatio",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-gradient-blinds")
-    assert.equal(premiumSettings.reactBitsGradientBlindsPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsGradientBlindsPrimaryColor, "#FF9FFC")
-    assert.equal(premiumSettings.reactBitsGradientBlindsHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsGradientBlindsColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsGradientBlindsColorTwo, "#010203")
-    assert.equal(premiumSettings.reactBitsGradientBlindsAngle, 30)
-    assert.equal(premiumSettings.reactBitsGradientBlindsNoise, 0.44)
-    assert.equal(premiumSettings.reactBitsGradientBlindsBlindCount, 24)
-    assert.equal(premiumSettings.reactBitsGradientBlindsBlindMinWidth, 72)
-    assert.equal(premiumSettings.reactBitsGradientBlindsMouseDampening, 0.32)
-    assert.equal(premiumSettings.reactBitsGradientBlindsMirror, true)
-    assert.equal(premiumSettings.reactBitsGradientBlindsSpotlightRadius, 0.8)
-    assert.equal(premiumSettings.reactBitsGradientBlindsSpotlightSoftness, 1.6)
-    assert.equal(premiumSettings.reactBitsGradientBlindsSpotlightOpacity, 1.2)
-    assert.equal(premiumSettings.reactBitsGradientBlindsDistort, 1.8)
-    assert.equal(premiumSettings.reactBitsGradientBlindsShineDirection, "right")
-    assert.equal(premiumSettings.reactBitsGradientBlindsBlendMode, "screen")
-    assert.equal(premiumSettings.reactBitsGradientBlindsDpr, 1.4)
-    assert.equal(premiumSettings.reactBitsGradientBlindsEnableMouseInteraction, true)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-particles")
+    assert.equal(premiumSettings.massageLabParticlesPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabParticlesPrimaryColor, "#FFFFFF")
+    assert.equal(premiumSettings.massageLabParticlesHarmony, "triad")
+    assert.equal(premiumSettings.massageLabParticlesColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabParticlesColorTwo, "#010203")
+    assert.equal(premiumSettings.massageLabParticlesColorThree, "#111111")
+    assert.equal(premiumSettings.massageLabParticlesCount, 420)
+    assert.equal(premiumSettings.massageLabParticlesSpread, 12)
+    assert.equal(premiumSettings.massageLabParticlesSpeed, 0.4)
+    assert.equal(premiumSettings.massageLabParticlesMoveOnHover, true)
+    assert.equal(premiumSettings.massageLabParticlesHoverFactor, 1.6)
+    assert.equal(premiumSettings.massageLabParticlesAlpha, true)
+    assert.equal(premiumSettings.massageLabParticlesBaseSize, 130)
+    assert.equal(premiumSettings.massageLabParticlesSizeRandomness, 1.5)
+    assert.equal(premiumSettings.massageLabParticlesCameraDistance, 24)
+    assert.equal(premiumSettings.massageLabParticlesDisableRotation, true)
+    assert.equal(premiumSettings.massageLabParticlesPixelRatio, 1.4)
   })
 
-  it("resets React Bits Grainient controls without premium background access", () => {
+  it("resets MassageLab Gradient Blinds controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-grainient",
-      reactBitsGrainientPaletteMode: "harmony",
-      reactBitsGrainientPrimaryColor: "#FF9FFC",
-      reactBitsGrainientHarmony: "triad",
-      reactBitsGrainientColorOne: "#ABCDEF",
-      reactBitsGrainientColorTwo: "#010203",
-      reactBitsGrainientColorThree: "#111111",
-      reactBitsGrainientTimeSpeed: 0.8,
-      reactBitsGrainientColorBalance: 0.4,
-      reactBitsGrainientWarpStrength: 1.7,
-      reactBitsGrainientWarpFrequency: 8,
-      reactBitsGrainientWarpSpeed: 2.4,
-      reactBitsGrainientWarpAmplitude: 64,
-      reactBitsGrainientBlendAngle: 22,
-      reactBitsGrainientBlendSoftness: 0.18,
-      reactBitsGrainientRotationAmount: 700,
-      reactBitsGrainientNoiseScale: 3,
-      reactBitsGrainientGrainAmount: 0.25,
-      reactBitsGrainientGrainScale: 4,
-      reactBitsGrainientGrainAnimated: true,
-      reactBitsGrainientContrast: 1.7,
-      reactBitsGrainientGamma: 1.2,
-      reactBitsGrainientSaturation: 1.3,
-      reactBitsGrainientCenterX: 0.2,
-      reactBitsGrainientCenterY: -0.2,
-      reactBitsGrainientZoom: 1.1,
+      backgroundId: "massage-lab-gradient-blinds",
+      massageLabGradientBlindsPaletteMode: "harmony",
+      massageLabGradientBlindsPrimaryColor: "#FF9FFC",
+      massageLabGradientBlindsHarmony: "triad",
+      massageLabGradientBlindsColorOne: "#ABCDEF",
+      massageLabGradientBlindsColorTwo: "#010203",
+      massageLabGradientBlindsAngle: 30,
+      massageLabGradientBlindsNoise: 0.44,
+      massageLabGradientBlindsBlindCount: 24,
+      massageLabGradientBlindsBlindMinWidth: 72,
+      massageLabGradientBlindsMouseDampening: 0.32,
+      massageLabGradientBlindsMirror: true,
+      massageLabGradientBlindsSpotlightRadius: 0.8,
+      massageLabGradientBlindsSpotlightSoftness: 1.6,
+      massageLabGradientBlindsSpotlightOpacity: 1.2,
+      massageLabGradientBlindsDistort: 1.8,
+      massageLabGradientBlindsShineDirection: "right",
+      massageLabGradientBlindsBlendMode: "screen",
+      massageLabGradientBlindsDpr: 1.4,
+      massageLabGradientBlindsEnableMouseInteraction: true,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsGrainientPaletteMode",
-      "reactBitsGrainientPrimaryColor",
-      "reactBitsGrainientHarmony",
-      "reactBitsGrainientColorOne",
-      "reactBitsGrainientColorTwo",
-      "reactBitsGrainientColorThree",
-      "reactBitsGrainientTimeSpeed",
-      "reactBitsGrainientColorBalance",
-      "reactBitsGrainientWarpStrength",
-      "reactBitsGrainientWarpFrequency",
-      "reactBitsGrainientWarpSpeed",
-      "reactBitsGrainientWarpAmplitude",
-      "reactBitsGrainientBlendAngle",
-      "reactBitsGrainientBlendSoftness",
-      "reactBitsGrainientRotationAmount",
-      "reactBitsGrainientNoiseScale",
-      "reactBitsGrainientGrainAmount",
-      "reactBitsGrainientGrainScale",
-      "reactBitsGrainientGrainAnimated",
-      "reactBitsGrainientContrast",
-      "reactBitsGrainientGamma",
-      "reactBitsGrainientSaturation",
-      "reactBitsGrainientCenterX",
-      "reactBitsGrainientCenterY",
-      "reactBitsGrainientZoom",
+      "massageLabGradientBlindsPaletteMode",
+      "massageLabGradientBlindsPrimaryColor",
+      "massageLabGradientBlindsHarmony",
+      "massageLabGradientBlindsColorOne",
+      "massageLabGradientBlindsColorTwo",
+      "massageLabGradientBlindsAngle",
+      "massageLabGradientBlindsNoise",
+      "massageLabGradientBlindsBlindCount",
+      "massageLabGradientBlindsBlindMinWidth",
+      "massageLabGradientBlindsMouseDampening",
+      "massageLabGradientBlindsMirror",
+      "massageLabGradientBlindsSpotlightRadius",
+      "massageLabGradientBlindsSpotlightSoftness",
+      "massageLabGradientBlindsSpotlightOpacity",
+      "massageLabGradientBlindsDistort",
+      "massageLabGradientBlindsShineDirection",
+      "massageLabGradientBlindsBlendMode",
+      "massageLabGradientBlindsDpr",
+      "massageLabGradientBlindsEnableMouseInteraction",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-grainient")
-    assert.equal(premiumSettings.reactBitsGrainientPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsGrainientPrimaryColor, "#FF9FFC")
-    assert.equal(premiumSettings.reactBitsGrainientHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsGrainientColorOne, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsGrainientColorTwo, "#010203")
-    assert.equal(premiumSettings.reactBitsGrainientColorThree, "#111111")
-    assert.equal(premiumSettings.reactBitsGrainientTimeSpeed, 0.8)
-    assert.equal(premiumSettings.reactBitsGrainientColorBalance, 0.4)
-    assert.equal(premiumSettings.reactBitsGrainientWarpStrength, 1.7)
-    assert.equal(premiumSettings.reactBitsGrainientWarpFrequency, 8)
-    assert.equal(premiumSettings.reactBitsGrainientWarpSpeed, 2.4)
-    assert.equal(premiumSettings.reactBitsGrainientWarpAmplitude, 64)
-    assert.equal(premiumSettings.reactBitsGrainientBlendAngle, 22)
-    assert.equal(premiumSettings.reactBitsGrainientBlendSoftness, 0.18)
-    assert.equal(premiumSettings.reactBitsGrainientRotationAmount, 700)
-    assert.equal(premiumSettings.reactBitsGrainientNoiseScale, 3)
-    assert.equal(premiumSettings.reactBitsGrainientGrainAmount, 0.25)
-    assert.equal(premiumSettings.reactBitsGrainientGrainScale, 4)
-    assert.equal(premiumSettings.reactBitsGrainientGrainAnimated, true)
-    assert.equal(premiumSettings.reactBitsGrainientContrast, 1.7)
-    assert.equal(premiumSettings.reactBitsGrainientGamma, 1.2)
-    assert.equal(premiumSettings.reactBitsGrainientSaturation, 1.3)
-    assert.equal(premiumSettings.reactBitsGrainientCenterX, 0.2)
-    assert.equal(premiumSettings.reactBitsGrainientCenterY, -0.2)
-    assert.equal(premiumSettings.reactBitsGrainientZoom, 1.1)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-gradient-blinds")
+    assert.equal(premiumSettings.massageLabGradientBlindsPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabGradientBlindsPrimaryColor, "#FF9FFC")
+    assert.equal(premiumSettings.massageLabGradientBlindsHarmony, "triad")
+    assert.equal(premiumSettings.massageLabGradientBlindsColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabGradientBlindsColorTwo, "#010203")
+    assert.equal(premiumSettings.massageLabGradientBlindsAngle, 30)
+    assert.equal(premiumSettings.massageLabGradientBlindsNoise, 0.44)
+    assert.equal(premiumSettings.massageLabGradientBlindsBlindCount, 24)
+    assert.equal(premiumSettings.massageLabGradientBlindsBlindMinWidth, 72)
+    assert.equal(premiumSettings.massageLabGradientBlindsMouseDampening, 0.32)
+    assert.equal(premiumSettings.massageLabGradientBlindsMirror, true)
+    assert.equal(premiumSettings.massageLabGradientBlindsSpotlightRadius, 0.8)
+    assert.equal(premiumSettings.massageLabGradientBlindsSpotlightSoftness, 1.6)
+    assert.equal(premiumSettings.massageLabGradientBlindsSpotlightOpacity, 1.2)
+    assert.equal(premiumSettings.massageLabGradientBlindsDistort, 1.8)
+    assert.equal(premiumSettings.massageLabGradientBlindsShineDirection, "right")
+    assert.equal(premiumSettings.massageLabGradientBlindsBlendMode, "screen")
+    assert.equal(premiumSettings.massageLabGradientBlindsDpr, 1.4)
+    assert.equal(premiumSettings.massageLabGradientBlindsEnableMouseInteraction, true)
   })
 
-  it("resets React Bits Grid Scan controls without premium background access", () => {
+  it("resets MassageLab Grainient controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-grid-scan",
-      reactBitsGridScanPaletteMode: "harmony",
-      reactBitsGridScanPrimaryColor: "#FF9FFC",
-      reactBitsGridScanHarmony: "triad",
-      reactBitsGridScanLinesColor: "#ABCDEF",
-      reactBitsGridScanScanColor: "#010203",
-      reactBitsGridScanSensitivity: 0.7,
-      reactBitsGridScanLineThickness: 2.4,
-      reactBitsGridScanScanOpacity: 0.6,
-      reactBitsGridScanGridScale: 0.2,
-      reactBitsGridScanLineStyle: "dotted",
-      reactBitsGridScanLineJitter: 0.5,
-      reactBitsGridScanDirection: "backward",
-      reactBitsGridScanNoiseIntensity: 0.08,
-      reactBitsGridScanBloomOpacity: 0.4,
-      reactBitsGridScanScanGlow: 1.2,
-      reactBitsGridScanScanSoftness: 3.2,
-      reactBitsGridScanPhaseTaper: 0.25,
-      reactBitsGridScanScanDuration: 3,
-      reactBitsGridScanScanDelay: 1,
-      reactBitsGridScanEnablePointerInteraction: true,
-      reactBitsGridScanScanOnClick: true,
+      backgroundId: "massage-lab-grainient",
+      massageLabGrainientPaletteMode: "harmony",
+      massageLabGrainientPrimaryColor: "#FF9FFC",
+      massageLabGrainientHarmony: "triad",
+      massageLabGrainientColorOne: "#ABCDEF",
+      massageLabGrainientColorTwo: "#010203",
+      massageLabGrainientColorThree: "#111111",
+      massageLabGrainientTimeSpeed: 0.8,
+      massageLabGrainientColorBalance: 0.4,
+      massageLabGrainientWarpStrength: 1.7,
+      massageLabGrainientWarpFrequency: 8,
+      massageLabGrainientWarpSpeed: 2.4,
+      massageLabGrainientWarpAmplitude: 64,
+      massageLabGrainientBlendAngle: 22,
+      massageLabGrainientBlendSoftness: 0.18,
+      massageLabGrainientRotationAmount: 700,
+      massageLabGrainientNoiseScale: 3,
+      massageLabGrainientGrainAmount: 0.25,
+      massageLabGrainientGrainScale: 4,
+      massageLabGrainientGrainAnimated: true,
+      massageLabGrainientContrast: 1.7,
+      massageLabGrainientGamma: 1.2,
+      massageLabGrainientSaturation: 1.3,
+      massageLabGrainientCenterX: 0.2,
+      massageLabGrainientCenterY: -0.2,
+      massageLabGrainientZoom: 1.1,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsGridScanPaletteMode",
-      "reactBitsGridScanPrimaryColor",
-      "reactBitsGridScanHarmony",
-      "reactBitsGridScanLinesColor",
-      "reactBitsGridScanScanColor",
-      "reactBitsGridScanSensitivity",
-      "reactBitsGridScanLineThickness",
-      "reactBitsGridScanScanOpacity",
-      "reactBitsGridScanGridScale",
-      "reactBitsGridScanLineStyle",
-      "reactBitsGridScanLineJitter",
-      "reactBitsGridScanDirection",
-      "reactBitsGridScanNoiseIntensity",
-      "reactBitsGridScanBloomOpacity",
-      "reactBitsGridScanScanGlow",
-      "reactBitsGridScanScanSoftness",
-      "reactBitsGridScanPhaseTaper",
-      "reactBitsGridScanScanDuration",
-      "reactBitsGridScanScanDelay",
-      "reactBitsGridScanEnablePointerInteraction",
-      "reactBitsGridScanScanOnClick",
+      "massageLabGrainientPaletteMode",
+      "massageLabGrainientPrimaryColor",
+      "massageLabGrainientHarmony",
+      "massageLabGrainientColorOne",
+      "massageLabGrainientColorTwo",
+      "massageLabGrainientColorThree",
+      "massageLabGrainientTimeSpeed",
+      "massageLabGrainientColorBalance",
+      "massageLabGrainientWarpStrength",
+      "massageLabGrainientWarpFrequency",
+      "massageLabGrainientWarpSpeed",
+      "massageLabGrainientWarpAmplitude",
+      "massageLabGrainientBlendAngle",
+      "massageLabGrainientBlendSoftness",
+      "massageLabGrainientRotationAmount",
+      "massageLabGrainientNoiseScale",
+      "massageLabGrainientGrainAmount",
+      "massageLabGrainientGrainScale",
+      "massageLabGrainientGrainAnimated",
+      "massageLabGrainientContrast",
+      "massageLabGrainientGamma",
+      "massageLabGrainientSaturation",
+      "massageLabGrainientCenterX",
+      "massageLabGrainientCenterY",
+      "massageLabGrainientZoom",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-grid-scan")
-    assert.equal(premiumSettings.reactBitsGridScanPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsGridScanPrimaryColor, "#FF9FFC")
-    assert.equal(premiumSettings.reactBitsGridScanHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsGridScanLinesColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsGridScanScanColor, "#010203")
-    assert.equal(premiumSettings.reactBitsGridScanSensitivity, 0.7)
-    assert.equal(premiumSettings.reactBitsGridScanLineThickness, 2.4)
-    assert.equal(premiumSettings.reactBitsGridScanScanOpacity, 0.6)
-    assert.equal(premiumSettings.reactBitsGridScanGridScale, 0.2)
-    assert.equal(premiumSettings.reactBitsGridScanLineStyle, "dotted")
-    assert.equal(premiumSettings.reactBitsGridScanLineJitter, 0.5)
-    assert.equal(premiumSettings.reactBitsGridScanDirection, "backward")
-    assert.equal(premiumSettings.reactBitsGridScanNoiseIntensity, 0.08)
-    assert.equal(premiumSettings.reactBitsGridScanBloomOpacity, 0.4)
-    assert.equal(premiumSettings.reactBitsGridScanScanGlow, 1.2)
-    assert.equal(premiumSettings.reactBitsGridScanScanSoftness, 3.2)
-    assert.equal(premiumSettings.reactBitsGridScanPhaseTaper, 0.25)
-    assert.equal(premiumSettings.reactBitsGridScanScanDuration, 3)
-    assert.equal(premiumSettings.reactBitsGridScanScanDelay, 1)
-    assert.equal(premiumSettings.reactBitsGridScanEnablePointerInteraction, true)
-    assert.equal(premiumSettings.reactBitsGridScanScanOnClick, true)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-grainient")
+    assert.equal(premiumSettings.massageLabGrainientPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabGrainientPrimaryColor, "#FF9FFC")
+    assert.equal(premiumSettings.massageLabGrainientHarmony, "triad")
+    assert.equal(premiumSettings.massageLabGrainientColorOne, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabGrainientColorTwo, "#010203")
+    assert.equal(premiumSettings.massageLabGrainientColorThree, "#111111")
+    assert.equal(premiumSettings.massageLabGrainientTimeSpeed, 0.8)
+    assert.equal(premiumSettings.massageLabGrainientColorBalance, 0.4)
+    assert.equal(premiumSettings.massageLabGrainientWarpStrength, 1.7)
+    assert.equal(premiumSettings.massageLabGrainientWarpFrequency, 8)
+    assert.equal(premiumSettings.massageLabGrainientWarpSpeed, 2.4)
+    assert.equal(premiumSettings.massageLabGrainientWarpAmplitude, 64)
+    assert.equal(premiumSettings.massageLabGrainientBlendAngle, 22)
+    assert.equal(premiumSettings.massageLabGrainientBlendSoftness, 0.18)
+    assert.equal(premiumSettings.massageLabGrainientRotationAmount, 700)
+    assert.equal(premiumSettings.massageLabGrainientNoiseScale, 3)
+    assert.equal(premiumSettings.massageLabGrainientGrainAmount, 0.25)
+    assert.equal(premiumSettings.massageLabGrainientGrainScale, 4)
+    assert.equal(premiumSettings.massageLabGrainientGrainAnimated, true)
+    assert.equal(premiumSettings.massageLabGrainientContrast, 1.7)
+    assert.equal(premiumSettings.massageLabGrainientGamma, 1.2)
+    assert.equal(premiumSettings.massageLabGrainientSaturation, 1.3)
+    assert.equal(premiumSettings.massageLabGrainientCenterX, 0.2)
+    assert.equal(premiumSettings.massageLabGrainientCenterY, -0.2)
+    assert.equal(premiumSettings.massageLabGrainientZoom, 1.1)
   })
 
-  it("resets React Bits Beams controls without premium background access", () => {
+  it("resets MassageLab Grid Scan controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-beams",
-      reactBitsBeamsPaletteMode: "harmony",
-      reactBitsBeamsPrimaryColor: "#ABCDEF",
-      reactBitsBeamsHarmony: "triad",
-      reactBitsBeamsLightColor: "#010203",
-      reactBitsBeamsBeamWidth: 3.2,
-      reactBitsBeamsBeamHeight: 18,
-      reactBitsBeamsBeamNumber: 18,
-      reactBitsBeamsSpeed: 3.5,
-      reactBitsBeamsNoiseIntensity: 2.4,
-      reactBitsBeamsScale: 0.42,
-      reactBitsBeamsRotation: 24,
+      backgroundId: "massage-lab-grid-scan",
+      massageLabGridScanPaletteMode: "harmony",
+      massageLabGridScanPrimaryColor: "#FF9FFC",
+      massageLabGridScanHarmony: "triad",
+      massageLabGridScanLinesColor: "#ABCDEF",
+      massageLabGridScanScanColor: "#010203",
+      massageLabGridScanSensitivity: 0.7,
+      massageLabGridScanLineThickness: 2.4,
+      massageLabGridScanScanOpacity: 0.6,
+      massageLabGridScanGridScale: 0.2,
+      massageLabGridScanLineStyle: "dotted",
+      massageLabGridScanLineJitter: 0.5,
+      massageLabGridScanDirection: "backward",
+      massageLabGridScanNoiseIntensity: 0.08,
+      massageLabGridScanBloomOpacity: 0.4,
+      massageLabGridScanScanGlow: 1.2,
+      massageLabGridScanScanSoftness: 3.2,
+      massageLabGridScanPhaseTaper: 0.25,
+      massageLabGridScanScanDuration: 3,
+      massageLabGridScanScanDelay: 1,
+      massageLabGridScanEnablePointerInteraction: true,
+      massageLabGridScanScanOnClick: true,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsBeamsPaletteMode",
-      "reactBitsBeamsPrimaryColor",
-      "reactBitsBeamsHarmony",
-      "reactBitsBeamsLightColor",
-      "reactBitsBeamsBeamWidth",
-      "reactBitsBeamsBeamHeight",
-      "reactBitsBeamsBeamNumber",
-      "reactBitsBeamsSpeed",
-      "reactBitsBeamsNoiseIntensity",
-      "reactBitsBeamsScale",
-      "reactBitsBeamsRotation",
+      "massageLabGridScanPaletteMode",
+      "massageLabGridScanPrimaryColor",
+      "massageLabGridScanHarmony",
+      "massageLabGridScanLinesColor",
+      "massageLabGridScanScanColor",
+      "massageLabGridScanSensitivity",
+      "massageLabGridScanLineThickness",
+      "massageLabGridScanScanOpacity",
+      "massageLabGridScanGridScale",
+      "massageLabGridScanLineStyle",
+      "massageLabGridScanLineJitter",
+      "massageLabGridScanDirection",
+      "massageLabGridScanNoiseIntensity",
+      "massageLabGridScanBloomOpacity",
+      "massageLabGridScanScanGlow",
+      "massageLabGridScanScanSoftness",
+      "massageLabGridScanPhaseTaper",
+      "massageLabGridScanScanDuration",
+      "massageLabGridScanScanDelay",
+      "massageLabGridScanEnablePointerInteraction",
+      "massageLabGridScanScanOnClick",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-beams")
-    assert.equal(premiumSettings.reactBitsBeamsPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsBeamsPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsBeamsHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsBeamsLightColor, "#010203")
-    assert.equal(premiumSettings.reactBitsBeamsBeamWidth, 3.2)
-    assert.equal(premiumSettings.reactBitsBeamsBeamHeight, 18)
-    assert.equal(premiumSettings.reactBitsBeamsBeamNumber, 18)
-    assert.equal(premiumSettings.reactBitsBeamsSpeed, 3.5)
-    assert.equal(premiumSettings.reactBitsBeamsNoiseIntensity, 2.4)
-    assert.equal(premiumSettings.reactBitsBeamsScale, 0.42)
-    assert.equal(premiumSettings.reactBitsBeamsRotation, 24)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-grid-scan")
+    assert.equal(premiumSettings.massageLabGridScanPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabGridScanPrimaryColor, "#FF9FFC")
+    assert.equal(premiumSettings.massageLabGridScanHarmony, "triad")
+    assert.equal(premiumSettings.massageLabGridScanLinesColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabGridScanScanColor, "#010203")
+    assert.equal(premiumSettings.massageLabGridScanSensitivity, 0.7)
+    assert.equal(premiumSettings.massageLabGridScanLineThickness, 2.4)
+    assert.equal(premiumSettings.massageLabGridScanScanOpacity, 0.6)
+    assert.equal(premiumSettings.massageLabGridScanGridScale, 0.2)
+    assert.equal(premiumSettings.massageLabGridScanLineStyle, "dotted")
+    assert.equal(premiumSettings.massageLabGridScanLineJitter, 0.5)
+    assert.equal(premiumSettings.massageLabGridScanDirection, "backward")
+    assert.equal(premiumSettings.massageLabGridScanNoiseIntensity, 0.08)
+    assert.equal(premiumSettings.massageLabGridScanBloomOpacity, 0.4)
+    assert.equal(premiumSettings.massageLabGridScanScanGlow, 1.2)
+    assert.equal(premiumSettings.massageLabGridScanScanSoftness, 3.2)
+    assert.equal(premiumSettings.massageLabGridScanPhaseTaper, 0.25)
+    assert.equal(premiumSettings.massageLabGridScanScanDuration, 3)
+    assert.equal(premiumSettings.massageLabGridScanScanDelay, 1)
+    assert.equal(premiumSettings.massageLabGridScanEnablePointerInteraction, true)
+    assert.equal(premiumSettings.massageLabGridScanScanOnClick, true)
   })
 
-  it("resets React Bits Pixel Snow controls without premium background access", () => {
+  it("resets MassageLab Beams controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-pixel-snow",
-      reactBitsPixelSnowPaletteMode: "harmony",
-      reactBitsPixelSnowPrimaryColor: "#ABCDEF",
-      reactBitsPixelSnowHarmony: "triad",
-      reactBitsPixelSnowColor: "#010203",
-      reactBitsPixelSnowFlakeSize: 0.04,
-      reactBitsPixelSnowMinFlakeSize: 2.5,
-      reactBitsPixelSnowPixelResolution: 320,
-      reactBitsPixelSnowSpeed: 2.5,
-      reactBitsPixelSnowDepthFade: 16,
-      reactBitsPixelSnowFarPlane: 36,
-      reactBitsPixelSnowBrightness: 2,
-      reactBitsPixelSnowGamma: 0.75,
-      reactBitsPixelSnowDensity: 0.6,
-      reactBitsPixelSnowVariant: "snowflake",
-      reactBitsPixelSnowDirection: 220,
+      backgroundId: "massage-lab-beams",
+      massageLabBeamsPaletteMode: "harmony",
+      massageLabBeamsPrimaryColor: "#ABCDEF",
+      massageLabBeamsHarmony: "triad",
+      massageLabBeamsLightColor: "#010203",
+      massageLabBeamsBeamWidth: 3.2,
+      massageLabBeamsBeamHeight: 18,
+      massageLabBeamsBeamNumber: 18,
+      massageLabBeamsSpeed: 3.5,
+      massageLabBeamsNoiseIntensity: 2.4,
+      massageLabBeamsScale: 0.42,
+      massageLabBeamsRotation: 24,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsPixelSnowPaletteMode",
-      "reactBitsPixelSnowPrimaryColor",
-      "reactBitsPixelSnowHarmony",
-      "reactBitsPixelSnowColor",
-      "reactBitsPixelSnowFlakeSize",
-      "reactBitsPixelSnowMinFlakeSize",
-      "reactBitsPixelSnowPixelResolution",
-      "reactBitsPixelSnowSpeed",
-      "reactBitsPixelSnowDepthFade",
-      "reactBitsPixelSnowFarPlane",
-      "reactBitsPixelSnowBrightness",
-      "reactBitsPixelSnowGamma",
-      "reactBitsPixelSnowDensity",
-      "reactBitsPixelSnowVariant",
-      "reactBitsPixelSnowDirection",
+      "massageLabBeamsPaletteMode",
+      "massageLabBeamsPrimaryColor",
+      "massageLabBeamsHarmony",
+      "massageLabBeamsLightColor",
+      "massageLabBeamsBeamWidth",
+      "massageLabBeamsBeamHeight",
+      "massageLabBeamsBeamNumber",
+      "massageLabBeamsSpeed",
+      "massageLabBeamsNoiseIntensity",
+      "massageLabBeamsScale",
+      "massageLabBeamsRotation",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-pixel-snow")
-    assert.equal(premiumSettings.reactBitsPixelSnowPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsPixelSnowPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsPixelSnowHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsPixelSnowColor, "#010203")
-    assert.equal(premiumSettings.reactBitsPixelSnowFlakeSize, 0.04)
-    assert.equal(premiumSettings.reactBitsPixelSnowMinFlakeSize, 2.5)
-    assert.equal(premiumSettings.reactBitsPixelSnowPixelResolution, 320)
-    assert.equal(premiumSettings.reactBitsPixelSnowSpeed, 2.5)
-    assert.equal(premiumSettings.reactBitsPixelSnowDepthFade, 16)
-    assert.equal(premiumSettings.reactBitsPixelSnowFarPlane, 36)
-    assert.equal(premiumSettings.reactBitsPixelSnowBrightness, 2)
-    assert.equal(premiumSettings.reactBitsPixelSnowGamma, 0.75)
-    assert.equal(premiumSettings.reactBitsPixelSnowDensity, 0.6)
-    assert.equal(premiumSettings.reactBitsPixelSnowVariant, "snowflake")
-    assert.equal(premiumSettings.reactBitsPixelSnowDirection, 220)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-beams")
+    assert.equal(premiumSettings.massageLabBeamsPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabBeamsPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabBeamsHarmony, "triad")
+    assert.equal(premiumSettings.massageLabBeamsLightColor, "#010203")
+    assert.equal(premiumSettings.massageLabBeamsBeamWidth, 3.2)
+    assert.equal(premiumSettings.massageLabBeamsBeamHeight, 18)
+    assert.equal(premiumSettings.massageLabBeamsBeamNumber, 18)
+    assert.equal(premiumSettings.massageLabBeamsSpeed, 3.5)
+    assert.equal(premiumSettings.massageLabBeamsNoiseIntensity, 2.4)
+    assert.equal(premiumSettings.massageLabBeamsScale, 0.42)
+    assert.equal(premiumSettings.massageLabBeamsRotation, 24)
   })
 
-  it("resets React Bits Lightning controls without premium background access", () => {
+  it("resets MassageLab Pixel Snow controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-lightning",
-      reactBitsLightningPaletteMode: "harmony",
-      reactBitsLightningPrimaryColor: "#ABCDEF",
-      reactBitsLightningHarmony: "triad",
-      reactBitsLightningColor: "#010203",
-      reactBitsLightningHue: 310,
-      reactBitsLightningXOffset: -0.5,
-      reactBitsLightningSpeed: 2.25,
-      reactBitsLightningIntensity: 3.5,
-      reactBitsLightningSize: 1.8,
+      backgroundId: "massage-lab-pixel-snow",
+      massageLabPixelSnowPaletteMode: "harmony",
+      massageLabPixelSnowPrimaryColor: "#ABCDEF",
+      massageLabPixelSnowHarmony: "triad",
+      massageLabPixelSnowColor: "#010203",
+      massageLabPixelSnowFlakeSize: 0.04,
+      massageLabPixelSnowMinFlakeSize: 2.5,
+      massageLabPixelSnowPixelResolution: 320,
+      massageLabPixelSnowSpeed: 2.5,
+      massageLabPixelSnowDepthFade: 16,
+      massageLabPixelSnowFarPlane: 36,
+      massageLabPixelSnowBrightness: 2,
+      massageLabPixelSnowGamma: 0.75,
+      massageLabPixelSnowDensity: 0.6,
+      massageLabPixelSnowVariant: "snowflake",
+      massageLabPixelSnowDirection: 220,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsLightningPaletteMode",
-      "reactBitsLightningPrimaryColor",
-      "reactBitsLightningHarmony",
-      "reactBitsLightningColor",
-      "reactBitsLightningHue",
-      "reactBitsLightningXOffset",
-      "reactBitsLightningSpeed",
-      "reactBitsLightningIntensity",
-      "reactBitsLightningSize",
+      "massageLabPixelSnowPaletteMode",
+      "massageLabPixelSnowPrimaryColor",
+      "massageLabPixelSnowHarmony",
+      "massageLabPixelSnowColor",
+      "massageLabPixelSnowFlakeSize",
+      "massageLabPixelSnowMinFlakeSize",
+      "massageLabPixelSnowPixelResolution",
+      "massageLabPixelSnowSpeed",
+      "massageLabPixelSnowDepthFade",
+      "massageLabPixelSnowFarPlane",
+      "massageLabPixelSnowBrightness",
+      "massageLabPixelSnowGamma",
+      "massageLabPixelSnowDensity",
+      "massageLabPixelSnowVariant",
+      "massageLabPixelSnowDirection",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-lightning")
-    assert.equal(premiumSettings.reactBitsLightningPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsLightningPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsLightningHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsLightningColor, "#010203")
-    assert.equal(premiumSettings.reactBitsLightningHue, 310)
-    assert.equal(premiumSettings.reactBitsLightningXOffset, -0.5)
-    assert.equal(premiumSettings.reactBitsLightningSpeed, 2.25)
-    assert.equal(premiumSettings.reactBitsLightningIntensity, 3.5)
-    assert.equal(premiumSettings.reactBitsLightningSize, 1.8)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-pixel-snow")
+    assert.equal(premiumSettings.massageLabPixelSnowPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabPixelSnowPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabPixelSnowHarmony, "triad")
+    assert.equal(premiumSettings.massageLabPixelSnowColor, "#010203")
+    assert.equal(premiumSettings.massageLabPixelSnowFlakeSize, 0.04)
+    assert.equal(premiumSettings.massageLabPixelSnowMinFlakeSize, 2.5)
+    assert.equal(premiumSettings.massageLabPixelSnowPixelResolution, 320)
+    assert.equal(premiumSettings.massageLabPixelSnowSpeed, 2.5)
+    assert.equal(premiumSettings.massageLabPixelSnowDepthFade, 16)
+    assert.equal(premiumSettings.massageLabPixelSnowFarPlane, 36)
+    assert.equal(premiumSettings.massageLabPixelSnowBrightness, 2)
+    assert.equal(premiumSettings.massageLabPixelSnowGamma, 0.75)
+    assert.equal(premiumSettings.massageLabPixelSnowDensity, 0.6)
+    assert.equal(premiumSettings.massageLabPixelSnowVariant, "snowflake")
+    assert.equal(premiumSettings.massageLabPixelSnowDirection, 220)
   })
 
-  it("resets React Bits Prismatic Burst controls without premium background access", () => {
+  it("resets MassageLab Lightning controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-prismatic-burst",
-      reactBitsPrismaticBurstPaletteMode: "harmony",
-      reactBitsPrismaticBurstPrimaryColor: "#ABCDEF",
-      reactBitsPrismaticBurstHarmony: "triad",
-      reactBitsPrismaticBurstColorOne: "#010203",
-      reactBitsPrismaticBurstColorTwo: "#AABBCC",
-      reactBitsPrismaticBurstColorThree: "#DDEEFF",
-      reactBitsPrismaticBurstColorFour: "#112233",
-      reactBitsPrismaticBurstIntensity: 3.25,
-      reactBitsPrismaticBurstSpeed: 1.75,
-      reactBitsPrismaticBurstAnimationType: "hover",
-      reactBitsPrismaticBurstDistort: 18,
-      reactBitsPrismaticBurstOffsetX: 240,
-      reactBitsPrismaticBurstOffsetY: -160,
-      reactBitsPrismaticBurstHoverDampness: 0.42,
-      reactBitsPrismaticBurstRayCount: 24,
-      reactBitsPrismaticBurstMixBlendMode: "screen",
+      backgroundId: "massage-lab-lightning",
+      massageLabLightningPaletteMode: "harmony",
+      massageLabLightningPrimaryColor: "#ABCDEF",
+      massageLabLightningHarmony: "triad",
+      massageLabLightningColor: "#010203",
+      massageLabLightningHue: 310,
+      massageLabLightningXOffset: -0.5,
+      massageLabLightningSpeed: 2.25,
+      massageLabLightningIntensity: 3.5,
+      massageLabLightningSize: 1.8,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsPrismaticBurstPaletteMode",
-      "reactBitsPrismaticBurstPrimaryColor",
-      "reactBitsPrismaticBurstHarmony",
-      "reactBitsPrismaticBurstColorOne",
-      "reactBitsPrismaticBurstColorTwo",
-      "reactBitsPrismaticBurstColorThree",
-      "reactBitsPrismaticBurstColorFour",
-      "reactBitsPrismaticBurstIntensity",
-      "reactBitsPrismaticBurstSpeed",
-      "reactBitsPrismaticBurstAnimationType",
-      "reactBitsPrismaticBurstDistort",
-      "reactBitsPrismaticBurstOffsetX",
-      "reactBitsPrismaticBurstOffsetY",
-      "reactBitsPrismaticBurstHoverDampness",
-      "reactBitsPrismaticBurstRayCount",
-      "reactBitsPrismaticBurstMixBlendMode",
+      "massageLabLightningPaletteMode",
+      "massageLabLightningPrimaryColor",
+      "massageLabLightningHarmony",
+      "massageLabLightningColor",
+      "massageLabLightningHue",
+      "massageLabLightningXOffset",
+      "massageLabLightningSpeed",
+      "massageLabLightningIntensity",
+      "massageLabLightningSize",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-prismatic-burst")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstColorOne, "#010203")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstColorTwo, "#AABBCC")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstColorThree, "#DDEEFF")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstColorFour, "#112233")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstIntensity, 3.25)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstSpeed, 1.75)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstAnimationType, "hover")
-    assert.equal(premiumSettings.reactBitsPrismaticBurstDistort, 18)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstOffsetX, 240)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstOffsetY, -160)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstHoverDampness, 0.42)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstRayCount, 24)
-    assert.equal(premiumSettings.reactBitsPrismaticBurstMixBlendMode, "screen")
+    assert.equal(premiumSettings.backgroundId, "massage-lab-lightning")
+    assert.equal(premiumSettings.massageLabLightningPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabLightningPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabLightningHarmony, "triad")
+    assert.equal(premiumSettings.massageLabLightningColor, "#010203")
+    assert.equal(premiumSettings.massageLabLightningHue, 310)
+    assert.equal(premiumSettings.massageLabLightningXOffset, -0.5)
+    assert.equal(premiumSettings.massageLabLightningSpeed, 2.25)
+    assert.equal(premiumSettings.massageLabLightningIntensity, 3.5)
+    assert.equal(premiumSettings.massageLabLightningSize, 1.8)
   })
 
-  it("resets React Bits Galaxy controls without premium background access", () => {
+  it("resets MassageLab Prismatic Burst controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-galaxy",
-      reactBitsGalaxyPaletteMode: "harmony",
-      reactBitsGalaxyPrimaryColor: "#ABCDEF",
-      reactBitsGalaxyHarmony: "triad",
-      reactBitsGalaxyColor: "#010203",
-      reactBitsGalaxyHueShift: 310,
-      reactBitsGalaxyFocalX: 0.2,
-      reactBitsGalaxyFocalY: 0.8,
-      reactBitsGalaxyRotationDeg: 45,
-      reactBitsGalaxyStarSpeed: 1.25,
-      reactBitsGalaxyDensity: 1.6,
-      reactBitsGalaxySpeed: 1.75,
-      reactBitsGalaxyMouseInteraction: false,
-      reactBitsGalaxyGlowIntensity: 0.85,
-      reactBitsGalaxySaturation: 1.4,
-      reactBitsGalaxyMouseRepulsion: false,
-      reactBitsGalaxyRepulsionStrength: 3.25,
-      reactBitsGalaxyTwinkleIntensity: 0.72,
-      reactBitsGalaxyRotationSpeed: -0.25,
-      reactBitsGalaxyAutoCenterRepulsion: 1.5,
-      reactBitsGalaxyTransparent: false,
+      backgroundId: "massage-lab-prismatic-burst",
+      massageLabPrismaticBurstPaletteMode: "harmony",
+      massageLabPrismaticBurstPrimaryColor: "#ABCDEF",
+      massageLabPrismaticBurstHarmony: "triad",
+      massageLabPrismaticBurstColorOne: "#010203",
+      massageLabPrismaticBurstColorTwo: "#AABBCC",
+      massageLabPrismaticBurstColorThree: "#DDEEFF",
+      massageLabPrismaticBurstColorFour: "#112233",
+      massageLabPrismaticBurstIntensity: 3.25,
+      massageLabPrismaticBurstSpeed: 1.75,
+      massageLabPrismaticBurstAnimationType: "hover",
+      massageLabPrismaticBurstDistort: 18,
+      massageLabPrismaticBurstOffsetX: 240,
+      massageLabPrismaticBurstOffsetY: -160,
+      massageLabPrismaticBurstHoverDampness: 0.42,
+      massageLabPrismaticBurstRayCount: 24,
+      massageLabPrismaticBurstMixBlendMode: "screen",
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsGalaxyPaletteMode",
-      "reactBitsGalaxyPrimaryColor",
-      "reactBitsGalaxyHarmony",
-      "reactBitsGalaxyColor",
-      "reactBitsGalaxyHueShift",
-      "reactBitsGalaxyFocalX",
-      "reactBitsGalaxyFocalY",
-      "reactBitsGalaxyRotationDeg",
-      "reactBitsGalaxyStarSpeed",
-      "reactBitsGalaxyDensity",
-      "reactBitsGalaxySpeed",
-      "reactBitsGalaxyMouseInteraction",
-      "reactBitsGalaxyGlowIntensity",
-      "reactBitsGalaxySaturation",
-      "reactBitsGalaxyMouseRepulsion",
-      "reactBitsGalaxyRepulsionStrength",
-      "reactBitsGalaxyTwinkleIntensity",
-      "reactBitsGalaxyRotationSpeed",
-      "reactBitsGalaxyAutoCenterRepulsion",
-      "reactBitsGalaxyTransparent",
+      "massageLabPrismaticBurstPaletteMode",
+      "massageLabPrismaticBurstPrimaryColor",
+      "massageLabPrismaticBurstHarmony",
+      "massageLabPrismaticBurstColorOne",
+      "massageLabPrismaticBurstColorTwo",
+      "massageLabPrismaticBurstColorThree",
+      "massageLabPrismaticBurstColorFour",
+      "massageLabPrismaticBurstIntensity",
+      "massageLabPrismaticBurstSpeed",
+      "massageLabPrismaticBurstAnimationType",
+      "massageLabPrismaticBurstDistort",
+      "massageLabPrismaticBurstOffsetX",
+      "massageLabPrismaticBurstOffsetY",
+      "massageLabPrismaticBurstHoverDampness",
+      "massageLabPrismaticBurstRayCount",
+      "massageLabPrismaticBurstMixBlendMode",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-galaxy")
-    assert.equal(premiumSettings.reactBitsGalaxyPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsGalaxyPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsGalaxyHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsGalaxyColor, "#010203")
-    assert.equal(premiumSettings.reactBitsGalaxyHueShift, 310)
-    assert.equal(premiumSettings.reactBitsGalaxyFocalX, 0.2)
-    assert.equal(premiumSettings.reactBitsGalaxyFocalY, 0.8)
-    assert.equal(premiumSettings.reactBitsGalaxyRotationDeg, 45)
-    assert.equal(premiumSettings.reactBitsGalaxyStarSpeed, 1.25)
-    assert.equal(premiumSettings.reactBitsGalaxyDensity, 1.6)
-    assert.equal(premiumSettings.reactBitsGalaxySpeed, 1.75)
-    assert.equal(premiumSettings.reactBitsGalaxyMouseInteraction, false)
-    assert.equal(premiumSettings.reactBitsGalaxyGlowIntensity, 0.85)
-    assert.equal(premiumSettings.reactBitsGalaxySaturation, 1.4)
-    assert.equal(premiumSettings.reactBitsGalaxyMouseRepulsion, false)
-    assert.equal(premiumSettings.reactBitsGalaxyRepulsionStrength, 3.25)
-    assert.equal(premiumSettings.reactBitsGalaxyTwinkleIntensity, 0.72)
-    assert.equal(premiumSettings.reactBitsGalaxyRotationSpeed, -0.25)
-    assert.equal(premiumSettings.reactBitsGalaxyAutoCenterRepulsion, 1.5)
-    assert.equal(premiumSettings.reactBitsGalaxyTransparent, false)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-prismatic-burst")
+    assert.equal(premiumSettings.massageLabPrismaticBurstPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabPrismaticBurstPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabPrismaticBurstHarmony, "triad")
+    assert.equal(premiumSettings.massageLabPrismaticBurstColorOne, "#010203")
+    assert.equal(premiumSettings.massageLabPrismaticBurstColorTwo, "#AABBCC")
+    assert.equal(premiumSettings.massageLabPrismaticBurstColorThree, "#DDEEFF")
+    assert.equal(premiumSettings.massageLabPrismaticBurstColorFour, "#112233")
+    assert.equal(premiumSettings.massageLabPrismaticBurstIntensity, 3.25)
+    assert.equal(premiumSettings.massageLabPrismaticBurstSpeed, 1.75)
+    assert.equal(premiumSettings.massageLabPrismaticBurstAnimationType, "hover")
+    assert.equal(premiumSettings.massageLabPrismaticBurstDistort, 18)
+    assert.equal(premiumSettings.massageLabPrismaticBurstOffsetX, 240)
+    assert.equal(premiumSettings.massageLabPrismaticBurstOffsetY, -160)
+    assert.equal(premiumSettings.massageLabPrismaticBurstHoverDampness, 0.42)
+    assert.equal(premiumSettings.massageLabPrismaticBurstRayCount, 24)
+    assert.equal(premiumSettings.massageLabPrismaticBurstMixBlendMode, "screen")
   })
 
-  it("resets React Bits Dither controls without premium background access", () => {
+  it("resets MassageLab Galaxy controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-dither",
-      reactBitsDitherPaletteMode: "harmony",
-      reactBitsDitherPrimaryColor: "#ABCDEF",
-      reactBitsDitherHarmony: "triad",
-      reactBitsDitherColor: "#010203",
-      reactBitsDitherWaveSpeed: 0.22,
-      reactBitsDitherWaveFrequency: 5.5,
-      reactBitsDitherWaveAmplitude: 0.62,
-      reactBitsDitherColorNum: 9,
-      reactBitsDitherPixelSize: 8,
-      reactBitsDitherMouseInteraction: false,
-      reactBitsDitherMouseRadius: 1.75,
+      backgroundId: "massage-lab-galaxy",
+      massageLabGalaxyPaletteMode: "harmony",
+      massageLabGalaxyPrimaryColor: "#ABCDEF",
+      massageLabGalaxyHarmony: "triad",
+      massageLabGalaxyColor: "#010203",
+      massageLabGalaxyHueShift: 310,
+      massageLabGalaxyFocalX: 0.2,
+      massageLabGalaxyFocalY: 0.8,
+      massageLabGalaxyRotationDeg: 45,
+      massageLabGalaxyStarSpeed: 1.25,
+      massageLabGalaxyDensity: 1.6,
+      massageLabGalaxySpeed: 1.75,
+      massageLabGalaxyMouseInteraction: false,
+      massageLabGalaxyGlowIntensity: 0.85,
+      massageLabGalaxySaturation: 1.4,
+      massageLabGalaxyMouseRepulsion: false,
+      massageLabGalaxyRepulsionStrength: 3.25,
+      massageLabGalaxyTwinkleIntensity: 0.72,
+      massageLabGalaxyRotationSpeed: -0.25,
+      massageLabGalaxyAutoCenterRepulsion: 1.5,
+      massageLabGalaxyTransparent: false,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsDitherPaletteMode",
-      "reactBitsDitherPrimaryColor",
-      "reactBitsDitherHarmony",
-      "reactBitsDitherColor",
-      "reactBitsDitherWaveSpeed",
-      "reactBitsDitherWaveFrequency",
-      "reactBitsDitherWaveAmplitude",
-      "reactBitsDitherColorNum",
-      "reactBitsDitherPixelSize",
-      "reactBitsDitherMouseInteraction",
-      "reactBitsDitherMouseRadius",
+      "massageLabGalaxyPaletteMode",
+      "massageLabGalaxyPrimaryColor",
+      "massageLabGalaxyHarmony",
+      "massageLabGalaxyColor",
+      "massageLabGalaxyHueShift",
+      "massageLabGalaxyFocalX",
+      "massageLabGalaxyFocalY",
+      "massageLabGalaxyRotationDeg",
+      "massageLabGalaxyStarSpeed",
+      "massageLabGalaxyDensity",
+      "massageLabGalaxySpeed",
+      "massageLabGalaxyMouseInteraction",
+      "massageLabGalaxyGlowIntensity",
+      "massageLabGalaxySaturation",
+      "massageLabGalaxyMouseRepulsion",
+      "massageLabGalaxyRepulsionStrength",
+      "massageLabGalaxyTwinkleIntensity",
+      "massageLabGalaxyRotationSpeed",
+      "massageLabGalaxyAutoCenterRepulsion",
+      "massageLabGalaxyTransparent",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-dither")
-    assert.equal(premiumSettings.reactBitsDitherPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsDitherPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsDitherHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsDitherColor, "#010203")
-    assert.equal(premiumSettings.reactBitsDitherWaveSpeed, 0.22)
-    assert.equal(premiumSettings.reactBitsDitherWaveFrequency, 5.5)
-    assert.equal(premiumSettings.reactBitsDitherWaveAmplitude, 0.62)
-    assert.equal(premiumSettings.reactBitsDitherColorNum, 9)
-    assert.equal(premiumSettings.reactBitsDitherPixelSize, 8)
-    assert.equal(premiumSettings.reactBitsDitherMouseInteraction, false)
-    assert.equal(premiumSettings.reactBitsDitherMouseRadius, 1.75)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-galaxy")
+    assert.equal(premiumSettings.massageLabGalaxyPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabGalaxyPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabGalaxyHarmony, "triad")
+    assert.equal(premiumSettings.massageLabGalaxyColor, "#010203")
+    assert.equal(premiumSettings.massageLabGalaxyHueShift, 310)
+    assert.equal(premiumSettings.massageLabGalaxyFocalX, 0.2)
+    assert.equal(premiumSettings.massageLabGalaxyFocalY, 0.8)
+    assert.equal(premiumSettings.massageLabGalaxyRotationDeg, 45)
+    assert.equal(premiumSettings.massageLabGalaxyStarSpeed, 1.25)
+    assert.equal(premiumSettings.massageLabGalaxyDensity, 1.6)
+    assert.equal(premiumSettings.massageLabGalaxySpeed, 1.75)
+    assert.equal(premiumSettings.massageLabGalaxyMouseInteraction, false)
+    assert.equal(premiumSettings.massageLabGalaxyGlowIntensity, 0.85)
+    assert.equal(premiumSettings.massageLabGalaxySaturation, 1.4)
+    assert.equal(premiumSettings.massageLabGalaxyMouseRepulsion, false)
+    assert.equal(premiumSettings.massageLabGalaxyRepulsionStrength, 3.25)
+    assert.equal(premiumSettings.massageLabGalaxyTwinkleIntensity, 0.72)
+    assert.equal(premiumSettings.massageLabGalaxyRotationSpeed, -0.25)
+    assert.equal(premiumSettings.massageLabGalaxyAutoCenterRepulsion, 1.5)
+    assert.equal(premiumSettings.massageLabGalaxyTransparent, false)
   })
 
-  it("resets React Bits Faulty Terminal controls without premium background access", () => {
+  it("resets MassageLab Dither controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-faulty-terminal",
-      reactBitsFaultyTerminalPaletteMode: "harmony",
-      reactBitsFaultyTerminalPrimaryColor: "#ABCDEF",
-      reactBitsFaultyTerminalHarmony: "triad",
-      reactBitsFaultyTerminalTint: "#010203",
-      reactBitsFaultyTerminalScale: 2.5,
-      reactBitsFaultyTerminalGridMulX: 3.5,
-      reactBitsFaultyTerminalGridMulY: 1.75,
-      reactBitsFaultyTerminalDigitSize: 2.25,
-      reactBitsFaultyTerminalTimeScale: 0.8,
-      reactBitsFaultyTerminalScanlineIntensity: 0.75,
-      reactBitsFaultyTerminalGlitchAmount: 1.5,
-      reactBitsFaultyTerminalFlickerAmount: 0.65,
-      reactBitsFaultyTerminalNoiseAmp: 0.45,
-      reactBitsFaultyTerminalChromaticAberration: 4.5,
-      reactBitsFaultyTerminalDither: 64,
-      reactBitsFaultyTerminalCurvature: 0.35,
-      reactBitsFaultyTerminalMouseReact: false,
-      reactBitsFaultyTerminalMouseStrength: 0.9,
-      reactBitsFaultyTerminalPageLoadAnimation: false,
-      reactBitsFaultyTerminalBrightness: 1.8,
+      backgroundId: "massage-lab-dither",
+      massageLabDitherPaletteMode: "harmony",
+      massageLabDitherPrimaryColor: "#ABCDEF",
+      massageLabDitherHarmony: "triad",
+      massageLabDitherColor: "#010203",
+      massageLabDitherWaveSpeed: 0.22,
+      massageLabDitherWaveFrequency: 5.5,
+      massageLabDitherWaveAmplitude: 0.62,
+      massageLabDitherColorNum: 9,
+      massageLabDitherPixelSize: 8,
+      massageLabDitherMouseInteraction: false,
+      massageLabDitherMouseRadius: 1.75,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsFaultyTerminalPaletteMode",
-      "reactBitsFaultyTerminalPrimaryColor",
-      "reactBitsFaultyTerminalHarmony",
-      "reactBitsFaultyTerminalTint",
-      "reactBitsFaultyTerminalScale",
-      "reactBitsFaultyTerminalGridMulX",
-      "reactBitsFaultyTerminalGridMulY",
-      "reactBitsFaultyTerminalDigitSize",
-      "reactBitsFaultyTerminalTimeScale",
-      "reactBitsFaultyTerminalScanlineIntensity",
-      "reactBitsFaultyTerminalGlitchAmount",
-      "reactBitsFaultyTerminalFlickerAmount",
-      "reactBitsFaultyTerminalNoiseAmp",
-      "reactBitsFaultyTerminalChromaticAberration",
-      "reactBitsFaultyTerminalDither",
-      "reactBitsFaultyTerminalCurvature",
-      "reactBitsFaultyTerminalMouseReact",
-      "reactBitsFaultyTerminalMouseStrength",
-      "reactBitsFaultyTerminalPageLoadAnimation",
-      "reactBitsFaultyTerminalBrightness",
+      "massageLabDitherPaletteMode",
+      "massageLabDitherPrimaryColor",
+      "massageLabDitherHarmony",
+      "massageLabDitherColor",
+      "massageLabDitherWaveSpeed",
+      "massageLabDitherWaveFrequency",
+      "massageLabDitherWaveAmplitude",
+      "massageLabDitherColorNum",
+      "massageLabDitherPixelSize",
+      "massageLabDitherMouseInteraction",
+      "massageLabDitherMouseRadius",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-faulty-terminal")
-    assert.equal(premiumSettings.reactBitsFaultyTerminalPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsFaultyTerminalPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsFaultyTerminalHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsFaultyTerminalTint, "#010203")
-    assert.equal(premiumSettings.reactBitsFaultyTerminalScale, 2.5)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalGridMulX, 3.5)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalGridMulY, 1.75)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalDigitSize, 2.25)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalTimeScale, 0.8)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalScanlineIntensity, 0.75)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalGlitchAmount, 1.5)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalFlickerAmount, 0.65)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalNoiseAmp, 0.45)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalChromaticAberration, 4.5)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalDither, 64)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalCurvature, 0.35)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalMouseReact, false)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalMouseStrength, 0.9)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalPageLoadAnimation, false)
-    assert.equal(premiumSettings.reactBitsFaultyTerminalBrightness, 1.8)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-dither")
+    assert.equal(premiumSettings.massageLabDitherPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabDitherPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabDitherHarmony, "triad")
+    assert.equal(premiumSettings.massageLabDitherColor, "#010203")
+    assert.equal(premiumSettings.massageLabDitherWaveSpeed, 0.22)
+    assert.equal(premiumSettings.massageLabDitherWaveFrequency, 5.5)
+    assert.equal(premiumSettings.massageLabDitherWaveAmplitude, 0.62)
+    assert.equal(premiumSettings.massageLabDitherColorNum, 9)
+    assert.equal(premiumSettings.massageLabDitherPixelSize, 8)
+    assert.equal(premiumSettings.massageLabDitherMouseInteraction, false)
+    assert.equal(premiumSettings.massageLabDitherMouseRadius, 1.75)
   })
 
-  it("resets React Bits Ripple Grid controls without premium background access", () => {
+  it("resets MassageLab Faulty Terminal controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-ripple-grid",
-      reactBitsRippleGridPaletteMode: "harmony",
-      reactBitsRippleGridPrimaryColor: "#ABCDEF",
-      reactBitsRippleGridHarmony: "triad",
-      reactBitsRippleGridColor: "#010203",
-      reactBitsRippleGridRippleIntensity: 0.12,
-      reactBitsRippleGridGridSize: 14,
-      reactBitsRippleGridGridThickness: 9,
-      reactBitsRippleGridFadeDistance: 2.25,
-      reactBitsRippleGridVignetteStrength: 2.75,
-      reactBitsRippleGridGlowIntensity: 0.42,
-      reactBitsRippleGridOpacity: 0.84,
-      reactBitsRippleGridGridRotation: 32,
-      reactBitsRippleGridMouseInteraction: false,
-      reactBitsRippleGridMouseInteractionRadius: 1.7,
+      backgroundId: "massage-lab-faulty-terminal",
+      massageLabFaultyTerminalPaletteMode: "harmony",
+      massageLabFaultyTerminalPrimaryColor: "#ABCDEF",
+      massageLabFaultyTerminalHarmony: "triad",
+      massageLabFaultyTerminalTint: "#010203",
+      massageLabFaultyTerminalScale: 2.5,
+      massageLabFaultyTerminalGridMulX: 3.5,
+      massageLabFaultyTerminalGridMulY: 1.75,
+      massageLabFaultyTerminalDigitSize: 2.25,
+      massageLabFaultyTerminalTimeScale: 0.8,
+      massageLabFaultyTerminalScanlineIntensity: 0.75,
+      massageLabFaultyTerminalGlitchAmount: 1.5,
+      massageLabFaultyTerminalFlickerAmount: 0.65,
+      massageLabFaultyTerminalNoiseAmp: 0.45,
+      massageLabFaultyTerminalChromaticAberration: 4.5,
+      massageLabFaultyTerminalDither: 64,
+      massageLabFaultyTerminalCurvature: 0.35,
+      massageLabFaultyTerminalMouseReact: false,
+      massageLabFaultyTerminalMouseStrength: 0.9,
+      massageLabFaultyTerminalPageLoadAnimation: false,
+      massageLabFaultyTerminalBrightness: 1.8,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsRippleGridPaletteMode",
-      "reactBitsRippleGridPrimaryColor",
-      "reactBitsRippleGridHarmony",
-      "reactBitsRippleGridColor",
-      "reactBitsRippleGridRippleIntensity",
-      "reactBitsRippleGridGridSize",
-      "reactBitsRippleGridGridThickness",
-      "reactBitsRippleGridFadeDistance",
-      "reactBitsRippleGridVignetteStrength",
-      "reactBitsRippleGridGlowIntensity",
-      "reactBitsRippleGridOpacity",
-      "reactBitsRippleGridGridRotation",
-      "reactBitsRippleGridMouseInteraction",
-      "reactBitsRippleGridMouseInteractionRadius",
+      "massageLabFaultyTerminalPaletteMode",
+      "massageLabFaultyTerminalPrimaryColor",
+      "massageLabFaultyTerminalHarmony",
+      "massageLabFaultyTerminalTint",
+      "massageLabFaultyTerminalScale",
+      "massageLabFaultyTerminalGridMulX",
+      "massageLabFaultyTerminalGridMulY",
+      "massageLabFaultyTerminalDigitSize",
+      "massageLabFaultyTerminalTimeScale",
+      "massageLabFaultyTerminalScanlineIntensity",
+      "massageLabFaultyTerminalGlitchAmount",
+      "massageLabFaultyTerminalFlickerAmount",
+      "massageLabFaultyTerminalNoiseAmp",
+      "massageLabFaultyTerminalChromaticAberration",
+      "massageLabFaultyTerminalDither",
+      "massageLabFaultyTerminalCurvature",
+      "massageLabFaultyTerminalMouseReact",
+      "massageLabFaultyTerminalMouseStrength",
+      "massageLabFaultyTerminalPageLoadAnimation",
+      "massageLabFaultyTerminalBrightness",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-ripple-grid")
-    assert.equal(premiumSettings.reactBitsRippleGridPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsRippleGridPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsRippleGridHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsRippleGridColor, "#010203")
-    assert.equal(premiumSettings.reactBitsRippleGridRippleIntensity, 0.12)
-    assert.equal(premiumSettings.reactBitsRippleGridGridSize, 14)
-    assert.equal(premiumSettings.reactBitsRippleGridGridThickness, 9)
-    assert.equal(premiumSettings.reactBitsRippleGridFadeDistance, 2.25)
-    assert.equal(premiumSettings.reactBitsRippleGridVignetteStrength, 2.75)
-    assert.equal(premiumSettings.reactBitsRippleGridGlowIntensity, 0.42)
-    assert.equal(premiumSettings.reactBitsRippleGridOpacity, 0.84)
-    assert.equal(premiumSettings.reactBitsRippleGridGridRotation, 32)
-    assert.equal(premiumSettings.reactBitsRippleGridMouseInteraction, false)
-    assert.equal(premiumSettings.reactBitsRippleGridMouseInteractionRadius, 1.7)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-faulty-terminal")
+    assert.equal(premiumSettings.massageLabFaultyTerminalPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabFaultyTerminalPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabFaultyTerminalHarmony, "triad")
+    assert.equal(premiumSettings.massageLabFaultyTerminalTint, "#010203")
+    assert.equal(premiumSettings.massageLabFaultyTerminalScale, 2.5)
+    assert.equal(premiumSettings.massageLabFaultyTerminalGridMulX, 3.5)
+    assert.equal(premiumSettings.massageLabFaultyTerminalGridMulY, 1.75)
+    assert.equal(premiumSettings.massageLabFaultyTerminalDigitSize, 2.25)
+    assert.equal(premiumSettings.massageLabFaultyTerminalTimeScale, 0.8)
+    assert.equal(premiumSettings.massageLabFaultyTerminalScanlineIntensity, 0.75)
+    assert.equal(premiumSettings.massageLabFaultyTerminalGlitchAmount, 1.5)
+    assert.equal(premiumSettings.massageLabFaultyTerminalFlickerAmount, 0.65)
+    assert.equal(premiumSettings.massageLabFaultyTerminalNoiseAmp, 0.45)
+    assert.equal(premiumSettings.massageLabFaultyTerminalChromaticAberration, 4.5)
+    assert.equal(premiumSettings.massageLabFaultyTerminalDither, 64)
+    assert.equal(premiumSettings.massageLabFaultyTerminalCurvature, 0.35)
+    assert.equal(premiumSettings.massageLabFaultyTerminalMouseReact, false)
+    assert.equal(premiumSettings.massageLabFaultyTerminalMouseStrength, 0.9)
+    assert.equal(premiumSettings.massageLabFaultyTerminalPageLoadAnimation, false)
+    assert.equal(premiumSettings.massageLabFaultyTerminalBrightness, 1.8)
   })
 
-  it("resets React Bits Dot Field controls without premium background access", () => {
+  it("resets MassageLab Ripple Grid controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-dot-field",
-      reactBitsDotFieldPaletteMode: "harmony",
-      reactBitsDotFieldPrimaryColor: "#ABCDEF",
-      reactBitsDotFieldHarmony: "triad",
-      reactBitsDotFieldGradientFromColor: "#010203",
-      reactBitsDotFieldGradientFromAlpha: 0.62,
-      reactBitsDotFieldGradientToColor: "#040506",
-      reactBitsDotFieldGradientToAlpha: 0.31,
-      reactBitsDotFieldGlowColor: "#070809",
-      reactBitsDotFieldDotRadius: 2.4,
-      reactBitsDotFieldDotSpacing: 18,
-      reactBitsDotFieldCursorRadius: 420,
-      reactBitsDotFieldCursorForce: 0.24,
-      reactBitsDotFieldBulgeOnly: false,
-      reactBitsDotFieldBulgeStrength: 72,
-      reactBitsDotFieldGlowRadius: 210,
-      reactBitsDotFieldSparkle: true,
-      reactBitsDotFieldWaveAmplitude: 8,
-      reactBitsDotFieldCursorInteraction: false,
+      backgroundId: "massage-lab-ripple-grid",
+      massageLabRippleGridPaletteMode: "harmony",
+      massageLabRippleGridPrimaryColor: "#ABCDEF",
+      massageLabRippleGridHarmony: "triad",
+      massageLabRippleGridColor: "#010203",
+      massageLabRippleGridRippleIntensity: 0.12,
+      massageLabRippleGridGridSize: 14,
+      massageLabRippleGridGridThickness: 9,
+      massageLabRippleGridFadeDistance: 2.25,
+      massageLabRippleGridVignetteStrength: 2.75,
+      massageLabRippleGridGlowIntensity: 0.42,
+      massageLabRippleGridOpacity: 0.84,
+      massageLabRippleGridGridRotation: 32,
+      massageLabRippleGridMouseInteraction: false,
+      massageLabRippleGridMouseInteractionRadius: 1.7,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsDotFieldPaletteMode",
-      "reactBitsDotFieldPrimaryColor",
-      "reactBitsDotFieldHarmony",
-      "reactBitsDotFieldGradientFromColor",
-      "reactBitsDotFieldGradientFromAlpha",
-      "reactBitsDotFieldGradientToColor",
-      "reactBitsDotFieldGradientToAlpha",
-      "reactBitsDotFieldGlowColor",
-      "reactBitsDotFieldDotRadius",
-      "reactBitsDotFieldDotSpacing",
-      "reactBitsDotFieldCursorRadius",
-      "reactBitsDotFieldCursorForce",
-      "reactBitsDotFieldBulgeOnly",
-      "reactBitsDotFieldBulgeStrength",
-      "reactBitsDotFieldGlowRadius",
-      "reactBitsDotFieldSparkle",
-      "reactBitsDotFieldWaveAmplitude",
-      "reactBitsDotFieldCursorInteraction",
+      "massageLabRippleGridPaletteMode",
+      "massageLabRippleGridPrimaryColor",
+      "massageLabRippleGridHarmony",
+      "massageLabRippleGridColor",
+      "massageLabRippleGridRippleIntensity",
+      "massageLabRippleGridGridSize",
+      "massageLabRippleGridGridThickness",
+      "massageLabRippleGridFadeDistance",
+      "massageLabRippleGridVignetteStrength",
+      "massageLabRippleGridGlowIntensity",
+      "massageLabRippleGridOpacity",
+      "massageLabRippleGridGridRotation",
+      "massageLabRippleGridMouseInteraction",
+      "massageLabRippleGridMouseInteractionRadius",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-dot-field")
-    assert.equal(premiumSettings.reactBitsDotFieldPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsDotFieldPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsDotFieldHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsDotFieldGradientFromColor, "#010203")
-    assert.equal(premiumSettings.reactBitsDotFieldGradientFromAlpha, 0.62)
-    assert.equal(premiumSettings.reactBitsDotFieldGradientToColor, "#040506")
-    assert.equal(premiumSettings.reactBitsDotFieldGradientToAlpha, 0.31)
-    assert.equal(premiumSettings.reactBitsDotFieldGlowColor, "#070809")
-    assert.equal(premiumSettings.reactBitsDotFieldDotRadius, 2.4)
-    assert.equal(premiumSettings.reactBitsDotFieldDotSpacing, 18)
-    assert.equal(premiumSettings.reactBitsDotFieldCursorRadius, 420)
-    assert.equal(premiumSettings.reactBitsDotFieldCursorForce, 0.24)
-    assert.equal(premiumSettings.reactBitsDotFieldBulgeOnly, false)
-    assert.equal(premiumSettings.reactBitsDotFieldBulgeStrength, 72)
-    assert.equal(premiumSettings.reactBitsDotFieldGlowRadius, 210)
-    assert.equal(premiumSettings.reactBitsDotFieldSparkle, true)
-    assert.equal(premiumSettings.reactBitsDotFieldWaveAmplitude, 8)
-    assert.equal(premiumSettings.reactBitsDotFieldCursorInteraction, false)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-ripple-grid")
+    assert.equal(premiumSettings.massageLabRippleGridPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabRippleGridPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabRippleGridHarmony, "triad")
+    assert.equal(premiumSettings.massageLabRippleGridColor, "#010203")
+    assert.equal(premiumSettings.massageLabRippleGridRippleIntensity, 0.12)
+    assert.equal(premiumSettings.massageLabRippleGridGridSize, 14)
+    assert.equal(premiumSettings.massageLabRippleGridGridThickness, 9)
+    assert.equal(premiumSettings.massageLabRippleGridFadeDistance, 2.25)
+    assert.equal(premiumSettings.massageLabRippleGridVignetteStrength, 2.75)
+    assert.equal(premiumSettings.massageLabRippleGridGlowIntensity, 0.42)
+    assert.equal(premiumSettings.massageLabRippleGridOpacity, 0.84)
+    assert.equal(premiumSettings.massageLabRippleGridGridRotation, 32)
+    assert.equal(premiumSettings.massageLabRippleGridMouseInteraction, false)
+    assert.equal(premiumSettings.massageLabRippleGridMouseInteractionRadius, 1.7)
   })
 
-  it("resets React Bits Dot Grid controls without premium background access", () => {
+  it("resets MassageLab Dot Field controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-dot-grid",
-      reactBitsDotGridPaletteMode: "harmony",
-      reactBitsDotGridPrimaryColor: "#ABCDEF",
-      reactBitsDotGridHarmony: "triad",
-      reactBitsDotGridBaseColor: "#010203",
-      reactBitsDotGridActiveColor: "#040506",
-      reactBitsDotGridDotSize: 18,
-      reactBitsDotGridGap: 24,
-      reactBitsDotGridProximity: 220,
-      reactBitsDotGridSpeedTrigger: 80,
-      reactBitsDotGridShockRadius: 280,
-      reactBitsDotGridShockStrength: 6,
-      reactBitsDotGridMaxSpeed: 4200,
-      reactBitsDotGridResistance: 680,
-      reactBitsDotGridReturnDuration: 1.2,
-      reactBitsDotGridCursorInteraction: false,
-      reactBitsDotGridClickShock: false,
+      backgroundId: "massage-lab-dot-field",
+      massageLabDotFieldPaletteMode: "harmony",
+      massageLabDotFieldPrimaryColor: "#ABCDEF",
+      massageLabDotFieldHarmony: "triad",
+      massageLabDotFieldGradientFromColor: "#010203",
+      massageLabDotFieldGradientFromAlpha: 0.62,
+      massageLabDotFieldGradientToColor: "#040506",
+      massageLabDotFieldGradientToAlpha: 0.31,
+      massageLabDotFieldGlowColor: "#070809",
+      massageLabDotFieldDotRadius: 2.4,
+      massageLabDotFieldDotSpacing: 18,
+      massageLabDotFieldCursorRadius: 420,
+      massageLabDotFieldCursorForce: 0.24,
+      massageLabDotFieldBulgeOnly: false,
+      massageLabDotFieldBulgeStrength: 72,
+      massageLabDotFieldGlowRadius: 210,
+      massageLabDotFieldSparkle: true,
+      massageLabDotFieldWaveAmplitude: 8,
+      massageLabDotFieldCursorInteraction: false,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsDotGridPaletteMode",
-      "reactBitsDotGridPrimaryColor",
-      "reactBitsDotGridHarmony",
-      "reactBitsDotGridBaseColor",
-      "reactBitsDotGridActiveColor",
-      "reactBitsDotGridDotSize",
-      "reactBitsDotGridGap",
-      "reactBitsDotGridProximity",
-      "reactBitsDotGridSpeedTrigger",
-      "reactBitsDotGridShockRadius",
-      "reactBitsDotGridShockStrength",
-      "reactBitsDotGridMaxSpeed",
-      "reactBitsDotGridResistance",
-      "reactBitsDotGridReturnDuration",
-      "reactBitsDotGridCursorInteraction",
-      "reactBitsDotGridClickShock",
+      "massageLabDotFieldPaletteMode",
+      "massageLabDotFieldPrimaryColor",
+      "massageLabDotFieldHarmony",
+      "massageLabDotFieldGradientFromColor",
+      "massageLabDotFieldGradientFromAlpha",
+      "massageLabDotFieldGradientToColor",
+      "massageLabDotFieldGradientToAlpha",
+      "massageLabDotFieldGlowColor",
+      "massageLabDotFieldDotRadius",
+      "massageLabDotFieldDotSpacing",
+      "massageLabDotFieldCursorRadius",
+      "massageLabDotFieldCursorForce",
+      "massageLabDotFieldBulgeOnly",
+      "massageLabDotFieldBulgeStrength",
+      "massageLabDotFieldGlowRadius",
+      "massageLabDotFieldSparkle",
+      "massageLabDotFieldWaveAmplitude",
+      "massageLabDotFieldCursorInteraction",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-dot-grid")
-    assert.equal(premiumSettings.reactBitsDotGridPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsDotGridPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsDotGridHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsDotGridBaseColor, "#010203")
-    assert.equal(premiumSettings.reactBitsDotGridActiveColor, "#040506")
-    assert.equal(premiumSettings.reactBitsDotGridDotSize, 18)
-    assert.equal(premiumSettings.reactBitsDotGridGap, 24)
-    assert.equal(premiumSettings.reactBitsDotGridProximity, 220)
-    assert.equal(premiumSettings.reactBitsDotGridSpeedTrigger, 80)
-    assert.equal(premiumSettings.reactBitsDotGridShockRadius, 280)
-    assert.equal(premiumSettings.reactBitsDotGridShockStrength, 6)
-    assert.equal(premiumSettings.reactBitsDotGridMaxSpeed, 4200)
-    assert.equal(premiumSettings.reactBitsDotGridResistance, 680)
-    assert.equal(premiumSettings.reactBitsDotGridReturnDuration, 1.2)
-    assert.equal(premiumSettings.reactBitsDotGridCursorInteraction, false)
-    assert.equal(premiumSettings.reactBitsDotGridClickShock, false)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-dot-field")
+    assert.equal(premiumSettings.massageLabDotFieldPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabDotFieldPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabDotFieldHarmony, "triad")
+    assert.equal(premiumSettings.massageLabDotFieldGradientFromColor, "#010203")
+    assert.equal(premiumSettings.massageLabDotFieldGradientFromAlpha, 0.62)
+    assert.equal(premiumSettings.massageLabDotFieldGradientToColor, "#040506")
+    assert.equal(premiumSettings.massageLabDotFieldGradientToAlpha, 0.31)
+    assert.equal(premiumSettings.massageLabDotFieldGlowColor, "#070809")
+    assert.equal(premiumSettings.massageLabDotFieldDotRadius, 2.4)
+    assert.equal(premiumSettings.massageLabDotFieldDotSpacing, 18)
+    assert.equal(premiumSettings.massageLabDotFieldCursorRadius, 420)
+    assert.equal(premiumSettings.massageLabDotFieldCursorForce, 0.24)
+    assert.equal(premiumSettings.massageLabDotFieldBulgeOnly, false)
+    assert.equal(premiumSettings.massageLabDotFieldBulgeStrength, 72)
+    assert.equal(premiumSettings.massageLabDotFieldGlowRadius, 210)
+    assert.equal(premiumSettings.massageLabDotFieldSparkle, true)
+    assert.equal(premiumSettings.massageLabDotFieldWaveAmplitude, 8)
+    assert.equal(premiumSettings.massageLabDotFieldCursorInteraction, false)
   })
 
-  it("resets React Bits Threads controls without premium background access", () => {
+  it("resets MassageLab Dot Grid controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-threads",
-      reactBitsThreadsPaletteMode: "harmony",
-      reactBitsThreadsPrimaryColor: "#ABCDEF",
-      reactBitsThreadsHarmony: "triad",
-      reactBitsThreadsColor: "#010203",
-      reactBitsThreadsAmplitude: 1.8,
-      reactBitsThreadsDistance: 0.35,
-      reactBitsThreadsEnableMouseInteraction: true,
+      backgroundId: "massage-lab-dot-grid",
+      massageLabDotGridPaletteMode: "harmony",
+      massageLabDotGridPrimaryColor: "#ABCDEF",
+      massageLabDotGridHarmony: "triad",
+      massageLabDotGridBaseColor: "#010203",
+      massageLabDotGridActiveColor: "#040506",
+      massageLabDotGridDotSize: 18,
+      massageLabDotGridGap: 24,
+      massageLabDotGridProximity: 220,
+      massageLabDotGridSpeedTrigger: 80,
+      massageLabDotGridShockRadius: 280,
+      massageLabDotGridShockStrength: 6,
+      massageLabDotGridMaxSpeed: 4200,
+      massageLabDotGridResistance: 680,
+      massageLabDotGridReturnDuration: 1.2,
+      massageLabDotGridCursorInteraction: false,
+      massageLabDotGridClickShock: false,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsThreadsPaletteMode",
-      "reactBitsThreadsPrimaryColor",
-      "reactBitsThreadsHarmony",
-      "reactBitsThreadsColor",
-      "reactBitsThreadsAmplitude",
-      "reactBitsThreadsDistance",
-      "reactBitsThreadsEnableMouseInteraction",
+      "massageLabDotGridPaletteMode",
+      "massageLabDotGridPrimaryColor",
+      "massageLabDotGridHarmony",
+      "massageLabDotGridBaseColor",
+      "massageLabDotGridActiveColor",
+      "massageLabDotGridDotSize",
+      "massageLabDotGridGap",
+      "massageLabDotGridProximity",
+      "massageLabDotGridSpeedTrigger",
+      "massageLabDotGridShockRadius",
+      "massageLabDotGridShockStrength",
+      "massageLabDotGridMaxSpeed",
+      "massageLabDotGridResistance",
+      "massageLabDotGridReturnDuration",
+      "massageLabDotGridCursorInteraction",
+      "massageLabDotGridClickShock",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-threads")
-    assert.equal(premiumSettings.reactBitsThreadsPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsThreadsPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsThreadsHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsThreadsColor, "#010203")
-    assert.equal(premiumSettings.reactBitsThreadsAmplitude, 1.8)
-    assert.equal(premiumSettings.reactBitsThreadsDistance, 0.35)
-    assert.equal(premiumSettings.reactBitsThreadsEnableMouseInteraction, true)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-dot-grid")
+    assert.equal(premiumSettings.massageLabDotGridPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabDotGridPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabDotGridHarmony, "triad")
+    assert.equal(premiumSettings.massageLabDotGridBaseColor, "#010203")
+    assert.equal(premiumSettings.massageLabDotGridActiveColor, "#040506")
+    assert.equal(premiumSettings.massageLabDotGridDotSize, 18)
+    assert.equal(premiumSettings.massageLabDotGridGap, 24)
+    assert.equal(premiumSettings.massageLabDotGridProximity, 220)
+    assert.equal(premiumSettings.massageLabDotGridSpeedTrigger, 80)
+    assert.equal(premiumSettings.massageLabDotGridShockRadius, 280)
+    assert.equal(premiumSettings.massageLabDotGridShockStrength, 6)
+    assert.equal(premiumSettings.massageLabDotGridMaxSpeed, 4200)
+    assert.equal(premiumSettings.massageLabDotGridResistance, 680)
+    assert.equal(premiumSettings.massageLabDotGridReturnDuration, 1.2)
+    assert.equal(premiumSettings.massageLabDotGridCursorInteraction, false)
+    assert.equal(premiumSettings.massageLabDotGridClickShock, false)
   })
 
-  it("resets React Bits Iridescence controls without premium background access", () => {
+  it("resets MassageLab Threads controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-iridescence",
-      reactBitsIridescencePaletteMode: "harmony",
-      reactBitsIridescencePrimaryColor: "#ABCDEF",
-      reactBitsIridescenceHarmony: "triad",
-      reactBitsIridescenceColor: "#010203",
-      reactBitsIridescenceSpeed: 2.4,
-      reactBitsIridescenceAmplitude: 0.85,
-      reactBitsIridescenceMouseReact: false,
+      backgroundId: "massage-lab-threads",
+      massageLabThreadsPaletteMode: "harmony",
+      massageLabThreadsPrimaryColor: "#ABCDEF",
+      massageLabThreadsHarmony: "triad",
+      massageLabThreadsColor: "#010203",
+      massageLabThreadsAmplitude: 1.8,
+      massageLabThreadsDistance: 0.35,
+      massageLabThreadsEnableMouseInteraction: true,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsIridescencePaletteMode",
-      "reactBitsIridescencePrimaryColor",
-      "reactBitsIridescenceHarmony",
-      "reactBitsIridescenceColor",
-      "reactBitsIridescenceSpeed",
-      "reactBitsIridescenceAmplitude",
-      "reactBitsIridescenceMouseReact",
+      "massageLabThreadsPaletteMode",
+      "massageLabThreadsPrimaryColor",
+      "massageLabThreadsHarmony",
+      "massageLabThreadsColor",
+      "massageLabThreadsAmplitude",
+      "massageLabThreadsDistance",
+      "massageLabThreadsEnableMouseInteraction",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-iridescence")
-    assert.equal(premiumSettings.reactBitsIridescencePaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsIridescencePrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsIridescenceHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsIridescenceColor, "#010203")
-    assert.equal(premiumSettings.reactBitsIridescenceSpeed, 2.4)
-    assert.equal(premiumSettings.reactBitsIridescenceAmplitude, 0.85)
-    assert.equal(premiumSettings.reactBitsIridescenceMouseReact, false)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-threads")
+    assert.equal(premiumSettings.massageLabThreadsPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabThreadsPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabThreadsHarmony, "triad")
+    assert.equal(premiumSettings.massageLabThreadsColor, "#010203")
+    assert.equal(premiumSettings.massageLabThreadsAmplitude, 1.8)
+    assert.equal(premiumSettings.massageLabThreadsDistance, 0.35)
+    assert.equal(premiumSettings.massageLabThreadsEnableMouseInteraction, true)
   })
 
-  it("resets React Bits Waves controls without premium background access", () => {
+  it("resets MassageLab Iridescence controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-waves",
-      reactBitsWavesPaletteMode: "harmony",
-      reactBitsWavesPrimaryColor: "#ABCDEF",
-      reactBitsWavesHarmony: "triad",
-      reactBitsWavesLineColor: "#010203",
-      reactBitsWavesBackgroundColor: "#040506",
-      reactBitsWavesTransparentBackground: false,
-      reactBitsWavesSpeedX: 0.03,
-      reactBitsWavesSpeedY: 0.02,
-      reactBitsWavesAmplitudeX: 72,
-      reactBitsWavesAmplitudeY: 44,
-      reactBitsWavesGapX: 18,
-      reactBitsWavesGapY: 52,
-      reactBitsWavesFriction: 0.88,
-      reactBitsWavesTension: 0.018,
-      reactBitsWavesMaxCursorMove: 180,
-      reactBitsWavesCursorInteraction: false,
+      backgroundId: "massage-lab-iridescence",
+      massageLabIridescencePaletteMode: "harmony",
+      massageLabIridescencePrimaryColor: "#ABCDEF",
+      massageLabIridescenceHarmony: "triad",
+      massageLabIridescenceColor: "#010203",
+      massageLabIridescenceSpeed: 2.4,
+      massageLabIridescenceAmplitude: 0.85,
+      massageLabIridescenceMouseReact: false,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsWavesPaletteMode",
-      "reactBitsWavesPrimaryColor",
-      "reactBitsWavesHarmony",
-      "reactBitsWavesLineColor",
-      "reactBitsWavesBackgroundColor",
-      "reactBitsWavesTransparentBackground",
-      "reactBitsWavesSpeedX",
-      "reactBitsWavesSpeedY",
-      "reactBitsWavesAmplitudeX",
-      "reactBitsWavesAmplitudeY",
-      "reactBitsWavesGapX",
-      "reactBitsWavesGapY",
-      "reactBitsWavesFriction",
-      "reactBitsWavesTension",
-      "reactBitsWavesMaxCursorMove",
-      "reactBitsWavesCursorInteraction",
+      "massageLabIridescencePaletteMode",
+      "massageLabIridescencePrimaryColor",
+      "massageLabIridescenceHarmony",
+      "massageLabIridescenceColor",
+      "massageLabIridescenceSpeed",
+      "massageLabIridescenceAmplitude",
+      "massageLabIridescenceMouseReact",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-waves")
-    assert.equal(premiumSettings.reactBitsWavesPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsWavesPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsWavesHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsWavesLineColor, "#010203")
-    assert.equal(premiumSettings.reactBitsWavesBackgroundColor, "#040506")
-    assert.equal(premiumSettings.reactBitsWavesTransparentBackground, false)
-    assert.equal(premiumSettings.reactBitsWavesSpeedX, 0.03)
-    assert.equal(premiumSettings.reactBitsWavesSpeedY, 0.02)
-    assert.equal(premiumSettings.reactBitsWavesAmplitudeX, 72)
-    assert.equal(premiumSettings.reactBitsWavesAmplitudeY, 44)
-    assert.equal(premiumSettings.reactBitsWavesGapX, 18)
-    assert.equal(premiumSettings.reactBitsWavesGapY, 52)
-    assert.equal(premiumSettings.reactBitsWavesFriction, 0.88)
-    assert.equal(premiumSettings.reactBitsWavesTension, 0.018)
-    assert.equal(premiumSettings.reactBitsWavesMaxCursorMove, 180)
-    assert.equal(premiumSettings.reactBitsWavesCursorInteraction, false)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-iridescence")
+    assert.equal(premiumSettings.massageLabIridescencePaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabIridescencePrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabIridescenceHarmony, "triad")
+    assert.equal(premiumSettings.massageLabIridescenceColor, "#010203")
+    assert.equal(premiumSettings.massageLabIridescenceSpeed, 2.4)
+    assert.equal(premiumSettings.massageLabIridescenceAmplitude, 0.85)
+    assert.equal(premiumSettings.massageLabIridescenceMouseReact, false)
   })
 
-  it("resets React Bits Grid Distortion controls without premium background access", () => {
+  it("resets MassageLab Waves controls without premium background access", () => {
     const input = {
-      backgroundId: "react-bits-grid-distortion",
-      reactBitsGridDistortionPaletteMode: "harmony",
-      reactBitsGridDistortionPrimaryColor: "#ABCDEF",
-      reactBitsGridDistortionHarmony: "triad",
-      reactBitsGridDistortionColorOne: "#010203",
-      reactBitsGridDistortionColorTwo: "#040506",
-      reactBitsGridDistortionColorThree: "#070809",
-      reactBitsGridDistortionGrid: 30,
-      reactBitsGridDistortionMouse: 0.32,
-      reactBitsGridDistortionStrength: 0.48,
-      reactBitsGridDistortionRelaxation: 0.83,
-      reactBitsGridDistortionCursorInteraction: false,
+      backgroundId: "massage-lab-waves",
+      massageLabWavesPaletteMode: "harmony",
+      massageLabWavesPrimaryColor: "#ABCDEF",
+      massageLabWavesHarmony: "triad",
+      massageLabWavesLineColor: "#010203",
+      massageLabWavesBackgroundColor: "#040506",
+      massageLabWavesTransparentBackground: false,
+      massageLabWavesSpeedX: 0.03,
+      massageLabWavesSpeedY: 0.02,
+      massageLabWavesAmplitudeX: 72,
+      massageLabWavesAmplitudeY: 44,
+      massageLabWavesGapX: 18,
+      massageLabWavesGapY: 52,
+      massageLabWavesFriction: 0.88,
+      massageLabWavesTension: 0.018,
+      massageLabWavesMaxCursorMove: 180,
+      massageLabWavesCursorInteraction: false,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
     for (const key of [
-      "reactBitsGridDistortionPaletteMode",
-      "reactBitsGridDistortionPrimaryColor",
-      "reactBitsGridDistortionHarmony",
-      "reactBitsGridDistortionColorOne",
-      "reactBitsGridDistortionColorTwo",
-      "reactBitsGridDistortionColorThree",
-      "reactBitsGridDistortionGrid",
-      "reactBitsGridDistortionMouse",
-      "reactBitsGridDistortionStrength",
-      "reactBitsGridDistortionRelaxation",
-      "reactBitsGridDistortionCursorInteraction",
+      "massageLabWavesPaletteMode",
+      "massageLabWavesPrimaryColor",
+      "massageLabWavesHarmony",
+      "massageLabWavesLineColor",
+      "massageLabWavesBackgroundColor",
+      "massageLabWavesTransparentBackground",
+      "massageLabWavesSpeedX",
+      "massageLabWavesSpeedY",
+      "massageLabWavesAmplitudeX",
+      "massageLabWavesAmplitudeY",
+      "massageLabWavesGapX",
+      "massageLabWavesGapY",
+      "massageLabWavesFriction",
+      "massageLabWavesTension",
+      "massageLabWavesMaxCursorMove",
+      "massageLabWavesCursorInteraction",
     ]) {
       assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
     }
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-grid-distortion")
-    assert.equal(premiumSettings.reactBitsGridDistortionPaletteMode, "harmony")
-    assert.equal(premiumSettings.reactBitsGridDistortionPrimaryColor, "#ABCDEF")
-    assert.equal(premiumSettings.reactBitsGridDistortionHarmony, "triad")
-    assert.equal(premiumSettings.reactBitsGridDistortionColorOne, "#010203")
-    assert.equal(premiumSettings.reactBitsGridDistortionColorTwo, "#040506")
-    assert.equal(premiumSettings.reactBitsGridDistortionColorThree, "#070809")
-    assert.equal(premiumSettings.reactBitsGridDistortionGrid, 30)
-    assert.equal(premiumSettings.reactBitsGridDistortionMouse, 0.32)
-    assert.equal(premiumSettings.reactBitsGridDistortionStrength, 0.48)
-    assert.equal(premiumSettings.reactBitsGridDistortionRelaxation, 0.83)
-    assert.equal(premiumSettings.reactBitsGridDistortionCursorInteraction, false)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-waves")
+    assert.equal(premiumSettings.massageLabWavesPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabWavesPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabWavesHarmony, "triad")
+    assert.equal(premiumSettings.massageLabWavesLineColor, "#010203")
+    assert.equal(premiumSettings.massageLabWavesBackgroundColor, "#040506")
+    assert.equal(premiumSettings.massageLabWavesTransparentBackground, false)
+    assert.equal(premiumSettings.massageLabWavesSpeedX, 0.03)
+    assert.equal(premiumSettings.massageLabWavesSpeedY, 0.02)
+    assert.equal(premiumSettings.massageLabWavesAmplitudeX, 72)
+    assert.equal(premiumSettings.massageLabWavesAmplitudeY, 44)
+    assert.equal(premiumSettings.massageLabWavesGapX, 18)
+    assert.equal(premiumSettings.massageLabWavesGapY, 52)
+    assert.equal(premiumSettings.massageLabWavesFriction, 0.88)
+    assert.equal(premiumSettings.massageLabWavesTension, 0.018)
+    assert.equal(premiumSettings.massageLabWavesMaxCursorMove, 180)
+    assert.equal(premiumSettings.massageLabWavesCursorInteraction, false)
   })
 
-  it("resets the latest React Bits background controls without premium background access", () => {
+  it("resets MassageLab Grid Distortion controls without premium background access", () => {
+    const input = {
+      backgroundId: "massage-lab-grid-distortion",
+      massageLabGridDistortionPaletteMode: "harmony",
+      massageLabGridDistortionPrimaryColor: "#ABCDEF",
+      massageLabGridDistortionHarmony: "triad",
+      massageLabGridDistortionColorOne: "#010203",
+      massageLabGridDistortionColorTwo: "#040506",
+      massageLabGridDistortionColorThree: "#070809",
+      massageLabGridDistortionGrid: 30,
+      massageLabGridDistortionMouse: 0.32,
+      massageLabGridDistortionStrength: 0.48,
+      massageLabGridDistortionRelaxation: 0.83,
+      massageLabGridDistortionCursorInteraction: false,
+    }
+
+    const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
+
+    assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+    for (const key of [
+      "massageLabGridDistortionPaletteMode",
+      "massageLabGridDistortionPrimaryColor",
+      "massageLabGridDistortionHarmony",
+      "massageLabGridDistortionColorOne",
+      "massageLabGridDistortionColorTwo",
+      "massageLabGridDistortionColorThree",
+      "massageLabGridDistortionGrid",
+      "massageLabGridDistortionMouse",
+      "massageLabGridDistortionStrength",
+      "massageLabGridDistortionRelaxation",
+      "massageLabGridDistortionCursorInteraction",
+    ]) {
+      assert.equal(freeSettings[key], DEFAULT_CHIMER_SETTINGS[key])
+    }
+
+    const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
+
+    assert.equal(premiumSettings.backgroundId, "massage-lab-grid-distortion")
+    assert.equal(premiumSettings.massageLabGridDistortionPaletteMode, "harmony")
+    assert.equal(premiumSettings.massageLabGridDistortionPrimaryColor, "#ABCDEF")
+    assert.equal(premiumSettings.massageLabGridDistortionHarmony, "triad")
+    assert.equal(premiumSettings.massageLabGridDistortionColorOne, "#010203")
+    assert.equal(premiumSettings.massageLabGridDistortionColorTwo, "#040506")
+    assert.equal(premiumSettings.massageLabGridDistortionColorThree, "#070809")
+    assert.equal(premiumSettings.massageLabGridDistortionGrid, 30)
+    assert.equal(premiumSettings.massageLabGridDistortionMouse, 0.32)
+    assert.equal(premiumSettings.massageLabGridDistortionStrength, 0.48)
+    assert.equal(premiumSettings.massageLabGridDistortionRelaxation, 0.83)
+    assert.equal(premiumSettings.massageLabGridDistortionCursorInteraction, false)
+  })
+
+  it("resets the latest MassageLab background controls without premium background access", () => {
     const expected = {
-      reactBitsOrbPaletteMode: "harmony",
-      reactBitsOrbPrimaryColor: "#ABCDEF",
-      reactBitsOrbHarmony: "triad",
-      reactBitsOrbColor: "#010203",
-      reactBitsOrbHue: 180,
-      reactBitsOrbHoverIntensity: 0.55,
-      reactBitsOrbRotateOnHover: false,
-      reactBitsOrbForceHoverState: true,
-      reactBitsOrbBackgroundColor: "#112233",
-      reactBitsOrbCursorInteraction: false,
-      reactBitsLetterGlitchPaletteMode: "harmony",
-      reactBitsLetterGlitchPrimaryColor: "#ABCDEF",
-      reactBitsLetterGlitchHarmony: "triad",
-      reactBitsLetterGlitchColorOne: "#010203",
-      reactBitsLetterGlitchColorTwo: "#040506",
-      reactBitsLetterGlitchColorThree: "#070809",
-      reactBitsLetterGlitchGlitchSpeed: 120,
-      reactBitsLetterGlitchCenterVignette: true,
-      reactBitsLetterGlitchOuterVignette: false,
-      reactBitsLetterGlitchSmooth: false,
-      reactBitsLetterGlitchCharacters: "ABCDE12345",
-      reactBitsGridMotionPaletteMode: "harmony",
-      reactBitsGridMotionPrimaryColor: "#ABCDEF",
-      reactBitsGridMotionHarmony: "triad",
-      reactBitsGridMotionGradientColor: "#010203",
-      reactBitsGridMotionTileColor: "#040506",
-      reactBitsGridMotionTextColor: "#070809",
-      reactBitsGridMotionMaxMoveAmount: 420,
-      reactBitsGridMotionBaseDuration: 1.2,
-      reactBitsGridMotionCursorInteraction: false,
-      reactBitsShapeGridPaletteMode: "harmony",
-      reactBitsShapeGridPrimaryColor: "#ABCDEF",
-      reactBitsShapeGridHarmony: "triad",
-      reactBitsShapeGridBorderColor: "#010203",
-      reactBitsShapeGridHoverFillColor: "#040506",
-      reactBitsShapeGridDirection: "diagonal",
-      reactBitsShapeGridSpeed: 2.5,
-      reactBitsShapeGridSquareSize: 48,
-      reactBitsShapeGridShape: "hexagon",
-      reactBitsShapeGridHoverTrailAmount: 4,
-      reactBitsShapeGridCursorInteraction: false,
-      reactBitsLiquidChromePaletteMode: "harmony",
-      reactBitsLiquidChromePrimaryColor: "#ABCDEF",
-      reactBitsLiquidChromeHarmony: "triad",
-      reactBitsLiquidChromeBaseColor: "#010203",
-      reactBitsLiquidChromeSpeed: 0.8,
-      reactBitsLiquidChromeAmplitude: 0.6,
-      reactBitsLiquidChromeFrequencyX: 5,
-      reactBitsLiquidChromeFrequencyY: 6,
-      reactBitsLiquidChromeInteractive: false,
-      reactBitsBalatroPaletteMode: "harmony",
-      reactBitsBalatroPrimaryColor: "#ABCDEF",
-      reactBitsBalatroHarmony: "triad",
-      reactBitsBalatroColorOne: "#010203",
-      reactBitsBalatroColorTwo: "#040506",
-      reactBitsBalatroColorThree: "#070809",
-      reactBitsBalatroSpinRotation: 3,
-      reactBitsBalatroSpinSpeed: 9,
-      reactBitsBalatroOffsetX: -0.2,
-      reactBitsBalatroOffsetY: 0.3,
-      reactBitsBalatroContrast: 4,
-      reactBitsBalatroLighting: 0.7,
-      reactBitsBalatroSpinAmount: 0.4,
-      reactBitsBalatroPixelFilter: 900,
-      reactBitsBalatroSpinEase: 1.5,
-      reactBitsBalatroIsRotate: true,
-      reactBitsBalatroMouseInteraction: false,
+      massageLabOrbPaletteMode: "harmony",
+      massageLabOrbPrimaryColor: "#ABCDEF",
+      massageLabOrbHarmony: "triad",
+      massageLabOrbColor: "#010203",
+      massageLabOrbHue: 180,
+      massageLabOrbHoverIntensity: 0.55,
+      massageLabOrbRotateOnHover: false,
+      massageLabOrbForceHoverState: true,
+      massageLabOrbBackgroundColor: "#112233",
+      massageLabOrbCursorInteraction: false,
+      massageLabLetterGlitchPaletteMode: "harmony",
+      massageLabLetterGlitchPrimaryColor: "#ABCDEF",
+      massageLabLetterGlitchHarmony: "triad",
+      massageLabLetterGlitchColorOne: "#010203",
+      massageLabLetterGlitchColorTwo: "#040506",
+      massageLabLetterGlitchColorThree: "#070809",
+      massageLabLetterGlitchGlitchSpeed: 120,
+      massageLabLetterGlitchCenterVignette: true,
+      massageLabLetterGlitchOuterVignette: false,
+      massageLabLetterGlitchSmooth: false,
+      massageLabLetterGlitchCharacters: "ABCDE12345",
+      massageLabGridMotionPaletteMode: "harmony",
+      massageLabGridMotionPrimaryColor: "#ABCDEF",
+      massageLabGridMotionHarmony: "triad",
+      massageLabGridMotionGradientColor: "#010203",
+      massageLabGridMotionTileColor: "#040506",
+      massageLabGridMotionTextColor: "#070809",
+      massageLabGridMotionMaxMoveAmount: 420,
+      massageLabGridMotionBaseDuration: 1.2,
+      massageLabGridMotionCursorInteraction: false,
+      massageLabShapeGridPaletteMode: "harmony",
+      massageLabShapeGridPrimaryColor: "#ABCDEF",
+      massageLabShapeGridHarmony: "triad",
+      massageLabShapeGridBorderColor: "#010203",
+      massageLabShapeGridHoverFillColor: "#040506",
+      massageLabShapeGridDirection: "diagonal",
+      massageLabShapeGridSpeed: 2.5,
+      massageLabShapeGridSquareSize: 48,
+      massageLabShapeGridShape: "hexagon",
+      massageLabShapeGridHoverTrailAmount: 4,
+      massageLabShapeGridCursorInteraction: false,
+      massageLabLiquidChromePaletteMode: "harmony",
+      massageLabLiquidChromePrimaryColor: "#ABCDEF",
+      massageLabLiquidChromeHarmony: "triad",
+      massageLabLiquidChromeBaseColor: "#010203",
+      massageLabLiquidChromeSpeed: 0.8,
+      massageLabLiquidChromeAmplitude: 0.6,
+      massageLabLiquidChromeFrequencyX: 5,
+      massageLabLiquidChromeFrequencyY: 6,
+      massageLabLiquidChromeInteractive: false,
+      massageLabBalatroPaletteMode: "harmony",
+      massageLabBalatroPrimaryColor: "#ABCDEF",
+      massageLabBalatroHarmony: "triad",
+      massageLabBalatroColorOne: "#010203",
+      massageLabBalatroColorTwo: "#040506",
+      massageLabBalatroColorThree: "#070809",
+      massageLabBalatroSpinRotation: 3,
+      massageLabBalatroSpinSpeed: 9,
+      massageLabBalatroOffsetX: -0.2,
+      massageLabBalatroOffsetY: 0.3,
+      massageLabBalatroContrast: 4,
+      massageLabBalatroLighting: 0.7,
+      massageLabBalatroSpinAmount: 0.4,
+      massageLabBalatroPixelFilter: 900,
+      massageLabBalatroSpinEase: 1.5,
+      massageLabBalatroIsRotate: true,
+      massageLabBalatroMouseInteraction: false,
     }
     const input = {
-      backgroundId: "react-bits-balatro",
+      backgroundId: "massage-lab-balatro",
       ...expected,
     }
 
@@ -2730,181 +2730,181 @@ describe("Chimer entitlement-aware settings", () => {
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "react-bits-balatro")
+    assert.equal(premiumSettings.backgroundId, "massage-lab-balatro")
     for (const [key, value] of Object.entries(expected)) {
       assert.equal(premiumSettings[key], value)
     }
   })
 
-  it("resets Aceternity 3D Globe controls without premium background access", () => {
+  it("resets MassageLab 3D Globe controls without premium background access", () => {
     const input = {
-      backgroundId: "aceternity-3d-globe",
-      aceternity3DGlobeViewStyle: "graphic",
-      aceternity3DGlobeBackgroundColor: "#010203",
-      aceternity3DGlobeGlobeColor: "#123456",
-      aceternity3DGlobeGraphicMapColor: "#E6E6E6",
-      aceternity3DGlobeGraphicGlowColor: "#F8FAFC",
-      aceternity3DGlobeGraphicMarkerColor: "#FB6415",
-      aceternity3DGlobeGraphicMapSamples: 9000,
-      aceternity3DGlobeAutoRotateSpeed: 1.2,
-      aceternity3DGlobeReverseSpin: false,
-      aceternity3DGlobeScale: 0.72,
-      aceternity3DGlobeBumpScale: 1.8,
-      aceternity3DGlobeAmbientIntensity: 1.1,
-      aceternity3DGlobePointLightIntensity: 2.4,
-      aceternity3DGlobeLightingMode: "sun",
-      aceternity3DGlobeEnablePan: true,
-      aceternity3DGlobePanX: -24,
-      aceternity3DGlobePanY: 18,
-      aceternity3DGlobeShowTilt: false,
-      aceternity3DGlobeShowAtmosphere: true,
-      aceternity3DGlobeAtmosphereColor: "#AABBCC",
-      aceternity3DGlobeAtmosphereIntensity: 1.4,
-      aceternity3DGlobeAtmosphereBlur: 3.5,
-      aceternity3DGlobeShowWireframe: true,
-      aceternity3DGlobeWireframeColor: "#DDEEFF",
-      aceternity3DGlobeMarkerEnabled: true,
-      aceternity3DGlobeMarkerLat: 37.7749,
-      aceternity3DGlobeMarkerLng: -122.4194,
-      aceternity3DGlobeMarkerLabel: "San Francisco",
-      aceternity3DGlobeMarkerIcon: "star",
-      aceternity3DGlobeMarkerSize: 0.12,
+      backgroundId: "massage-lab-3d-globe",
+      massageLab3DGlobeViewStyle: "graphic",
+      massageLab3DGlobeBackgroundColor: "#010203",
+      massageLab3DGlobeGlobeColor: "#123456",
+      massageLab3DGlobeGraphicMapColor: "#E6E6E6",
+      massageLab3DGlobeGraphicGlowColor: "#F8FAFC",
+      massageLab3DGlobeGraphicMarkerColor: "#FB6415",
+      massageLab3DGlobeGraphicMapSamples: 9000,
+      massageLab3DGlobeAutoRotateSpeed: 1.2,
+      massageLab3DGlobeReverseSpin: false,
+      massageLab3DGlobeScale: 0.72,
+      massageLab3DGlobeBumpScale: 1.8,
+      massageLab3DGlobeAmbientIntensity: 1.1,
+      massageLab3DGlobePointLightIntensity: 2.4,
+      massageLab3DGlobeLightingMode: "sun",
+      massageLab3DGlobeEnablePan: true,
+      massageLab3DGlobePanX: -24,
+      massageLab3DGlobePanY: 18,
+      massageLab3DGlobeShowTilt: false,
+      massageLab3DGlobeShowAtmosphere: true,
+      massageLab3DGlobeAtmosphereColor: "#AABBCC",
+      massageLab3DGlobeAtmosphereIntensity: 1.4,
+      massageLab3DGlobeAtmosphereBlur: 3.5,
+      massageLab3DGlobeShowWireframe: true,
+      massageLab3DGlobeWireframeColor: "#DDEEFF",
+      massageLab3DGlobeMarkerEnabled: true,
+      massageLab3DGlobeMarkerLat: 37.7749,
+      massageLab3DGlobeMarkerLng: -122.4194,
+      massageLab3DGlobeMarkerLabel: "San Francisco",
+      massageLab3DGlobeMarkerIcon: "star",
+      massageLab3DGlobeMarkerSize: 0.12,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.aceternity3DGlobeViewStyle, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeViewStyle)
-    assert.equal(freeSettings.aceternity3DGlobeBackgroundColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeBackgroundColor)
-    assert.equal(freeSettings.aceternity3DGlobeGlobeColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGlobeColor)
-    assert.equal(freeSettings.aceternity3DGlobeGraphicMapColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGraphicMapColor)
-    assert.equal(freeSettings.aceternity3DGlobeGraphicGlowColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGraphicGlowColor)
-    assert.equal(freeSettings.aceternity3DGlobeGraphicMarkerColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGraphicMarkerColor)
-    assert.equal(freeSettings.aceternity3DGlobeGraphicMapSamples, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeGraphicMapSamples)
-    assert.equal(freeSettings.aceternity3DGlobeAutoRotateSpeed, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAutoRotateSpeed)
-    assert.equal(freeSettings.aceternity3DGlobeReverseSpin, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeReverseSpin)
-    assert.equal(freeSettings.aceternity3DGlobeScale, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeScale)
-    assert.equal(freeSettings.aceternity3DGlobeBumpScale, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeBumpScale)
-    assert.equal(freeSettings.aceternity3DGlobeAmbientIntensity, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAmbientIntensity)
-    assert.equal(freeSettings.aceternity3DGlobePointLightIntensity, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobePointLightIntensity)
-    assert.equal(freeSettings.aceternity3DGlobeLightingMode, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeLightingMode)
-    assert.equal(freeSettings.aceternity3DGlobeEnablePan, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeEnablePan)
-    assert.equal(freeSettings.aceternity3DGlobePanX, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobePanX)
-    assert.equal(freeSettings.aceternity3DGlobePanY, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobePanY)
-    assert.equal(freeSettings.aceternity3DGlobeShowTilt, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeShowTilt)
-    assert.equal(freeSettings.aceternity3DGlobeShowAtmosphere, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeShowAtmosphere)
-    assert.equal(freeSettings.aceternity3DGlobeAtmosphereColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAtmosphereColor)
-    assert.equal(freeSettings.aceternity3DGlobeAtmosphereIntensity, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAtmosphereIntensity)
-    assert.equal(freeSettings.aceternity3DGlobeAtmosphereBlur, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeAtmosphereBlur)
-    assert.equal(freeSettings.aceternity3DGlobeShowWireframe, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeShowWireframe)
-    assert.equal(freeSettings.aceternity3DGlobeWireframeColor, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeWireframeColor)
-    assert.equal(freeSettings.aceternity3DGlobeMarkerEnabled, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerEnabled)
-    assert.equal(freeSettings.aceternity3DGlobeMarkerLat, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLat)
-    assert.equal(freeSettings.aceternity3DGlobeMarkerLng, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLng)
-    assert.equal(freeSettings.aceternity3DGlobeMarkerLabel, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerLabel)
-    assert.equal(freeSettings.aceternity3DGlobeMarkerIcon, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerIcon)
-    assert.equal(freeSettings.aceternity3DGlobeMarkerSize, DEFAULT_CHIMER_SETTINGS.aceternity3DGlobeMarkerSize)
+    assert.equal(freeSettings.massageLab3DGlobeViewStyle, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeViewStyle)
+    assert.equal(freeSettings.massageLab3DGlobeBackgroundColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeBackgroundColor)
+    assert.equal(freeSettings.massageLab3DGlobeGlobeColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGlobeColor)
+    assert.equal(freeSettings.massageLab3DGlobeGraphicMapColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGraphicMapColor)
+    assert.equal(freeSettings.massageLab3DGlobeGraphicGlowColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGraphicGlowColor)
+    assert.equal(freeSettings.massageLab3DGlobeGraphicMarkerColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGraphicMarkerColor)
+    assert.equal(freeSettings.massageLab3DGlobeGraphicMapSamples, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeGraphicMapSamples)
+    assert.equal(freeSettings.massageLab3DGlobeAutoRotateSpeed, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeAutoRotateSpeed)
+    assert.equal(freeSettings.massageLab3DGlobeReverseSpin, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeReverseSpin)
+    assert.equal(freeSettings.massageLab3DGlobeScale, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeScale)
+    assert.equal(freeSettings.massageLab3DGlobeBumpScale, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeBumpScale)
+    assert.equal(freeSettings.massageLab3DGlobeAmbientIntensity, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeAmbientIntensity)
+    assert.equal(freeSettings.massageLab3DGlobePointLightIntensity, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobePointLightIntensity)
+    assert.equal(freeSettings.massageLab3DGlobeLightingMode, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeLightingMode)
+    assert.equal(freeSettings.massageLab3DGlobeEnablePan, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeEnablePan)
+    assert.equal(freeSettings.massageLab3DGlobePanX, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobePanX)
+    assert.equal(freeSettings.massageLab3DGlobePanY, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobePanY)
+    assert.equal(freeSettings.massageLab3DGlobeShowTilt, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeShowTilt)
+    assert.equal(freeSettings.massageLab3DGlobeShowAtmosphere, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeShowAtmosphere)
+    assert.equal(freeSettings.massageLab3DGlobeAtmosphereColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeAtmosphereColor)
+    assert.equal(freeSettings.massageLab3DGlobeAtmosphereIntensity, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeAtmosphereIntensity)
+    assert.equal(freeSettings.massageLab3DGlobeAtmosphereBlur, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeAtmosphereBlur)
+    assert.equal(freeSettings.massageLab3DGlobeShowWireframe, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeShowWireframe)
+    assert.equal(freeSettings.massageLab3DGlobeWireframeColor, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeWireframeColor)
+    assert.equal(freeSettings.massageLab3DGlobeMarkerEnabled, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeMarkerEnabled)
+    assert.equal(freeSettings.massageLab3DGlobeMarkerLat, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeMarkerLat)
+    assert.equal(freeSettings.massageLab3DGlobeMarkerLng, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeMarkerLng)
+    assert.equal(freeSettings.massageLab3DGlobeMarkerLabel, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeMarkerLabel)
+    assert.equal(freeSettings.massageLab3DGlobeMarkerIcon, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeMarkerIcon)
+    assert.equal(freeSettings.massageLab3DGlobeMarkerSize, DEFAULT_CHIMER_SETTINGS.massageLab3DGlobeMarkerSize)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "aceternity-3d-globe")
-    assert.equal(premiumSettings.aceternity3DGlobeViewStyle, "graphic")
-    assert.equal(premiumSettings.aceternity3DGlobeBackgroundColor, "#010203")
-    assert.equal(premiumSettings.aceternity3DGlobeGlobeColor, "#123456")
-    assert.equal(premiumSettings.aceternity3DGlobeGraphicMapColor, "#E6E6E6")
-    assert.equal(premiumSettings.aceternity3DGlobeGraphicGlowColor, "#F8FAFC")
-    assert.equal(premiumSettings.aceternity3DGlobeGraphicMarkerColor, "#FB6415")
-    assert.equal(premiumSettings.aceternity3DGlobeGraphicMapSamples, 9000)
-    assert.equal(premiumSettings.aceternity3DGlobeAutoRotateSpeed, 1.2)
-    assert.equal(premiumSettings.aceternity3DGlobeReverseSpin, true)
-    assert.equal(premiumSettings.aceternity3DGlobeScale, 0.72)
-    assert.equal(premiumSettings.aceternity3DGlobeBumpScale, 1.8)
-    assert.equal(premiumSettings.aceternity3DGlobeAmbientIntensity, 1.1)
-    assert.equal(premiumSettings.aceternity3DGlobePointLightIntensity, 2.4)
-    assert.equal(premiumSettings.aceternity3DGlobeLightingMode, "sun")
-    assert.equal(premiumSettings.aceternity3DGlobeEnablePan, true)
-    assert.equal(premiumSettings.aceternity3DGlobePanX, -24)
-    assert.equal(premiumSettings.aceternity3DGlobePanY, 18)
-    assert.equal(premiumSettings.aceternity3DGlobeShowTilt, true)
-    assert.equal(premiumSettings.aceternity3DGlobeShowAtmosphere, true)
-    assert.equal(premiumSettings.aceternity3DGlobeAtmosphereColor, "#AABBCC")
-    assert.equal(premiumSettings.aceternity3DGlobeAtmosphereIntensity, 1.4)
-    assert.equal(premiumSettings.aceternity3DGlobeAtmosphereBlur, 3.5)
-    assert.equal(premiumSettings.aceternity3DGlobeShowWireframe, true)
-    assert.equal(premiumSettings.aceternity3DGlobeWireframeColor, "#DDEEFF")
-    assert.equal(premiumSettings.aceternity3DGlobeMarkerEnabled, true)
-    assert.equal(premiumSettings.aceternity3DGlobeMarkerLat, 37.7749)
-    assert.equal(premiumSettings.aceternity3DGlobeMarkerLng, -122.4194)
-    assert.equal(premiumSettings.aceternity3DGlobeMarkerLabel, "San Francisco")
-    assert.equal(premiumSettings.aceternity3DGlobeMarkerIcon, "star")
-    assert.equal(premiumSettings.aceternity3DGlobeMarkerSize, 0.12)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-3d-globe")
+    assert.equal(premiumSettings.massageLab3DGlobeViewStyle, "graphic")
+    assert.equal(premiumSettings.massageLab3DGlobeBackgroundColor, "#010203")
+    assert.equal(premiumSettings.massageLab3DGlobeGlobeColor, "#123456")
+    assert.equal(premiumSettings.massageLab3DGlobeGraphicMapColor, "#E6E6E6")
+    assert.equal(premiumSettings.massageLab3DGlobeGraphicGlowColor, "#F8FAFC")
+    assert.equal(premiumSettings.massageLab3DGlobeGraphicMarkerColor, "#FB6415")
+    assert.equal(premiumSettings.massageLab3DGlobeGraphicMapSamples, 9000)
+    assert.equal(premiumSettings.massageLab3DGlobeAutoRotateSpeed, 1.2)
+    assert.equal(premiumSettings.massageLab3DGlobeReverseSpin, true)
+    assert.equal(premiumSettings.massageLab3DGlobeScale, 0.72)
+    assert.equal(premiumSettings.massageLab3DGlobeBumpScale, 1.8)
+    assert.equal(premiumSettings.massageLab3DGlobeAmbientIntensity, 1.1)
+    assert.equal(premiumSettings.massageLab3DGlobePointLightIntensity, 2.4)
+    assert.equal(premiumSettings.massageLab3DGlobeLightingMode, "sun")
+    assert.equal(premiumSettings.massageLab3DGlobeEnablePan, true)
+    assert.equal(premiumSettings.massageLab3DGlobePanX, -24)
+    assert.equal(premiumSettings.massageLab3DGlobePanY, 18)
+    assert.equal(premiumSettings.massageLab3DGlobeShowTilt, true)
+    assert.equal(premiumSettings.massageLab3DGlobeShowAtmosphere, true)
+    assert.equal(premiumSettings.massageLab3DGlobeAtmosphereColor, "#AABBCC")
+    assert.equal(premiumSettings.massageLab3DGlobeAtmosphereIntensity, 1.4)
+    assert.equal(premiumSettings.massageLab3DGlobeAtmosphereBlur, 3.5)
+    assert.equal(premiumSettings.massageLab3DGlobeShowWireframe, true)
+    assert.equal(premiumSettings.massageLab3DGlobeWireframeColor, "#DDEEFF")
+    assert.equal(premiumSettings.massageLab3DGlobeMarkerEnabled, true)
+    assert.equal(premiumSettings.massageLab3DGlobeMarkerLat, 37.7749)
+    assert.equal(premiumSettings.massageLab3DGlobeMarkerLng, -122.4194)
+    assert.equal(premiumSettings.massageLab3DGlobeMarkerLabel, "San Francisco")
+    assert.equal(premiumSettings.massageLab3DGlobeMarkerIcon, "star")
+    assert.equal(premiumSettings.massageLab3DGlobeMarkerSize, 0.12)
   })
 
-  it("resets Magic UI Retro Grid controls without premium background access", () => {
+  it("resets MassageLab Retro Grid controls without premium background access", () => {
     const input = {
-      backgroundId: "magicui-retro-grid",
-      magicRetroGridBackgroundColor: "#010203",
-      magicRetroGridLightLineColor: "#AABBCC",
-      magicRetroGridDarkLineColor: "#112233",
-      magicRetroGridAngle: 72,
-      magicRetroGridCellSize: 88,
-      magicRetroGridOpacity: 0.72,
+      backgroundId: "massage-lab-retro-grid",
+      massageLabRetroGridBackgroundColor: "#010203",
+      massageLabRetroGridLightLineColor: "#AABBCC",
+      massageLabRetroGridDarkLineColor: "#112233",
+      massageLabRetroGridAngle: 72,
+      massageLabRetroGridCellSize: 88,
+      massageLabRetroGridOpacity: 0.72,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.magicRetroGridBackgroundColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridBackgroundColor)
-    assert.equal(freeSettings.magicRetroGridLightLineColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridLightLineColor)
-    assert.equal(freeSettings.magicRetroGridDarkLineColor, DEFAULT_CHIMER_SETTINGS.magicRetroGridDarkLineColor)
-    assert.equal(freeSettings.magicRetroGridAngle, DEFAULT_CHIMER_SETTINGS.magicRetroGridAngle)
-    assert.equal(freeSettings.magicRetroGridCellSize, DEFAULT_CHIMER_SETTINGS.magicRetroGridCellSize)
-    assert.equal(freeSettings.magicRetroGridOpacity, DEFAULT_CHIMER_SETTINGS.magicRetroGridOpacity)
+    assert.equal(freeSettings.massageLabRetroGridBackgroundColor, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridBackgroundColor)
+    assert.equal(freeSettings.massageLabRetroGridLightLineColor, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridLightLineColor)
+    assert.equal(freeSettings.massageLabRetroGridDarkLineColor, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridDarkLineColor)
+    assert.equal(freeSettings.massageLabRetroGridAngle, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridAngle)
+    assert.equal(freeSettings.massageLabRetroGridCellSize, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridCellSize)
+    assert.equal(freeSettings.massageLabRetroGridOpacity, DEFAULT_CHIMER_SETTINGS.massageLabRetroGridOpacity)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "magicui-retro-grid")
-    assert.equal(premiumSettings.magicRetroGridBackgroundColor, "#010203")
-    assert.equal(premiumSettings.magicRetroGridLightLineColor, "#AABBCC")
-    assert.equal(premiumSettings.magicRetroGridDarkLineColor, "#112233")
-    assert.equal(premiumSettings.magicRetroGridAngle, 72)
-    assert.equal(premiumSettings.magicRetroGridCellSize, 88)
-    assert.equal(premiumSettings.magicRetroGridOpacity, 0.72)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-retro-grid")
+    assert.equal(premiumSettings.massageLabRetroGridBackgroundColor, "#010203")
+    assert.equal(premiumSettings.massageLabRetroGridLightLineColor, "#AABBCC")
+    assert.equal(premiumSettings.massageLabRetroGridDarkLineColor, "#112233")
+    assert.equal(premiumSettings.massageLabRetroGridAngle, 72)
+    assert.equal(premiumSettings.massageLabRetroGridCellSize, 88)
+    assert.equal(premiumSettings.massageLabRetroGridOpacity, 0.72)
   })
 
-  it("resets Magic UI Light Rays controls without premium background access", () => {
+  it("resets MassageLab Aerial Rays controls without premium background access", () => {
     const input = {
-      backgroundId: "magicui-light-rays",
-      magicLightRaysBackgroundColor: "#010203",
-      magicLightRaysColor: "#A0D2FF",
-      magicLightRaysCount: 12,
-      magicLightRaysBlur: 48,
-      magicLightRaysSpeed: 18,
-      magicLightRaysLength: 96,
-      magicLightRaysOpacity: 0.82,
+      backgroundId: "massage-lab-aerial-rays",
+      massageLabAerialRaysBackgroundColor: "#010203",
+      massageLabAerialRaysColor: "#A0D2FF",
+      massageLabAerialRaysCount: 12,
+      massageLabAerialRaysBlur: 48,
+      massageLabAerialRaysSpeed: 18,
+      massageLabAerialRaysLength: 96,
+      massageLabAerialRaysOpacity: 0.82,
     }
 
     const freeSettings = sanitizeChimerSettingsForEntitlements(input, [])
 
     assert.equal(freeSettings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
-    assert.equal(freeSettings.magicLightRaysBackgroundColor, DEFAULT_CHIMER_SETTINGS.magicLightRaysBackgroundColor)
-    assert.equal(freeSettings.magicLightRaysColor, DEFAULT_CHIMER_SETTINGS.magicLightRaysColor)
-    assert.equal(freeSettings.magicLightRaysCount, DEFAULT_CHIMER_SETTINGS.magicLightRaysCount)
-    assert.equal(freeSettings.magicLightRaysBlur, DEFAULT_CHIMER_SETTINGS.magicLightRaysBlur)
-    assert.equal(freeSettings.magicLightRaysSpeed, DEFAULT_CHIMER_SETTINGS.magicLightRaysSpeed)
-    assert.equal(freeSettings.magicLightRaysLength, DEFAULT_CHIMER_SETTINGS.magicLightRaysLength)
-    assert.equal(freeSettings.magicLightRaysOpacity, DEFAULT_CHIMER_SETTINGS.magicLightRaysOpacity)
+    assert.equal(freeSettings.massageLabAerialRaysBackgroundColor, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysBackgroundColor)
+    assert.equal(freeSettings.massageLabAerialRaysColor, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysColor)
+    assert.equal(freeSettings.massageLabAerialRaysCount, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysCount)
+    assert.equal(freeSettings.massageLabAerialRaysBlur, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysBlur)
+    assert.equal(freeSettings.massageLabAerialRaysSpeed, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysSpeed)
+    assert.equal(freeSettings.massageLabAerialRaysLength, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysLength)
+    assert.equal(freeSettings.massageLabAerialRaysOpacity, DEFAULT_CHIMER_SETTINGS.massageLabAerialRaysOpacity)
 
     const premiumSettings = sanitizeChimerSettingsForEntitlements(input, [FEATURE_KEYS.premiumBackgrounds])
 
-    assert.equal(premiumSettings.backgroundId, "magicui-light-rays")
-    assert.equal(premiumSettings.magicLightRaysBackgroundColor, "#010203")
-    assert.equal(premiumSettings.magicLightRaysColor, "#A0D2FF")
-    assert.equal(premiumSettings.magicLightRaysCount, 12)
-    assert.equal(premiumSettings.magicLightRaysBlur, 48)
-    assert.equal(premiumSettings.magicLightRaysSpeed, 18)
-    assert.equal(premiumSettings.magicLightRaysLength, 96)
-    assert.equal(premiumSettings.magicLightRaysOpacity, 0.82)
+    assert.equal(premiumSettings.backgroundId, "massage-lab-aerial-rays")
+    assert.equal(premiumSettings.massageLabAerialRaysBackgroundColor, "#010203")
+    assert.equal(premiumSettings.massageLabAerialRaysColor, "#A0D2FF")
+    assert.equal(premiumSettings.massageLabAerialRaysCount, 12)
+    assert.equal(premiumSettings.massageLabAerialRaysBlur, 48)
+    assert.equal(premiumSettings.massageLabAerialRaysSpeed, 18)
+    assert.equal(premiumSettings.massageLabAerialRaysLength, 96)
+    assert.equal(premiumSettings.massageLabAerialRaysOpacity, 0.82)
   })
 
   it("strips custom colors for users without the Chimer custom colors feature", () => {
@@ -2915,89 +2915,89 @@ describe("Chimer entitlement-aware settings", () => {
       movingBackgroundMainColor: "#ABCDEF",
       movingBackgroundOrbColor: "#FEDCBA",
       movingBackgroundEnabled: false,
-      backgroundId: "aceternity-aurora",
+      backgroundId: "massage-lab-aurora",
       sparklesParticleColor: "#ABC123",
       sparklesParticleDensity: 180,
       sparklesSpeed: 6,
       gradientAnimationFirstColor: "#112233",
       gradientAnimationSpeed: 2,
-      animateUiGradientPrimaryColor: "#102030",
-      animateUiGradientHarmony: "split-complementary",
-      animateUiGradientOpacity: 0.42,
-      animateUiStarsColor: "#EAF6FF",
-      animateUiStarsSpeed: 72,
-      animateUiStarsDensity: 1.2,
-      animateUiStarsParallax: 0.08,
-      animateUiHoleStrokeColor: "#112233",
-      animateUiHoleParticleColor: "#EAF6FF",
-      animateUiHoleLineCount: 72,
-      animateUiHoleDiscCount: 64,
-      chamaacLightSpeedWarpSpeed: 3.5,
-      chamaacLightSpeedWarpSpeedVersion: 2,
-      chamaacLightSpeedParticleCount: 180,
-      chamaacLightSpeedLightColor: "#33B2FF",
-      chamaacLightSpeedIntensity: 4.5,
-      chamaacLightSpeedRadius: 42,
-      chamaacLightSpeedCylinderLength: 220,
-      chamaacElectricMistColor: "#33B2FF",
-      chamaacElectricMistSpeed: 250,
-      chamaacElectricMistControlVersion: 2,
-      chamaacElectricMistDetail: 2.4,
-      chamaacElectricMistDistortion: 5.5,
-      chamaacElectricMistBrightness: 80,
-      chamaacAstralFlowPaletteMode: "harmony",
-      chamaacAstralFlowPrimaryColor: "#33B2FF",
-      chamaacAstralFlowHarmony: "split-complementary",
-      chamaacAstralFlowColorOne: "#112233",
-      chamaacAstralFlowColorTwo: "#445566",
-      chamaacAstralFlowColorThree: "#778899",
-      chamaacAstralFlowSpeed: 2.1,
-      chamaacAstralFlowFlowMin: 4.2,
-      chamaacAstralFlowFlowMax: 8.4,
-      chamaacDeepSpaceNebulaPaletteMode: "harmony",
-      chamaacDeepSpaceNebulaPrimaryColor: "#763B65",
-      chamaacDeepSpaceNebulaHarmony: "complementary",
-      chamaacDeepSpaceNebulaColorOne: "#5EFFF4",
-      chamaacDeepSpaceNebulaColorTwo: "#763B65",
-      chamaacDeepSpaceNebulaColorThree: "#1A0B2E",
-      chamaacDeepSpaceNebulaSpeed: 3.6,
-      chamaacGridBloomColor: "#E040FB",
-      chamaacGridBloomSpeed: 2.4,
-      chamaacGridBloomGridScale: 18,
-      chamaacGridBloomRotationSpeed: 0.8,
-      chamaacGridBloomFadeFalloff: 14,
-      chamaacGridBloomDistortionAmount: 0.18,
-      chamaacGridBloomFlowSpeedX: -0.6,
-      chamaacGridBloomFlowSpeedY: 0.5,
-      chamaacLiquidChromePaletteMode: "harmony",
-      chamaacLiquidChromePrimaryColor: "#C0C0C0",
-      chamaacLiquidChromeHarmony: "monochromatic",
-      chamaacLiquidChromeColorOne: "#C0C0C0",
-      chamaacLiquidChromeColorTwo: "#4A4A4A",
-      chamaacLiquidChromeFlowSpeed: 1.4,
-      chamaacLiquidChromeTimeScale: 0.4,
-      chamaacWavesPaletteMode: "harmony",
-      chamaacWavesPrimaryColor: "#071697",
-      chamaacWavesHarmony: "triad",
-      chamaacWavesBackgroundColor: "#000000",
-      chamaacWavesColorOne: "#071697",
-      chamaacWavesColorTwo: "#00D4FF",
-      chamaacWavesColorThree: "#000000",
-      chamaacWavesSpeedX: 0.08,
-      chamaacWavesSpeedY: 0.04,
-      chamaacWavesAmplitude: 48,
-      chamaacSynthesisPaletteMode: "harmony",
-      chamaacSynthesisPrimaryColor: "#33B2FF",
-      chamaacSynthesisHarmony: "split-complementary",
-      chamaacSynthesisColorOne: "#112233",
-      chamaacSynthesisColorTwo: "#445566",
-      chamaacSynthesisColorThree: "#778899",
-      chamaacSynthesisSpeed: 1.8,
-      chamaacSynthesisComplexity: 16,
-      chamaacSynthesisScale: 2.4,
-      chamaacSynthesisDistortion: 1.4,
-      chamaacSynthesisGlowIntensity: 1.6,
-      chamaacSynthesisFlowFrequency: 7.5,
+      massageLabGradientPrimaryColor: "#102030",
+      massageLabGradientHarmony: "split-complementary",
+      massageLabGradientOpacity: 0.42,
+      massageLabStarsColor: "#EAF6FF",
+      massageLabStarsSpeed: 72,
+      massageLabStarsDensity: 1.2,
+      massageLabStarsParallax: 0.08,
+      massageLabHoleStrokeColor: "#112233",
+      massageLabHoleParticleColor: "#EAF6FF",
+      massageLabHoleLineCount: 72,
+      massageLabHoleDiscCount: 64,
+      massageLabLightSpeedWarpSpeed: 3.5,
+      massageLabLightSpeedWarpSpeedVersion: 2,
+      massageLabLightSpeedParticleCount: 180,
+      massageLabLightSpeedLightColor: "#33B2FF",
+      massageLabLightSpeedIntensity: 4.5,
+      massageLabLightSpeedRadius: 42,
+      massageLabLightSpeedCylinderLength: 220,
+      massageLabElectricMistColor: "#33B2FF",
+      massageLabElectricMistSpeed: 250,
+      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistDetail: 2.4,
+      massageLabElectricMistDistortion: 5.5,
+      massageLabElectricMistBrightness: 80,
+      massageLabAstralFlowPaletteMode: "harmony",
+      massageLabAstralFlowPrimaryColor: "#33B2FF",
+      massageLabAstralFlowHarmony: "split-complementary",
+      massageLabAstralFlowColorOne: "#112233",
+      massageLabAstralFlowColorTwo: "#445566",
+      massageLabAstralFlowColorThree: "#778899",
+      massageLabAstralFlowSpeed: 2.1,
+      massageLabAstralFlowFlowMin: 4.2,
+      massageLabAstralFlowFlowMax: 8.4,
+      massageLabDeepSpaceNebulaPaletteMode: "harmony",
+      massageLabDeepSpaceNebulaPrimaryColor: "#763B65",
+      massageLabDeepSpaceNebulaHarmony: "complementary",
+      massageLabDeepSpaceNebulaColorOne: "#5EFFF4",
+      massageLabDeepSpaceNebulaColorTwo: "#763B65",
+      massageLabDeepSpaceNebulaColorThree: "#1A0B2E",
+      massageLabDeepSpaceNebulaSpeed: 3.6,
+      massageLabGridBloomColor: "#E040FB",
+      massageLabGridBloomSpeed: 2.4,
+      massageLabGridBloomGridScale: 18,
+      massageLabGridBloomRotationSpeed: 0.8,
+      massageLabGridBloomFadeFalloff: 14,
+      massageLabGridBloomDistortionAmount: 0.18,
+      massageLabGridBloomFlowSpeedX: -0.6,
+      massageLabGridBloomFlowSpeedY: 0.5,
+      massageLabChromeFlowPaletteMode: "harmony",
+      massageLabChromeFlowPrimaryColor: "#C0C0C0",
+      massageLabChromeFlowHarmony: "monochromatic",
+      massageLabChromeFlowColorOne: "#C0C0C0",
+      massageLabChromeFlowColorTwo: "#4A4A4A",
+      massageLabChromeFlowFlowSpeed: 1.4,
+      massageLabChromeFlowTimeScale: 0.4,
+      massageLabWaveCurrentPaletteMode: "harmony",
+      massageLabWaveCurrentPrimaryColor: "#071697",
+      massageLabWaveCurrentHarmony: "triad",
+      massageLabWaveCurrentBackgroundColor: "#000000",
+      massageLabWaveCurrentColorOne: "#071697",
+      massageLabWaveCurrentColorTwo: "#00D4FF",
+      massageLabWaveCurrentColorThree: "#000000",
+      massageLabWaveCurrentSpeedX: 0.08,
+      massageLabWaveCurrentSpeedY: 0.04,
+      massageLabWaveCurrentAmplitude: 48,
+      massageLabSynthesisPaletteMode: "harmony",
+      massageLabSynthesisPrimaryColor: "#33B2FF",
+      massageLabSynthesisHarmony: "split-complementary",
+      massageLabSynthesisColorOne: "#112233",
+      massageLabSynthesisColorTwo: "#445566",
+      massageLabSynthesisColorThree: "#778899",
+      massageLabSynthesisSpeed: 1.8,
+      massageLabSynthesisComplexity: 16,
+      massageLabSynthesisScale: 2.4,
+      massageLabSynthesisDistortion: 1.4,
+      massageLabSynthesisGlowIntensity: 1.6,
+      massageLabSynthesisFlowFrequency: 7.5,
       backgroundLinesDuration: 16,
       wavyBackgroundFill: "#111111",
       wavyColorOne: "#ABC123",
@@ -3097,82 +3097,82 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.sparklesSpeed, DEFAULT_CHIMER_SETTINGS.sparklesSpeed)
     assert.equal(settings.gradientAnimationFirstColor, DEFAULT_CHIMER_SETTINGS.gradientAnimationFirstColor)
     assert.equal(settings.gradientAnimationSpeed, DEFAULT_CHIMER_SETTINGS.gradientAnimationSpeed)
-    assert.equal(settings.animateUiGradientPrimaryColor, DEFAULT_CHIMER_SETTINGS.animateUiGradientPrimaryColor)
-    assert.equal(settings.animateUiGradientHarmony, DEFAULT_CHIMER_SETTINGS.animateUiGradientHarmony)
-    assert.equal(settings.animateUiGradientOpacity, DEFAULT_CHIMER_SETTINGS.animateUiGradientOpacity)
-    assert.equal(settings.animateUiStarsColor, DEFAULT_CHIMER_SETTINGS.animateUiStarsColor)
-    assert.equal(settings.animateUiStarsSpeed, DEFAULT_CHIMER_SETTINGS.animateUiStarsSpeed)
-    assert.equal(settings.animateUiStarsDensity, DEFAULT_CHIMER_SETTINGS.animateUiStarsDensity)
-    assert.equal(settings.animateUiStarsParallax, DEFAULT_CHIMER_SETTINGS.animateUiStarsParallax)
-    assert.equal(settings.animateUiHoleStrokeColor, DEFAULT_CHIMER_SETTINGS.animateUiHoleStrokeColor)
-    assert.equal(settings.animateUiHoleParticleColor, DEFAULT_CHIMER_SETTINGS.animateUiHoleParticleColor)
-    assert.equal(settings.animateUiHoleLineCount, DEFAULT_CHIMER_SETTINGS.animateUiHoleLineCount)
-    assert.equal(settings.animateUiHoleDiscCount, DEFAULT_CHIMER_SETTINGS.animateUiHoleDiscCount)
-    assert.equal(settings.chamaacLightSpeedWarpSpeed, DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedWarpSpeed)
-    assert.equal(settings.chamaacLightSpeedParticleCount, DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedParticleCount)
-    assert.equal(settings.chamaacLightSpeedLightColor, DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedLightColor)
-    assert.equal(settings.chamaacLightSpeedIntensity, DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedIntensity)
-    assert.equal(settings.chamaacLightSpeedRadius, DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedRadius)
-    assert.equal(settings.chamaacLightSpeedCylinderLength, DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedCylinderLength)
-    assert.equal(settings.chamaacElectricMistColor, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistColor)
-    assert.equal(settings.chamaacElectricMistSpeed, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistSpeed)
-    assert.equal(settings.chamaacElectricMistControlVersion, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistControlVersion)
-    assert.equal(settings.chamaacElectricMistDetail, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistDetail)
-    assert.equal(settings.chamaacElectricMistDistortion, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistDistortion)
-    assert.equal(settings.chamaacElectricMistBrightness, DEFAULT_CHIMER_SETTINGS.chamaacElectricMistBrightness)
-    assert.equal(settings.chamaacAstralFlowPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowPaletteMode)
-    assert.equal(settings.chamaacAstralFlowPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowPrimaryColor)
-    assert.equal(settings.chamaacAstralFlowHarmony, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowHarmony)
-    assert.equal(settings.chamaacAstralFlowColorOne, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowColorOne)
-    assert.equal(settings.chamaacAstralFlowColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowColorTwo)
-    assert.equal(settings.chamaacAstralFlowColorThree, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowColorThree)
-    assert.equal(settings.chamaacAstralFlowSpeed, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowSpeed)
-    assert.equal(settings.chamaacAstralFlowFlowMin, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowFlowMin)
-    assert.equal(settings.chamaacAstralFlowFlowMax, DEFAULT_CHIMER_SETTINGS.chamaacAstralFlowFlowMax)
-    assert.equal(settings.chamaacDeepSpaceNebulaPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaPaletteMode)
-    assert.equal(settings.chamaacDeepSpaceNebulaPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaPrimaryColor)
-    assert.equal(settings.chamaacDeepSpaceNebulaHarmony, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaHarmony)
-    assert.equal(settings.chamaacDeepSpaceNebulaColorOne, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaColorOne)
-    assert.equal(settings.chamaacDeepSpaceNebulaColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaColorTwo)
-    assert.equal(settings.chamaacDeepSpaceNebulaColorThree, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaColorThree)
-    assert.equal(settings.chamaacDeepSpaceNebulaSpeed, DEFAULT_CHIMER_SETTINGS.chamaacDeepSpaceNebulaSpeed)
-    assert.equal(settings.chamaacGridBloomColor, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomColor)
-    assert.equal(settings.chamaacGridBloomSpeed, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomSpeed)
-    assert.equal(settings.chamaacGridBloomGridScale, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomGridScale)
-    assert.equal(settings.chamaacGridBloomRotationSpeed, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomRotationSpeed)
-    assert.equal(settings.chamaacGridBloomFadeFalloff, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomFadeFalloff)
-    assert.equal(settings.chamaacGridBloomDistortionAmount, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomDistortionAmount)
-    assert.equal(settings.chamaacGridBloomFlowSpeedX, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomFlowSpeedX)
-    assert.equal(settings.chamaacGridBloomFlowSpeedY, DEFAULT_CHIMER_SETTINGS.chamaacGridBloomFlowSpeedY)
-    assert.equal(settings.chamaacLiquidChromePaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromePaletteMode)
-    assert.equal(settings.chamaacLiquidChromePrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromePrimaryColor)
-    assert.equal(settings.chamaacLiquidChromeHarmony, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeHarmony)
-    assert.equal(settings.chamaacLiquidChromeColorOne, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeColorOne)
-    assert.equal(settings.chamaacLiquidChromeColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeColorTwo)
-    assert.equal(settings.chamaacLiquidChromeFlowSpeed, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeFlowSpeed)
-    assert.equal(settings.chamaacLiquidChromeTimeScale, DEFAULT_CHIMER_SETTINGS.chamaacLiquidChromeTimeScale)
-    assert.equal(settings.chamaacWavesPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacWavesPaletteMode)
-    assert.equal(settings.chamaacWavesPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacWavesPrimaryColor)
-    assert.equal(settings.chamaacWavesHarmony, DEFAULT_CHIMER_SETTINGS.chamaacWavesHarmony)
-    assert.equal(settings.chamaacWavesBackgroundColor, DEFAULT_CHIMER_SETTINGS.chamaacWavesBackgroundColor)
-    assert.equal(settings.chamaacWavesColorOne, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorOne)
-    assert.equal(settings.chamaacWavesColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorTwo)
-    assert.equal(settings.chamaacWavesColorThree, DEFAULT_CHIMER_SETTINGS.chamaacWavesColorThree)
-    assert.equal(settings.chamaacWavesSpeedX, DEFAULT_CHIMER_SETTINGS.chamaacWavesSpeedX)
-    assert.equal(settings.chamaacWavesSpeedY, DEFAULT_CHIMER_SETTINGS.chamaacWavesSpeedY)
-    assert.equal(settings.chamaacWavesAmplitude, DEFAULT_CHIMER_SETTINGS.chamaacWavesAmplitude)
-    assert.equal(settings.chamaacSynthesisPaletteMode, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPaletteMode)
-    assert.equal(settings.chamaacSynthesisPrimaryColor, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisPrimaryColor)
-    assert.equal(settings.chamaacSynthesisHarmony, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisHarmony)
-    assert.equal(settings.chamaacSynthesisColorOne, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisColorOne)
-    assert.equal(settings.chamaacSynthesisColorTwo, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisColorTwo)
-    assert.equal(settings.chamaacSynthesisColorThree, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisColorThree)
-    assert.equal(settings.chamaacSynthesisSpeed, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisSpeed)
-    assert.equal(settings.chamaacSynthesisComplexity, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisComplexity)
-    assert.equal(settings.chamaacSynthesisScale, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisScale)
-    assert.equal(settings.chamaacSynthesisDistortion, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisDistortion)
-    assert.equal(settings.chamaacSynthesisGlowIntensity, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisGlowIntensity)
-    assert.equal(settings.chamaacSynthesisFlowFrequency, DEFAULT_CHIMER_SETTINGS.chamaacSynthesisFlowFrequency)
+    assert.equal(settings.massageLabGradientPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabGradientPrimaryColor)
+    assert.equal(settings.massageLabGradientHarmony, DEFAULT_CHIMER_SETTINGS.massageLabGradientHarmony)
+    assert.equal(settings.massageLabGradientOpacity, DEFAULT_CHIMER_SETTINGS.massageLabGradientOpacity)
+    assert.equal(settings.massageLabStarsColor, DEFAULT_CHIMER_SETTINGS.massageLabStarsColor)
+    assert.equal(settings.massageLabStarsSpeed, DEFAULT_CHIMER_SETTINGS.massageLabStarsSpeed)
+    assert.equal(settings.massageLabStarsDensity, DEFAULT_CHIMER_SETTINGS.massageLabStarsDensity)
+    assert.equal(settings.massageLabStarsParallax, DEFAULT_CHIMER_SETTINGS.massageLabStarsParallax)
+    assert.equal(settings.massageLabHoleStrokeColor, DEFAULT_CHIMER_SETTINGS.massageLabHoleStrokeColor)
+    assert.equal(settings.massageLabHoleParticleColor, DEFAULT_CHIMER_SETTINGS.massageLabHoleParticleColor)
+    assert.equal(settings.massageLabHoleLineCount, DEFAULT_CHIMER_SETTINGS.massageLabHoleLineCount)
+    assert.equal(settings.massageLabHoleDiscCount, DEFAULT_CHIMER_SETTINGS.massageLabHoleDiscCount)
+    assert.equal(settings.massageLabLightSpeedWarpSpeed, DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedWarpSpeed)
+    assert.equal(settings.massageLabLightSpeedParticleCount, DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedParticleCount)
+    assert.equal(settings.massageLabLightSpeedLightColor, DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedLightColor)
+    assert.equal(settings.massageLabLightSpeedIntensity, DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedIntensity)
+    assert.equal(settings.massageLabLightSpeedRadius, DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedRadius)
+    assert.equal(settings.massageLabLightSpeedCylinderLength, DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedCylinderLength)
+    assert.equal(settings.massageLabElectricMistColor, DEFAULT_CHIMER_SETTINGS.massageLabElectricMistColor)
+    assert.equal(settings.massageLabElectricMistSpeed, DEFAULT_CHIMER_SETTINGS.massageLabElectricMistSpeed)
+    assert.equal(settings.massageLabElectricMistControlVersion, DEFAULT_CHIMER_SETTINGS.massageLabElectricMistControlVersion)
+    assert.equal(settings.massageLabElectricMistDetail, DEFAULT_CHIMER_SETTINGS.massageLabElectricMistDetail)
+    assert.equal(settings.massageLabElectricMistDistortion, DEFAULT_CHIMER_SETTINGS.massageLabElectricMistDistortion)
+    assert.equal(settings.massageLabElectricMistBrightness, DEFAULT_CHIMER_SETTINGS.massageLabElectricMistBrightness)
+    assert.equal(settings.massageLabAstralFlowPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowPaletteMode)
+    assert.equal(settings.massageLabAstralFlowPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowPrimaryColor)
+    assert.equal(settings.massageLabAstralFlowHarmony, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowHarmony)
+    assert.equal(settings.massageLabAstralFlowColorOne, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowColorOne)
+    assert.equal(settings.massageLabAstralFlowColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowColorTwo)
+    assert.equal(settings.massageLabAstralFlowColorThree, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowColorThree)
+    assert.equal(settings.massageLabAstralFlowSpeed, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowSpeed)
+    assert.equal(settings.massageLabAstralFlowFlowMin, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowFlowMin)
+    assert.equal(settings.massageLabAstralFlowFlowMax, DEFAULT_CHIMER_SETTINGS.massageLabAstralFlowFlowMax)
+    assert.equal(settings.massageLabDeepSpaceNebulaPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaPaletteMode)
+    assert.equal(settings.massageLabDeepSpaceNebulaPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaPrimaryColor)
+    assert.equal(settings.massageLabDeepSpaceNebulaHarmony, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaHarmony)
+    assert.equal(settings.massageLabDeepSpaceNebulaColorOne, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaColorOne)
+    assert.equal(settings.massageLabDeepSpaceNebulaColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaColorTwo)
+    assert.equal(settings.massageLabDeepSpaceNebulaColorThree, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaColorThree)
+    assert.equal(settings.massageLabDeepSpaceNebulaSpeed, DEFAULT_CHIMER_SETTINGS.massageLabDeepSpaceNebulaSpeed)
+    assert.equal(settings.massageLabGridBloomColor, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomColor)
+    assert.equal(settings.massageLabGridBloomSpeed, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomSpeed)
+    assert.equal(settings.massageLabGridBloomGridScale, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomGridScale)
+    assert.equal(settings.massageLabGridBloomRotationSpeed, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomRotationSpeed)
+    assert.equal(settings.massageLabGridBloomFadeFalloff, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomFadeFalloff)
+    assert.equal(settings.massageLabGridBloomDistortionAmount, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomDistortionAmount)
+    assert.equal(settings.massageLabGridBloomFlowSpeedX, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomFlowSpeedX)
+    assert.equal(settings.massageLabGridBloomFlowSpeedY, DEFAULT_CHIMER_SETTINGS.massageLabGridBloomFlowSpeedY)
+    assert.equal(settings.massageLabChromeFlowPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowPaletteMode)
+    assert.equal(settings.massageLabChromeFlowPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowPrimaryColor)
+    assert.equal(settings.massageLabChromeFlowHarmony, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowHarmony)
+    assert.equal(settings.massageLabChromeFlowColorOne, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowColorOne)
+    assert.equal(settings.massageLabChromeFlowColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowColorTwo)
+    assert.equal(settings.massageLabChromeFlowFlowSpeed, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowFlowSpeed)
+    assert.equal(settings.massageLabChromeFlowTimeScale, DEFAULT_CHIMER_SETTINGS.massageLabChromeFlowTimeScale)
+    assert.equal(settings.massageLabWaveCurrentPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentPaletteMode)
+    assert.equal(settings.massageLabWaveCurrentPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentPrimaryColor)
+    assert.equal(settings.massageLabWaveCurrentHarmony, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentHarmony)
+    assert.equal(settings.massageLabWaveCurrentBackgroundColor, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentBackgroundColor)
+    assert.equal(settings.massageLabWaveCurrentColorOne, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentColorOne)
+    assert.equal(settings.massageLabWaveCurrentColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentColorTwo)
+    assert.equal(settings.massageLabWaveCurrentColorThree, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentColorThree)
+    assert.equal(settings.massageLabWaveCurrentSpeedX, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentSpeedX)
+    assert.equal(settings.massageLabWaveCurrentSpeedY, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentSpeedY)
+    assert.equal(settings.massageLabWaveCurrentAmplitude, DEFAULT_CHIMER_SETTINGS.massageLabWaveCurrentAmplitude)
+    assert.equal(settings.massageLabSynthesisPaletteMode, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisPaletteMode)
+    assert.equal(settings.massageLabSynthesisPrimaryColor, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisPrimaryColor)
+    assert.equal(settings.massageLabSynthesisHarmony, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisHarmony)
+    assert.equal(settings.massageLabSynthesisColorOne, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisColorOne)
+    assert.equal(settings.massageLabSynthesisColorTwo, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisColorTwo)
+    assert.equal(settings.massageLabSynthesisColorThree, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisColorThree)
+    assert.equal(settings.massageLabSynthesisSpeed, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisSpeed)
+    assert.equal(settings.massageLabSynthesisComplexity, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisComplexity)
+    assert.equal(settings.massageLabSynthesisScale, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisScale)
+    assert.equal(settings.massageLabSynthesisDistortion, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisDistortion)
+    assert.equal(settings.massageLabSynthesisGlowIntensity, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisGlowIntensity)
+    assert.equal(settings.massageLabSynthesisFlowFrequency, DEFAULT_CHIMER_SETTINGS.massageLabSynthesisFlowFrequency)
     assert.equal(settings.backgroundLinesDuration, DEFAULT_CHIMER_SETTINGS.backgroundLinesDuration)
     assert.equal(settings.wavyBackgroundFill, DEFAULT_CHIMER_SETTINGS.wavyBackgroundFill)
     assert.equal(settings.wavyColorOne, DEFAULT_CHIMER_SETTINGS.wavyColorOne)
@@ -3260,6 +3260,28 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.hexGridOpacity, DEFAULT_CHIMER_SETTINGS.hexGridOpacity)
   })
 
+  it("preserves account-level clock and Lamp colors for signed-in Chimer accounts", () => {
+    const settings = sanitizeChimerSettingsForEntitlements({
+      primaryFontColor: "#000000",
+      secondaryFontColor: "#123456",
+      clockModeFontColor: "#654321",
+      clockFontFamily: "serif",
+      clockShadowEnabled: false,
+      movingBackgroundMainColor: "#ABCDEF",
+      movingBackgroundOrbColor: "#FEDCBA",
+      backgroundId: "massage-lab-aurora",
+    }, [], { canUseAccountColorControls: true })
+
+    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+    assert.equal(settings.secondaryFontColor, DEFAULT_CHIMER_SETTINGS.secondaryFontColor)
+    assert.equal(settings.clockFontFamily, DEFAULT_CHIMER_SETTINGS.clockFontFamily)
+    assert.equal(settings.clockShadowEnabled, DEFAULT_CHIMER_SETTINGS.clockShadowEnabled)
+    assert.equal(settings.clockModeFontColor, "#654321")
+    assert.equal(settings.movingBackgroundMainColor, "#ABCDEF")
+    assert.equal(settings.movingBackgroundOrbColor, "#FEDCBA")
+    assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  })
+
   it("preserves premium backgrounds and custom colors for users with both features", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
@@ -3267,89 +3289,89 @@ describe("Chimer entitlement-aware settings", () => {
       clockModeFontColor: "#654321",
       movingBackgroundMainColor: "#ABCDEF",
       movingBackgroundOrbColor: "#FEDCBA",
-      backgroundId: "aceternity-sparkles",
+      backgroundId: "massage-lab-sparkles",
       sparklesParticleColor: "#ABC123",
       sparklesParticleDensity: 180,
       sparklesSpeed: 6,
       gradientAnimationFirstColor: "#112233",
       gradientAnimationSpeed: 2,
-      animateUiGradientPrimaryColor: "#102030",
-      animateUiGradientHarmony: "split-complementary",
-      animateUiGradientOpacity: 0.42,
-      animateUiStarsColor: "#EAF6FF",
-      animateUiStarsSpeed: 72,
-      animateUiStarsDensity: 1.2,
-      animateUiStarsParallax: 0.08,
-      animateUiHoleStrokeColor: "#112233",
-      animateUiHoleParticleColor: "#EAF6FF",
-      animateUiHoleLineCount: 72,
-      animateUiHoleDiscCount: 64,
-      chamaacLightSpeedWarpSpeed: 3.5,
-      chamaacLightSpeedWarpSpeedVersion: 2,
-      chamaacLightSpeedParticleCount: 180,
-      chamaacLightSpeedLightColor: "#33B2FF",
-      chamaacLightSpeedIntensity: 4.5,
-      chamaacLightSpeedRadius: 42,
-      chamaacLightSpeedCylinderLength: 220,
-      chamaacElectricMistColor: "#33B2FF",
-      chamaacElectricMistSpeed: 250,
-      chamaacElectricMistControlVersion: 2,
-      chamaacElectricMistDetail: 2.4,
-      chamaacElectricMistDistortion: 5.5,
-      chamaacElectricMistBrightness: 80,
-      chamaacAstralFlowPaletteMode: "harmony",
-      chamaacAstralFlowPrimaryColor: "#33B2FF",
-      chamaacAstralFlowHarmony: "split-complementary",
-      chamaacAstralFlowColorOne: "#112233",
-      chamaacAstralFlowColorTwo: "#445566",
-      chamaacAstralFlowColorThree: "#778899",
-      chamaacAstralFlowSpeed: 2.1,
-      chamaacAstralFlowFlowMin: 4.2,
-      chamaacAstralFlowFlowMax: 8.4,
-      chamaacDeepSpaceNebulaPaletteMode: "harmony",
-      chamaacDeepSpaceNebulaPrimaryColor: "#763B65",
-      chamaacDeepSpaceNebulaHarmony: "complementary",
-      chamaacDeepSpaceNebulaColorOne: "#5EFFF4",
-      chamaacDeepSpaceNebulaColorTwo: "#763B65",
-      chamaacDeepSpaceNebulaColorThree: "#1A0B2E",
-      chamaacDeepSpaceNebulaSpeed: 3.6,
-      chamaacGridBloomColor: "#E040FB",
-      chamaacGridBloomSpeed: 2.4,
-      chamaacGridBloomGridScale: 18,
-      chamaacGridBloomRotationSpeed: 0.8,
-      chamaacGridBloomFadeFalloff: 14,
-      chamaacGridBloomDistortionAmount: 0.18,
-      chamaacGridBloomFlowSpeedX: -0.6,
-      chamaacGridBloomFlowSpeedY: 0.5,
-      chamaacLiquidChromePaletteMode: "harmony",
-      chamaacLiquidChromePrimaryColor: "#C0C0C0",
-      chamaacLiquidChromeHarmony: "monochromatic",
-      chamaacLiquidChromeColorOne: "#C0C0C0",
-      chamaacLiquidChromeColorTwo: "#4A4A4A",
-      chamaacLiquidChromeFlowSpeed: 1.4,
-      chamaacLiquidChromeTimeScale: 0.4,
-      chamaacWavesPaletteMode: "harmony",
-      chamaacWavesPrimaryColor: "#071697",
-      chamaacWavesHarmony: "triad",
-      chamaacWavesBackgroundColor: "#000000",
-      chamaacWavesColorOne: "#071697",
-      chamaacWavesColorTwo: "#00D4FF",
-      chamaacWavesColorThree: "#000000",
-      chamaacWavesSpeedX: 0.08,
-      chamaacWavesSpeedY: 0.04,
-      chamaacWavesAmplitude: 48,
-      chamaacSynthesisPaletteMode: "harmony",
-      chamaacSynthesisPrimaryColor: "#33B2FF",
-      chamaacSynthesisHarmony: "split-complementary",
-      chamaacSynthesisColorOne: "#112233",
-      chamaacSynthesisColorTwo: "#445566",
-      chamaacSynthesisColorThree: "#778899",
-      chamaacSynthesisSpeed: 1.8,
-      chamaacSynthesisComplexity: 16,
-      chamaacSynthesisScale: 2.4,
-      chamaacSynthesisDistortion: 1.4,
-      chamaacSynthesisGlowIntensity: 1.6,
-      chamaacSynthesisFlowFrequency: 7.5,
+      massageLabGradientPrimaryColor: "#102030",
+      massageLabGradientHarmony: "split-complementary",
+      massageLabGradientOpacity: 0.42,
+      massageLabStarsColor: "#EAF6FF",
+      massageLabStarsSpeed: 72,
+      massageLabStarsDensity: 1.2,
+      massageLabStarsParallax: 0.08,
+      massageLabHoleStrokeColor: "#112233",
+      massageLabHoleParticleColor: "#EAF6FF",
+      massageLabHoleLineCount: 72,
+      massageLabHoleDiscCount: 64,
+      massageLabLightSpeedWarpSpeed: 3.5,
+      massageLabLightSpeedWarpSpeedVersion: 2,
+      massageLabLightSpeedParticleCount: 180,
+      massageLabLightSpeedLightColor: "#33B2FF",
+      massageLabLightSpeedIntensity: 4.5,
+      massageLabLightSpeedRadius: 42,
+      massageLabLightSpeedCylinderLength: 220,
+      massageLabElectricMistColor: "#33B2FF",
+      massageLabElectricMistSpeed: 250,
+      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistDetail: 2.4,
+      massageLabElectricMistDistortion: 5.5,
+      massageLabElectricMistBrightness: 80,
+      massageLabAstralFlowPaletteMode: "harmony",
+      massageLabAstralFlowPrimaryColor: "#33B2FF",
+      massageLabAstralFlowHarmony: "split-complementary",
+      massageLabAstralFlowColorOne: "#112233",
+      massageLabAstralFlowColorTwo: "#445566",
+      massageLabAstralFlowColorThree: "#778899",
+      massageLabAstralFlowSpeed: 2.1,
+      massageLabAstralFlowFlowMin: 4.2,
+      massageLabAstralFlowFlowMax: 8.4,
+      massageLabDeepSpaceNebulaPaletteMode: "harmony",
+      massageLabDeepSpaceNebulaPrimaryColor: "#763B65",
+      massageLabDeepSpaceNebulaHarmony: "complementary",
+      massageLabDeepSpaceNebulaColorOne: "#5EFFF4",
+      massageLabDeepSpaceNebulaColorTwo: "#763B65",
+      massageLabDeepSpaceNebulaColorThree: "#1A0B2E",
+      massageLabDeepSpaceNebulaSpeed: 3.6,
+      massageLabGridBloomColor: "#E040FB",
+      massageLabGridBloomSpeed: 2.4,
+      massageLabGridBloomGridScale: 18,
+      massageLabGridBloomRotationSpeed: 0.8,
+      massageLabGridBloomFadeFalloff: 14,
+      massageLabGridBloomDistortionAmount: 0.18,
+      massageLabGridBloomFlowSpeedX: -0.6,
+      massageLabGridBloomFlowSpeedY: 0.5,
+      massageLabChromeFlowPaletteMode: "harmony",
+      massageLabChromeFlowPrimaryColor: "#C0C0C0",
+      massageLabChromeFlowHarmony: "monochromatic",
+      massageLabChromeFlowColorOne: "#C0C0C0",
+      massageLabChromeFlowColorTwo: "#4A4A4A",
+      massageLabChromeFlowFlowSpeed: 1.4,
+      massageLabChromeFlowTimeScale: 0.4,
+      massageLabWaveCurrentPaletteMode: "harmony",
+      massageLabWaveCurrentPrimaryColor: "#071697",
+      massageLabWaveCurrentHarmony: "triad",
+      massageLabWaveCurrentBackgroundColor: "#000000",
+      massageLabWaveCurrentColorOne: "#071697",
+      massageLabWaveCurrentColorTwo: "#00D4FF",
+      massageLabWaveCurrentColorThree: "#000000",
+      massageLabWaveCurrentSpeedX: 0.08,
+      massageLabWaveCurrentSpeedY: 0.04,
+      massageLabWaveCurrentAmplitude: 48,
+      massageLabSynthesisPaletteMode: "harmony",
+      massageLabSynthesisPrimaryColor: "#33B2FF",
+      massageLabSynthesisHarmony: "split-complementary",
+      massageLabSynthesisColorOne: "#112233",
+      massageLabSynthesisColorTwo: "#445566",
+      massageLabSynthesisColorThree: "#778899",
+      massageLabSynthesisSpeed: 1.8,
+      massageLabSynthesisComplexity: 16,
+      massageLabSynthesisScale: 2.4,
+      massageLabSynthesisDistortion: 1.4,
+      massageLabSynthesisGlowIntensity: 1.6,
+      massageLabSynthesisFlowFrequency: 7.5,
       backgroundLinesDuration: 16,
       wavyBackgroundFill: "#111111",
       wavyColorOne: "#ABC123",
@@ -3442,88 +3464,88 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.clockModeFontColor, "#654321")
     assert.equal(settings.movingBackgroundMainColor, "#ABCDEF")
     assert.equal(settings.movingBackgroundOrbColor, "#FEDCBA")
-    assert.equal(settings.backgroundId, "aceternity-sparkles")
+    assert.equal(settings.backgroundId, "massage-lab-sparkles")
     assert.equal(settings.sparklesParticleColor, "#ABC123")
     assert.equal(settings.sparklesParticleDensity, 180)
     assert.equal(settings.sparklesSpeed, 6)
     assert.equal(settings.gradientAnimationFirstColor, "#112233")
     assert.equal(settings.gradientAnimationSpeed, 2)
-    assert.equal(settings.animateUiGradientPrimaryColor, "#102030")
-    assert.equal(settings.animateUiGradientHarmony, "split-complementary")
-    assert.equal(settings.animateUiGradientOpacity, 0.42)
-    assert.equal(settings.animateUiStarsColor, "#EAF6FF")
-    assert.equal(settings.animateUiStarsSpeed, 72)
-    assert.equal(settings.animateUiStarsDensity, 1.2)
-    assert.equal(settings.animateUiStarsParallax, 0.08)
-    assert.equal(settings.animateUiHoleStrokeColor, "#112233")
-    assert.equal(settings.animateUiHoleParticleColor, "#EAF6FF")
-    assert.equal(settings.animateUiHoleLineCount, 72)
-    assert.equal(settings.animateUiHoleDiscCount, 64)
-    assert.equal(settings.chamaacLightSpeedWarpSpeed, 3.5)
-    assert.equal(settings.chamaacLightSpeedParticleCount, 180)
-    assert.equal(settings.chamaacLightSpeedLightColor, "#33B2FF")
-    assert.equal(settings.chamaacLightSpeedIntensity, 4.5)
-    assert.equal(settings.chamaacLightSpeedRadius, 42)
-    assert.equal(settings.chamaacLightSpeedCylinderLength, 220)
-    assert.equal(settings.chamaacElectricMistColor, "#33B2FF")
-    assert.equal(settings.chamaacElectricMistSpeed, 250)
-    assert.equal(settings.chamaacElectricMistControlVersion, 2)
-    assert.equal(settings.chamaacElectricMistDetail, 2.4)
-    assert.equal(settings.chamaacElectricMistDistortion, 5.5)
-    assert.equal(settings.chamaacElectricMistBrightness, 80)
-    assert.equal(settings.chamaacAstralFlowPaletteMode, "harmony")
-    assert.equal(settings.chamaacAstralFlowPrimaryColor, "#33B2FF")
-    assert.equal(settings.chamaacAstralFlowHarmony, "split-complementary")
-    assert.equal(settings.chamaacAstralFlowColorOne, "#112233")
-    assert.equal(settings.chamaacAstralFlowColorTwo, "#445566")
-    assert.equal(settings.chamaacAstralFlowColorThree, "#778899")
-    assert.equal(settings.chamaacAstralFlowSpeed, 2.1)
-    assert.equal(settings.chamaacAstralFlowFlowMin, 4.2)
-    assert.equal(settings.chamaacAstralFlowFlowMax, 8.4)
-    assert.equal(settings.chamaacDeepSpaceNebulaPaletteMode, "harmony")
-    assert.equal(settings.chamaacDeepSpaceNebulaPrimaryColor, "#763B65")
-    assert.equal(settings.chamaacDeepSpaceNebulaHarmony, "complementary")
-    assert.equal(settings.chamaacDeepSpaceNebulaColorOne, "#5EFFF4")
-    assert.equal(settings.chamaacDeepSpaceNebulaColorTwo, "#763B65")
-    assert.equal(settings.chamaacDeepSpaceNebulaColorThree, "#1A0B2E")
-    assert.equal(settings.chamaacDeepSpaceNebulaSpeed, 3.6)
-    assert.equal(settings.chamaacGridBloomColor, "#E040FB")
-    assert.equal(settings.chamaacGridBloomSpeed, 2.4)
-    assert.equal(settings.chamaacGridBloomGridScale, 18)
-    assert.equal(settings.chamaacGridBloomRotationSpeed, 0.8)
-    assert.equal(settings.chamaacGridBloomFadeFalloff, 14)
-    assert.equal(settings.chamaacGridBloomDistortionAmount, 0.18)
-    assert.equal(settings.chamaacGridBloomFlowSpeedX, -0.6)
-    assert.equal(settings.chamaacGridBloomFlowSpeedY, 0.5)
-    assert.equal(settings.chamaacLiquidChromePaletteMode, "harmony")
-    assert.equal(settings.chamaacLiquidChromePrimaryColor, "#C0C0C0")
-    assert.equal(settings.chamaacLiquidChromeHarmony, "monochromatic")
-    assert.equal(settings.chamaacLiquidChromeColorOne, "#C0C0C0")
-    assert.equal(settings.chamaacLiquidChromeColorTwo, "#4A4A4A")
-    assert.equal(settings.chamaacLiquidChromeFlowSpeed, 1.4)
-    assert.equal(settings.chamaacLiquidChromeTimeScale, 0.4)
-    assert.equal(settings.chamaacWavesPaletteMode, "harmony")
-    assert.equal(settings.chamaacWavesPrimaryColor, "#071697")
-    assert.equal(settings.chamaacWavesHarmony, "triad")
-    assert.equal(settings.chamaacWavesBackgroundColor, "#000000")
-    assert.equal(settings.chamaacWavesColorOne, "#071697")
-    assert.equal(settings.chamaacWavesColorTwo, "#00D4FF")
-    assert.equal(settings.chamaacWavesColorThree, "#000000")
-    assert.equal(settings.chamaacWavesSpeedX, 0.08)
-    assert.equal(settings.chamaacWavesSpeedY, 0.04)
-    assert.equal(settings.chamaacWavesAmplitude, 48)
-    assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
-    assert.equal(settings.chamaacSynthesisPrimaryColor, "#33B2FF")
-    assert.equal(settings.chamaacSynthesisHarmony, "split-complementary")
-    assert.equal(settings.chamaacSynthesisColorOne, "#112233")
-    assert.equal(settings.chamaacSynthesisColorTwo, "#445566")
-    assert.equal(settings.chamaacSynthesisColorThree, "#778899")
-    assert.equal(settings.chamaacSynthesisSpeed, 1.8)
-    assert.equal(settings.chamaacSynthesisComplexity, 16)
-    assert.equal(settings.chamaacSynthesisScale, 2.4)
-    assert.equal(settings.chamaacSynthesisDistortion, 1.4)
-    assert.equal(settings.chamaacSynthesisGlowIntensity, 1.6)
-    assert.equal(settings.chamaacSynthesisFlowFrequency, 7.5)
+    assert.equal(settings.massageLabGradientPrimaryColor, "#102030")
+    assert.equal(settings.massageLabGradientHarmony, "split-complementary")
+    assert.equal(settings.massageLabGradientOpacity, 0.42)
+    assert.equal(settings.massageLabStarsColor, "#EAF6FF")
+    assert.equal(settings.massageLabStarsSpeed, 72)
+    assert.equal(settings.massageLabStarsDensity, 1.2)
+    assert.equal(settings.massageLabStarsParallax, 0.08)
+    assert.equal(settings.massageLabHoleStrokeColor, "#112233")
+    assert.equal(settings.massageLabHoleParticleColor, "#EAF6FF")
+    assert.equal(settings.massageLabHoleLineCount, 72)
+    assert.equal(settings.massageLabHoleDiscCount, 64)
+    assert.equal(settings.massageLabLightSpeedWarpSpeed, 3.5)
+    assert.equal(settings.massageLabLightSpeedParticleCount, 180)
+    assert.equal(settings.massageLabLightSpeedLightColor, "#33B2FF")
+    assert.equal(settings.massageLabLightSpeedIntensity, 4.5)
+    assert.equal(settings.massageLabLightSpeedRadius, 42)
+    assert.equal(settings.massageLabLightSpeedCylinderLength, 220)
+    assert.equal(settings.massageLabElectricMistColor, "#33B2FF")
+    assert.equal(settings.massageLabElectricMistSpeed, 250)
+    assert.equal(settings.massageLabElectricMistControlVersion, 2)
+    assert.equal(settings.massageLabElectricMistDetail, 2.4)
+    assert.equal(settings.massageLabElectricMistDistortion, 5.5)
+    assert.equal(settings.massageLabElectricMistBrightness, 80)
+    assert.equal(settings.massageLabAstralFlowPaletteMode, "harmony")
+    assert.equal(settings.massageLabAstralFlowPrimaryColor, "#33B2FF")
+    assert.equal(settings.massageLabAstralFlowHarmony, "split-complementary")
+    assert.equal(settings.massageLabAstralFlowColorOne, "#112233")
+    assert.equal(settings.massageLabAstralFlowColorTwo, "#445566")
+    assert.equal(settings.massageLabAstralFlowColorThree, "#778899")
+    assert.equal(settings.massageLabAstralFlowSpeed, 2.1)
+    assert.equal(settings.massageLabAstralFlowFlowMin, 4.2)
+    assert.equal(settings.massageLabAstralFlowFlowMax, 8.4)
+    assert.equal(settings.massageLabDeepSpaceNebulaPaletteMode, "harmony")
+    assert.equal(settings.massageLabDeepSpaceNebulaPrimaryColor, "#763B65")
+    assert.equal(settings.massageLabDeepSpaceNebulaHarmony, "complementary")
+    assert.equal(settings.massageLabDeepSpaceNebulaColorOne, "#5EFFF4")
+    assert.equal(settings.massageLabDeepSpaceNebulaColorTwo, "#763B65")
+    assert.equal(settings.massageLabDeepSpaceNebulaColorThree, "#1A0B2E")
+    assert.equal(settings.massageLabDeepSpaceNebulaSpeed, 3.6)
+    assert.equal(settings.massageLabGridBloomColor, "#E040FB")
+    assert.equal(settings.massageLabGridBloomSpeed, 2.4)
+    assert.equal(settings.massageLabGridBloomGridScale, 18)
+    assert.equal(settings.massageLabGridBloomRotationSpeed, 0.8)
+    assert.equal(settings.massageLabGridBloomFadeFalloff, 14)
+    assert.equal(settings.massageLabGridBloomDistortionAmount, 0.18)
+    assert.equal(settings.massageLabGridBloomFlowSpeedX, -0.6)
+    assert.equal(settings.massageLabGridBloomFlowSpeedY, 0.5)
+    assert.equal(settings.massageLabChromeFlowPaletteMode, "harmony")
+    assert.equal(settings.massageLabChromeFlowPrimaryColor, "#C0C0C0")
+    assert.equal(settings.massageLabChromeFlowHarmony, "monochromatic")
+    assert.equal(settings.massageLabChromeFlowColorOne, "#C0C0C0")
+    assert.equal(settings.massageLabChromeFlowColorTwo, "#4A4A4A")
+    assert.equal(settings.massageLabChromeFlowFlowSpeed, 1.4)
+    assert.equal(settings.massageLabChromeFlowTimeScale, 0.4)
+    assert.equal(settings.massageLabWaveCurrentPaletteMode, "harmony")
+    assert.equal(settings.massageLabWaveCurrentPrimaryColor, "#071697")
+    assert.equal(settings.massageLabWaveCurrentHarmony, "triad")
+    assert.equal(settings.massageLabWaveCurrentBackgroundColor, "#000000")
+    assert.equal(settings.massageLabWaveCurrentColorOne, "#071697")
+    assert.equal(settings.massageLabWaveCurrentColorTwo, "#00D4FF")
+    assert.equal(settings.massageLabWaveCurrentColorThree, "#000000")
+    assert.equal(settings.massageLabWaveCurrentSpeedX, 0.08)
+    assert.equal(settings.massageLabWaveCurrentSpeedY, 0.04)
+    assert.equal(settings.massageLabWaveCurrentAmplitude, 48)
+    assert.equal(settings.massageLabSynthesisPaletteMode, "harmony")
+    assert.equal(settings.massageLabSynthesisPrimaryColor, "#33B2FF")
+    assert.equal(settings.massageLabSynthesisHarmony, "split-complementary")
+    assert.equal(settings.massageLabSynthesisColorOne, "#112233")
+    assert.equal(settings.massageLabSynthesisColorTwo, "#445566")
+    assert.equal(settings.massageLabSynthesisColorThree, "#778899")
+    assert.equal(settings.massageLabSynthesisSpeed, 1.8)
+    assert.equal(settings.massageLabSynthesisComplexity, 16)
+    assert.equal(settings.massageLabSynthesisScale, 2.4)
+    assert.equal(settings.massageLabSynthesisDistortion, 1.4)
+    assert.equal(settings.massageLabSynthesisGlowIntensity, 1.6)
+    assert.equal(settings.massageLabSynthesisFlowFrequency, 7.5)
     assert.equal(settings.backgroundLinesDuration, 16)
     assert.equal(settings.wavyBackgroundFill, "#111111")
     assert.equal(settings.wavyColorOne, "#ABC123")
@@ -3614,88 +3636,88 @@ describe("Chimer entitlement-aware settings", () => {
   it("allows premium background controls without unlocking custom Chimer display colors", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",
-      backgroundId: "aceternity-gradient-animation",
+      backgroundId: "massage-lab-gradient-animation",
       sparklesParticleColor: "#ABC123",
       sparklesParticleDensity: 180,
       gradientAnimationSecondColor: "#224466",
       gradientAnimationSize: 100,
-      animateUiGradientPrimaryColor: "#102030",
-      animateUiGradientHarmony: "split-complementary",
-      animateUiGradientOpacity: 0.42,
-      animateUiStarsColor: "#EAF6FF",
-      animateUiStarsSpeed: 72,
-      animateUiStarsDensity: 1.2,
-      animateUiStarsParallax: 0.08,
-      animateUiHoleStrokeColor: "#112233",
-      animateUiHoleParticleColor: "#EAF6FF",
-      animateUiHoleLineCount: 72,
-      animateUiHoleDiscCount: 64,
-      chamaacLightSpeedWarpSpeed: 3.5,
-      chamaacLightSpeedWarpSpeedVersion: 2,
-      chamaacLightSpeedParticleCount: 180,
-      chamaacLightSpeedLightColor: "#33B2FF",
-      chamaacLightSpeedIntensity: 4.5,
-      chamaacLightSpeedRadius: 42,
-      chamaacLightSpeedCylinderLength: 220,
-      chamaacElectricMistColor: "#33B2FF",
-      chamaacElectricMistSpeed: 250,
-      chamaacElectricMistControlVersion: 2,
-      chamaacElectricMistDetail: 2.4,
-      chamaacElectricMistDistortion: 5.5,
-      chamaacElectricMistBrightness: 80,
-      chamaacAstralFlowPaletteMode: "harmony",
-      chamaacAstralFlowPrimaryColor: "#33B2FF",
-      chamaacAstralFlowHarmony: "split-complementary",
-      chamaacAstralFlowColorOne: "#112233",
-      chamaacAstralFlowColorTwo: "#445566",
-      chamaacAstralFlowColorThree: "#778899",
-      chamaacAstralFlowSpeed: 2.1,
-      chamaacAstralFlowFlowMin: 4.2,
-      chamaacAstralFlowFlowMax: 8.4,
-      chamaacDeepSpaceNebulaPaletteMode: "harmony",
-      chamaacDeepSpaceNebulaPrimaryColor: "#763B65",
-      chamaacDeepSpaceNebulaHarmony: "complementary",
-      chamaacDeepSpaceNebulaColorOne: "#5EFFF4",
-      chamaacDeepSpaceNebulaColorTwo: "#763B65",
-      chamaacDeepSpaceNebulaColorThree: "#1A0B2E",
-      chamaacDeepSpaceNebulaSpeed: 3.6,
-      chamaacGridBloomColor: "#E040FB",
-      chamaacGridBloomSpeed: 2.4,
-      chamaacGridBloomGridScale: 18,
-      chamaacGridBloomRotationSpeed: 0.8,
-      chamaacGridBloomFadeFalloff: 14,
-      chamaacGridBloomDistortionAmount: 0.18,
-      chamaacGridBloomFlowSpeedX: -0.6,
-      chamaacGridBloomFlowSpeedY: 0.5,
-      chamaacLiquidChromePaletteMode: "harmony",
-      chamaacLiquidChromePrimaryColor: "#C0C0C0",
-      chamaacLiquidChromeHarmony: "monochromatic",
-      chamaacLiquidChromeColorOne: "#C0C0C0",
-      chamaacLiquidChromeColorTwo: "#4A4A4A",
-      chamaacLiquidChromeFlowSpeed: 1.4,
-      chamaacLiquidChromeTimeScale: 0.4,
-      chamaacWavesPaletteMode: "harmony",
-      chamaacWavesPrimaryColor: "#071697",
-      chamaacWavesHarmony: "triad",
-      chamaacWavesBackgroundColor: "#000000",
-      chamaacWavesColorOne: "#071697",
-      chamaacWavesColorTwo: "#00D4FF",
-      chamaacWavesColorThree: "#000000",
-      chamaacWavesSpeedX: 0.08,
-      chamaacWavesSpeedY: 0.04,
-      chamaacWavesAmplitude: 48,
-      chamaacSynthesisPaletteMode: "harmony",
-      chamaacSynthesisPrimaryColor: "#33B2FF",
-      chamaacSynthesisHarmony: "split-complementary",
-      chamaacSynthesisColorOne: "#112233",
-      chamaacSynthesisColorTwo: "#445566",
-      chamaacSynthesisColorThree: "#778899",
-      chamaacSynthesisSpeed: 1.8,
-      chamaacSynthesisComplexity: 16,
-      chamaacSynthesisScale: 2.4,
-      chamaacSynthesisDistortion: 1.4,
-      chamaacSynthesisGlowIntensity: 1.6,
-      chamaacSynthesisFlowFrequency: 7.5,
+      massageLabGradientPrimaryColor: "#102030",
+      massageLabGradientHarmony: "split-complementary",
+      massageLabGradientOpacity: 0.42,
+      massageLabStarsColor: "#EAF6FF",
+      massageLabStarsSpeed: 72,
+      massageLabStarsDensity: 1.2,
+      massageLabStarsParallax: 0.08,
+      massageLabHoleStrokeColor: "#112233",
+      massageLabHoleParticleColor: "#EAF6FF",
+      massageLabHoleLineCount: 72,
+      massageLabHoleDiscCount: 64,
+      massageLabLightSpeedWarpSpeed: 3.5,
+      massageLabLightSpeedWarpSpeedVersion: 2,
+      massageLabLightSpeedParticleCount: 180,
+      massageLabLightSpeedLightColor: "#33B2FF",
+      massageLabLightSpeedIntensity: 4.5,
+      massageLabLightSpeedRadius: 42,
+      massageLabLightSpeedCylinderLength: 220,
+      massageLabElectricMistColor: "#33B2FF",
+      massageLabElectricMistSpeed: 250,
+      massageLabElectricMistControlVersion: 2,
+      massageLabElectricMistDetail: 2.4,
+      massageLabElectricMistDistortion: 5.5,
+      massageLabElectricMistBrightness: 80,
+      massageLabAstralFlowPaletteMode: "harmony",
+      massageLabAstralFlowPrimaryColor: "#33B2FF",
+      massageLabAstralFlowHarmony: "split-complementary",
+      massageLabAstralFlowColorOne: "#112233",
+      massageLabAstralFlowColorTwo: "#445566",
+      massageLabAstralFlowColorThree: "#778899",
+      massageLabAstralFlowSpeed: 2.1,
+      massageLabAstralFlowFlowMin: 4.2,
+      massageLabAstralFlowFlowMax: 8.4,
+      massageLabDeepSpaceNebulaPaletteMode: "harmony",
+      massageLabDeepSpaceNebulaPrimaryColor: "#763B65",
+      massageLabDeepSpaceNebulaHarmony: "complementary",
+      massageLabDeepSpaceNebulaColorOne: "#5EFFF4",
+      massageLabDeepSpaceNebulaColorTwo: "#763B65",
+      massageLabDeepSpaceNebulaColorThree: "#1A0B2E",
+      massageLabDeepSpaceNebulaSpeed: 3.6,
+      massageLabGridBloomColor: "#E040FB",
+      massageLabGridBloomSpeed: 2.4,
+      massageLabGridBloomGridScale: 18,
+      massageLabGridBloomRotationSpeed: 0.8,
+      massageLabGridBloomFadeFalloff: 14,
+      massageLabGridBloomDistortionAmount: 0.18,
+      massageLabGridBloomFlowSpeedX: -0.6,
+      massageLabGridBloomFlowSpeedY: 0.5,
+      massageLabChromeFlowPaletteMode: "harmony",
+      massageLabChromeFlowPrimaryColor: "#C0C0C0",
+      massageLabChromeFlowHarmony: "monochromatic",
+      massageLabChromeFlowColorOne: "#C0C0C0",
+      massageLabChromeFlowColorTwo: "#4A4A4A",
+      massageLabChromeFlowFlowSpeed: 1.4,
+      massageLabChromeFlowTimeScale: 0.4,
+      massageLabWaveCurrentPaletteMode: "harmony",
+      massageLabWaveCurrentPrimaryColor: "#071697",
+      massageLabWaveCurrentHarmony: "triad",
+      massageLabWaveCurrentBackgroundColor: "#000000",
+      massageLabWaveCurrentColorOne: "#071697",
+      massageLabWaveCurrentColorTwo: "#00D4FF",
+      massageLabWaveCurrentColorThree: "#000000",
+      massageLabWaveCurrentSpeedX: 0.08,
+      massageLabWaveCurrentSpeedY: 0.04,
+      massageLabWaveCurrentAmplitude: 48,
+      massageLabSynthesisPaletteMode: "harmony",
+      massageLabSynthesisPrimaryColor: "#33B2FF",
+      massageLabSynthesisHarmony: "split-complementary",
+      massageLabSynthesisColorOne: "#112233",
+      massageLabSynthesisColorTwo: "#445566",
+      massageLabSynthesisColorThree: "#778899",
+      massageLabSynthesisSpeed: 1.8,
+      massageLabSynthesisComplexity: 16,
+      massageLabSynthesisScale: 2.4,
+      massageLabSynthesisDistortion: 1.4,
+      massageLabSynthesisGlowIntensity: 1.6,
+      massageLabSynthesisFlowFrequency: 7.5,
       backgroundLinesDuration: 16,
       wavyBackgroundFill: "#111111",
       wavyColorTwo: "#ABC123",
@@ -3753,87 +3775,87 @@ describe("Chimer entitlement-aware settings", () => {
     }, [FEATURE_KEYS.premiumBackgrounds])
 
     assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
-    assert.equal(settings.backgroundId, "aceternity-gradient-animation")
+    assert.equal(settings.backgroundId, "massage-lab-gradient-animation")
     assert.equal(settings.sparklesParticleColor, "#ABC123")
     assert.equal(settings.sparklesParticleDensity, 180)
     assert.equal(settings.gradientAnimationSecondColor, "#224466")
     assert.equal(settings.gradientAnimationSize, 100)
-    assert.equal(settings.animateUiGradientPrimaryColor, "#102030")
-    assert.equal(settings.animateUiGradientHarmony, "split-complementary")
-    assert.equal(settings.animateUiGradientOpacity, 0.42)
-    assert.equal(settings.animateUiStarsColor, "#EAF6FF")
-    assert.equal(settings.animateUiStarsSpeed, 72)
-    assert.equal(settings.animateUiStarsDensity, 1.2)
-    assert.equal(settings.animateUiStarsParallax, 0.08)
-    assert.equal(settings.animateUiHoleStrokeColor, "#112233")
-    assert.equal(settings.animateUiHoleParticleColor, "#EAF6FF")
-    assert.equal(settings.animateUiHoleLineCount, 72)
-    assert.equal(settings.animateUiHoleDiscCount, 64)
-    assert.equal(settings.chamaacLightSpeedWarpSpeed, 3.5)
-    assert.equal(settings.chamaacLightSpeedParticleCount, 180)
-    assert.equal(settings.chamaacLightSpeedLightColor, "#33B2FF")
-    assert.equal(settings.chamaacLightSpeedIntensity, 4.5)
-    assert.equal(settings.chamaacLightSpeedRadius, 42)
-    assert.equal(settings.chamaacLightSpeedCylinderLength, 220)
-    assert.equal(settings.chamaacElectricMistColor, "#33B2FF")
-    assert.equal(settings.chamaacElectricMistSpeed, 250)
-    assert.equal(settings.chamaacElectricMistControlVersion, 2)
-    assert.equal(settings.chamaacElectricMistDetail, 2.4)
-    assert.equal(settings.chamaacElectricMistDistortion, 5.5)
-    assert.equal(settings.chamaacElectricMistBrightness, 80)
-    assert.equal(settings.chamaacAstralFlowPaletteMode, "harmony")
-    assert.equal(settings.chamaacAstralFlowPrimaryColor, "#33B2FF")
-    assert.equal(settings.chamaacAstralFlowHarmony, "split-complementary")
-    assert.equal(settings.chamaacAstralFlowColorOne, "#112233")
-    assert.equal(settings.chamaacAstralFlowColorTwo, "#445566")
-    assert.equal(settings.chamaacAstralFlowColorThree, "#778899")
-    assert.equal(settings.chamaacAstralFlowSpeed, 2.1)
-    assert.equal(settings.chamaacAstralFlowFlowMin, 4.2)
-    assert.equal(settings.chamaacAstralFlowFlowMax, 8.4)
-    assert.equal(settings.chamaacDeepSpaceNebulaPaletteMode, "harmony")
-    assert.equal(settings.chamaacDeepSpaceNebulaPrimaryColor, "#763B65")
-    assert.equal(settings.chamaacDeepSpaceNebulaHarmony, "complementary")
-    assert.equal(settings.chamaacDeepSpaceNebulaColorOne, "#5EFFF4")
-    assert.equal(settings.chamaacDeepSpaceNebulaColorTwo, "#763B65")
-    assert.equal(settings.chamaacDeepSpaceNebulaColorThree, "#1A0B2E")
-    assert.equal(settings.chamaacDeepSpaceNebulaSpeed, 3.6)
-    assert.equal(settings.chamaacGridBloomColor, "#E040FB")
-    assert.equal(settings.chamaacGridBloomSpeed, 2.4)
-    assert.equal(settings.chamaacGridBloomGridScale, 18)
-    assert.equal(settings.chamaacGridBloomRotationSpeed, 0.8)
-    assert.equal(settings.chamaacGridBloomFadeFalloff, 14)
-    assert.equal(settings.chamaacGridBloomDistortionAmount, 0.18)
-    assert.equal(settings.chamaacGridBloomFlowSpeedX, -0.6)
-    assert.equal(settings.chamaacGridBloomFlowSpeedY, 0.5)
-    assert.equal(settings.chamaacLiquidChromePaletteMode, "harmony")
-    assert.equal(settings.chamaacLiquidChromePrimaryColor, "#C0C0C0")
-    assert.equal(settings.chamaacLiquidChromeHarmony, "monochromatic")
-    assert.equal(settings.chamaacLiquidChromeColorOne, "#C0C0C0")
-    assert.equal(settings.chamaacLiquidChromeColorTwo, "#4A4A4A")
-    assert.equal(settings.chamaacLiquidChromeFlowSpeed, 1.4)
-    assert.equal(settings.chamaacLiquidChromeTimeScale, 0.4)
-    assert.equal(settings.chamaacWavesPaletteMode, "harmony")
-    assert.equal(settings.chamaacWavesPrimaryColor, "#071697")
-    assert.equal(settings.chamaacWavesHarmony, "triad")
-    assert.equal(settings.chamaacWavesBackgroundColor, "#000000")
-    assert.equal(settings.chamaacWavesColorOne, "#071697")
-    assert.equal(settings.chamaacWavesColorTwo, "#00D4FF")
-    assert.equal(settings.chamaacWavesColorThree, "#000000")
-    assert.equal(settings.chamaacWavesSpeedX, 0.08)
-    assert.equal(settings.chamaacWavesSpeedY, 0.04)
-    assert.equal(settings.chamaacWavesAmplitude, 48)
-    assert.equal(settings.chamaacSynthesisPaletteMode, "harmony")
-    assert.equal(settings.chamaacSynthesisPrimaryColor, "#33B2FF")
-    assert.equal(settings.chamaacSynthesisHarmony, "split-complementary")
-    assert.equal(settings.chamaacSynthesisColorOne, "#112233")
-    assert.equal(settings.chamaacSynthesisColorTwo, "#445566")
-    assert.equal(settings.chamaacSynthesisColorThree, "#778899")
-    assert.equal(settings.chamaacSynthesisSpeed, 1.8)
-    assert.equal(settings.chamaacSynthesisComplexity, 16)
-    assert.equal(settings.chamaacSynthesisScale, 2.4)
-    assert.equal(settings.chamaacSynthesisDistortion, 1.4)
-    assert.equal(settings.chamaacSynthesisGlowIntensity, 1.6)
-    assert.equal(settings.chamaacSynthesisFlowFrequency, 7.5)
+    assert.equal(settings.massageLabGradientPrimaryColor, "#102030")
+    assert.equal(settings.massageLabGradientHarmony, "split-complementary")
+    assert.equal(settings.massageLabGradientOpacity, 0.42)
+    assert.equal(settings.massageLabStarsColor, "#EAF6FF")
+    assert.equal(settings.massageLabStarsSpeed, 72)
+    assert.equal(settings.massageLabStarsDensity, 1.2)
+    assert.equal(settings.massageLabStarsParallax, 0.08)
+    assert.equal(settings.massageLabHoleStrokeColor, "#112233")
+    assert.equal(settings.massageLabHoleParticleColor, "#EAF6FF")
+    assert.equal(settings.massageLabHoleLineCount, 72)
+    assert.equal(settings.massageLabHoleDiscCount, 64)
+    assert.equal(settings.massageLabLightSpeedWarpSpeed, 3.5)
+    assert.equal(settings.massageLabLightSpeedParticleCount, 180)
+    assert.equal(settings.massageLabLightSpeedLightColor, "#33B2FF")
+    assert.equal(settings.massageLabLightSpeedIntensity, 4.5)
+    assert.equal(settings.massageLabLightSpeedRadius, 42)
+    assert.equal(settings.massageLabLightSpeedCylinderLength, 220)
+    assert.equal(settings.massageLabElectricMistColor, "#33B2FF")
+    assert.equal(settings.massageLabElectricMistSpeed, 250)
+    assert.equal(settings.massageLabElectricMistControlVersion, 2)
+    assert.equal(settings.massageLabElectricMistDetail, 2.4)
+    assert.equal(settings.massageLabElectricMistDistortion, 5.5)
+    assert.equal(settings.massageLabElectricMistBrightness, 80)
+    assert.equal(settings.massageLabAstralFlowPaletteMode, "harmony")
+    assert.equal(settings.massageLabAstralFlowPrimaryColor, "#33B2FF")
+    assert.equal(settings.massageLabAstralFlowHarmony, "split-complementary")
+    assert.equal(settings.massageLabAstralFlowColorOne, "#112233")
+    assert.equal(settings.massageLabAstralFlowColorTwo, "#445566")
+    assert.equal(settings.massageLabAstralFlowColorThree, "#778899")
+    assert.equal(settings.massageLabAstralFlowSpeed, 2.1)
+    assert.equal(settings.massageLabAstralFlowFlowMin, 4.2)
+    assert.equal(settings.massageLabAstralFlowFlowMax, 8.4)
+    assert.equal(settings.massageLabDeepSpaceNebulaPaletteMode, "harmony")
+    assert.equal(settings.massageLabDeepSpaceNebulaPrimaryColor, "#763B65")
+    assert.equal(settings.massageLabDeepSpaceNebulaHarmony, "complementary")
+    assert.equal(settings.massageLabDeepSpaceNebulaColorOne, "#5EFFF4")
+    assert.equal(settings.massageLabDeepSpaceNebulaColorTwo, "#763B65")
+    assert.equal(settings.massageLabDeepSpaceNebulaColorThree, "#1A0B2E")
+    assert.equal(settings.massageLabDeepSpaceNebulaSpeed, 3.6)
+    assert.equal(settings.massageLabGridBloomColor, "#E040FB")
+    assert.equal(settings.massageLabGridBloomSpeed, 2.4)
+    assert.equal(settings.massageLabGridBloomGridScale, 18)
+    assert.equal(settings.massageLabGridBloomRotationSpeed, 0.8)
+    assert.equal(settings.massageLabGridBloomFadeFalloff, 14)
+    assert.equal(settings.massageLabGridBloomDistortionAmount, 0.18)
+    assert.equal(settings.massageLabGridBloomFlowSpeedX, -0.6)
+    assert.equal(settings.massageLabGridBloomFlowSpeedY, 0.5)
+    assert.equal(settings.massageLabChromeFlowPaletteMode, "harmony")
+    assert.equal(settings.massageLabChromeFlowPrimaryColor, "#C0C0C0")
+    assert.equal(settings.massageLabChromeFlowHarmony, "monochromatic")
+    assert.equal(settings.massageLabChromeFlowColorOne, "#C0C0C0")
+    assert.equal(settings.massageLabChromeFlowColorTwo, "#4A4A4A")
+    assert.equal(settings.massageLabChromeFlowFlowSpeed, 1.4)
+    assert.equal(settings.massageLabChromeFlowTimeScale, 0.4)
+    assert.equal(settings.massageLabWaveCurrentPaletteMode, "harmony")
+    assert.equal(settings.massageLabWaveCurrentPrimaryColor, "#071697")
+    assert.equal(settings.massageLabWaveCurrentHarmony, "triad")
+    assert.equal(settings.massageLabWaveCurrentBackgroundColor, "#000000")
+    assert.equal(settings.massageLabWaveCurrentColorOne, "#071697")
+    assert.equal(settings.massageLabWaveCurrentColorTwo, "#00D4FF")
+    assert.equal(settings.massageLabWaveCurrentColorThree, "#000000")
+    assert.equal(settings.massageLabWaveCurrentSpeedX, 0.08)
+    assert.equal(settings.massageLabWaveCurrentSpeedY, 0.04)
+    assert.equal(settings.massageLabWaveCurrentAmplitude, 48)
+    assert.equal(settings.massageLabSynthesisPaletteMode, "harmony")
+    assert.equal(settings.massageLabSynthesisPrimaryColor, "#33B2FF")
+    assert.equal(settings.massageLabSynthesisHarmony, "split-complementary")
+    assert.equal(settings.massageLabSynthesisColorOne, "#112233")
+    assert.equal(settings.massageLabSynthesisColorTwo, "#445566")
+    assert.equal(settings.massageLabSynthesisColorThree, "#778899")
+    assert.equal(settings.massageLabSynthesisSpeed, 1.8)
+    assert.equal(settings.massageLabSynthesisComplexity, 16)
+    assert.equal(settings.massageLabSynthesisScale, 2.4)
+    assert.equal(settings.massageLabSynthesisDistortion, 1.4)
+    assert.equal(settings.massageLabSynthesisGlowIntensity, 1.6)
+    assert.equal(settings.massageLabSynthesisFlowFrequency, 7.5)
     assert.equal(settings.backgroundLinesDuration, 16)
     assert.equal(settings.wavyBackgroundFill, "#111111")
     assert.equal(settings.wavyColorTwo, "#ABC123")
@@ -3895,12 +3917,12 @@ describe("Chimer entitlement-aware settings", () => {
       primaryFontColor: "#000000",
       movingBackgroundMainColor: "#ABCDEF",
       movingBackgroundOrbColor: "#FEDCBA",
-      backgroundId: "aceternity-aurora",
+      backgroundId: "massage-lab-aurora",
     }, [FEATURE_KEYS.chimerCustomColors])
 
     assert.equal(settings.primaryFontColor, "#000000")
     assert.equal(settings.movingBackgroundMainColor, "#ABCDEF")
     assert.equal(settings.movingBackgroundOrbColor, "#FEDCBA")
-    assert.equal(settings.backgroundId, "aceternity-aurora")
+    assert.equal(settings.backgroundId, "massage-lab-aurora")
   })
 })

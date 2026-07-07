@@ -54,12 +54,14 @@ describe("App settings helpers", () => {
       sidebarTriggerPosition: "bottom",
       themeMode: "system",
       ambientMotionMode: "reduced",
+      hapticFeedbackEnabled: true,
     }), {
       appBarPosition: "bottom",
       sidebarPosition: "right",
       sidebarTriggerPosition: "bottom",
       themeMode: "system",
       ambientMotionMode: "reduced",
+      hapticFeedbackEnabled: true,
     })
   })
 

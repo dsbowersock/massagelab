@@ -40,6 +40,10 @@
     "atmosphere:samples:generative:web-audio:r2:upload": "node scripts/atmosphere-upload-generative-web-audio-r2.mjs upload",
     "atmosphere:samples:web-audio:r2:check": "node scripts/atmosphere-upload-web-audio-format-r2.mjs check",
     "atmosphere:samples:web-audio:r2:upload": "node scripts/atmosphere-upload-web-audio-format-r2.mjs upload",
+    "chimer:preview:render": "node --experimental-strip-types scripts/chimer-preview-generation/render.mjs",
+    "chimer:preview:manifest": "node --experimental-strip-types scripts/chimer-preview-generation/manifest.mjs",
+    "chimer:preview:r2:check": "node scripts/chimer-preview-generation/upload-r2.mjs check",
+    "chimer:preview:r2:upload": "node scripts/chimer-preview-generation/upload-r2.mjs upload",
     "stripe:readiness": "node scripts/stripe-readiness-check.mjs --",
     "stripe:live:setup": "node scripts/stripe-live-membership-setup.mjs --"
   },

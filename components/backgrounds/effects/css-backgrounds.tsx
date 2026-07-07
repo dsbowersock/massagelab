@@ -12,65 +12,65 @@ export interface BackgroundEffectProps {
   orbColor?: string
   sparkles?: SparklesBackgroundOptions
   gradientAnimation?: GradientAnimationOptions
-  animateUiGradient?: AnimateUiGradientOptions
-  animateUiHole?: AnimateUiHoleOptions
-  animateUiStars?: AnimateUiStarsOptions
-  chamaacLightSpeed?: ChamaacLightSpeedOptions
-  chamaacElectricMist?: ChamaacElectricMistOptions
-  chamaacAstralFlow?: ChamaacAstralFlowOptions
-  chamaacDeepSpaceNebula?: ChamaacDeepSpaceNebulaOptions
-  chamaacGridBloom?: ChamaacGridBloomOptions
-  chamaacLiquidChrome?: ChamaacLiquidChromeOptions
-  chamaacWaves?: ChamaacWavesOptions
-  chamaacSynthesis?: ChamaacSynthesisOptions
-  reactBitsFerrofluid?: ReactBitsFerrofluidOptions
-  reactBitsLightfall?: ReactBitsLightfallOptions
-  reactBitsLiquidEther?: ReactBitsLiquidEtherOptions
-  reactBitsPrism?: ReactBitsPrismOptions
-  reactBitsDarkVeil?: ReactBitsDarkVeilOptions
-  reactBitsLightPillar?: ReactBitsLightPillarOptions
-  reactBitsSilk?: ReactBitsSilkOptions
-  reactBitsFloatingLines?: ReactBitsFloatingLinesOptions
-  reactBitsSideRays?: ReactBitsSideRaysOptions
-  reactBitsLightRays?: ReactBitsLightRaysOptions
-  reactBitsPixelBlast?: ReactBitsPixelBlastOptions
-  reactBitsColorBends?: ReactBitsColorBendsOptions
-  reactBitsEvilEye?: ReactBitsEvilEyeOptions
-  reactBitsLineWaves?: ReactBitsLineWavesOptions
-  reactBitsRadar?: ReactBitsRadarOptions
-  reactBitsSoftAurora?: ReactBitsSoftAuroraOptions
-  reactBitsPlasma?: ReactBitsPlasmaOptions
-  reactBitsPlasmaWave?: ReactBitsPlasmaWaveOptions
-  reactBitsParticles?: ReactBitsParticlesOptions
-  reactBitsGradientBlinds?: ReactBitsGradientBlindsOptions
-  reactBitsGrainient?: ReactBitsGrainientOptions
-  reactBitsGridScan?: ReactBitsGridScanOptions
-  reactBitsBeams?: ReactBitsBeamsOptions
-  reactBitsPixelSnow?: ReactBitsPixelSnowOptions
-  reactBitsLightning?: ReactBitsLightningOptions
-  reactBitsPrismaticBurst?: ReactBitsPrismaticBurstOptions
-  reactBitsGalaxy?: ReactBitsGalaxyOptions
-  reactBitsDither?: ReactBitsDitherOptions
-  reactBitsFaultyTerminal?: ReactBitsFaultyTerminalOptions
-  reactBitsRippleGrid?: ReactBitsRippleGridOptions
-  reactBitsDotField?: ReactBitsDotFieldOptions
-  reactBitsDotGrid?: ReactBitsDotGridOptions
-  reactBitsThreads?: ReactBitsThreadsOptions
-  reactBitsIridescence?: ReactBitsIridescenceOptions
-  reactBitsWaves?: ReactBitsWavesOptions
-  reactBitsGridDistortion?: ReactBitsGridDistortionOptions
-  reactBitsOrb?: ReactBitsOrbOptions
-  reactBitsLetterGlitch?: ReactBitsLetterGlitchOptions
-  reactBitsGridMotion?: ReactBitsGridMotionOptions
-  reactBitsShapeGrid?: ReactBitsShapeGridOptions
-  reactBitsLiquidChrome?: ReactBitsLiquidChromeOptions
-  reactBitsBalatro?: ReactBitsBalatroOptions
-  eldoraNovatrix?: EldoraNovatrixOptions
-  eldoraHacker?: EldoraHackerOptions
-  eldoraPhotonBeam?: EldoraPhotonBeamOptions
-  magicRetroGrid?: MagicRetroGridOptions
-  magicLightRays?: MagicLightRaysOptions
-  aceternity3DGlobe?: Aceternity3DGlobeOptions
+  massageLabGradient?: MassageLabGradientOptions
+  massageLabHole?: MassageLabHoleOptions
+  massageLabStars?: MassageLabStarsOptions
+  massageLabLightSpeed?: MassageLabLightSpeedOptions
+  massageLabElectricMist?: MassageLabElectricMistOptions
+  massageLabAstralFlow?: MassageLabAstralFlowOptions
+  massageLabDeepSpaceNebula?: MassageLabDeepSpaceNebulaOptions
+  massageLabGridBloom?: MassageLabGridBloomOptions
+  massageLabChromeFlow?: MassageLabChromeFlowOptions
+  massageLabWaveCurrent?: MassageLabWaveCurrentOptions
+  massageLabSynthesis?: MassageLabSynthesisOptions
+  massageLabFerrofluid?: MassageLabFerrofluidOptions
+  massageLabLightfall?: MassageLabLightfallOptions
+  massageLabLiquidEther?: MassageLabLiquidEtherOptions
+  massageLabPrism?: MassageLabPrismOptions
+  massageLabDarkVeil?: MassageLabDarkVeilOptions
+  massageLabLightPillar?: MassageLabLightPillarOptions
+  massageLabSilk?: MassageLabSilkOptions
+  massageLabFloatingLines?: MassageLabFloatingLinesOptions
+  massageLabSideRays?: MassageLabSideRaysOptions
+  massageLabLightRays?: MassageLabLightRaysOptions
+  massageLabPixelBlast?: MassageLabPixelBlastOptions
+  massageLabColorBends?: MassageLabColorBendsOptions
+  massageLabEvilEye?: MassageLabEvilEyeOptions
+  massageLabLineWaves?: MassageLabLineWavesOptions
+  massageLabRadar?: MassageLabRadarOptions
+  massageLabSoftAurora?: MassageLabSoftAuroraOptions
+  massageLabPlasma?: MassageLabPlasmaOptions
+  massageLabPlasmaWave?: MassageLabPlasmaWaveOptions
+  massageLabParticles?: MassageLabParticlesOptions
+  massageLabGradientBlinds?: MassageLabGradientBlindsOptions
+  massageLabGrainient?: MassageLabGrainientOptions
+  massageLabGridScan?: MassageLabGridScanOptions
+  massageLabBeams?: MassageLabBeamsOptions
+  massageLabPixelSnow?: MassageLabPixelSnowOptions
+  massageLabLightning?: MassageLabLightningOptions
+  massageLabPrismaticBurst?: MassageLabPrismaticBurstOptions
+  massageLabGalaxy?: MassageLabGalaxyOptions
+  massageLabDither?: MassageLabDitherOptions
+  massageLabFaultyTerminal?: MassageLabFaultyTerminalOptions
+  massageLabRippleGrid?: MassageLabRippleGridOptions
+  massageLabDotField?: MassageLabDotFieldOptions
+  massageLabDotGrid?: MassageLabDotGridOptions
+  massageLabThreads?: MassageLabThreadsOptions
+  massageLabIridescence?: MassageLabIridescenceOptions
+  massageLabWaves?: MassageLabWavesOptions
+  massageLabGridDistortion?: MassageLabGridDistortionOptions
+  massageLabOrb?: MassageLabOrbOptions
+  massageLabLetterGlitch?: MassageLabLetterGlitchOptions
+  massageLabGridMotion?: MassageLabGridMotionOptions
+  massageLabShapeGrid?: MassageLabShapeGridOptions
+  massageLabLiquidChrome?: MassageLabLiquidChromeOptions
+  massageLabBalatro?: MassageLabBalatroOptions
+  massageLabNovatrix?: MassageLabNovatrixOptions
+  massageLabMatrixRain?: MassageLabMatrixRainOptions
+  massageLabPhotonBeam?: MassageLabPhotonBeamOptions
+  massageLabRetroGrid?: MassageLabRetroGridOptions
+  massageLabAerialRays?: MassageLabAerialRaysOptions
+  massageLab3DGlobe?: MassageLab3DGlobeOptions
   backgroundLines?: BackgroundLinesOptions
   shootingStars?: ShootingStarsBackgroundOptions
   canvasRevealDots?: CanvasRevealDotsOptions
@@ -104,27 +104,27 @@ export interface GradientAnimationOptions {
   size?: number
 }
 
-export interface AnimateUiGradientOptions {
+export interface MassageLabGradientOptions {
   primaryColor?: string
   harmony?: ColorHarmony
   opacity?: number
 }
 
-export interface AnimateUiHoleOptions {
+export interface MassageLabHoleOptions {
   strokeColor?: string
   numberOfLines?: number
   numberOfDiscs?: number
   particleColor?: string
 }
 
-export interface AnimateUiStarsOptions {
+export interface MassageLabStarsOptions {
   starColor?: string
   speed?: number
   density?: number
   factor?: number
 }
 
-export interface ChamaacLightSpeedOptions {
+export interface MassageLabLightSpeedOptions {
   particleCount?: number
   warpSpeed?: number
   lightColor?: string
@@ -133,7 +133,7 @@ export interface ChamaacLightSpeedOptions {
   cylinderLength?: number
 }
 
-export interface ChamaacElectricMistOptions {
+export interface MassageLabElectricMistOptions {
   color?: string
   speed?: number
   detail?: number
@@ -141,7 +141,7 @@ export interface ChamaacElectricMistOptions {
   brightness?: number
 }
 
-export interface ChamaacAstralFlowOptions {
+export interface MassageLabAstralFlowOptions {
   color1?: string
   color2?: string
   color3?: string
@@ -150,14 +150,14 @@ export interface ChamaacAstralFlowOptions {
   flowMax?: number
 }
 
-export interface ChamaacDeepSpaceNebulaOptions {
+export interface MassageLabDeepSpaceNebulaOptions {
   color1?: string
   color2?: string
   color3?: string
   speed?: number
 }
 
-export interface ChamaacGridBloomOptions {
+export interface MassageLabGridBloomOptions {
   color?: string
   speed?: number
   gridScale?: number
@@ -168,14 +168,14 @@ export interface ChamaacGridBloomOptions {
   flowSpeedY?: number
 }
 
-export interface ChamaacLiquidChromeOptions {
+export interface MassageLabChromeFlowOptions {
   speed?: number
   timeScale?: number
   color?: string
   color2?: string
 }
 
-export interface ChamaacWavesOptions {
+export interface MassageLabWaveCurrentOptions {
   backgroundColor?: string
   waveColor1?: string
   waveColor2?: string
@@ -185,7 +185,7 @@ export interface ChamaacWavesOptions {
   waveAmpX?: number
 }
 
-export interface ChamaacSynthesisOptions {
+export interface MassageLabSynthesisOptions {
   color1?: string
   color2?: string
   color3?: string
@@ -198,7 +198,7 @@ export interface ChamaacSynthesisOptions {
   contrast?: number
 }
 
-export interface ReactBitsFerrofluidOptions {
+export interface MassageLabFerrofluidOptions {
   colors?: string[]
   speed?: number
   scale?: number
@@ -212,7 +212,7 @@ export interface ReactBitsFerrofluidOptions {
   opacity?: number
 }
 
-export interface ReactBitsLightfallOptions {
+export interface MassageLabLightfallOptions {
   colors?: string[]
   backgroundColor?: string
   speed?: number
@@ -231,7 +231,7 @@ export interface ReactBitsLightfallOptions {
   mouseDampening?: number
 }
 
-export interface ReactBitsLiquidEtherOptions {
+export interface MassageLabLiquidEtherOptions {
   colors?: string[]
   mouseInteraction?: boolean
   mouseForce?: number
@@ -252,7 +252,7 @@ export interface ReactBitsLiquidEtherOptions {
   opacity?: number
 }
 
-export interface ReactBitsPrismOptions {
+export interface MassageLabPrismOptions {
   height?: number
   baseWidth?: number
   animationType?: "rotate" | "3drotate" | "hover"
@@ -270,7 +270,7 @@ export interface ReactBitsPrismOptions {
   timeScale?: number
 }
 
-export interface ReactBitsDarkVeilOptions {
+export interface MassageLabDarkVeilOptions {
   hueShift?: number
   noiseIntensity?: number
   scanlineIntensity?: number
@@ -280,7 +280,7 @@ export interface ReactBitsDarkVeilOptions {
   resolutionScale?: number
 }
 
-export interface ReactBitsLightPillarOptions {
+export interface MassageLabLightPillarOptions {
   topColor?: string
   bottomColor?: string
   intensity?: number
@@ -295,7 +295,7 @@ export interface ReactBitsLightPillarOptions {
   quality?: "low" | "medium" | "high"
 }
 
-export interface ReactBitsSilkOptions {
+export interface MassageLabSilkOptions {
   color?: string
   speed?: number
   scale?: number
@@ -303,7 +303,7 @@ export interface ReactBitsSilkOptions {
   rotation?: number
 }
 
-export interface ReactBitsFloatingLinesOptions {
+export interface MassageLabFloatingLinesOptions {
   linesGradient?: string[]
   enableTop?: boolean
   enableMiddle?: boolean
@@ -333,7 +333,7 @@ export interface ReactBitsFloatingLinesOptions {
   mixBlendMode?: "screen" | "normal" | "lighten" | "plus-lighter"
 }
 
-export interface ReactBitsSideRaysOptions {
+export interface MassageLabSideRaysOptions {
   speed?: number
   rayColor1?: string
   rayColor2?: string
@@ -347,7 +347,7 @@ export interface ReactBitsSideRaysOptions {
   opacity?: number
 }
 
-export interface ReactBitsLightRaysOptions {
+export interface MassageLabLightRaysOptions {
   raysOrigin?: "top-left" | "top-center" | "top-right" | "left" | "right" | "bottom-left" | "bottom-center" | "bottom-right"
   raysColor?: string
   raysSpeed?: number
@@ -362,7 +362,7 @@ export interface ReactBitsLightRaysOptions {
   distortion?: number
 }
 
-export interface ReactBitsPixelBlastOptions {
+export interface MassageLabPixelBlastOptions {
   variant?: "square" | "circle" | "triangle" | "diamond"
   pixelSize?: number
   color?: string
@@ -385,7 +385,7 @@ export interface ReactBitsPixelBlastOptions {
   noiseAmount?: number
 }
 
-export interface ReactBitsColorBendsOptions {
+export interface MassageLabColorBendsOptions {
   rotation?: number
   speed?: number
   colors?: string[]
@@ -403,7 +403,7 @@ export interface ReactBitsColorBendsOptions {
   interactive?: boolean
 }
 
-export interface ReactBitsEvilEyeOptions {
+export interface MassageLabEvilEyeOptions {
   eyeColor?: string
   intensity?: number
   pupilSize?: number
@@ -417,7 +417,7 @@ export interface ReactBitsEvilEyeOptions {
   interactive?: boolean
 }
 
-export interface ReactBitsLineWavesOptions {
+export interface MassageLabLineWavesOptions {
   speed?: number
   innerLineCount?: number
   outerLineCount?: number
@@ -433,7 +433,7 @@ export interface ReactBitsLineWavesOptions {
   mouseInfluence?: number
 }
 
-export interface ReactBitsRadarOptions {
+export interface MassageLabRadarOptions {
   speed?: number
   scale?: number
   ringCount?: number
@@ -451,7 +451,7 @@ export interface ReactBitsRadarOptions {
   mouseInfluence?: number
 }
 
-export interface ReactBitsSoftAuroraOptions {
+export interface MassageLabSoftAuroraOptions {
   speed?: number
   scale?: number
   brightness?: number
@@ -468,7 +468,7 @@ export interface ReactBitsSoftAuroraOptions {
   mouseInfluence?: number
 }
 
-export interface ReactBitsPlasmaOptions {
+export interface MassageLabPlasmaOptions {
   color?: string
   speed?: number
   direction?: "forward" | "reverse" | "pingpong"
@@ -477,7 +477,7 @@ export interface ReactBitsPlasmaOptions {
   mouseInteractive?: boolean
 }
 
-export interface ReactBitsPlasmaWaveOptions {
+export interface MassageLabPlasmaWaveOptions {
   xOffset?: number
   yOffset?: number
   rotationDeg?: number
@@ -490,7 +490,7 @@ export interface ReactBitsPlasmaWaveOptions {
   colors?: string[]
 }
 
-export interface ReactBitsParticlesOptions {
+export interface MassageLabParticlesOptions {
   particleCount?: number
   particleSpread?: number
   speed?: number
@@ -505,7 +505,7 @@ export interface ReactBitsParticlesOptions {
   pixelRatio?: number
 }
 
-export interface ReactBitsGradientBlindsOptions {
+export interface MassageLabGradientBlindsOptions {
   dpr?: number
   gradientColors?: string[]
   angle?: number
@@ -523,7 +523,7 @@ export interface ReactBitsGradientBlindsOptions {
   enableMouseInteraction?: boolean
 }
 
-export interface ReactBitsGrainientOptions {
+export interface MassageLabGrainientOptions {
   timeSpeed?: number
   colorBalance?: number
   warpStrength?: number
@@ -548,7 +548,7 @@ export interface ReactBitsGrainientOptions {
   color3?: string
 }
 
-export interface ReactBitsGridScanOptions {
+export interface MassageLabGridScanOptions {
   sensitivity?: number
   lineThickness?: number
   linesColor?: string
@@ -569,7 +569,7 @@ export interface ReactBitsGridScanOptions {
   scanOnClick?: boolean
 }
 
-export interface ReactBitsBeamsOptions {
+export interface MassageLabBeamsOptions {
   beamWidth?: number
   beamHeight?: number
   beamNumber?: number
@@ -580,7 +580,7 @@ export interface ReactBitsBeamsOptions {
   rotation?: number
 }
 
-export interface ReactBitsPixelSnowOptions {
+export interface MassageLabPixelSnowOptions {
   color?: string
   flakeSize?: number
   minFlakeSize?: number
@@ -595,7 +595,7 @@ export interface ReactBitsPixelSnowOptions {
   direction?: number
 }
 
-export interface ReactBitsLightningOptions {
+export interface MassageLabLightningOptions {
   hue?: number
   xOffset?: number
   speed?: number
@@ -603,7 +603,7 @@ export interface ReactBitsLightningOptions {
   size?: number
 }
 
-export interface ReactBitsPrismaticBurstOptions {
+export interface MassageLabPrismaticBurstOptions {
   intensity?: number
   speed?: number
   animationType?: "rotate" | "rotate3d" | "hover"
@@ -616,7 +616,7 @@ export interface ReactBitsPrismaticBurstOptions {
   mixBlendMode?: "lighten" | "screen" | "none"
 }
 
-export interface ReactBitsGalaxyOptions {
+export interface MassageLabGalaxyOptions {
   focalX?: number
   focalY?: number
   rotationDeg?: number
@@ -635,7 +635,7 @@ export interface ReactBitsGalaxyOptions {
   transparent?: boolean
 }
 
-export interface ReactBitsDitherOptions {
+export interface MassageLabDitherOptions {
   color?: string
   waveSpeed?: number
   waveFrequency?: number
@@ -646,7 +646,7 @@ export interface ReactBitsDitherOptions {
   mouseRadius?: number
 }
 
-export interface ReactBitsFaultyTerminalOptions {
+export interface MassageLabFaultyTerminalOptions {
   scale?: number
   gridMulX?: number
   gridMulY?: number
@@ -666,7 +666,7 @@ export interface ReactBitsFaultyTerminalOptions {
   brightness?: number
 }
 
-export interface ReactBitsRippleGridOptions {
+export interface MassageLabRippleGridOptions {
   enableRainbow?: boolean
   gridColor?: string
   rippleIntensity?: number
@@ -681,7 +681,7 @@ export interface ReactBitsRippleGridOptions {
   mouseInteractionRadius?: number
 }
 
-export interface ReactBitsDotFieldOptions {
+export interface MassageLabDotFieldOptions {
   dotRadius?: number
   dotSpacing?: number
   cursorRadius?: number
@@ -697,7 +697,7 @@ export interface ReactBitsDotFieldOptions {
   cursorInteraction?: boolean
 }
 
-export interface ReactBitsDotGridOptions {
+export interface MassageLabDotGridOptions {
   dotSize?: number
   gap?: number
   baseColor?: string
@@ -713,21 +713,21 @@ export interface ReactBitsDotGridOptions {
   clickShock?: boolean
 }
 
-export interface ReactBitsThreadsOptions {
+export interface MassageLabThreadsOptions {
   color?: string
   amplitude?: number
   distance?: number
   enableMouseInteraction?: boolean
 }
 
-export interface ReactBitsIridescenceOptions {
+export interface MassageLabIridescenceOptions {
   color?: string
   speed?: number
   amplitude?: number
   mouseReact?: boolean
 }
 
-export interface ReactBitsWavesOptions {
+export interface MassageLabWavesOptions {
   lineColor?: string
   backgroundColor?: string
   transparentBackground?: boolean
@@ -743,7 +743,7 @@ export interface ReactBitsWavesOptions {
   cursorInteraction?: boolean
 }
 
-export interface ReactBitsGridDistortionOptions {
+export interface MassageLabGridDistortionOptions {
   grid?: number
   mouse?: number
   strength?: number
@@ -754,7 +754,7 @@ export interface ReactBitsGridDistortionOptions {
   cursorInteraction?: boolean
 }
 
-export interface ReactBitsOrbOptions {
+export interface MassageLabOrbOptions {
   hue?: number
   hoverIntensity?: number
   rotateOnHover?: boolean
@@ -763,7 +763,7 @@ export interface ReactBitsOrbOptions {
   cursorInteraction?: boolean
 }
 
-export interface ReactBitsLetterGlitchOptions {
+export interface MassageLabLetterGlitchOptions {
   colorOne?: string
   colorTwo?: string
   colorThree?: string
@@ -774,7 +774,7 @@ export interface ReactBitsLetterGlitchOptions {
   characters?: string
 }
 
-export interface ReactBitsGridMotionOptions {
+export interface MassageLabGridMotionOptions {
   gradientColor?: string
   tileColor?: string
   textColor?: string
@@ -783,7 +783,7 @@ export interface ReactBitsGridMotionOptions {
   cursorInteraction?: boolean
 }
 
-export interface ReactBitsShapeGridOptions {
+export interface MassageLabShapeGridOptions {
   direction?: string
   speed?: number
   borderColor?: string
@@ -794,7 +794,7 @@ export interface ReactBitsShapeGridOptions {
   cursorInteraction?: boolean
 }
 
-export interface ReactBitsLiquidChromeOptions {
+export interface MassageLabLiquidChromeOptions {
   baseColor?: string
   speed?: number
   amplitude?: number
@@ -803,7 +803,7 @@ export interface ReactBitsLiquidChromeOptions {
   interactive?: boolean
 }
 
-export interface ReactBitsBalatroOptions {
+export interface MassageLabBalatroOptions {
   spinRotation?: number
   spinSpeed?: number
   offsetX?: number
@@ -820,19 +820,19 @@ export interface ReactBitsBalatroOptions {
   mouseInteraction?: boolean
 }
 
-export interface EldoraNovatrixOptions {
+export interface MassageLabNovatrixOptions {
   color?: string
   speed?: number
   amplitude?: number
 }
 
-export interface EldoraHackerOptions {
+export interface MassageLabMatrixRainOptions {
   color?: string
   fontSize?: number
   speed?: number
 }
 
-export interface EldoraPhotonBeamOptions {
+export interface MassageLabPhotonBeamOptions {
   colorBg?: string
   colorLine?: string
   colorSignal?: string
@@ -856,7 +856,7 @@ export interface EldoraPhotonBeamOptions {
   bloomRadius?: number
 }
 
-export interface MagicRetroGridOptions {
+export interface MassageLabRetroGridOptions {
   angle?: number
   cellSize?: number
   opacity?: number
@@ -865,7 +865,7 @@ export interface MagicRetroGridOptions {
   backgroundColor?: string
 }
 
-export interface MagicLightRaysOptions {
+export interface MassageLabAerialRaysOptions {
   backgroundColor?: string
   color?: string
   count?: number
@@ -875,7 +875,7 @@ export interface MagicLightRaysOptions {
   opacity?: number
 }
 
-export interface Aceternity3DGlobeOptions {
+export interface MassageLab3DGlobeOptions {
   viewStyle?: "realistic" | "graphic"
   backgroundColor?: string
   globeColor?: string
@@ -918,7 +918,7 @@ export type ColorHarmony =
   | "shades"
   | "monochromatic"
 
-export type AnimateUiGradientHarmony = ColorHarmony
+export type MassageLabGradientHarmony = ColorHarmony
 
 export interface BackgroundLinesOptions {
   duration?: number
@@ -1061,7 +1061,7 @@ type CanvasRevealDot = {
   sizeFactor: number
 }
 
-type AnimateUiHoleParticle = {
+type MassageLabHoleParticle = {
   x: number
   sx: number
   dx: number
@@ -1072,7 +1072,7 @@ type AnimateUiHoleParticle = {
   color: string
 }
 
-type AnimateUiHoleDisc = {
+type MassageLabHoleDisc = {
   p: number
   x: number
   y: number
@@ -1080,7 +1080,7 @@ type AnimateUiHoleDisc = {
   h: number
 }
 
-type AnimateUiHolePoint = {
+type MassageLabHolePoint = {
   x: number
   y: number
 }
@@ -1109,27 +1109,27 @@ const DEFAULT_GRADIENT_ANIMATION: Required<GradientAnimationOptions> = {
   size: 80,
 }
 
-const DEFAULT_ANIMATE_UI_GRADIENT: Required<AnimateUiGradientOptions> = {
+const DEFAULT_MASSAGE_LAB_GRADIENT: Required<MassageLabGradientOptions> = {
   primaryColor: "#3B82F6",
   harmony: "analogous",
   opacity: 1,
 }
 
-const DEFAULT_ANIMATE_UI_HOLE: Required<AnimateUiHoleOptions> = {
+const DEFAULT_MASSAGE_LAB_HOLE: Required<MassageLabHoleOptions> = {
   strokeColor: "#737373",
   numberOfLines: 50,
   numberOfDiscs: 50,
   particleColor: "#FFFFFF",
 }
 
-const DEFAULT_ANIMATE_UI_STARS: Required<AnimateUiStarsOptions> = {
+const DEFAULT_MASSAGE_LAB_STARS: Required<MassageLabStarsOptions> = {
   starColor: "#FFFFFF",
   speed: 50,
   density: 1,
   factor: 0.05,
 }
 
-const animateUiGradientHarmonies = new Set<AnimateUiGradientHarmony>([
+const massageLabGradientHarmonies = new Set<MassageLabGradientHarmony>([
   "analogous",
   "complementary",
   "split-complementary",
@@ -1194,13 +1194,13 @@ const glowingStarsColumns = 18
 const glowingStarsRows = 12
 const glowingStarIndexes = Array.from({ length: glowingStarsCount }, (_, index) => index)
 const meteorCount = 28
-const aceternityMeteors = Array.from({ length: meteorCount }, (_, index) => ({
+const massageLabMeteors = Array.from({ length: meteorCount }, (_, index) => ({
   left: `${((index + 0.5) / meteorCount) * 100}%`,
   delay: `-${((index * 0.73) % 12).toFixed(2)}s`,
   duration: `${9 + ((index * 7) % 6)}s`,
 }))
 
-const aceternityBeamPaths = [
+const massageLabBeamPaths = [
   "M-380 -189C-380 -189 -312 216 152 343C616 470 684 875 684 875",
   "M-373 -197C-373 -197 -305 208 159 335C623 462 691 867 691 867",
   "M-366 -205C-366 -205 -298 200 166 327C630 454 698 859 698 859",
@@ -1253,7 +1253,7 @@ const aceternityBeamPaths = [
   "M-37 -581C-37 -581 31 -176 495 -49C959 78 1027 483 1027 483",
 ] as const
 
-const aceternityBackgroundLinePaths = [
+const massageLabBackgroundLinePaths = [
   "M720 450C720 450 742.459 440.315 755.249 425.626C768.039 410.937 778.88 418.741 789.478 401.499C800.076 384.258 817.06 389.269 826.741 380.436C836.423 371.603 851.957 364.826 863.182 356.242C874.408 347.657 877.993 342.678 898.867 333.214C919.741 323.75 923.618 319.88 934.875 310.177C946.133 300.474 960.784 300.837 970.584 287.701C980.384 274.564 993.538 273.334 1004.85 263.087C1016.15 252.84 1026.42 250.801 1038.22 242.1C1050.02 233.399 1065.19 230.418 1074.63 215.721C1084.07 201.024 1085.49 209.128 1112.65 194.884C1139.8 180.64 1132.49 178.205 1146.43 170.636C1160.37 163.066 1168.97 158.613 1181.46 147.982C1193.95 137.35 1191.16 131.382 1217.55 125.645C1243.93 119.907 1234.19 118.899 1254.53 100.846C1274.86 82.7922 1275.12 92.8914 1290.37 76.09C1305.62 59.2886 1313.91 62.1868 1323.19 56.7536C1332.48 51.3204 1347.93 42.8082 1361.95 32.1468C1375.96 21.4855 1374.06 25.168 1397.08 10.1863C1420.09 -4.79534 1421.41 -3.16992 1431.52 -15.0078",
   "M720 450C720 450 741.044 435.759 753.062 410.636C765.079 385.514 770.541 386.148 782.73 370.489C794.918 354.83 799.378 353.188 811.338 332.597C823.298 312.005 825.578 306.419 843.707 295.493C861.837 284.568 856.194 273.248 877.376 256.48C898.558 239.713 887.536 227.843 909.648 214.958C931.759 202.073 925.133 188.092 941.063 177.621C956.994 167.151 952.171 154.663 971.197 135.041C990.222 115.418 990.785 109.375 999.488 96.1291C1008.19 82.8827 1011.4 82.2181 1032.65 61.8861C1053.9 41.5541 1045.74 48.0281 1064.01 19.5798C1082.29 -8.86844 1077.21 -3.89415 1093.7 -19.66C1110.18 -35.4258 1105.91 -46.1146 1127.68 -60.2834C1149.46 -74.4523 1144.37 -72.1024 1154.18 -97.6802C1163.99 -123.258 1165.6 -111.332 1186.21 -135.809C1206.81 -160.285 1203.29 -160.861 1220.31 -177.633C1237.33 -194.406 1236.97 -204.408 1250.42 -214.196",
   "M720 450C720 450 712.336 437.768 690.248 407.156C668.161 376.544 672.543 394.253 665.951 365.784C659.358 337.316 647.903 347.461 636.929 323.197C625.956 298.933 626.831 303.639 609.939 281.01C593.048 258.381 598.7 255.282 582.342 242.504C565.985 229.726 566.053 217.66 559.169 197.116C552.284 176.572 549.348 171.846 529.347 156.529C509.345 141.211 522.053 134.054 505.192 115.653C488.33 97.2527 482.671 82.5627 473.599 70.7833C464.527 59.0039 464.784 50.2169 447 32.0721C429.215 13.9272 436.29 0.858563 423.534 -12.6868C410.777 -26.2322 407.424 -44.0808 394.364 -56.4916C381.303 -68.9024 373.709 -72.6804 365.591 -96.1992C357.473 -119.718 358.364 -111.509 338.222 -136.495C318.08 -161.481 322.797 -149.499 315.32 -181.761C307.843 -214.023 294.563 -202.561 285.795 -223.25C277.026 -243.94 275.199 -244.055 258.602 -263.871",
@@ -1277,7 +1277,7 @@ const aceternityBackgroundLinePaths = [
   "M720 450C720 450 730.571 424.312 761.424 411.44C792.277 398.569 772.385 393.283 804.069 377.232C835.752 361.182 829.975 361.373 848.987 342.782C867.999 324.192 877.583 330.096 890.892 303.897C904.201 277.698 910.277 282.253 937.396 264.293C964.514 246.333 949.357 246.834 978.7 230.438C1008.04 214.042 990.424 217.952 1021.51 193.853C1052.6 169.753 1054.28 184.725 1065.97 158.075C1077.65 131.425 1087.76 139.068 1111.12 120.345C1134.49 101.622 1124.9 104.858 1151.67 86.3162C1178.43 67.7741 1167.09 66.2676 1197.53 47.2606C1227.96 28.2536 1225.78 23.2186 1239.27 12.9649C1252.76 2.7112 1269.32 -9.47929 1282.88 -28.5587C1296.44 -47.6381 1305.81 -41.3853 1323.82 -62.7027C1341.83 -84.0202 1340.32 -82.3794 1368.98 -98.9326",
 ] as const
 
-const aceternityBackgroundLineColors = [
+const massageLabBackgroundLineColors = [
   "#46A5CA",
   "#8C2F2F",
   "#4FAE4D",
@@ -1301,7 +1301,7 @@ const aceternityBackgroundLineColors = [
   "#604483",
 ] as const
 
-const aceternityCollisionBeams = [
+const massageLabCollisionBeams = [
   { x: 10, duration: 7, repeatDelay: 3, delay: 2, height: 56, rotate: 0 },
   { x: 600, duration: 3, repeatDelay: 3, delay: 4, height: 56, rotate: 0 },
   { x: 100, duration: 7, repeatDelay: 7, delay: 0, height: 24, rotate: 0 },
@@ -1311,7 +1311,7 @@ const aceternityCollisionBeams = [
   { x: 1200, duration: 6, repeatDelay: 4, delay: 2, height: 24, rotate: 0 },
 ] as const
 
-const aceternityCollisionParticles = [
+const massageLabCollisionParticles = [
   [-36, -44],
   [-28, -24],
   [-22, -58],
@@ -1345,7 +1345,7 @@ export function StaticGradientBackground({ className }: BackgroundEffectProps) {
   return <div className={cn(styles.effectLayer, className)} />
 }
 
-export function MagicParticlesBackground({ className }: BackgroundEffectProps) {
+export function MassageLabParticlesDraftBackground({ className }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -1473,7 +1473,7 @@ export function MagicParticlesBackground({ className }: BackgroundEffectProps) {
   return <canvas ref={canvasRef} className={cn(styles.effectLayer, styles.particlesCanvas, className)} />
 }
 
-export function MagicNoiseTextureBackground({ className }: BackgroundEffectProps) {
+export function MassageLabNoiseTextureDraftBackground({ className }: BackgroundEffectProps) {
   const id = useId()
 
   return (
@@ -1490,7 +1490,7 @@ export function MagicNoiseTextureBackground({ className }: BackgroundEffectProps
   )
 }
 
-export function MagicGridPatternBackground({ className }: BackgroundEffectProps) {
+export function MassageLabGridPatternDraftBackground({ className }: BackgroundEffectProps) {
   const id = useId()
   const squares = [[4, 3], [6, 6], [9, 4], [12, 8], [15, 5], [18, 11]]
 
@@ -1509,7 +1509,7 @@ export function MagicGridPatternBackground({ className }: BackgroundEffectProps)
   )
 }
 
-export function MagicAnimatedGridBackground({ className }: BackgroundEffectProps) {
+export function MassageLabAnimatedGridDraftBackground({ className }: BackgroundEffectProps) {
   return (
     <div className={cn(styles.effectLayer, styles.animatedGrid, className)} aria-hidden="true">
       {Array.from({ length: 96 }).map((_, index) => (
@@ -1526,7 +1526,7 @@ export function MagicAnimatedGridBackground({ className }: BackgroundEffectProps
   )
 }
 
-export function ChamaacWavesBackground({ className }: BackgroundEffectProps) {
+export function MassageLabWaveCurrentBackground({ className }: BackgroundEffectProps) {
   return (
     <svg className={cn(styles.effectLayer, styles.waves, className)} viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
       <path className={styles.wavePath} d="M-120 620C140 470 350 760 620 590C880 426 1030 514 1210 420C1360 342 1490 386 1580 316" fill="none" stroke="rgba(113, 168, 255, 0.48)" strokeWidth="38" />
@@ -1536,21 +1536,21 @@ export function ChamaacWavesBackground({ className }: BackgroundEffectProps) {
   )
 }
 
-export function ChamaacElectricMistBackground({ className }: BackgroundEffectProps) {
+export function MassageLabElectricMistBackground({ className }: BackgroundEffectProps) {
   return <div className={cn(styles.effectLayer, styles.electricMist, className)} aria-hidden="true" />
 }
 
-// Aceternity UI Aurora Background by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityAuroraBackground({ className }: BackgroundEffectProps) {
+// MassageLab Aurora Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabAuroraBackground({ className }: BackgroundEffectProps) {
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityAurora, className)} aria-hidden="true">
-      <div className={styles.aceternityAuroraField} />
+    <div className={cn(styles.effectLayer, styles.massageLabAurora, className)} aria-hidden="true">
+      <div className={styles.massageLabAuroraField} />
     </div>
   )
 }
 
-// Aceternity UI Dotted Glow Background by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityDottedGlowBackground({ className }: BackgroundEffectProps) {
+// MassageLab Dotted Glow by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabDottedGlowBackground({ className }: BackgroundEffectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -1789,8 +1789,8 @@ export function AceternityDottedGlowBackground({ className }: BackgroundEffectPr
   )
 }
 
-// Aceternity UI Background Gradient Animation by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityGradientAnimationBackground({
+// MassageLab Background Animated Gradient by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabGradientAnimationBackground({
   className,
   gradientAnimation,
 }: BackgroundEffectProps) {
@@ -1825,7 +1825,7 @@ export function AceternityGradientAnimationBackground({
   }, [])
 
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityGradientAnimation, className)} style={style} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabGradientAnimation, className)} style={style} aria-hidden="true">
       <svg className={styles.gradientAnimationFilterSvg} focusable="false" aria-hidden="true">
         <filter id={filterId}>
           <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
@@ -1849,13 +1849,13 @@ export function AceternityGradientAnimationBackground({
   )
 }
 
-// Aceternity UI Background Beams by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityBackgroundBeams({ className }: BackgroundEffectProps) {
+// MassageLab Beam Field by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabBackgroundBeams({ className }: BackgroundEffectProps) {
   const generatedId = useId()
   const gradientIdPrefix = `ml-background-beams-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`
 
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityBackgroundBeams, className)} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabBackgroundBeams, className)} aria-hidden="true">
       <svg
         className={styles.backgroundBeamsSvg}
         viewBox="0 0 696 316"
@@ -1863,7 +1863,7 @@ export function AceternityBackgroundBeams({ className }: BackgroundEffectProps) 
         focusable="false"
       >
         <defs>
-          {aceternityBeamPaths.map((_, index) => {
+          {massageLabBeamPaths.map((_, index) => {
             const duration = 11 + (index % 8)
             const delay = (index % 10) * 0.45
             const gradientId = `${gradientIdPrefix}-${index}`
@@ -1914,7 +1914,7 @@ export function AceternityBackgroundBeams({ className }: BackgroundEffectProps) 
             )
           })}
         </defs>
-        {aceternityBeamPaths.map((path, index) => (
+        {massageLabBeamPaths.map((path, index) => (
           <path
             key={`${path}-${index}`}
             d={path}
@@ -1927,12 +1927,12 @@ export function AceternityBackgroundBeams({ className }: BackgroundEffectProps) 
   )
 }
 
-// Aceternity UI Background Beams With Collision by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityBackgroundBeamsWithCollision({ className }: BackgroundEffectProps) {
+// MassageLab Collision Beams by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabBackgroundBeamsWithCollision({ className }: BackgroundEffectProps) {
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityBackgroundBeamsCollision, className)} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabBackgroundBeamsCollision, className)} aria-hidden="true">
       <div className={styles.collisionBeamsLayer}>
-        {aceternityCollisionBeams.map((beam) => {
+        {massageLabCollisionBeams.map((beam) => {
           const cycle = beam.duration + beam.repeatDelay
           const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
           const style = {
@@ -1949,7 +1949,7 @@ export function AceternityBackgroundBeamsWithCollision({ className }: Background
         })}
       </div>
 
-      {aceternityCollisionBeams.map((beam, beamIndex) => {
+      {massageLabCollisionBeams.map((beam, beamIndex) => {
         const cycle = beam.duration + beam.repeatDelay
         const beamX = `${Math.min(98, Math.max(2, (beam.x / 1200) * 100))}%`
         const style = {
@@ -1961,7 +1961,7 @@ export function AceternityBackgroundBeamsWithCollision({ className }: Background
         return (
           <span key={`${beam.x}-collision`} className={styles.collisionExplosion} style={style}>
             <span className={styles.collisionExplosionGlow} />
-            {aceternityCollisionParticles.map(([x, y], particleIndex) => (
+            {massageLabCollisionParticles.map(([x, y], particleIndex) => (
               <span
                 key={`${beamIndex}-${particleIndex}`}
                 className={styles.collisionParticle}
@@ -1980,19 +1980,19 @@ export function AceternityBackgroundBeamsWithCollision({ className }: Background
   )
 }
 
-// Aceternity UI Background Lines by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityBackgroundLines({
+// MassageLab Light Lines by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabBackgroundLines({
   className,
   backgroundLines,
 }: BackgroundEffectProps) {
   const resolved = resolveBackgroundLinesOptions(backgroundLines)
 
   const renderPaths = (pass: 0 | 1) => (
-    aceternityBackgroundLinePaths.map((path, index) => {
+    massageLabBackgroundLinePaths.map((path, index) => {
       const repeatDelay = 2 + ((index * 5 + pass * 3) % 10)
       const delay = (index * 3 + pass * 5) % 10
       const style = {
-        "--ml-background-line-color": aceternityBackgroundLineColors[index % aceternityBackgroundLineColors.length],
+        "--ml-background-line-color": massageLabBackgroundLineColors[index % massageLabBackgroundLineColors.length],
         "--ml-background-line-cycle": `${resolved.duration + repeatDelay}s`,
         "--ml-background-line-delay": `${delay}s`,
       } as CSSProperties
@@ -2009,7 +2009,7 @@ export function AceternityBackgroundLines({
   )
 
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityBackgroundLines, className)} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabBackgroundLines, className)} aria-hidden="true">
       <svg
         className={styles.backgroundLinesSvg}
         viewBox="0 0 1440 900"
@@ -2023,8 +2023,8 @@ export function AceternityBackgroundLines({
   )
 }
 
-// Aceternity UI Glowing Stars by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityGlowingStarsBackground({ className }: BackgroundEffectProps) {
+// MassageLab Glowing Stars by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabGlowingStarsBackground({ className }: BackgroundEffectProps) {
   const [glowingStars, setGlowingStars] = useState<number[]>([])
 
   useEffect(() => {
@@ -2044,7 +2044,7 @@ export function AceternityGlowingStarsBackground({ className }: BackgroundEffect
   }, [])
 
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityGlowingStars, className)} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabGlowingStars, className)} aria-hidden="true">
       <div
         className={styles.glowingStarsGrid}
         style={{
@@ -2076,12 +2076,12 @@ export function AceternityGlowingStarsBackground({ className }: BackgroundEffect
   )
 }
 
-// Aceternity UI Meteors by Manu Arora, adapted as an internal MassageLab premium visual effect.
-export function AceternityMeteorsBackground({ className }: BackgroundEffectProps) {
+// MassageLab Meteors by Manu Arora, adapted as an internal MassageLab premium visual effect.
+export function MassageLabMeteorsBackground({ className }: BackgroundEffectProps) {
   return (
-    <div className={cn(styles.effectLayer, styles.aceternityMeteors, className)} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabMeteors, className)} aria-hidden="true">
       <div className={styles.meteorsLayer}>
-        {aceternityMeteors.map((meteor, index) => (
+        {massageLabMeteors.map((meteor, index) => (
           <span
             key={`meteor-${index}`}
             className={styles.meteor}
@@ -2099,13 +2099,13 @@ export function AceternityMeteorsBackground({ className }: BackgroundEffectProps
   )
 }
 
-// Animate UI Bubble Background adapted as an internal MassageLab premium effect.
+// MassageLab Bubble Field adapted as an internal MassageLab premium effect.
 // Cursor interaction from the source component is intentionally omitted.
-export function AnimateUiBubbleBackground({ className }: BackgroundEffectProps) {
+export function MassageLabBubbleBackground({ className }: BackgroundEffectProps) {
   const filterId = `ml-bubble-goo-${useId().replace(/:/g, "")}`
 
   return (
-    <div className={cn(styles.effectLayer, styles.animateUiBubble, className)} aria-hidden="true">
+    <div className={cn(styles.effectLayer, styles.massageLabBubble, className)} aria-hidden="true">
       <svg className={styles.bubbleFilterSvg} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id={filterId}>
@@ -2135,14 +2135,14 @@ export function AnimateUiBubbleBackground({ className }: BackgroundEffectProps) 
   )
 }
 
-// Animate UI Gradient Background adapted as an internal MassageLab premium effect.
+// MassageLab Gradient Field adapted as an internal MassageLab premium effect.
 // The source Motion background-position loop is reproduced with CSS keyframes to avoid adding motion.
-export function AnimateUiGradientBackground({
+export function MassageLabGradientBackground({
   className,
-  animateUiGradient,
+  massageLabGradient,
 }: BackgroundEffectProps) {
-  const resolved = resolveAnimateUiGradientOptions(animateUiGradient)
-  const [fromColor, viaColor, toColor] = createAnimateUiGradientPalette(
+  const resolved = resolveMassageLabGradientOptions(massageLabGradient)
+  const [fromColor, viaColor, toColor] = createMassageLabGradientPalette(
     resolved.primaryColor,
     resolved.harmony,
   )
@@ -2155,34 +2155,34 @@ export function AnimateUiGradientBackground({
 
   return (
     <div
-      className={cn(styles.effectLayer, styles.animateUiGradient, className)}
+      className={cn(styles.effectLayer, styles.massageLabGradient, className)}
       style={style}
       aria-hidden="true"
     />
   )
 }
 
-// Animate UI Stars Background adapted as an internal MassageLab premium effect.
+// MassageLab Star Field adapted as an internal MassageLab premium effect.
 // The source Motion layers are reproduced with CSS keyframes, while parallax listens at window level to avoid pointer capture.
-export function AnimateUiStarsBackground({
+export function MassageLabStarsBackground({
   className,
-  animateUiStars,
+  massageLabStars,
 }: BackgroundEffectProps) {
-  const resolved = resolveAnimateUiStarsOptions(animateUiStars)
+  const resolved = resolveMassageLabStarsOptions(massageLabStars)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const smallCount = Math.round(clampNumber(1000 * resolved.density, 1000, 250, 1500))
   const mediumCount = Math.round(clampNumber(400 * resolved.density, 400, 100, 700))
   const largeCount = Math.round(clampNumber(200 * resolved.density, 200, 50, 360))
   const smallShadow = useMemo(
-    () => buildAnimateUiStarsShadow(smallCount, resolved.starColor, 17),
+    () => buildMassageLabStarsShadow(smallCount, resolved.starColor, 17),
     [smallCount, resolved.starColor],
   )
   const mediumShadow = useMemo(
-    () => buildAnimateUiStarsShadow(mediumCount, resolved.starColor, 113),
+    () => buildMassageLabStarsShadow(mediumCount, resolved.starColor, 113),
     [mediumCount, resolved.starColor],
   )
   const largeShadow = useMemo(
-    () => buildAnimateUiStarsShadow(largeCount, resolved.starColor, 233),
+    () => buildMassageLabStarsShadow(largeCount, resolved.starColor, 233),
     [largeCount, resolved.starColor],
   )
   const style = {
@@ -2237,7 +2237,7 @@ export function AnimateUiStarsBackground({
 
   return (
     <div
-      className={cn(styles.effectLayer, styles.animateUiStars, className)}
+      className={cn(styles.effectLayer, styles.massageLabStars, className)}
       style={style}
       aria-hidden="true"
     >
@@ -2259,15 +2259,15 @@ export function AnimateUiStarsBackground({
   )
 }
 
-// Animate UI Hole Background adapted as an internal MassageLab premium effect.
+// MassageLab Depth Well adapted as an internal MassageLab premium effect.
 // Mirrors the source disc tween, clip path, and square-particle canvas loop while replacing Motion with CSS.
-export function AnimateUiHoleBackground({
+export function MassageLabHoleBackground({
   className,
-  animateUiHole,
+  massageLabHole,
 }: BackgroundEffectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const resolved = resolveAnimateUiHoleOptions(animateUiHole)
+  const resolved = resolveMassageLabHoleOptions(massageLabHole)
   const particleColorTriplet = hexToRgbTriplet(resolved.particleColor)
   const style = {
     "--ml-hole-stroke": resolved.strokeColor,
@@ -2298,9 +2298,9 @@ export function AnimateUiHoleBackground({
     let shouldRun = false
     let animationFrame = 0
     let resizeRetryFrame = 0
-    let startDisc: AnimateUiHoleDisc = { p: 0, x: 0, y: 0, w: 0, h: 0 }
-    let endDisc: AnimateUiHoleDisc = { p: 1, x: 0, y: 0, w: 0, h: 0 }
-    let clipDisc: AnimateUiHoleDisc = { p: 0, x: 0, y: 0, w: 0, h: 0 }
+    let startDisc: MassageLabHoleDisc = { p: 0, x: 0, y: 0, w: 0, h: 0 }
+    let endDisc: MassageLabHoleDisc = { p: 1, x: 0, y: 0, w: 0, h: 0 }
+    let clipDisc: MassageLabHoleDisc = { p: 0, x: 0, y: 0, w: 0, h: 0 }
     let clipPath = new Path2D()
     let linesCanvas: HTMLCanvasElement | null = null
     let particleArea = {
@@ -2310,8 +2310,8 @@ export function AnimateUiHoleBackground({
       ew: 0,
       h: 1,
     }
-    let discs: AnimateUiHoleDisc[] = []
-    let particles: AnimateUiHoleParticle[] = []
+    let discs: MassageLabHoleDisc[] = []
+    let particles: MassageLabHoleParticle[] = []
 
     const tweenValue = (
       start: number,
@@ -2320,7 +2320,7 @@ export function AnimateUiHoleBackground({
       ease: ((value: number) => number) = linear,
     ) => start + (end - start) * ease(progress)
 
-    const tweenDisc = (progress: number): AnimateUiHoleDisc => ({
+    const tweenDisc = (progress: number): MassageLabHoleDisc => ({
       p: progress,
       x: tweenValue(startDisc.x, endDisc.x, progress),
       y: tweenValue(startDisc.y, endDisc.y, progress, easeInExpo),
@@ -2328,7 +2328,7 @@ export function AnimateUiHoleBackground({
       h: tweenValue(startDisc.h, endDisc.h, progress),
     })
 
-    const createParticle = (startInside = false): AnimateUiHoleParticle => {
+    const createParticle = (startInside = false): MassageLabHoleParticle => {
       const startX = particleArea.sx + particleArea.sw * Math.random()
       const endX = particleArea.ex + particleArea.ew * Math.random()
       const y = startInside ? particleArea.h * Math.random() : particleArea.h
@@ -2365,7 +2365,7 @@ export function AnimateUiHoleBackground({
       discs = []
 
       let prevBottom = canvasHeight
-      let nextClipDisc: AnimateUiHoleDisc | null = null
+      let nextClipDisc: MassageLabHoleDisc | null = null
 
       for (let index = 0; index < discCount; index += 1) {
         const disc = tweenDisc(index / discCount)
@@ -2386,7 +2386,7 @@ export function AnimateUiHoleBackground({
     }
 
     const setLines = () => {
-      const lineSets: AnimateUiHolePoint[][] = Array.from({ length: lineCount }, () => [])
+      const lineSets: MassageLabHolePoint[][] = Array.from({ length: lineCount }, () => [])
       const linesAngle = (Math.PI * 2) / lineCount
 
       for (const disc of discs) {
@@ -2691,19 +2691,19 @@ export function AnimateUiHoleBackground({
   return (
     <div
       ref={containerRef}
-      className={cn(styles.effectLayer, styles.animateUiHole, className)}
+      className={cn(styles.effectLayer, styles.massageLabHole, className)}
       style={style}
       aria-hidden="true"
     >
-      <canvas ref={canvasRef} className={styles.animateUiHoleCanvas} />
+      <canvas ref={canvasRef} className={styles.massageLabHoleCanvas} />
       <span className={styles.holeGlow} />
       <span className={styles.holeScanlines} />
     </div>
   )
 }
 
-// Aceternity UI Canvas Reveal Effect dot matrix, adapted as a passive internal MassageLab premium background.
-export function AceternityCanvasRevealDotsBackground({
+// MassageLab Canvas Reveal Effect dot matrix, adapted as a passive internal MassageLab premium background.
+export function MassageLabCanvasRevealDotsBackground({
   className,
   canvasRevealDots,
 }: BackgroundEffectProps) {
@@ -2932,7 +2932,7 @@ export function AceternityCanvasRevealDotsBackground({
   return (
     <div
       ref={containerRef}
-      className={cn(styles.effectLayer, styles.aceternityCanvasRevealDots, className)}
+      className={cn(styles.effectLayer, styles.massageLabCanvasRevealDots, className)}
       style={style}
       aria-hidden="true"
     >
@@ -2942,8 +2942,8 @@ export function AceternityCanvasRevealDotsBackground({
   )
 }
 
-// Aceternity UI Spotlight New by Manu Arora, adapted with CSS keyframes so no Motion runtime is added.
-export function AceternitySpotlightNewBackground({
+// MassageLab Spotlight by Manu Arora, adapted with CSS keyframes so no Motion runtime is added.
+export function MassageLabSpotlightNewBackground({
   className,
   spotlight,
 }: BackgroundEffectProps) {
@@ -2970,7 +2970,7 @@ export function AceternitySpotlightNewBackground({
 
   return (
     <div
-      className={cn(styles.effectLayer, styles.aceternitySpotlightNew, className)}
+      className={cn(styles.effectLayer, styles.massageLabSpotlightNew, className)}
       style={style}
       aria-hidden="true"
     >
@@ -2984,8 +2984,8 @@ export function AceternitySpotlightNewBackground({
   )
 }
 
-// Aceternity UI Lamp Section Header by Manu Arora, adapted as an internal passive background.
-export function AceternityLampEffectBackground({
+// MassageLab Lamp Glow by Manu Arora, adapted as an internal passive background.
+export function MassageLabLampEffectBackground({
   className,
   lamp,
 }: BackgroundEffectProps) {
@@ -3005,7 +3005,7 @@ export function AceternityLampEffectBackground({
 
   return (
     <div
-      className={cn(styles.effectLayer, styles.aceternityLampEffect, className)}
+      className={cn(styles.effectLayer, styles.massageLabLampEffect, className)}
       style={style}
       aria-hidden="true"
     >
@@ -3020,7 +3020,7 @@ export function AceternityLampEffectBackground({
   )
 }
 
-export function AceternitySparklesBackground({ className }: BackgroundEffectProps) {
+export function MassageLabSparklesBackground({ className }: BackgroundEffectProps) {
   return (
     <div className={cn(styles.effectLayer, styles.sparkles, className)} aria-hidden="true">
       {sparkles.map(([x, y, size, delay]) => (
@@ -3055,45 +3055,45 @@ function resolveGradientAnimationOptions(
   }
 }
 
-function resolveAnimateUiGradientOptions(
-  animateUiGradient: AnimateUiGradientOptions | undefined,
-): Required<AnimateUiGradientOptions> {
-  const requestedHarmony = animateUiGradient?.harmony
+function resolveMassageLabGradientOptions(
+  massageLabGradient: MassageLabGradientOptions | undefined,
+): Required<MassageLabGradientOptions> {
+  const requestedHarmony = massageLabGradient?.harmony
 
   return {
-    primaryColor: normalizeHexColor(animateUiGradient?.primaryColor, DEFAULT_ANIMATE_UI_GRADIENT.primaryColor),
-    harmony: requestedHarmony && animateUiGradientHarmonies.has(requestedHarmony)
+    primaryColor: normalizeHexColor(massageLabGradient?.primaryColor, DEFAULT_MASSAGE_LAB_GRADIENT.primaryColor),
+    harmony: requestedHarmony && massageLabGradientHarmonies.has(requestedHarmony)
       ? requestedHarmony
-      : DEFAULT_ANIMATE_UI_GRADIENT.harmony,
-    opacity: clampNumber(animateUiGradient?.opacity, DEFAULT_ANIMATE_UI_GRADIENT.opacity, 0.15, 1),
+      : DEFAULT_MASSAGE_LAB_GRADIENT.harmony,
+    opacity: clampNumber(massageLabGradient?.opacity, DEFAULT_MASSAGE_LAB_GRADIENT.opacity, 0.15, 1),
   }
 }
 
-function resolveAnimateUiHoleOptions(
-  animateUiHole: AnimateUiHoleOptions | undefined,
-): Required<AnimateUiHoleOptions> {
+function resolveMassageLabHoleOptions(
+  massageLabHole: MassageLabHoleOptions | undefined,
+): Required<MassageLabHoleOptions> {
   return {
-    strokeColor: normalizeHexColor(animateUiHole?.strokeColor, DEFAULT_ANIMATE_UI_HOLE.strokeColor),
-    numberOfLines: Math.trunc(clampNumber(animateUiHole?.numberOfLines, DEFAULT_ANIMATE_UI_HOLE.numberOfLines, 12, 96)),
-    numberOfDiscs: Math.trunc(clampNumber(animateUiHole?.numberOfDiscs, DEFAULT_ANIMATE_UI_HOLE.numberOfDiscs, 12, 96)),
-    particleColor: normalizeHexColor(animateUiHole?.particleColor, DEFAULT_ANIMATE_UI_HOLE.particleColor),
+    strokeColor: normalizeHexColor(massageLabHole?.strokeColor, DEFAULT_MASSAGE_LAB_HOLE.strokeColor),
+    numberOfLines: Math.trunc(clampNumber(massageLabHole?.numberOfLines, DEFAULT_MASSAGE_LAB_HOLE.numberOfLines, 12, 96)),
+    numberOfDiscs: Math.trunc(clampNumber(massageLabHole?.numberOfDiscs, DEFAULT_MASSAGE_LAB_HOLE.numberOfDiscs, 12, 96)),
+    particleColor: normalizeHexColor(massageLabHole?.particleColor, DEFAULT_MASSAGE_LAB_HOLE.particleColor),
   }
 }
 
-function resolveAnimateUiStarsOptions(
-  animateUiStars: AnimateUiStarsOptions | undefined,
-): Required<AnimateUiStarsOptions> {
+function resolveMassageLabStarsOptions(
+  massageLabStars: MassageLabStarsOptions | undefined,
+): Required<MassageLabStarsOptions> {
   return {
-    starColor: normalizeHexColor(animateUiStars?.starColor, DEFAULT_ANIMATE_UI_STARS.starColor),
-    speed: clampNumber(animateUiStars?.speed, DEFAULT_ANIMATE_UI_STARS.speed, 18, 120),
-    density: clampNumber(animateUiStars?.density, DEFAULT_ANIMATE_UI_STARS.density, 0.25, 1.5),
-    factor: clampNumber(animateUiStars?.factor, DEFAULT_ANIMATE_UI_STARS.factor, 0, 0.12),
+    starColor: normalizeHexColor(massageLabStars?.starColor, DEFAULT_MASSAGE_LAB_STARS.starColor),
+    speed: clampNumber(massageLabStars?.speed, DEFAULT_MASSAGE_LAB_STARS.speed, 18, 120),
+    density: clampNumber(massageLabStars?.density, DEFAULT_MASSAGE_LAB_STARS.density, 0.25, 1.5),
+    factor: clampNumber(massageLabStars?.factor, DEFAULT_MASSAGE_LAB_STARS.factor, 0, 0.12),
   }
 }
 
-function createAnimateUiGradientPalette(
+function createMassageLabGradientPalette(
   primaryColor: string,
-  harmony: AnimateUiGradientHarmony,
+  harmony: MassageLabGradientHarmony,
 ): [string, string, string] {
   const [hue, saturation, lightness] = rgbToHsl(parseHexColorToRgb(primaryColor))
   const richSaturation = Math.min(0.92, Math.max(0.34, saturation))
@@ -3226,7 +3226,7 @@ function seededFraction(seed: number) {
   return value - Math.floor(value)
 }
 
-function buildAnimateUiStarsShadow(count: number, color: string, seedBase: number) {
+function buildMassageLabStarsShadow(count: number, color: string, seedBase: number) {
   return Array.from({ length: count }, (_, index) => {
     const seed = seedBase + index * 97
     const x = Math.floor(seededFraction(seed + 11) * 4000) - 2000

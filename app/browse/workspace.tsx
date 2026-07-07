@@ -55,7 +55,7 @@ export function AtmosphereWorkspace({ layout = "grid" }: { layout?: AtmosphereWo
   const [backgroundId, setBackgroundId] = useState<BackgroundId>(DEFAULT_BACKGROUND_ID as BackgroundId)
   const isRailLayout = layout === "rails"
   const auroraBars = useMemo(() => ({
-    visualizerActive: backgroundId === "unlumen-aurora-bars" && music.playbackState === "playing",
+    visualizerActive: backgroundId === "massage-lab-aurora-bars" && music.playbackState === "playing",
   }), [backgroundId, music.playbackState])
   const prewarmStation = useCallback((stationId: string, options: { includeSamplePayloads?: boolean } = {}) => {
     void prewarmMusicStation(stationId, options)

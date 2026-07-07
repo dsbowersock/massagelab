@@ -58,3 +58,74 @@ test("ambient motion mode can force low-motion backgrounds", () => {
     documentHidden: false,
   }), false)
 })
+
+test("explicit route-owned motion can animate through the system reduced-motion signal", () => {
+  assert.equal(shouldAnimateAmbientBackground({
+    prefersReducedMotion: true,
+    compactViewport: false,
+    documentHidden: false,
+    forceMotion: true,
+  }), true)
+})
+
+test("app low-motion setting still wins over explicit route-owned motion", () => {
+  assert.equal(shouldAnimateAmbientBackground({
+    ambientMotionMode: "reduced",
+    prefersReducedMotion: true,
+    compactViewport: false,
+    documentHidden: false,
+    forceMotion: true,
+  }), false)
+})
+
+test("Chimer running route class counts as route-owned motion", () => {
+  const previousDocument = globalThis.document
+
+  try {
+    globalThis.document = {
+      body: {
+        classList: {
+          contains: (className) => className === "chimer-running",
+        },
+      },
+    }
+
+    assert.equal(shouldAnimateAmbientBackground({
+      prefersReducedMotion: true,
+      compactViewport: false,
+      documentHidden: false,
+    }), true)
+  } finally {
+    if (previousDocument === undefined) {
+      delete globalThis.document
+    } else {
+      globalThis.document = previousDocument
+    }
+  }
+})
+
+test("Chimer alerting route class counts as route-owned motion", () => {
+  const previousDocument = globalThis.document
+
+  try {
+    globalThis.document = {
+      body: {
+        classList: {
+          contains: (className) => className === "chimer-alerting",
+        },
+      },
+    }
+
+    assert.equal(shouldAnimateAmbientBackground({
+      prefersReducedMotion: true,
+      compactViewport: false,
+      documentHidden: false,
+    }), true)
+  } finally {
+    if (previousDocument === undefined) {
+      delete globalThis.document
+    } else {
+      globalThis.document = previousDocument
+    }
+  }
+})

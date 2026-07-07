@@ -1,185 +1,199 @@
 "use client"
 
-import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
+import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, Star, X } from "lucide-react"
+import Image from "next/image"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
-import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
-import { canUseBackgroundId, type BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
-import { MovingBackground } from "@/components/moving-background"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  ANIMATE_UI_GRADIENT_HARMONY_OPTIONS,
-  CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
-  CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN,
-  CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP,
-  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX,
-  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN,
-  CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP,
-  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX,
-  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN,
-  CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP,
-  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX,
-  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN,
-  CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP,
-  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX,
-  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN,
-  CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP,
-  CHAMAAC_WAVES_DISPLAY_SPEED_MAX,
-  CHAMAAC_WAVES_DISPLAY_SPEED_MIN,
-  CHAMAAC_WAVES_DISPLAY_SPEED_STEP,
-  CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX,
-  CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN,
-  CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP,
+  canUseBackgroundId,
+  getBackgroundOptionsForCategory,
+  resolveAccessibleBackgroundDefinition,
+  type BackgroundId,
+  type BackgroundDefinition,
+  userCanUseBackground,
+} from "@/components/backgrounds/backgroundRegistry"
+import { triggerHapticFeedback } from "@/lib/haptics"
+import { Loader } from "@/components/chimer-controls/Loader"
+import { MovingBackground } from "@/components/moving-background"
+import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } from "@/components/chimer-controls/HarmonyToggleGroup"
+import { ColorPickerSwatch, GlobalColorPicker, type GlobalColorValues } from "@/components/chimer-controls/GlobalColorPicker"
+import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
+import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
+import {
+  MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS,
+  MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_STEP,
+  MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP,
+  MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_STEP,
+  MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX,
+  MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN,
+  MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP,
+  MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX,
+  MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN,
+  MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP,
+  MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_WAVES_DISPLAY_SPEED_STEP,
+  MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_STEP,
   COLOR_HARMONY_OPTIONS,
-  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX,
-  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN,
-  ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP,
-  ELDORA_NOVATRIX_DISPLAY_SPEED_MAX,
-  ELDORA_NOVATRIX_DISPLAY_SPEED_MIN,
-  ELDORA_NOVATRIX_DISPLAY_SPEED_STEP,
-  ELDORA_HACKER_DISPLAY_SPEED_MAX,
-  ELDORA_HACKER_DISPLAY_SPEED_MIN,
-  ELDORA_HACKER_DISPLAY_SPEED_STEP,
-  ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX,
-  ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN,
-  ELDORA_PHOTON_BEAM_DISPLAY_SPEED_STEP,
-  getChamaacAstralFlowDisplaySpeed,
-  getChamaacAstralFlowSourceSpeed,
-  getChamaacDeepSpaceNebulaDisplaySpeed,
-  getChamaacDeepSpaceNebulaSourceSpeed,
-  getChamaacGridBloomDisplaySpeed,
-  getChamaacGridBloomSourceSpeed,
-  getChamaacLiquidChromeDisplayFlowSpeed,
-  getChamaacLiquidChromeDisplayTimeScale,
-  getChamaacLiquidChromeSourceFlowSpeed,
-  getChamaacLiquidChromeSourceTimeScale,
-  getChamaacWavesDisplaySpeed,
-  getChamaacWavesSourceSpeed,
-  getChamaacSynthesisDisplaySpeed,
-  getChamaacSynthesisSourceSpeed,
-  getEldoraNovatrixDisplayAmplitude,
-  getEldoraNovatrixDisplaySpeed,
-  getEldoraNovatrixSourceAmplitude,
-  getEldoraNovatrixSourceSpeed,
-  getEldoraHackerDisplaySpeed,
-  getEldoraHackerSourceSpeed,
-  getAceternity3DGlobeScaleDisplayPercent,
-  getAceternity3DGlobeScaleFromDisplayPercent,
-  getEldoraPhotonBeamDisplaySpeed,
-  getEldoraPhotonBeamSourceSpeed,
-  resolveChamaacAstralFlowColors,
-  resolveChamaacDeepSpaceNebulaColors,
-  resolveChamaacLiquidChromeColors,
-  resolveChamaacWavesColors,
-  resolveChamaacSynthesisColors,
-  resolveReactBitsFerrofluidColors,
-  resolveReactBitsLightfallColors,
-  resolveReactBitsLiquidEtherColors,
-  resolveReactBitsLightPillarColors,
-  resolveReactBitsFloatingLinesGradient,
-  resolveReactBitsSideRaysColors,
-  resolveReactBitsLightRaysColor,
-  resolveReactBitsPixelBlastColor,
-  resolveReactBitsColorBendsColors,
-  resolveReactBitsEvilEyeColor,
-  resolveReactBitsLineWavesColors,
-  resolveReactBitsRadarColor,
-  resolveReactBitsSoftAuroraColors,
-  resolveReactBitsPlasmaColor,
-  resolveReactBitsPlasmaWaveColors,
-  resolveReactBitsParticlesColors,
-  resolveReactBitsGradientBlindsColors,
-  resolveReactBitsGrainientColors,
-  resolveReactBitsGridScanColors,
-  resolveReactBitsBeamsColor,
-  resolveReactBitsPixelSnowColor,
-  resolveReactBitsLightningHue,
-  resolveReactBitsPrismaticBurstColors,
-  resolveReactBitsGalaxyHueShift,
-  resolveReactBitsDitherColor,
-  resolveReactBitsFaultyTerminalTint,
-  resolveReactBitsRippleGridColor,
-  resolveReactBitsDotFieldColors,
-  resolveReactBitsDotGridColors,
-  resolveReactBitsThreadsColor,
-  resolveReactBitsIridescenceColor,
-  resolveReactBitsWavesLineColor,
-  resolveReactBitsGridDistortionColors,
-  resolveReactBitsOrbHue,
-  resolveReactBitsLetterGlitchColors,
-  resolveReactBitsGridMotionColors,
-  resolveReactBitsShapeGridColors,
-  resolveReactBitsLiquidChromeBaseColor,
-  resolveReactBitsBalatroColors,
-  resolveReactBitsSilkColor,
-  resolveEldoraHackerColor,
-  resolveEldoraNovatrixColor,
-  resolveEldoraPhotonBeamColors,
-  type AnimateUiGradientHarmony,
-  type ChamaacAstralFlowPaletteMode,
-  type ChamaacDeepSpaceNebulaPaletteMode,
-  type ChamaacLiquidChromePaletteMode,
-  type ChamaacWavesPaletteMode,
-  type ChamaacSynthesisPaletteMode,
-  type ReactBitsFerrofluidPaletteMode,
-  type ReactBitsLightfallPaletteMode,
-  type ReactBitsLiquidEtherPaletteMode,
-  type ReactBitsPrismAnimationType,
-  type ReactBitsLightPillarBlendMode,
-  type ReactBitsFloatingLinesBlendMode,
-  type ReactBitsFloatingLinesPaletteMode,
-  type ReactBitsSideRaysOrigin,
-  type ReactBitsSideRaysPaletteMode,
-  type ReactBitsLightRaysOrigin,
-  type ReactBitsLightRaysPaletteMode,
-  type ReactBitsPixelBlastPaletteMode,
-  type ReactBitsPixelBlastVariant,
-  type ReactBitsColorBendsPaletteMode,
-  type ReactBitsEvilEyePaletteMode,
-  type ReactBitsLineWavesPaletteMode,
-  type ReactBitsRadarPaletteMode,
-  type ReactBitsSoftAuroraPaletteMode,
-  type ReactBitsPlasmaDirection,
-  type ReactBitsPlasmaPaletteMode,
-  type ReactBitsPlasmaWavePaletteMode,
-  type ReactBitsParticlesPaletteMode,
-  type ReactBitsGradientBlindsBlendMode,
-  type ReactBitsGradientBlindsPaletteMode,
-  type ReactBitsGradientBlindsShineDirection,
-  type ReactBitsGrainientPaletteMode,
-  type ReactBitsGridScanDirection,
-  type ReactBitsGridScanLineStyle,
-  type ReactBitsGridScanPaletteMode,
-  type ReactBitsBeamsPaletteMode,
-  type ReactBitsPixelSnowPaletteMode,
-  type ReactBitsPixelSnowVariant,
-  type ReactBitsLightningPaletteMode,
-  type ReactBitsPrismaticBurstAnimationType,
-  type ReactBitsPrismaticBurstMixBlendMode,
-  type ReactBitsPrismaticBurstPaletteMode,
-  type ReactBitsGalaxyPaletteMode,
-  type ReactBitsDitherPaletteMode,
-  type ReactBitsFaultyTerminalPaletteMode,
-  type ReactBitsRippleGridPaletteMode,
-  type ReactBitsDotFieldPaletteMode,
-  type ReactBitsDotGridPaletteMode,
-  type ReactBitsThreadsPaletteMode,
-  type ReactBitsIridescencePaletteMode,
-  type ReactBitsWavesPaletteMode,
-  type ReactBitsGridDistortionPaletteMode,
-  type ReactBitsOrbPaletteMode,
-  type ReactBitsLetterGlitchPaletteMode,
-  type ReactBitsGridMotionPaletteMode,
-  type ReactBitsShapeGridPaletteMode,
-  type ReactBitsLiquidChromePaletteMode,
-  type ReactBitsBalatroPaletteMode,
-  type ReactBitsLightPillarPaletteMode,
-  type ReactBitsLightPillarQuality,
-  type ReactBitsSilkPaletteMode,
-  type EldoraHackerPaletteMode,
-  type EldoraNovatrixPaletteMode,
-  type EldoraPhotonBeamPaletteMode,
+  MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MAX,
+  MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MIN,
+  MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_STEP,
+  MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_STEP,
+  MASSAGE_LAB_HACKER_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_HACKER_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_HACKER_DISPLAY_SPEED_STEP,
+  MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MAX,
+  MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MIN,
+  MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_STEP,
+  getMassageLabAstralFlowDisplaySpeed,
+  getMassageLabAstralFlowSourceSpeed,
+  getMassageLabDeepSpaceNebulaDisplaySpeed,
+  getMassageLabDeepSpaceNebulaSourceSpeed,
+  getMassageLabGridBloomDisplaySpeed,
+  getMassageLabGridBloomSourceSpeed,
+  getMassageLabChromeFlowDisplayFlowSpeed,
+  getMassageLabChromeFlowDisplayTimeScale,
+  getMassageLabChromeFlowSourceFlowSpeed,
+  getMassageLabChromeFlowSourceTimeScale,
+  getMassageLabWaveCurrentDisplaySpeed,
+  getMassageLabWaveCurrentSourceSpeed,
+  getMassageLabSynthesisDisplaySpeed,
+  getMassageLabSynthesisSourceSpeed,
+  getMassageLabNovatrixDisplayAmplitude,
+  getMassageLabNovatrixDisplaySpeed,
+  getMassageLabNovatrixSourceAmplitude,
+  getMassageLabNovatrixSourceSpeed,
+  getMassageLabMatrixRainDisplaySpeed,
+  getMassageLabMatrixRainSourceSpeed,
+  getMassageLab3DGlobeScaleDisplayPercent,
+  getMassageLab3DGlobeScaleFromDisplayPercent,
+  getMassageLabPhotonBeamDisplaySpeed,
+  getMassageLabPhotonBeamSourceSpeed,
+  resolveMassageLabAstralFlowColors,
+  resolveMassageLabDeepSpaceNebulaColors,
+  resolveMassageLabChromeFlowColors,
+  resolveMassageLabWaveCurrentColors,
+  resolveMassageLabSynthesisColors,
+  resolveMassageLabFerrofluidColors,
+  resolveMassageLabLightfallColors,
+  resolveMassageLabLiquidEtherColors,
+  resolveMassageLabLightPillarColors,
+  resolveMassageLabFloatingLinesGradient,
+  resolveMassageLabSideRaysColors,
+  resolveMassageLabLightRaysColor,
+  resolveMassageLabPixelBlastColor,
+  resolveMassageLabColorBendsColors,
+  resolveMassageLabEvilEyeColor,
+  resolveMassageLabLineWavesColors,
+  resolveMassageLabRadarColor,
+  resolveMassageLabSoftAuroraColors,
+  resolveMassageLabPlasmaColor,
+  resolveMassageLabPlasmaWaveColors,
+  resolveMassageLabParticlesColors,
+  resolveMassageLabGradientBlindsColors,
+  resolveMassageLabGrainientColors,
+  resolveMassageLabGridScanColors,
+  resolveMassageLabBeamsColor,
+  resolveMassageLabPixelSnowColor,
+  resolveMassageLabLightningHue,
+  resolveMassageLabPrismaticBurstColors,
+  resolveMassageLabGalaxyHueShift,
+  resolveMassageLabDitherColor,
+  resolveMassageLabFaultyTerminalTint,
+  resolveMassageLabRippleGridColor,
+  resolveMassageLabDotFieldColors,
+  resolveMassageLabDotGridColors,
+  resolveMassageLabThreadsColor,
+  resolveMassageLabIridescenceColor,
+  resolveMassageLabWavesLineColor,
+  resolveMassageLabGridDistortionColors,
+  resolveMassageLabOrbHue,
+  resolveMassageLabLetterGlitchColors,
+  resolveMassageLabGridMotionColors,
+  resolveMassageLabShapeGridColors,
+  resolveMassageLabLiquidChromeBaseColor,
+  resolveMassageLabBalatroColors,
+  resolveMassageLabSilkColor,
+  resolveMassageLabMatrixRainColor,
+  resolveMassageLabNovatrixColor,
+  resolveMassageLabPhotonBeamColors,
+  type MassageLabGradientHarmony,
+  type MassageLabAstralFlowPaletteMode,
+  type MassageLabDeepSpaceNebulaPaletteMode,
+  type MassageLabChromeFlowPaletteMode,
+  type MassageLabWaveCurrentPaletteMode,
+  type MassageLabSynthesisPaletteMode,
+  type MassageLabFerrofluidPaletteMode,
+  type MassageLabLightfallPaletteMode,
+  type MassageLabLiquidEtherPaletteMode,
+  type MassageLabPrismAnimationType,
+  type MassageLabLightPillarBlendMode,
+  type MassageLabFloatingLinesBlendMode,
+  type MassageLabFloatingLinesPaletteMode,
+  type MassageLabSideRaysOrigin,
+  type MassageLabSideRaysPaletteMode,
+  type MassageLabLightRaysOrigin,
+  type MassageLabLightRaysPaletteMode,
+  type MassageLabPixelBlastPaletteMode,
+  type MassageLabPixelBlastVariant,
+  type MassageLabColorBendsPaletteMode,
+  type MassageLabEvilEyePaletteMode,
+  type MassageLabLineWavesPaletteMode,
+  type MassageLabRadarPaletteMode,
+  type MassageLabSoftAuroraPaletteMode,
+  type MassageLabPlasmaDirection,
+  type MassageLabPlasmaPaletteMode,
+  type MassageLabPlasmaWavePaletteMode,
+  type MassageLabParticlesPaletteMode,
+  type MassageLabGradientBlindsBlendMode,
+  type MassageLabGradientBlindsPaletteMode,
+  type MassageLabGradientBlindsShineDirection,
+  type MassageLabGrainientPaletteMode,
+  type MassageLabGridScanDirection,
+  type MassageLabGridScanLineStyle,
+  type MassageLabGridScanPaletteMode,
+  type MassageLabBeamsPaletteMode,
+  type MassageLabPixelSnowPaletteMode,
+  type MassageLabPixelSnowVariant,
+  type MassageLabLightningPaletteMode,
+  type MassageLabPrismaticBurstAnimationType,
+  type MassageLabPrismaticBurstMixBlendMode,
+  type MassageLabPrismaticBurstPaletteMode,
+  type MassageLabGalaxyPaletteMode,
+  type MassageLabDitherPaletteMode,
+  type MassageLabFaultyTerminalPaletteMode,
+  type MassageLabRippleGridPaletteMode,
+  type MassageLabDotFieldPaletteMode,
+  type MassageLabDotGridPaletteMode,
+  type MassageLabThreadsPaletteMode,
+  type MassageLabIridescencePaletteMode,
+  type MassageLabWavesPaletteMode,
+  type MassageLabGridDistortionPaletteMode,
+  type MassageLabOrbPaletteMode,
+  type MassageLabLetterGlitchPaletteMode,
+  type MassageLabGridMotionPaletteMode,
+  type MassageLabShapeGridPaletteMode,
+  type MassageLabLiquidChromePaletteMode,
+  type MassageLabBalatroPaletteMode,
+  type MassageLabLightPillarPaletteMode,
+  type MassageLabLightPillarQuality,
+  type MassageLabSilkPaletteMode,
+  type MassageLabMatrixRainPaletteMode,
+  type MassageLabNovatrixPaletteMode,
+  type MassageLabPhotonBeamPaletteMode,
   type ChimerSettings,
   type ColorHarmony,
 } from "./set-timer"
@@ -187,7 +201,49 @@ import styles from "./running-timer.module.css"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 type PrimaryDisplay = "timer" | "currentTime"
-type SettingsTab = "timer" | "display" | "background"
+type SettingsTab = "clock" | "visual" | "backgrounds"
+type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
+
+const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCategory; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "static", label: "Static" },
+  { value: "animated", label: "Animated" },
+  { value: "interactive", label: "Interactive" },
+  { value: "shader", label: "Shader" },
+  { value: "image", label: "Image" },
+  { value: "video", label: "Video" },
+  { value: "premium", label: "Premium" },
+  { value: "saved", label: "Saved" },
+]
+
+const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
+const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
+const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
+const IMAGE_SOURCE_PATTERNS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".heic",
+  ".heif",
+  ".svg",
+]
+const VIDEO_SOURCE_PATTERNS = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv"]
+const INTERACTIVE_HINT_PATTERNS = [
+  "interactive",
+  "hover",
+  "cursor",
+  "rotate",
+  "orbit",
+  "spin",
+  "mouse",
+  "tap",
+  "drag",
+  "pan",
+]
+const SHADER_HINT_PATTERNS = ["shader", "canvas", "webgl", "glsl", "fragment", "uniform", "three", "custom"]
 
 type CurrentTimeParts = {
   time: string
@@ -203,13 +259,678 @@ const SETTINGS_AUTO_CLOSE_MS = 60_000
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
-const CUSTOM_COLOR_SETTING_KEYS = new Set([
+const BACKGROUND_RADIAL_CARD_SPREAD_DEGREES = 35
+const BACKGROUND_RADIAL_CARD_RADIUS_PX = 240
+const BACKGROUND_RADIAL_VISIBLE_OFFSET = 3
+
+const getCircularCarouselOffset = (index: number, activeIndex: number, total: number) => {
+  if (total <= 0) {
+    return 0
+  }
+
+  const rawOffset = (index - activeIndex + total) % total
+  return rawOffset > total / 2 ? rawOffset - total : rawOffset
+}
+const PREMIUM_CUSTOM_COLOR_SETTING_KEYS = new Set([
   "primaryFontColor",
   "secondaryFontColor",
+])
+const ACCOUNT_COLOR_SETTING_KEYS = new Set([
   "clockModeFontColor",
   "movingBackgroundMainColor",
   "movingBackgroundOrbColor",
 ])
+
+const DEFAULT_CHIMER_GLOBAL_COLORS: GlobalColorValues = {
+  primary: "#f97316",
+  secondary: "#fb923c",
+  accent: "#fb7185",
+  background: "#0f172a",
+  foreground: "#f8fafc",
+  ctaStart: "#db2777",
+  ctaEnd: "#ea580c",
+}
+const DEFAULT_CHIMER_GLOBAL_HARMONY = "custom" as ChimerHarmonyValue
+const CHIMER_GLOBAL_PALETTE_DEFAULT_NAME = "Saved palette"
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
+
+type ChimerSavedPalette = {
+  id: string
+  name: string
+  sourceColor: string
+  harmony: ChimerHarmonyValue
+  colors: GlobalColorValues
+  generated: string[]
+  isDefault: boolean
+  createdAt: string
+}
+
+type BackgroundPreviewMedia = {
+  type: "image" | "video"
+  source: string
+}
+
+type BackgroundDefinitionWithPreview = BackgroundDefinition & {
+  previewMediaUrl?: string
+  previewMediaType?: BackgroundPreviewMedia["type"]
+  previewImageUrl?: string
+  previewVideoUrl?: string
+  previewSquareVideoUrl?: string
+  previewVerticalVideoUrl?: string
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function normalizeHexColor(value: string, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback
+  }
+
+  const trimmed = value.trim()
+  if (!HEX_COLOR_PATTERN.test(trimmed)) {
+    return fallback
+  }
+
+  if (trimmed.length === 4) {
+    return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`.toLowerCase()
+  }
+
+  return trimmed.toLowerCase()
+}
+
+function getCssHsl(color: string, fallback: string) {
+  const normalized = normalizeHexColor(color, fallback)
+  const { red, green, blue } = parseColorToRgb(normalized)
+  const { h, s, l } = rgbToHsl(red, green, blue)
+
+  return `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`
+}
+
+function getCssHslColor(color: string, fallback: string, alpha = 1) {
+  return `hsl(${getCssHsl(color, fallback)} / ${clampNumber(alpha, 0, 1)})`
+}
+
+function getClockFontStack(fontFamily: ChimerSettings["clockFontFamily"]) {
+  switch (fontFamily) {
+    case "mono":
+      return "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", monospace"
+    case "sans":
+      return "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+    case "serif":
+      return "Georgia, Cambria, \"Times New Roman\", Times, serif"
+    case "digital":
+    default:
+      return "\"Digital\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+  }
+}
+
+function buildClockTextShadow(params: {
+  shadowEnabled: boolean
+  shadowColor: string
+  shadowStrength: number
+  shadowDirection: number
+  shadowDistance: number
+  shadowFeather: number
+  glowEnabled: boolean
+  glowColor: string
+  glowStrength: number
+}) {
+  const parts: string[] = []
+
+  if (params.shadowEnabled && params.shadowStrength > 0) {
+    const alpha = 0.14 + params.shadowStrength * 0.48
+    const angleRadians = (params.shadowDirection * Math.PI) / 180
+    const distance = clampNumber(params.shadowDistance, 0, 32)
+    const offsetX = Math.cos(angleRadians) * distance
+    const offsetY = Math.sin(angleRadians) * distance
+    const feather = clampNumber(params.shadowFeather, 0, 32)
+    parts.push(`${offsetX.toFixed(1)}px ${offsetY.toFixed(1)}px ${feather.toFixed(1)}px ${getCssHslColor(params.shadowColor, "#000000", alpha)}`)
+  }
+
+  if (params.glowEnabled && params.glowStrength > 0) {
+    const alpha = 0.12 + params.glowStrength * 0.34
+    parts.push(
+      `0 0 ${0.045 + params.glowStrength * 0.08}em ${getCssHslColor(params.glowColor, DEFAULT_CHIMER_GLOBAL_COLORS.accent, alpha)}`,
+      `0 0 ${0.18 + params.glowStrength * 0.2}em ${getCssHslColor(params.glowColor, DEFAULT_CHIMER_GLOBAL_COLORS.accent, alpha * 0.7)}`,
+      `0 0 ${0.42 + params.glowStrength * 0.26}em ${getCssHslColor(params.glowColor, DEFAULT_CHIMER_GLOBAL_COLORS.accent, alpha * 0.42)}`,
+    )
+  }
+
+  return parts.length > 0 ? parts.join(", ") : "none"
+}
+
+function resolvePaletteDrivenColor(params: {
+  value: string
+  defaultValue: string
+  globalValue: string
+}) {
+  const normalizedValue = normalizeHexColor(params.value, params.defaultValue)
+  const normalizedDefault = normalizeHexColor(params.defaultValue, params.value)
+
+  return normalizedValue === normalizedDefault ? params.globalValue : normalizedValue
+}
+
+function sanitizeGlobalColorValues(values: Partial<GlobalColorValues> | undefined) {
+  if (!values || typeof values !== "object") {
+    return DEFAULT_CHIMER_GLOBAL_COLORS
+  }
+
+  return {
+    primary: normalizeHexColor(String(values.primary ?? DEFAULT_CHIMER_GLOBAL_COLORS.primary), DEFAULT_CHIMER_GLOBAL_COLORS.primary),
+    secondary: normalizeHexColor(String(values.secondary ?? DEFAULT_CHIMER_GLOBAL_COLORS.secondary), DEFAULT_CHIMER_GLOBAL_COLORS.secondary),
+    accent: normalizeHexColor(String(values.accent ?? DEFAULT_CHIMER_GLOBAL_COLORS.accent), DEFAULT_CHIMER_GLOBAL_COLORS.accent),
+    background: normalizeHexColor(String(values.background ?? DEFAULT_CHIMER_GLOBAL_COLORS.background), DEFAULT_CHIMER_GLOBAL_COLORS.background),
+    foreground: normalizeHexColor(String(values.foreground ?? DEFAULT_CHIMER_GLOBAL_COLORS.foreground), DEFAULT_CHIMER_GLOBAL_COLORS.foreground),
+    ctaStart: normalizeHexColor(String(values.ctaStart ?? DEFAULT_CHIMER_GLOBAL_COLORS.ctaStart), DEFAULT_CHIMER_GLOBAL_COLORS.ctaStart),
+    ctaEnd: normalizeHexColor(String(values.ctaEnd ?? DEFAULT_CHIMER_GLOBAL_COLORS.ctaEnd), DEFAULT_CHIMER_GLOBAL_COLORS.ctaEnd),
+  } satisfies GlobalColorValues
+}
+
+function parseColorToRgb(value: string) {
+  const normalized = normalizeHexColor(value, "#000000")
+  const hex = normalized.slice(1)
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16),
+  }
+}
+
+function rgbToHsl(red: number, green: number, blue: number) {
+  const r = clampNumber(red, 0, 255) / 255
+  const g = clampNumber(green, 0, 255) / 255
+  const b = clampNumber(blue, 0, 255) / 255
+  const maxChannel = Math.max(r, g, b)
+  const minChannel = Math.min(r, g, b)
+  const delta = maxChannel - minChannel
+  let hue = 0
+  let saturation = 0
+  const lightness = (maxChannel + minChannel) / 2
+
+  if (delta !== 0) {
+    saturation = lightness > 0.5 ? delta / (2 - maxChannel - minChannel) : delta / (maxChannel + minChannel)
+
+    switch (maxChannel) {
+      case r: {
+        hue = ((g - b) / delta) + (g < b ? 6 : 0)
+        break
+      }
+      case g: {
+        hue = (b - r) / delta + 2
+        break
+      }
+      case b: {
+        hue = (r - g) / delta + 4
+        break
+      }
+    }
+
+    hue *= 60
+  }
+
+  return {
+    h: clampNumber(hue, 0, 360),
+    s: clampNumber(saturation * 100, 0, 100),
+    l: clampNumber(lightness * 100, 0, 100),
+  }
+}
+
+function hslToRgbChannel(channel: number, hue: number, saturation: number, lightness: number) {
+  const huePrime = (hue % 360 + 360) % 360
+  const sat = saturation / 100
+  const light = lightness / 100
+  const chroma = (1 - Math.abs(2 * light - 1)) * sat
+  const x = chroma * (1 - Math.abs((huePrime / 60) % 2 - 1))
+  const m = light - chroma / 2
+  let red = 0
+  let green = 0
+  let blue = 0
+
+  if (huePrime < 60) {
+    red = chroma
+    green = x
+  } else if (huePrime < 120) {
+    red = x
+    green = chroma
+  } else if (huePrime < 180) {
+    green = chroma
+    blue = x
+  } else if (huePrime < 240) {
+    green = x
+    blue = chroma
+  } else if (huePrime < 300) {
+    red = x
+    blue = chroma
+  } else {
+    red = chroma
+    blue = x
+  }
+
+  const values = [red, green, blue]
+  return Math.round((values[channel] + m) * 255)
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number) {
+  const toByte = (value: number) => `00${Math.max(0, Math.min(255, value)).toString(16).slice(-2)}`
+  const red = hslToRgbChannel(0, hue, saturation, lightness)
+  const green = hslToRgbChannel(1, hue, saturation, lightness)
+  const blue = hslToRgbChannel(2, hue, saturation, lightness)
+  return `#${toByte(red)}${toByte(green)}${toByte(blue)}`
+}
+
+function shiftHue(baseColor: string, hueOffset: number, saturationOffset = 0, lightnessOffset = 0) {
+  const { red, green, blue } = parseColorToRgb(baseColor)
+  const hsl = rgbToHsl(red, green, blue)
+  return hslToHex(
+    hsl.h + hueOffset,
+    hsl.s + saturationOffset,
+    hsl.l + lightnessOffset,
+  )
+}
+
+function getHarmonyColorsFromPrimary(primaryColor: string, harmony: ChimerHarmonyValue): GlobalColorValues {
+  const normalizedPrimary = normalizeHexColor(primaryColor, DEFAULT_CHIMER_GLOBAL_COLORS.primary)
+  const sourceColor = normalizedPrimary
+  const safeDefaults = sanitizeGlobalColorValues(DEFAULT_CHIMER_GLOBAL_COLORS)
+  const derivedBackground = shiftHue(sourceColor, 0, -24, -38)
+  const derivedBase = {
+    ...safeDefaults,
+    primary: sourceColor,
+    background: derivedBackground,
+  }
+
+  if (harmony === "custom") {
+    return {
+      ...safeDefaults,
+      primary: sourceColor,
+    }
+  }
+
+  switch (harmony) {
+    case "analogous": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 18),
+        accent: shiftHue(sourceColor, -18),
+        ctaStart: shiftHue(sourceColor, 0),
+        ctaEnd: shiftHue(sourceColor, 36),
+      }
+    }
+    case "complementary": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 180),
+        accent: shiftHue(sourceColor, -180),
+        ctaStart: shiftHue(sourceColor, 180),
+        ctaEnd: shiftHue(sourceColor, 195),
+      }
+    }
+    case "split-complementary": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 150),
+        accent: shiftHue(sourceColor, -150),
+        ctaStart: shiftHue(sourceColor, 150),
+        ctaEnd: shiftHue(sourceColor, -150),
+      }
+    }
+    case "triad": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 120),
+        accent: shiftHue(sourceColor, -120),
+        ctaStart: shiftHue(sourceColor, 120),
+        ctaEnd: shiftHue(sourceColor, -120),
+      }
+    }
+    case "square": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 90),
+        accent: shiftHue(sourceColor, -90),
+        ctaStart: shiftHue(sourceColor, 90),
+        ctaEnd: shiftHue(sourceColor, 180),
+      }
+    }
+    case "compound": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 150),
+        accent: shiftHue(sourceColor, 330),
+        ctaStart: shiftHue(sourceColor, 30),
+        ctaEnd: shiftHue(sourceColor, -150),
+      }
+    }
+    case "shades": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 0, 0, -8),
+        accent: shiftHue(sourceColor, 0, 0, 10),
+        ctaStart: shiftHue(sourceColor, 0, 0, -16),
+        ctaEnd: shiftHue(sourceColor, 0, 0, 22),
+      }
+    }
+    case "monochromatic": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 0, -12, 8),
+        accent: shiftHue(sourceColor, 0, 14, 16),
+        ctaStart: shiftHue(sourceColor, 0, -6, 2),
+        ctaEnd: shiftHue(sourceColor, 0, 8, 20),
+      }
+    }
+  }
+
+  return derivedBase
+}
+
+function getPaletteColorsFromGlobalValues(values: GlobalColorValues) {
+  return [
+    values.primary,
+    values.secondary,
+    values.accent,
+    values.ctaStart,
+    values.ctaEnd,
+    values.background,
+    values.foreground,
+  ]
+}
+
+function getGlobalColorsFromStorage() {
+  if (typeof window === "undefined") {
+    return DEFAULT_CHIMER_GLOBAL_COLORS
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_GLOBAL_COLOR_STORAGE_KEY)
+    if (!raw) {
+      return DEFAULT_CHIMER_GLOBAL_COLORS
+    }
+
+    const parsed = JSON.parse(raw)
+    return sanitizeGlobalColorValues(parsed?.colors ?? parsed)
+  } catch {
+    return DEFAULT_CHIMER_GLOBAL_COLORS
+  }
+}
+
+function getGlobalHarmonyFromStorage() {
+  if (typeof window === "undefined") {
+    return DEFAULT_CHIMER_GLOBAL_HARMONY
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_GLOBAL_COLOR_STORAGE_KEY)
+    if (!raw) {
+      return DEFAULT_CHIMER_GLOBAL_HARMONY
+    }
+
+    const parsed = JSON.parse(raw)
+    const storedHarmony = String(parsed?.harmony ?? "")
+    return CHIMER_HARMONY_OPTIONS.some((option) => option.value === storedHarmony)
+      ? storedHarmony as ChimerHarmonyValue
+      : DEFAULT_CHIMER_GLOBAL_HARMONY
+  } catch {
+    return DEFAULT_CHIMER_GLOBAL_HARMONY
+  }
+}
+
+function saveGlobalColorState(values: GlobalColorValues, harmony: ChimerHarmonyValue) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(
+      CHIMER_GLOBAL_COLOR_STORAGE_KEY,
+      JSON.stringify({
+        colors: sanitizeGlobalColorValues(values),
+        harmony,
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+  } catch {
+    // noop
+  }
+}
+
+function getSavedGlobalPalettesFromStorage() {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_GLOBAL_PALETTE_STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter((entry): entry is ChimerSavedPalette => {
+      if (!entry || typeof entry !== "object") {
+        return false
+      }
+
+      return (
+        typeof entry.id === "string"
+        && typeof entry.name === "string"
+        && typeof entry.sourceColor === "string"
+        && CHIMER_HARMONY_OPTIONS.some((option) => option.value === entry.harmony)
+        && Array.isArray(entry.generated)
+        && typeof entry.colors?.primary === "string"
+      )
+    })
+  } catch {
+    return []
+  }
+}
+
+function saveGlobalPalettesToStorage(palettes: ChimerSavedPalette[]) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(CHIMER_GLOBAL_PALETTE_STORAGE_KEY, JSON.stringify(palettes))
+  } catch {
+    // noop
+  }
+}
+
+function getBackgroundPreviewMedia(
+  option: BackgroundDefinition,
+  preferredVariant: "landscape" | "square" | "vertical" = "landscape",
+): BackgroundPreviewMedia | null {
+  const optionWithPreview = option as BackgroundDefinitionWithPreview
+  const resolveTypeFromSource = (source: string): BackgroundPreviewMedia["type"] | null => {
+    const normalizedSource = source.toLowerCase()
+
+    if (VIDEO_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern))) {
+      return "video"
+    }
+
+    if (IMAGE_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern)) || normalizedSource.includes("/media/")) {
+      return "image"
+    }
+
+    return null
+  }
+
+  const videoCandidates =
+    preferredVariant === "vertical"
+      ? [optionWithPreview.previewVerticalVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl]
+      : preferredVariant === "square"
+        ? [optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl, optionWithPreview.previewVerticalVideoUrl]
+        : [optionWithPreview.previewVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVerticalVideoUrl]
+  const previewCandidates: Array<{ typeHint?: BackgroundPreviewMedia["type"]; source?: string }> = [
+    ...videoCandidates.map((source) => ({ typeHint: "video" as const, source })),
+    { typeHint: optionWithPreview.previewMediaType, source: optionWithPreview.previewMediaUrl },
+    { typeHint: "image", source: optionWithPreview.previewImageUrl },
+  ]
+
+  for (const candidate of previewCandidates) {
+    if (!candidate.source) {
+      continue
+    }
+
+    const candidateType = candidate.typeHint ?? resolveTypeFromSource(candidate.source)
+    if (candidateType) {
+      return { type: candidateType, source: candidate.source }
+    }
+  }
+
+  const source = option.sourceUrl.toLowerCase()
+  const sourceType = resolveTypeFromSource(source)
+  if (sourceType) {
+    return { type: sourceType, source: option.sourceUrl }
+  }
+
+  return null
+}
+
+const getSavedBackgroundIdsFromStorage = (): BackgroundId[] => {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter((entry): entry is BackgroundId => typeof entry === "string")
+  } catch {
+    return []
+  }
+}
+
+const saveBackgroundIdsToStorage = (ids: BackgroundId[]) => {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY, JSON.stringify(ids))
+  } catch {
+    // noop
+  }
+}
+
+const hasPreviewMediaType = (option: BackgroundDefinition, type: BackgroundPreviewMedia["type"]) => {
+  const optionWithPreview = option as BackgroundDefinitionWithPreview
+  if (optionWithPreview.previewMediaType === type) {
+    return true
+  }
+
+  return type === "image"
+    ? Boolean(optionWithPreview.previewImageUrl)
+    : Boolean(optionWithPreview.previewVideoUrl || optionWithPreview.previewSquareVideoUrl || optionWithPreview.previewVerticalVideoUrl)
+}
+
+// Interactive backgrounds are identified from behavior hints until background
+// definitions grow first-class interaction metadata.
+const isInteractiveBackgroundOption = (option: BackgroundDefinition) => {
+  const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
+  return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
+}
+
+// Keep the Shader filter restricted to metadata that actually hints at shader,
+// canvas, WebGL, GLSL, or Three.js rendering.
+const isShaderBackgroundOption = (option: BackgroundDefinition) => {
+  const haystack = [
+    option.id,
+    option.label,
+    option.provider,
+    option.sourceUrl,
+    option.recommendedUse,
+    option.customizationSummary ?? "",
+  ].join(" ").toLowerCase()
+  return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
+}
+
+const isBackgroundCategoryMatch = (
+  option: BackgroundDefinition,
+  filter: BackgroundVisualCategory,
+  savedBackgroundIds: string[],
+) => {
+  if (filter === "all") {
+    return true
+  }
+
+  if (filter === "saved") {
+    return savedBackgroundIds.includes(option.id)
+  }
+
+  if (filter === "premium") {
+    return option.requiresSubscription
+  }
+
+  if (filter === "static") {
+    return option.motionIntensity === "static"
+  }
+
+  if (filter === "animated") {
+    return option.motionIntensity !== "static"
+  }
+
+  if (filter === "interactive") {
+    return isInteractiveBackgroundOption(option)
+  }
+
+  if (filter === "shader") {
+    return isShaderBackgroundOption(option)
+  }
+
+  if (filter === "image") {
+    return hasPreviewMediaType(option, "image")
+  }
+
+  return hasPreviewMediaType(option, "video")
+}
+
+const getBackgroundVisualTags = (option: BackgroundDefinition) => {
+  const tags: string[] = []
+
+  if (option.motionIntensity === "static") {
+    tags.push("Static")
+  } else {
+    tags.push("Animated")
+  }
+
+  if (isInteractiveBackgroundOption(option)) {
+    tags.push("Interactive")
+  }
+
+  if (isShaderBackgroundOption(option)) {
+    tags.push("Shader")
+  }
+
+  if (hasPreviewMediaType(option, "image")) {
+    tags.push("Image")
+  } else if (hasPreviewMediaType(option, "video")) {
+    tags.push("Video")
+  }
+
+  if (option.requiresSubscription) {
+    tags.push("Premium")
+  } else {
+    tags.push("Free")
+  }
+
+  return Array.from(new Set(tags))
+}
 
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
@@ -228,6 +949,19 @@ interface RunningTimerProps {
   primaryFontColor: string
   secondaryFontColor: string
   clockModeFontColor: string
+  clockFontFamily: ChimerSettings["clockFontFamily"]
+  clockStrokeEnabled: boolean
+  clockStrokeColor: string
+  clockStrokeWidth: number
+  clockShadowEnabled: boolean
+  clockShadowColor: string
+  clockShadowStrength: number
+  clockShadowDirection: number
+  clockShadowDistance: number
+  clockShadowFeather: number
+  clockGlowEnabled: boolean
+  clockGlowColor: string
+  clockGlowStrength: number
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
   sparklesMaxSize: number
@@ -244,798 +978,798 @@ interface RunningTimerProps {
   gradientAnimationFifthColor: string
   gradientAnimationSpeed: number
   gradientAnimationSize: number
-  animateUiGradientPrimaryColor: string
-  animateUiGradientHarmony: AnimateUiGradientHarmony
-  animateUiGradientOpacity: number
-  animateUiStarsColor: string
-  animateUiStarsSpeed: number
-  animateUiStarsDensity: number
-  animateUiStarsParallax: number
-  animateUiHoleStrokeColor: string
-  animateUiHoleParticleColor: string
-  animateUiHoleLineCount: number
-  animateUiHoleDiscCount: number
-  chamaacLightSpeedWarpSpeed: number
-  chamaacLightSpeedParticleCount: number
-  chamaacLightSpeedLightColor: string
-  chamaacLightSpeedIntensity: number
-  chamaacLightSpeedRadius: number
-  chamaacLightSpeedCylinderLength: number
-  chamaacElectricMistColor: string
-  chamaacElectricMistSpeed: number
-  chamaacElectricMistDetail: number
-  chamaacElectricMistDistortion: number
-  chamaacElectricMistBrightness: number
-  chamaacAstralFlowPaletteMode: ChamaacAstralFlowPaletteMode
-  chamaacAstralFlowPrimaryColor: string
-  chamaacAstralFlowHarmony: ColorHarmony
-  chamaacAstralFlowColorOne: string
-  chamaacAstralFlowColorTwo: string
-  chamaacAstralFlowColorThree: string
-  chamaacAstralFlowSpeed: number
-  chamaacAstralFlowFlowMin: number
-  chamaacAstralFlowFlowMax: number
-  chamaacDeepSpaceNebulaPaletteMode: ChamaacDeepSpaceNebulaPaletteMode
-  chamaacDeepSpaceNebulaPrimaryColor: string
-  chamaacDeepSpaceNebulaHarmony: ColorHarmony
-  chamaacDeepSpaceNebulaColorOne: string
-  chamaacDeepSpaceNebulaColorTwo: string
-  chamaacDeepSpaceNebulaColorThree: string
-  chamaacDeepSpaceNebulaSpeed: number
-  chamaacGridBloomColor: string
-  chamaacGridBloomSpeed: number
-  chamaacGridBloomGridScale: number
-  chamaacGridBloomRotationSpeed: number
-  chamaacGridBloomFadeFalloff: number
-  chamaacGridBloomDistortionAmount: number
-  chamaacGridBloomFlowSpeedX: number
-  chamaacGridBloomFlowSpeedY: number
-  chamaacLiquidChromePaletteMode: ChamaacLiquidChromePaletteMode
-  chamaacLiquidChromePrimaryColor: string
-  chamaacLiquidChromeHarmony: ColorHarmony
-  chamaacLiquidChromeColorOne: string
-  chamaacLiquidChromeColorTwo: string
-  chamaacLiquidChromeFlowSpeed: number
-  chamaacLiquidChromeTimeScale: number
-  chamaacWavesPaletteMode: ChamaacWavesPaletteMode
-  chamaacWavesPrimaryColor: string
-  chamaacWavesHarmony: ColorHarmony
-  chamaacWavesBackgroundColor: string
-  chamaacWavesColorOne: string
-  chamaacWavesColorTwo: string
-  chamaacWavesColorThree: string
-  chamaacWavesSpeedX: number
-  chamaacWavesSpeedY: number
-  chamaacWavesAmplitude: number
-  reactBitsFerrofluidPaletteMode: ReactBitsFerrofluidPaletteMode
-  reactBitsFerrofluidPrimaryColor: string
-  reactBitsFerrofluidHarmony: ColorHarmony
-  reactBitsFerrofluidColorOne: string
-  reactBitsFerrofluidColorTwo: string
-  reactBitsFerrofluidColorThree: string
-  reactBitsFerrofluidSpeed: number
-  reactBitsFerrofluidScale: number
-  reactBitsFerrofluidTurbulence: number
-  reactBitsFerrofluidFluidity: number
-  reactBitsFerrofluidRimWidth: number
-  reactBitsFerrofluidSharpness: number
-  reactBitsFerrofluidShimmer: number
-  reactBitsFerrofluidGlow: number
-  reactBitsFerrofluidFlowDirection: ChimerSettings["reactBitsFerrofluidFlowDirection"]
-  reactBitsFerrofluidOpacity: number
-  reactBitsLightfallPaletteMode: ReactBitsLightfallPaletteMode
-  reactBitsLightfallPrimaryColor: string
-  reactBitsLightfallHarmony: ColorHarmony
-  reactBitsLightfallColorOne: string
-  reactBitsLightfallColorTwo: string
-  reactBitsLightfallColorThree: string
-  reactBitsLightfallBackgroundColor: string
-  reactBitsLightfallSpeed: number
-  reactBitsLightfallStreakCount: number
-  reactBitsLightfallStreakWidth: number
-  reactBitsLightfallStreakLength: number
-  reactBitsLightfallGlow: number
-  reactBitsLightfallDensity: number
-  reactBitsLightfallTwinkle: number
-  reactBitsLightfallZoom: number
-  reactBitsLightfallBackgroundGlow: number
-  reactBitsLightfallOpacity: number
-  reactBitsLightfallCursorEnabled: boolean
-  reactBitsLightfallCursorStrength: number
-  reactBitsLightfallCursorRadius: number
-  reactBitsLightfallCursorDampening: number
-  reactBitsLiquidEtherPaletteMode: ReactBitsLiquidEtherPaletteMode
-  reactBitsLiquidEtherPrimaryColor: string
-  reactBitsLiquidEtherHarmony: ColorHarmony
-  reactBitsLiquidEtherColorOne: string
-  reactBitsLiquidEtherColorTwo: string
-  reactBitsLiquidEtherColorThree: string
-  reactBitsLiquidEtherCursorEnabled: boolean
-  reactBitsLiquidEtherMouseForce: number
-  reactBitsLiquidEtherCursorSize: number
-  reactBitsLiquidEtherIsViscous: boolean
-  reactBitsLiquidEtherViscous: number
-  reactBitsLiquidEtherIterationsViscous: number
-  reactBitsLiquidEtherIterationsPoisson: number
-  reactBitsLiquidEtherDt: number
-  reactBitsLiquidEtherBfecc: boolean
-  reactBitsLiquidEtherResolution: number
-  reactBitsLiquidEtherIsBounce: boolean
-  reactBitsLiquidEtherAutoDemo: boolean
-  reactBitsLiquidEtherAutoSpeed: number
-  reactBitsLiquidEtherAutoIntensity: number
-  reactBitsLiquidEtherAutoResumeDelay: number
-  reactBitsLiquidEtherAutoRampDuration: number
-  reactBitsLiquidEtherOpacity: number
-  reactBitsPrismHeight: number
-  reactBitsPrismBaseWidth: number
-  reactBitsPrismAnimationType: ReactBitsPrismAnimationType
-  reactBitsPrismGlow: number
-  reactBitsPrismOffsetX: number
-  reactBitsPrismOffsetY: number
-  reactBitsPrismNoise: number
-  reactBitsPrismTransparent: boolean
-  reactBitsPrismScale: number
-  reactBitsPrismHueShift: number
-  reactBitsPrismColorFrequency: number
-  reactBitsPrismHoverStrength: number
-  reactBitsPrismInertia: number
-  reactBitsPrismBloom: number
-  reactBitsPrismTimeScale: number
-  reactBitsDarkVeilHueShift: number
-  reactBitsDarkVeilNoiseIntensity: number
-  reactBitsDarkVeilScanlineIntensity: number
-  reactBitsDarkVeilSpeed: number
-  reactBitsDarkVeilScanlineFrequency: number
-  reactBitsDarkVeilWarpAmount: number
-  reactBitsDarkVeilResolutionScale: number
-  reactBitsLightPillarPaletteMode: ReactBitsLightPillarPaletteMode
-  reactBitsLightPillarPrimaryColor: string
-  reactBitsLightPillarHarmony: ColorHarmony
-  reactBitsLightPillarTopColor: string
-  reactBitsLightPillarBottomColor: string
-  reactBitsLightPillarIntensity: number
-  reactBitsLightPillarRotationSpeed: number
-  reactBitsLightPillarInteractive: boolean
-  reactBitsLightPillarGlowAmount: number
-  reactBitsLightPillarWidth: number
-  reactBitsLightPillarHeight: number
-  reactBitsLightPillarNoiseIntensity: number
-  reactBitsLightPillarBlendMode: ReactBitsLightPillarBlendMode
-  reactBitsLightPillarRotation: number
-  reactBitsLightPillarQuality: ReactBitsLightPillarQuality
-  reactBitsSilkPaletteMode: ReactBitsSilkPaletteMode
-  reactBitsSilkPrimaryColor: string
-  reactBitsSilkHarmony: ColorHarmony
-  reactBitsSilkColor: string
-  reactBitsSilkSpeed: number
-  reactBitsSilkScale: number
-  reactBitsSilkNoiseIntensity: number
-  reactBitsSilkRotation: number
-  reactBitsFloatingLinesPaletteMode: ReactBitsFloatingLinesPaletteMode
-  reactBitsFloatingLinesPrimaryColor: string
-  reactBitsFloatingLinesHarmony: ColorHarmony
-  reactBitsFloatingLinesColorOne: string
-  reactBitsFloatingLinesColorTwo: string
-  reactBitsFloatingLinesColorThree: string
-  reactBitsFloatingLinesEnableTop: boolean
-  reactBitsFloatingLinesEnableMiddle: boolean
-  reactBitsFloatingLinesEnableBottom: boolean
-  reactBitsFloatingLinesTopLineCount: number
-  reactBitsFloatingLinesMiddleLineCount: number
-  reactBitsFloatingLinesBottomLineCount: number
-  reactBitsFloatingLinesTopLineDistance: number
-  reactBitsFloatingLinesMiddleLineDistance: number
-  reactBitsFloatingLinesBottomLineDistance: number
-  reactBitsFloatingLinesTopWaveX: number
-  reactBitsFloatingLinesTopWaveY: number
-  reactBitsFloatingLinesTopWaveRotate: number
-  reactBitsFloatingLinesMiddleWaveX: number
-  reactBitsFloatingLinesMiddleWaveY: number
-  reactBitsFloatingLinesMiddleWaveRotate: number
-  reactBitsFloatingLinesBottomWaveX: number
-  reactBitsFloatingLinesBottomWaveY: number
-  reactBitsFloatingLinesBottomWaveRotate: number
-  reactBitsFloatingLinesAnimationSpeed: number
-  reactBitsFloatingLinesInteractive: boolean
-  reactBitsFloatingLinesBendRadius: number
-  reactBitsFloatingLinesBendStrength: number
-  reactBitsFloatingLinesMouseDamping: number
-  reactBitsFloatingLinesParallax: boolean
-  reactBitsFloatingLinesParallaxStrength: number
-  reactBitsFloatingLinesBlendMode: ReactBitsFloatingLinesBlendMode
-  reactBitsSideRaysPaletteMode: ReactBitsSideRaysPaletteMode
-  reactBitsSideRaysPrimaryColor: string
-  reactBitsSideRaysHarmony: ColorHarmony
-  reactBitsSideRaysColorOne: string
-  reactBitsSideRaysColorTwo: string
-  reactBitsSideRaysSpeed: number
-  reactBitsSideRaysIntensity: number
-  reactBitsSideRaysSpread: number
-  reactBitsSideRaysOrigin: ReactBitsSideRaysOrigin
-  reactBitsSideRaysTilt: number
-  reactBitsSideRaysSaturation: number
-  reactBitsSideRaysBlend: number
-  reactBitsSideRaysFalloff: number
-  reactBitsSideRaysOpacity: number
-  reactBitsLightRaysPaletteMode: ReactBitsLightRaysPaletteMode
-  reactBitsLightRaysPrimaryColor: string
-  reactBitsLightRaysHarmony: ColorHarmony
-  reactBitsLightRaysColor: string
-  reactBitsLightRaysOrigin: ReactBitsLightRaysOrigin
-  reactBitsLightRaysSpeed: number
-  reactBitsLightRaysSpread: number
-  reactBitsLightRaysLength: number
-  reactBitsLightRaysPulsating: boolean
-  reactBitsLightRaysFadeDistance: number
-  reactBitsLightRaysSaturation: number
-  reactBitsLightRaysFollowMouse: boolean
-  reactBitsLightRaysMouseInfluence: number
-  reactBitsLightRaysNoiseAmount: number
-  reactBitsLightRaysDistortion: number
-  reactBitsPixelBlastPaletteMode: ReactBitsPixelBlastPaletteMode
-  reactBitsPixelBlastPrimaryColor: string
-  reactBitsPixelBlastHarmony: ColorHarmony
-  reactBitsPixelBlastColor: string
-  reactBitsPixelBlastVariant: ReactBitsPixelBlastVariant
-  reactBitsPixelBlastPixelSize: number
-  reactBitsPixelBlastAntialias: boolean
-  reactBitsPixelBlastPatternScale: number
-  reactBitsPixelBlastPatternDensity: number
-  reactBitsPixelBlastLiquid: boolean
-  reactBitsPixelBlastLiquidStrength: number
-  reactBitsPixelBlastLiquidRadius: number
-  reactBitsPixelBlastPixelSizeJitter: number
-  reactBitsPixelBlastEnableRipples: boolean
-  reactBitsPixelBlastRippleIntensityScale: number
-  reactBitsPixelBlastRippleThickness: number
-  reactBitsPixelBlastRippleSpeed: number
-  reactBitsPixelBlastLiquidWobbleSpeed: number
-  reactBitsPixelBlastAutoPauseOffscreen: boolean
-  reactBitsPixelBlastSpeed: number
-  reactBitsPixelBlastTransparent: boolean
-  reactBitsPixelBlastEdgeFade: number
-  reactBitsPixelBlastNoiseAmount: number
-  reactBitsColorBendsPaletteMode: ReactBitsColorBendsPaletteMode
-  reactBitsColorBendsPrimaryColor: string
-  reactBitsColorBendsHarmony: ColorHarmony
-  reactBitsColorBendsColorOne: string
-  reactBitsColorBendsColorTwo: string
-  reactBitsColorBendsColorThree: string
-  reactBitsColorBendsColorFour: string
-  reactBitsColorBendsRotation: number
-  reactBitsColorBendsSpeed: number
-  reactBitsColorBendsTransparent: boolean
-  reactBitsColorBendsAutoRotate: number
-  reactBitsColorBendsScale: number
-  reactBitsColorBendsFrequency: number
-  reactBitsColorBendsWarpStrength: number
-  reactBitsColorBendsInteractive: boolean
-  reactBitsColorBendsMouseInfluence: number
-  reactBitsColorBendsParallax: number
-  reactBitsColorBendsNoise: number
-  reactBitsColorBendsIterations: number
-  reactBitsColorBendsIntensity: number
-  reactBitsColorBendsBandWidth: number
-  reactBitsEvilEyePaletteMode: ReactBitsEvilEyePaletteMode
-  reactBitsEvilEyePrimaryColor: string
-  reactBitsEvilEyeHarmony: ColorHarmony
-  reactBitsEvilEyeColor: string
-  reactBitsEvilEyeBackgroundColor: string
-  reactBitsEvilEyeIntensity: number
-  reactBitsEvilEyePupilSize: number
-  reactBitsEvilEyeIrisWidth: number
-  reactBitsEvilEyeGlowIntensity: number
-  reactBitsEvilEyeScale: number
-  reactBitsEvilEyeNoiseScale: number
-  reactBitsEvilEyePupilFollow: number
-  reactBitsEvilEyeFlameSpeed: number
-  reactBitsEvilEyeInteractive: boolean
-  reactBitsLineWavesPaletteMode: ReactBitsLineWavesPaletteMode
-  reactBitsLineWavesPrimaryColor: string
-  reactBitsLineWavesHarmony: ColorHarmony
-  reactBitsLineWavesColorOne: string
-  reactBitsLineWavesColorTwo: string
-  reactBitsLineWavesColorThree: string
-  reactBitsLineWavesSpeed: number
-  reactBitsLineWavesInnerLineCount: number
-  reactBitsLineWavesOuterLineCount: number
-  reactBitsLineWavesWarpIntensity: number
-  reactBitsLineWavesRotation: number
-  reactBitsLineWavesEdgeFadeWidth: number
-  reactBitsLineWavesColorCycleSpeed: number
-  reactBitsLineWavesBrightness: number
-  reactBitsLineWavesEnableMouseInteraction: boolean
-  reactBitsLineWavesMouseInfluence: number
-  reactBitsRadarPaletteMode: ReactBitsRadarPaletteMode
-  reactBitsRadarPrimaryColor: string
-  reactBitsRadarHarmony: ColorHarmony
-  reactBitsRadarColor: string
-  reactBitsRadarBackgroundColor: string
-  reactBitsRadarSpeed: number
-  reactBitsRadarScale: number
-  reactBitsRadarRingCount: number
-  reactBitsRadarSpokeCount: number
-  reactBitsRadarRingThickness: number
-  reactBitsRadarSpokeThickness: number
-  reactBitsRadarSweepSpeed: number
-  reactBitsRadarSweepWidth: number
-  reactBitsRadarSweepLobes: number
-  reactBitsRadarFalloff: number
-  reactBitsRadarBrightness: number
-  reactBitsRadarEnableMouseInteraction: boolean
-  reactBitsRadarMouseInfluence: number
-  reactBitsSoftAuroraPaletteMode: ReactBitsSoftAuroraPaletteMode
-  reactBitsSoftAuroraPrimaryColor: string
-  reactBitsSoftAuroraHarmony: ColorHarmony
-  reactBitsSoftAuroraColorOne: string
-  reactBitsSoftAuroraColorTwo: string
-  reactBitsSoftAuroraSpeed: number
-  reactBitsSoftAuroraScale: number
-  reactBitsSoftAuroraBrightness: number
-  reactBitsSoftAuroraNoiseFrequency: number
-  reactBitsSoftAuroraNoiseAmplitude: number
-  reactBitsSoftAuroraBandHeight: number
-  reactBitsSoftAuroraBandSpread: number
-  reactBitsSoftAuroraOctaveDecay: number
-  reactBitsSoftAuroraLayerOffset: number
-  reactBitsSoftAuroraColorSpeed: number
-  reactBitsSoftAuroraEnableMouseInteraction: boolean
-  reactBitsSoftAuroraMouseInfluence: number
-  reactBitsPlasmaPaletteMode: ReactBitsPlasmaPaletteMode
-  reactBitsPlasmaPrimaryColor: string
-  reactBitsPlasmaHarmony: ColorHarmony
-  reactBitsPlasmaColor: string
-  reactBitsPlasmaSpeed: number
-  reactBitsPlasmaDirection: ReactBitsPlasmaDirection
-  reactBitsPlasmaScale: number
-  reactBitsPlasmaOpacity: number
-  reactBitsPlasmaMouseInteractive: boolean
-  reactBitsPlasmaWavePaletteMode: ReactBitsPlasmaWavePaletteMode
-  reactBitsPlasmaWavePrimaryColor: string
-  reactBitsPlasmaWaveHarmony: ColorHarmony
-  reactBitsPlasmaWaveColorOne: string
-  reactBitsPlasmaWaveColorTwo: string
-  reactBitsPlasmaWaveXOffset: number
-  reactBitsPlasmaWaveYOffset: number
-  reactBitsPlasmaWaveRotationDeg: number
-  reactBitsPlasmaWaveFocalLength: number
-  reactBitsPlasmaWaveSpeedOne: number
-  reactBitsPlasmaWaveSpeedTwo: number
-  reactBitsPlasmaWaveDirectionTwo: 1 | -1
-  reactBitsPlasmaWaveBendOne: number
-  reactBitsPlasmaWaveBendTwo: number
-  reactBitsParticlesPaletteMode: ReactBitsParticlesPaletteMode
-  reactBitsParticlesPrimaryColor: string
-  reactBitsParticlesHarmony: ColorHarmony
-  reactBitsParticlesColorOne: string
-  reactBitsParticlesColorTwo: string
-  reactBitsParticlesColorThree: string
-  reactBitsParticlesCount: number
-  reactBitsParticlesSpread: number
-  reactBitsParticlesSpeed: number
-  reactBitsParticlesMoveOnHover: boolean
-  reactBitsParticlesHoverFactor: number
-  reactBitsParticlesAlpha: boolean
-  reactBitsParticlesBaseSize: number
-  reactBitsParticlesSizeRandomness: number
-  reactBitsParticlesCameraDistance: number
-  reactBitsParticlesDisableRotation: boolean
-  reactBitsParticlesPixelRatio: number
-  reactBitsGradientBlindsPaletteMode: ReactBitsGradientBlindsPaletteMode
-  reactBitsGradientBlindsPrimaryColor: string
-  reactBitsGradientBlindsHarmony: ColorHarmony
-  reactBitsGradientBlindsColorOne: string
-  reactBitsGradientBlindsColorTwo: string
-  reactBitsGradientBlindsAngle: number
-  reactBitsGradientBlindsNoise: number
-  reactBitsGradientBlindsBlindCount: number
-  reactBitsGradientBlindsBlindMinWidth: number
-  reactBitsGradientBlindsMouseDampening: number
-  reactBitsGradientBlindsMirror: boolean
-  reactBitsGradientBlindsSpotlightRadius: number
-  reactBitsGradientBlindsSpotlightSoftness: number
-  reactBitsGradientBlindsSpotlightOpacity: number
-  reactBitsGradientBlindsDistort: number
-  reactBitsGradientBlindsShineDirection: ReactBitsGradientBlindsShineDirection
-  reactBitsGradientBlindsBlendMode: ReactBitsGradientBlindsBlendMode
-  reactBitsGradientBlindsDpr: number
-  reactBitsGradientBlindsEnableMouseInteraction: boolean
-  reactBitsGrainientPaletteMode: ReactBitsGrainientPaletteMode
-  reactBitsGrainientPrimaryColor: string
-  reactBitsGrainientHarmony: ColorHarmony
-  reactBitsGrainientColorOne: string
-  reactBitsGrainientColorTwo: string
-  reactBitsGrainientColorThree: string
-  reactBitsGrainientTimeSpeed: number
-  reactBitsGrainientColorBalance: number
-  reactBitsGrainientWarpStrength: number
-  reactBitsGrainientWarpFrequency: number
-  reactBitsGrainientWarpSpeed: number
-  reactBitsGrainientWarpAmplitude: number
-  reactBitsGrainientBlendAngle: number
-  reactBitsGrainientBlendSoftness: number
-  reactBitsGrainientRotationAmount: number
-  reactBitsGrainientNoiseScale: number
-  reactBitsGrainientGrainAmount: number
-  reactBitsGrainientGrainScale: number
-  reactBitsGrainientGrainAnimated: boolean
-  reactBitsGrainientContrast: number
-  reactBitsGrainientGamma: number
-  reactBitsGrainientSaturation: number
-  reactBitsGrainientCenterX: number
-  reactBitsGrainientCenterY: number
-  reactBitsGrainientZoom: number
-  reactBitsGridScanPaletteMode: ReactBitsGridScanPaletteMode
-  reactBitsGridScanPrimaryColor: string
-  reactBitsGridScanHarmony: ColorHarmony
-  reactBitsGridScanLinesColor: string
-  reactBitsGridScanScanColor: string
-  reactBitsGridScanSensitivity: number
-  reactBitsGridScanLineThickness: number
-  reactBitsGridScanScanOpacity: number
-  reactBitsGridScanGridScale: number
-  reactBitsGridScanLineStyle: ReactBitsGridScanLineStyle
-  reactBitsGridScanLineJitter: number
-  reactBitsGridScanDirection: ReactBitsGridScanDirection
-  reactBitsGridScanNoiseIntensity: number
-  reactBitsGridScanBloomOpacity: number
-  reactBitsGridScanScanGlow: number
-  reactBitsGridScanScanSoftness: number
-  reactBitsGridScanPhaseTaper: number
-  reactBitsGridScanScanDuration: number
-  reactBitsGridScanScanDelay: number
-  reactBitsGridScanEnablePointerInteraction: boolean
-  reactBitsGridScanScanOnClick: boolean
-  reactBitsBeamsPaletteMode: ReactBitsBeamsPaletteMode
-  reactBitsBeamsPrimaryColor: string
-  reactBitsBeamsHarmony: ColorHarmony
-  reactBitsBeamsLightColor: string
-  reactBitsBeamsBeamWidth: number
-  reactBitsBeamsBeamHeight: number
-  reactBitsBeamsBeamNumber: number
-  reactBitsBeamsSpeed: number
-  reactBitsBeamsNoiseIntensity: number
-  reactBitsBeamsScale: number
-  reactBitsBeamsRotation: number
-  reactBitsPixelSnowPaletteMode: ReactBitsPixelSnowPaletteMode
-  reactBitsPixelSnowPrimaryColor: string
-  reactBitsPixelSnowHarmony: ColorHarmony
-  reactBitsPixelSnowColor: string
-  reactBitsPixelSnowFlakeSize: number
-  reactBitsPixelSnowMinFlakeSize: number
-  reactBitsPixelSnowPixelResolution: number
-  reactBitsPixelSnowSpeed: number
-  reactBitsPixelSnowDepthFade: number
-  reactBitsPixelSnowFarPlane: number
-  reactBitsPixelSnowBrightness: number
-  reactBitsPixelSnowGamma: number
-  reactBitsPixelSnowDensity: number
-  reactBitsPixelSnowVariant: ReactBitsPixelSnowVariant
-  reactBitsPixelSnowDirection: number
-  reactBitsLightningPaletteMode: ReactBitsLightningPaletteMode
-  reactBitsLightningPrimaryColor: string
-  reactBitsLightningHarmony: ColorHarmony
-  reactBitsLightningColor: string
-  reactBitsLightningHue: number
-  reactBitsLightningXOffset: number
-  reactBitsLightningSpeed: number
-  reactBitsLightningIntensity: number
-  reactBitsLightningSize: number
-  reactBitsPrismaticBurstPaletteMode: ReactBitsPrismaticBurstPaletteMode
-  reactBitsPrismaticBurstPrimaryColor: string
-  reactBitsPrismaticBurstHarmony: ColorHarmony
-  reactBitsPrismaticBurstColorOne: string
-  reactBitsPrismaticBurstColorTwo: string
-  reactBitsPrismaticBurstColorThree: string
-  reactBitsPrismaticBurstColorFour: string
-  reactBitsPrismaticBurstIntensity: number
-  reactBitsPrismaticBurstSpeed: number
-  reactBitsPrismaticBurstAnimationType: ReactBitsPrismaticBurstAnimationType
-  reactBitsPrismaticBurstDistort: number
-  reactBitsPrismaticBurstOffsetX: number
-  reactBitsPrismaticBurstOffsetY: number
-  reactBitsPrismaticBurstHoverDampness: number
-  reactBitsPrismaticBurstRayCount: number
-  reactBitsPrismaticBurstMixBlendMode: ReactBitsPrismaticBurstMixBlendMode
-  reactBitsGalaxyPaletteMode: ReactBitsGalaxyPaletteMode
-  reactBitsGalaxyPrimaryColor: string
-  reactBitsGalaxyHarmony: ColorHarmony
-  reactBitsGalaxyColor: string
-  reactBitsGalaxyHueShift: number
-  reactBitsGalaxyFocalX: number
-  reactBitsGalaxyFocalY: number
-  reactBitsGalaxyRotationDeg: number
-  reactBitsGalaxyStarSpeed: number
-  reactBitsGalaxyDensity: number
-  reactBitsGalaxySpeed: number
-  reactBitsGalaxyMouseInteraction: boolean
-  reactBitsGalaxyGlowIntensity: number
-  reactBitsGalaxySaturation: number
-  reactBitsGalaxyMouseRepulsion: boolean
-  reactBitsGalaxyRepulsionStrength: number
-  reactBitsGalaxyTwinkleIntensity: number
-  reactBitsGalaxyRotationSpeed: number
-  reactBitsGalaxyAutoCenterRepulsion: number
-  reactBitsGalaxyTransparent: boolean
-  reactBitsDitherPaletteMode: ReactBitsDitherPaletteMode
-  reactBitsDitherPrimaryColor: string
-  reactBitsDitherHarmony: ColorHarmony
-  reactBitsDitherColor: string
-  reactBitsDitherWaveSpeed: number
-  reactBitsDitherWaveFrequency: number
-  reactBitsDitherWaveAmplitude: number
-  reactBitsDitherColorNum: number
-  reactBitsDitherPixelSize: number
-  reactBitsDitherMouseInteraction: boolean
-  reactBitsDitherMouseRadius: number
-  reactBitsFaultyTerminalPaletteMode: ReactBitsFaultyTerminalPaletteMode
-  reactBitsFaultyTerminalPrimaryColor: string
-  reactBitsFaultyTerminalHarmony: ColorHarmony
-  reactBitsFaultyTerminalTint: string
-  reactBitsFaultyTerminalScale: number
-  reactBitsFaultyTerminalGridMulX: number
-  reactBitsFaultyTerminalGridMulY: number
-  reactBitsFaultyTerminalDigitSize: number
-  reactBitsFaultyTerminalTimeScale: number
-  reactBitsFaultyTerminalScanlineIntensity: number
-  reactBitsFaultyTerminalGlitchAmount: number
-  reactBitsFaultyTerminalFlickerAmount: number
-  reactBitsFaultyTerminalNoiseAmp: number
-  reactBitsFaultyTerminalChromaticAberration: number
-  reactBitsFaultyTerminalDither: number
-  reactBitsFaultyTerminalCurvature: number
-  reactBitsFaultyTerminalMouseReact: boolean
-  reactBitsFaultyTerminalMouseStrength: number
-  reactBitsFaultyTerminalPageLoadAnimation: boolean
-  reactBitsFaultyTerminalBrightness: number
-  reactBitsRippleGridPaletteMode: ReactBitsRippleGridPaletteMode
-  reactBitsRippleGridPrimaryColor: string
-  reactBitsRippleGridHarmony: ColorHarmony
-  reactBitsRippleGridColor: string
-  reactBitsRippleGridRippleIntensity: number
-  reactBitsRippleGridGridSize: number
-  reactBitsRippleGridGridThickness: number
-  reactBitsRippleGridFadeDistance: number
-  reactBitsRippleGridVignetteStrength: number
-  reactBitsRippleGridGlowIntensity: number
-  reactBitsRippleGridOpacity: number
-  reactBitsRippleGridGridRotation: number
-  reactBitsRippleGridMouseInteraction: boolean
-  reactBitsRippleGridMouseInteractionRadius: number
-  reactBitsDotFieldPaletteMode: ReactBitsDotFieldPaletteMode
-  reactBitsDotFieldPrimaryColor: string
-  reactBitsDotFieldHarmony: ColorHarmony
-  reactBitsDotFieldGradientFromColor: string
-  reactBitsDotFieldGradientFromAlpha: number
-  reactBitsDotFieldGradientToColor: string
-  reactBitsDotFieldGradientToAlpha: number
-  reactBitsDotFieldGlowColor: string
-  reactBitsDotFieldDotRadius: number
-  reactBitsDotFieldDotSpacing: number
-  reactBitsDotFieldCursorRadius: number
-  reactBitsDotFieldCursorForce: number
-  reactBitsDotFieldBulgeOnly: boolean
-  reactBitsDotFieldBulgeStrength: number
-  reactBitsDotFieldGlowRadius: number
-  reactBitsDotFieldSparkle: boolean
-  reactBitsDotFieldWaveAmplitude: number
-  reactBitsDotFieldCursorInteraction: boolean
-  reactBitsDotGridPaletteMode: ReactBitsDotGridPaletteMode
-  reactBitsDotGridPrimaryColor: string
-  reactBitsDotGridHarmony: ColorHarmony
-  reactBitsDotGridBaseColor: string
-  reactBitsDotGridActiveColor: string
-  reactBitsDotGridDotSize: number
-  reactBitsDotGridGap: number
-  reactBitsDotGridProximity: number
-  reactBitsDotGridSpeedTrigger: number
-  reactBitsDotGridShockRadius: number
-  reactBitsDotGridShockStrength: number
-  reactBitsDotGridMaxSpeed: number
-  reactBitsDotGridResistance: number
-  reactBitsDotGridReturnDuration: number
-  reactBitsDotGridCursorInteraction: boolean
-  reactBitsDotGridClickShock: boolean
-  reactBitsThreadsPaletteMode: ReactBitsThreadsPaletteMode
-  reactBitsThreadsPrimaryColor: string
-  reactBitsThreadsHarmony: ColorHarmony
-  reactBitsThreadsColor: string
-  reactBitsThreadsAmplitude: number
-  reactBitsThreadsDistance: number
-  reactBitsThreadsEnableMouseInteraction: boolean
-  reactBitsIridescencePaletteMode: ReactBitsIridescencePaletteMode
-  reactBitsIridescencePrimaryColor: string
-  reactBitsIridescenceHarmony: ColorHarmony
-  reactBitsIridescenceColor: string
-  reactBitsIridescenceSpeed: number
-  reactBitsIridescenceAmplitude: number
-  reactBitsIridescenceMouseReact: boolean
-  reactBitsWavesPaletteMode: ReactBitsWavesPaletteMode
-  reactBitsWavesPrimaryColor: string
-  reactBitsWavesHarmony: ColorHarmony
-  reactBitsWavesLineColor: string
-  reactBitsWavesBackgroundColor: string
-  reactBitsWavesTransparentBackground: boolean
-  reactBitsWavesSpeedX: number
-  reactBitsWavesSpeedY: number
-  reactBitsWavesAmplitudeX: number
-  reactBitsWavesAmplitudeY: number
-  reactBitsWavesGapX: number
-  reactBitsWavesGapY: number
-  reactBitsWavesFriction: number
-  reactBitsWavesTension: number
-  reactBitsWavesMaxCursorMove: number
-  reactBitsWavesCursorInteraction: boolean
-  reactBitsGridDistortionPaletteMode: ReactBitsGridDistortionPaletteMode
-  reactBitsGridDistortionPrimaryColor: string
-  reactBitsGridDistortionHarmony: ColorHarmony
-  reactBitsGridDistortionColorOne: string
-  reactBitsGridDistortionColorTwo: string
-  reactBitsGridDistortionColorThree: string
-  reactBitsGridDistortionGrid: number
-  reactBitsGridDistortionMouse: number
-  reactBitsGridDistortionStrength: number
-  reactBitsGridDistortionRelaxation: number
-  reactBitsGridDistortionCursorInteraction: boolean
-  reactBitsOrbPaletteMode: ReactBitsOrbPaletteMode
-  reactBitsOrbPrimaryColor: string
-  reactBitsOrbHarmony: ColorHarmony
-  reactBitsOrbColor: string
-  reactBitsOrbHue: number
-  reactBitsOrbHoverIntensity: number
-  reactBitsOrbRotateOnHover: boolean
-  reactBitsOrbForceHoverState: boolean
-  reactBitsOrbBackgroundColor: string
-  reactBitsOrbCursorInteraction: boolean
-  reactBitsLetterGlitchPaletteMode: ReactBitsLetterGlitchPaletteMode
-  reactBitsLetterGlitchPrimaryColor: string
-  reactBitsLetterGlitchHarmony: ColorHarmony
-  reactBitsLetterGlitchColorOne: string
-  reactBitsLetterGlitchColorTwo: string
-  reactBitsLetterGlitchColorThree: string
-  reactBitsLetterGlitchGlitchSpeed: number
-  reactBitsLetterGlitchCenterVignette: boolean
-  reactBitsLetterGlitchOuterVignette: boolean
-  reactBitsLetterGlitchSmooth: boolean
-  reactBitsLetterGlitchCharacters: string
-  reactBitsGridMotionPaletteMode: ReactBitsGridMotionPaletteMode
-  reactBitsGridMotionPrimaryColor: string
-  reactBitsGridMotionHarmony: ColorHarmony
-  reactBitsGridMotionGradientColor: string
-  reactBitsGridMotionTileColor: string
-  reactBitsGridMotionTextColor: string
-  reactBitsGridMotionMaxMoveAmount: number
-  reactBitsGridMotionBaseDuration: number
-  reactBitsGridMotionCursorInteraction: boolean
-  reactBitsShapeGridPaletteMode: ReactBitsShapeGridPaletteMode
-  reactBitsShapeGridPrimaryColor: string
-  reactBitsShapeGridHarmony: ColorHarmony
-  reactBitsShapeGridBorderColor: string
-  reactBitsShapeGridHoverFillColor: string
-  reactBitsShapeGridDirection: ChimerSettings["reactBitsShapeGridDirection"]
-  reactBitsShapeGridSpeed: number
-  reactBitsShapeGridSquareSize: number
-  reactBitsShapeGridShape: ChimerSettings["reactBitsShapeGridShape"]
-  reactBitsShapeGridHoverTrailAmount: number
-  reactBitsShapeGridCursorInteraction: boolean
-  reactBitsLiquidChromePaletteMode: ReactBitsLiquidChromePaletteMode
-  reactBitsLiquidChromePrimaryColor: string
-  reactBitsLiquidChromeHarmony: ColorHarmony
-  reactBitsLiquidChromeBaseColor: string
-  reactBitsLiquidChromeSpeed: number
-  reactBitsLiquidChromeAmplitude: number
-  reactBitsLiquidChromeFrequencyX: number
-  reactBitsLiquidChromeFrequencyY: number
-  reactBitsLiquidChromeInteractive: boolean
-  reactBitsBalatroPaletteMode: ReactBitsBalatroPaletteMode
-  reactBitsBalatroPrimaryColor: string
-  reactBitsBalatroHarmony: ColorHarmony
-  reactBitsBalatroColorOne: string
-  reactBitsBalatroColorTwo: string
-  reactBitsBalatroColorThree: string
-  reactBitsBalatroSpinRotation: number
-  reactBitsBalatroSpinSpeed: number
-  reactBitsBalatroOffsetX: number
-  reactBitsBalatroOffsetY: number
-  reactBitsBalatroContrast: number
-  reactBitsBalatroLighting: number
-  reactBitsBalatroSpinAmount: number
-  reactBitsBalatroPixelFilter: number
-  reactBitsBalatroSpinEase: number
-  reactBitsBalatroIsRotate: boolean
-  reactBitsBalatroMouseInteraction: boolean
-  eldoraNovatrixPaletteMode: EldoraNovatrixPaletteMode
-  eldoraNovatrixPrimaryColor: string
-  eldoraNovatrixHarmony: ColorHarmony
-  eldoraNovatrixColor: string
-  eldoraNovatrixSpeed: number
-  eldoraNovatrixAmplitude: number
-  eldoraHackerPaletteMode: EldoraHackerPaletteMode
-  eldoraHackerPrimaryColor: string
-  eldoraHackerHarmony: ColorHarmony
-  eldoraHackerColor: string
-  eldoraHackerSpeed: number
-  eldoraHackerFontSize: number
-  eldoraPhotonBeamPaletteMode: EldoraPhotonBeamPaletteMode
-  eldoraPhotonBeamPrimaryColor: string
-  eldoraPhotonBeamHarmony: ColorHarmony
-  eldoraPhotonBeamColorBg: string
-  eldoraPhotonBeamColorLine: string
-  eldoraPhotonBeamColorSignal: string
-  eldoraPhotonBeamUseColor2: boolean
-  eldoraPhotonBeamColorSignal2: string
-  eldoraPhotonBeamUseColor3: boolean
-  eldoraPhotonBeamColorSignal3: string
-  eldoraPhotonBeamLineCount: number
-  eldoraPhotonBeamSpreadHeight: number
-  eldoraPhotonBeamSpreadDepth: number
-  eldoraPhotonBeamCurveLength: number
-  eldoraPhotonBeamStraightLength: number
-  eldoraPhotonBeamCurvePower: number
-  eldoraPhotonBeamWaveSpeed: number
-  eldoraPhotonBeamWaveHeight: number
-  eldoraPhotonBeamLineOpacity: number
-  eldoraPhotonBeamSignalCount: number
-  eldoraPhotonBeamSpeedGlobal: number
-  eldoraPhotonBeamTrailLength: number
-  eldoraPhotonBeamBloomStrength: number
-  eldoraPhotonBeamBloomRadius: number
-  aceternity3DGlobeViewStyle: ChimerSettings["aceternity3DGlobeViewStyle"]
-  aceternity3DGlobeBackgroundColor: string
-  aceternity3DGlobeGlobeColor: string
-  aceternity3DGlobeGraphicMapColor: string
-  aceternity3DGlobeGraphicGlowColor: string
-  aceternity3DGlobeGraphicMarkerColor: string
-  aceternity3DGlobeGraphicMapSamples: number
-  aceternity3DGlobeAutoRotateSpeed: number
-  aceternity3DGlobeReverseSpin: boolean
-  aceternity3DGlobeScale: number
-  aceternity3DGlobeBumpScale: number
-  aceternity3DGlobeAmbientIntensity: number
-  aceternity3DGlobePointLightIntensity: number
-  aceternity3DGlobeLightingMode: "manual" | "sun"
-  aceternity3DGlobeEnablePan: boolean
-  aceternity3DGlobePanX: number
-  aceternity3DGlobePanY: number
-  aceternity3DGlobeShowTilt: boolean
-  aceternity3DGlobeShowAtmosphere: boolean
-  aceternity3DGlobeAtmosphereColor: string
-  aceternity3DGlobeAtmosphereIntensity: number
-  aceternity3DGlobeAtmosphereBlur: number
-  aceternity3DGlobeShowWireframe: boolean
-  aceternity3DGlobeWireframeColor: string
-  aceternity3DGlobeMarkerEnabled: boolean
-  aceternity3DGlobeMarkerLat: number
-  aceternity3DGlobeMarkerLng: number
-  aceternity3DGlobeMarkerLabel: string
-  aceternity3DGlobeMarkerIcon: "pin" | "person" | "heart" | "star" | "home"
-  aceternity3DGlobeMarkerSize: number
-  magicRetroGridBackgroundColor: string
-  magicRetroGridLightLineColor: string
-  magicRetroGridDarkLineColor: string
-  magicRetroGridAngle: number
-  magicRetroGridCellSize: number
-  magicRetroGridOpacity: number
-  magicLightRaysBackgroundColor: string
-  magicLightRaysColor: string
-  magicLightRaysCount: number
-  magicLightRaysBlur: number
-  magicLightRaysSpeed: number
-  magicLightRaysLength: number
-  magicLightRaysOpacity: number
-  chamaacSynthesisPaletteMode: ChamaacSynthesisPaletteMode
-  chamaacSynthesisPrimaryColor: string
-  chamaacSynthesisHarmony: ColorHarmony
-  chamaacSynthesisColorOne: string
-  chamaacSynthesisColorTwo: string
-  chamaacSynthesisColorThree: string
-  chamaacSynthesisSpeed: number
-  chamaacSynthesisComplexity: number
-  chamaacSynthesisScale: number
-  chamaacSynthesisDistortion: number
-  chamaacSynthesisGlowIntensity: number
-  chamaacSynthesisFlowFrequency: number
+  massageLabGradientPrimaryColor: string
+  massageLabGradientHarmony: MassageLabGradientHarmony
+  massageLabGradientOpacity: number
+  massageLabStarsColor: string
+  massageLabStarsSpeed: number
+  massageLabStarsDensity: number
+  massageLabStarsParallax: number
+  massageLabHoleStrokeColor: string
+  massageLabHoleParticleColor: string
+  massageLabHoleLineCount: number
+  massageLabHoleDiscCount: number
+  massageLabLightSpeedWarpSpeed: number
+  massageLabLightSpeedParticleCount: number
+  massageLabLightSpeedLightColor: string
+  massageLabLightSpeedIntensity: number
+  massageLabLightSpeedRadius: number
+  massageLabLightSpeedCylinderLength: number
+  massageLabElectricMistColor: string
+  massageLabElectricMistSpeed: number
+  massageLabElectricMistDetail: number
+  massageLabElectricMistDistortion: number
+  massageLabElectricMistBrightness: number
+  massageLabAstralFlowPaletteMode: MassageLabAstralFlowPaletteMode
+  massageLabAstralFlowPrimaryColor: string
+  massageLabAstralFlowHarmony: ColorHarmony
+  massageLabAstralFlowColorOne: string
+  massageLabAstralFlowColorTwo: string
+  massageLabAstralFlowColorThree: string
+  massageLabAstralFlowSpeed: number
+  massageLabAstralFlowFlowMin: number
+  massageLabAstralFlowFlowMax: number
+  massageLabDeepSpaceNebulaPaletteMode: MassageLabDeepSpaceNebulaPaletteMode
+  massageLabDeepSpaceNebulaPrimaryColor: string
+  massageLabDeepSpaceNebulaHarmony: ColorHarmony
+  massageLabDeepSpaceNebulaColorOne: string
+  massageLabDeepSpaceNebulaColorTwo: string
+  massageLabDeepSpaceNebulaColorThree: string
+  massageLabDeepSpaceNebulaSpeed: number
+  massageLabGridBloomColor: string
+  massageLabGridBloomSpeed: number
+  massageLabGridBloomGridScale: number
+  massageLabGridBloomRotationSpeed: number
+  massageLabGridBloomFadeFalloff: number
+  massageLabGridBloomDistortionAmount: number
+  massageLabGridBloomFlowSpeedX: number
+  massageLabGridBloomFlowSpeedY: number
+  massageLabChromeFlowPaletteMode: MassageLabChromeFlowPaletteMode
+  massageLabChromeFlowPrimaryColor: string
+  massageLabChromeFlowHarmony: ColorHarmony
+  massageLabChromeFlowColorOne: string
+  massageLabChromeFlowColorTwo: string
+  massageLabChromeFlowFlowSpeed: number
+  massageLabChromeFlowTimeScale: number
+  massageLabWaveCurrentPaletteMode: MassageLabWaveCurrentPaletteMode
+  massageLabWaveCurrentPrimaryColor: string
+  massageLabWaveCurrentHarmony: ColorHarmony
+  massageLabWaveCurrentBackgroundColor: string
+  massageLabWaveCurrentColorOne: string
+  massageLabWaveCurrentColorTwo: string
+  massageLabWaveCurrentColorThree: string
+  massageLabWaveCurrentSpeedX: number
+  massageLabWaveCurrentSpeedY: number
+  massageLabWaveCurrentAmplitude: number
+  massageLabFerrofluidPaletteMode: MassageLabFerrofluidPaletteMode
+  massageLabFerrofluidPrimaryColor: string
+  massageLabFerrofluidHarmony: ColorHarmony
+  massageLabFerrofluidColorOne: string
+  massageLabFerrofluidColorTwo: string
+  massageLabFerrofluidColorThree: string
+  massageLabFerrofluidSpeed: number
+  massageLabFerrofluidScale: number
+  massageLabFerrofluidTurbulence: number
+  massageLabFerrofluidFluidity: number
+  massageLabFerrofluidRimWidth: number
+  massageLabFerrofluidSharpness: number
+  massageLabFerrofluidShimmer: number
+  massageLabFerrofluidGlow: number
+  massageLabFerrofluidFlowDirection: ChimerSettings["massageLabFerrofluidFlowDirection"]
+  massageLabFerrofluidOpacity: number
+  massageLabLightfallPaletteMode: MassageLabLightfallPaletteMode
+  massageLabLightfallPrimaryColor: string
+  massageLabLightfallHarmony: ColorHarmony
+  massageLabLightfallColorOne: string
+  massageLabLightfallColorTwo: string
+  massageLabLightfallColorThree: string
+  massageLabLightfallBackgroundColor: string
+  massageLabLightfallSpeed: number
+  massageLabLightfallStreakCount: number
+  massageLabLightfallStreakWidth: number
+  massageLabLightfallStreakLength: number
+  massageLabLightfallGlow: number
+  massageLabLightfallDensity: number
+  massageLabLightfallTwinkle: number
+  massageLabLightfallZoom: number
+  massageLabLightfallBackgroundGlow: number
+  massageLabLightfallOpacity: number
+  massageLabLightfallCursorEnabled: boolean
+  massageLabLightfallCursorStrength: number
+  massageLabLightfallCursorRadius: number
+  massageLabLightfallCursorDampening: number
+  massageLabLiquidEtherPaletteMode: MassageLabLiquidEtherPaletteMode
+  massageLabLiquidEtherPrimaryColor: string
+  massageLabLiquidEtherHarmony: ColorHarmony
+  massageLabLiquidEtherColorOne: string
+  massageLabLiquidEtherColorTwo: string
+  massageLabLiquidEtherColorThree: string
+  massageLabLiquidEtherCursorEnabled: boolean
+  massageLabLiquidEtherMouseForce: number
+  massageLabLiquidEtherCursorSize: number
+  massageLabLiquidEtherIsViscous: boolean
+  massageLabLiquidEtherViscous: number
+  massageLabLiquidEtherIterationsViscous: number
+  massageLabLiquidEtherIterationsPoisson: number
+  massageLabLiquidEtherDt: number
+  massageLabLiquidEtherBfecc: boolean
+  massageLabLiquidEtherResolution: number
+  massageLabLiquidEtherIsBounce: boolean
+  massageLabLiquidEtherAutoDemo: boolean
+  massageLabLiquidEtherAutoSpeed: number
+  massageLabLiquidEtherAutoIntensity: number
+  massageLabLiquidEtherAutoResumeDelay: number
+  massageLabLiquidEtherAutoRampDuration: number
+  massageLabLiquidEtherOpacity: number
+  massageLabPrismHeight: number
+  massageLabPrismBaseWidth: number
+  massageLabPrismAnimationType: MassageLabPrismAnimationType
+  massageLabPrismGlow: number
+  massageLabPrismOffsetX: number
+  massageLabPrismOffsetY: number
+  massageLabPrismNoise: number
+  massageLabPrismTransparent: boolean
+  massageLabPrismScale: number
+  massageLabPrismHueShift: number
+  massageLabPrismColorFrequency: number
+  massageLabPrismHoverStrength: number
+  massageLabPrismInertia: number
+  massageLabPrismBloom: number
+  massageLabPrismTimeScale: number
+  massageLabDarkVeilHueShift: number
+  massageLabDarkVeilNoiseIntensity: number
+  massageLabDarkVeilScanlineIntensity: number
+  massageLabDarkVeilSpeed: number
+  massageLabDarkVeilScanlineFrequency: number
+  massageLabDarkVeilWarpAmount: number
+  massageLabDarkVeilResolutionScale: number
+  massageLabLightPillarPaletteMode: MassageLabLightPillarPaletteMode
+  massageLabLightPillarPrimaryColor: string
+  massageLabLightPillarHarmony: ColorHarmony
+  massageLabLightPillarTopColor: string
+  massageLabLightPillarBottomColor: string
+  massageLabLightPillarIntensity: number
+  massageLabLightPillarRotationSpeed: number
+  massageLabLightPillarInteractive: boolean
+  massageLabLightPillarGlowAmount: number
+  massageLabLightPillarWidth: number
+  massageLabLightPillarHeight: number
+  massageLabLightPillarNoiseIntensity: number
+  massageLabLightPillarBlendMode: MassageLabLightPillarBlendMode
+  massageLabLightPillarRotation: number
+  massageLabLightPillarQuality: MassageLabLightPillarQuality
+  massageLabSilkPaletteMode: MassageLabSilkPaletteMode
+  massageLabSilkPrimaryColor: string
+  massageLabSilkHarmony: ColorHarmony
+  massageLabSilkColor: string
+  massageLabSilkSpeed: number
+  massageLabSilkScale: number
+  massageLabSilkNoiseIntensity: number
+  massageLabSilkRotation: number
+  massageLabFloatingLinesPaletteMode: MassageLabFloatingLinesPaletteMode
+  massageLabFloatingLinesPrimaryColor: string
+  massageLabFloatingLinesHarmony: ColorHarmony
+  massageLabFloatingLinesColorOne: string
+  massageLabFloatingLinesColorTwo: string
+  massageLabFloatingLinesColorThree: string
+  massageLabFloatingLinesEnableTop: boolean
+  massageLabFloatingLinesEnableMiddle: boolean
+  massageLabFloatingLinesEnableBottom: boolean
+  massageLabFloatingLinesTopLineCount: number
+  massageLabFloatingLinesMiddleLineCount: number
+  massageLabFloatingLinesBottomLineCount: number
+  massageLabFloatingLinesTopLineDistance: number
+  massageLabFloatingLinesMiddleLineDistance: number
+  massageLabFloatingLinesBottomLineDistance: number
+  massageLabFloatingLinesTopWaveX: number
+  massageLabFloatingLinesTopWaveY: number
+  massageLabFloatingLinesTopWaveRotate: number
+  massageLabFloatingLinesMiddleWaveX: number
+  massageLabFloatingLinesMiddleWaveY: number
+  massageLabFloatingLinesMiddleWaveRotate: number
+  massageLabFloatingLinesBottomWaveX: number
+  massageLabFloatingLinesBottomWaveY: number
+  massageLabFloatingLinesBottomWaveRotate: number
+  massageLabFloatingLinesAnimationSpeed: number
+  massageLabFloatingLinesInteractive: boolean
+  massageLabFloatingLinesBendRadius: number
+  massageLabFloatingLinesBendStrength: number
+  massageLabFloatingLinesMouseDamping: number
+  massageLabFloatingLinesParallax: boolean
+  massageLabFloatingLinesParallaxStrength: number
+  massageLabFloatingLinesBlendMode: MassageLabFloatingLinesBlendMode
+  massageLabSideRaysPaletteMode: MassageLabSideRaysPaletteMode
+  massageLabSideRaysPrimaryColor: string
+  massageLabSideRaysHarmony: ColorHarmony
+  massageLabSideRaysColorOne: string
+  massageLabSideRaysColorTwo: string
+  massageLabSideRaysSpeed: number
+  massageLabSideRaysIntensity: number
+  massageLabSideRaysSpread: number
+  massageLabSideRaysOrigin: MassageLabSideRaysOrigin
+  massageLabSideRaysTilt: number
+  massageLabSideRaysSaturation: number
+  massageLabSideRaysBlend: number
+  massageLabSideRaysFalloff: number
+  massageLabSideRaysOpacity: number
+  massageLabLightRaysPaletteMode: MassageLabLightRaysPaletteMode
+  massageLabLightRaysPrimaryColor: string
+  massageLabLightRaysHarmony: ColorHarmony
+  massageLabLightRaysColor: string
+  massageLabLightRaysOrigin: MassageLabLightRaysOrigin
+  massageLabLightRaysSpeed: number
+  massageLabLightRaysSpread: number
+  massageLabLightRaysLength: number
+  massageLabLightRaysPulsating: boolean
+  massageLabLightRaysFadeDistance: number
+  massageLabLightRaysSaturation: number
+  massageLabLightRaysFollowMouse: boolean
+  massageLabLightRaysMouseInfluence: number
+  massageLabLightRaysNoiseAmount: number
+  massageLabLightRaysDistortion: number
+  massageLabPixelBlastPaletteMode: MassageLabPixelBlastPaletteMode
+  massageLabPixelBlastPrimaryColor: string
+  massageLabPixelBlastHarmony: ColorHarmony
+  massageLabPixelBlastColor: string
+  massageLabPixelBlastVariant: MassageLabPixelBlastVariant
+  massageLabPixelBlastPixelSize: number
+  massageLabPixelBlastAntialias: boolean
+  massageLabPixelBlastPatternScale: number
+  massageLabPixelBlastPatternDensity: number
+  massageLabPixelBlastLiquid: boolean
+  massageLabPixelBlastLiquidStrength: number
+  massageLabPixelBlastLiquidRadius: number
+  massageLabPixelBlastPixelSizeJitter: number
+  massageLabPixelBlastEnableRipples: boolean
+  massageLabPixelBlastRippleIntensityScale: number
+  massageLabPixelBlastRippleThickness: number
+  massageLabPixelBlastRippleSpeed: number
+  massageLabPixelBlastLiquidWobbleSpeed: number
+  massageLabPixelBlastAutoPauseOffscreen: boolean
+  massageLabPixelBlastSpeed: number
+  massageLabPixelBlastTransparent: boolean
+  massageLabPixelBlastEdgeFade: number
+  massageLabPixelBlastNoiseAmount: number
+  massageLabColorBendsPaletteMode: MassageLabColorBendsPaletteMode
+  massageLabColorBendsPrimaryColor: string
+  massageLabColorBendsHarmony: ColorHarmony
+  massageLabColorBendsColorOne: string
+  massageLabColorBendsColorTwo: string
+  massageLabColorBendsColorThree: string
+  massageLabColorBendsColorFour: string
+  massageLabColorBendsRotation: number
+  massageLabColorBendsSpeed: number
+  massageLabColorBendsTransparent: boolean
+  massageLabColorBendsAutoRotate: number
+  massageLabColorBendsScale: number
+  massageLabColorBendsFrequency: number
+  massageLabColorBendsWarpStrength: number
+  massageLabColorBendsInteractive: boolean
+  massageLabColorBendsMouseInfluence: number
+  massageLabColorBendsParallax: number
+  massageLabColorBendsNoise: number
+  massageLabColorBendsIterations: number
+  massageLabColorBendsIntensity: number
+  massageLabColorBendsBandWidth: number
+  massageLabEvilEyePaletteMode: MassageLabEvilEyePaletteMode
+  massageLabEvilEyePrimaryColor: string
+  massageLabEvilEyeHarmony: ColorHarmony
+  massageLabEvilEyeColor: string
+  massageLabEvilEyeBackgroundColor: string
+  massageLabEvilEyeIntensity: number
+  massageLabEvilEyePupilSize: number
+  massageLabEvilEyeIrisWidth: number
+  massageLabEvilEyeGlowIntensity: number
+  massageLabEvilEyeScale: number
+  massageLabEvilEyeNoiseScale: number
+  massageLabEvilEyePupilFollow: number
+  massageLabEvilEyeFlameSpeed: number
+  massageLabEvilEyeInteractive: boolean
+  massageLabLineWavesPaletteMode: MassageLabLineWavesPaletteMode
+  massageLabLineWavesPrimaryColor: string
+  massageLabLineWavesHarmony: ColorHarmony
+  massageLabLineWavesColorOne: string
+  massageLabLineWavesColorTwo: string
+  massageLabLineWavesColorThree: string
+  massageLabLineWavesSpeed: number
+  massageLabLineWavesInnerLineCount: number
+  massageLabLineWavesOuterLineCount: number
+  massageLabLineWavesWarpIntensity: number
+  massageLabLineWavesRotation: number
+  massageLabLineWavesEdgeFadeWidth: number
+  massageLabLineWavesColorCycleSpeed: number
+  massageLabLineWavesBrightness: number
+  massageLabLineWavesEnableMouseInteraction: boolean
+  massageLabLineWavesMouseInfluence: number
+  massageLabRadarPaletteMode: MassageLabRadarPaletteMode
+  massageLabRadarPrimaryColor: string
+  massageLabRadarHarmony: ColorHarmony
+  massageLabRadarColor: string
+  massageLabRadarBackgroundColor: string
+  massageLabRadarSpeed: number
+  massageLabRadarScale: number
+  massageLabRadarRingCount: number
+  massageLabRadarSpokeCount: number
+  massageLabRadarRingThickness: number
+  massageLabRadarSpokeThickness: number
+  massageLabRadarSweepSpeed: number
+  massageLabRadarSweepWidth: number
+  massageLabRadarSweepLobes: number
+  massageLabRadarFalloff: number
+  massageLabRadarBrightness: number
+  massageLabRadarEnableMouseInteraction: boolean
+  massageLabRadarMouseInfluence: number
+  massageLabSoftAuroraPaletteMode: MassageLabSoftAuroraPaletteMode
+  massageLabSoftAuroraPrimaryColor: string
+  massageLabSoftAuroraHarmony: ColorHarmony
+  massageLabSoftAuroraColorOne: string
+  massageLabSoftAuroraColorTwo: string
+  massageLabSoftAuroraSpeed: number
+  massageLabSoftAuroraScale: number
+  massageLabSoftAuroraBrightness: number
+  massageLabSoftAuroraNoiseFrequency: number
+  massageLabSoftAuroraNoiseAmplitude: number
+  massageLabSoftAuroraBandHeight: number
+  massageLabSoftAuroraBandSpread: number
+  massageLabSoftAuroraOctaveDecay: number
+  massageLabSoftAuroraLayerOffset: number
+  massageLabSoftAuroraColorSpeed: number
+  massageLabSoftAuroraEnableMouseInteraction: boolean
+  massageLabSoftAuroraMouseInfluence: number
+  massageLabPlasmaPaletteMode: MassageLabPlasmaPaletteMode
+  massageLabPlasmaPrimaryColor: string
+  massageLabPlasmaHarmony: ColorHarmony
+  massageLabPlasmaColor: string
+  massageLabPlasmaSpeed: number
+  massageLabPlasmaDirection: MassageLabPlasmaDirection
+  massageLabPlasmaScale: number
+  massageLabPlasmaOpacity: number
+  massageLabPlasmaMouseInteractive: boolean
+  massageLabPlasmaWavePaletteMode: MassageLabPlasmaWavePaletteMode
+  massageLabPlasmaWavePrimaryColor: string
+  massageLabPlasmaWaveHarmony: ColorHarmony
+  massageLabPlasmaWaveColorOne: string
+  massageLabPlasmaWaveColorTwo: string
+  massageLabPlasmaWaveXOffset: number
+  massageLabPlasmaWaveYOffset: number
+  massageLabPlasmaWaveRotationDeg: number
+  massageLabPlasmaWaveFocalLength: number
+  massageLabPlasmaWaveSpeedOne: number
+  massageLabPlasmaWaveSpeedTwo: number
+  massageLabPlasmaWaveDirectionTwo: 1 | -1
+  massageLabPlasmaWaveBendOne: number
+  massageLabPlasmaWaveBendTwo: number
+  massageLabParticlesPaletteMode: MassageLabParticlesPaletteMode
+  massageLabParticlesPrimaryColor: string
+  massageLabParticlesHarmony: ColorHarmony
+  massageLabParticlesColorOne: string
+  massageLabParticlesColorTwo: string
+  massageLabParticlesColorThree: string
+  massageLabParticlesCount: number
+  massageLabParticlesSpread: number
+  massageLabParticlesSpeed: number
+  massageLabParticlesMoveOnHover: boolean
+  massageLabParticlesHoverFactor: number
+  massageLabParticlesAlpha: boolean
+  massageLabParticlesBaseSize: number
+  massageLabParticlesSizeRandomness: number
+  massageLabParticlesCameraDistance: number
+  massageLabParticlesDisableRotation: boolean
+  massageLabParticlesPixelRatio: number
+  massageLabGradientBlindsPaletteMode: MassageLabGradientBlindsPaletteMode
+  massageLabGradientBlindsPrimaryColor: string
+  massageLabGradientBlindsHarmony: ColorHarmony
+  massageLabGradientBlindsColorOne: string
+  massageLabGradientBlindsColorTwo: string
+  massageLabGradientBlindsAngle: number
+  massageLabGradientBlindsNoise: number
+  massageLabGradientBlindsBlindCount: number
+  massageLabGradientBlindsBlindMinWidth: number
+  massageLabGradientBlindsMouseDampening: number
+  massageLabGradientBlindsMirror: boolean
+  massageLabGradientBlindsSpotlightRadius: number
+  massageLabGradientBlindsSpotlightSoftness: number
+  massageLabGradientBlindsSpotlightOpacity: number
+  massageLabGradientBlindsDistort: number
+  massageLabGradientBlindsShineDirection: MassageLabGradientBlindsShineDirection
+  massageLabGradientBlindsBlendMode: MassageLabGradientBlindsBlendMode
+  massageLabGradientBlindsDpr: number
+  massageLabGradientBlindsEnableMouseInteraction: boolean
+  massageLabGrainientPaletteMode: MassageLabGrainientPaletteMode
+  massageLabGrainientPrimaryColor: string
+  massageLabGrainientHarmony: ColorHarmony
+  massageLabGrainientColorOne: string
+  massageLabGrainientColorTwo: string
+  massageLabGrainientColorThree: string
+  massageLabGrainientTimeSpeed: number
+  massageLabGrainientColorBalance: number
+  massageLabGrainientWarpStrength: number
+  massageLabGrainientWarpFrequency: number
+  massageLabGrainientWarpSpeed: number
+  massageLabGrainientWarpAmplitude: number
+  massageLabGrainientBlendAngle: number
+  massageLabGrainientBlendSoftness: number
+  massageLabGrainientRotationAmount: number
+  massageLabGrainientNoiseScale: number
+  massageLabGrainientGrainAmount: number
+  massageLabGrainientGrainScale: number
+  massageLabGrainientGrainAnimated: boolean
+  massageLabGrainientContrast: number
+  massageLabGrainientGamma: number
+  massageLabGrainientSaturation: number
+  massageLabGrainientCenterX: number
+  massageLabGrainientCenterY: number
+  massageLabGrainientZoom: number
+  massageLabGridScanPaletteMode: MassageLabGridScanPaletteMode
+  massageLabGridScanPrimaryColor: string
+  massageLabGridScanHarmony: ColorHarmony
+  massageLabGridScanLinesColor: string
+  massageLabGridScanScanColor: string
+  massageLabGridScanSensitivity: number
+  massageLabGridScanLineThickness: number
+  massageLabGridScanScanOpacity: number
+  massageLabGridScanGridScale: number
+  massageLabGridScanLineStyle: MassageLabGridScanLineStyle
+  massageLabGridScanLineJitter: number
+  massageLabGridScanDirection: MassageLabGridScanDirection
+  massageLabGridScanNoiseIntensity: number
+  massageLabGridScanBloomOpacity: number
+  massageLabGridScanScanGlow: number
+  massageLabGridScanScanSoftness: number
+  massageLabGridScanPhaseTaper: number
+  massageLabGridScanScanDuration: number
+  massageLabGridScanScanDelay: number
+  massageLabGridScanEnablePointerInteraction: boolean
+  massageLabGridScanScanOnClick: boolean
+  massageLabBeamsPaletteMode: MassageLabBeamsPaletteMode
+  massageLabBeamsPrimaryColor: string
+  massageLabBeamsHarmony: ColorHarmony
+  massageLabBeamsLightColor: string
+  massageLabBeamsBeamWidth: number
+  massageLabBeamsBeamHeight: number
+  massageLabBeamsBeamNumber: number
+  massageLabBeamsSpeed: number
+  massageLabBeamsNoiseIntensity: number
+  massageLabBeamsScale: number
+  massageLabBeamsRotation: number
+  massageLabPixelSnowPaletteMode: MassageLabPixelSnowPaletteMode
+  massageLabPixelSnowPrimaryColor: string
+  massageLabPixelSnowHarmony: ColorHarmony
+  massageLabPixelSnowColor: string
+  massageLabPixelSnowFlakeSize: number
+  massageLabPixelSnowMinFlakeSize: number
+  massageLabPixelSnowPixelResolution: number
+  massageLabPixelSnowSpeed: number
+  massageLabPixelSnowDepthFade: number
+  massageLabPixelSnowFarPlane: number
+  massageLabPixelSnowBrightness: number
+  massageLabPixelSnowGamma: number
+  massageLabPixelSnowDensity: number
+  massageLabPixelSnowVariant: MassageLabPixelSnowVariant
+  massageLabPixelSnowDirection: number
+  massageLabLightningPaletteMode: MassageLabLightningPaletteMode
+  massageLabLightningPrimaryColor: string
+  massageLabLightningHarmony: ColorHarmony
+  massageLabLightningColor: string
+  massageLabLightningHue: number
+  massageLabLightningXOffset: number
+  massageLabLightningSpeed: number
+  massageLabLightningIntensity: number
+  massageLabLightningSize: number
+  massageLabPrismaticBurstPaletteMode: MassageLabPrismaticBurstPaletteMode
+  massageLabPrismaticBurstPrimaryColor: string
+  massageLabPrismaticBurstHarmony: ColorHarmony
+  massageLabPrismaticBurstColorOne: string
+  massageLabPrismaticBurstColorTwo: string
+  massageLabPrismaticBurstColorThree: string
+  massageLabPrismaticBurstColorFour: string
+  massageLabPrismaticBurstIntensity: number
+  massageLabPrismaticBurstSpeed: number
+  massageLabPrismaticBurstAnimationType: MassageLabPrismaticBurstAnimationType
+  massageLabPrismaticBurstDistort: number
+  massageLabPrismaticBurstOffsetX: number
+  massageLabPrismaticBurstOffsetY: number
+  massageLabPrismaticBurstHoverDampness: number
+  massageLabPrismaticBurstRayCount: number
+  massageLabPrismaticBurstMixBlendMode: MassageLabPrismaticBurstMixBlendMode
+  massageLabGalaxyPaletteMode: MassageLabGalaxyPaletteMode
+  massageLabGalaxyPrimaryColor: string
+  massageLabGalaxyHarmony: ColorHarmony
+  massageLabGalaxyColor: string
+  massageLabGalaxyHueShift: number
+  massageLabGalaxyFocalX: number
+  massageLabGalaxyFocalY: number
+  massageLabGalaxyRotationDeg: number
+  massageLabGalaxyStarSpeed: number
+  massageLabGalaxyDensity: number
+  massageLabGalaxySpeed: number
+  massageLabGalaxyMouseInteraction: boolean
+  massageLabGalaxyGlowIntensity: number
+  massageLabGalaxySaturation: number
+  massageLabGalaxyMouseRepulsion: boolean
+  massageLabGalaxyRepulsionStrength: number
+  massageLabGalaxyTwinkleIntensity: number
+  massageLabGalaxyRotationSpeed: number
+  massageLabGalaxyAutoCenterRepulsion: number
+  massageLabGalaxyTransparent: boolean
+  massageLabDitherPaletteMode: MassageLabDitherPaletteMode
+  massageLabDitherPrimaryColor: string
+  massageLabDitherHarmony: ColorHarmony
+  massageLabDitherColor: string
+  massageLabDitherWaveSpeed: number
+  massageLabDitherWaveFrequency: number
+  massageLabDitherWaveAmplitude: number
+  massageLabDitherColorNum: number
+  massageLabDitherPixelSize: number
+  massageLabDitherMouseInteraction: boolean
+  massageLabDitherMouseRadius: number
+  massageLabFaultyTerminalPaletteMode: MassageLabFaultyTerminalPaletteMode
+  massageLabFaultyTerminalPrimaryColor: string
+  massageLabFaultyTerminalHarmony: ColorHarmony
+  massageLabFaultyTerminalTint: string
+  massageLabFaultyTerminalScale: number
+  massageLabFaultyTerminalGridMulX: number
+  massageLabFaultyTerminalGridMulY: number
+  massageLabFaultyTerminalDigitSize: number
+  massageLabFaultyTerminalTimeScale: number
+  massageLabFaultyTerminalScanlineIntensity: number
+  massageLabFaultyTerminalGlitchAmount: number
+  massageLabFaultyTerminalFlickerAmount: number
+  massageLabFaultyTerminalNoiseAmp: number
+  massageLabFaultyTerminalChromaticAberration: number
+  massageLabFaultyTerminalDither: number
+  massageLabFaultyTerminalCurvature: number
+  massageLabFaultyTerminalMouseReact: boolean
+  massageLabFaultyTerminalMouseStrength: number
+  massageLabFaultyTerminalPageLoadAnimation: boolean
+  massageLabFaultyTerminalBrightness: number
+  massageLabRippleGridPaletteMode: MassageLabRippleGridPaletteMode
+  massageLabRippleGridPrimaryColor: string
+  massageLabRippleGridHarmony: ColorHarmony
+  massageLabRippleGridColor: string
+  massageLabRippleGridRippleIntensity: number
+  massageLabRippleGridGridSize: number
+  massageLabRippleGridGridThickness: number
+  massageLabRippleGridFadeDistance: number
+  massageLabRippleGridVignetteStrength: number
+  massageLabRippleGridGlowIntensity: number
+  massageLabRippleGridOpacity: number
+  massageLabRippleGridGridRotation: number
+  massageLabRippleGridMouseInteraction: boolean
+  massageLabRippleGridMouseInteractionRadius: number
+  massageLabDotFieldPaletteMode: MassageLabDotFieldPaletteMode
+  massageLabDotFieldPrimaryColor: string
+  massageLabDotFieldHarmony: ColorHarmony
+  massageLabDotFieldGradientFromColor: string
+  massageLabDotFieldGradientFromAlpha: number
+  massageLabDotFieldGradientToColor: string
+  massageLabDotFieldGradientToAlpha: number
+  massageLabDotFieldGlowColor: string
+  massageLabDotFieldDotRadius: number
+  massageLabDotFieldDotSpacing: number
+  massageLabDotFieldCursorRadius: number
+  massageLabDotFieldCursorForce: number
+  massageLabDotFieldBulgeOnly: boolean
+  massageLabDotFieldBulgeStrength: number
+  massageLabDotFieldGlowRadius: number
+  massageLabDotFieldSparkle: boolean
+  massageLabDotFieldWaveAmplitude: number
+  massageLabDotFieldCursorInteraction: boolean
+  massageLabDotGridPaletteMode: MassageLabDotGridPaletteMode
+  massageLabDotGridPrimaryColor: string
+  massageLabDotGridHarmony: ColorHarmony
+  massageLabDotGridBaseColor: string
+  massageLabDotGridActiveColor: string
+  massageLabDotGridDotSize: number
+  massageLabDotGridGap: number
+  massageLabDotGridProximity: number
+  massageLabDotGridSpeedTrigger: number
+  massageLabDotGridShockRadius: number
+  massageLabDotGridShockStrength: number
+  massageLabDotGridMaxSpeed: number
+  massageLabDotGridResistance: number
+  massageLabDotGridReturnDuration: number
+  massageLabDotGridCursorInteraction: boolean
+  massageLabDotGridClickShock: boolean
+  massageLabThreadsPaletteMode: MassageLabThreadsPaletteMode
+  massageLabThreadsPrimaryColor: string
+  massageLabThreadsHarmony: ColorHarmony
+  massageLabThreadsColor: string
+  massageLabThreadsAmplitude: number
+  massageLabThreadsDistance: number
+  massageLabThreadsEnableMouseInteraction: boolean
+  massageLabIridescencePaletteMode: MassageLabIridescencePaletteMode
+  massageLabIridescencePrimaryColor: string
+  massageLabIridescenceHarmony: ColorHarmony
+  massageLabIridescenceColor: string
+  massageLabIridescenceSpeed: number
+  massageLabIridescenceAmplitude: number
+  massageLabIridescenceMouseReact: boolean
+  massageLabWavesPaletteMode: MassageLabWavesPaletteMode
+  massageLabWavesPrimaryColor: string
+  massageLabWavesHarmony: ColorHarmony
+  massageLabWavesLineColor: string
+  massageLabWavesBackgroundColor: string
+  massageLabWavesTransparentBackground: boolean
+  massageLabWavesSpeedX: number
+  massageLabWavesSpeedY: number
+  massageLabWavesAmplitudeX: number
+  massageLabWavesAmplitudeY: number
+  massageLabWavesGapX: number
+  massageLabWavesGapY: number
+  massageLabWavesFriction: number
+  massageLabWavesTension: number
+  massageLabWavesMaxCursorMove: number
+  massageLabWavesCursorInteraction: boolean
+  massageLabGridDistortionPaletteMode: MassageLabGridDistortionPaletteMode
+  massageLabGridDistortionPrimaryColor: string
+  massageLabGridDistortionHarmony: ColorHarmony
+  massageLabGridDistortionColorOne: string
+  massageLabGridDistortionColorTwo: string
+  massageLabGridDistortionColorThree: string
+  massageLabGridDistortionGrid: number
+  massageLabGridDistortionMouse: number
+  massageLabGridDistortionStrength: number
+  massageLabGridDistortionRelaxation: number
+  massageLabGridDistortionCursorInteraction: boolean
+  massageLabOrbPaletteMode: MassageLabOrbPaletteMode
+  massageLabOrbPrimaryColor: string
+  massageLabOrbHarmony: ColorHarmony
+  massageLabOrbColor: string
+  massageLabOrbHue: number
+  massageLabOrbHoverIntensity: number
+  massageLabOrbRotateOnHover: boolean
+  massageLabOrbForceHoverState: boolean
+  massageLabOrbBackgroundColor: string
+  massageLabOrbCursorInteraction: boolean
+  massageLabLetterGlitchPaletteMode: MassageLabLetterGlitchPaletteMode
+  massageLabLetterGlitchPrimaryColor: string
+  massageLabLetterGlitchHarmony: ColorHarmony
+  massageLabLetterGlitchColorOne: string
+  massageLabLetterGlitchColorTwo: string
+  massageLabLetterGlitchColorThree: string
+  massageLabLetterGlitchGlitchSpeed: number
+  massageLabLetterGlitchCenterVignette: boolean
+  massageLabLetterGlitchOuterVignette: boolean
+  massageLabLetterGlitchSmooth: boolean
+  massageLabLetterGlitchCharacters: string
+  massageLabGridMotionPaletteMode: MassageLabGridMotionPaletteMode
+  massageLabGridMotionPrimaryColor: string
+  massageLabGridMotionHarmony: ColorHarmony
+  massageLabGridMotionGradientColor: string
+  massageLabGridMotionTileColor: string
+  massageLabGridMotionTextColor: string
+  massageLabGridMotionMaxMoveAmount: number
+  massageLabGridMotionBaseDuration: number
+  massageLabGridMotionCursorInteraction: boolean
+  massageLabShapeGridPaletteMode: MassageLabShapeGridPaletteMode
+  massageLabShapeGridPrimaryColor: string
+  massageLabShapeGridHarmony: ColorHarmony
+  massageLabShapeGridBorderColor: string
+  massageLabShapeGridHoverFillColor: string
+  massageLabShapeGridDirection: ChimerSettings["massageLabShapeGridDirection"]
+  massageLabShapeGridSpeed: number
+  massageLabShapeGridSquareSize: number
+  massageLabShapeGridShape: ChimerSettings["massageLabShapeGridShape"]
+  massageLabShapeGridHoverTrailAmount: number
+  massageLabShapeGridCursorInteraction: boolean
+  massageLabLiquidChromePaletteMode: MassageLabLiquidChromePaletteMode
+  massageLabLiquidChromePrimaryColor: string
+  massageLabLiquidChromeHarmony: ColorHarmony
+  massageLabLiquidChromeBaseColor: string
+  massageLabLiquidChromeSpeed: number
+  massageLabLiquidChromeAmplitude: number
+  massageLabLiquidChromeFrequencyX: number
+  massageLabLiquidChromeFrequencyY: number
+  massageLabLiquidChromeInteractive: boolean
+  massageLabBalatroPaletteMode: MassageLabBalatroPaletteMode
+  massageLabBalatroPrimaryColor: string
+  massageLabBalatroHarmony: ColorHarmony
+  massageLabBalatroColorOne: string
+  massageLabBalatroColorTwo: string
+  massageLabBalatroColorThree: string
+  massageLabBalatroSpinRotation: number
+  massageLabBalatroSpinSpeed: number
+  massageLabBalatroOffsetX: number
+  massageLabBalatroOffsetY: number
+  massageLabBalatroContrast: number
+  massageLabBalatroLighting: number
+  massageLabBalatroSpinAmount: number
+  massageLabBalatroPixelFilter: number
+  massageLabBalatroSpinEase: number
+  massageLabBalatroIsRotate: boolean
+  massageLabBalatroMouseInteraction: boolean
+  massageLabNovatrixPaletteMode: MassageLabNovatrixPaletteMode
+  massageLabNovatrixPrimaryColor: string
+  massageLabNovatrixHarmony: ColorHarmony
+  massageLabNovatrixColor: string
+  massageLabNovatrixSpeed: number
+  massageLabNovatrixAmplitude: number
+  massageLabMatrixRainPaletteMode: MassageLabMatrixRainPaletteMode
+  massageLabMatrixRainPrimaryColor: string
+  massageLabMatrixRainHarmony: ColorHarmony
+  massageLabMatrixRainColor: string
+  massageLabMatrixRainSpeed: number
+  massageLabMatrixRainFontSize: number
+  massageLabPhotonBeamPaletteMode: MassageLabPhotonBeamPaletteMode
+  massageLabPhotonBeamPrimaryColor: string
+  massageLabPhotonBeamHarmony: ColorHarmony
+  massageLabPhotonBeamColorBg: string
+  massageLabPhotonBeamColorLine: string
+  massageLabPhotonBeamColorSignal: string
+  massageLabPhotonBeamUseColor2: boolean
+  massageLabPhotonBeamColorSignal2: string
+  massageLabPhotonBeamUseColor3: boolean
+  massageLabPhotonBeamColorSignal3: string
+  massageLabPhotonBeamLineCount: number
+  massageLabPhotonBeamSpreadHeight: number
+  massageLabPhotonBeamSpreadDepth: number
+  massageLabPhotonBeamCurveLength: number
+  massageLabPhotonBeamStraightLength: number
+  massageLabPhotonBeamCurvePower: number
+  massageLabPhotonBeamWaveSpeed: number
+  massageLabPhotonBeamWaveHeight: number
+  massageLabPhotonBeamLineOpacity: number
+  massageLabPhotonBeamSignalCount: number
+  massageLabPhotonBeamSpeedGlobal: number
+  massageLabPhotonBeamTrailLength: number
+  massageLabPhotonBeamBloomStrength: number
+  massageLabPhotonBeamBloomRadius: number
+  massageLab3DGlobeViewStyle: ChimerSettings["massageLab3DGlobeViewStyle"]
+  massageLab3DGlobeBackgroundColor: string
+  massageLab3DGlobeGlobeColor: string
+  massageLab3DGlobeGraphicMapColor: string
+  massageLab3DGlobeGraphicGlowColor: string
+  massageLab3DGlobeGraphicMarkerColor: string
+  massageLab3DGlobeGraphicMapSamples: number
+  massageLab3DGlobeAutoRotateSpeed: number
+  massageLab3DGlobeReverseSpin: boolean
+  massageLab3DGlobeScale: number
+  massageLab3DGlobeBumpScale: number
+  massageLab3DGlobeAmbientIntensity: number
+  massageLab3DGlobePointLightIntensity: number
+  massageLab3DGlobeLightingMode: "manual" | "sun"
+  massageLab3DGlobeEnablePan: boolean
+  massageLab3DGlobePanX: number
+  massageLab3DGlobePanY: number
+  massageLab3DGlobeShowTilt: boolean
+  massageLab3DGlobeShowAtmosphere: boolean
+  massageLab3DGlobeAtmosphereColor: string
+  massageLab3DGlobeAtmosphereIntensity: number
+  massageLab3DGlobeAtmosphereBlur: number
+  massageLab3DGlobeShowWireframe: boolean
+  massageLab3DGlobeWireframeColor: string
+  massageLab3DGlobeMarkerEnabled: boolean
+  massageLab3DGlobeMarkerLat: number
+  massageLab3DGlobeMarkerLng: number
+  massageLab3DGlobeMarkerLabel: string
+  massageLab3DGlobeMarkerIcon: "pin" | "person" | "heart" | "star" | "home"
+  massageLab3DGlobeMarkerSize: number
+  massageLabRetroGridBackgroundColor: string
+  massageLabRetroGridLightLineColor: string
+  massageLabRetroGridDarkLineColor: string
+  massageLabRetroGridAngle: number
+  massageLabRetroGridCellSize: number
+  massageLabRetroGridOpacity: number
+  massageLabAerialRaysBackgroundColor: string
+  massageLabAerialRaysColor: string
+  massageLabAerialRaysCount: number
+  massageLabAerialRaysBlur: number
+  massageLabAerialRaysSpeed: number
+  massageLabAerialRaysLength: number
+  massageLabAerialRaysOpacity: number
+  massageLabSynthesisPaletteMode: MassageLabSynthesisPaletteMode
+  massageLabSynthesisPrimaryColor: string
+  massageLabSynthesisHarmony: ColorHarmony
+  massageLabSynthesisColorOne: string
+  massageLabSynthesisColorTwo: string
+  massageLabSynthesisColorThree: string
+  massageLabSynthesisSpeed: number
+  massageLabSynthesisComplexity: number
+  massageLabSynthesisScale: number
+  massageLabSynthesisDistortion: number
+  massageLabSynthesisGlowIntensity: number
+  massageLabSynthesisFlowFrequency: number
   backgroundLinesDuration: number
   shootingStarsStarColor: string
   shootingStarsTrailColor: string
@@ -1127,6 +1861,7 @@ interface RunningTimerProps {
   hexGridActivePercent: number
   hexGridOpacity: number
   canUseCustomColors: boolean
+  canUseAccountColorControls: boolean
   featureKeys: string[]
   activeIntervalMinutes: number | null
   onClose: () => void
@@ -1137,6 +1872,7 @@ interface RunningTimerProps {
   onAdjustActiveRemainingMinutes: (deltaMinutes: number) => void
   onSetActiveRemainingDuration: (hours: number, minutes: number) => void
   onSetActiveIntervalMinutes: (minutes: number) => void
+  hapticsEnabled: boolean
 }
 
 export function RunningTimer({
@@ -1156,6 +1892,19 @@ export function RunningTimer({
   primaryFontColor,
   secondaryFontColor,
   clockModeFontColor,
+  clockFontFamily,
+  clockStrokeEnabled,
+  clockStrokeColor,
+  clockStrokeWidth,
+  clockShadowEnabled,
+  clockShadowColor,
+  clockShadowStrength,
+  clockShadowDirection,
+  clockShadowDistance,
+  clockShadowFeather,
+  clockGlowEnabled,
+  clockGlowColor,
+  clockGlowStrength,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
   sparklesMaxSize,
@@ -1172,798 +1921,798 @@ export function RunningTimer({
   gradientAnimationFifthColor,
   gradientAnimationSpeed,
   gradientAnimationSize,
-  animateUiGradientPrimaryColor,
-  animateUiGradientHarmony,
-  animateUiGradientOpacity,
-  animateUiStarsColor,
-  animateUiStarsSpeed,
-  animateUiStarsDensity,
-  animateUiStarsParallax,
-  animateUiHoleStrokeColor,
-  animateUiHoleParticleColor,
-  animateUiHoleLineCount,
-  animateUiHoleDiscCount,
-  chamaacLightSpeedWarpSpeed,
-  chamaacLightSpeedParticleCount,
-  chamaacLightSpeedLightColor,
-  chamaacLightSpeedIntensity,
-  chamaacLightSpeedRadius,
-  chamaacLightSpeedCylinderLength,
-  chamaacElectricMistColor,
-  chamaacElectricMistSpeed,
-  chamaacElectricMistDetail,
-  chamaacElectricMistDistortion,
-  chamaacElectricMistBrightness,
-  chamaacAstralFlowPaletteMode,
-  chamaacAstralFlowPrimaryColor,
-  chamaacAstralFlowHarmony,
-  chamaacAstralFlowColorOne,
-  chamaacAstralFlowColorTwo,
-  chamaacAstralFlowColorThree,
-  chamaacAstralFlowSpeed,
-  chamaacAstralFlowFlowMin,
-  chamaacAstralFlowFlowMax,
-  chamaacDeepSpaceNebulaPaletteMode,
-  chamaacDeepSpaceNebulaPrimaryColor,
-  chamaacDeepSpaceNebulaHarmony,
-  chamaacDeepSpaceNebulaColorOne,
-  chamaacDeepSpaceNebulaColorTwo,
-  chamaacDeepSpaceNebulaColorThree,
-  chamaacDeepSpaceNebulaSpeed,
-  chamaacGridBloomColor,
-  chamaacGridBloomSpeed,
-  chamaacGridBloomGridScale,
-  chamaacGridBloomRotationSpeed,
-  chamaacGridBloomFadeFalloff,
-  chamaacGridBloomDistortionAmount,
-  chamaacGridBloomFlowSpeedX,
-  chamaacGridBloomFlowSpeedY,
-  chamaacLiquidChromePaletteMode,
-  chamaacLiquidChromePrimaryColor,
-  chamaacLiquidChromeHarmony,
-  chamaacLiquidChromeColorOne,
-  chamaacLiquidChromeColorTwo,
-  chamaacLiquidChromeFlowSpeed,
-  chamaacLiquidChromeTimeScale,
-  chamaacWavesPaletteMode,
-  chamaacWavesPrimaryColor,
-  chamaacWavesHarmony,
-  chamaacWavesBackgroundColor,
-  chamaacWavesColorOne,
-  chamaacWavesColorTwo,
-  chamaacWavesColorThree,
-  chamaacWavesSpeedX,
-  chamaacWavesSpeedY,
-  chamaacWavesAmplitude,
-  reactBitsFerrofluidPaletteMode,
-  reactBitsFerrofluidPrimaryColor,
-  reactBitsFerrofluidHarmony,
-  reactBitsFerrofluidColorOne,
-  reactBitsFerrofluidColorTwo,
-  reactBitsFerrofluidColorThree,
-  reactBitsFerrofluidSpeed,
-  reactBitsFerrofluidScale,
-  reactBitsFerrofluidTurbulence,
-  reactBitsFerrofluidFluidity,
-  reactBitsFerrofluidRimWidth,
-  reactBitsFerrofluidSharpness,
-  reactBitsFerrofluidShimmer,
-  reactBitsFerrofluidGlow,
-  reactBitsFerrofluidFlowDirection,
-  reactBitsFerrofluidOpacity,
-  reactBitsLightfallPaletteMode,
-  reactBitsLightfallPrimaryColor,
-  reactBitsLightfallHarmony,
-  reactBitsLightfallColorOne,
-  reactBitsLightfallColorTwo,
-  reactBitsLightfallColorThree,
-  reactBitsLightfallBackgroundColor,
-  reactBitsLightfallSpeed,
-  reactBitsLightfallStreakCount,
-  reactBitsLightfallStreakWidth,
-  reactBitsLightfallStreakLength,
-  reactBitsLightfallGlow,
-  reactBitsLightfallDensity,
-  reactBitsLightfallTwinkle,
-  reactBitsLightfallZoom,
-  reactBitsLightfallBackgroundGlow,
-  reactBitsLightfallOpacity,
-  reactBitsLightfallCursorEnabled,
-  reactBitsLightfallCursorStrength,
-  reactBitsLightfallCursorRadius,
-  reactBitsLightfallCursorDampening,
-  reactBitsLiquidEtherPaletteMode,
-  reactBitsLiquidEtherPrimaryColor,
-  reactBitsLiquidEtherHarmony,
-  reactBitsLiquidEtherColorOne,
-  reactBitsLiquidEtherColorTwo,
-  reactBitsLiquidEtherColorThree,
-  reactBitsLiquidEtherCursorEnabled,
-  reactBitsLiquidEtherMouseForce,
-  reactBitsLiquidEtherCursorSize,
-  reactBitsLiquidEtherIsViscous,
-  reactBitsLiquidEtherViscous,
-  reactBitsLiquidEtherIterationsViscous,
-  reactBitsLiquidEtherIterationsPoisson,
-  reactBitsLiquidEtherDt,
-  reactBitsLiquidEtherBfecc,
-  reactBitsLiquidEtherResolution,
-  reactBitsLiquidEtherIsBounce,
-  reactBitsLiquidEtherAutoDemo,
-  reactBitsLiquidEtherAutoSpeed,
-  reactBitsLiquidEtherAutoIntensity,
-  reactBitsLiquidEtherAutoResumeDelay,
-  reactBitsLiquidEtherAutoRampDuration,
-  reactBitsLiquidEtherOpacity,
-  reactBitsPrismHeight,
-  reactBitsPrismBaseWidth,
-  reactBitsPrismAnimationType,
-  reactBitsPrismGlow,
-  reactBitsPrismOffsetX,
-  reactBitsPrismOffsetY,
-  reactBitsPrismNoise,
-  reactBitsPrismTransparent,
-  reactBitsPrismScale,
-  reactBitsPrismHueShift,
-  reactBitsPrismColorFrequency,
-  reactBitsPrismHoverStrength,
-  reactBitsPrismInertia,
-  reactBitsPrismBloom,
-  reactBitsPrismTimeScale,
-  reactBitsDarkVeilHueShift,
-  reactBitsDarkVeilNoiseIntensity,
-  reactBitsDarkVeilScanlineIntensity,
-  reactBitsDarkVeilSpeed,
-  reactBitsDarkVeilScanlineFrequency,
-  reactBitsDarkVeilWarpAmount,
-  reactBitsDarkVeilResolutionScale,
-  reactBitsLightPillarPaletteMode,
-  reactBitsLightPillarPrimaryColor,
-  reactBitsLightPillarHarmony,
-  reactBitsLightPillarTopColor,
-  reactBitsLightPillarBottomColor,
-  reactBitsLightPillarIntensity,
-  reactBitsLightPillarRotationSpeed,
-  reactBitsLightPillarInteractive,
-  reactBitsLightPillarGlowAmount,
-  reactBitsLightPillarWidth,
-  reactBitsLightPillarHeight,
-  reactBitsLightPillarNoiseIntensity,
-  reactBitsLightPillarBlendMode,
-  reactBitsLightPillarRotation,
-  reactBitsLightPillarQuality,
-  reactBitsSilkPaletteMode,
-  reactBitsSilkPrimaryColor,
-  reactBitsSilkHarmony,
-  reactBitsSilkColor,
-  reactBitsSilkSpeed,
-  reactBitsSilkScale,
-  reactBitsSilkNoiseIntensity,
-  reactBitsSilkRotation,
-  reactBitsFloatingLinesPaletteMode,
-  reactBitsFloatingLinesPrimaryColor,
-  reactBitsFloatingLinesHarmony,
-  reactBitsFloatingLinesColorOne,
-  reactBitsFloatingLinesColorTwo,
-  reactBitsFloatingLinesColorThree,
-  reactBitsFloatingLinesEnableTop,
-  reactBitsFloatingLinesEnableMiddle,
-  reactBitsFloatingLinesEnableBottom,
-  reactBitsFloatingLinesTopLineCount,
-  reactBitsFloatingLinesMiddleLineCount,
-  reactBitsFloatingLinesBottomLineCount,
-  reactBitsFloatingLinesTopLineDistance,
-  reactBitsFloatingLinesMiddleLineDistance,
-  reactBitsFloatingLinesBottomLineDistance,
-  reactBitsFloatingLinesTopWaveX,
-  reactBitsFloatingLinesTopWaveY,
-  reactBitsFloatingLinesTopWaveRotate,
-  reactBitsFloatingLinesMiddleWaveX,
-  reactBitsFloatingLinesMiddleWaveY,
-  reactBitsFloatingLinesMiddleWaveRotate,
-  reactBitsFloatingLinesBottomWaveX,
-  reactBitsFloatingLinesBottomWaveY,
-  reactBitsFloatingLinesBottomWaveRotate,
-  reactBitsFloatingLinesAnimationSpeed,
-  reactBitsFloatingLinesInteractive,
-  reactBitsFloatingLinesBendRadius,
-  reactBitsFloatingLinesBendStrength,
-  reactBitsFloatingLinesMouseDamping,
-  reactBitsFloatingLinesParallax,
-  reactBitsFloatingLinesParallaxStrength,
-  reactBitsFloatingLinesBlendMode,
-  reactBitsSideRaysPaletteMode,
-  reactBitsSideRaysPrimaryColor,
-  reactBitsSideRaysHarmony,
-  reactBitsSideRaysColorOne,
-  reactBitsSideRaysColorTwo,
-  reactBitsSideRaysSpeed,
-  reactBitsSideRaysIntensity,
-  reactBitsSideRaysSpread,
-  reactBitsSideRaysOrigin,
-  reactBitsSideRaysTilt,
-  reactBitsSideRaysSaturation,
-  reactBitsSideRaysBlend,
-  reactBitsSideRaysFalloff,
-  reactBitsSideRaysOpacity,
-  reactBitsLightRaysPaletteMode,
-  reactBitsLightRaysPrimaryColor,
-  reactBitsLightRaysHarmony,
-  reactBitsLightRaysColor,
-  reactBitsLightRaysOrigin,
-  reactBitsLightRaysSpeed,
-  reactBitsLightRaysSpread,
-  reactBitsLightRaysLength,
-  reactBitsLightRaysPulsating,
-  reactBitsLightRaysFadeDistance,
-  reactBitsLightRaysSaturation,
-  reactBitsLightRaysFollowMouse,
-  reactBitsLightRaysMouseInfluence,
-  reactBitsLightRaysNoiseAmount,
-  reactBitsLightRaysDistortion,
-  reactBitsPixelBlastPaletteMode,
-  reactBitsPixelBlastPrimaryColor,
-  reactBitsPixelBlastHarmony,
-  reactBitsPixelBlastColor,
-  reactBitsPixelBlastVariant,
-  reactBitsPixelBlastPixelSize,
-  reactBitsPixelBlastAntialias,
-  reactBitsPixelBlastPatternScale,
-  reactBitsPixelBlastPatternDensity,
-  reactBitsPixelBlastLiquid,
-  reactBitsPixelBlastLiquidStrength,
-  reactBitsPixelBlastLiquidRadius,
-  reactBitsPixelBlastPixelSizeJitter,
-  reactBitsPixelBlastEnableRipples,
-  reactBitsPixelBlastRippleIntensityScale,
-  reactBitsPixelBlastRippleThickness,
-  reactBitsPixelBlastRippleSpeed,
-  reactBitsPixelBlastLiquidWobbleSpeed,
-  reactBitsPixelBlastAutoPauseOffscreen,
-  reactBitsPixelBlastSpeed,
-  reactBitsPixelBlastTransparent,
-  reactBitsPixelBlastEdgeFade,
-  reactBitsPixelBlastNoiseAmount,
-  reactBitsColorBendsPaletteMode,
-  reactBitsColorBendsPrimaryColor,
-  reactBitsColorBendsHarmony,
-  reactBitsColorBendsColorOne,
-  reactBitsColorBendsColorTwo,
-  reactBitsColorBendsColorThree,
-  reactBitsColorBendsColorFour,
-  reactBitsColorBendsRotation,
-  reactBitsColorBendsSpeed,
-  reactBitsColorBendsTransparent,
-  reactBitsColorBendsAutoRotate,
-  reactBitsColorBendsScale,
-  reactBitsColorBendsFrequency,
-  reactBitsColorBendsWarpStrength,
-  reactBitsColorBendsInteractive,
-  reactBitsColorBendsMouseInfluence,
-  reactBitsColorBendsParallax,
-  reactBitsColorBendsNoise,
-  reactBitsColorBendsIterations,
-  reactBitsColorBendsIntensity,
-  reactBitsColorBendsBandWidth,
-  reactBitsEvilEyePaletteMode,
-  reactBitsEvilEyePrimaryColor,
-  reactBitsEvilEyeHarmony,
-  reactBitsEvilEyeColor,
-  reactBitsEvilEyeBackgroundColor,
-  reactBitsEvilEyeIntensity,
-  reactBitsEvilEyePupilSize,
-  reactBitsEvilEyeIrisWidth,
-  reactBitsEvilEyeGlowIntensity,
-  reactBitsEvilEyeScale,
-  reactBitsEvilEyeNoiseScale,
-  reactBitsEvilEyePupilFollow,
-  reactBitsEvilEyeFlameSpeed,
-  reactBitsEvilEyeInteractive,
-  reactBitsLineWavesPaletteMode,
-  reactBitsLineWavesPrimaryColor,
-  reactBitsLineWavesHarmony,
-  reactBitsLineWavesColorOne,
-  reactBitsLineWavesColorTwo,
-  reactBitsLineWavesColorThree,
-  reactBitsLineWavesSpeed,
-  reactBitsLineWavesInnerLineCount,
-  reactBitsLineWavesOuterLineCount,
-  reactBitsLineWavesWarpIntensity,
-  reactBitsLineWavesRotation,
-  reactBitsLineWavesEdgeFadeWidth,
-  reactBitsLineWavesColorCycleSpeed,
-  reactBitsLineWavesBrightness,
-  reactBitsLineWavesEnableMouseInteraction,
-  reactBitsLineWavesMouseInfluence,
-  reactBitsRadarPaletteMode,
-  reactBitsRadarPrimaryColor,
-  reactBitsRadarHarmony,
-  reactBitsRadarColor,
-  reactBitsRadarBackgroundColor,
-  reactBitsRadarSpeed,
-  reactBitsRadarScale,
-  reactBitsRadarRingCount,
-  reactBitsRadarSpokeCount,
-  reactBitsRadarRingThickness,
-  reactBitsRadarSpokeThickness,
-  reactBitsRadarSweepSpeed,
-  reactBitsRadarSweepWidth,
-  reactBitsRadarSweepLobes,
-  reactBitsRadarFalloff,
-  reactBitsRadarBrightness,
-  reactBitsRadarEnableMouseInteraction,
-  reactBitsRadarMouseInfluence,
-  reactBitsSoftAuroraPaletteMode,
-  reactBitsSoftAuroraPrimaryColor,
-  reactBitsSoftAuroraHarmony,
-  reactBitsSoftAuroraColorOne,
-  reactBitsSoftAuroraColorTwo,
-  reactBitsSoftAuroraSpeed,
-  reactBitsSoftAuroraScale,
-  reactBitsSoftAuroraBrightness,
-  reactBitsSoftAuroraNoiseFrequency,
-  reactBitsSoftAuroraNoiseAmplitude,
-  reactBitsSoftAuroraBandHeight,
-  reactBitsSoftAuroraBandSpread,
-  reactBitsSoftAuroraOctaveDecay,
-  reactBitsSoftAuroraLayerOffset,
-  reactBitsSoftAuroraColorSpeed,
-  reactBitsSoftAuroraEnableMouseInteraction,
-  reactBitsSoftAuroraMouseInfluence,
-  reactBitsPlasmaPaletteMode,
-  reactBitsPlasmaPrimaryColor,
-  reactBitsPlasmaHarmony,
-  reactBitsPlasmaColor,
-  reactBitsPlasmaSpeed,
-  reactBitsPlasmaDirection,
-  reactBitsPlasmaScale,
-  reactBitsPlasmaOpacity,
-  reactBitsPlasmaMouseInteractive,
-  reactBitsPlasmaWavePaletteMode,
-  reactBitsPlasmaWavePrimaryColor,
-  reactBitsPlasmaWaveHarmony,
-  reactBitsPlasmaWaveColorOne,
-  reactBitsPlasmaWaveColorTwo,
-  reactBitsPlasmaWaveXOffset,
-  reactBitsPlasmaWaveYOffset,
-  reactBitsPlasmaWaveRotationDeg,
-  reactBitsPlasmaWaveFocalLength,
-  reactBitsPlasmaWaveSpeedOne,
-  reactBitsPlasmaWaveSpeedTwo,
-  reactBitsPlasmaWaveDirectionTwo,
-  reactBitsPlasmaWaveBendOne,
-  reactBitsPlasmaWaveBendTwo,
-  reactBitsParticlesPaletteMode,
-  reactBitsParticlesPrimaryColor,
-  reactBitsParticlesHarmony,
-  reactBitsParticlesColorOne,
-  reactBitsParticlesColorTwo,
-  reactBitsParticlesColorThree,
-  reactBitsParticlesCount,
-  reactBitsParticlesSpread,
-  reactBitsParticlesSpeed,
-  reactBitsParticlesMoveOnHover,
-  reactBitsParticlesHoverFactor,
-  reactBitsParticlesAlpha,
-  reactBitsParticlesBaseSize,
-  reactBitsParticlesSizeRandomness,
-  reactBitsParticlesCameraDistance,
-  reactBitsParticlesDisableRotation,
-  reactBitsParticlesPixelRatio,
-  reactBitsGradientBlindsPaletteMode,
-  reactBitsGradientBlindsPrimaryColor,
-  reactBitsGradientBlindsHarmony,
-  reactBitsGradientBlindsColorOne,
-  reactBitsGradientBlindsColorTwo,
-  reactBitsGradientBlindsAngle,
-  reactBitsGradientBlindsNoise,
-  reactBitsGradientBlindsBlindCount,
-  reactBitsGradientBlindsBlindMinWidth,
-  reactBitsGradientBlindsMouseDampening,
-  reactBitsGradientBlindsMirror,
-  reactBitsGradientBlindsSpotlightRadius,
-  reactBitsGradientBlindsSpotlightSoftness,
-  reactBitsGradientBlindsSpotlightOpacity,
-  reactBitsGradientBlindsDistort,
-  reactBitsGradientBlindsShineDirection,
-  reactBitsGradientBlindsBlendMode,
-  reactBitsGradientBlindsDpr,
-  reactBitsGradientBlindsEnableMouseInteraction,
-  reactBitsGrainientPaletteMode,
-  reactBitsGrainientPrimaryColor,
-  reactBitsGrainientHarmony,
-  reactBitsGrainientColorOne,
-  reactBitsGrainientColorTwo,
-  reactBitsGrainientColorThree,
-  reactBitsGrainientTimeSpeed,
-  reactBitsGrainientColorBalance,
-  reactBitsGrainientWarpStrength,
-  reactBitsGrainientWarpFrequency,
-  reactBitsGrainientWarpSpeed,
-  reactBitsGrainientWarpAmplitude,
-  reactBitsGrainientBlendAngle,
-  reactBitsGrainientBlendSoftness,
-  reactBitsGrainientRotationAmount,
-  reactBitsGrainientNoiseScale,
-  reactBitsGrainientGrainAmount,
-  reactBitsGrainientGrainScale,
-  reactBitsGrainientGrainAnimated,
-  reactBitsGrainientContrast,
-  reactBitsGrainientGamma,
-  reactBitsGrainientSaturation,
-  reactBitsGrainientCenterX,
-  reactBitsGrainientCenterY,
-  reactBitsGrainientZoom,
-  reactBitsGridScanPaletteMode,
-  reactBitsGridScanPrimaryColor,
-  reactBitsGridScanHarmony,
-  reactBitsGridScanLinesColor,
-  reactBitsGridScanScanColor,
-  reactBitsGridScanSensitivity,
-  reactBitsGridScanLineThickness,
-  reactBitsGridScanScanOpacity,
-  reactBitsGridScanGridScale,
-  reactBitsGridScanLineStyle,
-  reactBitsGridScanLineJitter,
-  reactBitsGridScanDirection,
-  reactBitsGridScanNoiseIntensity,
-  reactBitsGridScanBloomOpacity,
-  reactBitsGridScanScanGlow,
-  reactBitsGridScanScanSoftness,
-  reactBitsGridScanPhaseTaper,
-  reactBitsGridScanScanDuration,
-  reactBitsGridScanScanDelay,
-  reactBitsGridScanEnablePointerInteraction,
-  reactBitsGridScanScanOnClick,
-  reactBitsBeamsPaletteMode,
-  reactBitsBeamsPrimaryColor,
-  reactBitsBeamsHarmony,
-  reactBitsBeamsLightColor,
-  reactBitsBeamsBeamWidth,
-  reactBitsBeamsBeamHeight,
-  reactBitsBeamsBeamNumber,
-  reactBitsBeamsSpeed,
-  reactBitsBeamsNoiseIntensity,
-  reactBitsBeamsScale,
-  reactBitsBeamsRotation,
-  reactBitsPixelSnowPaletteMode,
-  reactBitsPixelSnowPrimaryColor,
-  reactBitsPixelSnowHarmony,
-  reactBitsPixelSnowColor,
-  reactBitsPixelSnowFlakeSize,
-  reactBitsPixelSnowMinFlakeSize,
-  reactBitsPixelSnowPixelResolution,
-  reactBitsPixelSnowSpeed,
-  reactBitsPixelSnowDepthFade,
-  reactBitsPixelSnowFarPlane,
-  reactBitsPixelSnowBrightness,
-  reactBitsPixelSnowGamma,
-  reactBitsPixelSnowDensity,
-  reactBitsPixelSnowVariant,
-  reactBitsPixelSnowDirection,
-  reactBitsLightningPaletteMode,
-  reactBitsLightningPrimaryColor,
-  reactBitsLightningHarmony,
-  reactBitsLightningColor,
-  reactBitsLightningHue,
-  reactBitsLightningXOffset,
-  reactBitsLightningSpeed,
-  reactBitsLightningIntensity,
-  reactBitsLightningSize,
-  reactBitsPrismaticBurstPaletteMode,
-  reactBitsPrismaticBurstPrimaryColor,
-  reactBitsPrismaticBurstHarmony,
-  reactBitsPrismaticBurstColorOne,
-  reactBitsPrismaticBurstColorTwo,
-  reactBitsPrismaticBurstColorThree,
-  reactBitsPrismaticBurstColorFour,
-  reactBitsPrismaticBurstIntensity,
-  reactBitsPrismaticBurstSpeed,
-  reactBitsPrismaticBurstAnimationType,
-  reactBitsPrismaticBurstDistort,
-  reactBitsPrismaticBurstOffsetX,
-  reactBitsPrismaticBurstOffsetY,
-  reactBitsPrismaticBurstHoverDampness,
-  reactBitsPrismaticBurstRayCount,
-  reactBitsPrismaticBurstMixBlendMode,
-  reactBitsGalaxyPaletteMode,
-  reactBitsGalaxyPrimaryColor,
-  reactBitsGalaxyHarmony,
-  reactBitsGalaxyColor,
-  reactBitsGalaxyHueShift,
-  reactBitsGalaxyFocalX,
-  reactBitsGalaxyFocalY,
-  reactBitsGalaxyRotationDeg,
-  reactBitsGalaxyStarSpeed,
-  reactBitsGalaxyDensity,
-  reactBitsGalaxySpeed,
-  reactBitsGalaxyMouseInteraction,
-  reactBitsGalaxyGlowIntensity,
-  reactBitsGalaxySaturation,
-  reactBitsGalaxyMouseRepulsion,
-  reactBitsGalaxyRepulsionStrength,
-  reactBitsGalaxyTwinkleIntensity,
-  reactBitsGalaxyRotationSpeed,
-  reactBitsGalaxyAutoCenterRepulsion,
-  reactBitsGalaxyTransparent,
-  reactBitsDitherPaletteMode,
-  reactBitsDitherPrimaryColor,
-  reactBitsDitherHarmony,
-  reactBitsDitherColor,
-  reactBitsDitherWaveSpeed,
-  reactBitsDitherWaveFrequency,
-  reactBitsDitherWaveAmplitude,
-  reactBitsDitherColorNum,
-  reactBitsDitherPixelSize,
-  reactBitsDitherMouseInteraction,
-  reactBitsDitherMouseRadius,
-  reactBitsFaultyTerminalPaletteMode,
-  reactBitsFaultyTerminalPrimaryColor,
-  reactBitsFaultyTerminalHarmony,
-  reactBitsFaultyTerminalTint,
-  reactBitsFaultyTerminalScale,
-  reactBitsFaultyTerminalGridMulX,
-  reactBitsFaultyTerminalGridMulY,
-  reactBitsFaultyTerminalDigitSize,
-  reactBitsFaultyTerminalTimeScale,
-  reactBitsFaultyTerminalScanlineIntensity,
-  reactBitsFaultyTerminalGlitchAmount,
-  reactBitsFaultyTerminalFlickerAmount,
-  reactBitsFaultyTerminalNoiseAmp,
-  reactBitsFaultyTerminalChromaticAberration,
-  reactBitsFaultyTerminalDither,
-  reactBitsFaultyTerminalCurvature,
-  reactBitsFaultyTerminalMouseReact,
-  reactBitsFaultyTerminalMouseStrength,
-  reactBitsFaultyTerminalPageLoadAnimation,
-  reactBitsFaultyTerminalBrightness,
-  reactBitsRippleGridPaletteMode,
-  reactBitsRippleGridPrimaryColor,
-  reactBitsRippleGridHarmony,
-  reactBitsRippleGridColor,
-  reactBitsRippleGridRippleIntensity,
-  reactBitsRippleGridGridSize,
-  reactBitsRippleGridGridThickness,
-  reactBitsRippleGridFadeDistance,
-  reactBitsRippleGridVignetteStrength,
-  reactBitsRippleGridGlowIntensity,
-  reactBitsRippleGridOpacity,
-  reactBitsRippleGridGridRotation,
-  reactBitsRippleGridMouseInteraction,
-  reactBitsRippleGridMouseInteractionRadius,
-  reactBitsDotFieldPaletteMode,
-  reactBitsDotFieldPrimaryColor,
-  reactBitsDotFieldHarmony,
-  reactBitsDotFieldGradientFromColor,
-  reactBitsDotFieldGradientFromAlpha,
-  reactBitsDotFieldGradientToColor,
-  reactBitsDotFieldGradientToAlpha,
-  reactBitsDotFieldGlowColor,
-  reactBitsDotFieldDotRadius,
-  reactBitsDotFieldDotSpacing,
-  reactBitsDotFieldCursorRadius,
-  reactBitsDotFieldCursorForce,
-  reactBitsDotFieldBulgeOnly,
-  reactBitsDotFieldBulgeStrength,
-  reactBitsDotFieldGlowRadius,
-  reactBitsDotFieldSparkle,
-  reactBitsDotFieldWaveAmplitude,
-  reactBitsDotFieldCursorInteraction,
-  reactBitsDotGridPaletteMode,
-  reactBitsDotGridPrimaryColor,
-  reactBitsDotGridHarmony,
-  reactBitsDotGridBaseColor,
-  reactBitsDotGridActiveColor,
-  reactBitsDotGridDotSize,
-  reactBitsDotGridGap,
-  reactBitsDotGridProximity,
-  reactBitsDotGridSpeedTrigger,
-  reactBitsDotGridShockRadius,
-  reactBitsDotGridShockStrength,
-  reactBitsDotGridMaxSpeed,
-  reactBitsDotGridResistance,
-  reactBitsDotGridReturnDuration,
-  reactBitsDotGridCursorInteraction,
-  reactBitsDotGridClickShock,
-  reactBitsThreadsPaletteMode,
-  reactBitsThreadsPrimaryColor,
-  reactBitsThreadsHarmony,
-  reactBitsThreadsColor,
-  reactBitsThreadsAmplitude,
-  reactBitsThreadsDistance,
-  reactBitsThreadsEnableMouseInteraction,
-  reactBitsIridescencePaletteMode,
-  reactBitsIridescencePrimaryColor,
-  reactBitsIridescenceHarmony,
-  reactBitsIridescenceColor,
-  reactBitsIridescenceSpeed,
-  reactBitsIridescenceAmplitude,
-  reactBitsIridescenceMouseReact,
-  reactBitsWavesPaletteMode,
-  reactBitsWavesPrimaryColor,
-  reactBitsWavesHarmony,
-  reactBitsWavesLineColor,
-  reactBitsWavesBackgroundColor,
-  reactBitsWavesTransparentBackground,
-  reactBitsWavesSpeedX,
-  reactBitsWavesSpeedY,
-  reactBitsWavesAmplitudeX,
-  reactBitsWavesAmplitudeY,
-  reactBitsWavesGapX,
-  reactBitsWavesGapY,
-  reactBitsWavesFriction,
-  reactBitsWavesTension,
-  reactBitsWavesMaxCursorMove,
-  reactBitsWavesCursorInteraction,
-  reactBitsGridDistortionPaletteMode,
-  reactBitsGridDistortionPrimaryColor,
-  reactBitsGridDistortionHarmony,
-  reactBitsGridDistortionColorOne,
-  reactBitsGridDistortionColorTwo,
-  reactBitsGridDistortionColorThree,
-  reactBitsGridDistortionGrid,
-  reactBitsGridDistortionMouse,
-  reactBitsGridDistortionStrength,
-  reactBitsGridDistortionRelaxation,
-  reactBitsGridDistortionCursorInteraction,
-  reactBitsOrbPaletteMode,
-  reactBitsOrbPrimaryColor,
-  reactBitsOrbHarmony,
-  reactBitsOrbColor,
-  reactBitsOrbHue,
-  reactBitsOrbHoverIntensity,
-  reactBitsOrbRotateOnHover,
-  reactBitsOrbForceHoverState,
-  reactBitsOrbBackgroundColor,
-  reactBitsOrbCursorInteraction,
-  reactBitsLetterGlitchPaletteMode,
-  reactBitsLetterGlitchPrimaryColor,
-  reactBitsLetterGlitchHarmony,
-  reactBitsLetterGlitchColorOne,
-  reactBitsLetterGlitchColorTwo,
-  reactBitsLetterGlitchColorThree,
-  reactBitsLetterGlitchGlitchSpeed,
-  reactBitsLetterGlitchCenterVignette,
-  reactBitsLetterGlitchOuterVignette,
-  reactBitsLetterGlitchSmooth,
-  reactBitsLetterGlitchCharacters,
-  reactBitsGridMotionPaletteMode,
-  reactBitsGridMotionPrimaryColor,
-  reactBitsGridMotionHarmony,
-  reactBitsGridMotionGradientColor,
-  reactBitsGridMotionTileColor,
-  reactBitsGridMotionTextColor,
-  reactBitsGridMotionMaxMoveAmount,
-  reactBitsGridMotionBaseDuration,
-  reactBitsGridMotionCursorInteraction,
-  reactBitsShapeGridPaletteMode,
-  reactBitsShapeGridPrimaryColor,
-  reactBitsShapeGridHarmony,
-  reactBitsShapeGridBorderColor,
-  reactBitsShapeGridHoverFillColor,
-  reactBitsShapeGridDirection,
-  reactBitsShapeGridSpeed,
-  reactBitsShapeGridSquareSize,
-  reactBitsShapeGridShape,
-  reactBitsShapeGridHoverTrailAmount,
-  reactBitsShapeGridCursorInteraction,
-  reactBitsLiquidChromePaletteMode,
-  reactBitsLiquidChromePrimaryColor,
-  reactBitsLiquidChromeHarmony,
-  reactBitsLiquidChromeBaseColor,
-  reactBitsLiquidChromeSpeed,
-  reactBitsLiquidChromeAmplitude,
-  reactBitsLiquidChromeFrequencyX,
-  reactBitsLiquidChromeFrequencyY,
-  reactBitsLiquidChromeInteractive,
-  reactBitsBalatroPaletteMode,
-  reactBitsBalatroPrimaryColor,
-  reactBitsBalatroHarmony,
-  reactBitsBalatroColorOne,
-  reactBitsBalatroColorTwo,
-  reactBitsBalatroColorThree,
-  reactBitsBalatroSpinRotation,
-  reactBitsBalatroSpinSpeed,
-  reactBitsBalatroOffsetX,
-  reactBitsBalatroOffsetY,
-  reactBitsBalatroContrast,
-  reactBitsBalatroLighting,
-  reactBitsBalatroSpinAmount,
-  reactBitsBalatroPixelFilter,
-  reactBitsBalatroSpinEase,
-  reactBitsBalatroIsRotate,
-  reactBitsBalatroMouseInteraction,
-  eldoraNovatrixPaletteMode,
-  eldoraNovatrixPrimaryColor,
-  eldoraNovatrixHarmony,
-  eldoraNovatrixColor,
-  eldoraNovatrixSpeed,
-  eldoraNovatrixAmplitude,
-  eldoraHackerPaletteMode,
-  eldoraHackerPrimaryColor,
-  eldoraHackerHarmony,
-  eldoraHackerColor,
-  eldoraHackerSpeed,
-  eldoraHackerFontSize,
-  eldoraPhotonBeamPaletteMode,
-  eldoraPhotonBeamPrimaryColor,
-  eldoraPhotonBeamHarmony,
-  eldoraPhotonBeamColorBg,
-  eldoraPhotonBeamColorLine,
-  eldoraPhotonBeamColorSignal,
-  eldoraPhotonBeamUseColor2,
-  eldoraPhotonBeamColorSignal2,
-  eldoraPhotonBeamUseColor3,
-  eldoraPhotonBeamColorSignal3,
-  eldoraPhotonBeamLineCount,
-  eldoraPhotonBeamSpreadHeight,
-  eldoraPhotonBeamSpreadDepth,
-  eldoraPhotonBeamCurveLength,
-  eldoraPhotonBeamStraightLength,
-  eldoraPhotonBeamCurvePower,
-  eldoraPhotonBeamWaveSpeed,
-  eldoraPhotonBeamWaveHeight,
-  eldoraPhotonBeamLineOpacity,
-  eldoraPhotonBeamSignalCount,
-  eldoraPhotonBeamSpeedGlobal,
-  eldoraPhotonBeamTrailLength,
-  eldoraPhotonBeamBloomStrength,
-  eldoraPhotonBeamBloomRadius,
-  aceternity3DGlobeViewStyle,
-  aceternity3DGlobeBackgroundColor,
-  aceternity3DGlobeGlobeColor,
-  aceternity3DGlobeGraphicMapColor,
-  aceternity3DGlobeGraphicGlowColor,
-  aceternity3DGlobeGraphicMarkerColor,
-  aceternity3DGlobeGraphicMapSamples,
-  aceternity3DGlobeAutoRotateSpeed,
-  aceternity3DGlobeReverseSpin,
-  aceternity3DGlobeScale,
-  aceternity3DGlobeBumpScale,
-  aceternity3DGlobeAmbientIntensity,
-  aceternity3DGlobePointLightIntensity,
-  aceternity3DGlobeLightingMode,
-  aceternity3DGlobeEnablePan,
-  aceternity3DGlobePanX,
-  aceternity3DGlobePanY,
-  aceternity3DGlobeShowTilt,
-  aceternity3DGlobeShowAtmosphere,
-  aceternity3DGlobeAtmosphereColor,
-  aceternity3DGlobeAtmosphereIntensity,
-  aceternity3DGlobeAtmosphereBlur,
-  aceternity3DGlobeShowWireframe,
-  aceternity3DGlobeWireframeColor,
-  aceternity3DGlobeMarkerEnabled,
-  aceternity3DGlobeMarkerLat,
-  aceternity3DGlobeMarkerLng,
-  aceternity3DGlobeMarkerLabel,
-  aceternity3DGlobeMarkerIcon,
-  aceternity3DGlobeMarkerSize,
-  magicRetroGridBackgroundColor,
-  magicRetroGridLightLineColor,
-  magicRetroGridDarkLineColor,
-  magicRetroGridAngle,
-  magicRetroGridCellSize,
-  magicRetroGridOpacity,
-  magicLightRaysBackgroundColor,
-  magicLightRaysColor,
-  magicLightRaysCount,
-  magicLightRaysBlur,
-  magicLightRaysSpeed,
-  magicLightRaysLength,
-  magicLightRaysOpacity,
-  chamaacSynthesisPaletteMode,
-  chamaacSynthesisPrimaryColor,
-  chamaacSynthesisHarmony,
-  chamaacSynthesisColorOne,
-  chamaacSynthesisColorTwo,
-  chamaacSynthesisColorThree,
-  chamaacSynthesisSpeed,
-  chamaacSynthesisComplexity,
-  chamaacSynthesisScale,
-  chamaacSynthesisDistortion,
-  chamaacSynthesisGlowIntensity,
-  chamaacSynthesisFlowFrequency,
+  massageLabGradientPrimaryColor,
+  massageLabGradientHarmony,
+  massageLabGradientOpacity,
+  massageLabStarsColor,
+  massageLabStarsSpeed,
+  massageLabStarsDensity,
+  massageLabStarsParallax,
+  massageLabHoleStrokeColor,
+  massageLabHoleParticleColor,
+  massageLabHoleLineCount,
+  massageLabHoleDiscCount,
+  massageLabLightSpeedWarpSpeed,
+  massageLabLightSpeedParticleCount,
+  massageLabLightSpeedLightColor,
+  massageLabLightSpeedIntensity,
+  massageLabLightSpeedRadius,
+  massageLabLightSpeedCylinderLength,
+  massageLabElectricMistColor,
+  massageLabElectricMistSpeed,
+  massageLabElectricMistDetail,
+  massageLabElectricMistDistortion,
+  massageLabElectricMistBrightness,
+  massageLabAstralFlowPaletteMode,
+  massageLabAstralFlowPrimaryColor,
+  massageLabAstralFlowHarmony,
+  massageLabAstralFlowColorOne,
+  massageLabAstralFlowColorTwo,
+  massageLabAstralFlowColorThree,
+  massageLabAstralFlowSpeed,
+  massageLabAstralFlowFlowMin,
+  massageLabAstralFlowFlowMax,
+  massageLabDeepSpaceNebulaPaletteMode,
+  massageLabDeepSpaceNebulaPrimaryColor,
+  massageLabDeepSpaceNebulaHarmony,
+  massageLabDeepSpaceNebulaColorOne,
+  massageLabDeepSpaceNebulaColorTwo,
+  massageLabDeepSpaceNebulaColorThree,
+  massageLabDeepSpaceNebulaSpeed,
+  massageLabGridBloomColor,
+  massageLabGridBloomSpeed,
+  massageLabGridBloomGridScale,
+  massageLabGridBloomRotationSpeed,
+  massageLabGridBloomFadeFalloff,
+  massageLabGridBloomDistortionAmount,
+  massageLabGridBloomFlowSpeedX,
+  massageLabGridBloomFlowSpeedY,
+  massageLabChromeFlowPaletteMode,
+  massageLabChromeFlowPrimaryColor,
+  massageLabChromeFlowHarmony,
+  massageLabChromeFlowColorOne,
+  massageLabChromeFlowColorTwo,
+  massageLabChromeFlowFlowSpeed,
+  massageLabChromeFlowTimeScale,
+  massageLabWaveCurrentPaletteMode,
+  massageLabWaveCurrentPrimaryColor,
+  massageLabWaveCurrentHarmony,
+  massageLabWaveCurrentBackgroundColor,
+  massageLabWaveCurrentColorOne,
+  massageLabWaveCurrentColorTwo,
+  massageLabWaveCurrentColorThree,
+  massageLabWaveCurrentSpeedX,
+  massageLabWaveCurrentSpeedY,
+  massageLabWaveCurrentAmplitude,
+  massageLabFerrofluidPaletteMode,
+  massageLabFerrofluidPrimaryColor,
+  massageLabFerrofluidHarmony,
+  massageLabFerrofluidColorOne,
+  massageLabFerrofluidColorTwo,
+  massageLabFerrofluidColorThree,
+  massageLabFerrofluidSpeed,
+  massageLabFerrofluidScale,
+  massageLabFerrofluidTurbulence,
+  massageLabFerrofluidFluidity,
+  massageLabFerrofluidRimWidth,
+  massageLabFerrofluidSharpness,
+  massageLabFerrofluidShimmer,
+  massageLabFerrofluidGlow,
+  massageLabFerrofluidFlowDirection,
+  massageLabFerrofluidOpacity,
+  massageLabLightfallPaletteMode,
+  massageLabLightfallPrimaryColor,
+  massageLabLightfallHarmony,
+  massageLabLightfallColorOne,
+  massageLabLightfallColorTwo,
+  massageLabLightfallColorThree,
+  massageLabLightfallBackgroundColor,
+  massageLabLightfallSpeed,
+  massageLabLightfallStreakCount,
+  massageLabLightfallStreakWidth,
+  massageLabLightfallStreakLength,
+  massageLabLightfallGlow,
+  massageLabLightfallDensity,
+  massageLabLightfallTwinkle,
+  massageLabLightfallZoom,
+  massageLabLightfallBackgroundGlow,
+  massageLabLightfallOpacity,
+  massageLabLightfallCursorEnabled,
+  massageLabLightfallCursorStrength,
+  massageLabLightfallCursorRadius,
+  massageLabLightfallCursorDampening,
+  massageLabLiquidEtherPaletteMode,
+  massageLabLiquidEtherPrimaryColor,
+  massageLabLiquidEtherHarmony,
+  massageLabLiquidEtherColorOne,
+  massageLabLiquidEtherColorTwo,
+  massageLabLiquidEtherColorThree,
+  massageLabLiquidEtherCursorEnabled,
+  massageLabLiquidEtherMouseForce,
+  massageLabLiquidEtherCursorSize,
+  massageLabLiquidEtherIsViscous,
+  massageLabLiquidEtherViscous,
+  massageLabLiquidEtherIterationsViscous,
+  massageLabLiquidEtherIterationsPoisson,
+  massageLabLiquidEtherDt,
+  massageLabLiquidEtherBfecc,
+  massageLabLiquidEtherResolution,
+  massageLabLiquidEtherIsBounce,
+  massageLabLiquidEtherAutoDemo,
+  massageLabLiquidEtherAutoSpeed,
+  massageLabLiquidEtherAutoIntensity,
+  massageLabLiquidEtherAutoResumeDelay,
+  massageLabLiquidEtherAutoRampDuration,
+  massageLabLiquidEtherOpacity,
+  massageLabPrismHeight,
+  massageLabPrismBaseWidth,
+  massageLabPrismAnimationType,
+  massageLabPrismGlow,
+  massageLabPrismOffsetX,
+  massageLabPrismOffsetY,
+  massageLabPrismNoise,
+  massageLabPrismTransparent,
+  massageLabPrismScale,
+  massageLabPrismHueShift,
+  massageLabPrismColorFrequency,
+  massageLabPrismHoverStrength,
+  massageLabPrismInertia,
+  massageLabPrismBloom,
+  massageLabPrismTimeScale,
+  massageLabDarkVeilHueShift,
+  massageLabDarkVeilNoiseIntensity,
+  massageLabDarkVeilScanlineIntensity,
+  massageLabDarkVeilSpeed,
+  massageLabDarkVeilScanlineFrequency,
+  massageLabDarkVeilWarpAmount,
+  massageLabDarkVeilResolutionScale,
+  massageLabLightPillarPaletteMode,
+  massageLabLightPillarPrimaryColor,
+  massageLabLightPillarHarmony,
+  massageLabLightPillarTopColor,
+  massageLabLightPillarBottomColor,
+  massageLabLightPillarIntensity,
+  massageLabLightPillarRotationSpeed,
+  massageLabLightPillarInteractive,
+  massageLabLightPillarGlowAmount,
+  massageLabLightPillarWidth,
+  massageLabLightPillarHeight,
+  massageLabLightPillarNoiseIntensity,
+  massageLabLightPillarBlendMode,
+  massageLabLightPillarRotation,
+  massageLabLightPillarQuality,
+  massageLabSilkPaletteMode,
+  massageLabSilkPrimaryColor,
+  massageLabSilkHarmony,
+  massageLabSilkColor,
+  massageLabSilkSpeed,
+  massageLabSilkScale,
+  massageLabSilkNoiseIntensity,
+  massageLabSilkRotation,
+  massageLabFloatingLinesPaletteMode,
+  massageLabFloatingLinesPrimaryColor,
+  massageLabFloatingLinesHarmony,
+  massageLabFloatingLinesColorOne,
+  massageLabFloatingLinesColorTwo,
+  massageLabFloatingLinesColorThree,
+  massageLabFloatingLinesEnableTop,
+  massageLabFloatingLinesEnableMiddle,
+  massageLabFloatingLinesEnableBottom,
+  massageLabFloatingLinesTopLineCount,
+  massageLabFloatingLinesMiddleLineCount,
+  massageLabFloatingLinesBottomLineCount,
+  massageLabFloatingLinesTopLineDistance,
+  massageLabFloatingLinesMiddleLineDistance,
+  massageLabFloatingLinesBottomLineDistance,
+  massageLabFloatingLinesTopWaveX,
+  massageLabFloatingLinesTopWaveY,
+  massageLabFloatingLinesTopWaveRotate,
+  massageLabFloatingLinesMiddleWaveX,
+  massageLabFloatingLinesMiddleWaveY,
+  massageLabFloatingLinesMiddleWaveRotate,
+  massageLabFloatingLinesBottomWaveX,
+  massageLabFloatingLinesBottomWaveY,
+  massageLabFloatingLinesBottomWaveRotate,
+  massageLabFloatingLinesAnimationSpeed,
+  massageLabFloatingLinesInteractive,
+  massageLabFloatingLinesBendRadius,
+  massageLabFloatingLinesBendStrength,
+  massageLabFloatingLinesMouseDamping,
+  massageLabFloatingLinesParallax,
+  massageLabFloatingLinesParallaxStrength,
+  massageLabFloatingLinesBlendMode,
+  massageLabSideRaysPaletteMode,
+  massageLabSideRaysPrimaryColor,
+  massageLabSideRaysHarmony,
+  massageLabSideRaysColorOne,
+  massageLabSideRaysColorTwo,
+  massageLabSideRaysSpeed,
+  massageLabSideRaysIntensity,
+  massageLabSideRaysSpread,
+  massageLabSideRaysOrigin,
+  massageLabSideRaysTilt,
+  massageLabSideRaysSaturation,
+  massageLabSideRaysBlend,
+  massageLabSideRaysFalloff,
+  massageLabSideRaysOpacity,
+  massageLabLightRaysPaletteMode,
+  massageLabLightRaysPrimaryColor,
+  massageLabLightRaysHarmony,
+  massageLabLightRaysColor,
+  massageLabLightRaysOrigin,
+  massageLabLightRaysSpeed,
+  massageLabLightRaysSpread,
+  massageLabLightRaysLength,
+  massageLabLightRaysPulsating,
+  massageLabLightRaysFadeDistance,
+  massageLabLightRaysSaturation,
+  massageLabLightRaysFollowMouse,
+  massageLabLightRaysMouseInfluence,
+  massageLabLightRaysNoiseAmount,
+  massageLabLightRaysDistortion,
+  massageLabPixelBlastPaletteMode,
+  massageLabPixelBlastPrimaryColor,
+  massageLabPixelBlastHarmony,
+  massageLabPixelBlastColor,
+  massageLabPixelBlastVariant,
+  massageLabPixelBlastPixelSize,
+  massageLabPixelBlastAntialias,
+  massageLabPixelBlastPatternScale,
+  massageLabPixelBlastPatternDensity,
+  massageLabPixelBlastLiquid,
+  massageLabPixelBlastLiquidStrength,
+  massageLabPixelBlastLiquidRadius,
+  massageLabPixelBlastPixelSizeJitter,
+  massageLabPixelBlastEnableRipples,
+  massageLabPixelBlastRippleIntensityScale,
+  massageLabPixelBlastRippleThickness,
+  massageLabPixelBlastRippleSpeed,
+  massageLabPixelBlastLiquidWobbleSpeed,
+  massageLabPixelBlastAutoPauseOffscreen,
+  massageLabPixelBlastSpeed,
+  massageLabPixelBlastTransparent,
+  massageLabPixelBlastEdgeFade,
+  massageLabPixelBlastNoiseAmount,
+  massageLabColorBendsPaletteMode,
+  massageLabColorBendsPrimaryColor,
+  massageLabColorBendsHarmony,
+  massageLabColorBendsColorOne,
+  massageLabColorBendsColorTwo,
+  massageLabColorBendsColorThree,
+  massageLabColorBendsColorFour,
+  massageLabColorBendsRotation,
+  massageLabColorBendsSpeed,
+  massageLabColorBendsTransparent,
+  massageLabColorBendsAutoRotate,
+  massageLabColorBendsScale,
+  massageLabColorBendsFrequency,
+  massageLabColorBendsWarpStrength,
+  massageLabColorBendsInteractive,
+  massageLabColorBendsMouseInfluence,
+  massageLabColorBendsParallax,
+  massageLabColorBendsNoise,
+  massageLabColorBendsIterations,
+  massageLabColorBendsIntensity,
+  massageLabColorBendsBandWidth,
+  massageLabEvilEyePaletteMode,
+  massageLabEvilEyePrimaryColor,
+  massageLabEvilEyeHarmony,
+  massageLabEvilEyeColor,
+  massageLabEvilEyeBackgroundColor,
+  massageLabEvilEyeIntensity,
+  massageLabEvilEyePupilSize,
+  massageLabEvilEyeIrisWidth,
+  massageLabEvilEyeGlowIntensity,
+  massageLabEvilEyeScale,
+  massageLabEvilEyeNoiseScale,
+  massageLabEvilEyePupilFollow,
+  massageLabEvilEyeFlameSpeed,
+  massageLabEvilEyeInteractive,
+  massageLabLineWavesPaletteMode,
+  massageLabLineWavesPrimaryColor,
+  massageLabLineWavesHarmony,
+  massageLabLineWavesColorOne,
+  massageLabLineWavesColorTwo,
+  massageLabLineWavesColorThree,
+  massageLabLineWavesSpeed,
+  massageLabLineWavesInnerLineCount,
+  massageLabLineWavesOuterLineCount,
+  massageLabLineWavesWarpIntensity,
+  massageLabLineWavesRotation,
+  massageLabLineWavesEdgeFadeWidth,
+  massageLabLineWavesColorCycleSpeed,
+  massageLabLineWavesBrightness,
+  massageLabLineWavesEnableMouseInteraction,
+  massageLabLineWavesMouseInfluence,
+  massageLabRadarPaletteMode,
+  massageLabRadarPrimaryColor,
+  massageLabRadarHarmony,
+  massageLabRadarColor,
+  massageLabRadarBackgroundColor,
+  massageLabRadarSpeed,
+  massageLabRadarScale,
+  massageLabRadarRingCount,
+  massageLabRadarSpokeCount,
+  massageLabRadarRingThickness,
+  massageLabRadarSpokeThickness,
+  massageLabRadarSweepSpeed,
+  massageLabRadarSweepWidth,
+  massageLabRadarSweepLobes,
+  massageLabRadarFalloff,
+  massageLabRadarBrightness,
+  massageLabRadarEnableMouseInteraction,
+  massageLabRadarMouseInfluence,
+  massageLabSoftAuroraPaletteMode,
+  massageLabSoftAuroraPrimaryColor,
+  massageLabSoftAuroraHarmony,
+  massageLabSoftAuroraColorOne,
+  massageLabSoftAuroraColorTwo,
+  massageLabSoftAuroraSpeed,
+  massageLabSoftAuroraScale,
+  massageLabSoftAuroraBrightness,
+  massageLabSoftAuroraNoiseFrequency,
+  massageLabSoftAuroraNoiseAmplitude,
+  massageLabSoftAuroraBandHeight,
+  massageLabSoftAuroraBandSpread,
+  massageLabSoftAuroraOctaveDecay,
+  massageLabSoftAuroraLayerOffset,
+  massageLabSoftAuroraColorSpeed,
+  massageLabSoftAuroraEnableMouseInteraction,
+  massageLabSoftAuroraMouseInfluence,
+  massageLabPlasmaPaletteMode,
+  massageLabPlasmaPrimaryColor,
+  massageLabPlasmaHarmony,
+  massageLabPlasmaColor,
+  massageLabPlasmaSpeed,
+  massageLabPlasmaDirection,
+  massageLabPlasmaScale,
+  massageLabPlasmaOpacity,
+  massageLabPlasmaMouseInteractive,
+  massageLabPlasmaWavePaletteMode,
+  massageLabPlasmaWavePrimaryColor,
+  massageLabPlasmaWaveHarmony,
+  massageLabPlasmaWaveColorOne,
+  massageLabPlasmaWaveColorTwo,
+  massageLabPlasmaWaveXOffset,
+  massageLabPlasmaWaveYOffset,
+  massageLabPlasmaWaveRotationDeg,
+  massageLabPlasmaWaveFocalLength,
+  massageLabPlasmaWaveSpeedOne,
+  massageLabPlasmaWaveSpeedTwo,
+  massageLabPlasmaWaveDirectionTwo,
+  massageLabPlasmaWaveBendOne,
+  massageLabPlasmaWaveBendTwo,
+  massageLabParticlesPaletteMode,
+  massageLabParticlesPrimaryColor,
+  massageLabParticlesHarmony,
+  massageLabParticlesColorOne,
+  massageLabParticlesColorTwo,
+  massageLabParticlesColorThree,
+  massageLabParticlesCount,
+  massageLabParticlesSpread,
+  massageLabParticlesSpeed,
+  massageLabParticlesMoveOnHover,
+  massageLabParticlesHoverFactor,
+  massageLabParticlesAlpha,
+  massageLabParticlesBaseSize,
+  massageLabParticlesSizeRandomness,
+  massageLabParticlesCameraDistance,
+  massageLabParticlesDisableRotation,
+  massageLabParticlesPixelRatio,
+  massageLabGradientBlindsPaletteMode,
+  massageLabGradientBlindsPrimaryColor,
+  massageLabGradientBlindsHarmony,
+  massageLabGradientBlindsColorOne,
+  massageLabGradientBlindsColorTwo,
+  massageLabGradientBlindsAngle,
+  massageLabGradientBlindsNoise,
+  massageLabGradientBlindsBlindCount,
+  massageLabGradientBlindsBlindMinWidth,
+  massageLabGradientBlindsMouseDampening,
+  massageLabGradientBlindsMirror,
+  massageLabGradientBlindsSpotlightRadius,
+  massageLabGradientBlindsSpotlightSoftness,
+  massageLabGradientBlindsSpotlightOpacity,
+  massageLabGradientBlindsDistort,
+  massageLabGradientBlindsShineDirection,
+  massageLabGradientBlindsBlendMode,
+  massageLabGradientBlindsDpr,
+  massageLabGradientBlindsEnableMouseInteraction,
+  massageLabGrainientPaletteMode,
+  massageLabGrainientPrimaryColor,
+  massageLabGrainientHarmony,
+  massageLabGrainientColorOne,
+  massageLabGrainientColorTwo,
+  massageLabGrainientColorThree,
+  massageLabGrainientTimeSpeed,
+  massageLabGrainientColorBalance,
+  massageLabGrainientWarpStrength,
+  massageLabGrainientWarpFrequency,
+  massageLabGrainientWarpSpeed,
+  massageLabGrainientWarpAmplitude,
+  massageLabGrainientBlendAngle,
+  massageLabGrainientBlendSoftness,
+  massageLabGrainientRotationAmount,
+  massageLabGrainientNoiseScale,
+  massageLabGrainientGrainAmount,
+  massageLabGrainientGrainScale,
+  massageLabGrainientGrainAnimated,
+  massageLabGrainientContrast,
+  massageLabGrainientGamma,
+  massageLabGrainientSaturation,
+  massageLabGrainientCenterX,
+  massageLabGrainientCenterY,
+  massageLabGrainientZoom,
+  massageLabGridScanPaletteMode,
+  massageLabGridScanPrimaryColor,
+  massageLabGridScanHarmony,
+  massageLabGridScanLinesColor,
+  massageLabGridScanScanColor,
+  massageLabGridScanSensitivity,
+  massageLabGridScanLineThickness,
+  massageLabGridScanScanOpacity,
+  massageLabGridScanGridScale,
+  massageLabGridScanLineStyle,
+  massageLabGridScanLineJitter,
+  massageLabGridScanDirection,
+  massageLabGridScanNoiseIntensity,
+  massageLabGridScanBloomOpacity,
+  massageLabGridScanScanGlow,
+  massageLabGridScanScanSoftness,
+  massageLabGridScanPhaseTaper,
+  massageLabGridScanScanDuration,
+  massageLabGridScanScanDelay,
+  massageLabGridScanEnablePointerInteraction,
+  massageLabGridScanScanOnClick,
+  massageLabBeamsPaletteMode,
+  massageLabBeamsPrimaryColor,
+  massageLabBeamsHarmony,
+  massageLabBeamsLightColor,
+  massageLabBeamsBeamWidth,
+  massageLabBeamsBeamHeight,
+  massageLabBeamsBeamNumber,
+  massageLabBeamsSpeed,
+  massageLabBeamsNoiseIntensity,
+  massageLabBeamsScale,
+  massageLabBeamsRotation,
+  massageLabPixelSnowPaletteMode,
+  massageLabPixelSnowPrimaryColor,
+  massageLabPixelSnowHarmony,
+  massageLabPixelSnowColor,
+  massageLabPixelSnowFlakeSize,
+  massageLabPixelSnowMinFlakeSize,
+  massageLabPixelSnowPixelResolution,
+  massageLabPixelSnowSpeed,
+  massageLabPixelSnowDepthFade,
+  massageLabPixelSnowFarPlane,
+  massageLabPixelSnowBrightness,
+  massageLabPixelSnowGamma,
+  massageLabPixelSnowDensity,
+  massageLabPixelSnowVariant,
+  massageLabPixelSnowDirection,
+  massageLabLightningPaletteMode,
+  massageLabLightningPrimaryColor,
+  massageLabLightningHarmony,
+  massageLabLightningColor,
+  massageLabLightningHue,
+  massageLabLightningXOffset,
+  massageLabLightningSpeed,
+  massageLabLightningIntensity,
+  massageLabLightningSize,
+  massageLabPrismaticBurstPaletteMode,
+  massageLabPrismaticBurstPrimaryColor,
+  massageLabPrismaticBurstHarmony,
+  massageLabPrismaticBurstColorOne,
+  massageLabPrismaticBurstColorTwo,
+  massageLabPrismaticBurstColorThree,
+  massageLabPrismaticBurstColorFour,
+  massageLabPrismaticBurstIntensity,
+  massageLabPrismaticBurstSpeed,
+  massageLabPrismaticBurstAnimationType,
+  massageLabPrismaticBurstDistort,
+  massageLabPrismaticBurstOffsetX,
+  massageLabPrismaticBurstOffsetY,
+  massageLabPrismaticBurstHoverDampness,
+  massageLabPrismaticBurstRayCount,
+  massageLabPrismaticBurstMixBlendMode,
+  massageLabGalaxyPaletteMode,
+  massageLabGalaxyPrimaryColor,
+  massageLabGalaxyHarmony,
+  massageLabGalaxyColor,
+  massageLabGalaxyHueShift,
+  massageLabGalaxyFocalX,
+  massageLabGalaxyFocalY,
+  massageLabGalaxyRotationDeg,
+  massageLabGalaxyStarSpeed,
+  massageLabGalaxyDensity,
+  massageLabGalaxySpeed,
+  massageLabGalaxyMouseInteraction,
+  massageLabGalaxyGlowIntensity,
+  massageLabGalaxySaturation,
+  massageLabGalaxyMouseRepulsion,
+  massageLabGalaxyRepulsionStrength,
+  massageLabGalaxyTwinkleIntensity,
+  massageLabGalaxyRotationSpeed,
+  massageLabGalaxyAutoCenterRepulsion,
+  massageLabGalaxyTransparent,
+  massageLabDitherPaletteMode,
+  massageLabDitherPrimaryColor,
+  massageLabDitherHarmony,
+  massageLabDitherColor,
+  massageLabDitherWaveSpeed,
+  massageLabDitherWaveFrequency,
+  massageLabDitherWaveAmplitude,
+  massageLabDitherColorNum,
+  massageLabDitherPixelSize,
+  massageLabDitherMouseInteraction,
+  massageLabDitherMouseRadius,
+  massageLabFaultyTerminalPaletteMode,
+  massageLabFaultyTerminalPrimaryColor,
+  massageLabFaultyTerminalHarmony,
+  massageLabFaultyTerminalTint,
+  massageLabFaultyTerminalScale,
+  massageLabFaultyTerminalGridMulX,
+  massageLabFaultyTerminalGridMulY,
+  massageLabFaultyTerminalDigitSize,
+  massageLabFaultyTerminalTimeScale,
+  massageLabFaultyTerminalScanlineIntensity,
+  massageLabFaultyTerminalGlitchAmount,
+  massageLabFaultyTerminalFlickerAmount,
+  massageLabFaultyTerminalNoiseAmp,
+  massageLabFaultyTerminalChromaticAberration,
+  massageLabFaultyTerminalDither,
+  massageLabFaultyTerminalCurvature,
+  massageLabFaultyTerminalMouseReact,
+  massageLabFaultyTerminalMouseStrength,
+  massageLabFaultyTerminalPageLoadAnimation,
+  massageLabFaultyTerminalBrightness,
+  massageLabRippleGridPaletteMode,
+  massageLabRippleGridPrimaryColor,
+  massageLabRippleGridHarmony,
+  massageLabRippleGridColor,
+  massageLabRippleGridRippleIntensity,
+  massageLabRippleGridGridSize,
+  massageLabRippleGridGridThickness,
+  massageLabRippleGridFadeDistance,
+  massageLabRippleGridVignetteStrength,
+  massageLabRippleGridGlowIntensity,
+  massageLabRippleGridOpacity,
+  massageLabRippleGridGridRotation,
+  massageLabRippleGridMouseInteraction,
+  massageLabRippleGridMouseInteractionRadius,
+  massageLabDotFieldPaletteMode,
+  massageLabDotFieldPrimaryColor,
+  massageLabDotFieldHarmony,
+  massageLabDotFieldGradientFromColor,
+  massageLabDotFieldGradientFromAlpha,
+  massageLabDotFieldGradientToColor,
+  massageLabDotFieldGradientToAlpha,
+  massageLabDotFieldGlowColor,
+  massageLabDotFieldDotRadius,
+  massageLabDotFieldDotSpacing,
+  massageLabDotFieldCursorRadius,
+  massageLabDotFieldCursorForce,
+  massageLabDotFieldBulgeOnly,
+  massageLabDotFieldBulgeStrength,
+  massageLabDotFieldGlowRadius,
+  massageLabDotFieldSparkle,
+  massageLabDotFieldWaveAmplitude,
+  massageLabDotFieldCursorInteraction,
+  massageLabDotGridPaletteMode,
+  massageLabDotGridPrimaryColor,
+  massageLabDotGridHarmony,
+  massageLabDotGridBaseColor,
+  massageLabDotGridActiveColor,
+  massageLabDotGridDotSize,
+  massageLabDotGridGap,
+  massageLabDotGridProximity,
+  massageLabDotGridSpeedTrigger,
+  massageLabDotGridShockRadius,
+  massageLabDotGridShockStrength,
+  massageLabDotGridMaxSpeed,
+  massageLabDotGridResistance,
+  massageLabDotGridReturnDuration,
+  massageLabDotGridCursorInteraction,
+  massageLabDotGridClickShock,
+  massageLabThreadsPaletteMode,
+  massageLabThreadsPrimaryColor,
+  massageLabThreadsHarmony,
+  massageLabThreadsColor,
+  massageLabThreadsAmplitude,
+  massageLabThreadsDistance,
+  massageLabThreadsEnableMouseInteraction,
+  massageLabIridescencePaletteMode,
+  massageLabIridescencePrimaryColor,
+  massageLabIridescenceHarmony,
+  massageLabIridescenceColor,
+  massageLabIridescenceSpeed,
+  massageLabIridescenceAmplitude,
+  massageLabIridescenceMouseReact,
+  massageLabWavesPaletteMode,
+  massageLabWavesPrimaryColor,
+  massageLabWavesHarmony,
+  massageLabWavesLineColor,
+  massageLabWavesBackgroundColor,
+  massageLabWavesTransparentBackground,
+  massageLabWavesSpeedX,
+  massageLabWavesSpeedY,
+  massageLabWavesAmplitudeX,
+  massageLabWavesAmplitudeY,
+  massageLabWavesGapX,
+  massageLabWavesGapY,
+  massageLabWavesFriction,
+  massageLabWavesTension,
+  massageLabWavesMaxCursorMove,
+  massageLabWavesCursorInteraction,
+  massageLabGridDistortionPaletteMode,
+  massageLabGridDistortionPrimaryColor,
+  massageLabGridDistortionHarmony,
+  massageLabGridDistortionColorOne,
+  massageLabGridDistortionColorTwo,
+  massageLabGridDistortionColorThree,
+  massageLabGridDistortionGrid,
+  massageLabGridDistortionMouse,
+  massageLabGridDistortionStrength,
+  massageLabGridDistortionRelaxation,
+  massageLabGridDistortionCursorInteraction,
+  massageLabOrbPaletteMode,
+  massageLabOrbPrimaryColor,
+  massageLabOrbHarmony,
+  massageLabOrbColor,
+  massageLabOrbHue,
+  massageLabOrbHoverIntensity,
+  massageLabOrbRotateOnHover,
+  massageLabOrbForceHoverState,
+  massageLabOrbBackgroundColor,
+  massageLabOrbCursorInteraction,
+  massageLabLetterGlitchPaletteMode,
+  massageLabLetterGlitchPrimaryColor,
+  massageLabLetterGlitchHarmony,
+  massageLabLetterGlitchColorOne,
+  massageLabLetterGlitchColorTwo,
+  massageLabLetterGlitchColorThree,
+  massageLabLetterGlitchGlitchSpeed,
+  massageLabLetterGlitchCenterVignette,
+  massageLabLetterGlitchOuterVignette,
+  massageLabLetterGlitchSmooth,
+  massageLabLetterGlitchCharacters,
+  massageLabGridMotionPaletteMode,
+  massageLabGridMotionPrimaryColor,
+  massageLabGridMotionHarmony,
+  massageLabGridMotionGradientColor,
+  massageLabGridMotionTileColor,
+  massageLabGridMotionTextColor,
+  massageLabGridMotionMaxMoveAmount,
+  massageLabGridMotionBaseDuration,
+  massageLabGridMotionCursorInteraction,
+  massageLabShapeGridPaletteMode,
+  massageLabShapeGridPrimaryColor,
+  massageLabShapeGridHarmony,
+  massageLabShapeGridBorderColor,
+  massageLabShapeGridHoverFillColor,
+  massageLabShapeGridDirection,
+  massageLabShapeGridSpeed,
+  massageLabShapeGridSquareSize,
+  massageLabShapeGridShape,
+  massageLabShapeGridHoverTrailAmount,
+  massageLabShapeGridCursorInteraction,
+  massageLabLiquidChromePaletteMode,
+  massageLabLiquidChromePrimaryColor,
+  massageLabLiquidChromeHarmony,
+  massageLabLiquidChromeBaseColor,
+  massageLabLiquidChromeSpeed,
+  massageLabLiquidChromeAmplitude,
+  massageLabLiquidChromeFrequencyX,
+  massageLabLiquidChromeFrequencyY,
+  massageLabLiquidChromeInteractive,
+  massageLabBalatroPaletteMode,
+  massageLabBalatroPrimaryColor,
+  massageLabBalatroHarmony,
+  massageLabBalatroColorOne,
+  massageLabBalatroColorTwo,
+  massageLabBalatroColorThree,
+  massageLabBalatroSpinRotation,
+  massageLabBalatroSpinSpeed,
+  massageLabBalatroOffsetX,
+  massageLabBalatroOffsetY,
+  massageLabBalatroContrast,
+  massageLabBalatroLighting,
+  massageLabBalatroSpinAmount,
+  massageLabBalatroPixelFilter,
+  massageLabBalatroSpinEase,
+  massageLabBalatroIsRotate,
+  massageLabBalatroMouseInteraction,
+  massageLabNovatrixPaletteMode,
+  massageLabNovatrixPrimaryColor,
+  massageLabNovatrixHarmony,
+  massageLabNovatrixColor,
+  massageLabNovatrixSpeed,
+  massageLabNovatrixAmplitude,
+  massageLabMatrixRainPaletteMode,
+  massageLabMatrixRainPrimaryColor,
+  massageLabMatrixRainHarmony,
+  massageLabMatrixRainColor,
+  massageLabMatrixRainSpeed,
+  massageLabMatrixRainFontSize,
+  massageLabPhotonBeamPaletteMode,
+  massageLabPhotonBeamPrimaryColor,
+  massageLabPhotonBeamHarmony,
+  massageLabPhotonBeamColorBg,
+  massageLabPhotonBeamColorLine,
+  massageLabPhotonBeamColorSignal,
+  massageLabPhotonBeamUseColor2,
+  massageLabPhotonBeamColorSignal2,
+  massageLabPhotonBeamUseColor3,
+  massageLabPhotonBeamColorSignal3,
+  massageLabPhotonBeamLineCount,
+  massageLabPhotonBeamSpreadHeight,
+  massageLabPhotonBeamSpreadDepth,
+  massageLabPhotonBeamCurveLength,
+  massageLabPhotonBeamStraightLength,
+  massageLabPhotonBeamCurvePower,
+  massageLabPhotonBeamWaveSpeed,
+  massageLabPhotonBeamWaveHeight,
+  massageLabPhotonBeamLineOpacity,
+  massageLabPhotonBeamSignalCount,
+  massageLabPhotonBeamSpeedGlobal,
+  massageLabPhotonBeamTrailLength,
+  massageLabPhotonBeamBloomStrength,
+  massageLabPhotonBeamBloomRadius,
+  massageLab3DGlobeViewStyle,
+  massageLab3DGlobeBackgroundColor,
+  massageLab3DGlobeGlobeColor,
+  massageLab3DGlobeGraphicMapColor,
+  massageLab3DGlobeGraphicGlowColor,
+  massageLab3DGlobeGraphicMarkerColor,
+  massageLab3DGlobeGraphicMapSamples,
+  massageLab3DGlobeAutoRotateSpeed,
+  massageLab3DGlobeReverseSpin,
+  massageLab3DGlobeScale,
+  massageLab3DGlobeBumpScale,
+  massageLab3DGlobeAmbientIntensity,
+  massageLab3DGlobePointLightIntensity,
+  massageLab3DGlobeLightingMode,
+  massageLab3DGlobeEnablePan,
+  massageLab3DGlobePanX,
+  massageLab3DGlobePanY,
+  massageLab3DGlobeShowTilt,
+  massageLab3DGlobeShowAtmosphere,
+  massageLab3DGlobeAtmosphereColor,
+  massageLab3DGlobeAtmosphereIntensity,
+  massageLab3DGlobeAtmosphereBlur,
+  massageLab3DGlobeShowWireframe,
+  massageLab3DGlobeWireframeColor,
+  massageLab3DGlobeMarkerEnabled,
+  massageLab3DGlobeMarkerLat,
+  massageLab3DGlobeMarkerLng,
+  massageLab3DGlobeMarkerLabel,
+  massageLab3DGlobeMarkerIcon,
+  massageLab3DGlobeMarkerSize,
+  massageLabRetroGridBackgroundColor,
+  massageLabRetroGridLightLineColor,
+  massageLabRetroGridDarkLineColor,
+  massageLabRetroGridAngle,
+  massageLabRetroGridCellSize,
+  massageLabRetroGridOpacity,
+  massageLabAerialRaysBackgroundColor,
+  massageLabAerialRaysColor,
+  massageLabAerialRaysCount,
+  massageLabAerialRaysBlur,
+  massageLabAerialRaysSpeed,
+  massageLabAerialRaysLength,
+  massageLabAerialRaysOpacity,
+  massageLabSynthesisPaletteMode,
+  massageLabSynthesisPrimaryColor,
+  massageLabSynthesisHarmony,
+  massageLabSynthesisColorOne,
+  massageLabSynthesisColorTwo,
+  massageLabSynthesisColorThree,
+  massageLabSynthesisSpeed,
+  massageLabSynthesisComplexity,
+  massageLabSynthesisScale,
+  massageLabSynthesisDistortion,
+  massageLabSynthesisGlowIntensity,
+  massageLabSynthesisFlowFrequency,
   backgroundLinesDuration,
   shootingStarsStarColor,
   shootingStarsTrailColor,
@@ -2055,6 +2804,7 @@ export function RunningTimer({
   hexGridActivePercent,
   hexGridOpacity,
   canUseCustomColors,
+  canUseAccountColorControls,
   featureKeys,
   activeIntervalMinutes,
   onClose,
@@ -2065,6 +2815,7 @@ export function RunningTimer({
   onAdjustActiveRemainingMinutes,
   onSetActiveRemainingDuration,
   onSetActiveIntervalMinutes,
+  hapticsEnabled,
 }: RunningTimerProps) {
   const isPaused = status === "paused"
   const isComplete = status === "complete"
@@ -2073,370 +2824,388 @@ export function RunningTimer({
   const backgroundCategory = isClockMode ? "clock" : "chimer"
   // Preserve the original Lamp path; BackgroundHost owns static fallbacks for premium alternatives.
   const useOriginalLampBackground = backgroundId === DEFAULT_BACKGROUND_ID
+  const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
+  const shouldRenderLiveBackground = movingBackgroundEnabled && isLiveBackgroundSession
     || !canUseBackgroundId(backgroundId, featureKeys, backgroundCategory)
-  const astralFlowDisplaySpeed = getChamaacAstralFlowDisplaySpeed(chamaacAstralFlowSpeed)
-  const astralFlowColors = resolveChamaacAstralFlowColors({
-    chamaacAstralFlowPaletteMode,
-    chamaacAstralFlowPrimaryColor,
-    chamaacAstralFlowHarmony,
-    chamaacAstralFlowColorOne,
-    chamaacAstralFlowColorTwo,
-    chamaacAstralFlowColorThree,
+  const astralFlowDisplaySpeed = getMassageLabAstralFlowDisplaySpeed(massageLabAstralFlowSpeed)
+  const astralFlowColors = resolveMassageLabAstralFlowColors({
+    massageLabAstralFlowPaletteMode,
+    massageLabAstralFlowPrimaryColor,
+    massageLabAstralFlowHarmony,
+    massageLabAstralFlowColorOne,
+    massageLabAstralFlowColorTwo,
+    massageLabAstralFlowColorThree,
   })
-  const deepSpaceNebulaDisplaySpeed = getChamaacDeepSpaceNebulaDisplaySpeed(chamaacDeepSpaceNebulaSpeed)
-  const deepSpaceNebulaColors = resolveChamaacDeepSpaceNebulaColors({
-    chamaacDeepSpaceNebulaPaletteMode,
-    chamaacDeepSpaceNebulaPrimaryColor,
-    chamaacDeepSpaceNebulaHarmony,
-    chamaacDeepSpaceNebulaColorOne,
-    chamaacDeepSpaceNebulaColorTwo,
-    chamaacDeepSpaceNebulaColorThree,
+  const deepSpaceNebulaDisplaySpeed = getMassageLabDeepSpaceNebulaDisplaySpeed(massageLabDeepSpaceNebulaSpeed)
+  const deepSpaceNebulaColors = resolveMassageLabDeepSpaceNebulaColors({
+    massageLabDeepSpaceNebulaPaletteMode,
+    massageLabDeepSpaceNebulaPrimaryColor,
+    massageLabDeepSpaceNebulaHarmony,
+    massageLabDeepSpaceNebulaColorOne,
+    massageLabDeepSpaceNebulaColorTwo,
+    massageLabDeepSpaceNebulaColorThree,
   })
-  const gridBloomDisplaySpeed = getChamaacGridBloomDisplaySpeed(chamaacGridBloomSpeed)
-  const liquidChromeFlowSpeed = getChamaacLiquidChromeDisplayFlowSpeed(chamaacLiquidChromeFlowSpeed)
-  const liquidChromeTimeScale = getChamaacLiquidChromeDisplayTimeScale(chamaacLiquidChromeTimeScale)
-  const liquidChromeColors = resolveChamaacLiquidChromeColors({
-    chamaacLiquidChromePaletteMode,
-    chamaacLiquidChromePrimaryColor,
-    chamaacLiquidChromeHarmony,
-    chamaacLiquidChromeColorOne,
-    chamaacLiquidChromeColorTwo,
+  const gridBloomDisplaySpeed = getMassageLabGridBloomDisplaySpeed(massageLabGridBloomSpeed)
+  const liquidChromeFlowSpeed = getMassageLabChromeFlowDisplayFlowSpeed(massageLabChromeFlowFlowSpeed)
+  const liquidChromeTimeScale = getMassageLabChromeFlowDisplayTimeScale(massageLabChromeFlowTimeScale)
+  const liquidChromeColors = resolveMassageLabChromeFlowColors({
+    massageLabChromeFlowPaletteMode,
+    massageLabChromeFlowPrimaryColor,
+    massageLabChromeFlowHarmony,
+    massageLabChromeFlowColorOne,
+    massageLabChromeFlowColorTwo,
   })
-  const wavesSpeedX = getChamaacWavesDisplaySpeed(chamaacWavesSpeedX)
-  const wavesSpeedY = getChamaacWavesDisplaySpeed(chamaacWavesSpeedY)
-  const wavesColors = resolveChamaacWavesColors({
-    chamaacWavesPaletteMode,
-    chamaacWavesPrimaryColor,
-    chamaacWavesHarmony,
-    chamaacWavesBackgroundColor,
-    chamaacWavesColorOne,
-    chamaacWavesColorTwo,
-    chamaacWavesColorThree,
+  const wavesSpeedX = getMassageLabWaveCurrentDisplaySpeed(massageLabWaveCurrentSpeedX)
+  const wavesSpeedY = getMassageLabWaveCurrentDisplaySpeed(massageLabWaveCurrentSpeedY)
+  const wavesColors = resolveMassageLabWaveCurrentColors({
+    massageLabWaveCurrentPaletteMode,
+    massageLabWaveCurrentPrimaryColor,
+    massageLabWaveCurrentHarmony,
+    massageLabWaveCurrentBackgroundColor,
+    massageLabWaveCurrentColorOne,
+    massageLabWaveCurrentColorTwo,
+    massageLabWaveCurrentColorThree,
   })
-  const ferrofluidColors = resolveReactBitsFerrofluidColors({
-    reactBitsFerrofluidPaletteMode,
-    reactBitsFerrofluidPrimaryColor,
-    reactBitsFerrofluidHarmony,
-    reactBitsFerrofluidColorOne,
-    reactBitsFerrofluidColorTwo,
-    reactBitsFerrofluidColorThree,
+  const ferrofluidColors = resolveMassageLabFerrofluidColors({
+    massageLabFerrofluidPaletteMode,
+    massageLabFerrofluidPrimaryColor,
+    massageLabFerrofluidHarmony,
+    massageLabFerrofluidColorOne,
+    massageLabFerrofluidColorTwo,
+    massageLabFerrofluidColorThree,
   })
-  const lightfallColors = resolveReactBitsLightfallColors({
-    reactBitsLightfallPaletteMode,
-    reactBitsLightfallPrimaryColor,
-    reactBitsLightfallHarmony,
-    reactBitsLightfallColorOne,
-    reactBitsLightfallColorTwo,
-    reactBitsLightfallColorThree,
+  const lightfallColors = resolveMassageLabLightfallColors({
+    massageLabLightfallPaletteMode,
+    massageLabLightfallPrimaryColor,
+    massageLabLightfallHarmony,
+    massageLabLightfallColorOne,
+    massageLabLightfallColorTwo,
+    massageLabLightfallColorThree,
   })
-  const lightPillarColors = resolveReactBitsLightPillarColors({
-    reactBitsLightPillarPaletteMode,
-    reactBitsLightPillarPrimaryColor,
-    reactBitsLightPillarHarmony,
-    reactBitsLightPillarTopColor,
-    reactBitsLightPillarBottomColor,
+  const lightPillarColors = resolveMassageLabLightPillarColors({
+    massageLabLightPillarPaletteMode,
+    massageLabLightPillarPrimaryColor,
+    massageLabLightPillarHarmony,
+    massageLabLightPillarTopColor,
+    massageLabLightPillarBottomColor,
   })
-  const silkColor = resolveReactBitsSilkColor({
-    reactBitsSilkPaletteMode,
-    reactBitsSilkPrimaryColor,
-    reactBitsSilkHarmony,
-    reactBitsSilkColor,
+  const silkColor = resolveMassageLabSilkColor({
+    massageLabSilkPaletteMode,
+    massageLabSilkPrimaryColor,
+    massageLabSilkHarmony,
+    massageLabSilkColor,
   })
-  const floatingLinesGradient = resolveReactBitsFloatingLinesGradient({
-    reactBitsFloatingLinesPaletteMode,
-    reactBitsFloatingLinesPrimaryColor,
-    reactBitsFloatingLinesHarmony,
-    reactBitsFloatingLinesColorOne,
-    reactBitsFloatingLinesColorTwo,
-    reactBitsFloatingLinesColorThree,
+  const floatingLinesGradient = resolveMassageLabFloatingLinesGradient({
+    massageLabFloatingLinesPaletteMode,
+    massageLabFloatingLinesPrimaryColor,
+    massageLabFloatingLinesHarmony,
+    massageLabFloatingLinesColorOne,
+    massageLabFloatingLinesColorTwo,
+    massageLabFloatingLinesColorThree,
   })
-  const sideRaysColors = resolveReactBitsSideRaysColors({
-    reactBitsSideRaysPaletteMode,
-    reactBitsSideRaysPrimaryColor,
-    reactBitsSideRaysHarmony,
-    reactBitsSideRaysColorOne,
-    reactBitsSideRaysColorTwo,
+  const sideRaysColors = resolveMassageLabSideRaysColors({
+    massageLabSideRaysPaletteMode,
+    massageLabSideRaysPrimaryColor,
+    massageLabSideRaysHarmony,
+    massageLabSideRaysColorOne,
+    massageLabSideRaysColorTwo,
   })
-  const lightRaysColor = resolveReactBitsLightRaysColor({
-    reactBitsLightRaysPaletteMode,
-    reactBitsLightRaysPrimaryColor,
-    reactBitsLightRaysHarmony,
-    reactBitsLightRaysColor,
+  const lightRaysColor = resolveMassageLabLightRaysColor({
+    massageLabLightRaysPaletteMode,
+    massageLabLightRaysPrimaryColor,
+    massageLabLightRaysHarmony,
+    massageLabLightRaysColor,
   })
-  const pixelBlastColor = resolveReactBitsPixelBlastColor({
-    reactBitsPixelBlastPaletteMode,
-    reactBitsPixelBlastPrimaryColor,
-    reactBitsPixelBlastHarmony,
-    reactBitsPixelBlastColor,
+  const pixelBlastColor = resolveMassageLabPixelBlastColor({
+    massageLabPixelBlastPaletteMode,
+    massageLabPixelBlastPrimaryColor,
+    massageLabPixelBlastHarmony,
+    massageLabPixelBlastColor,
   })
-  const colorBendsColors = resolveReactBitsColorBendsColors({
-    reactBitsColorBendsPaletteMode,
-    reactBitsColorBendsPrimaryColor,
-    reactBitsColorBendsHarmony,
-    reactBitsColorBendsColorOne,
-    reactBitsColorBendsColorTwo,
-    reactBitsColorBendsColorThree,
-    reactBitsColorBendsColorFour,
+  const colorBendsColors = resolveMassageLabColorBendsColors({
+    massageLabColorBendsPaletteMode,
+    massageLabColorBendsPrimaryColor,
+    massageLabColorBendsHarmony,
+    massageLabColorBendsColorOne,
+    massageLabColorBendsColorTwo,
+    massageLabColorBendsColorThree,
+    massageLabColorBendsColorFour,
   })
-  const evilEyeColor = resolveReactBitsEvilEyeColor({
-    reactBitsEvilEyePaletteMode,
-    reactBitsEvilEyePrimaryColor,
-    reactBitsEvilEyeHarmony,
-    reactBitsEvilEyeColor,
+  const evilEyeColor = resolveMassageLabEvilEyeColor({
+    massageLabEvilEyePaletteMode,
+    massageLabEvilEyePrimaryColor,
+    massageLabEvilEyeHarmony,
+    massageLabEvilEyeColor,
   })
-  const lineWavesColors = resolveReactBitsLineWavesColors({
-    reactBitsLineWavesPaletteMode,
-    reactBitsLineWavesPrimaryColor,
-    reactBitsLineWavesHarmony,
-    reactBitsLineWavesColorOne,
-    reactBitsLineWavesColorTwo,
-    reactBitsLineWavesColorThree,
+  const lineWavesColors = resolveMassageLabLineWavesColors({
+    massageLabLineWavesPaletteMode,
+    massageLabLineWavesPrimaryColor,
+    massageLabLineWavesHarmony,
+    massageLabLineWavesColorOne,
+    massageLabLineWavesColorTwo,
+    massageLabLineWavesColorThree,
   })
-  const radarColor = resolveReactBitsRadarColor({
-    reactBitsRadarPaletteMode,
-    reactBitsRadarPrimaryColor,
-    reactBitsRadarHarmony,
-    reactBitsRadarColor,
+  const radarColor = resolveMassageLabRadarColor({
+    massageLabRadarPaletteMode,
+    massageLabRadarPrimaryColor,
+    massageLabRadarHarmony,
+    massageLabRadarColor,
   })
-  const softAuroraColors = resolveReactBitsSoftAuroraColors({
-    reactBitsSoftAuroraPaletteMode,
-    reactBitsSoftAuroraPrimaryColor,
-    reactBitsSoftAuroraHarmony,
-    reactBitsSoftAuroraColorOne,
-    reactBitsSoftAuroraColorTwo,
+  const softAuroraColors = resolveMassageLabSoftAuroraColors({
+    massageLabSoftAuroraPaletteMode,
+    massageLabSoftAuroraPrimaryColor,
+    massageLabSoftAuroraHarmony,
+    massageLabSoftAuroraColorOne,
+    massageLabSoftAuroraColorTwo,
   })
-  const plasmaColor = resolveReactBitsPlasmaColor({
-    reactBitsPlasmaPaletteMode,
-    reactBitsPlasmaPrimaryColor,
-    reactBitsPlasmaHarmony,
-    reactBitsPlasmaColor,
+  const plasmaColor = resolveMassageLabPlasmaColor({
+    massageLabPlasmaPaletteMode,
+    massageLabPlasmaPrimaryColor,
+    massageLabPlasmaHarmony,
+    massageLabPlasmaColor,
   })
-  const plasmaWaveColors = resolveReactBitsPlasmaWaveColors({
-    reactBitsPlasmaWavePaletteMode,
-    reactBitsPlasmaWavePrimaryColor,
-    reactBitsPlasmaWaveHarmony,
-    reactBitsPlasmaWaveColorOne,
-    reactBitsPlasmaWaveColorTwo,
+  const plasmaWaveColors = resolveMassageLabPlasmaWaveColors({
+    massageLabPlasmaWavePaletteMode,
+    massageLabPlasmaWavePrimaryColor,
+    massageLabPlasmaWaveHarmony,
+    massageLabPlasmaWaveColorOne,
+    massageLabPlasmaWaveColorTwo,
   })
-  const particlesColors = resolveReactBitsParticlesColors({
-    reactBitsParticlesPaletteMode,
-    reactBitsParticlesPrimaryColor,
-    reactBitsParticlesHarmony,
-    reactBitsParticlesColorOne,
-    reactBitsParticlesColorTwo,
-    reactBitsParticlesColorThree,
+  const particlesColors = resolveMassageLabParticlesColors({
+    massageLabParticlesPaletteMode,
+    massageLabParticlesPrimaryColor,
+    massageLabParticlesHarmony,
+    massageLabParticlesColorOne,
+    massageLabParticlesColorTwo,
+    massageLabParticlesColorThree,
   })
-  const gradientBlindsColors = resolveReactBitsGradientBlindsColors({
-    reactBitsGradientBlindsPaletteMode,
-    reactBitsGradientBlindsPrimaryColor,
-    reactBitsGradientBlindsHarmony,
-    reactBitsGradientBlindsColorOne,
-    reactBitsGradientBlindsColorTwo,
+  const gradientBlindsColors = resolveMassageLabGradientBlindsColors({
+    massageLabGradientBlindsPaletteMode,
+    massageLabGradientBlindsPrimaryColor,
+    massageLabGradientBlindsHarmony,
+    massageLabGradientBlindsColorOne,
+    massageLabGradientBlindsColorTwo,
   })
-  const grainientColors = resolveReactBitsGrainientColors({
-    reactBitsGrainientPaletteMode,
-    reactBitsGrainientPrimaryColor,
-    reactBitsGrainientHarmony,
-    reactBitsGrainientColorOne,
-    reactBitsGrainientColorTwo,
-    reactBitsGrainientColorThree,
+  const grainientColors = resolveMassageLabGrainientColors({
+    massageLabGrainientPaletteMode,
+    massageLabGrainientPrimaryColor,
+    massageLabGrainientHarmony,
+    massageLabGrainientColorOne,
+    massageLabGrainientColorTwo,
+    massageLabGrainientColorThree,
   })
-  const gridScanColors = resolveReactBitsGridScanColors({
-    reactBitsGridScanPaletteMode,
-    reactBitsGridScanPrimaryColor,
-    reactBitsGridScanHarmony,
-    reactBitsGridScanLinesColor,
-    reactBitsGridScanScanColor,
+  const gridScanColors = resolveMassageLabGridScanColors({
+    massageLabGridScanPaletteMode,
+    massageLabGridScanPrimaryColor,
+    massageLabGridScanHarmony,
+    massageLabGridScanLinesColor,
+    massageLabGridScanScanColor,
   })
-  const beamsColor = resolveReactBitsBeamsColor({
-    reactBitsBeamsPaletteMode,
-    reactBitsBeamsPrimaryColor,
-    reactBitsBeamsHarmony,
-    reactBitsBeamsLightColor,
+  const beamsColor = resolveMassageLabBeamsColor({
+    massageLabBeamsPaletteMode,
+    massageLabBeamsPrimaryColor,
+    massageLabBeamsHarmony,
+    massageLabBeamsLightColor,
   })
-  const pixelSnowColor = resolveReactBitsPixelSnowColor({
-    reactBitsPixelSnowPaletteMode,
-    reactBitsPixelSnowPrimaryColor,
-    reactBitsPixelSnowHarmony,
-    reactBitsPixelSnowColor,
+  const pixelSnowColor = resolveMassageLabPixelSnowColor({
+    massageLabPixelSnowPaletteMode,
+    massageLabPixelSnowPrimaryColor,
+    massageLabPixelSnowHarmony,
+    massageLabPixelSnowColor,
   })
-  const lightningHue = resolveReactBitsLightningHue({
-    reactBitsLightningPaletteMode,
-    reactBitsLightningPrimaryColor,
-    reactBitsLightningHarmony,
-    reactBitsLightningColor,
-    reactBitsLightningHue,
+  const lightningHue = resolveMassageLabLightningHue({
+    massageLabLightningPaletteMode,
+    massageLabLightningPrimaryColor,
+    massageLabLightningHarmony,
+    massageLabLightningColor,
+    massageLabLightningHue,
   })
-  const prismaticBurstColors = resolveReactBitsPrismaticBurstColors({
-    reactBitsPrismaticBurstPaletteMode,
-    reactBitsPrismaticBurstPrimaryColor,
-    reactBitsPrismaticBurstHarmony,
-    reactBitsPrismaticBurstColorOne,
-    reactBitsPrismaticBurstColorTwo,
-    reactBitsPrismaticBurstColorThree,
-    reactBitsPrismaticBurstColorFour,
+  const prismaticBurstColors = resolveMassageLabPrismaticBurstColors({
+    massageLabPrismaticBurstPaletteMode,
+    massageLabPrismaticBurstPrimaryColor,
+    massageLabPrismaticBurstHarmony,
+    massageLabPrismaticBurstColorOne,
+    massageLabPrismaticBurstColorTwo,
+    massageLabPrismaticBurstColorThree,
+    massageLabPrismaticBurstColorFour,
   })
-  const galaxyHueShift = resolveReactBitsGalaxyHueShift({
-    reactBitsGalaxyPaletteMode,
-    reactBitsGalaxyPrimaryColor,
-    reactBitsGalaxyHarmony,
-    reactBitsGalaxyColor,
-    reactBitsGalaxyHueShift,
+  const galaxyHueShift = resolveMassageLabGalaxyHueShift({
+    massageLabGalaxyPaletteMode,
+    massageLabGalaxyPrimaryColor,
+    massageLabGalaxyHarmony,
+    massageLabGalaxyColor,
+    massageLabGalaxyHueShift,
   })
-  const ditherColor = resolveReactBitsDitherColor({
-    reactBitsDitherPaletteMode,
-    reactBitsDitherPrimaryColor,
-    reactBitsDitherHarmony,
-    reactBitsDitherColor,
+  const ditherColor = resolveMassageLabDitherColor({
+    massageLabDitherPaletteMode,
+    massageLabDitherPrimaryColor,
+    massageLabDitherHarmony,
+    massageLabDitherColor,
   })
-  const faultyTerminalTint = resolveReactBitsFaultyTerminalTint({
-    reactBitsFaultyTerminalPaletteMode,
-    reactBitsFaultyTerminalPrimaryColor,
-    reactBitsFaultyTerminalHarmony,
-    reactBitsFaultyTerminalTint,
+  const faultyTerminalTint = resolveMassageLabFaultyTerminalTint({
+    massageLabFaultyTerminalPaletteMode,
+    massageLabFaultyTerminalPrimaryColor,
+    massageLabFaultyTerminalHarmony,
+    massageLabFaultyTerminalTint,
   })
-  const rippleGridColor = resolveReactBitsRippleGridColor({
-    reactBitsRippleGridPaletteMode,
-    reactBitsRippleGridPrimaryColor,
-    reactBitsRippleGridHarmony,
-    reactBitsRippleGridColor,
+  const rippleGridColor = resolveMassageLabRippleGridColor({
+    massageLabRippleGridPaletteMode,
+    massageLabRippleGridPrimaryColor,
+    massageLabRippleGridHarmony,
+    massageLabRippleGridColor,
   })
-  const dotFieldColors = resolveReactBitsDotFieldColors({
-    reactBitsDotFieldPaletteMode,
-    reactBitsDotFieldPrimaryColor,
-    reactBitsDotFieldHarmony,
-    reactBitsDotFieldGradientFromColor,
-    reactBitsDotFieldGradientFromAlpha,
-    reactBitsDotFieldGradientToColor,
-    reactBitsDotFieldGradientToAlpha,
-    reactBitsDotFieldGlowColor,
+  const dotFieldColors = resolveMassageLabDotFieldColors({
+    massageLabDotFieldPaletteMode,
+    massageLabDotFieldPrimaryColor,
+    massageLabDotFieldHarmony,
+    massageLabDotFieldGradientFromColor,
+    massageLabDotFieldGradientFromAlpha,
+    massageLabDotFieldGradientToColor,
+    massageLabDotFieldGradientToAlpha,
+    massageLabDotFieldGlowColor,
   })
-  const dotGridColors = resolveReactBitsDotGridColors({
-    reactBitsDotGridPaletteMode,
-    reactBitsDotGridPrimaryColor,
-    reactBitsDotGridHarmony,
-    reactBitsDotGridBaseColor,
-    reactBitsDotGridActiveColor,
+  const dotGridColors = resolveMassageLabDotGridColors({
+    massageLabDotGridPaletteMode,
+    massageLabDotGridPrimaryColor,
+    massageLabDotGridHarmony,
+    massageLabDotGridBaseColor,
+    massageLabDotGridActiveColor,
   })
-  const threadsColor = resolveReactBitsThreadsColor({
-    reactBitsThreadsPaletteMode,
-    reactBitsThreadsPrimaryColor,
-    reactBitsThreadsHarmony,
-    reactBitsThreadsColor,
+  const threadsColor = resolveMassageLabThreadsColor({
+    massageLabThreadsPaletteMode,
+    massageLabThreadsPrimaryColor,
+    massageLabThreadsHarmony,
+    massageLabThreadsColor,
   })
-  const iridescenceColor = resolveReactBitsIridescenceColor({
-    reactBitsIridescencePaletteMode,
-    reactBitsIridescencePrimaryColor,
-    reactBitsIridescenceHarmony,
-    reactBitsIridescenceColor,
+  const iridescenceColor = resolveMassageLabIridescenceColor({
+    massageLabIridescencePaletteMode,
+    massageLabIridescencePrimaryColor,
+    massageLabIridescenceHarmony,
+    massageLabIridescenceColor,
   })
-  const wavesLineColor = resolveReactBitsWavesLineColor({
-    reactBitsWavesPaletteMode,
-    reactBitsWavesPrimaryColor,
-    reactBitsWavesHarmony,
-    reactBitsWavesLineColor,
+  const wavesLineColor = resolveMassageLabWavesLineColor({
+    massageLabWavesPaletteMode,
+    massageLabWavesPrimaryColor,
+    massageLabWavesHarmony,
+    massageLabWavesLineColor,
   })
-  const gridDistortionColors = resolveReactBitsGridDistortionColors({
-    reactBitsGridDistortionPaletteMode,
-    reactBitsGridDistortionPrimaryColor,
-    reactBitsGridDistortionHarmony,
-    reactBitsGridDistortionColorOne,
-    reactBitsGridDistortionColorTwo,
-    reactBitsGridDistortionColorThree,
+  const gridDistortionColors = resolveMassageLabGridDistortionColors({
+    massageLabGridDistortionPaletteMode,
+    massageLabGridDistortionPrimaryColor,
+    massageLabGridDistortionHarmony,
+    massageLabGridDistortionColorOne,
+    massageLabGridDistortionColorTwo,
+    massageLabGridDistortionColorThree,
   })
-  const orbHue = resolveReactBitsOrbHue({
-    reactBitsOrbPaletteMode,
-    reactBitsOrbPrimaryColor,
-    reactBitsOrbHarmony,
-    reactBitsOrbColor,
-    reactBitsOrbHue,
+  const orbHue = resolveMassageLabOrbHue({
+    massageLabOrbPaletteMode,
+    massageLabOrbPrimaryColor,
+    massageLabOrbHarmony,
+    massageLabOrbColor,
+    massageLabOrbHue,
   })
-  const letterGlitchColors = resolveReactBitsLetterGlitchColors({
-    reactBitsLetterGlitchPaletteMode,
-    reactBitsLetterGlitchPrimaryColor,
-    reactBitsLetterGlitchHarmony,
-    reactBitsLetterGlitchColorOne,
-    reactBitsLetterGlitchColorTwo,
-    reactBitsLetterGlitchColorThree,
+  const letterGlitchColors = resolveMassageLabLetterGlitchColors({
+    massageLabLetterGlitchPaletteMode,
+    massageLabLetterGlitchPrimaryColor,
+    massageLabLetterGlitchHarmony,
+    massageLabLetterGlitchColorOne,
+    massageLabLetterGlitchColorTwo,
+    massageLabLetterGlitchColorThree,
   })
-  const gridMotionColors = resolveReactBitsGridMotionColors({
-    reactBitsGridMotionPaletteMode,
-    reactBitsGridMotionPrimaryColor,
-    reactBitsGridMotionHarmony,
-    reactBitsGridMotionGradientColor,
-    reactBitsGridMotionTileColor,
-    reactBitsGridMotionTextColor,
+  const gridMotionColors = resolveMassageLabGridMotionColors({
+    massageLabGridMotionPaletteMode,
+    massageLabGridMotionPrimaryColor,
+    massageLabGridMotionHarmony,
+    massageLabGridMotionGradientColor,
+    massageLabGridMotionTileColor,
+    massageLabGridMotionTextColor,
   })
-  const shapeGridColors = resolveReactBitsShapeGridColors({
-    reactBitsShapeGridPaletteMode,
-    reactBitsShapeGridPrimaryColor,
-    reactBitsShapeGridHarmony,
-    reactBitsShapeGridBorderColor,
-    reactBitsShapeGridHoverFillColor,
+  const shapeGridColors = resolveMassageLabShapeGridColors({
+    massageLabShapeGridPaletteMode,
+    massageLabShapeGridPrimaryColor,
+    massageLabShapeGridHarmony,
+    massageLabShapeGridBorderColor,
+    massageLabShapeGridHoverFillColor,
   })
-  const liquidChromeBaseColor = resolveReactBitsLiquidChromeBaseColor({
-    reactBitsLiquidChromePaletteMode,
-    reactBitsLiquidChromePrimaryColor,
-    reactBitsLiquidChromeHarmony,
-    reactBitsLiquidChromeBaseColor,
+  const liquidChromeBaseColor = resolveMassageLabLiquidChromeBaseColor({
+    massageLabLiquidChromePaletteMode,
+    massageLabLiquidChromePrimaryColor,
+    massageLabLiquidChromeHarmony,
+    massageLabLiquidChromeBaseColor,
   })
-  const balatroColors = resolveReactBitsBalatroColors({
-    reactBitsBalatroPaletteMode,
-    reactBitsBalatroPrimaryColor,
-    reactBitsBalatroHarmony,
-    reactBitsBalatroColorOne,
-    reactBitsBalatroColorTwo,
-    reactBitsBalatroColorThree,
+  const balatroColors = resolveMassageLabBalatroColors({
+    massageLabBalatroPaletteMode,
+    massageLabBalatroPrimaryColor,
+    massageLabBalatroHarmony,
+    massageLabBalatroColorOne,
+    massageLabBalatroColorTwo,
+    massageLabBalatroColorThree,
   })
-  const liquidEtherColors = resolveReactBitsLiquidEtherColors({
-    reactBitsLiquidEtherPaletteMode,
-    reactBitsLiquidEtherPrimaryColor,
-    reactBitsLiquidEtherHarmony,
-    reactBitsLiquidEtherColorOne,
-    reactBitsLiquidEtherColorTwo,
-    reactBitsLiquidEtherColorThree,
+  const liquidEtherColors = resolveMassageLabLiquidEtherColors({
+    massageLabLiquidEtherPaletteMode,
+    massageLabLiquidEtherPrimaryColor,
+    massageLabLiquidEtherHarmony,
+    massageLabLiquidEtherColorOne,
+    massageLabLiquidEtherColorTwo,
+    massageLabLiquidEtherColorThree,
   })
-  const novatrixSpeed = getEldoraNovatrixDisplaySpeed(eldoraNovatrixSpeed)
-  const novatrixAmplitude = getEldoraNovatrixDisplayAmplitude(eldoraNovatrixAmplitude)
-  const novatrixColor = resolveEldoraNovatrixColor({
-    eldoraNovatrixPaletteMode,
-    eldoraNovatrixPrimaryColor,
-    eldoraNovatrixHarmony,
-    eldoraNovatrixColor,
+  const novatrixSpeed = getMassageLabNovatrixDisplaySpeed(massageLabNovatrixSpeed)
+  const novatrixAmplitude = getMassageLabNovatrixDisplayAmplitude(massageLabNovatrixAmplitude)
+  const novatrixColor = resolveMassageLabNovatrixColor({
+    massageLabNovatrixPaletteMode,
+    massageLabNovatrixPrimaryColor,
+    massageLabNovatrixHarmony,
+    massageLabNovatrixColor,
   })
-  const hackerSpeed = getEldoraHackerDisplaySpeed(eldoraHackerSpeed)
-  const hackerColor = resolveEldoraHackerColor({
-    eldoraHackerPaletteMode,
-    eldoraHackerPrimaryColor,
-    eldoraHackerHarmony,
-    eldoraHackerColor,
+  const matrixRainSpeed = getMassageLabMatrixRainDisplaySpeed(massageLabMatrixRainSpeed)
+  const matrixRainColor = resolveMassageLabMatrixRainColor({
+    massageLabMatrixRainPaletteMode,
+    massageLabMatrixRainPrimaryColor,
+    massageLabMatrixRainHarmony,
+    massageLabMatrixRainColor,
   })
-  const photonBeamSpeed = getEldoraPhotonBeamDisplaySpeed(eldoraPhotonBeamSpeedGlobal)
-  const photonBeamColors = resolveEldoraPhotonBeamColors({
-    eldoraPhotonBeamPaletteMode,
-    eldoraPhotonBeamPrimaryColor,
-    eldoraPhotonBeamHarmony,
-    eldoraPhotonBeamColorBg,
-    eldoraPhotonBeamColorLine,
-    eldoraPhotonBeamColorSignal,
-    eldoraPhotonBeamUseColor2,
-    eldoraPhotonBeamColorSignal2,
-    eldoraPhotonBeamUseColor3,
-    eldoraPhotonBeamColorSignal3,
+  const photonBeamSpeed = getMassageLabPhotonBeamDisplaySpeed(massageLabPhotonBeamSpeedGlobal)
+  const photonBeamColors = resolveMassageLabPhotonBeamColors({
+    massageLabPhotonBeamPaletteMode,
+    massageLabPhotonBeamPrimaryColor,
+    massageLabPhotonBeamHarmony,
+    massageLabPhotonBeamColorBg,
+    massageLabPhotonBeamColorLine,
+    massageLabPhotonBeamColorSignal,
+    massageLabPhotonBeamUseColor2,
+    massageLabPhotonBeamColorSignal2,
+    massageLabPhotonBeamUseColor3,
+    massageLabPhotonBeamColorSignal3,
   })
-  const synthesisDisplaySpeed = getChamaacSynthesisDisplaySpeed(chamaacSynthesisSpeed)
-  const synthesisColors = resolveChamaacSynthesisColors({
-    chamaacSynthesisPaletteMode,
-    chamaacSynthesisPrimaryColor,
-    chamaacSynthesisHarmony,
-    chamaacSynthesisColorOne,
-    chamaacSynthesisColorTwo,
-    chamaacSynthesisColorThree,
+  const synthesisDisplaySpeed = getMassageLabSynthesisDisplaySpeed(massageLabSynthesisSpeed)
+  const synthesisColors = resolveMassageLabSynthesisColors({
+    massageLabSynthesisPaletteMode,
+    massageLabSynthesisPrimaryColor,
+    massageLabSynthesisHarmony,
+    massageLabSynthesisColorOne,
+    massageLabSynthesisColorTwo,
+    massageLabSynthesisColorThree,
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>(isClockMode ? "display" : "timer")
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("clock")
+  const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
+    useState<BackgroundVisualCategory>("all")
+  const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
+  const [isVerticalBackgroundCarousel, setIsVerticalBackgroundCarousel] = useState(false)
+  const [activeBackgroundCarouselIndex, setActiveBackgroundCarouselIndex] = useState(0)
+  const [globalColors, setGlobalColors] = useState<GlobalColorValues>(DEFAULT_CHIMER_GLOBAL_COLORS)
+  const [globalHarmony, setGlobalHarmony] = useState<ChimerHarmonyValue>(DEFAULT_CHIMER_GLOBAL_HARMONY)
+  const [globalPalettes, setGlobalPalettes] = useState<ChimerSavedPalette[]>([])
+  const [globalPaletteName, setGlobalPaletteName] = useState(CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+  const [visibleBackgroundPreviewIds, setVisibleBackgroundPreviewIds] = useState<Set<BackgroundId>>(new Set())
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
+  const pressHaptic = useCallback(
+    () => {
+      triggerHapticFeedback(hapticsEnabled)
+    },
+    [hapticsEnabled],
+  )
   const [fitFontSize, setFitFontSize] = useState<number | null>(null)
   const [maxFittedFontSize, setMaxFittedFontSize] = useState<number | null>(null)
   const [swapAnimationTarget, setSwapAnimationTarget] = useState<PrimaryDisplay | null>(null)
@@ -2447,16 +3216,136 @@ export function RunningTimer({
   const settingsPanelRef = useRef<HTMLDivElement | null>(null)
   const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
+  const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
-  const resolvedPrimaryFontColor = primaryFontColor || DEFAULT_PRIMARY_FONT_COLOR
-  const resolvedSecondaryFontColor = secondaryFontColor || DEFAULT_SECONDARY_FONT_COLOR
-  const resolvedClockModeFontColor = clockModeFontColor || DEFAULT_CLOCK_MODE_FONT_COLOR
+  const resolvedPrimaryFontColor = primaryFontColor || globalColors.primary || DEFAULT_PRIMARY_FONT_COLOR
+  const resolvedSecondaryFontColor = secondaryFontColor || globalColors.secondary || DEFAULT_SECONDARY_FONT_COLOR
+  const resolvedClockModeFontColor = clockModeFontColor || globalColors.accent || DEFAULT_CLOCK_MODE_FONT_COLOR
   const resolvedTimerDisplayColor = isTimerPrimary ? resolvedPrimaryFontColor : resolvedSecondaryFontColor
   const resolvedCurrentTimeDisplayColor = isClockMode
     ? resolvedClockModeFontColor
     : isCurrentTimePrimary ? resolvedPrimaryFontColor : resolvedSecondaryFontColor
+  const [
+    globalPalettePrimary,
+    globalPaletteSecondary,
+    globalPaletteAccent,
+    globalPaletteCtaStart,
+    globalPaletteCtaEnd,
+    globalPaletteBackground,
+    globalPaletteForeground,
+  ] = getPaletteColorsFromGlobalValues(globalColors)
+  const resolvedClockStrokeColor = resolvePaletteDrivenColor({
+    value: clockStrokeColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.clockStrokeColor,
+    globalValue: globalPaletteBackground,
+  })
+  const resolvedClockShadowColor = resolvePaletteDrivenColor({
+    value: clockShadowColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.clockShadowColor,
+    globalValue: globalPaletteBackground,
+  })
+  const resolvedClockGlowColor = resolvePaletteDrivenColor({
+    value: clockGlowColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.clockGlowColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedClockTextShadow = buildClockTextShadow({
+    shadowEnabled: clockShadowEnabled,
+    shadowColor: resolvedClockShadowColor,
+    shadowStrength: clockShadowStrength,
+    shadowDirection: clockShadowDirection,
+    shadowDistance: clockShadowDistance,
+    shadowFeather: clockShadowFeather,
+    glowEnabled: clockGlowEnabled,
+    glowColor: resolvedClockGlowColor,
+    glowStrength: clockGlowStrength,
+  })
+  const resolvedMovingBackgroundMainColor = useOriginalLampBackground
+    ? normalizeHexColor(movingBackgroundMainColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor)
+    : resolvePaletteDrivenColor({
+      value: movingBackgroundMainColor,
+      defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor,
+      globalValue: globalPalettePrimary,
+    })
+  const resolvedMovingBackgroundOrbColor = useOriginalLampBackground
+    ? normalizeHexColor(movingBackgroundOrbColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor)
+    : resolvePaletteDrivenColor({
+      value: movingBackgroundOrbColor,
+      defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor,
+      globalValue: globalPaletteSecondary,
+    })
+  const resolvedSparklesParticleColor = resolvePaletteDrivenColor({
+    value: sparklesParticleColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.sparklesParticleColor,
+    globalValue: globalPaletteForeground,
+  })
+  const resolvedGradientAnimationBackgroundStartColor = resolvePaletteDrivenColor({
+    value: gradientAnimationBackgroundStartColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationBackgroundStartColor,
+    globalValue: globalPaletteBackground,
+  })
+  const resolvedGradientAnimationBackgroundEndColor = resolvePaletteDrivenColor({
+    value: gradientAnimationBackgroundEndColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationBackgroundEndColor,
+    globalValue: globalPaletteForeground,
+  })
+  const resolvedGradientAnimationFirstColor = resolvePaletteDrivenColor({
+    value: gradientAnimationFirstColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationFirstColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedGradientAnimationSecondColor = resolvePaletteDrivenColor({
+    value: gradientAnimationSecondColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationSecondColor,
+    globalValue: globalPaletteSecondary,
+  })
+  const resolvedGradientAnimationThirdColor = resolvePaletteDrivenColor({
+    value: gradientAnimationThirdColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationThirdColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedGradientAnimationFourthColor = resolvePaletteDrivenColor({
+    value: gradientAnimationFourthColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationFourthColor,
+    globalValue: globalPaletteCtaStart,
+  })
+  const resolvedGradientAnimationFifthColor = resolvePaletteDrivenColor({
+    value: gradientAnimationFifthColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationFifthColor,
+    globalValue: globalPaletteCtaEnd,
+  })
+  const resolvedMassageLabGradientPrimaryColor = resolvePaletteDrivenColor({
+    value: massageLabGradientPrimaryColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.massageLabGradientPrimaryColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedMassageLabStarsColor = resolvePaletteDrivenColor({
+    value: massageLabStarsColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.massageLabStarsColor,
+    globalValue: globalPaletteForeground,
+  })
+  const resolvedMassageLabHoleStrokeColor = resolvePaletteDrivenColor({
+    value: massageLabHoleStrokeColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.massageLabHoleStrokeColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedMassageLabHoleParticleColor = resolvePaletteDrivenColor({
+    value: massageLabHoleParticleColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.massageLabHoleParticleColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedMassageLabLightSpeedLightColor = resolvePaletteDrivenColor({
+    value: massageLabLightSpeedLightColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.massageLabLightSpeedLightColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedMassageLabElectricMistColor = resolvePaletteDrivenColor({
+    value: massageLabElectricMistColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.massageLabElectricMistColor,
+    globalValue: globalPaletteForeground,
+  })
   const primaryActionLabel = isPaused ? "Resume timer" : "Pause timer"
   const statusText = isComplete ? "Session complete" : isPaused ? "Paused" : "Running"
   const hasTimerSeconds = Boolean(timeDisplay.seconds)
@@ -2478,6 +3367,21 @@ export function RunningTimer({
   const canDecreaseFontSize = effectiveFontSize > MIN_FONT_SIZE + 0.05
   const activeRemainingHours = Number(activeTimeDisplay.hours)
   const activeRemainingMinutes = Number(activeTimeDisplay.minutes)
+  const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(
+    backgroundId,
+    featureKeys,
+    backgroundCategory,
+  )
+  const visibleBackgroundOptions = useMemo(
+    () => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => isBackgroundCategoryMatch(
+      option,
+      backgroundCategoryFilter,
+      savedBackgroundIds,
+    )),
+    [backgroundCategory, backgroundCategoryFilter, savedBackgroundIds],
+  )
+  const hasVisibleBackgrounds = visibleBackgroundOptions.length > 0
+  const activeBackgroundOption = visibleBackgroundOptions[activeBackgroundCarouselIndex] ?? visibleBackgroundOptions[0] ?? null
 
   const clearControlTimers = useCallback(() => {
     if (fadeTimerRef.current) {
@@ -2642,6 +3546,104 @@ export function RunningTimer({
     return () => clearSettingsAutoCloseTimer()
   }, [clearSettingsAutoCloseTimer, isSettingsOpen, scheduleSettingsAutoClose])
 
+  useEffect(() => {
+    const loadedSavedBackgroundIds = getSavedBackgroundIdsFromStorage()
+    setSavedBackgroundIds(loadedSavedBackgroundIds)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return
+    }
+
+    const mediaQuery = window.matchMedia("(orientation: portrait) and (max-width: 480px)")
+    const updateCarouselAxis = () => {
+      setIsVerticalBackgroundCarousel(mediaQuery.matches)
+    }
+
+    updateCarouselAxis()
+    mediaQuery.addEventListener?.("change", updateCarouselAxis)
+
+    return () => {
+      mediaQuery.removeEventListener?.("change", updateCarouselAxis)
+    }
+  }, [])
+
+  useEffect(() => {
+    setActiveBackgroundCarouselIndex((currentIndex) => {
+      if (visibleBackgroundOptions.length === 0) {
+        return 0
+      }
+
+      const selectedIndex = visibleBackgroundOptions.findIndex((option) => option.id === backgroundId)
+      if (selectedIndex >= 0) {
+        return selectedIndex
+      }
+
+      return Math.min(currentIndex, visibleBackgroundOptions.length - 1)
+    })
+  }, [backgroundId, visibleBackgroundOptions])
+
+  useEffect(() => {
+    const loadedGlobalColors = getGlobalColorsFromStorage()
+    const loadedHarmony = getGlobalHarmonyFromStorage()
+    const loadedPalettes = getSavedGlobalPalettesFromStorage()
+    const defaultPalette = loadedPalettes.find((palette) => palette.isDefault)
+    const normalizedColors = loadedHarmony === "custom"
+      ? loadedGlobalColors
+      : getHarmonyColorsFromPrimary(loadedGlobalColors.primary, loadedHarmony)
+
+    setGlobalColors(normalizedColors)
+    setGlobalHarmony(loadedHarmony)
+    setGlobalPalettes(loadedPalettes)
+    setGlobalPaletteName(defaultPalette?.name ?? CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+    saveGlobalColorState(normalizedColors, loadedHarmony)
+    saveGlobalPalettesToStorage(loadedPalettes)
+  }, [])
+
+  useEffect(() => {
+    // The radial carousel renders several absolute cards, so preview loading is based on the active arc instead of scroll observation.
+    if (!isSettingsOpen || settingsTab !== "backgrounds") {
+      setVisibleBackgroundPreviewIds(new Set())
+      backgroundVideoRefMap.current.forEach((videoRef) => {
+        videoRef?.pause()
+      })
+      return
+    }
+
+    const nextVisibleIds = new Set<BackgroundId>([selectedBackgroundDefinition.id])
+    const totalOptions = visibleBackgroundOptions.length
+
+    visibleBackgroundOptions.forEach((option, index) => {
+      const offset = getCircularCarouselOffset(index, activeBackgroundCarouselIndex, totalOptions)
+      if (Math.abs(offset) <= 2) {
+        nextVisibleIds.add(option.id)
+      }
+    })
+
+    setVisibleBackgroundPreviewIds(nextVisibleIds)
+  }, [
+    activeBackgroundCarouselIndex,
+    isSettingsOpen,
+    selectedBackgroundDefinition.id,
+    settingsTab,
+    visibleBackgroundOptions,
+  ])
+
+  useEffect(() => {
+    backgroundVideoRefMap.current.forEach((videoRef, previewId) => {
+      if (!videoRef) {
+        return
+      }
+
+      if (visibleBackgroundPreviewIds.has(previewId) && isSettingsOpen && settingsTab === "backgrounds") {
+        void videoRef.play().catch(() => undefined)
+      } else {
+        videoRef.pause()
+      }
+    })
+  }, [isSettingsOpen, settingsTab, visibleBackgroundPreviewIds])
+
   useLayoutEffect(() => {
     const primaryElement = primaryDisplayRef.current
     const contentElement = primaryContentRef.current
@@ -2755,6 +3757,174 @@ export function RunningTimer({
     scheduleHideAfterControlAction({ force: true })
   }
 
+  const handleFontSizeRangeChange = (nextFontSize: number) => {
+    const clampedNextFontSize = Math.min(effectiveMaxFontSize, Math.max(MIN_FONT_SIZE, nextFontSize))
+
+    if (Math.abs(clampedNextFontSize - fontSize) < 0.05) {
+      scheduleHideAfterControlAction({ force: true })
+      return
+    }
+
+    onFontSizeChange(Number(clampedNextFontSize.toFixed(2)))
+    scheduleHideAfterControlAction({ force: true })
+  }
+
+  const handleBackgroundFilterChange = (nextFilter: BackgroundVisualCategory) => {
+    if (nextFilter === backgroundCategoryFilter) {
+      return
+    }
+
+    setBackgroundCategoryFilter(nextFilter)
+    scheduleSettingsAutoClose()
+  }
+
+  const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+    const nextBackgroundDefinition = visibleBackgroundOptions.find((option) => option.id === nextBackgroundId)
+
+    if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, featureKeys)) {
+      return
+    }
+
+    handleSettingsChange({ movingBackgroundEnabled: true, backgroundId: nextBackgroundId })
+  }
+
+  const moveBackgroundCarousel = useCallback(
+    (direction: 1 | -1) => {
+      if (visibleBackgroundOptions.length <= 1) {
+        return
+      }
+
+      triggerHapticFeedback(hapticsEnabled)
+      setActiveBackgroundCarouselIndex((currentIndex) => (
+        currentIndex + direction + visibleBackgroundOptions.length
+      ) % visibleBackgroundOptions.length)
+    },
+    [hapticsEnabled, visibleBackgroundOptions.length],
+  )
+
+  const handleBackgroundCarouselKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        event.preventDefault()
+        moveBackgroundCarousel(-1)
+      }
+
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        event.preventDefault()
+        moveBackgroundCarousel(1)
+      }
+    },
+    [moveBackgroundCarousel],
+  )
+
+  const handleBackgroundSavedToggle = (nextBackgroundId: BackgroundId) => {
+    setSavedBackgroundIds((current) => {
+      const isSaved = current.includes(nextBackgroundId)
+      const next = isSaved
+        ? current.filter((id) => id !== nextBackgroundId)
+        : [...current, nextBackgroundId]
+
+      saveBackgroundIdsToStorage(next)
+      return next
+    })
+    scheduleSettingsAutoClose()
+  }
+
+  const handleGlobalColorsChange = (nextColors: GlobalColorValues) => {
+    const sanitizedColors = sanitizeGlobalColorValues(nextColors)
+    const primaryChanged = sanitizedColors.primary !== globalColors.primary
+
+    if (globalHarmony !== "custom" && primaryChanged) {
+      const nextHarmonyColors = getHarmonyColorsFromPrimary(sanitizedColors.primary, globalHarmony)
+      setGlobalColors(nextHarmonyColors)
+      saveGlobalColorState(nextHarmonyColors, globalHarmony)
+      return
+    }
+
+    setGlobalColors(sanitizedColors)
+
+    if (globalHarmony === "custom") {
+      saveGlobalColorState(sanitizedColors, globalHarmony)
+      return
+    }
+
+    setGlobalHarmony(DEFAULT_CHIMER_GLOBAL_HARMONY)
+    saveGlobalColorState(sanitizedColors, DEFAULT_CHIMER_GLOBAL_HARMONY)
+  }
+
+  const handleGlobalHarmonyChange = (nextHarmony: ChimerHarmonyValue) => {
+    const nextColors = nextHarmony === "custom"
+      ? globalColors
+      : getHarmonyColorsFromPrimary(globalColors.primary, nextHarmony)
+
+    setGlobalColors(nextColors)
+    setGlobalHarmony(nextHarmony)
+    saveGlobalColorState(nextColors, nextHarmony)
+  }
+
+  const handleGlobalPaletteNameChange = (nextName: string) => {
+    setGlobalPaletteName(nextName.trim() || CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+  }
+
+  const handleGlobalPaletteSave = (nextColors: GlobalColorValues, paletteName: string) => {
+    const sourceColorName = paletteName.trim() || CHIMER_GLOBAL_PALETTE_DEFAULT_NAME
+    const normalizedColors = sanitizeGlobalColorValues(nextColors)
+    const generatedColors = getPaletteColorsFromGlobalValues(normalizedColors)
+    const hasExistingDefault = globalPalettes.some((palette) => palette.isDefault)
+
+    setGlobalPalettes((current) => {
+      const matchIndex = current.findIndex(
+        (palette) => palette.name.trim().toLowerCase() === sourceColorName.toLowerCase(),
+      )
+      const paletteId = matchIndex >= 0 ? current[matchIndex].id : `palette-${Date.now()}`
+      const nextPalette: ChimerSavedPalette = {
+        id: paletteId,
+        name: sourceColorName,
+        sourceColor: normalizedColors.primary,
+        harmony: globalHarmony,
+        colors: normalizedColors,
+        generated: generatedColors,
+        isDefault: current[matchIndex]?.isDefault ?? !hasExistingDefault,
+        createdAt: new Date().toISOString(),
+      }
+
+      if (matchIndex >= 0) {
+        const nextPalettes = [...current]
+        nextPalettes[matchIndex] = nextPalette
+        saveGlobalPalettesToStorage(nextPalettes)
+        return nextPalettes
+      }
+
+      const nextPalettes = [nextPalette, ...current]
+      saveGlobalPalettesToStorage(nextPalettes)
+      return nextPalettes
+    })
+
+    setGlobalPaletteName(sourceColorName)
+  }
+
+  const handleGlobalPaletteLoad = (palette: ChimerSavedPalette) => {
+    const normalizedColors = sanitizeGlobalColorValues(palette.colors)
+    const nextHarmony = palette.harmony
+    const nextColors = nextHarmony === "custom"
+      ? normalizedColors
+      : getHarmonyColorsFromPrimary(normalizedColors.primary, nextHarmony)
+
+    setGlobalColors(nextColors)
+    setGlobalHarmony(nextHarmony)
+    setGlobalPaletteName(palette.name)
+
+    const nextPalettes = globalPalettes.map((entry) => ({
+      ...entry,
+      isDefault: entry.id === palette.id,
+    }))
+    setGlobalPalettes(nextPalettes)
+
+    saveGlobalColorState(nextColors, nextHarmony)
+    saveGlobalPalettesToStorage(nextPalettes)
+    scheduleSettingsAutoClose()
+  }
+
   const handlePauseControl = () => {
     onPause()
     scheduleHideAfterControlAction({ force: true })
@@ -2774,12 +3944,20 @@ export function RunningTimer({
 
     clearControlTimers()
     setControlState("visible")
-    setSettingsTab(isClockMode ? "display" : "timer")
+    setSettingsTab("clock")
     setIsSettingsOpen(true)
   }
 
+  const canUseCoreColorControls = canUseCustomColors || canUseAccountColorControls
+
   const handleSettingsChange = (nextSettings: Partial<ChimerSettings>) => {
-    if (!canUseCustomColors && Object.keys(nextSettings).some((key) => CUSTOM_COLOR_SETTING_KEYS.has(key))) {
+    const settingKeys = Object.keys(nextSettings)
+
+    if (!canUseCustomColors && settingKeys.some((key) => PREMIUM_CUSTOM_COLOR_SETTING_KEYS.has(key))) {
+      return
+    }
+
+    if (!canUseCoreColorControls && settingKeys.some((key) => ACCOUNT_COLOR_SETTING_KEYS.has(key))) {
       return
     }
 
@@ -2793,7 +3971,9 @@ export function RunningTimer({
   }
 
   const handleSettingsTabChange = (nextTab: string) => {
-    setSettingsTab(nextTab as SettingsTab)
+    if (nextTab === "clock" || nextTab === "visual" || nextTab === "backgrounds") {
+      setSettingsTab(nextTab)
+    }
     scheduleSettingsAutoClose()
   }
 
@@ -2817,81 +3997,155 @@ export function RunningTimer({
     scheduleSettingsAutoClose()
   }
 
-  const useCurrentLocationForGlobe = () => {
+  const getCurrentLocationForGlobe = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return
     }
 
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       handleSettingsChange({
-        aceternity3DGlobeMarkerEnabled: true,
-        aceternity3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
-        aceternity3DGlobeMarkerLng: Number(coords.longitude.toFixed(4)),
+        massageLab3DGlobeMarkerEnabled: true,
+        massageLab3DGlobeMarkerLat: Number(coords.latitude.toFixed(4)),
+        massageLab3DGlobeMarkerLng: Number(coords.longitude.toFixed(4)),
       })
     })
   }
 
-  const aceternity3DGlobeScaleDisplayPercent = getAceternity3DGlobeScaleDisplayPercent(aceternity3DGlobeScale)
-  const isGraphicGlobe = aceternity3DGlobeViewStyle === "graphic"
-  const followSun = aceternity3DGlobeLightingMode === "sun"
+  const massageLab3DGlobeScaleDisplayPercent = getMassageLab3DGlobeScaleDisplayPercent(massageLab3DGlobeScale)
+  const isGraphicGlobe = massageLab3DGlobeViewStyle === "graphic"
+  const followSun = massageLab3DGlobeLightingMode === "sun"
+  /** Render a lightweight preview for catalog cards while keeping live rendering only on selected background activation. */
+  const renderBackgroundPreview = (
+    option: BackgroundDefinition,
+    isLoaded: boolean,
+    fallbackStyle?: CSSProperties,
+  ) => {
+    const media = getBackgroundPreviewMedia(option, isVerticalBackgroundCarousel ? "vertical" : "landscape")
+    const fallback = fallbackStyle ?? option.fallbackStyle ?? { background: "#0f172a" }
+
+    if (!media || !isLoaded) {
+      return (
+        <div className={styles.backgroundCardPreview} style={fallback}>
+          {media ? (
+            <Loader
+              shape="sphere"
+              variant="dither"
+              color="#ea580c"
+              size={38}
+              className={styles.backgroundCardLoader}
+              label="Loading preview"
+            />
+          ) : null}
+        </div>
+      )
+    }
+
+    if (media.type === "image") {
+      return (
+        <div className={styles.backgroundCardPreview} style={fallback}>
+          <Image
+            src={media.source}
+            alt=""
+            className={styles.backgroundCardMedia}
+            fill
+            sizes="100vw"
+            unoptimized
+            aria-hidden="true"
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className={styles.backgroundCardPreview} style={fallback}>
+        <video
+          ref={(element) => {
+            if (element) {
+              backgroundVideoRefMap.current.set(option.id, element)
+            } else {
+              backgroundVideoRefMap.current.delete(option.id)
+            }
+          }}
+          className={styles.backgroundCardMedia}
+          src={media.source}
+          muted
+          loop
+          playsInline
+          preload="none"
+          aria-hidden="true"
+        />
+      </div>
+    )
+  }
 
   const renderBackgroundControls = (option: BackgroundDefinition) => (
     <div className={styles.backgroundCardControls}>
       {!isClockMode && (
-        <label className={styles.colorRow}>
+        <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
-          <input
-            type="color"
+          <ColorPickerSwatch
+            label="Primary display color"
             value={resolvedPrimaryFontColor}
+            fallback={DEFAULT_PRIMARY_FONT_COLOR}
             disabled={!canUseCustomColors}
-            onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
-            aria-label="Primary display color"
+            onChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })}
+            className={styles.colorSwatchPicker}
+            buttonClassName={styles.colorSwatchButton}
           />
-        </label>
+        </div>
       )}
 
-      <label className={styles.colorRow}>
+      <div
+        className={styles.colorRow}
+        title={isClockMode ? accountColorDisabledHint : customColorDisabledHint}
+      >
         <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
-        <input
-          type="color"
+        <ColorPickerSwatch
+          label={isClockMode ? "Clock color" : "Secondary display color"}
           value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
-          disabled={!canUseCustomColors}
-          onChange={(event) => handleSettingsChange(
+          fallback={isClockMode ? DEFAULT_CLOCK_MODE_FONT_COLOR : DEFAULT_SECONDARY_FONT_COLOR}
+          disabled={isClockMode ? !canUseCoreColorControls : !canUseCustomColors}
+          onChange={(nextColor) => handleSettingsChange(
             isClockMode
-              ? { clockModeFontColor: event.target.value }
-              : { secondaryFontColor: event.target.value },
+              ? { clockModeFontColor: nextColor }
+              : { secondaryFontColor: nextColor },
           )}
-          aria-label={isClockMode ? "Clock color" : "Secondary display color"}
+          className={styles.colorSwatchPicker}
+          buttonClassName={styles.colorSwatchButton}
         />
-      </label>
+      </div>
 
       {option.id === "massage-lab-moving-gradient" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow} title={accountColorDisabledHint}>
             <span>Lamp main color</span>
-            <input
-              type="color"
+            <ColorPickerSwatch
+              label="Lamp main color"
               value={movingBackgroundMainColor}
-              disabled={!canUseCustomColors}
-              onChange={(event) => handleSettingsChange({ movingBackgroundMainColor: event.target.value })}
-              aria-label="Lamp main color"
+              fallback={DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor}
+              disabled={!canUseCoreColorControls}
+              onChange={(nextColor) => handleSettingsChange({ movingBackgroundMainColor: nextColor })}
+              className={styles.colorSwatchPicker}
+              buttonClassName={styles.colorSwatchButton}
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow} title={accountColorDisabledHint}>
             <span>Lamp orb color</span>
-            <input
-              type="color"
+            <ColorPickerSwatch
+              label="Lamp orb color"
               value={movingBackgroundOrbColor}
-              disabled={!canUseCustomColors}
-              onChange={(event) => handleSettingsChange({ movingBackgroundOrbColor: event.target.value })}
-              aria-label="Lamp orb color"
+              fallback={DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor}
+              disabled={!canUseCoreColorControls}
+              onChange={(nextColor) => handleSettingsChange({ movingBackgroundOrbColor: nextColor })}
+              className={styles.colorSwatchPicker}
+              buttonClassName={styles.colorSwatchButton}
             />
-          </label>
+          </div>
         </>
       )}
 
-      {option.id === "aceternity-gradient-animation" && (
+      {option.id === "massage-lab-gradient-animation" && (
         <>
           <label className={styles.colorRow}>
             <span>Base start</span>
@@ -2899,7 +4153,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationBackgroundStartColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationBackgroundStartColor: event.target.value })}
-              aria-label="Gradient animation background start color"
+              aria-label="Animated gradient background start color"
             />
           </label>
 
@@ -2909,7 +4163,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationBackgroundEndColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationBackgroundEndColor: event.target.value })}
-              aria-label="Gradient animation background end color"
+              aria-label="Animated gradient background end color"
             />
           </label>
 
@@ -2919,7 +4173,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationFirstColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationFirstColor: event.target.value })}
-              aria-label="Gradient animation first glow color"
+              aria-label="Animated gradient first glow color"
             />
           </label>
 
@@ -2929,7 +4183,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationSecondColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationSecondColor: event.target.value })}
-              aria-label="Gradient animation second glow color"
+              aria-label="Animated gradient second glow color"
             />
           </label>
 
@@ -2939,7 +4193,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationThirdColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationThirdColor: event.target.value })}
-              aria-label="Gradient animation third glow color"
+              aria-label="Animated gradient third glow color"
             />
           </label>
 
@@ -2949,7 +4203,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationFourthColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationFourthColor: event.target.value })}
-              aria-label="Gradient animation fourth glow color"
+              aria-label="Animated gradient fourth glow color"
             />
           </label>
 
@@ -2959,7 +4213,7 @@ export function RunningTimer({
               type="color"
               value={gradientAnimationFifthColor}
               onChange={(event) => handleSettingsChange({ gradientAnimationFifthColor: event.target.value })}
-              aria-label="Gradient animation fifth glow color"
+              aria-label="Animated gradient fifth glow color"
             />
           </label>
 
@@ -2972,7 +4226,7 @@ export function RunningTimer({
               step="0.25"
               value={gradientAnimationSpeed}
               onChange={(event) => handleSettingsChange({ gradientAnimationSpeed: Number(event.target.value) })}
-              aria-label="Gradient animation speed"
+              aria-label="Animated gradient speed"
             />
           </label>
 
@@ -2985,34 +4239,34 @@ export function RunningTimer({
               step="5"
               value={gradientAnimationSize}
               onChange={(event) => handleSettingsChange({ gradientAnimationSize: Number(event.target.value) })}
-              aria-label="Gradient animation glow size"
+              aria-label="Animated gradient glow size"
             />
           </label>
         </>
       )}
 
-      {option.id === "animate-ui-gradient" && (
+      {option.id === "massage-lab-gradient" && (
         <>
           <label className={styles.colorRow}>
             <span>Primary color</span>
             <input
               type="color"
-              value={animateUiGradientPrimaryColor}
-              onChange={(event) => handleSettingsChange({ animateUiGradientPrimaryColor: event.target.value })}
-              aria-label="Animate UI gradient primary color"
+              value={massageLabGradientPrimaryColor}
+              onChange={(event) => handleSettingsChange({ massageLabGradientPrimaryColor: event.target.value })}
+              aria-label="MassageLab gradient primary color"
             />
           </label>
 
           <label className={styles.selectRow}>
             <span>Color harmony</span>
             <select
-              value={animateUiGradientHarmony}
+              value={massageLabGradientHarmony}
               onChange={(event) => handleSettingsChange({
-                animateUiGradientHarmony: event.target.value as AnimateUiGradientHarmony,
+                massageLabGradientHarmony: event.target.value as MassageLabGradientHarmony,
               })}
-              aria-label="Animate UI gradient color harmony"
+              aria-label="MassageLab gradient color harmony"
             >
-              {ANIMATE_UI_GRADIENT_HARMONY_OPTIONS.map((option) => (
+              {MASSAGE_LAB_GRADIENT_HARMONY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -3021,29 +4275,29 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({Math.round(animateUiGradientOpacity * 100)}%)</span>
+            <span>Opacity ({Math.round(massageLabGradientOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.15"
               max="1"
               step="0.01"
-              value={animateUiGradientOpacity}
-              onChange={(event) => handleSettingsChange({ animateUiGradientOpacity: Number(event.target.value) })}
-              aria-label="Animate UI gradient opacity"
+              value={massageLabGradientOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabGradientOpacity: Number(event.target.value) })}
+              aria-label="MassageLab gradient opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "animate-ui-hole" && (
+      {option.id === "massage-lab-hole" && (
         <>
           <label className={styles.colorRow}>
             <span>Grid line color</span>
             <input
               type="color"
-              value={animateUiHoleStrokeColor}
-              onChange={(event) => handleSettingsChange({ animateUiHoleStrokeColor: event.target.value })}
-              aria-label="Animate UI Hole grid line color"
+              value={massageLabHoleStrokeColor}
+              onChange={(event) => handleSettingsChange({ massageLabHoleStrokeColor: event.target.value })}
+              aria-label="MassageLab Hole grid line color"
             />
           </label>
 
@@ -3051,173 +4305,173 @@ export function RunningTimer({
             <span>Particle color</span>
             <input
               type="color"
-              value={animateUiHoleParticleColor}
-              onChange={(event) => handleSettingsChange({ animateUiHoleParticleColor: event.target.value })}
-              aria-label="Animate UI Hole particle color"
+              value={massageLabHoleParticleColor}
+              onChange={(event) => handleSettingsChange({ massageLabHoleParticleColor: event.target.value })}
+              aria-label="MassageLab Hole particle color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Line count ({animateUiHoleLineCount})</span>
+            <span>Line count ({massageLabHoleLineCount})</span>
             <input
               type="range"
               min="12"
               max="96"
               step="1"
-              value={animateUiHoleLineCount}
-              onChange={(event) => handleSettingsChange({ animateUiHoleLineCount: Number(event.target.value) })}
-              aria-label="Animate UI Hole line count"
+              value={massageLabHoleLineCount}
+              onChange={(event) => handleSettingsChange({ massageLabHoleLineCount: Number(event.target.value) })}
+              aria-label="MassageLab Hole line count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Disc count ({animateUiHoleDiscCount})</span>
+            <span>Disc count ({massageLabHoleDiscCount})</span>
             <input
               type="range"
               min="12"
               max="96"
               step="1"
-              value={animateUiHoleDiscCount}
-              onChange={(event) => handleSettingsChange({ animateUiHoleDiscCount: Number(event.target.value) })}
-              aria-label="Animate UI Hole disc count"
+              value={massageLabHoleDiscCount}
+              onChange={(event) => handleSettingsChange({ massageLabHoleDiscCount: Number(event.target.value) })}
+              aria-label="MassageLab Hole disc count"
             />
           </label>
         </>
       )}
 
-      {option.id === "chamaac-light-speed" && (
+      {option.id === "massage-lab-light-speed" && (
         <>
           <label className={styles.colorRow}>
             <span>Light color</span>
             <input
               type="color"
-              value={chamaacLightSpeedLightColor}
-              onChange={(event) => handleSettingsChange({ chamaacLightSpeedLightColor: event.target.value })}
+              value={massageLabLightSpeedLightColor}
+              onChange={(event) => handleSettingsChange({ massageLabLightSpeedLightColor: event.target.value })}
               aria-label="Light Speed light color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp speed ({chamaacLightSpeedWarpSpeed.toFixed(2)}x)</span>
+            <span>Warp speed ({massageLabLightSpeedWarpSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0.1"
               max="24"
               step="0.01"
-              value={chamaacLightSpeedWarpSpeed}
-              onChange={(event) => handleSettingsChange({ chamaacLightSpeedWarpSpeed: Number(event.target.value) })}
+              value={massageLabLightSpeedWarpSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLightSpeedWarpSpeed: Number(event.target.value) })}
               aria-label="Light Speed warp speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Particles ({chamaacLightSpeedParticleCount})</span>
+            <span>Particles ({massageLabLightSpeedParticleCount})</span>
             <input
               type="range"
               min="20"
               max="200"
               step="5"
-              value={chamaacLightSpeedParticleCount}
-              onChange={(event) => handleSettingsChange({ chamaacLightSpeedParticleCount: Number(event.target.value) })}
+              value={massageLabLightSpeedParticleCount}
+              onChange={(event) => handleSettingsChange({ massageLabLightSpeedParticleCount: Number(event.target.value) })}
               aria-label="Light Speed particle count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({chamaacLightSpeedIntensity.toFixed(2)}x)</span>
+            <span>Glow ({massageLabLightSpeedIntensity.toFixed(2)}x)</span>
             <input
               type="range"
               min="0.25"
               max="6"
               step="0.05"
-              value={chamaacLightSpeedIntensity}
-              onChange={(event) => handleSettingsChange({ chamaacLightSpeedIntensity: Number(event.target.value) })}
+              value={massageLabLightSpeedIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabLightSpeedIntensity: Number(event.target.value) })}
               aria-label="Light Speed glow intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Tunnel radius ({chamaacLightSpeedRadius}px)</span>
+            <span>Tunnel radius ({massageLabLightSpeedRadius}px)</span>
             <input
               type="range"
               min="6"
               max="60"
               step="1"
-              value={chamaacLightSpeedRadius}
-              onChange={(event) => handleSettingsChange({ chamaacLightSpeedRadius: Number(event.target.value) })}
+              value={massageLabLightSpeedRadius}
+              onChange={(event) => handleSettingsChange({ massageLabLightSpeedRadius: Number(event.target.value) })}
               aria-label="Light Speed tunnel radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Field length ({chamaacLightSpeedCylinderLength}px)</span>
+            <span>Field length ({massageLabLightSpeedCylinderLength}px)</span>
             <input
               type="range"
               min="40"
               max="300"
               step="5"
-              value={chamaacLightSpeedCylinderLength}
-              onChange={(event) => handleSettingsChange({ chamaacLightSpeedCylinderLength: Number(event.target.value) })}
+              value={massageLabLightSpeedCylinderLength}
+              onChange={(event) => handleSettingsChange({ massageLabLightSpeedCylinderLength: Number(event.target.value) })}
               aria-label="Light Speed field length"
             />
           </label>
         </>
       )}
 
-      {option.id === "animate-ui-stars" && (
+      {option.id === "massage-lab-stars" && (
         <>
           <label className={styles.colorRow}>
             <span>Star color</span>
             <input
               type="color"
-              value={animateUiStarsColor}
-              onChange={(event) => handleSettingsChange({ animateUiStarsColor: event.target.value })}
-              aria-label="Animate UI Stars star color"
+              value={massageLabStarsColor}
+              onChange={(event) => handleSettingsChange({ massageLabStarsColor: event.target.value })}
+              aria-label="MassageLab Stars star color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({animateUiStarsSpeed}s)</span>
+            <span>Speed ({massageLabStarsSpeed}s)</span>
             <input
               type="range"
               min="18"
               max="120"
               step="1"
-              value={animateUiStarsSpeed}
-              onChange={(event) => handleSettingsChange({ animateUiStarsSpeed: Number(event.target.value) })}
-              aria-label="Animate UI Stars speed"
+              value={massageLabStarsSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabStarsSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Stars speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Density ({Math.round(animateUiStarsDensity * 100)}%)</span>
+            <span>Density ({Math.round(massageLabStarsDensity * 100)}%)</span>
             <input
               type="range"
               min="0.25"
               max="1.5"
               step="0.05"
-              value={animateUiStarsDensity}
-              onChange={(event) => handleSettingsChange({ animateUiStarsDensity: Number(event.target.value) })}
-              aria-label="Animate UI Stars density"
+              value={massageLabStarsDensity}
+              onChange={(event) => handleSettingsChange({ massageLabStarsDensity: Number(event.target.value) })}
+              aria-label="MassageLab Stars density"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Parallax ({Math.round(animateUiStarsParallax * 1000) / 10}%)</span>
+            <span>Parallax ({Math.round(massageLabStarsParallax * 1000) / 10}%)</span>
             <input
               type="range"
               min="0"
               max="0.12"
               step="0.005"
-              value={animateUiStarsParallax}
-              onChange={(event) => handleSettingsChange({ animateUiStarsParallax: Number(event.target.value) })}
-              aria-label="Animate UI Stars parallax strength"
+              value={massageLabStarsParallax}
+              onChange={(event) => handleSettingsChange({ massageLabStarsParallax: Number(event.target.value) })}
+              aria-label="MassageLab Stars parallax strength"
             />
           </label>
         </>
       )}
 
-      {option.id === "aceternity-sparkles" && (
+      {option.id === "massage-lab-sparkles" && (
         <>
           <label className={styles.colorRow}>
             <span>Sparkle color</span>
@@ -3270,80 +4524,80 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "chamaac-electric-mist" && (
+      {option.id === "massage-lab-electric-mist" && (
         <>
           <label className={styles.colorRow}>
             <span>Lightning color</span>
             <input
               type="color"
-              value={chamaacElectricMistColor}
-              onChange={(event) => handleSettingsChange({ chamaacElectricMistColor: event.target.value })}
+              value={massageLabElectricMistColor}
+              onChange={(event) => handleSettingsChange({ massageLabElectricMistColor: event.target.value })}
               aria-label="Electric Mist lightning color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Animation speed ({Math.round(chamaacElectricMistSpeed)}%)</span>
+            <span>Animation speed ({Math.round(massageLabElectricMistSpeed)}%)</span>
             <input
               type="range"
               min="1"
               max="400"
               step="1"
-              value={chamaacElectricMistSpeed}
-              onChange={(event) => handleSettingsChange({ chamaacElectricMistSpeed: Number(event.target.value) })}
+              value={massageLabElectricMistSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabElectricMistSpeed: Number(event.target.value) })}
               aria-label="Electric Mist animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise detail ({chamaacElectricMistDetail.toFixed(1)})</span>
+            <span>Noise detail ({massageLabElectricMistDetail.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="4"
               step="0.1"
-              value={chamaacElectricMistDetail}
-              onChange={(event) => handleSettingsChange({ chamaacElectricMistDetail: Number(event.target.value) })}
+              value={massageLabElectricMistDetail}
+              onChange={(event) => handleSettingsChange({ massageLabElectricMistDetail: Number(event.target.value) })}
               aria-label="Electric Mist noise detail"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distortion ({chamaacElectricMistDistortion.toFixed(1)}x)</span>
+            <span>Distortion ({massageLabElectricMistDistortion.toFixed(1)}x)</span>
             <input
               type="range"
               min="0"
               max="6"
               step="0.1"
-              value={chamaacElectricMistDistortion}
-              onChange={(event) => handleSettingsChange({ chamaacElectricMistDistortion: Number(event.target.value) })}
+              value={massageLabElectricMistDistortion}
+              onChange={(event) => handleSettingsChange({ massageLabElectricMistDistortion: Number(event.target.value) })}
               aria-label="Electric Mist distortion"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Brightness ({Math.round(chamaacElectricMistBrightness)}%)</span>
+            <span>Brightness ({Math.round(massageLabElectricMistBrightness)}%)</span>
             <input
               type="range"
               min="1"
               max="100"
               step="1"
-              value={chamaacElectricMistBrightness}
-              onChange={(event) => handleSettingsChange({ chamaacElectricMistBrightness: Number(event.target.value) })}
+              value={massageLabElectricMistBrightness}
+              onChange={(event) => handleSettingsChange({ massageLabElectricMistBrightness: Number(event.target.value) })}
               aria-label="Electric Mist brightness"
             />
           </label>
         </>
       )}
 
-      {option.id === "chamaac-astral-flow" && (
+      {option.id === "massage-lab-astral-flow" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={chamaacAstralFlowPaletteMode}
+              value={massageLabAstralFlowPaletteMode}
               onChange={(event) => handleSettingsChange({
-                chamaacAstralFlowPaletteMode: event.target.value as ChamaacAstralFlowPaletteMode,
+                massageLabAstralFlowPaletteMode: event.target.value as MassageLabAstralFlowPaletteMode,
               })}
               aria-label="Astral Flow color mode"
             >
@@ -3352,14 +4606,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {chamaacAstralFlowPaletteMode === "custom" ? (
+          {massageLabAstralFlowPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1 (deep)</span>
                 <input
                   type="color"
-                  value={chamaacAstralFlowColorOne}
-                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowColorOne: event.target.value })}
+                  value={massageLabAstralFlowColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowColorOne: event.target.value })}
                   aria-label="Astral Flow color 1"
                 />
               </label>
@@ -3368,8 +4622,8 @@ export function RunningTimer({
                 <span>Color 2 (mid)</span>
                 <input
                   type="color"
-                  value={chamaacAstralFlowColorTwo}
-                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowColorTwo: event.target.value })}
+                  value={massageLabAstralFlowColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowColorTwo: event.target.value })}
                   aria-label="Astral Flow color 2"
                 />
               </label>
@@ -3378,8 +4632,8 @@ export function RunningTimer({
                 <span>Color 3 (highlights)</span>
                 <input
                   type="color"
-                  value={chamaacAstralFlowColorThree}
-                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowColorThree: event.target.value })}
+                  value={massageLabAstralFlowColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowColorThree: event.target.value })}
                   aria-label="Astral Flow color 3"
                 />
               </label>
@@ -3390,8 +4644,8 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={chamaacAstralFlowPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ chamaacAstralFlowPrimaryColor: event.target.value })}
+                  value={massageLabAstralFlowPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowPrimaryColor: event.target.value })}
                   aria-label="Astral Flow primary color"
                 />
               </label>
@@ -3399,9 +4653,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={chamaacAstralFlowHarmony}
+                  value={massageLabAstralFlowHarmony}
                   onChange={(event) => handleSettingsChange({
-                    chamaacAstralFlowHarmony: event.target.value as ColorHarmony,
+                    massageLabAstralFlowHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Astral Flow color harmony"
                 >
@@ -3419,53 +4673,53 @@ export function RunningTimer({
             <span>Animation speed ({astralFlowDisplaySpeed}%)</span>
             <input
               type="range"
-              min={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN}
-              max={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX}
-              step={CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_STEP}
               value={astralFlowDisplaySpeed}
               onChange={(event) => handleSettingsChange({
-                chamaacAstralFlowSpeed: getChamaacAstralFlowSourceSpeed(Number(event.target.value)),
+                massageLabAstralFlowSpeed: getMassageLabAstralFlowSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Astral Flow animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flow min ({chamaacAstralFlowFlowMin.toFixed(1)})</span>
+            <span>Flow min ({massageLabAstralFlowFlowMin.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="10"
               step="0.1"
-              value={chamaacAstralFlowFlowMin}
-              onChange={(event) => handleSettingsChange({ chamaacAstralFlowFlowMin: Number(event.target.value) })}
+              value={massageLabAstralFlowFlowMin}
+              onChange={(event) => handleSettingsChange({ massageLabAstralFlowFlowMin: Number(event.target.value) })}
               aria-label="Astral Flow flow min"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flow max ({chamaacAstralFlowFlowMax.toFixed(1)})</span>
+            <span>Flow max ({massageLabAstralFlowFlowMax.toFixed(1)})</span>
             <input
               type="range"
               min="1"
               max="12"
               step="0.1"
-              value={chamaacAstralFlowFlowMax}
-              onChange={(event) => handleSettingsChange({ chamaacAstralFlowFlowMax: Number(event.target.value) })}
+              value={massageLabAstralFlowFlowMax}
+              onChange={(event) => handleSettingsChange({ massageLabAstralFlowFlowMax: Number(event.target.value) })}
               aria-label="Astral Flow flow max"
             />
           </label>
         </>
       )}
 
-      {option.id === "chamaac-deep-space-nebula" && (
+      {option.id === "massage-lab-deep-space-nebula" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={chamaacDeepSpaceNebulaPaletteMode}
+              value={massageLabDeepSpaceNebulaPaletteMode}
               onChange={(event) => handleSettingsChange({
-                chamaacDeepSpaceNebulaPaletteMode: event.target.value as ChamaacDeepSpaceNebulaPaletteMode,
+                massageLabDeepSpaceNebulaPaletteMode: event.target.value as MassageLabDeepSpaceNebulaPaletteMode,
               })}
               aria-label="Deep Space Nebula color mode"
             >
@@ -3474,14 +4728,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {chamaacDeepSpaceNebulaPaletteMode === "custom" ? (
+          {massageLabDeepSpaceNebulaPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Highlight</span>
                 <input
                   type="color"
-                  value={chamaacDeepSpaceNebulaColorOne}
-                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorOne: event.target.value })}
+                  value={massageLabDeepSpaceNebulaColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaColorOne: event.target.value })}
                   aria-label="Deep Space Nebula highlight color"
                 />
               </label>
@@ -3490,8 +4744,8 @@ export function RunningTimer({
                 <span>Nebula cloud</span>
                 <input
                   type="color"
-                  value={chamaacDeepSpaceNebulaColorTwo}
-                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorTwo: event.target.value })}
+                  value={massageLabDeepSpaceNebulaColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaColorTwo: event.target.value })}
                   aria-label="Deep Space Nebula cloud color"
                 />
               </label>
@@ -3500,8 +4754,8 @@ export function RunningTimer({
                 <span>Deep space</span>
                 <input
                   type="color"
-                  value={chamaacDeepSpaceNebulaColorThree}
-                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaColorThree: event.target.value })}
+                  value={massageLabDeepSpaceNebulaColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaColorThree: event.target.value })}
                   aria-label="Deep Space Nebula deep-space color"
                 />
               </label>
@@ -3512,8 +4766,8 @@ export function RunningTimer({
                 <span>Nebula color</span>
                 <input
                   type="color"
-                  value={chamaacDeepSpaceNebulaPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ chamaacDeepSpaceNebulaPrimaryColor: event.target.value })}
+                  value={massageLabDeepSpaceNebulaPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaPrimaryColor: event.target.value })}
                   aria-label="Deep Space Nebula primary color"
                 />
               </label>
@@ -3521,9 +4775,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={chamaacDeepSpaceNebulaHarmony}
+                  value={massageLabDeepSpaceNebulaHarmony}
                   onChange={(event) => handleSettingsChange({
-                    chamaacDeepSpaceNebulaHarmony: event.target.value as ColorHarmony,
+                    massageLabDeepSpaceNebulaHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Deep Space Nebula color harmony"
                 >
@@ -3541,12 +4795,12 @@ export function RunningTimer({
             <span>Animation speed ({deepSpaceNebulaDisplaySpeed}%)</span>
             <input
               type="range"
-              min={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN}
-              max={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX}
-              step={CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_STEP}
               value={deepSpaceNebulaDisplaySpeed}
               onChange={(event) => handleSettingsChange({
-                chamaacDeepSpaceNebulaSpeed: getChamaacDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
+                massageLabDeepSpaceNebulaSpeed: getMassageLabDeepSpaceNebulaSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Deep Space Nebula animation speed"
             />
@@ -3554,14 +4808,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "chamaac-grid-bloom" && (
+      {option.id === "massage-lab-grid-bloom" && (
         <>
           <label className={styles.colorRow}>
             <span>Bloom color</span>
             <input
               type="color"
-              value={chamaacGridBloomColor}
-              onChange={(event) => handleSettingsChange({ chamaacGridBloomColor: event.target.value })}
+              value={massageLabGridBloomColor}
+              onChange={(event) => handleSettingsChange({ massageLabGridBloomColor: event.target.value })}
               aria-label="Grid Bloom bloom color"
             />
           </label>
@@ -3570,107 +4824,107 @@ export function RunningTimer({
             <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
             <input
               type="range"
-              min={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN}
-              max={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX}
-              step={CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_STEP}
               value={gridBloomDisplaySpeed}
               onChange={(event) => handleSettingsChange({
-                chamaacGridBloomSpeed: getChamaacGridBloomSourceSpeed(Number(event.target.value)),
+                massageLabGridBloomSpeed: getMassageLabGridBloomSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Grid Bloom animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid density ({chamaacGridBloomGridScale.toFixed(0)})</span>
+            <span>Grid density ({massageLabGridBloomGridScale.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="32"
               step="1"
-              value={chamaacGridBloomGridScale}
-              onChange={(event) => handleSettingsChange({ chamaacGridBloomGridScale: Number(event.target.value) })}
+              value={massageLabGridBloomGridScale}
+              onChange={(event) => handleSettingsChange({ massageLabGridBloomGridScale: Number(event.target.value) })}
               aria-label="Grid Bloom grid density"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation speed ({chamaacGridBloomRotationSpeed.toFixed(1)}x)</span>
+            <span>Rotation speed ({massageLabGridBloomRotationSpeed.toFixed(1)}x)</span>
             <input
               type="range"
               min="-3"
               max="3"
               step="0.1"
-              value={chamaacGridBloomRotationSpeed}
-              onChange={(event) => handleSettingsChange({ chamaacGridBloomRotationSpeed: Number(event.target.value) })}
+              value={massageLabGridBloomRotationSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabGridBloomRotationSpeed: Number(event.target.value) })}
               aria-label="Grid Bloom rotation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Fade falloff ({chamaacGridBloomFadeFalloff.toFixed(1)})</span>
+            <span>Fade falloff ({massageLabGridBloomFadeFalloff.toFixed(1)})</span>
             <input
               type="range"
               min="1"
               max="24"
               step="0.5"
-              value={chamaacGridBloomFadeFalloff}
-              onChange={(event) => handleSettingsChange({ chamaacGridBloomFadeFalloff: Number(event.target.value) })}
+              value={massageLabGridBloomFadeFalloff}
+              onChange={(event) => handleSettingsChange({ massageLabGridBloomFadeFalloff: Number(event.target.value) })}
               aria-label="Grid Bloom fade falloff"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distortion ({chamaacGridBloomDistortionAmount.toFixed(2)})</span>
+            <span>Distortion ({massageLabGridBloomDistortionAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.5"
               step="0.01"
-              value={chamaacGridBloomDistortionAmount}
+              value={massageLabGridBloomDistortionAmount}
               onChange={(event) => handleSettingsChange({
-                chamaacGridBloomDistortionAmount: Number(event.target.value),
+                massageLabGridBloomDistortionAmount: Number(event.target.value),
               })}
               aria-label="Grid Bloom distortion"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flow X ({chamaacGridBloomFlowSpeedX.toFixed(1)})</span>
+            <span>Flow X ({massageLabGridBloomFlowSpeedX.toFixed(1)})</span>
             <input
               type="range"
               min="-2"
               max="2"
               step="0.1"
-              value={chamaacGridBloomFlowSpeedX}
-              onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedX: Number(event.target.value) })}
+              value={massageLabGridBloomFlowSpeedX}
+              onChange={(event) => handleSettingsChange({ massageLabGridBloomFlowSpeedX: Number(event.target.value) })}
               aria-label="Grid Bloom flow X"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flow Y ({chamaacGridBloomFlowSpeedY.toFixed(1)})</span>
+            <span>Flow Y ({massageLabGridBloomFlowSpeedY.toFixed(1)})</span>
             <input
               type="range"
               min="-2"
               max="2"
               step="0.1"
-              value={chamaacGridBloomFlowSpeedY}
-              onChange={(event) => handleSettingsChange({ chamaacGridBloomFlowSpeedY: Number(event.target.value) })}
+              value={massageLabGridBloomFlowSpeedY}
+              onChange={(event) => handleSettingsChange({ massageLabGridBloomFlowSpeedY: Number(event.target.value) })}
               aria-label="Grid Bloom flow Y"
             />
           </label>
         </>
       )}
 
-      {option.id === "chamaac-liquid-chrome" && (
+      {option.id === "massage-lab-chrome-flow" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={chamaacLiquidChromePaletteMode}
+              value={massageLabChromeFlowPaletteMode}
               onChange={(event) => handleSettingsChange({
-                chamaacLiquidChromePaletteMode: event.target.value as ChamaacLiquidChromePaletteMode,
+                massageLabChromeFlowPaletteMode: event.target.value as MassageLabChromeFlowPaletteMode,
               })}
               aria-label="Liquid Chrome color mode"
             >
@@ -3679,14 +4933,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {chamaacLiquidChromePaletteMode === "custom" ? (
+          {massageLabChromeFlowPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Chrome color</span>
                 <input
                   type="color"
-                  value={chamaacLiquidChromeColorOne}
-                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromeColorOne: event.target.value })}
+                  value={massageLabChromeFlowColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabChromeFlowColorOne: event.target.value })}
                   aria-label="Liquid Chrome chrome color"
                 />
               </label>
@@ -3695,8 +4949,8 @@ export function RunningTimer({
                 <span>Shadow color</span>
                 <input
                   type="color"
-                  value={chamaacLiquidChromeColorTwo}
-                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromeColorTwo: event.target.value })}
+                  value={massageLabChromeFlowColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabChromeFlowColorTwo: event.target.value })}
                   aria-label="Liquid Chrome shadow color"
                 />
               </label>
@@ -3707,8 +4961,8 @@ export function RunningTimer({
                 <span>Primary chrome</span>
                 <input
                   type="color"
-                  value={chamaacLiquidChromePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ chamaacLiquidChromePrimaryColor: event.target.value })}
+                  value={massageLabChromeFlowPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabChromeFlowPrimaryColor: event.target.value })}
                   aria-label="Liquid Chrome primary color"
                 />
               </label>
@@ -3716,9 +4970,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={chamaacLiquidChromeHarmony}
+                  value={massageLabChromeFlowHarmony}
                   onChange={(event) => handleSettingsChange({
-                    chamaacLiquidChromeHarmony: event.target.value as ColorHarmony,
+                    massageLabChromeFlowHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Liquid Chrome color harmony"
                 >
@@ -3736,12 +4990,12 @@ export function RunningTimer({
             <span>Flow speed ({liquidChromeFlowSpeed}%)</span>
             <input
               type="range"
-              min={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN}
-              max={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX}
-              step={CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP}
+              min={MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN}
+              max={MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX}
+              step={MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_STEP}
               value={liquidChromeFlowSpeed}
               onChange={(event) => handleSettingsChange({
-                chamaacLiquidChromeFlowSpeed: getChamaacLiquidChromeSourceFlowSpeed(Number(event.target.value)),
+                massageLabChromeFlowFlowSpeed: getMassageLabChromeFlowSourceFlowSpeed(Number(event.target.value)),
               })}
               aria-label="Liquid Chrome flow speed"
             />
@@ -3751,12 +5005,12 @@ export function RunningTimer({
             <span>Time scale ({liquidChromeTimeScale}%)</span>
             <input
               type="range"
-              min={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN}
-              max={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX}
-              step={CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP}
+              min={MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN}
+              max={MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX}
+              step={MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_STEP}
               value={liquidChromeTimeScale}
               onChange={(event) => handleSettingsChange({
-                chamaacLiquidChromeTimeScale: getChamaacLiquidChromeSourceTimeScale(Number(event.target.value)),
+                massageLabChromeFlowTimeScale: getMassageLabChromeFlowSourceTimeScale(Number(event.target.value)),
               })}
               aria-label="Liquid Chrome time scale"
             />
@@ -3764,14 +5018,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "aceternity-3d-globe" && (
+      {option.id === "massage-lab-3d-globe" && (
         <>
           <label className={styles.selectRow}>
             <span>View style</span>
             <select
-              value={aceternity3DGlobeViewStyle}
+              value={massageLab3DGlobeViewStyle}
               onChange={(event) => handleSettingsChange({
-                aceternity3DGlobeViewStyle: event.target.value as ChimerSettings["aceternity3DGlobeViewStyle"],
+                massageLab3DGlobeViewStyle: event.target.value as ChimerSettings["massageLab3DGlobeViewStyle"],
               })}
               aria-label="3D Globe view style"
             >
@@ -3784,8 +5038,8 @@ export function RunningTimer({
             <span>Background</span>
             <input
               type="color"
-              value={aceternity3DGlobeBackgroundColor}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeBackgroundColor: event.target.value })}
+              value={massageLab3DGlobeBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLab3DGlobeBackgroundColor: event.target.value })}
               aria-label="3D Globe background color"
             />
           </label>
@@ -3796,8 +5050,8 @@ export function RunningTimer({
                 <span>Map dots</span>
                 <input
                   type="color"
-                  value={aceternity3DGlobeGraphicMapColor}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicMapColor: event.target.value })}
+                  value={massageLab3DGlobeGraphicMapColor}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeGraphicMapColor: event.target.value })}
                   aria-label="3D Globe graphic map dot color"
                 />
               </label>
@@ -3805,8 +5059,8 @@ export function RunningTimer({
                 <span>Outer Glow</span>
                 <input
                   type="color"
-                  value={aceternity3DGlobeGraphicGlowColor}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicGlowColor: event.target.value })}
+                  value={massageLab3DGlobeGraphicGlowColor}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeGraphicGlowColor: event.target.value })}
                   aria-label="3D Globe graphic outer glow color"
                 />
               </label>
@@ -3814,21 +5068,21 @@ export function RunningTimer({
                 <span>Marker dots</span>
                 <input
                   type="color"
-                  value={aceternity3DGlobeGraphicMarkerColor}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeGraphicMarkerColor: event.target.value })}
+                  value={massageLab3DGlobeGraphicMarkerColor}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeGraphicMarkerColor: event.target.value })}
                   aria-label="3D Globe graphic marker color"
                 />
               </label>
               <label className={styles.rangeRow}>
-                <span>Dot density ({Math.round(aceternity3DGlobeGraphicMapSamples / 1000)}k)</span>
+                <span>Dot density ({Math.round(massageLab3DGlobeGraphicMapSamples / 1000)}k)</span>
                 <input
                   type="range"
                   min="1000"
                   max="10000"
                   step="1000"
-                  value={aceternity3DGlobeGraphicMapSamples}
+                  value={massageLab3DGlobeGraphicMapSamples}
                   onChange={(event) => handleSettingsChange({
-                    aceternity3DGlobeGraphicMapSamples: Number(event.target.value),
+                    massageLab3DGlobeGraphicMapSamples: Number(event.target.value),
                   })}
                   aria-label="3D Globe graphic dot density"
                 />
@@ -3839,8 +5093,8 @@ export function RunningTimer({
               <span>Globe tint</span>
               <input
                 type="color"
-                value={aceternity3DGlobeGlobeColor}
-                onChange={(event) => handleSettingsChange({ aceternity3DGlobeGlobeColor: event.target.value })}
+                value={massageLab3DGlobeGlobeColor}
+                onChange={(event) => handleSettingsChange({ massageLab3DGlobeGlobeColor: event.target.value })}
                 aria-label="3D Globe tint color"
               />
             </label>
@@ -3849,14 +5103,14 @@ export function RunningTimer({
           {!followSun && (
             <>
               <label className={styles.rangeRow}>
-                <span>Rotation speed ({aceternity3DGlobeAutoRotateSpeed.toFixed(2)}x)</span>
+                <span>Rotation speed ({massageLab3DGlobeAutoRotateSpeed.toFixed(2)}x)</span>
                 <input
                   type="range"
                   min="0.01"
                   max="2"
                   step="0.01"
-                  value={aceternity3DGlobeAutoRotateSpeed}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAutoRotateSpeed: Number(event.target.value) })}
+                  value={massageLab3DGlobeAutoRotateSpeed}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeAutoRotateSpeed: Number(event.target.value) })}
                   aria-label="3D Globe rotation speed"
                 />
               </label>
@@ -3869,7 +5123,7 @@ export function RunningTimer({
             <input
               type="checkbox"
               checked={followSun}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeLightingMode: event.target.checked ? "sun" : "manual" })}
+              onChange={(event) => handleSettingsChange({ massageLab3DGlobeLightingMode: event.target.checked ? "sun" : "manual" })}
               aria-label="3D Globe follow sun"
             />
           </label>
@@ -3878,36 +5132,36 @@ export function RunningTimer({
             <span>Pan controls</span>
             <input
               type="checkbox"
-              checked={aceternity3DGlobeEnablePan}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeEnablePan: event.target.checked })}
+              checked={massageLab3DGlobeEnablePan}
+              onChange={(event) => handleSettingsChange({ massageLab3DGlobeEnablePan: event.target.checked })}
               aria-label="3D Globe pan controls"
             />
           </label>
 
-          {aceternity3DGlobeEnablePan && (
+          {massageLab3DGlobeEnablePan && (
             <>
               <label className={styles.rangeRow}>
-                <span>Pan X Left/Right ({Math.round(aceternity3DGlobePanX)}%)</span>
+                <span>Pan X Left/Right ({Math.round(massageLab3DGlobePanX)}%)</span>
                 <input
                   type="range"
                   min="-50"
                   max="50"
                   step="1"
-                  value={aceternity3DGlobePanX}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePanX: Number(event.target.value) })}
+                  value={massageLab3DGlobePanX}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobePanX: Number(event.target.value) })}
                   aria-label="3D Globe pan X left right"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Pan Y Up/Down ({Math.round(aceternity3DGlobePanY)}%)</span>
+                <span>Pan Y Up/Down ({Math.round(massageLab3DGlobePanY)}%)</span>
                 <input
                   type="range"
                   min="-50"
                   max="50"
                   step="1"
-                  value={aceternity3DGlobePanY}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePanY: Number(event.target.value) })}
+                  value={massageLab3DGlobePanY}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobePanY: Number(event.target.value) })}
                   aria-label="3D Globe pan Y up down"
                 />
               </label>
@@ -3915,15 +5169,15 @@ export function RunningTimer({
           )}
 
           <label className={styles.rangeRow}>
-            <span>Globe size ({aceternity3DGlobeScaleDisplayPercent}%)</span>
+            <span>Globe size ({massageLab3DGlobeScaleDisplayPercent}%)</span>
             <input
               type="range"
               min="1"
               max="100"
               step="1"
-              value={aceternity3DGlobeScaleDisplayPercent}
+              value={massageLab3DGlobeScaleDisplayPercent}
               onChange={(event) => handleSettingsChange({
-                aceternity3DGlobeScale: getAceternity3DGlobeScaleFromDisplayPercent(Number(event.target.value)),
+                massageLab3DGlobeScale: getMassageLab3DGlobeScaleFromDisplayPercent(Number(event.target.value)),
               })}
               aria-label="3D Globe size"
             />
@@ -3931,14 +5185,14 @@ export function RunningTimer({
 
           {!isGraphicGlobe && (
             <label className={styles.rangeRow}>
-              <span>Bump scale ({aceternity3DGlobeBumpScale.toFixed(1)})</span>
+              <span>Bump scale ({massageLab3DGlobeBumpScale.toFixed(1)})</span>
               <input
                 type="range"
                 min="0"
                 max="3"
                 step="0.1"
-                value={aceternity3DGlobeBumpScale}
-                onChange={(event) => handleSettingsChange({ aceternity3DGlobeBumpScale: Number(event.target.value) })}
+                value={massageLab3DGlobeBumpScale}
+                onChange={(event) => handleSettingsChange({ massageLab3DGlobeBumpScale: Number(event.target.value) })}
                 aria-label="3D Globe bump scale"
               />
             </label>
@@ -3947,27 +5201,27 @@ export function RunningTimer({
           {!followSun && (
             <>
               <label className={styles.rangeRow}>
-                <span>Ambient light ({aceternity3DGlobeAmbientIntensity.toFixed(1)})</span>
+                <span>Ambient light ({massageLab3DGlobeAmbientIntensity.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
                   max="2"
                   step="0.1"
-                  value={aceternity3DGlobeAmbientIntensity}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeAmbientIntensity: Number(event.target.value) })}
+                  value={massageLab3DGlobeAmbientIntensity}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeAmbientIntensity: Number(event.target.value) })}
                   aria-label="3D Globe ambient light"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Point light ({aceternity3DGlobePointLightIntensity.toFixed(1)})</span>
+                <span>Point light ({massageLab3DGlobePointLightIntensity.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
                   max="4"
                   step="0.1"
-                  value={aceternity3DGlobePointLightIntensity}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobePointLightIntensity: Number(event.target.value) })}
+                  value={massageLab3DGlobePointLightIntensity}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobePointLightIntensity: Number(event.target.value) })}
                   aria-label="3D Globe point light"
                 />
               </label>
@@ -3980,44 +5234,44 @@ export function RunningTimer({
                 <span>Atmosphere</span>
                 <input
                   type="checkbox"
-                  checked={aceternity3DGlobeShowAtmosphere}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowAtmosphere: event.target.checked })}
+                  checked={massageLab3DGlobeShowAtmosphere}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeShowAtmosphere: event.target.checked })}
                   aria-label="3D Globe show atmosphere"
                 />
               </label>
 
-              {aceternity3DGlobeShowAtmosphere && (
+              {massageLab3DGlobeShowAtmosphere && (
                 <>
                   <label className={styles.colorRow}>
                     <span>Atmosphere color</span>
                     <input
                       type="color"
-                      value={aceternity3DGlobeAtmosphereColor}
-                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereColor: event.target.value })}
+                      value={massageLab3DGlobeAtmosphereColor}
+                      onChange={(event) => handleSettingsChange({ massageLab3DGlobeAtmosphereColor: event.target.value })}
                       aria-label="3D Globe atmosphere color"
                     />
                   </label>
                   <label className={styles.rangeRow}>
-                    <span>Atmosphere ({aceternity3DGlobeAtmosphereIntensity.toFixed(1)})</span>
+                    <span>Atmosphere ({massageLab3DGlobeAtmosphereIntensity.toFixed(1)})</span>
                     <input
                       type="range"
                       min="0"
                       max="2"
                       step="0.1"
-                      value={aceternity3DGlobeAtmosphereIntensity}
-                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereIntensity: Number(event.target.value) })}
+                      value={massageLab3DGlobeAtmosphereIntensity}
+                      onChange={(event) => handleSettingsChange({ massageLab3DGlobeAtmosphereIntensity: Number(event.target.value) })}
                       aria-label="3D Globe atmosphere intensity"
                     />
                   </label>
                   <label className={styles.rangeRow}>
-                    <span>Atmosphere blur ({aceternity3DGlobeAtmosphereBlur.toFixed(1)})</span>
+                    <span>Atmosphere blur ({massageLab3DGlobeAtmosphereBlur.toFixed(1)})</span>
                     <input
                       type="range"
                       min="0.5"
                       max="5"
                       step="0.1"
-                      value={aceternity3DGlobeAtmosphereBlur}
-                      onChange={(event) => handleSettingsChange({ aceternity3DGlobeAtmosphereBlur: Number(event.target.value) })}
+                      value={massageLab3DGlobeAtmosphereBlur}
+                      onChange={(event) => handleSettingsChange({ massageLab3DGlobeAtmosphereBlur: Number(event.target.value) })}
                       aria-label="3D Globe atmosphere blur"
                     />
                   </label>
@@ -4028,19 +5282,19 @@ export function RunningTimer({
                 <span>Wireframe</span>
                 <input
                   type="checkbox"
-                  checked={aceternity3DGlobeShowWireframe}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeShowWireframe: event.target.checked })}
+                  checked={massageLab3DGlobeShowWireframe}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeShowWireframe: event.target.checked })}
                   aria-label="3D Globe show wireframe"
                 />
               </label>
 
-              {aceternity3DGlobeShowWireframe && (
+              {massageLab3DGlobeShowWireframe && (
                 <label className={styles.colorRow}>
                   <span>Wireframe color</span>
                   <input
                     type="color"
-                    value={aceternity3DGlobeWireframeColor}
-                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeWireframeColor: event.target.value })}
+                    value={massageLab3DGlobeWireframeColor}
+                    onChange={(event) => handleSettingsChange({ massageLab3DGlobeWireframeColor: event.target.value })}
                     aria-label="3D Globe wireframe color"
                   />
                 </label>
@@ -4052,13 +5306,13 @@ export function RunningTimer({
             <span>Location marker</span>
             <input
               type="checkbox"
-              checked={aceternity3DGlobeMarkerEnabled}
-              onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerEnabled: event.target.checked })}
+              checked={massageLab3DGlobeMarkerEnabled}
+              onChange={(event) => handleSettingsChange({ massageLab3DGlobeMarkerEnabled: event.target.checked })}
               aria-label="3D Globe location marker"
             />
           </label>
 
-          {aceternity3DGlobeMarkerEnabled && (
+          {massageLab3DGlobeMarkerEnabled && (
             <>
               <div className={styles.locationGrid}>
                 <label className={styles.textField}>
@@ -4068,8 +5322,8 @@ export function RunningTimer({
                     min="-90"
                     max="90"
                     step="0.0001"
-                    value={aceternity3DGlobeMarkerLat}
-                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLat: Number(event.target.value) })}
+                    value={massageLab3DGlobeMarkerLat}
+                    onChange={(event) => handleSettingsChange({ massageLab3DGlobeMarkerLat: Number(event.target.value) })}
                     aria-label="3D Globe marker latitude"
                   />
                 </label>
@@ -4080,13 +5334,20 @@ export function RunningTimer({
                     min="-180"
                     max="180"
                     step="0.0001"
-                    value={aceternity3DGlobeMarkerLng}
-                    onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLng: Number(event.target.value) })}
+                    value={massageLab3DGlobeMarkerLng}
+                    onChange={(event) => handleSettingsChange({ massageLab3DGlobeMarkerLng: Number(event.target.value) })}
                     aria-label="3D Globe marker longitude"
                   />
                 </label>
               </div>
-              <button type="button" className={styles.inlineButton} onClick={useCurrentLocationForGlobe}>
+              <button
+                type="button"
+                className={`${styles.inlineButton} ${styles.tactileButton}`}
+                onClick={() => {
+                  pressHaptic()
+                  getCurrentLocationForGlobe()
+                }}
+              >
                 Use my location
               </button>
               <label className={styles.textField}>
@@ -4094,17 +5355,17 @@ export function RunningTimer({
                 <input
                   type="text"
                   placeholder="Optional"
-                  value={aceternity3DGlobeMarkerLabel}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerLabel: event.target.value })}
+                  value={massageLab3DGlobeMarkerLabel}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeMarkerLabel: event.target.value })}
                   aria-label="3D Globe marker label"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Marker icon</span>
                 <select
-                  value={aceternity3DGlobeMarkerIcon}
+                  value={massageLab3DGlobeMarkerIcon}
                   onChange={(event) => handleSettingsChange({
-                    aceternity3DGlobeMarkerIcon: event.target.value as ChimerSettings["aceternity3DGlobeMarkerIcon"],
+                    massageLab3DGlobeMarkerIcon: event.target.value as ChimerSettings["massageLab3DGlobeMarkerIcon"],
                   })}
                   aria-label="3D Globe marker icon"
                 >
@@ -4116,14 +5377,14 @@ export function RunningTimer({
                 </select>
               </label>
               <label className={styles.rangeRow}>
-                <span>Marker size ({Math.round(aceternity3DGlobeMarkerSize * 100)}%)</span>
+                <span>Marker size ({Math.round(massageLab3DGlobeMarkerSize * 100)}%)</span>
                 <input
                   type="range"
                   min="0.03"
                   max="0.16"
                   step="0.005"
-                  value={aceternity3DGlobeMarkerSize}
-                  onChange={(event) => handleSettingsChange({ aceternity3DGlobeMarkerSize: Number(event.target.value) })}
+                  value={massageLab3DGlobeMarkerSize}
+                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeMarkerSize: Number(event.target.value) })}
                   aria-label="3D Globe marker size"
                 />
               </label>
@@ -4132,14 +5393,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "magicui-retro-grid" && (
+      {option.id === "massage-lab-retro-grid" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
             <input
               type="color"
-              value={magicRetroGridBackgroundColor}
-              onChange={(event) => handleSettingsChange({ magicRetroGridBackgroundColor: event.target.value })}
+              value={massageLabRetroGridBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLabRetroGridBackgroundColor: event.target.value })}
               aria-label="Retro Grid background color"
             />
           </label>
@@ -4148,8 +5409,8 @@ export function RunningTimer({
             <span>Light line color</span>
             <input
               type="color"
-              value={magicRetroGridLightLineColor}
-              onChange={(event) => handleSettingsChange({ magicRetroGridLightLineColor: event.target.value })}
+              value={massageLabRetroGridLightLineColor}
+              onChange={(event) => handleSettingsChange({ massageLabRetroGridLightLineColor: event.target.value })}
               aria-label="Retro Grid light line color"
             />
           </label>
@@ -4158,61 +5419,61 @@ export function RunningTimer({
             <span>Dark line color</span>
             <input
               type="color"
-              value={magicRetroGridDarkLineColor}
-              onChange={(event) => handleSettingsChange({ magicRetroGridDarkLineColor: event.target.value })}
+              value={massageLabRetroGridDarkLineColor}
+              onChange={(event) => handleSettingsChange({ massageLabRetroGridDarkLineColor: event.target.value })}
               aria-label="Retro Grid dark line color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Angle ({magicRetroGridAngle.toFixed(0)} deg)</span>
+            <span>Angle ({massageLabRetroGridAngle.toFixed(0)} deg)</span>
             <input
               type="range"
               min="1"
               max="89"
               step="1"
-              value={magicRetroGridAngle}
-              onChange={(event) => handleSettingsChange({ magicRetroGridAngle: Number(event.target.value) })}
+              value={massageLabRetroGridAngle}
+              onChange={(event) => handleSettingsChange({ massageLabRetroGridAngle: Number(event.target.value) })}
               aria-label="Retro Grid angle"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Cell size ({magicRetroGridCellSize.toFixed(0)}px)</span>
+            <span>Cell size ({massageLabRetroGridCellSize.toFixed(0)}px)</span>
             <input
               type="range"
               min="12"
               max="160"
               step="1"
-              value={magicRetroGridCellSize}
-              onChange={(event) => handleSettingsChange({ magicRetroGridCellSize: Number(event.target.value) })}
+              value={massageLabRetroGridCellSize}
+              onChange={(event) => handleSettingsChange({ massageLabRetroGridCellSize: Number(event.target.value) })}
               aria-label="Retro Grid cell size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid opacity ({Math.round(magicRetroGridOpacity * 100)}%)</span>
+            <span>Grid opacity ({Math.round(massageLabRetroGridOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={magicRetroGridOpacity}
-              onChange={(event) => handleSettingsChange({ magicRetroGridOpacity: Number(event.target.value) })}
+              value={massageLabRetroGridOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabRetroGridOpacity: Number(event.target.value) })}
               aria-label="Retro Grid opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "magicui-light-rays" && (
+      {option.id === "massage-lab-aerial-rays" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
             <input
               type="color"
-              value={magicLightRaysBackgroundColor}
-              onChange={(event) => handleSettingsChange({ magicLightRaysBackgroundColor: event.target.value })}
+              value={massageLabAerialRaysBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysBackgroundColor: event.target.value })}
               aria-label="Light Rays background color"
             />
           </label>
@@ -4221,87 +5482,87 @@ export function RunningTimer({
             <span>Ray color</span>
             <input
               type="color"
-              value={magicLightRaysColor}
-              onChange={(event) => handleSettingsChange({ magicLightRaysColor: event.target.value })}
+              value={massageLabAerialRaysColor}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysColor: event.target.value })}
               aria-label="Light Rays color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ray count ({magicLightRaysCount})</span>
+            <span>Ray count ({massageLabAerialRaysCount})</span>
             <input
               type="range"
               min="1"
               max="20"
               step="1"
-              value={magicLightRaysCount}
-              onChange={(event) => handleSettingsChange({ magicLightRaysCount: Number(event.target.value) })}
+              value={massageLabAerialRaysCount}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysCount: Number(event.target.value) })}
               aria-label="Light Rays count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Blur ({magicLightRaysBlur.toFixed(0)}px)</span>
+            <span>Blur ({massageLabAerialRaysBlur.toFixed(0)}px)</span>
             <input
               type="range"
               min="0"
               max="80"
               step="1"
-              value={magicLightRaysBlur}
-              onChange={(event) => handleSettingsChange({ magicLightRaysBlur: Number(event.target.value) })}
+              value={massageLabAerialRaysBlur}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysBlur: Number(event.target.value) })}
               aria-label="Light Rays blur"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({magicLightRaysSpeed.toFixed(1)}s)</span>
+            <span>Speed ({massageLabAerialRaysSpeed.toFixed(1)}s)</span>
             <input
               type="range"
               min="2"
               max="40"
               step="0.5"
-              value={magicLightRaysSpeed}
-              onChange={(event) => handleSettingsChange({ magicLightRaysSpeed: Number(event.target.value) })}
+              value={massageLabAerialRaysSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysSpeed: Number(event.target.value) })}
               aria-label="Light Rays speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ray length ({magicLightRaysLength.toFixed(0)}vh)</span>
+            <span>Ray length ({massageLabAerialRaysLength.toFixed(0)}vh)</span>
             <input
               type="range"
               min="24"
               max="120"
               step="1"
-              value={magicLightRaysLength}
-              onChange={(event) => handleSettingsChange({ magicLightRaysLength: Number(event.target.value) })}
+              value={massageLabAerialRaysLength}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysLength: Number(event.target.value) })}
               aria-label="Light Rays length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ray opacity ({Math.round(magicLightRaysOpacity * 100)}%)</span>
+            <span>Ray opacity ({Math.round(massageLabAerialRaysOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={magicLightRaysOpacity}
-              onChange={(event) => handleSettingsChange({ magicLightRaysOpacity: Number(event.target.value) })}
+              value={massageLabAerialRaysOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabAerialRaysOpacity: Number(event.target.value) })}
               aria-label="Light Rays opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "chamaac-waves" && (
+      {option.id === "massage-lab-wave-current" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={chamaacWavesPaletteMode}
+              value={massageLabWaveCurrentPaletteMode}
               onChange={(event) => handleSettingsChange({
-                chamaacWavesPaletteMode: event.target.value as ChamaacWavesPaletteMode,
+                massageLabWaveCurrentPaletteMode: event.target.value as MassageLabWaveCurrentPaletteMode,
               })}
               aria-label="Waves color mode"
             >
@@ -4310,14 +5571,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {chamaacWavesPaletteMode === "custom" ? (
+          {massageLabWaveCurrentPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Background</span>
                 <input
                   type="color"
-                  value={chamaacWavesBackgroundColor}
-                  onChange={(event) => handleSettingsChange({ chamaacWavesBackgroundColor: event.target.value })}
+                  value={massageLabWaveCurrentBackgroundColor}
+                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentBackgroundColor: event.target.value })}
                   aria-label="Waves background color"
                 />
               </label>
@@ -4326,8 +5587,8 @@ export function RunningTimer({
                 <span>Primary wave</span>
                 <input
                   type="color"
-                  value={chamaacWavesColorOne}
-                  onChange={(event) => handleSettingsChange({ chamaacWavesColorOne: event.target.value })}
+                  value={massageLabWaveCurrentColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentColorOne: event.target.value })}
                   aria-label="Waves primary wave color"
                 />
               </label>
@@ -4336,8 +5597,8 @@ export function RunningTimer({
                 <span>Highlight</span>
                 <input
                   type="color"
-                  value={chamaacWavesColorTwo}
-                  onChange={(event) => handleSettingsChange({ chamaacWavesColorTwo: event.target.value })}
+                  value={massageLabWaveCurrentColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentColorTwo: event.target.value })}
                   aria-label="Waves highlight color"
                 />
               </label>
@@ -4346,8 +5607,8 @@ export function RunningTimer({
                 <span>Valley</span>
                 <input
                   type="color"
-                  value={chamaacWavesColorThree}
-                  onChange={(event) => handleSettingsChange({ chamaacWavesColorThree: event.target.value })}
+                  value={massageLabWaveCurrentColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentColorThree: event.target.value })}
                   aria-label="Waves valley color"
                 />
               </label>
@@ -4358,8 +5619,8 @@ export function RunningTimer({
                 <span>Primary wave</span>
                 <input
                   type="color"
-                  value={chamaacWavesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ chamaacWavesPrimaryColor: event.target.value })}
+                  value={massageLabWaveCurrentPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentPrimaryColor: event.target.value })}
                   aria-label="Waves primary color"
                 />
               </label>
@@ -4367,9 +5628,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={chamaacWavesHarmony}
+                  value={massageLabWaveCurrentHarmony}
                   onChange={(event) => handleSettingsChange({
-                    chamaacWavesHarmony: event.target.value as ColorHarmony,
+                    massageLabWaveCurrentHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Waves color harmony"
                 >
@@ -4387,12 +5648,12 @@ export function RunningTimer({
             <span>Speed X ({wavesSpeedX}%)</span>
             <input
               type="range"
-              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
-              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
-              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_WAVES_DISPLAY_SPEED_STEP}
               value={wavesSpeedX}
               onChange={(event) => handleSettingsChange({
-                chamaacWavesSpeedX: getChamaacWavesSourceSpeed(Number(event.target.value)),
+                massageLabWaveCurrentSpeedX: getMassageLabWaveCurrentSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Waves speed X"
             />
@@ -4402,40 +5663,40 @@ export function RunningTimer({
             <span>Speed Y ({wavesSpeedY}%)</span>
             <input
               type="range"
-              min={CHAMAAC_WAVES_DISPLAY_SPEED_MIN}
-              max={CHAMAAC_WAVES_DISPLAY_SPEED_MAX}
-              step={CHAMAAC_WAVES_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_WAVES_DISPLAY_SPEED_STEP}
               value={wavesSpeedY}
               onChange={(event) => handleSettingsChange({
-                chamaacWavesSpeedY: getChamaacWavesSourceSpeed(Number(event.target.value)),
+                massageLabWaveCurrentSpeedY: getMassageLabWaveCurrentSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Waves speed Y"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Amplitude ({chamaacWavesAmplitude.toFixed(0)})</span>
+            <span>Amplitude ({massageLabWaveCurrentAmplitude.toFixed(0)})</span>
             <input
               type="range"
               min="8"
               max="64"
               step="1"
-              value={chamaacWavesAmplitude}
-              onChange={(event) => handleSettingsChange({ chamaacWavesAmplitude: Number(event.target.value) })}
+              value={massageLabWaveCurrentAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabWaveCurrentAmplitude: Number(event.target.value) })}
               aria-label="Waves amplitude"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-ferrofluid" && (
+      {option.id === "massage-lab-ferrofluid" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsFerrofluidPaletteMode}
+              value={massageLabFerrofluidPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsFerrofluidPaletteMode: event.target.value as ReactBitsFerrofluidPaletteMode,
+                massageLabFerrofluidPaletteMode: event.target.value as MassageLabFerrofluidPaletteMode,
               })}
               aria-label="Ferrofluid color mode"
             >
@@ -4444,14 +5705,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsFerrofluidPaletteMode === "custom" ? (
+          {massageLabFerrofluidPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsFerrofluidColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorOne: event.target.value })}
+                  value={massageLabFerrofluidColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidColorOne: event.target.value })}
                   aria-label="Ferrofluid first color"
                 />
               </label>
@@ -4459,8 +5720,8 @@ export function RunningTimer({
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsFerrofluidColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorTwo: event.target.value })}
+                  value={massageLabFerrofluidColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidColorTwo: event.target.value })}
                   aria-label="Ferrofluid second color"
                 />
               </label>
@@ -4468,8 +5729,8 @@ export function RunningTimer({
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsFerrofluidColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidColorThree: event.target.value })}
+                  value={massageLabFerrofluidColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidColorThree: event.target.value })}
                   aria-label="Ferrofluid third color"
                 />
               </label>
@@ -4480,17 +5741,17 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsFerrofluidPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsFerrofluidPrimaryColor: event.target.value })}
+                  value={massageLabFerrofluidPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidPrimaryColor: event.target.value })}
                   aria-label="Ferrofluid primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsFerrofluidHarmony}
+                  value={massageLabFerrofluidHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsFerrofluidHarmony: event.target.value as ColorHarmony,
+                    massageLabFerrofluidHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Ferrofluid color harmony"
                 >
@@ -4507,9 +5768,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Flow direction</span>
             <select
-              value={reactBitsFerrofluidFlowDirection}
+              value={massageLabFerrofluidFlowDirection}
               onChange={(event) => handleSettingsChange({
-                reactBitsFerrofluidFlowDirection: event.target.value as ChimerSettings["reactBitsFerrofluidFlowDirection"],
+                massageLabFerrofluidFlowDirection: event.target.value as ChimerSettings["massageLabFerrofluidFlowDirection"],
               })}
               aria-label="Ferrofluid flow direction"
             >
@@ -4521,132 +5782,132 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Animation speed ({reactBitsFerrofluidSpeed.toFixed(2)}x)</span>
+            <span>Animation speed ({massageLabFerrofluidSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0.05"
               max="2"
               step="0.05"
-              value={reactBitsFerrofluidSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidSpeed: Number(event.target.value) })}
+              value={massageLabFerrofluidSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidSpeed: Number(event.target.value) })}
               aria-label="Ferrofluid animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsFerrofluidScale.toFixed(1)})</span>
+            <span>Scale ({massageLabFerrofluidScale.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="4"
               step="0.1"
-              value={reactBitsFerrofluidScale}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidScale: Number(event.target.value) })}
+              value={massageLabFerrofluidScale}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidScale: Number(event.target.value) })}
               aria-label="Ferrofluid scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Turbulence ({reactBitsFerrofluidTurbulence.toFixed(2)})</span>
+            <span>Turbulence ({massageLabFerrofluidTurbulence.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsFerrofluidTurbulence}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidTurbulence: Number(event.target.value) })}
+              value={massageLabFerrofluidTurbulence}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidTurbulence: Number(event.target.value) })}
               aria-label="Ferrofluid turbulence"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Fluidity ({reactBitsFerrofluidFluidity.toFixed(3)})</span>
+            <span>Fluidity ({massageLabFerrofluidFluidity.toFixed(3)})</span>
             <input
               type="range"
               min="0.001"
               max="0.4"
               step="0.001"
-              value={reactBitsFerrofluidFluidity}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidFluidity: Number(event.target.value) })}
+              value={massageLabFerrofluidFluidity}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidFluidity: Number(event.target.value) })}
               aria-label="Ferrofluid fluidity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rim width ({reactBitsFerrofluidRimWidth.toFixed(2)})</span>
+            <span>Rim width ({massageLabFerrofluidRimWidth.toFixed(2)})</span>
             <input
               type="range"
               min="0.03"
               max="0.5"
               step="0.01"
-              value={reactBitsFerrofluidRimWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidRimWidth: Number(event.target.value) })}
+              value={massageLabFerrofluidRimWidth}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidRimWidth: Number(event.target.value) })}
               aria-label="Ferrofluid rim width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Sharpness ({reactBitsFerrofluidSharpness.toFixed(1)})</span>
+            <span>Sharpness ({massageLabFerrofluidSharpness.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="6"
               step="0.1"
-              value={reactBitsFerrofluidSharpness}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidSharpness: Number(event.target.value) })}
+              value={massageLabFerrofluidSharpness}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidSharpness: Number(event.target.value) })}
               aria-label="Ferrofluid sharpness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Shimmer ({reactBitsFerrofluidShimmer.toFixed(1)})</span>
+            <span>Shimmer ({massageLabFerrofluidShimmer.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.1"
-              value={reactBitsFerrofluidShimmer}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidShimmer: Number(event.target.value) })}
+              value={massageLabFerrofluidShimmer}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidShimmer: Number(event.target.value) })}
               aria-label="Ferrofluid shimmer"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({reactBitsFerrofluidGlow.toFixed(1)})</span>
+            <span>Glow ({massageLabFerrofluidGlow.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="5"
               step="0.1"
-              value={reactBitsFerrofluidGlow}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidGlow: Number(event.target.value) })}
+              value={massageLabFerrofluidGlow}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidGlow: Number(event.target.value) })}
               aria-label="Ferrofluid glow"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({Math.round(reactBitsFerrofluidOpacity * 100)}%)</span>
+            <span>Opacity ({Math.round(massageLabFerrofluidOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={reactBitsFerrofluidOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsFerrofluidOpacity: Number(event.target.value) })}
+              value={massageLabFerrofluidOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabFerrofluidOpacity: Number(event.target.value) })}
               aria-label="Ferrofluid opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-lightfall" && (
+      {option.id === "massage-lab-lightfall" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsLightfallPaletteMode}
+              value={massageLabLightfallPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightfallPaletteMode: event.target.value as ReactBitsLightfallPaletteMode,
+                massageLabLightfallPaletteMode: event.target.value as MassageLabLightfallPaletteMode,
               })}
               aria-label="Lightfall color mode"
             >
@@ -4655,14 +5916,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLightfallPaletteMode === "custom" ? (
+          {massageLabLightfallPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsLightfallColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorOne: event.target.value })}
+                  value={massageLabLightfallColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabLightfallColorOne: event.target.value })}
                   aria-label="Lightfall first color"
                 />
               </label>
@@ -4670,8 +5931,8 @@ export function RunningTimer({
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsLightfallColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorTwo: event.target.value })}
+                  value={massageLabLightfallColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabLightfallColorTwo: event.target.value })}
                   aria-label="Lightfall second color"
                 />
               </label>
@@ -4679,8 +5940,8 @@ export function RunningTimer({
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsLightfallColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightfallColorThree: event.target.value })}
+                  value={massageLabLightfallColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabLightfallColorThree: event.target.value })}
                   aria-label="Lightfall third color"
                 />
               </label>
@@ -4691,17 +5952,17 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLightfallPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightfallPrimaryColor: event.target.value })}
+                  value={massageLabLightfallPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLightfallPrimaryColor: event.target.value })}
                   aria-label="Lightfall primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsLightfallHarmony}
+                  value={massageLabLightfallHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightfallHarmony: event.target.value as ColorHarmony,
+                    massageLabLightfallHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Lightfall color harmony"
                 >
@@ -4719,138 +5980,138 @@ export function RunningTimer({
             <span>Background</span>
             <input
               type="color"
-              value={reactBitsLightfallBackgroundColor}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallBackgroundColor: event.target.value })}
+              value={massageLabLightfallBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallBackgroundColor: event.target.value })}
               aria-label="Lightfall background color"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Animation speed ({reactBitsLightfallSpeed.toFixed(2)}x)</span>
+            <span>Animation speed ({massageLabLightfallSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0.05"
               max="2"
               step="0.05"
-              value={reactBitsLightfallSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallSpeed: Number(event.target.value) })}
+              value={massageLabLightfallSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallSpeed: Number(event.target.value) })}
               aria-label="Lightfall animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Streak count ({reactBitsLightfallStreakCount.toFixed(0)})</span>
+            <span>Streak count ({massageLabLightfallStreakCount.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="16"
               step="1"
-              value={reactBitsLightfallStreakCount}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakCount: Number(event.target.value) })}
+              value={massageLabLightfallStreakCount}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallStreakCount: Number(event.target.value) })}
               aria-label="Lightfall streak count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Streak width ({reactBitsLightfallStreakWidth.toFixed(1)})</span>
+            <span>Streak width ({massageLabLightfallStreakWidth.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="3"
               step="0.1"
-              value={reactBitsLightfallStreakWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakWidth: Number(event.target.value) })}
+              value={massageLabLightfallStreakWidth}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallStreakWidth: Number(event.target.value) })}
               aria-label="Lightfall streak width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Streak length ({reactBitsLightfallStreakLength.toFixed(1)})</span>
+            <span>Streak length ({massageLabLightfallStreakLength.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="3"
               step="0.1"
-              value={reactBitsLightfallStreakLength}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallStreakLength: Number(event.target.value) })}
+              value={massageLabLightfallStreakLength}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallStreakLength: Number(event.target.value) })}
               aria-label="Lightfall streak length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({reactBitsLightfallGlow.toFixed(1)})</span>
+            <span>Glow ({massageLabLightfallGlow.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.1"
-              value={reactBitsLightfallGlow}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallGlow: Number(event.target.value) })}
+              value={massageLabLightfallGlow}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallGlow: Number(event.target.value) })}
               aria-label="Lightfall glow"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Density ({reactBitsLightfallDensity.toFixed(2)})</span>
+            <span>Density ({massageLabLightfallDensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.05"
               max="2"
               step="0.05"
-              value={reactBitsLightfallDensity}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallDensity: Number(event.target.value) })}
+              value={massageLabLightfallDensity}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallDensity: Number(event.target.value) })}
               aria-label="Lightfall density"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Twinkle ({Math.round(reactBitsLightfallTwinkle * 100)}%)</span>
+            <span>Twinkle ({Math.round(massageLabLightfallTwinkle * 100)}%)</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.05"
-              value={reactBitsLightfallTwinkle}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallTwinkle: Number(event.target.value) })}
+              value={massageLabLightfallTwinkle}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallTwinkle: Number(event.target.value) })}
               aria-label="Lightfall twinkle"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Zoom ({reactBitsLightfallZoom.toFixed(1)})</span>
+            <span>Zoom ({massageLabLightfallZoom.toFixed(1)})</span>
             <input
               type="range"
               min="1"
               max="6"
               step="0.1"
-              value={reactBitsLightfallZoom}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallZoom: Number(event.target.value) })}
+              value={massageLabLightfallZoom}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallZoom: Number(event.target.value) })}
               aria-label="Lightfall zoom"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Background glow ({reactBitsLightfallBackgroundGlow.toFixed(2)})</span>
+            <span>Background glow ({massageLabLightfallBackgroundGlow.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1.5"
               step="0.05"
-              value={reactBitsLightfallBackgroundGlow}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallBackgroundGlow: Number(event.target.value) })}
+              value={massageLabLightfallBackgroundGlow}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallBackgroundGlow: Number(event.target.value) })}
               aria-label="Lightfall background glow"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({Math.round(reactBitsLightfallOpacity * 100)}%)</span>
+            <span>Opacity ({Math.round(massageLabLightfallOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={reactBitsLightfallOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallOpacity: Number(event.target.value) })}
+              value={massageLabLightfallOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallOpacity: Number(event.target.value) })}
               aria-label="Lightfall opacity"
             />
           </label>
@@ -4859,54 +6120,54 @@ export function RunningTimer({
             <span>Cursor glow</span>
             <input
               type="checkbox"
-              checked={reactBitsLightfallCursorEnabled}
-              onChange={(event) => handleSettingsChange({ reactBitsLightfallCursorEnabled: event.target.checked })}
+              checked={massageLabLightfallCursorEnabled}
+              onChange={(event) => handleSettingsChange({ massageLabLightfallCursorEnabled: event.target.checked })}
               aria-label="Lightfall cursor glow"
             />
           </label>
 
-          {reactBitsLightfallCursorEnabled && (
+          {massageLabLightfallCursorEnabled && (
             <>
               <label className={styles.rangeRow}>
-                <span>Cursor strength ({reactBitsLightfallCursorStrength.toFixed(2)})</span>
+                <span>Cursor strength ({massageLabLightfallCursorStrength.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0"
                   max="2"
                   step="0.05"
-                  value={reactBitsLightfallCursorStrength}
+                  value={massageLabLightfallCursorStrength}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightfallCursorStrength: Number(event.target.value),
+                    massageLabLightfallCursorStrength: Number(event.target.value),
                   })}
                   aria-label="Lightfall cursor strength"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Cursor radius ({reactBitsLightfallCursorRadius.toFixed(2)})</span>
+                <span>Cursor radius ({massageLabLightfallCursorRadius.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0.05"
                   max="3"
                   step="0.05"
-                  value={reactBitsLightfallCursorRadius}
+                  value={massageLabLightfallCursorRadius}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightfallCursorRadius: Number(event.target.value),
+                    massageLabLightfallCursorRadius: Number(event.target.value),
                   })}
                   aria-label="Lightfall cursor radius"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Cursor smoothing ({reactBitsLightfallCursorDampening.toFixed(2)})</span>
+                <span>Cursor smoothing ({massageLabLightfallCursorDampening.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.05"
-                  value={reactBitsLightfallCursorDampening}
+                  value={massageLabLightfallCursorDampening}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightfallCursorDampening: Number(event.target.value),
+                    massageLabLightfallCursorDampening: Number(event.target.value),
                   })}
                   aria-label="Lightfall cursor smoothing"
                 />
@@ -4916,14 +6177,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "react-bits-liquid-ether" && (
+      {option.id === "massage-lab-liquid-ether" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsLiquidEtherPaletteMode}
+              value={massageLabLiquidEtherPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLiquidEtherPaletteMode: event.target.value as ReactBitsLiquidEtherPaletteMode,
+                massageLabLiquidEtherPaletteMode: event.target.value as MassageLabLiquidEtherPaletteMode,
               })}
               aria-label="Liquid Ether color mode"
             >
@@ -4932,14 +6193,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLiquidEtherPaletteMode === "custom" ? (
+          {massageLabLiquidEtherPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsLiquidEtherColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorOne: event.target.value })}
+                  value={massageLabLiquidEtherColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherColorOne: event.target.value })}
                   aria-label="Liquid Ether first color"
                 />
               </label>
@@ -4947,8 +6208,8 @@ export function RunningTimer({
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsLiquidEtherColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorTwo: event.target.value })}
+                  value={massageLabLiquidEtherColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherColorTwo: event.target.value })}
                   aria-label="Liquid Ether second color"
                 />
               </label>
@@ -4956,8 +6217,8 @@ export function RunningTimer({
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsLiquidEtherColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherColorThree: event.target.value })}
+                  value={massageLabLiquidEtherColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherColorThree: event.target.value })}
                   aria-label="Liquid Ether third color"
                 />
               </label>
@@ -4968,17 +6229,17 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLiquidEtherPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherPrimaryColor: event.target.value })}
+                  value={massageLabLiquidEtherPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherPrimaryColor: event.target.value })}
                   aria-label="Liquid Ether primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsLiquidEtherHarmony}
+                  value={massageLabLiquidEtherHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherHarmony: event.target.value as ColorHarmony,
+                    massageLabLiquidEtherHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Liquid Ether color harmony"
                 >
@@ -4996,39 +6257,39 @@ export function RunningTimer({
             <span>Cursor fluid push</span>
             <input
               type="checkbox"
-              checked={reactBitsLiquidEtherCursorEnabled}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherCursorEnabled: event.target.checked })}
+              checked={massageLabLiquidEtherCursorEnabled}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherCursorEnabled: event.target.checked })}
               aria-label="Liquid Ether cursor fluid push"
             />
           </label>
 
-          {reactBitsLiquidEtherCursorEnabled && (
+          {massageLabLiquidEtherCursorEnabled && (
             <>
               <label className={styles.rangeRow}>
-                <span>Mouse force ({reactBitsLiquidEtherMouseForce.toFixed(0)})</span>
+                <span>Mouse force ({massageLabLiquidEtherMouseForce.toFixed(0)})</span>
                 <input
                   type="range"
                   min="0"
                   max="80"
                   step="1"
-                  value={reactBitsLiquidEtherMouseForce}
+                  value={massageLabLiquidEtherMouseForce}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherMouseForce: Number(event.target.value),
+                    massageLabLiquidEtherMouseForce: Number(event.target.value),
                   })}
                   aria-label="Liquid Ether mouse force"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Cursor size ({reactBitsLiquidEtherCursorSize.toFixed(0)}px)</span>
+                <span>Cursor size ({massageLabLiquidEtherCursorSize.toFixed(0)}px)</span>
                 <input
                   type="range"
                   min="20"
                   max="280"
                   step="5"
-                  value={reactBitsLiquidEtherCursorSize}
+                  value={massageLabLiquidEtherCursorSize}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherCursorSize: Number(event.target.value),
+                    massageLabLiquidEtherCursorSize: Number(event.target.value),
                   })}
                   aria-label="Liquid Ether cursor size"
                 />
@@ -5040,69 +6301,69 @@ export function RunningTimer({
             <span>Auto demo motion</span>
             <input
               type="checkbox"
-              checked={reactBitsLiquidEtherAutoDemo}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherAutoDemo: event.target.checked })}
+              checked={massageLabLiquidEtherAutoDemo}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherAutoDemo: event.target.checked })}
               aria-label="Liquid Ether auto demo motion"
             />
           </label>
 
-          {reactBitsLiquidEtherAutoDemo && (
+          {massageLabLiquidEtherAutoDemo && (
             <>
               <label className={styles.rangeRow}>
-                <span>Auto speed ({reactBitsLiquidEtherAutoSpeed.toFixed(2)}x)</span>
+                <span>Auto speed ({massageLabLiquidEtherAutoSpeed.toFixed(2)}x)</span>
                 <input
                   type="range"
                   min="0.05"
                   max="2"
                   step="0.05"
-                  value={reactBitsLiquidEtherAutoSpeed}
+                  value={massageLabLiquidEtherAutoSpeed}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherAutoSpeed: Number(event.target.value),
+                    massageLabLiquidEtherAutoSpeed: Number(event.target.value),
                   })}
                   aria-label="Liquid Ether auto speed"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto intensity ({reactBitsLiquidEtherAutoIntensity.toFixed(1)})</span>
+                <span>Auto intensity ({massageLabLiquidEtherAutoIntensity.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
                   max="5"
                   step="0.1"
-                  value={reactBitsLiquidEtherAutoIntensity}
+                  value={massageLabLiquidEtherAutoIntensity}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherAutoIntensity: Number(event.target.value),
+                    massageLabLiquidEtherAutoIntensity: Number(event.target.value),
                   })}
                   aria-label="Liquid Ether auto intensity"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto resume ({(reactBitsLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
+                <span>Auto resume ({(massageLabLiquidEtherAutoResumeDelay / 1000).toFixed(1)}s)</span>
                 <input
                   type="range"
                   min="250"
                   max="5000"
                   step="250"
-                  value={reactBitsLiquidEtherAutoResumeDelay}
+                  value={massageLabLiquidEtherAutoResumeDelay}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherAutoResumeDelay: Number(event.target.value),
+                    massageLabLiquidEtherAutoResumeDelay: Number(event.target.value),
                   })}
                   aria-label="Liquid Ether auto resume delay"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Auto ramp ({reactBitsLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
+                <span>Auto ramp ({massageLabLiquidEtherAutoRampDuration.toFixed(1)}s)</span>
                 <input
                   type="range"
                   min="0"
                   max="3"
                   step="0.1"
-                  value={reactBitsLiquidEtherAutoRampDuration}
+                  value={massageLabLiquidEtherAutoRampDuration}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidEtherAutoRampDuration: Number(event.target.value),
+                    massageLabLiquidEtherAutoRampDuration: Number(event.target.value),
                   })}
                   aria-label="Liquid Ether auto ramp duration"
                 />
@@ -5114,79 +6375,79 @@ export function RunningTimer({
             <span>Viscous fluid</span>
             <input
               type="checkbox"
-              checked={reactBitsLiquidEtherIsViscous}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherIsViscous: event.target.checked })}
+              checked={massageLabLiquidEtherIsViscous}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherIsViscous: event.target.checked })}
               aria-label="Liquid Ether viscous fluid"
             />
           </label>
 
-          {reactBitsLiquidEtherIsViscous && (
+          {massageLabLiquidEtherIsViscous && (
             <label className={styles.rangeRow}>
-              <span>Viscosity ({reactBitsLiquidEtherViscous.toFixed(0)})</span>
+              <span>Viscosity ({massageLabLiquidEtherViscous.toFixed(0)})</span>
               <input
                 type="range"
                 min="0"
                 max="80"
                 step="1"
-                value={reactBitsLiquidEtherViscous}
-                onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherViscous: Number(event.target.value) })}
+                value={massageLabLiquidEtherViscous}
+                onChange={(event) => handleSettingsChange({ massageLabLiquidEtherViscous: Number(event.target.value) })}
                 aria-label="Liquid Ether viscosity"
               />
             </label>
           )}
 
           <label className={styles.rangeRow}>
-            <span>Viscous iterations ({reactBitsLiquidEtherIterationsViscous.toFixed(0)})</span>
+            <span>Viscous iterations ({massageLabLiquidEtherIterationsViscous.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="64"
               step="1"
-              value={reactBitsLiquidEtherIterationsViscous}
+              value={massageLabLiquidEtherIterationsViscous}
               onChange={(event) => handleSettingsChange({
-                reactBitsLiquidEtherIterationsViscous: Number(event.target.value),
+                massageLabLiquidEtherIterationsViscous: Number(event.target.value),
               })}
               aria-label="Liquid Ether viscous iterations"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Poisson iterations ({reactBitsLiquidEtherIterationsPoisson.toFixed(0)})</span>
+            <span>Poisson iterations ({massageLabLiquidEtherIterationsPoisson.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="64"
               step="1"
-              value={reactBitsLiquidEtherIterationsPoisson}
+              value={massageLabLiquidEtherIterationsPoisson}
               onChange={(event) => handleSettingsChange({
-                reactBitsLiquidEtherIterationsPoisson: Number(event.target.value),
+                massageLabLiquidEtherIterationsPoisson: Number(event.target.value),
               })}
               aria-label="Liquid Ether Poisson iterations"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Delta time ({reactBitsLiquidEtherDt.toFixed(3)})</span>
+            <span>Delta time ({massageLabLiquidEtherDt.toFixed(3)})</span>
             <input
               type="range"
               min="0.004"
               max="0.04"
               step="0.001"
-              value={reactBitsLiquidEtherDt}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherDt: Number(event.target.value) })}
+              value={massageLabLiquidEtherDt}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherDt: Number(event.target.value) })}
               aria-label="Liquid Ether delta time"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Resolution ({reactBitsLiquidEtherResolution.toFixed(2)})</span>
+            <span>Resolution ({massageLabLiquidEtherResolution.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="1"
               step="0.05"
-              value={reactBitsLiquidEtherResolution}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherResolution: Number(event.target.value) })}
+              value={massageLabLiquidEtherResolution}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherResolution: Number(event.target.value) })}
               aria-label="Liquid Ether resolution"
             />
           </label>
@@ -5195,8 +6456,8 @@ export function RunningTimer({
             <span>BFECC advection</span>
             <input
               type="checkbox"
-              checked={reactBitsLiquidEtherBfecc}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherBfecc: event.target.checked })}
+              checked={massageLabLiquidEtherBfecc}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherBfecc: event.target.checked })}
               aria-label="Liquid Ether BFECC advection"
             />
           </label>
@@ -5205,35 +6466,35 @@ export function RunningTimer({
             <span>Bounce edges</span>
             <input
               type="checkbox"
-              checked={reactBitsLiquidEtherIsBounce}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherIsBounce: event.target.checked })}
+              checked={massageLabLiquidEtherIsBounce}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherIsBounce: event.target.checked })}
               aria-label="Liquid Ether bounce edges"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({Math.round(reactBitsLiquidEtherOpacity * 100)}%)</span>
+            <span>Opacity ({Math.round(massageLabLiquidEtherOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={reactBitsLiquidEtherOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidEtherOpacity: Number(event.target.value) })}
+              value={massageLabLiquidEtherOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidEtherOpacity: Number(event.target.value) })}
               aria-label="Liquid Ether opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-prism" && (
+      {option.id === "massage-lab-prism" && (
         <>
           <label className={styles.selectRow}>
             <span>Rotation mode</span>
             <select
-              value={reactBitsPrismAnimationType}
+              value={massageLabPrismAnimationType}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismAnimationType: event.target.value as ReactBitsPrismAnimationType,
+                massageLabPrismAnimationType: event.target.value as MassageLabPrismAnimationType,
               })}
               aria-label="Prism rotation mode"
             >
@@ -5244,146 +6505,146 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Height ({reactBitsPrismHeight.toFixed(1)})</span>
+            <span>Height ({massageLabPrismHeight.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="8"
               step="0.1"
-              value={reactBitsPrismHeight}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismHeight: Number(event.target.value) })}
+              value={massageLabPrismHeight}
+              onChange={(event) => handleSettingsChange({ massageLabPrismHeight: Number(event.target.value) })}
               aria-label="Prism height"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Base width ({reactBitsPrismBaseWidth.toFixed(1)})</span>
+            <span>Base width ({massageLabPrismBaseWidth.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="10"
               step="0.1"
-              value={reactBitsPrismBaseWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismBaseWidth: Number(event.target.value) })}
+              value={massageLabPrismBaseWidth}
+              onChange={(event) => handleSettingsChange({ massageLabPrismBaseWidth: Number(event.target.value) })}
               aria-label="Prism base width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({reactBitsPrismGlow.toFixed(2)})</span>
+            <span>Glow ({massageLabPrismGlow.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPrismGlow}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismGlow: Number(event.target.value) })}
+              value={massageLabPrismGlow}
+              onChange={(event) => handleSettingsChange({ massageLabPrismGlow: Number(event.target.value) })}
               aria-label="Prism glow"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Bloom ({reactBitsPrismBloom.toFixed(2)})</span>
+            <span>Bloom ({massageLabPrismBloom.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPrismBloom}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismBloom: Number(event.target.value) })}
+              value={massageLabPrismBloom}
+              onChange={(event) => handleSettingsChange({ massageLabPrismBloom: Number(event.target.value) })}
               aria-label="Prism bloom"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsPrismNoise.toFixed(2)})</span>
+            <span>Noise ({massageLabPrismNoise.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.02"
-              value={reactBitsPrismNoise}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismNoise: Number(event.target.value) })}
+              value={massageLabPrismNoise}
+              onChange={(event) => handleSettingsChange({ massageLabPrismNoise: Number(event.target.value) })}
               aria-label="Prism noise"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsPrismScale.toFixed(1)})</span>
+            <span>Scale ({massageLabPrismScale.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="7"
               step="0.1"
-              value={reactBitsPrismScale}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismScale: Number(event.target.value) })}
+              value={massageLabPrismScale}
+              onChange={(event) => handleSettingsChange({ massageLabPrismScale: Number(event.target.value) })}
               aria-label="Prism scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Hue shift ({reactBitsPrismHueShift.toFixed(2)})</span>
+            <span>Hue shift ({massageLabPrismHueShift.toFixed(2)})</span>
             <input
               type="range"
               min="-3.1416"
               max="3.1416"
               step="0.05"
-              value={reactBitsPrismHueShift}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismHueShift: Number(event.target.value) })}
+              value={massageLabPrismHueShift}
+              onChange={(event) => handleSettingsChange({ massageLabPrismHueShift: Number(event.target.value) })}
               aria-label="Prism hue shift"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Color frequency ({reactBitsPrismColorFrequency.toFixed(2)})</span>
+            <span>Color frequency ({massageLabPrismColorFrequency.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.05"
-              value={reactBitsPrismColorFrequency}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismColorFrequency: Number(event.target.value) })}
+              value={massageLabPrismColorFrequency}
+              onChange={(event) => handleSettingsChange({ massageLabPrismColorFrequency: Number(event.target.value) })}
               aria-label="Prism color frequency"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Time scale ({reactBitsPrismTimeScale.toFixed(2)}x)</span>
+            <span>Time scale ({massageLabPrismTimeScale.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsPrismTimeScale}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismTimeScale: Number(event.target.value) })}
+              value={massageLabPrismTimeScale}
+              onChange={(event) => handleSettingsChange({ massageLabPrismTimeScale: Number(event.target.value) })}
               aria-label="Prism time scale"
             />
           </label>
 
-          {reactBitsPrismAnimationType === "hover" && (
+          {massageLabPrismAnimationType === "hover" && (
             <>
               <label className={styles.rangeRow}>
-                <span>Hover strength ({reactBitsPrismHoverStrength.toFixed(1)})</span>
+                <span>Hover strength ({massageLabPrismHoverStrength.toFixed(1)})</span>
                 <input
                   type="range"
                   min="0"
                   max="4"
                   step="0.1"
-                  value={reactBitsPrismHoverStrength}
-                  onChange={(event) => handleSettingsChange({ reactBitsPrismHoverStrength: Number(event.target.value) })}
+                  value={massageLabPrismHoverStrength}
+                  onChange={(event) => handleSettingsChange({ massageLabPrismHoverStrength: Number(event.target.value) })}
                   aria-label="Prism hover strength"
                 />
               </label>
 
               <label className={styles.rangeRow}>
-                <span>Hover inertia ({reactBitsPrismInertia.toFixed(2)})</span>
+                <span>Hover inertia ({massageLabPrismInertia.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0.01"
                   max="0.4"
                   step="0.01"
-                  value={reactBitsPrismInertia}
-                  onChange={(event) => handleSettingsChange({ reactBitsPrismInertia: Number(event.target.value) })}
+                  value={massageLabPrismInertia}
+                  onChange={(event) => handleSettingsChange({ massageLabPrismInertia: Number(event.target.value) })}
                   aria-label="Prism hover inertia"
                 />
               </label>
@@ -5391,27 +6652,27 @@ export function RunningTimer({
           )}
 
           <label className={styles.rangeRow}>
-            <span>Offset X ({reactBitsPrismOffsetX.toFixed(0)}px)</span>
+            <span>Offset X ({massageLabPrismOffsetX.toFixed(0)}px)</span>
             <input
               type="range"
               min="-400"
               max="400"
               step="10"
-              value={reactBitsPrismOffsetX}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismOffsetX: Number(event.target.value) })}
+              value={massageLabPrismOffsetX}
+              onChange={(event) => handleSettingsChange({ massageLabPrismOffsetX: Number(event.target.value) })}
               aria-label="Prism horizontal offset"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Offset Y ({reactBitsPrismOffsetY.toFixed(0)}px)</span>
+            <span>Offset Y ({massageLabPrismOffsetY.toFixed(0)}px)</span>
             <input
               type="range"
               min="-400"
               max="400"
               step="10"
-              value={reactBitsPrismOffsetY}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismOffsetY: Number(event.target.value) })}
+              value={massageLabPrismOffsetY}
+              onChange={(event) => handleSettingsChange({ massageLabPrismOffsetY: Number(event.target.value) })}
               aria-label="Prism vertical offset"
             />
           </label>
@@ -5420,110 +6681,110 @@ export function RunningTimer({
             <span>Transparent blend</span>
             <input
               type="checkbox"
-              checked={reactBitsPrismTransparent}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismTransparent: event.target.checked })}
+              checked={massageLabPrismTransparent}
+              onChange={(event) => handleSettingsChange({ massageLabPrismTransparent: event.target.checked })}
               aria-label="Prism transparent blend"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-dark-veil" && (
+      {option.id === "massage-lab-dark-veil" && (
         <>
           <label className={styles.rangeRow}>
-            <span>Hue shift ({reactBitsDarkVeilHueShift.toFixed(0)} deg)</span>
+            <span>Hue shift ({massageLabDarkVeilHueShift.toFixed(0)} deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsDarkVeilHueShift}
-              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilHueShift: Number(event.target.value) })}
+              value={massageLabDarkVeilHueShift}
+              onChange={(event) => handleSettingsChange({ massageLabDarkVeilHueShift: Number(event.target.value) })}
               aria-label="Dark Veil hue shift"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Animation speed ({reactBitsDarkVeilSpeed.toFixed(2)}x)</span>
+            <span>Animation speed ({massageLabDarkVeilSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsDarkVeilSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilSpeed: Number(event.target.value) })}
+              value={massageLabDarkVeilSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabDarkVeilSpeed: Number(event.target.value) })}
               aria-label="Dark Veil animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsDarkVeilNoiseIntensity.toFixed(2)})</span>
+            <span>Noise ({massageLabDarkVeilNoiseIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsDarkVeilNoiseIntensity}
+              value={massageLabDarkVeilNoiseIntensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsDarkVeilNoiseIntensity: Number(event.target.value),
+                massageLabDarkVeilNoiseIntensity: Number(event.target.value),
               })}
               aria-label="Dark Veil noise intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scanline intensity ({reactBitsDarkVeilScanlineIntensity.toFixed(2)})</span>
+            <span>Scanline intensity ({massageLabDarkVeilScanlineIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsDarkVeilScanlineIntensity}
+              value={massageLabDarkVeilScanlineIntensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsDarkVeilScanlineIntensity: Number(event.target.value),
+                massageLabDarkVeilScanlineIntensity: Number(event.target.value),
               })}
               aria-label="Dark Veil scanline intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scanline frequency ({reactBitsDarkVeilScanlineFrequency.toFixed(1)})</span>
+            <span>Scanline frequency ({massageLabDarkVeilScanlineFrequency.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="40"
               step="0.5"
-              value={reactBitsDarkVeilScanlineFrequency}
+              value={massageLabDarkVeilScanlineFrequency}
               onChange={(event) => handleSettingsChange({
-                reactBitsDarkVeilScanlineFrequency: Number(event.target.value),
+                massageLabDarkVeilScanlineFrequency: Number(event.target.value),
               })}
               aria-label="Dark Veil scanline frequency"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp ({reactBitsDarkVeilWarpAmount.toFixed(2)})</span>
+            <span>Warp ({massageLabDarkVeilWarpAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsDarkVeilWarpAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsDarkVeilWarpAmount: Number(event.target.value) })}
+              value={massageLabDarkVeilWarpAmount}
+              onChange={(event) => handleSettingsChange({ massageLabDarkVeilWarpAmount: Number(event.target.value) })}
               aria-label="Dark Veil warp amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Resolution scale ({reactBitsDarkVeilResolutionScale.toFixed(2)})</span>
+            <span>Resolution scale ({massageLabDarkVeilResolutionScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.25"
               max="1"
               step="0.05"
-              value={reactBitsDarkVeilResolutionScale}
+              value={massageLabDarkVeilResolutionScale}
               onChange={(event) => handleSettingsChange({
-                reactBitsDarkVeilResolutionScale: Number(event.target.value),
+                massageLabDarkVeilResolutionScale: Number(event.target.value),
               })}
               aria-label="Dark Veil resolution scale"
             />
@@ -5531,14 +6792,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "react-bits-light-pillar" && (
+      {option.id === "massage-lab-light-pillar" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsLightPillarPaletteMode}
+              value={massageLabLightPillarPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightPillarPaletteMode: event.target.value as ReactBitsLightPillarPaletteMode,
+                massageLabLightPillarPaletteMode: event.target.value as MassageLabLightPillarPaletteMode,
               })}
               aria-label="Light Pillar color mode"
             >
@@ -5547,14 +6808,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLightPillarPaletteMode === "custom" ? (
+          {massageLabLightPillarPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Top color</span>
                 <input
                   type="color"
-                  value={reactBitsLightPillarTopColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarTopColor: event.target.value })}
+                  value={massageLabLightPillarTopColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLightPillarTopColor: event.target.value })}
                   aria-label="Light Pillar top color"
                 />
               </label>
@@ -5562,8 +6823,8 @@ export function RunningTimer({
                 <span>Bottom color</span>
                 <input
                   type="color"
-                  value={reactBitsLightPillarBottomColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarBottomColor: event.target.value })}
+                  value={massageLabLightPillarBottomColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLightPillarBottomColor: event.target.value })}
                   aria-label="Light Pillar bottom color"
                 />
               </label>
@@ -5574,17 +6835,17 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLightPillarPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightPillarPrimaryColor: event.target.value })}
+                  value={massageLabLightPillarPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLightPillarPrimaryColor: event.target.value })}
                   aria-label="Light Pillar primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsLightPillarHarmony}
+                  value={massageLabLightPillarHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightPillarHarmony: event.target.value as ColorHarmony,
+                    massageLabLightPillarHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Light Pillar color harmony"
                 >
@@ -5601,9 +6862,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Quality</span>
             <select
-              value={reactBitsLightPillarQuality}
+              value={massageLabLightPillarQuality}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightPillarQuality: event.target.value as ReactBitsLightPillarQuality,
+                massageLabLightPillarQuality: event.target.value as MassageLabLightPillarQuality,
               })}
               aria-label="Light Pillar quality"
             >
@@ -5616,9 +6877,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Blend mode</span>
             <select
-              value={reactBitsLightPillarBlendMode}
+              value={massageLabLightPillarBlendMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightPillarBlendMode: event.target.value as ReactBitsLightPillarBlendMode,
+                massageLabLightPillarBlendMode: event.target.value as MassageLabLightPillarBlendMode,
               })}
               aria-label="Light Pillar blend mode"
             >
@@ -5630,28 +6891,28 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Intensity ({reactBitsLightPillarIntensity.toFixed(2)})</span>
+            <span>Intensity ({massageLabLightPillarIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.05"
-              value={reactBitsLightPillarIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsLightPillarIntensity: Number(event.target.value) })}
+              value={massageLabLightPillarIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabLightPillarIntensity: Number(event.target.value) })}
               aria-label="Light Pillar intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation speed ({reactBitsLightPillarRotationSpeed.toFixed(2)}x)</span>
+            <span>Rotation speed ({massageLabLightPillarRotationSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsLightPillarRotationSpeed}
+              value={massageLabLightPillarRotationSpeed}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightPillarRotationSpeed: Number(event.target.value),
+                massageLabLightPillarRotationSpeed: Number(event.target.value),
               })}
               aria-label="Light Pillar rotation speed"
             />
@@ -5661,89 +6922,89 @@ export function RunningTimer({
             <span>Cursor rotation</span>
             <input
               type="checkbox"
-              checked={reactBitsLightPillarInteractive}
-              onChange={(event) => handleSettingsChange({ reactBitsLightPillarInteractive: event.target.checked })}
+              checked={massageLabLightPillarInteractive}
+              onChange={(event) => handleSettingsChange({ massageLabLightPillarInteractive: event.target.checked })}
               aria-label="Light Pillar cursor rotation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow amount ({reactBitsLightPillarGlowAmount.toFixed(3)})</span>
+            <span>Glow amount ({massageLabLightPillarGlowAmount.toFixed(3)})</span>
             <input
               type="range"
               min="0.001"
               max="0.03"
               step="0.001"
-              value={reactBitsLightPillarGlowAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsLightPillarGlowAmount: Number(event.target.value) })}
+              value={massageLabLightPillarGlowAmount}
+              onChange={(event) => handleSettingsChange({ massageLabLightPillarGlowAmount: Number(event.target.value) })}
               aria-label="Light Pillar glow amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pillar width ({reactBitsLightPillarWidth.toFixed(1)})</span>
+            <span>Pillar width ({massageLabLightPillarWidth.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="8"
               step="0.1"
-              value={reactBitsLightPillarWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsLightPillarWidth: Number(event.target.value) })}
+              value={massageLabLightPillarWidth}
+              onChange={(event) => handleSettingsChange({ massageLabLightPillarWidth: Number(event.target.value) })}
               aria-label="Light Pillar width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pillar height ({reactBitsLightPillarHeight.toFixed(2)})</span>
+            <span>Pillar height ({massageLabLightPillarHeight.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="2"
               step="0.05"
-              value={reactBitsLightPillarHeight}
-              onChange={(event) => handleSettingsChange({ reactBitsLightPillarHeight: Number(event.target.value) })}
+              value={massageLabLightPillarHeight}
+              onChange={(event) => handleSettingsChange({ massageLabLightPillarHeight: Number(event.target.value) })}
               aria-label="Light Pillar height"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsLightPillarNoiseIntensity.toFixed(2)})</span>
+            <span>Noise ({massageLabLightPillarNoiseIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsLightPillarNoiseIntensity}
+              value={massageLabLightPillarNoiseIntensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightPillarNoiseIntensity: Number(event.target.value),
+                massageLabLightPillarNoiseIntensity: Number(event.target.value),
               })}
               aria-label="Light Pillar noise intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pillar rotation ({reactBitsLightPillarRotation.toFixed(0)} deg)</span>
+            <span>Pillar rotation ({massageLabLightPillarRotation.toFixed(0)} deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsLightPillarRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsLightPillarRotation: Number(event.target.value) })}
+              value={massageLabLightPillarRotation}
+              onChange={(event) => handleSettingsChange({ massageLabLightPillarRotation: Number(event.target.value) })}
               aria-label="Light Pillar rotation"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-silk" && (
+      {option.id === "massage-lab-silk" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsSilkPaletteMode}
+              value={massageLabSilkPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsSilkPaletteMode: event.target.value as ReactBitsSilkPaletteMode,
+                massageLabSilkPaletteMode: event.target.value as MassageLabSilkPaletteMode,
               })}
               aria-label="Silk color mode"
             >
@@ -5752,13 +7013,13 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsSilkPaletteMode === "custom" ? (
+          {massageLabSilkPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Silk color</span>
               <input
                 type="color"
-                value={reactBitsSilkColor}
-                onChange={(event) => handleSettingsChange({ reactBitsSilkColor: event.target.value })}
+                value={massageLabSilkColor}
+                onChange={(event) => handleSettingsChange({ massageLabSilkColor: event.target.value })}
                 aria-label="Silk color"
               />
             </label>
@@ -5768,17 +7029,17 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsSilkPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsSilkPrimaryColor: event.target.value })}
+                  value={massageLabSilkPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabSilkPrimaryColor: event.target.value })}
                   aria-label="Silk primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsSilkHarmony}
+                  value={massageLabSilkHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsSilkHarmony: event.target.value as ColorHarmony,
+                    massageLabSilkHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Silk color harmony"
                 >
@@ -5793,67 +7054,67 @@ export function RunningTimer({
           )}
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsSilkSpeed.toFixed(1)}x)</span>
+            <span>Speed ({massageLabSilkSpeed.toFixed(1)}x)</span>
             <input
               type="range"
               min="0"
               max="10"
               step="0.1"
-              value={reactBitsSilkSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsSilkSpeed: Number(event.target.value) })}
+              value={massageLabSilkSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabSilkSpeed: Number(event.target.value) })}
               aria-label="Silk speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsSilkScale.toFixed(2)})</span>
+            <span>Scale ({massageLabSilkScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="4"
               step="0.05"
-              value={reactBitsSilkScale}
-              onChange={(event) => handleSettingsChange({ reactBitsSilkScale: Number(event.target.value) })}
+              value={massageLabSilkScale}
+              onChange={(event) => handleSettingsChange({ massageLabSilkScale: Number(event.target.value) })}
               aria-label="Silk scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsSilkNoiseIntensity.toFixed(2)})</span>
+            <span>Noise ({massageLabSilkNoiseIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsSilkNoiseIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsSilkNoiseIntensity: Number(event.target.value) })}
+              value={massageLabSilkNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabSilkNoiseIntensity: Number(event.target.value) })}
               aria-label="Silk noise intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsSilkRotation.toFixed(2)} rad)</span>
+            <span>Rotation ({massageLabSilkRotation.toFixed(2)} rad)</span>
             <input
               type="range"
               min="-3.1416"
               max="3.1416"
               step="0.05"
-              value={reactBitsSilkRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsSilkRotation: Number(event.target.value) })}
+              value={massageLabSilkRotation}
+              onChange={(event) => handleSettingsChange({ massageLabSilkRotation: Number(event.target.value) })}
               aria-label="Silk rotation"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-floating-lines" && (
+      {option.id === "massage-lab-floating-lines" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsFloatingLinesPaletteMode}
+              value={massageLabFloatingLinesPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesPaletteMode: event.target.value as ReactBitsFloatingLinesPaletteMode,
+                massageLabFloatingLinesPaletteMode: event.target.value as MassageLabFloatingLinesPaletteMode,
               })}
               aria-label="Floating Lines color mode"
             >
@@ -5863,14 +7124,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsFloatingLinesPaletteMode === "custom" ? (
+          {massageLabFloatingLinesPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Gradient 1</span>
                 <input
                   type="color"
-                  value={reactBitsFloatingLinesColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorOne: event.target.value })}
+                  value={massageLabFloatingLinesColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabFloatingLinesColorOne: event.target.value })}
                   aria-label="Floating Lines gradient color 1"
                 />
               </label>
@@ -5878,8 +7139,8 @@ export function RunningTimer({
                 <span>Gradient 2</span>
                 <input
                   type="color"
-                  value={reactBitsFloatingLinesColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorTwo: event.target.value })}
+                  value={massageLabFloatingLinesColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabFloatingLinesColorTwo: event.target.value })}
                   aria-label="Floating Lines gradient color 2"
                 />
               </label>
@@ -5887,23 +7148,23 @@ export function RunningTimer({
                 <span>Gradient 3</span>
                 <input
                   type="color"
-                  value={reactBitsFloatingLinesColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesColorThree: event.target.value })}
+                  value={massageLabFloatingLinesColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabFloatingLinesColorThree: event.target.value })}
                   aria-label="Floating Lines gradient color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsFloatingLinesPaletteMode === "harmony" ? (
+          {massageLabFloatingLinesPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsFloatingLinesPrimaryColor}
+                  value={massageLabFloatingLinesPrimaryColor}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsFloatingLinesPrimaryColor: event.target.value,
+                    massageLabFloatingLinesPrimaryColor: event.target.value,
                   })}
                   aria-label="Floating Lines primary color"
                 />
@@ -5911,9 +7172,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsFloatingLinesHarmony}
+                  value={massageLabFloatingLinesHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsFloatingLinesHarmony: event.target.value as ColorHarmony,
+                    massageLabFloatingLinesHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Floating Lines color harmony"
                 >
@@ -5930,9 +7191,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Blend mode</span>
             <select
-              value={reactBitsFloatingLinesBlendMode}
+              value={massageLabFloatingLinesBlendMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBlendMode: event.target.value as ReactBitsFloatingLinesBlendMode,
+                massageLabFloatingLinesBlendMode: event.target.value as MassageLabFloatingLinesBlendMode,
               })}
               aria-label="Floating Lines blend mode"
             >
@@ -5944,15 +7205,15 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Animation speed ({reactBitsFloatingLinesAnimationSpeed.toFixed(2)}x)</span>
+            <span>Animation speed ({massageLabFloatingLinesAnimationSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsFloatingLinesAnimationSpeed}
+              value={massageLabFloatingLinesAnimationSpeed}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesAnimationSpeed: Number(event.target.value),
+                massageLabFloatingLinesAnimationSpeed: Number(event.target.value),
               })}
               aria-label="Floating Lines animation speed"
             />
@@ -5962,71 +7223,71 @@ export function RunningTimer({
             <span>Top wave</span>
             <input
               type="checkbox"
-              checked={reactBitsFloatingLinesEnableTop}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableTop: event.target.checked })}
+              checked={massageLabFloatingLinesEnableTop}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesEnableTop: event.target.checked })}
               aria-label="Floating Lines top wave"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Top count ({reactBitsFloatingLinesTopLineCount})</span>
+            <span>Top count ({massageLabFloatingLinesTopLineCount})</span>
             <input
               type="range"
               min="0"
               max="32"
               step="1"
-              value={reactBitsFloatingLinesTopLineCount}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopLineCount: Number(event.target.value) })}
+              value={massageLabFloatingLinesTopLineCount}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesTopLineCount: Number(event.target.value) })}
               aria-label="Floating Lines top line count"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Top spacing ({reactBitsFloatingLinesTopLineDistance.toFixed(1)})</span>
+            <span>Top spacing ({massageLabFloatingLinesTopLineDistance.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesTopLineDistance}
+              value={massageLabFloatingLinesTopLineDistance}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesTopLineDistance: Number(event.target.value),
+                massageLabFloatingLinesTopLineDistance: Number(event.target.value),
               })}
               aria-label="Floating Lines top line spacing"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Top X ({reactBitsFloatingLinesTopWaveX.toFixed(1)})</span>
+            <span>Top X ({massageLabFloatingLinesTopWaveX.toFixed(1)})</span>
             <input
               type="range"
               min="-20"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesTopWaveX}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopWaveX: Number(event.target.value) })}
+              value={massageLabFloatingLinesTopWaveX}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesTopWaveX: Number(event.target.value) })}
               aria-label="Floating Lines top wave X"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Top Y ({reactBitsFloatingLinesTopWaveY.toFixed(1)})</span>
+            <span>Top Y ({massageLabFloatingLinesTopWaveY.toFixed(1)})</span>
             <input
               type="range"
               min="-4"
               max="4"
               step="0.1"
-              value={reactBitsFloatingLinesTopWaveY}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesTopWaveY: Number(event.target.value) })}
+              value={massageLabFloatingLinesTopWaveY}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesTopWaveY: Number(event.target.value) })}
               aria-label="Floating Lines top wave Y"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Top rotation ({reactBitsFloatingLinesTopWaveRotate.toFixed(2)})</span>
+            <span>Top rotation ({massageLabFloatingLinesTopWaveRotate.toFixed(2)})</span>
             <input
               type="range"
               min="-4"
               max="4"
               step="0.05"
-              value={reactBitsFloatingLinesTopWaveRotate}
+              value={massageLabFloatingLinesTopWaveRotate}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesTopWaveRotate: Number(event.target.value),
+                massageLabFloatingLinesTopWaveRotate: Number(event.target.value),
               })}
               aria-label="Floating Lines top wave rotation"
             />
@@ -6036,77 +7297,77 @@ export function RunningTimer({
             <span>Middle wave</span>
             <input
               type="checkbox"
-              checked={reactBitsFloatingLinesEnableMiddle}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableMiddle: event.target.checked })}
+              checked={massageLabFloatingLinesEnableMiddle}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesEnableMiddle: event.target.checked })}
               aria-label="Floating Lines middle wave"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Middle count ({reactBitsFloatingLinesMiddleLineCount})</span>
+            <span>Middle count ({massageLabFloatingLinesMiddleLineCount})</span>
             <input
               type="range"
               min="0"
               max="32"
               step="1"
-              value={reactBitsFloatingLinesMiddleLineCount}
+              value={massageLabFloatingLinesMiddleLineCount}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesMiddleLineCount: Number(event.target.value),
+                massageLabFloatingLinesMiddleLineCount: Number(event.target.value),
               })}
               aria-label="Floating Lines middle line count"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Middle spacing ({reactBitsFloatingLinesMiddleLineDistance.toFixed(1)})</span>
+            <span>Middle spacing ({massageLabFloatingLinesMiddleLineDistance.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesMiddleLineDistance}
+              value={massageLabFloatingLinesMiddleLineDistance}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesMiddleLineDistance: Number(event.target.value),
+                massageLabFloatingLinesMiddleLineDistance: Number(event.target.value),
               })}
               aria-label="Floating Lines middle line spacing"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Middle X ({reactBitsFloatingLinesMiddleWaveX.toFixed(1)})</span>
+            <span>Middle X ({massageLabFloatingLinesMiddleWaveX.toFixed(1)})</span>
             <input
               type="range"
               min="-20"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesMiddleWaveX}
+              value={massageLabFloatingLinesMiddleWaveX}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesMiddleWaveX: Number(event.target.value),
+                massageLabFloatingLinesMiddleWaveX: Number(event.target.value),
               })}
               aria-label="Floating Lines middle wave X"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Middle Y ({reactBitsFloatingLinesMiddleWaveY.toFixed(1)})</span>
+            <span>Middle Y ({massageLabFloatingLinesMiddleWaveY.toFixed(1)})</span>
             <input
               type="range"
               min="-4"
               max="4"
               step="0.1"
-              value={reactBitsFloatingLinesMiddleWaveY}
+              value={massageLabFloatingLinesMiddleWaveY}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesMiddleWaveY: Number(event.target.value),
+                massageLabFloatingLinesMiddleWaveY: Number(event.target.value),
               })}
               aria-label="Floating Lines middle wave Y"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Middle rotation ({reactBitsFloatingLinesMiddleWaveRotate.toFixed(2)})</span>
+            <span>Middle rotation ({massageLabFloatingLinesMiddleWaveRotate.toFixed(2)})</span>
             <input
               type="range"
               min="-4"
               max="4"
               step="0.05"
-              value={reactBitsFloatingLinesMiddleWaveRotate}
+              value={massageLabFloatingLinesMiddleWaveRotate}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesMiddleWaveRotate: Number(event.target.value),
+                massageLabFloatingLinesMiddleWaveRotate: Number(event.target.value),
               })}
               aria-label="Floating Lines middle wave rotation"
             />
@@ -6116,77 +7377,77 @@ export function RunningTimer({
             <span>Bottom wave</span>
             <input
               type="checkbox"
-              checked={reactBitsFloatingLinesEnableBottom}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesEnableBottom: event.target.checked })}
+              checked={massageLabFloatingLinesEnableBottom}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesEnableBottom: event.target.checked })}
               aria-label="Floating Lines bottom wave"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Bottom count ({reactBitsFloatingLinesBottomLineCount})</span>
+            <span>Bottom count ({massageLabFloatingLinesBottomLineCount})</span>
             <input
               type="range"
               min="0"
               max="32"
               step="1"
-              value={reactBitsFloatingLinesBottomLineCount}
+              value={massageLabFloatingLinesBottomLineCount}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBottomLineCount: Number(event.target.value),
+                massageLabFloatingLinesBottomLineCount: Number(event.target.value),
               })}
               aria-label="Floating Lines bottom line count"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Bottom spacing ({reactBitsFloatingLinesBottomLineDistance.toFixed(1)})</span>
+            <span>Bottom spacing ({massageLabFloatingLinesBottomLineDistance.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesBottomLineDistance}
+              value={massageLabFloatingLinesBottomLineDistance}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBottomLineDistance: Number(event.target.value),
+                massageLabFloatingLinesBottomLineDistance: Number(event.target.value),
               })}
               aria-label="Floating Lines bottom line spacing"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Bottom X ({reactBitsFloatingLinesBottomWaveX.toFixed(1)})</span>
+            <span>Bottom X ({massageLabFloatingLinesBottomWaveX.toFixed(1)})</span>
             <input
               type="range"
               min="-20"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesBottomWaveX}
+              value={massageLabFloatingLinesBottomWaveX}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBottomWaveX: Number(event.target.value),
+                massageLabFloatingLinesBottomWaveX: Number(event.target.value),
               })}
               aria-label="Floating Lines bottom wave X"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Bottom Y ({reactBitsFloatingLinesBottomWaveY.toFixed(1)})</span>
+            <span>Bottom Y ({massageLabFloatingLinesBottomWaveY.toFixed(1)})</span>
             <input
               type="range"
               min="-4"
               max="4"
               step="0.1"
-              value={reactBitsFloatingLinesBottomWaveY}
+              value={massageLabFloatingLinesBottomWaveY}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBottomWaveY: Number(event.target.value),
+                massageLabFloatingLinesBottomWaveY: Number(event.target.value),
               })}
               aria-label="Floating Lines bottom wave Y"
             />
           </label>
           <label className={styles.rangeRow}>
-            <span>Bottom rotation ({reactBitsFloatingLinesBottomWaveRotate.toFixed(2)})</span>
+            <span>Bottom rotation ({massageLabFloatingLinesBottomWaveRotate.toFixed(2)})</span>
             <input
               type="range"
               min="-4"
               max="4"
               step="0.05"
-              value={reactBitsFloatingLinesBottomWaveRotate}
+              value={massageLabFloatingLinesBottomWaveRotate}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBottomWaveRotate: Number(event.target.value),
+                massageLabFloatingLinesBottomWaveRotate: Number(event.target.value),
               })}
               aria-label="Floating Lines bottom wave rotation"
             />
@@ -6196,54 +7457,54 @@ export function RunningTimer({
             <span>Cursor bend</span>
             <input
               type="checkbox"
-              checked={reactBitsFloatingLinesInteractive}
+              checked={massageLabFloatingLinesInteractive}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesInteractive: event.target.checked,
+                massageLabFloatingLinesInteractive: event.target.checked,
               })}
               aria-label="Floating Lines cursor bend"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Bend radius ({reactBitsFloatingLinesBendRadius.toFixed(1)})</span>
+            <span>Bend radius ({massageLabFloatingLinesBendRadius.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="20"
               step="0.1"
-              value={reactBitsFloatingLinesBendRadius}
+              value={massageLabFloatingLinesBendRadius}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBendRadius: Number(event.target.value),
+                massageLabFloatingLinesBendRadius: Number(event.target.value),
               })}
               aria-label="Floating Lines bend radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Bend strength ({reactBitsFloatingLinesBendStrength.toFixed(2)})</span>
+            <span>Bend strength ({massageLabFloatingLinesBendStrength.toFixed(2)})</span>
             <input
               type="range"
               min="-2"
               max="2"
               step="0.05"
-              value={reactBitsFloatingLinesBendStrength}
+              value={massageLabFloatingLinesBendStrength}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesBendStrength: Number(event.target.value),
+                massageLabFloatingLinesBendStrength: Number(event.target.value),
               })}
               aria-label="Floating Lines bend strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse damping ({reactBitsFloatingLinesMouseDamping.toFixed(2)})</span>
+            <span>Mouse damping ({massageLabFloatingLinesMouseDamping.toFixed(2)})</span>
             <input
               type="range"
               min="0.01"
               max="1"
               step="0.01"
-              value={reactBitsFloatingLinesMouseDamping}
+              value={massageLabFloatingLinesMouseDamping}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesMouseDamping: Number(event.target.value),
+                massageLabFloatingLinesMouseDamping: Number(event.target.value),
               })}
               aria-label="Floating Lines mouse damping"
             />
@@ -6253,22 +7514,22 @@ export function RunningTimer({
             <span>Parallax</span>
             <input
               type="checkbox"
-              checked={reactBitsFloatingLinesParallax}
-              onChange={(event) => handleSettingsChange({ reactBitsFloatingLinesParallax: event.target.checked })}
+              checked={massageLabFloatingLinesParallax}
+              onChange={(event) => handleSettingsChange({ massageLabFloatingLinesParallax: event.target.checked })}
               aria-label="Floating Lines parallax"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Parallax strength ({reactBitsFloatingLinesParallaxStrength.toFixed(2)})</span>
+            <span>Parallax strength ({massageLabFloatingLinesParallaxStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsFloatingLinesParallaxStrength}
+              value={massageLabFloatingLinesParallaxStrength}
               onChange={(event) => handleSettingsChange({
-                reactBitsFloatingLinesParallaxStrength: Number(event.target.value),
+                massageLabFloatingLinesParallaxStrength: Number(event.target.value),
               })}
               aria-label="Floating Lines parallax strength"
             />
@@ -6276,14 +7537,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "react-bits-side-rays" && (
+      {option.id === "massage-lab-side-rays" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsSideRaysPaletteMode}
+              value={massageLabSideRaysPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsSideRaysPaletteMode: event.target.value as ReactBitsSideRaysPaletteMode,
+                massageLabSideRaysPaletteMode: event.target.value as MassageLabSideRaysPaletteMode,
               })}
               aria-label="Side Rays color mode"
             >
@@ -6293,14 +7554,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsSideRaysPaletteMode === "custom" ? (
+          {massageLabSideRaysPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Ray color 1</span>
                 <input
                   type="color"
-                  value={reactBitsSideRaysColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysColorOne: event.target.value })}
+                  value={massageLabSideRaysColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabSideRaysColorOne: event.target.value })}
                   aria-label="Side Rays color 1"
                 />
               </label>
@@ -6308,31 +7569,31 @@ export function RunningTimer({
                 <span>Ray color 2</span>
                 <input
                   type="color"
-                  value={reactBitsSideRaysColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysColorTwo: event.target.value })}
+                  value={massageLabSideRaysColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabSideRaysColorTwo: event.target.value })}
                   aria-label="Side Rays color 2"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsSideRaysPaletteMode === "harmony" ? (
+          {massageLabSideRaysPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsSideRaysPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsSideRaysPrimaryColor: event.target.value })}
+                  value={massageLabSideRaysPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabSideRaysPrimaryColor: event.target.value })}
                   aria-label="Side Rays primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsSideRaysHarmony}
+                  value={massageLabSideRaysHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsSideRaysHarmony: event.target.value as ColorHarmony,
+                    massageLabSideRaysHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Side Rays color harmony"
                 >
@@ -6349,9 +7610,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Origin</span>
             <select
-              value={reactBitsSideRaysOrigin}
+              value={massageLabSideRaysOrigin}
               onChange={(event) => handleSettingsChange({
-                reactBitsSideRaysOrigin: event.target.value as ReactBitsSideRaysOrigin,
+                massageLabSideRaysOrigin: event.target.value as MassageLabSideRaysOrigin,
               })}
               aria-label="Side Rays origin"
             >
@@ -6363,121 +7624,121 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsSideRaysSpeed.toFixed(1)}x)</span>
+            <span>Speed ({massageLabSideRaysSpeed.toFixed(1)}x)</span>
             <input
               type="range"
               min="0"
               max="8"
               step="0.1"
-              value={reactBitsSideRaysSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSpeed: Number(event.target.value) })}
+              value={massageLabSideRaysSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysSpeed: Number(event.target.value) })}
               aria-label="Side Rays speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Intensity ({reactBitsSideRaysIntensity.toFixed(1)})</span>
+            <span>Intensity ({massageLabSideRaysIntensity.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="6"
               step="0.1"
-              value={reactBitsSideRaysIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysIntensity: Number(event.target.value) })}
+              value={massageLabSideRaysIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysIntensity: Number(event.target.value) })}
               aria-label="Side Rays intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spread ({reactBitsSideRaysSpread.toFixed(1)})</span>
+            <span>Spread ({massageLabSideRaysSpread.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="5"
               step="0.1"
-              value={reactBitsSideRaysSpread}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSpread: Number(event.target.value) })}
+              value={massageLabSideRaysSpread}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysSpread: Number(event.target.value) })}
               aria-label="Side Rays spread"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Tilt ({reactBitsSideRaysTilt.toFixed(0)} deg)</span>
+            <span>Tilt ({massageLabSideRaysTilt.toFixed(0)} deg)</span>
             <input
               type="range"
               min="-90"
               max="90"
               step="1"
-              value={reactBitsSideRaysTilt}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysTilt: Number(event.target.value) })}
+              value={massageLabSideRaysTilt}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysTilt: Number(event.target.value) })}
               aria-label="Side Rays tilt"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Saturation ({reactBitsSideRaysSaturation.toFixed(1)})</span>
+            <span>Saturation ({massageLabSideRaysSaturation.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.1"
-              value={reactBitsSideRaysSaturation}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysSaturation: Number(event.target.value) })}
+              value={massageLabSideRaysSaturation}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysSaturation: Number(event.target.value) })}
               aria-label="Side Rays saturation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Blend ({reactBitsSideRaysBlend.toFixed(2)})</span>
+            <span>Blend ({massageLabSideRaysBlend.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsSideRaysBlend}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysBlend: Number(event.target.value) })}
+              value={massageLabSideRaysBlend}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysBlend: Number(event.target.value) })}
               aria-label="Side Rays blend"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Falloff ({reactBitsSideRaysFalloff.toFixed(1)})</span>
+            <span>Falloff ({massageLabSideRaysFalloff.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="4"
               step="0.1"
-              value={reactBitsSideRaysFalloff}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysFalloff: Number(event.target.value) })}
+              value={massageLabSideRaysFalloff}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysFalloff: Number(event.target.value) })}
               aria-label="Side Rays falloff"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({Math.round(reactBitsSideRaysOpacity * 100)}%)</span>
+            <span>Opacity ({Math.round(massageLabSideRaysOpacity * 100)}%)</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsSideRaysOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsSideRaysOpacity: Number(event.target.value) })}
+              value={massageLabSideRaysOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabSideRaysOpacity: Number(event.target.value) })}
               aria-label="Side Rays opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-light-rays" && (
+      {option.id === "massage-lab-light-rays" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsLightRaysPaletteMode}
+              value={massageLabLightRaysPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightRaysPaletteMode: event.target.value as ReactBitsLightRaysPaletteMode,
+                massageLabLightRaysPaletteMode: event.target.value as MassageLabLightRaysPaletteMode,
               })}
-              aria-label="React Bits Light Rays color mode"
+              aria-label="Light Rays color mode"
             >
               <option value="source">Source white</option>
               <option value="custom">Custom ray</option>
@@ -6485,37 +7746,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLightRaysPaletteMode === "custom" ? (
+          {massageLabLightRaysPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Ray color</span>
               <input
                 type="color"
-                value={reactBitsLightRaysColor}
-                onChange={(event) => handleSettingsChange({ reactBitsLightRaysColor: event.target.value })}
-                aria-label="React Bits Light Rays color"
+                value={massageLabLightRaysColor}
+                onChange={(event) => handleSettingsChange({ massageLabLightRaysColor: event.target.value })}
+                aria-label="Light Rays color"
               />
             </label>
           ) : null}
 
-          {reactBitsLightRaysPaletteMode === "harmony" ? (
+          {massageLabLightRaysPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLightRaysPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightRaysPrimaryColor: event.target.value })}
-                  aria-label="React Bits Light Rays primary color"
+                  value={massageLabLightRaysPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLightRaysPrimaryColor: event.target.value })}
+                  aria-label="Light Rays primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsLightRaysHarmony}
+                  value={massageLabLightRaysHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightRaysHarmony: event.target.value as ColorHarmony,
+                    massageLabLightRaysHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Light Rays color harmony"
+                  aria-label="Light Rays color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -6530,11 +7791,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Origin</span>
             <select
-              value={reactBitsLightRaysOrigin}
+              value={massageLabLightRaysOrigin}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightRaysOrigin: event.target.value as ReactBitsLightRaysOrigin,
+                massageLabLightRaysOrigin: event.target.value as MassageLabLightRaysOrigin,
               })}
-              aria-label="React Bits Light Rays origin"
+              aria-label="Light Rays origin"
             >
               <option value="top-left">Top left</option>
               <option value="top-center">Top center</option>
@@ -6550,9 +7811,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsLightRaysPulsating}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysPulsating: event.target.checked })}
-              aria-label="React Bits Light Rays pulsating"
+              checked={massageLabLightRaysPulsating}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysPulsating: event.target.checked })}
+              aria-label="Light Rays pulsating"
             />
             <span>Pulsating rays</span>
           </label>
@@ -6560,129 +7821,129 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsLightRaysFollowMouse}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysFollowMouse: event.target.checked })}
-              aria-label="React Bits Light Rays follow mouse"
+              checked={massageLabLightRaysFollowMouse}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysFollowMouse: event.target.checked })}
+              aria-label="Light Rays follow mouse"
             />
             <span>Follow cursor</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsLightRaysSpeed.toFixed(1)}x)</span>
+            <span>Speed ({massageLabLightRaysSpeed.toFixed(1)}x)</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.1"
-              value={reactBitsLightRaysSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysSpeed: Number(event.target.value) })}
-              aria-label="React Bits Light Rays speed"
+              value={massageLabLightRaysSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysSpeed: Number(event.target.value) })}
+              aria-label="Light Rays speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spread ({reactBitsLightRaysSpread.toFixed(1)})</span>
+            <span>Spread ({massageLabLightRaysSpread.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.1"
-              value={reactBitsLightRaysSpread}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysSpread: Number(event.target.value) })}
-              aria-label="React Bits Light Rays spread"
+              value={massageLabLightRaysSpread}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysSpread: Number(event.target.value) })}
+              aria-label="Light Rays spread"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Length ({reactBitsLightRaysLength.toFixed(1)})</span>
+            <span>Length ({massageLabLightRaysLength.toFixed(1)})</span>
             <input
               type="range"
               min="0.25"
               max="5"
               step="0.05"
-              value={reactBitsLightRaysLength}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysLength: Number(event.target.value) })}
-              aria-label="React Bits Light Rays length"
+              value={massageLabLightRaysLength}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysLength: Number(event.target.value) })}
+              aria-label="Light Rays length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Fade distance ({reactBitsLightRaysFadeDistance.toFixed(1)})</span>
+            <span>Fade distance ({massageLabLightRaysFadeDistance.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.1"
-              value={reactBitsLightRaysFadeDistance}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysFadeDistance: Number(event.target.value) })}
-              aria-label="React Bits Light Rays fade distance"
+              value={massageLabLightRaysFadeDistance}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysFadeDistance: Number(event.target.value) })}
+              aria-label="Light Rays fade distance"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Saturation ({reactBitsLightRaysSaturation.toFixed(1)})</span>
+            <span>Saturation ({massageLabLightRaysSaturation.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.1"
-              value={reactBitsLightRaysSaturation}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysSaturation: Number(event.target.value) })}
-              aria-label="React Bits Light Rays saturation"
+              value={massageLabLightRaysSaturation}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysSaturation: Number(event.target.value) })}
+              aria-label="Light Rays saturation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse influence ({reactBitsLightRaysMouseInfluence.toFixed(2)})</span>
+            <span>Mouse influence ({massageLabLightRaysMouseInfluence.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsLightRaysMouseInfluence}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysMouseInfluence: Number(event.target.value) })}
-              aria-label="React Bits Light Rays mouse influence"
+              value={massageLabLightRaysMouseInfluence}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysMouseInfluence: Number(event.target.value) })}
+              aria-label="Light Rays mouse influence"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsLightRaysNoiseAmount.toFixed(2)})</span>
+            <span>Noise ({massageLabLightRaysNoiseAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsLightRaysNoiseAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysNoiseAmount: Number(event.target.value) })}
-              aria-label="React Bits Light Rays noise amount"
+              value={massageLabLightRaysNoiseAmount}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysNoiseAmount: Number(event.target.value) })}
+              aria-label="Light Rays noise amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distortion ({reactBitsLightRaysDistortion.toFixed(2)})</span>
+            <span>Distortion ({massageLabLightRaysDistortion.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsLightRaysDistortion}
-              onChange={(event) => handleSettingsChange({ reactBitsLightRaysDistortion: Number(event.target.value) })}
-              aria-label="React Bits Light Rays distortion"
+              value={massageLabLightRaysDistortion}
+              onChange={(event) => handleSettingsChange({ massageLabLightRaysDistortion: Number(event.target.value) })}
+              aria-label="Light Rays distortion"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-pixel-blast" && (
+      {option.id === "massage-lab-pixel-blast" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsPixelBlastPaletteMode}
+              value={massageLabPixelBlastPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastPaletteMode: event.target.value as ReactBitsPixelBlastPaletteMode,
+                massageLabPixelBlastPaletteMode: event.target.value as MassageLabPixelBlastPaletteMode,
               })}
-              aria-label="React Bits Pixel Blast color mode"
+              aria-label="MassageLab Pixel Blast color mode"
             >
               <option value="source">Source lavender</option>
               <option value="custom">Custom pixel</option>
@@ -6690,37 +7951,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsPixelBlastPaletteMode === "custom" ? (
+          {massageLabPixelBlastPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Pixel color</span>
               <input
                 type="color"
-                value={reactBitsPixelBlastColor}
-                onChange={(event) => handleSettingsChange({ reactBitsPixelBlastColor: event.target.value })}
-                aria-label="React Bits Pixel Blast color"
+                value={massageLabPixelBlastColor}
+                onChange={(event) => handleSettingsChange({ massageLabPixelBlastColor: event.target.value })}
+                aria-label="MassageLab Pixel Blast color"
               />
             </label>
           ) : null}
 
-          {reactBitsPixelBlastPaletteMode === "harmony" ? (
+          {massageLabPixelBlastPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsPixelBlastPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPrimaryColor: event.target.value })}
-                  aria-label="React Bits Pixel Blast primary color"
+                  value={massageLabPixelBlastPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabPixelBlastPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Pixel Blast primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsPixelBlastHarmony}
+                  value={massageLabPixelBlastHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPixelBlastHarmony: event.target.value as ColorHarmony,
+                    massageLabPixelBlastHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Pixel Blast color harmony"
+                  aria-label="MassageLab Pixel Blast color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -6735,11 +7996,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Shape</span>
             <select
-              value={reactBitsPixelBlastVariant}
+              value={massageLabPixelBlastVariant}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastVariant: event.target.value as ReactBitsPixelBlastVariant,
+                massageLabPixelBlastVariant: event.target.value as MassageLabPixelBlastVariant,
               })}
-              aria-label="React Bits Pixel Blast shape"
+              aria-label="MassageLab Pixel Blast shape"
             >
               <option value="square">Square</option>
               <option value="circle">Circle</option>
@@ -6751,9 +8012,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsPixelBlastAntialias}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastAntialias: event.target.checked })}
-              aria-label="React Bits Pixel Blast antialias"
+              checked={massageLabPixelBlastAntialias}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastAntialias: event.target.checked })}
+              aria-label="MassageLab Pixel Blast antialias"
             />
             <span>Antialias edges</span>
           </label>
@@ -6761,9 +8022,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsPixelBlastEnableRipples}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastEnableRipples: event.target.checked })}
-              aria-label="React Bits Pixel Blast ripple clicks"
+              checked={massageLabPixelBlastEnableRipples}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastEnableRipples: event.target.checked })}
+              aria-label="MassageLab Pixel Blast ripple clicks"
             />
             <span>Ripple clicks</span>
           </label>
@@ -6771,9 +8032,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsPixelBlastLiquid}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastLiquid: event.target.checked })}
-              aria-label="React Bits Pixel Blast liquid pointer warp"
+              checked={massageLabPixelBlastLiquid}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastLiquid: event.target.checked })}
+              aria-label="MassageLab Pixel Blast liquid pointer warp"
             />
             <span>Liquid pointer warp</span>
           </label>
@@ -6781,9 +8042,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsPixelBlastTransparent}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastTransparent: event.target.checked })}
-              aria-label="React Bits Pixel Blast transparent background"
+              checked={massageLabPixelBlastTransparent}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastTransparent: event.target.checked })}
+              aria-label="MassageLab Pixel Blast transparent background"
             />
             <span>Transparent background</span>
           </label>
@@ -6791,206 +8052,206 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsPixelBlastAutoPauseOffscreen}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastAutoPauseOffscreen: event.target.checked })}
-              aria-label="React Bits Pixel Blast pause offscreen"
+              checked={massageLabPixelBlastAutoPauseOffscreen}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastAutoPauseOffscreen: event.target.checked })}
+              aria-label="MassageLab Pixel Blast pause offscreen"
             />
             <span>Pause offscreen</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel size ({reactBitsPixelBlastPixelSize.toFixed(0)})</span>
+            <span>Pixel size ({massageLabPixelBlastPixelSize.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="16"
               step="1"
-              value={reactBitsPixelBlastPixelSize}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPixelSize: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast pixel size"
+              value={massageLabPixelBlastPixelSize}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastPixelSize: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast pixel size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pattern scale ({reactBitsPixelBlastPatternScale.toFixed(2)})</span>
+            <span>Pattern scale ({massageLabPixelBlastPatternScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.25"
               max="8"
               step="0.05"
-              value={reactBitsPixelBlastPatternScale}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastPatternScale: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast pattern scale"
+              value={massageLabPixelBlastPatternScale}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastPatternScale: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast pattern scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Density ({reactBitsPixelBlastPatternDensity.toFixed(2)})</span>
+            <span>Density ({massageLabPixelBlastPatternDensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsPixelBlastPatternDensity}
+              value={massageLabPixelBlastPatternDensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastPatternDensity: Number(event.target.value),
+                massageLabPixelBlastPatternDensity: Number(event.target.value),
               })}
-              aria-label="React Bits Pixel Blast pattern density"
+              aria-label="MassageLab Pixel Blast pattern density"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsPixelBlastSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabPixelBlastSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPixelBlastSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastSpeed: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast speed"
+              value={massageLabPixelBlastSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel jitter ({reactBitsPixelBlastPixelSizeJitter.toFixed(2)})</span>
+            <span>Pixel jitter ({massageLabPixelBlastPixelSizeJitter.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsPixelBlastPixelSizeJitter}
+              value={massageLabPixelBlastPixelSizeJitter}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastPixelSizeJitter: Number(event.target.value),
+                massageLabPixelBlastPixelSizeJitter: Number(event.target.value),
               })}
-              aria-label="React Bits Pixel Blast pixel jitter"
+              aria-label="MassageLab Pixel Blast pixel jitter"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Edge fade ({reactBitsPixelBlastEdgeFade.toFixed(2)})</span>
+            <span>Edge fade ({massageLabPixelBlastEdgeFade.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsPixelBlastEdgeFade}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastEdgeFade: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast edge fade"
+              value={massageLabPixelBlastEdgeFade}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastEdgeFade: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast edge fade"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ripple intensity ({reactBitsPixelBlastRippleIntensityScale.toFixed(2)})</span>
+            <span>Ripple intensity ({massageLabPixelBlastRippleIntensityScale.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsPixelBlastRippleIntensityScale}
+              value={massageLabPixelBlastRippleIntensityScale}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastRippleIntensityScale: Number(event.target.value),
+                massageLabPixelBlastRippleIntensityScale: Number(event.target.value),
               })}
-              aria-label="React Bits Pixel Blast ripple intensity"
+              aria-label="MassageLab Pixel Blast ripple intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ripple thickness ({reactBitsPixelBlastRippleThickness.toFixed(2)})</span>
+            <span>Ripple thickness ({massageLabPixelBlastRippleThickness.toFixed(2)})</span>
             <input
               type="range"
               min="0.01"
               max="0.5"
               step="0.01"
-              value={reactBitsPixelBlastRippleThickness}
+              value={massageLabPixelBlastRippleThickness}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastRippleThickness: Number(event.target.value),
+                massageLabPixelBlastRippleThickness: Number(event.target.value),
               })}
-              aria-label="React Bits Pixel Blast ripple thickness"
+              aria-label="MassageLab Pixel Blast ripple thickness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ripple speed ({reactBitsPixelBlastRippleSpeed.toFixed(2)})</span>
+            <span>Ripple speed ({massageLabPixelBlastRippleSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0.05"
               max="2"
               step="0.05"
-              value={reactBitsPixelBlastRippleSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastRippleSpeed: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast ripple speed"
+              value={massageLabPixelBlastRippleSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastRippleSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast ripple speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Liquid strength ({reactBitsPixelBlastLiquidStrength.toFixed(2)})</span>
+            <span>Liquid strength ({massageLabPixelBlastLiquidStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.4"
               step="0.01"
-              value={reactBitsPixelBlastLiquidStrength}
+              value={massageLabPixelBlastLiquidStrength}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastLiquidStrength: Number(event.target.value),
+                massageLabPixelBlastLiquidStrength: Number(event.target.value),
               })}
-              aria-label="React Bits Pixel Blast liquid strength"
+              aria-label="MassageLab Pixel Blast liquid strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Liquid radius ({reactBitsPixelBlastLiquidRadius.toFixed(1)})</span>
+            <span>Liquid radius ({massageLabPixelBlastLiquidRadius.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.1"
-              value={reactBitsPixelBlastLiquidRadius}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastLiquidRadius: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast liquid radius"
+              value={massageLabPixelBlastLiquidRadius}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastLiquidRadius: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast liquid radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Liquid wobble ({reactBitsPixelBlastLiquidWobbleSpeed.toFixed(1)})</span>
+            <span>Liquid wobble ({massageLabPixelBlastLiquidWobbleSpeed.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="10"
               step="0.1"
-              value={reactBitsPixelBlastLiquidWobbleSpeed}
+              value={massageLabPixelBlastLiquidWobbleSpeed}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelBlastLiquidWobbleSpeed: Number(event.target.value),
+                massageLabPixelBlastLiquidWobbleSpeed: Number(event.target.value),
               })}
-              aria-label="React Bits Pixel Blast liquid wobble speed"
+              aria-label="MassageLab Pixel Blast liquid wobble speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsPixelBlastNoiseAmount.toFixed(2)})</span>
+            <span>Noise ({massageLabPixelBlastNoiseAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.4"
               step="0.01"
-              value={reactBitsPixelBlastNoiseAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelBlastNoiseAmount: Number(event.target.value) })}
-              aria-label="React Bits Pixel Blast noise amount"
+              value={massageLabPixelBlastNoiseAmount}
+              onChange={(event) => handleSettingsChange({ massageLabPixelBlastNoiseAmount: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Blast noise amount"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-color-bends" && (
+      {option.id === "massage-lab-color-bends" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsColorBendsPaletteMode}
+              value={massageLabColorBendsPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsColorBendsPaletteMode: event.target.value as ReactBitsColorBendsPaletteMode,
+                massageLabColorBendsPaletteMode: event.target.value as MassageLabColorBendsPaletteMode,
               })}
-              aria-label="React Bits Color Bends color mode"
+              aria-label="MassageLab Color Bends color mode"
             >
               <option value="source">Source RGB bands</option>
               <option value="custom">Custom bends</option>
@@ -6998,13 +8259,13 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsColorBendsPaletteMode === "custom" ? (
+          {massageLabColorBendsPaletteMode === "custom" ? (
             <>
               {[
-                ["Color 1", "reactBitsColorBendsColorOne", reactBitsColorBendsColorOne],
-                ["Color 2", "reactBitsColorBendsColorTwo", reactBitsColorBendsColorTwo],
-                ["Color 3", "reactBitsColorBendsColorThree", reactBitsColorBendsColorThree],
-                ["Color 4", "reactBitsColorBendsColorFour", reactBitsColorBendsColorFour],
+                ["Color 1", "massageLabColorBendsColorOne", massageLabColorBendsColorOne],
+                ["Color 2", "massageLabColorBendsColorTwo", massageLabColorBendsColorTwo],
+                ["Color 3", "massageLabColorBendsColorThree", massageLabColorBendsColorThree],
+                ["Color 4", "massageLabColorBendsColorFour", massageLabColorBendsColorFour],
               ].map(([label, key, value]) => (
                 <label key={key} className={styles.colorRow}>
                   <span>{label}</span>
@@ -7012,32 +8273,32 @@ export function RunningTimer({
                     type="color"
                     value={value}
                     onChange={(event) => handleSettingsChange({ [key]: event.target.value })}
-                    aria-label={`React Bits Color Bends ${label.toLowerCase()}`}
+                    aria-label={`MassageLab Color Bends ${label.toLowerCase()}`}
                   />
                 </label>
               ))}
             </>
           ) : null}
 
-          {reactBitsColorBendsPaletteMode === "harmony" ? (
+          {massageLabColorBendsPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsColorBendsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsColorBendsPrimaryColor: event.target.value })}
-                  aria-label="React Bits Color Bends primary color"
+                  value={massageLabColorBendsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabColorBendsPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Color Bends primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsColorBendsHarmony}
+                  value={massageLabColorBendsHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsColorBendsHarmony: event.target.value as ColorHarmony,
+                    massageLabColorBendsHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Color Bends color harmony"
+                  aria-label="MassageLab Color Bends color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -7052,9 +8313,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsColorBendsTransparent}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsTransparent: event.target.checked })}
-              aria-label="React Bits Color Bends transparent background"
+              checked={massageLabColorBendsTransparent}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsTransparent: event.target.checked })}
+              aria-label="MassageLab Color Bends transparent background"
             />
             <span>Transparent background</span>
           </label>
@@ -7062,181 +8323,181 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsColorBendsInteractive}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsInteractive: event.target.checked })}
-              aria-label="React Bits Color Bends pointer interaction"
+              checked={massageLabColorBendsInteractive}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsInteractive: event.target.checked })}
+              aria-label="MassageLab Color Bends pointer interaction"
             />
             <span>Pointer interaction</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsColorBendsRotation.toFixed(0)}deg)</span>
+            <span>Rotation ({massageLabColorBendsRotation.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-360"
               max="360"
               step="1"
-              value={reactBitsColorBendsRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsRotation: Number(event.target.value) })}
-              aria-label="React Bits Color Bends rotation"
+              value={massageLabColorBendsRotation}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsRotation: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends rotation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsColorBendsSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabColorBendsSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsColorBendsSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsSpeed: Number(event.target.value) })}
-              aria-label="React Bits Color Bends speed"
+              value={massageLabColorBendsSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Auto rotate ({reactBitsColorBendsAutoRotate.toFixed(0)}deg/s)</span>
+            <span>Auto rotate ({massageLabColorBendsAutoRotate.toFixed(0)}deg/s)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsColorBendsAutoRotate}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsAutoRotate: Number(event.target.value) })}
-              aria-label="React Bits Color Bends auto rotate"
+              value={massageLabColorBendsAutoRotate}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsAutoRotate: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends auto rotate"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsColorBendsScale.toFixed(2)})</span>
+            <span>Scale ({massageLabColorBendsScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsColorBendsScale}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsScale: Number(event.target.value) })}
-              aria-label="React Bits Color Bends scale"
+              value={massageLabColorBendsScale}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsScale: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Frequency ({reactBitsColorBendsFrequency.toFixed(2)})</span>
+            <span>Frequency ({massageLabColorBendsFrequency.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsColorBendsFrequency}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsFrequency: Number(event.target.value) })}
-              aria-label="React Bits Color Bends frequency"
+              value={massageLabColorBendsFrequency}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsFrequency: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends frequency"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp ({reactBitsColorBendsWarpStrength.toFixed(2)})</span>
+            <span>Warp ({massageLabColorBendsWarpStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsColorBendsWarpStrength}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsWarpStrength: Number(event.target.value) })}
-              aria-label="React Bits Color Bends warp strength"
+              value={massageLabColorBendsWarpStrength}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsWarpStrength: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends warp strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse influence ({reactBitsColorBendsMouseInfluence.toFixed(2)})</span>
+            <span>Mouse influence ({massageLabColorBendsMouseInfluence.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsColorBendsMouseInfluence}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsMouseInfluence: Number(event.target.value) })}
-              aria-label="React Bits Color Bends mouse influence"
+              value={massageLabColorBendsMouseInfluence}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsMouseInfluence: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends mouse influence"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Parallax ({reactBitsColorBendsParallax.toFixed(2)})</span>
+            <span>Parallax ({massageLabColorBendsParallax.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsColorBendsParallax}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsParallax: Number(event.target.value) })}
-              aria-label="React Bits Color Bends parallax"
+              value={massageLabColorBendsParallax}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsParallax: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends parallax"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsColorBendsNoise.toFixed(2)})</span>
+            <span>Noise ({massageLabColorBendsNoise.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsColorBendsNoise}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsNoise: Number(event.target.value) })}
-              aria-label="React Bits Color Bends noise"
+              value={massageLabColorBendsNoise}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsNoise: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends noise"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Iterations ({reactBitsColorBendsIterations.toFixed(0)})</span>
+            <span>Iterations ({massageLabColorBendsIterations.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="5"
               step="1"
-              value={reactBitsColorBendsIterations}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsIterations: Number(event.target.value) })}
-              aria-label="React Bits Color Bends iterations"
+              value={massageLabColorBendsIterations}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsIterations: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends iterations"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Intensity ({reactBitsColorBendsIntensity.toFixed(2)})</span>
+            <span>Intensity ({massageLabColorBendsIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsColorBendsIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsIntensity: Number(event.target.value) })}
-              aria-label="React Bits Color Bends intensity"
+              value={massageLabColorBendsIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Band width ({reactBitsColorBendsBandWidth.toFixed(1)})</span>
+            <span>Band width ({massageLabColorBendsBandWidth.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="16"
               step="0.1"
-              value={reactBitsColorBendsBandWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsColorBendsBandWidth: Number(event.target.value) })}
-              aria-label="React Bits Color Bends band width"
+              value={massageLabColorBendsBandWidth}
+              onChange={(event) => handleSettingsChange({ massageLabColorBendsBandWidth: Number(event.target.value) })}
+              aria-label="MassageLab Color Bends band width"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-evil-eye" && (
+      {option.id === "massage-lab-evil-eye" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsEvilEyePaletteMode}
+              value={massageLabEvilEyePaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsEvilEyePaletteMode: event.target.value as ReactBitsEvilEyePaletteMode,
+                massageLabEvilEyePaletteMode: event.target.value as MassageLabEvilEyePaletteMode,
               })}
-              aria-label="React Bits Evil Eye color mode"
+              aria-label="MassageLab Evil Eye color mode"
             >
               <option value="source">Source orange</option>
               <option value="custom">Custom eye</option>
@@ -7244,37 +8505,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsEvilEyePaletteMode === "custom" ? (
+          {massageLabEvilEyePaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Eye color</span>
               <input
                 type="color"
-                value={reactBitsEvilEyeColor}
-                onChange={(event) => handleSettingsChange({ reactBitsEvilEyeColor: event.target.value })}
-                aria-label="React Bits Evil Eye eye color"
+                value={massageLabEvilEyeColor}
+                onChange={(event) => handleSettingsChange({ massageLabEvilEyeColor: event.target.value })}
+                aria-label="MassageLab Evil Eye eye color"
               />
             </label>
           ) : null}
 
-          {reactBitsEvilEyePaletteMode === "harmony" ? (
+          {massageLabEvilEyePaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsEvilEyePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsEvilEyePrimaryColor: event.target.value })}
-                  aria-label="React Bits Evil Eye primary color"
+                  value={massageLabEvilEyePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabEvilEyePrimaryColor: event.target.value })}
+                  aria-label="MassageLab Evil Eye primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsEvilEyeHarmony}
+                  value={massageLabEvilEyeHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsEvilEyeHarmony: event.target.value as ColorHarmony,
+                    massageLabEvilEyeHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Evil Eye color harmony"
+                  aria-label="MassageLab Evil Eye color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -7290,138 +8551,138 @@ export function RunningTimer({
             <span>Background</span>
             <input
               type="color"
-              value={reactBitsEvilEyeBackgroundColor}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeBackgroundColor: event.target.value })}
-              aria-label="React Bits Evil Eye background color"
+              value={massageLabEvilEyeBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeBackgroundColor: event.target.value })}
+              aria-label="MassageLab Evil Eye background color"
             />
           </label>
 
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsEvilEyeInteractive}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeInteractive: event.target.checked })}
-              aria-label="React Bits Evil Eye pointer interaction"
+              checked={massageLabEvilEyeInteractive}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeInteractive: event.target.checked })}
+              aria-label="MassageLab Evil Eye pointer interaction"
             />
             <span>Pointer pupil follow</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Intensity ({reactBitsEvilEyeIntensity.toFixed(2)})</span>
+            <span>Intensity ({massageLabEvilEyeIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsEvilEyeIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeIntensity: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye intensity"
+              value={massageLabEvilEyeIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pupil size ({reactBitsEvilEyePupilSize.toFixed(2)})</span>
+            <span>Pupil size ({massageLabEvilEyePupilSize.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="2"
               step="0.05"
-              value={reactBitsEvilEyePupilSize}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyePupilSize: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye pupil size"
+              value={massageLabEvilEyePupilSize}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyePupilSize: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye pupil size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Iris width ({reactBitsEvilEyeIrisWidth.toFixed(2)})</span>
+            <span>Iris width ({massageLabEvilEyeIrisWidth.toFixed(2)})</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={reactBitsEvilEyeIrisWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeIrisWidth: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye iris width"
+              value={massageLabEvilEyeIrisWidth}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeIrisWidth: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye iris width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({reactBitsEvilEyeGlowIntensity.toFixed(2)})</span>
+            <span>Glow ({massageLabEvilEyeGlowIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1.5"
               step="0.05"
-              value={reactBitsEvilEyeGlowIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeGlowIntensity: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye glow intensity"
+              value={massageLabEvilEyeGlowIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeGlowIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye glow intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsEvilEyeScale.toFixed(2)})</span>
+            <span>Scale ({massageLabEvilEyeScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.25"
               max="2"
               step="0.05"
-              value={reactBitsEvilEyeScale}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeScale: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye scale"
+              value={massageLabEvilEyeScale}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeScale: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise scale ({reactBitsEvilEyeNoiseScale.toFixed(2)})</span>
+            <span>Noise scale ({massageLabEvilEyeNoiseScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsEvilEyeNoiseScale}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeNoiseScale: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye noise scale"
+              value={massageLabEvilEyeNoiseScale}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeNoiseScale: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye noise scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pupil follow ({reactBitsEvilEyePupilFollow.toFixed(2)})</span>
+            <span>Pupil follow ({massageLabEvilEyePupilFollow.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsEvilEyePupilFollow}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyePupilFollow: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye pupil follow"
+              value={massageLabEvilEyePupilFollow}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyePupilFollow: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye pupil follow"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flame speed ({reactBitsEvilEyeFlameSpeed.toFixed(2)}x)</span>
+            <span>Flame speed ({massageLabEvilEyeFlameSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsEvilEyeFlameSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsEvilEyeFlameSpeed: Number(event.target.value) })}
-              aria-label="React Bits Evil Eye flame speed"
+              value={massageLabEvilEyeFlameSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabEvilEyeFlameSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Evil Eye flame speed"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-line-waves" && (
+      {option.id === "massage-lab-line-waves" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsLineWavesPaletteMode}
+              value={massageLabLineWavesPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLineWavesPaletteMode: event.target.value as ReactBitsLineWavesPaletteMode,
+                massageLabLineWavesPaletteMode: event.target.value as MassageLabLineWavesPaletteMode,
               })}
-              aria-label="React Bits Line Waves color mode"
+              aria-label="MassageLab Line Waves color mode"
             >
               <option value="source">Source white</option>
               <option value="custom">Custom lines</option>
@@ -7429,57 +8690,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLineWavesPaletteMode === "custom" ? (
+          {massageLabLineWavesPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsLineWavesColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorOne: event.target.value })}
-                  aria-label="React Bits Line Waves color 1"
+                  value={massageLabLineWavesColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabLineWavesColorOne: event.target.value })}
+                  aria-label="MassageLab Line Waves color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsLineWavesColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorTwo: event.target.value })}
-                  aria-label="React Bits Line Waves color 2"
+                  value={massageLabLineWavesColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabLineWavesColorTwo: event.target.value })}
+                  aria-label="MassageLab Line Waves color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsLineWavesColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesColorThree: event.target.value })}
-                  aria-label="React Bits Line Waves color 3"
+                  value={massageLabLineWavesColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabLineWavesColorThree: event.target.value })}
+                  aria-label="MassageLab Line Waves color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsLineWavesPaletteMode === "harmony" ? (
+          {massageLabLineWavesPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLineWavesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLineWavesPrimaryColor: event.target.value })}
-                  aria-label="React Bits Line Waves primary color"
+                  value={massageLabLineWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLineWavesPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Line Waves primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsLineWavesHarmony}
+                  value={massageLabLineWavesHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLineWavesHarmony: event.target.value as ColorHarmony,
+                    massageLabLineWavesHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Line Waves color harmony"
+                  aria-label="MassageLab Line Waves color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -7494,150 +8755,150 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsLineWavesEnableMouseInteraction}
+              checked={massageLabLineWavesEnableMouseInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsLineWavesEnableMouseInteraction: event.target.checked,
+                massageLabLineWavesEnableMouseInteraction: event.target.checked,
               })}
-              aria-label="React Bits Line Waves mouse warp"
+              aria-label="MassageLab Line Waves mouse warp"
             />
             <span>Pointer warp</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsLineWavesSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabLineWavesSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsLineWavesSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsLineWavesSpeed: Number(event.target.value) })}
-              aria-label="React Bits Line Waves speed"
+              value={massageLabLineWavesSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLineWavesSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Line Waves speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Inner lines ({reactBitsLineWavesInnerLineCount.toFixed(0)})</span>
+            <span>Inner lines ({massageLabLineWavesInnerLineCount.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="96"
               step="1"
-              value={reactBitsLineWavesInnerLineCount}
+              value={massageLabLineWavesInnerLineCount}
               onChange={(event) => handleSettingsChange({
-                reactBitsLineWavesInnerLineCount: Number(event.target.value),
+                massageLabLineWavesInnerLineCount: Number(event.target.value),
               })}
-              aria-label="React Bits Line Waves inner line count"
+              aria-label="MassageLab Line Waves inner line count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Outer lines ({reactBitsLineWavesOuterLineCount.toFixed(0)})</span>
+            <span>Outer lines ({massageLabLineWavesOuterLineCount.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="96"
               step="1"
-              value={reactBitsLineWavesOuterLineCount}
+              value={massageLabLineWavesOuterLineCount}
               onChange={(event) => handleSettingsChange({
-                reactBitsLineWavesOuterLineCount: Number(event.target.value),
+                massageLabLineWavesOuterLineCount: Number(event.target.value),
               })}
-              aria-label="React Bits Line Waves outer line count"
+              aria-label="MassageLab Line Waves outer line count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp ({reactBitsLineWavesWarpIntensity.toFixed(2)})</span>
+            <span>Warp ({massageLabLineWavesWarpIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsLineWavesWarpIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsLineWavesWarpIntensity: Number(event.target.value) })}
-              aria-label="React Bits Line Waves warp intensity"
+              value={massageLabLineWavesWarpIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabLineWavesWarpIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Line Waves warp intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsLineWavesRotation.toFixed(0)}deg)</span>
+            <span>Rotation ({massageLabLineWavesRotation.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsLineWavesRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsLineWavesRotation: Number(event.target.value) })}
-              aria-label="React Bits Line Waves rotation"
+              value={massageLabLineWavesRotation}
+              onChange={(event) => handleSettingsChange({ massageLabLineWavesRotation: Number(event.target.value) })}
+              aria-label="MassageLab Line Waves rotation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Edge fade ({reactBitsLineWavesEdgeFadeWidth.toFixed(2)})</span>
+            <span>Edge fade ({massageLabLineWavesEdgeFadeWidth.toFixed(2)})</span>
             <input
               type="range"
               min="-1"
               max="1"
               step="0.05"
-              value={reactBitsLineWavesEdgeFadeWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsLineWavesEdgeFadeWidth: Number(event.target.value) })}
-              aria-label="React Bits Line Waves edge fade width"
+              value={massageLabLineWavesEdgeFadeWidth}
+              onChange={(event) => handleSettingsChange({ massageLabLineWavesEdgeFadeWidth: Number(event.target.value) })}
+              aria-label="MassageLab Line Waves edge fade width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Color cycle ({reactBitsLineWavesColorCycleSpeed.toFixed(2)}x)</span>
+            <span>Color cycle ({massageLabLineWavesColorCycleSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsLineWavesColorCycleSpeed}
+              value={massageLabLineWavesColorCycleSpeed}
               onChange={(event) => handleSettingsChange({
-                reactBitsLineWavesColorCycleSpeed: Number(event.target.value),
+                massageLabLineWavesColorCycleSpeed: Number(event.target.value),
               })}
-              aria-label="React Bits Line Waves color cycle speed"
+              aria-label="MassageLab Line Waves color cycle speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Brightness ({reactBitsLineWavesBrightness.toFixed(2)})</span>
+            <span>Brightness ({massageLabLineWavesBrightness.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1.5"
               step="0.05"
-              value={reactBitsLineWavesBrightness}
-              onChange={(event) => handleSettingsChange({ reactBitsLineWavesBrightness: Number(event.target.value) })}
-              aria-label="React Bits Line Waves brightness"
+              value={massageLabLineWavesBrightness}
+              onChange={(event) => handleSettingsChange({ massageLabLineWavesBrightness: Number(event.target.value) })}
+              aria-label="MassageLab Line Waves brightness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse influence ({reactBitsLineWavesMouseInfluence.toFixed(2)})</span>
+            <span>Mouse influence ({massageLabLineWavesMouseInfluence.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsLineWavesMouseInfluence}
-              onChange={(event) => handleSettingsChange({ reactBitsLineWavesMouseInfluence: Number(event.target.value) })}
-              aria-label="React Bits Line Waves mouse influence"
+              value={massageLabLineWavesMouseInfluence}
+              onChange={(event) => handleSettingsChange({ massageLabLineWavesMouseInfluence: Number(event.target.value) })}
+              aria-label="MassageLab Line Waves mouse influence"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-radar" && (
+      {option.id === "massage-lab-radar" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsRadarPaletteMode}
+              value={massageLabRadarPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsRadarPaletteMode: event.target.value as ReactBitsRadarPaletteMode,
+                massageLabRadarPaletteMode: event.target.value as MassageLabRadarPaletteMode,
               })}
-              aria-label="React Bits Radar color mode"
+              aria-label="MassageLab Radar color mode"
             >
               <option value="source">Source purple</option>
               <option value="custom">Custom radar</option>
@@ -7645,37 +8906,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsRadarPaletteMode === "custom" ? (
+          {massageLabRadarPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Radar color</span>
               <input
                 type="color"
-                value={reactBitsRadarColor}
-                onChange={(event) => handleSettingsChange({ reactBitsRadarColor: event.target.value })}
-                aria-label="React Bits Radar color"
+                value={massageLabRadarColor}
+                onChange={(event) => handleSettingsChange({ massageLabRadarColor: event.target.value })}
+                aria-label="MassageLab Radar color"
               />
             </label>
           ) : null}
 
-          {reactBitsRadarPaletteMode === "harmony" ? (
+          {massageLabRadarPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsRadarPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsRadarPrimaryColor: event.target.value })}
-                  aria-label="React Bits Radar primary color"
+                  value={massageLabRadarPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabRadarPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Radar primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={reactBitsRadarHarmony}
+                  value={massageLabRadarHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsRadarHarmony: event.target.value as ColorHarmony,
+                    massageLabRadarHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Radar color harmony"
+                  aria-label="MassageLab Radar color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -7691,192 +8952,192 @@ export function RunningTimer({
             <span>Background</span>
             <input
               type="color"
-              value={reactBitsRadarBackgroundColor}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarBackgroundColor: event.target.value })}
-              aria-label="React Bits Radar background color"
+              value={massageLabRadarBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLabRadarBackgroundColor: event.target.value })}
+              aria-label="MassageLab Radar background color"
             />
           </label>
 
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsRadarEnableMouseInteraction}
+              checked={massageLabRadarEnableMouseInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsRadarEnableMouseInteraction: event.target.checked,
+                massageLabRadarEnableMouseInteraction: event.target.checked,
               })}
-              aria-label="React Bits Radar pointer offset"
+              aria-label="MassageLab Radar pointer offset"
             />
             <span>Pointer offset</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsRadarSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabRadarSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsRadarSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarSpeed: Number(event.target.value) })}
-              aria-label="React Bits Radar speed"
+              value={massageLabRadarSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabRadarSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Radar speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsRadarScale.toFixed(2)})</span>
+            <span>Scale ({massageLabRadarScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="2"
               step="0.05"
-              value={reactBitsRadarScale}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarScale: Number(event.target.value) })}
-              aria-label="React Bits Radar scale"
+              value={massageLabRadarScale}
+              onChange={(event) => handleSettingsChange({ massageLabRadarScale: Number(event.target.value) })}
+              aria-label="MassageLab Radar scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rings ({reactBitsRadarRingCount.toFixed(0)})</span>
+            <span>Rings ({massageLabRadarRingCount.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="40"
               step="1"
-              value={reactBitsRadarRingCount}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarRingCount: Number(event.target.value) })}
-              aria-label="React Bits Radar ring count"
+              value={massageLabRadarRingCount}
+              onChange={(event) => handleSettingsChange({ massageLabRadarRingCount: Number(event.target.value) })}
+              aria-label="MassageLab Radar ring count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spokes ({reactBitsRadarSpokeCount.toFixed(0)})</span>
+            <span>Spokes ({massageLabRadarSpokeCount.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="40"
               step="1"
-              value={reactBitsRadarSpokeCount}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarSpokeCount: Number(event.target.value) })}
-              aria-label="React Bits Radar spoke count"
+              value={massageLabRadarSpokeCount}
+              onChange={(event) => handleSettingsChange({ massageLabRadarSpokeCount: Number(event.target.value) })}
+              aria-label="MassageLab Radar spoke count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ring thickness ({reactBitsRadarRingThickness.toFixed(3)})</span>
+            <span>Ring thickness ({massageLabRadarRingThickness.toFixed(3)})</span>
             <input
               type="range"
               min="0.001"
               max="0.25"
               step="0.001"
-              value={reactBitsRadarRingThickness}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarRingThickness: Number(event.target.value) })}
-              aria-label="React Bits Radar ring thickness"
+              value={massageLabRadarRingThickness}
+              onChange={(event) => handleSettingsChange({ massageLabRadarRingThickness: Number(event.target.value) })}
+              aria-label="MassageLab Radar ring thickness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spoke thickness ({reactBitsRadarSpokeThickness.toFixed(3)})</span>
+            <span>Spoke thickness ({massageLabRadarSpokeThickness.toFixed(3)})</span>
             <input
               type="range"
               min="0.001"
               max="0.1"
               step="0.001"
-              value={reactBitsRadarSpokeThickness}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarSpokeThickness: Number(event.target.value) })}
-              aria-label="React Bits Radar spoke thickness"
+              value={massageLabRadarSpokeThickness}
+              onChange={(event) => handleSettingsChange({ massageLabRadarSpokeThickness: Number(event.target.value) })}
+              aria-label="MassageLab Radar spoke thickness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Sweep speed ({reactBitsRadarSweepSpeed.toFixed(2)}x)</span>
+            <span>Sweep speed ({massageLabRadarSweepSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsRadarSweepSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarSweepSpeed: Number(event.target.value) })}
-              aria-label="React Bits Radar sweep speed"
+              value={massageLabRadarSweepSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabRadarSweepSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Radar sweep speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Sweep width ({reactBitsRadarSweepWidth.toFixed(2)})</span>
+            <span>Sweep width ({massageLabRadarSweepWidth.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="12"
               step="0.1"
-              value={reactBitsRadarSweepWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarSweepWidth: Number(event.target.value) })}
-              aria-label="React Bits Radar sweep width"
+              value={massageLabRadarSweepWidth}
+              onChange={(event) => handleSettingsChange({ massageLabRadarSweepWidth: Number(event.target.value) })}
+              aria-label="MassageLab Radar sweep width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Sweep lobes ({reactBitsRadarSweepLobes.toFixed(0)})</span>
+            <span>Sweep lobes ({massageLabRadarSweepLobes.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="12"
               step="1"
-              value={reactBitsRadarSweepLobes}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarSweepLobes: Number(event.target.value) })}
-              aria-label="React Bits Radar sweep lobes"
+              value={massageLabRadarSweepLobes}
+              onChange={(event) => handleSettingsChange({ massageLabRadarSweepLobes: Number(event.target.value) })}
+              aria-label="MassageLab Radar sweep lobes"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Falloff ({reactBitsRadarFalloff.toFixed(2)})</span>
+            <span>Falloff ({massageLabRadarFalloff.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="8"
               step="0.1"
-              value={reactBitsRadarFalloff}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarFalloff: Number(event.target.value) })}
-              aria-label="React Bits Radar falloff"
+              value={massageLabRadarFalloff}
+              onChange={(event) => handleSettingsChange({ massageLabRadarFalloff: Number(event.target.value) })}
+              aria-label="MassageLab Radar falloff"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Brightness ({reactBitsRadarBrightness.toFixed(2)})</span>
+            <span>Brightness ({massageLabRadarBrightness.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsRadarBrightness}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarBrightness: Number(event.target.value) })}
-              aria-label="React Bits Radar brightness"
+              value={massageLabRadarBrightness}
+              onChange={(event) => handleSettingsChange({ massageLabRadarBrightness: Number(event.target.value) })}
+              aria-label="MassageLab Radar brightness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse influence ({reactBitsRadarMouseInfluence.toFixed(2)})</span>
+            <span>Mouse influence ({massageLabRadarMouseInfluence.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsRadarMouseInfluence}
-              onChange={(event) => handleSettingsChange({ reactBitsRadarMouseInfluence: Number(event.target.value) })}
-              aria-label="React Bits Radar mouse influence"
+              value={massageLabRadarMouseInfluence}
+              onChange={(event) => handleSettingsChange({ massageLabRadarMouseInfluence: Number(event.target.value) })}
+              aria-label="MassageLab Radar mouse influence"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-soft-aurora" && (
+      {option.id === "massage-lab-soft-aurora" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsSoftAuroraPaletteMode}
+              value={massageLabSoftAuroraPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsSoftAuroraPaletteMode: event.target.value as ReactBitsSoftAuroraPaletteMode,
+                massageLabSoftAuroraPaletteMode: event.target.value as MassageLabSoftAuroraPaletteMode,
               })}
-              aria-label="React Bits Soft Aurora color mode"
+              aria-label="MassageLab Soft Aurora color mode"
             >
               <option value="source">Source white and magenta</option>
               <option value="custom">Custom aurora</option>
@@ -7884,48 +9145,48 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsSoftAuroraPaletteMode === "custom" ? (
+          {massageLabSoftAuroraPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Aurora color 1</span>
                 <input
                   type="color"
-                  value={reactBitsSoftAuroraColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorOne: event.target.value })}
-                  aria-label="React Bits Soft Aurora color 1"
+                  value={massageLabSoftAuroraColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabSoftAuroraColorOne: event.target.value })}
+                  aria-label="MassageLab Soft Aurora color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Aurora color 2</span>
                 <input
                   type="color"
-                  value={reactBitsSoftAuroraColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorTwo: event.target.value })}
-                  aria-label="React Bits Soft Aurora color 2"
+                  value={massageLabSoftAuroraColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabSoftAuroraColorTwo: event.target.value })}
+                  aria-label="MassageLab Soft Aurora color 2"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsSoftAuroraPaletteMode === "harmony" ? (
+          {massageLabSoftAuroraPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsSoftAuroraPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraPrimaryColor: event.target.value })}
-                  aria-label="React Bits Soft Aurora primary color"
+                  value={massageLabSoftAuroraPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabSoftAuroraPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Soft Aurora primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsSoftAuroraHarmony}
+                  value={massageLabSoftAuroraHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsSoftAuroraHarmony: event.target.value as ColorHarmony,
+                    massageLabSoftAuroraHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Soft Aurora color harmony"
+                  aria-label="MassageLab Soft Aurora color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -7941,175 +9202,175 @@ export function RunningTimer({
             <span>Mouse shift</span>
             <input
               type="checkbox"
-              checked={reactBitsSoftAuroraEnableMouseInteraction}
+              checked={massageLabSoftAuroraEnableMouseInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsSoftAuroraEnableMouseInteraction: event.target.checked,
+                massageLabSoftAuroraEnableMouseInteraction: event.target.checked,
               })}
-              aria-label="React Bits Soft Aurora mouse shift"
+              aria-label="MassageLab Soft Aurora mouse shift"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsSoftAuroraSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabSoftAuroraSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsSoftAuroraSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraSpeed: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora speed"
+              value={massageLabSoftAuroraSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsSoftAuroraScale.toFixed(2)})</span>
+            <span>Scale ({massageLabSoftAuroraScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsSoftAuroraScale}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraScale: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora scale"
+              value={massageLabSoftAuroraScale}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraScale: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Brightness ({reactBitsSoftAuroraBrightness.toFixed(2)})</span>
+            <span>Brightness ({massageLabSoftAuroraBrightness.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsSoftAuroraBrightness}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBrightness: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora brightness"
+              value={massageLabSoftAuroraBrightness}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraBrightness: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora brightness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise frequency ({reactBitsSoftAuroraNoiseFrequency.toFixed(2)})</span>
+            <span>Noise frequency ({massageLabSoftAuroraNoiseFrequency.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="8"
               step="0.05"
-              value={reactBitsSoftAuroraNoiseFrequency}
+              value={massageLabSoftAuroraNoiseFrequency}
               onChange={(event) => handleSettingsChange({
-                reactBitsSoftAuroraNoiseFrequency: Number(event.target.value),
+                massageLabSoftAuroraNoiseFrequency: Number(event.target.value),
               })}
-              aria-label="React Bits Soft Aurora noise frequency"
+              aria-label="MassageLab Soft Aurora noise frequency"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise amplitude ({reactBitsSoftAuroraNoiseAmplitude.toFixed(2)})</span>
+            <span>Noise amplitude ({massageLabSoftAuroraNoiseAmplitude.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsSoftAuroraNoiseAmplitude}
+              value={massageLabSoftAuroraNoiseAmplitude}
               onChange={(event) => handleSettingsChange({
-                reactBitsSoftAuroraNoiseAmplitude: Number(event.target.value),
+                massageLabSoftAuroraNoiseAmplitude: Number(event.target.value),
               })}
-              aria-label="React Bits Soft Aurora noise amplitude"
+              aria-label="MassageLab Soft Aurora noise amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Band height ({reactBitsSoftAuroraBandHeight.toFixed(2)})</span>
+            <span>Band height ({massageLabSoftAuroraBandHeight.toFixed(2)})</span>
             <input
               type="range"
               min="-1"
               max="2"
               step="0.05"
-              value={reactBitsSoftAuroraBandHeight}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBandHeight: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora band height"
+              value={massageLabSoftAuroraBandHeight}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraBandHeight: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora band height"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Band spread ({reactBitsSoftAuroraBandSpread.toFixed(2)})</span>
+            <span>Band spread ({massageLabSoftAuroraBandSpread.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsSoftAuroraBandSpread}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraBandSpread: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora band spread"
+              value={massageLabSoftAuroraBandSpread}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraBandSpread: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora band spread"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Octave decay ({reactBitsSoftAuroraOctaveDecay.toFixed(2)})</span>
+            <span>Octave decay ({massageLabSoftAuroraOctaveDecay.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsSoftAuroraOctaveDecay}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraOctaveDecay: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora octave decay"
+              value={massageLabSoftAuroraOctaveDecay}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraOctaveDecay: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora octave decay"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Layer offset ({reactBitsSoftAuroraLayerOffset.toFixed(2)})</span>
+            <span>Layer offset ({massageLabSoftAuroraLayerOffset.toFixed(2)})</span>
             <input
               type="range"
               min="-6"
               max="6"
               step="0.05"
-              value={reactBitsSoftAuroraLayerOffset}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraLayerOffset: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora layer offset"
+              value={massageLabSoftAuroraLayerOffset}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraLayerOffset: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora layer offset"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Color speed ({reactBitsSoftAuroraColorSpeed.toFixed(2)}x)</span>
+            <span>Color speed ({massageLabSoftAuroraColorSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsSoftAuroraColorSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsSoftAuroraColorSpeed: Number(event.target.value) })}
-              aria-label="React Bits Soft Aurora color speed"
+              value={massageLabSoftAuroraColorSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabSoftAuroraColorSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Soft Aurora color speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse influence ({reactBitsSoftAuroraMouseInfluence.toFixed(2)})</span>
+            <span>Mouse influence ({massageLabSoftAuroraMouseInfluence.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsSoftAuroraMouseInfluence}
+              value={massageLabSoftAuroraMouseInfluence}
               onChange={(event) => handleSettingsChange({
-                reactBitsSoftAuroraMouseInfluence: Number(event.target.value),
+                massageLabSoftAuroraMouseInfluence: Number(event.target.value),
               })}
-              aria-label="React Bits Soft Aurora mouse influence"
+              aria-label="MassageLab Soft Aurora mouse influence"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-plasma" && (
+      {option.id === "massage-lab-plasma" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsPlasmaPaletteMode}
+              value={massageLabPlasmaPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsPlasmaPaletteMode: event.target.value as ReactBitsPlasmaPaletteMode,
+                massageLabPlasmaPaletteMode: event.target.value as MassageLabPlasmaPaletteMode,
               })}
-              aria-label="React Bits Plasma color mode"
+              aria-label="MassageLab Plasma color mode"
             >
               <option value="source">Source white</option>
               <option value="custom">Custom plasma</option>
@@ -8117,37 +9378,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsPlasmaPaletteMode === "custom" ? (
+          {massageLabPlasmaPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Plasma color</span>
               <input
                 type="color"
-                value={reactBitsPlasmaColor}
-                onChange={(event) => handleSettingsChange({ reactBitsPlasmaColor: event.target.value })}
-                aria-label="React Bits Plasma color"
+                value={massageLabPlasmaColor}
+                onChange={(event) => handleSettingsChange({ massageLabPlasmaColor: event.target.value })}
+                aria-label="MassageLab Plasma color"
               />
             </label>
           ) : null}
 
-          {reactBitsPlasmaPaletteMode === "harmony" ? (
+          {massageLabPlasmaPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsPlasmaPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaPrimaryColor: event.target.value })}
-                  aria-label="React Bits Plasma primary color"
+                  value={massageLabPlasmaPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabPlasmaPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Plasma primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsPlasmaHarmony}
+                  value={massageLabPlasmaHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPlasmaHarmony: event.target.value as ColorHarmony,
+                    massageLabPlasmaHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Plasma color harmony"
+                  aria-label="MassageLab Plasma color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -8162,11 +9423,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Direction</span>
             <select
-              value={reactBitsPlasmaDirection}
+              value={massageLabPlasmaDirection}
               onChange={(event) => handleSettingsChange({
-                reactBitsPlasmaDirection: event.target.value as ReactBitsPlasmaDirection,
+                massageLabPlasmaDirection: event.target.value as MassageLabPlasmaDirection,
               })}
-              aria-label="React Bits Plasma direction"
+              aria-label="MassageLab Plasma direction"
             >
               <option value="forward">Forward</option>
               <option value="reverse">Reverse</option>
@@ -8178,63 +9439,63 @@ export function RunningTimer({
             <span>Mouse warp</span>
             <input
               type="checkbox"
-              checked={reactBitsPlasmaMouseInteractive}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaMouseInteractive: event.target.checked })}
-              aria-label="React Bits Plasma mouse warp"
+              checked={massageLabPlasmaMouseInteractive}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaMouseInteractive: event.target.checked })}
+              aria-label="MassageLab Plasma mouse warp"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsPlasmaSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabPlasmaSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPlasmaSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaSpeed: Number(event.target.value) })}
-              aria-label="React Bits Plasma speed"
+              value={massageLabPlasmaSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Plasma speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsPlasmaScale.toFixed(2)})</span>
+            <span>Scale ({massageLabPlasmaScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="4"
               step="0.05"
-              value={reactBitsPlasmaScale}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaScale: Number(event.target.value) })}
-              aria-label="React Bits Plasma scale"
+              value={massageLabPlasmaScale}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaScale: Number(event.target.value) })}
+              aria-label="MassageLab Plasma scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({Math.round(reactBitsPlasmaOpacity * 100)}%)</span>
+            <span>Opacity ({Math.round(massageLabPlasmaOpacity * 100)}%)</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsPlasmaOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaOpacity: Number(event.target.value) })}
-              aria-label="React Bits Plasma opacity"
+              value={massageLabPlasmaOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaOpacity: Number(event.target.value) })}
+              aria-label="MassageLab Plasma opacity"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-plasma-wave" && (
+      {option.id === "massage-lab-plasma-wave" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsPlasmaWavePaletteMode}
+              value={massageLabPlasmaWavePaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsPlasmaWavePaletteMode: event.target.value as ReactBitsPlasmaWavePaletteMode,
+                massageLabPlasmaWavePaletteMode: event.target.value as MassageLabPlasmaWavePaletteMode,
               })}
-              aria-label="React Bits Plasma Wave color mode"
+              aria-label="MassageLab Plasma Wave color mode"
             >
               <option value="source">Source violet and cyan</option>
               <option value="custom">Custom waves</option>
@@ -8242,48 +9503,48 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsPlasmaWavePaletteMode === "custom" ? (
+          {massageLabPlasmaWavePaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Wave color 1</span>
                 <input
                   type="color"
-                  value={reactBitsPlasmaWaveColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveColorOne: event.target.value })}
-                  aria-label="React Bits Plasma Wave color 1"
+                  value={massageLabPlasmaWaveColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveColorOne: event.target.value })}
+                  aria-label="MassageLab Plasma Wave color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Wave color 2</span>
                 <input
                   type="color"
-                  value={reactBitsPlasmaWaveColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveColorTwo: event.target.value })}
-                  aria-label="React Bits Plasma Wave color 2"
+                  value={massageLabPlasmaWaveColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveColorTwo: event.target.value })}
+                  aria-label="MassageLab Plasma Wave color 2"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsPlasmaWavePaletteMode === "harmony" ? (
+          {massageLabPlasmaWavePaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsPlasmaWavePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsPlasmaWavePrimaryColor: event.target.value })}
-                  aria-label="React Bits Plasma Wave primary color"
+                  value={massageLabPlasmaWavePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabPlasmaWavePrimaryColor: event.target.value })}
+                  aria-label="MassageLab Plasma Wave primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsPlasmaWaveHarmony}
+                  value={massageLabPlasmaWaveHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPlasmaWaveHarmony: event.target.value as ColorHarmony,
+                    massageLabPlasmaWaveHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Plasma Wave color harmony"
+                  aria-label="MassageLab Plasma Wave color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -8298,11 +9559,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Wave 2 direction</span>
             <select
-              value={reactBitsPlasmaWaveDirectionTwo}
+              value={massageLabPlasmaWaveDirectionTwo}
               onChange={(event) => handleSettingsChange({
-                reactBitsPlasmaWaveDirectionTwo: Number(event.target.value) as 1 | -1,
+                massageLabPlasmaWaveDirectionTwo: Number(event.target.value) as 1 | -1,
               })}
-              aria-label="React Bits Plasma Wave secondary direction"
+              aria-label="MassageLab Plasma Wave secondary direction"
             >
               <option value={1}>Forward</option>
               <option value={-1}>Reverse</option>
@@ -8310,121 +9571,121 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsPlasmaWaveRotationDeg.toFixed(0)}deg)</span>
+            <span>Rotation ({massageLabPlasmaWaveRotationDeg.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsPlasmaWaveRotationDeg}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveRotationDeg: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave rotation"
+              value={massageLabPlasmaWaveRotationDeg}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveRotationDeg: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave rotation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Focal length ({reactBitsPlasmaWaveFocalLength.toFixed(2)})</span>
+            <span>Focal length ({massageLabPlasmaWaveFocalLength.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="2"
               step="0.05"
-              value={reactBitsPlasmaWaveFocalLength}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveFocalLength: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave focal length"
+              value={massageLabPlasmaWaveFocalLength}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveFocalLength: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave focal length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave 1 speed ({reactBitsPlasmaWaveSpeedOne.toFixed(2)})</span>
+            <span>Wave 1 speed ({massageLabPlasmaWaveSpeedOne.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.5"
               step="0.01"
-              value={reactBitsPlasmaWaveSpeedOne}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveSpeedOne: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave speed 1"
+              value={massageLabPlasmaWaveSpeedOne}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveSpeedOne: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave speed 1"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave 2 speed ({reactBitsPlasmaWaveSpeedTwo.toFixed(2)})</span>
+            <span>Wave 2 speed ({massageLabPlasmaWaveSpeedTwo.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.5"
               step="0.01"
-              value={reactBitsPlasmaWaveSpeedTwo}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveSpeedTwo: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave speed 2"
+              value={massageLabPlasmaWaveSpeedTwo}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveSpeedTwo: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave speed 2"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave 1 bend ({reactBitsPlasmaWaveBendOne.toFixed(2)})</span>
+            <span>Wave 1 bend ({massageLabPlasmaWaveBendOne.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPlasmaWaveBendOne}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveBendOne: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave bend 1"
+              value={massageLabPlasmaWaveBendOne}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveBendOne: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave bend 1"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave 2 bend ({reactBitsPlasmaWaveBendTwo.toFixed(2)})</span>
+            <span>Wave 2 bend ({massageLabPlasmaWaveBendTwo.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPlasmaWaveBendTwo}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveBendTwo: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave bend 2"
+              value={massageLabPlasmaWaveBendTwo}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveBendTwo: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave bend 2"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>X offset ({reactBitsPlasmaWaveXOffset.toFixed(0)}px)</span>
+            <span>X offset ({massageLabPlasmaWaveXOffset.toFixed(0)}px)</span>
             <input
               type="range"
               min="-800"
               max="800"
               step="10"
-              value={reactBitsPlasmaWaveXOffset}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveXOffset: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave x offset"
+              value={massageLabPlasmaWaveXOffset}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveXOffset: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave x offset"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Y offset ({reactBitsPlasmaWaveYOffset.toFixed(0)}px)</span>
+            <span>Y offset ({massageLabPlasmaWaveYOffset.toFixed(0)}px)</span>
             <input
               type="range"
               min="-800"
               max="800"
               step="10"
-              value={reactBitsPlasmaWaveYOffset}
-              onChange={(event) => handleSettingsChange({ reactBitsPlasmaWaveYOffset: Number(event.target.value) })}
-              aria-label="React Bits Plasma Wave y offset"
+              value={massageLabPlasmaWaveYOffset}
+              onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveYOffset: Number(event.target.value) })}
+              aria-label="MassageLab Plasma Wave y offset"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-particles" && (
+      {option.id === "massage-lab-particles" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsParticlesPaletteMode}
+              value={massageLabParticlesPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsParticlesPaletteMode: event.target.value as ReactBitsParticlesPaletteMode,
+                massageLabParticlesPaletteMode: event.target.value as MassageLabParticlesPaletteMode,
               })}
-              aria-label="React Bits Particles color mode"
+              aria-label="MassageLab Particles color mode"
             >
               <option value="source">Source white particles</option>
               <option value="custom">Custom particles</option>
@@ -8432,57 +9693,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsParticlesPaletteMode === "custom" ? (
+          {massageLabParticlesPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Particle color 1</span>
                 <input
                   type="color"
-                  value={reactBitsParticlesColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorOne: event.target.value })}
-                  aria-label="React Bits Particles color 1"
+                  value={massageLabParticlesColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabParticlesColorOne: event.target.value })}
+                  aria-label="MassageLab Particles color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Particle color 2</span>
                 <input
                   type="color"
-                  value={reactBitsParticlesColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorTwo: event.target.value })}
-                  aria-label="React Bits Particles color 2"
+                  value={massageLabParticlesColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabParticlesColorTwo: event.target.value })}
+                  aria-label="MassageLab Particles color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Particle color 3</span>
                 <input
                   type="color"
-                  value={reactBitsParticlesColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsParticlesColorThree: event.target.value })}
-                  aria-label="React Bits Particles color 3"
+                  value={massageLabParticlesColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabParticlesColorThree: event.target.value })}
+                  aria-label="MassageLab Particles color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsParticlesPaletteMode === "harmony" ? (
+          {massageLabParticlesPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsParticlesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsParticlesPrimaryColor: event.target.value })}
-                  aria-label="React Bits Particles primary color"
+                  value={massageLabParticlesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabParticlesPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Particles primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsParticlesHarmony}
+                  value={massageLabParticlesHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsParticlesHarmony: event.target.value as ColorHarmony,
+                    massageLabParticlesHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Particles color harmony"
+                  aria-label="MassageLab Particles color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -8497,8 +9758,8 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsParticlesMoveOnHover}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesMoveOnHover: event.target.checked })}
+              checked={massageLabParticlesMoveOnHover}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesMoveOnHover: event.target.checked })}
             />
             <span>Move on cursor</span>
           </label>
@@ -8506,8 +9767,8 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsParticlesAlpha}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesAlpha: event.target.checked })}
+              checked={massageLabParticlesAlpha}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesAlpha: event.target.checked })}
             />
             <span>Soft alpha particles</span>
           </label>
@@ -8515,128 +9776,128 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={!reactBitsParticlesDisableRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesDisableRotation: !event.target.checked })}
+              checked={!massageLabParticlesDisableRotation}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesDisableRotation: !event.target.checked })}
             />
             <span>Rotate cloud</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Particle count ({reactBitsParticlesCount.toFixed(0)})</span>
+            <span>Particle count ({massageLabParticlesCount.toFixed(0)})</span>
             <input
               type="range"
               min="20"
               max="1500"
               step="10"
-              value={reactBitsParticlesCount}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesCount: Number(event.target.value) })}
-              aria-label="React Bits Particles particle count"
+              value={massageLabParticlesCount}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesCount: Number(event.target.value) })}
+              aria-label="MassageLab Particles particle count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spread ({reactBitsParticlesSpread.toFixed(1)})</span>
+            <span>Spread ({massageLabParticlesSpread.toFixed(1)})</span>
             <input
               type="range"
               min="1"
               max="30"
               step="0.5"
-              value={reactBitsParticlesSpread}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesSpread: Number(event.target.value) })}
-              aria-label="React Bits Particles spread"
+              value={massageLabParticlesSpread}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesSpread: Number(event.target.value) })}
+              aria-label="MassageLab Particles spread"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsParticlesSpeed.toFixed(2)})</span>
+            <span>Speed ({massageLabParticlesSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsParticlesSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesSpeed: Number(event.target.value) })}
-              aria-label="React Bits Particles speed"
+              value={massageLabParticlesSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Particles speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Hover push ({reactBitsParticlesHoverFactor.toFixed(1)})</span>
+            <span>Hover push ({massageLabParticlesHoverFactor.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.1"
-              value={reactBitsParticlesHoverFactor}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesHoverFactor: Number(event.target.value) })}
-              aria-label="React Bits Particles hover push"
+              value={massageLabParticlesHoverFactor}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesHoverFactor: Number(event.target.value) })}
+              aria-label="MassageLab Particles hover push"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Base size ({reactBitsParticlesBaseSize.toFixed(0)})</span>
+            <span>Base size ({massageLabParticlesBaseSize.toFixed(0)})</span>
             <input
               type="range"
               min="10"
               max="300"
               step="5"
-              value={reactBitsParticlesBaseSize}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesBaseSize: Number(event.target.value) })}
-              aria-label="React Bits Particles base size"
+              value={massageLabParticlesBaseSize}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesBaseSize: Number(event.target.value) })}
+              aria-label="MassageLab Particles base size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Size randomness ({reactBitsParticlesSizeRandomness.toFixed(1)})</span>
+            <span>Size randomness ({massageLabParticlesSizeRandomness.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.1"
-              value={reactBitsParticlesSizeRandomness}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesSizeRandomness: Number(event.target.value) })}
-              aria-label="React Bits Particles size randomness"
+              value={massageLabParticlesSizeRandomness}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesSizeRandomness: Number(event.target.value) })}
+              aria-label="MassageLab Particles size randomness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Camera distance ({reactBitsParticlesCameraDistance.toFixed(0)})</span>
+            <span>Camera distance ({massageLabParticlesCameraDistance.toFixed(0)})</span>
             <input
               type="range"
               min="5"
               max="60"
               step="1"
-              value={reactBitsParticlesCameraDistance}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesCameraDistance: Number(event.target.value) })}
-              aria-label="React Bits Particles camera distance"
+              value={massageLabParticlesCameraDistance}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesCameraDistance: Number(event.target.value) })}
+              aria-label="MassageLab Particles camera distance"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel ratio ({reactBitsParticlesPixelRatio.toFixed(1)})</span>
+            <span>Pixel ratio ({massageLabParticlesPixelRatio.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="2"
               step="0.1"
-              value={reactBitsParticlesPixelRatio}
-              onChange={(event) => handleSettingsChange({ reactBitsParticlesPixelRatio: Number(event.target.value) })}
-              aria-label="React Bits Particles pixel ratio"
+              value={massageLabParticlesPixelRatio}
+              onChange={(event) => handleSettingsChange({ massageLabParticlesPixelRatio: Number(event.target.value) })}
+              aria-label="MassageLab Particles pixel ratio"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-gradient-blinds" && (
+      {option.id === "massage-lab-gradient-blinds" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsGradientBlindsPaletteMode}
+              value={massageLabGradientBlindsPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsPaletteMode: event.target.value as ReactBitsGradientBlindsPaletteMode,
+                massageLabGradientBlindsPaletteMode: event.target.value as MassageLabGradientBlindsPaletteMode,
               })}
-              aria-label="React Bits Gradient Blinds color mode"
+              aria-label="MassageLab Gradient Blinds color mode"
             >
               <option value="source">Source magenta and violet</option>
               <option value="custom">Custom gradient</option>
@@ -8644,48 +9905,48 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsGradientBlindsPaletteMode === "custom" ? (
+          {massageLabGradientBlindsPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Gradient color 1</span>
                 <input
                   type="color"
-                  value={reactBitsGradientBlindsColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsColorOne: event.target.value })}
-                  aria-label="React Bits Gradient Blinds color 1"
+                  value={massageLabGradientBlindsColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabGradientBlindsColorOne: event.target.value })}
+                  aria-label="MassageLab Gradient Blinds color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Gradient color 2</span>
                 <input
                   type="color"
-                  value={reactBitsGradientBlindsColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsColorTwo: event.target.value })}
-                  aria-label="React Bits Gradient Blinds color 2"
+                  value={massageLabGradientBlindsColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabGradientBlindsColorTwo: event.target.value })}
+                  aria-label="MassageLab Gradient Blinds color 2"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsGradientBlindsPaletteMode === "harmony" ? (
+          {massageLabGradientBlindsPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsGradientBlindsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsPrimaryColor: event.target.value })}
-                  aria-label="React Bits Gradient Blinds primary color"
+                  value={massageLabGradientBlindsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGradientBlindsPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Gradient Blinds primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsGradientBlindsHarmony}
+                  value={massageLabGradientBlindsHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsGradientBlindsHarmony: event.target.value as ColorHarmony,
+                    massageLabGradientBlindsHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Gradient Blinds color harmony"
+                  aria-label="MassageLab Gradient Blinds color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -8700,9 +9961,9 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsGradientBlindsEnableMouseInteraction}
+              checked={massageLabGradientBlindsEnableMouseInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsEnableMouseInteraction: event.target.checked,
+                massageLabGradientBlindsEnableMouseInteraction: event.target.checked,
               })}
             />
             <span>Enable cursor spotlight</span>
@@ -8711,8 +9972,8 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsGradientBlindsMirror}
-              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsMirror: event.target.checked })}
+              checked={massageLabGradientBlindsMirror}
+              onChange={(event) => handleSettingsChange({ massageLabGradientBlindsMirror: event.target.checked })}
             />
             <span>Mirror gradient</span>
           </label>
@@ -8720,11 +9981,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Shine direction</span>
             <select
-              value={reactBitsGradientBlindsShineDirection}
+              value={massageLabGradientBlindsShineDirection}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsShineDirection: event.target.value as ReactBitsGradientBlindsShineDirection,
+                massageLabGradientBlindsShineDirection: event.target.value as MassageLabGradientBlindsShineDirection,
               })}
-              aria-label="React Bits Gradient Blinds shine direction"
+              aria-label="MassageLab Gradient Blinds shine direction"
             >
               <option value="left">Left</option>
               <option value="right">Right</option>
@@ -8734,11 +9995,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Blend mode</span>
             <select
-              value={reactBitsGradientBlindsBlendMode}
+              value={massageLabGradientBlindsBlendMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsBlendMode: event.target.value as ReactBitsGradientBlindsBlendMode,
+                massageLabGradientBlindsBlendMode: event.target.value as MassageLabGradientBlindsBlendMode,
               })}
-              aria-label="React Bits Gradient Blinds blend mode"
+              aria-label="MassageLab Gradient Blinds blend mode"
             >
               <option value="normal">Normal</option>
               <option value="screen">Screen</option>
@@ -8748,159 +10009,159 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Angle ({reactBitsGradientBlindsAngle.toFixed(0)}deg)</span>
+            <span>Angle ({massageLabGradientBlindsAngle.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsGradientBlindsAngle}
-              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsAngle: Number(event.target.value) })}
-              aria-label="React Bits Gradient Blinds angle"
+              value={massageLabGradientBlindsAngle}
+              onChange={(event) => handleSettingsChange({ massageLabGradientBlindsAngle: Number(event.target.value) })}
+              aria-label="MassageLab Gradient Blinds angle"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsGradientBlindsNoise.toFixed(2)})</span>
+            <span>Noise ({massageLabGradientBlindsNoise.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGradientBlindsNoise}
-              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsNoise: Number(event.target.value) })}
-              aria-label="React Bits Gradient Blinds noise"
+              value={massageLabGradientBlindsNoise}
+              onChange={(event) => handleSettingsChange({ massageLabGradientBlindsNoise: Number(event.target.value) })}
+              aria-label="MassageLab Gradient Blinds noise"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Blind count ({reactBitsGradientBlindsBlindCount.toFixed(0)})</span>
+            <span>Blind count ({massageLabGradientBlindsBlindCount.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="80"
               step="1"
-              value={reactBitsGradientBlindsBlindCount}
+              value={massageLabGradientBlindsBlindCount}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsBlindCount: Number(event.target.value),
+                massageLabGradientBlindsBlindCount: Number(event.target.value),
               })}
-              aria-label="React Bits Gradient Blinds blind count"
+              aria-label="MassageLab Gradient Blinds blind count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Min blind width ({reactBitsGradientBlindsBlindMinWidth.toFixed(0)}px)</span>
+            <span>Min blind width ({massageLabGradientBlindsBlindMinWidth.toFixed(0)}px)</span>
             <input
               type="range"
               min="0"
               max="240"
               step="5"
-              value={reactBitsGradientBlindsBlindMinWidth}
+              value={massageLabGradientBlindsBlindMinWidth}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsBlindMinWidth: Number(event.target.value),
+                massageLabGradientBlindsBlindMinWidth: Number(event.target.value),
               })}
-              aria-label="React Bits Gradient Blinds minimum blind width"
+              aria-label="MassageLab Gradient Blinds minimum blind width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse damping ({reactBitsGradientBlindsMouseDampening.toFixed(2)})</span>
+            <span>Mouse damping ({massageLabGradientBlindsMouseDampening.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGradientBlindsMouseDampening}
+              value={massageLabGradientBlindsMouseDampening}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsMouseDampening: Number(event.target.value),
+                massageLabGradientBlindsMouseDampening: Number(event.target.value),
               })}
-              aria-label="React Bits Gradient Blinds mouse damping"
+              aria-label="MassageLab Gradient Blinds mouse damping"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spotlight radius ({reactBitsGradientBlindsSpotlightRadius.toFixed(2)})</span>
+            <span>Spotlight radius ({massageLabGradientBlindsSpotlightRadius.toFixed(2)})</span>
             <input
               type="range"
               min="0.05"
               max="1.5"
               step="0.01"
-              value={reactBitsGradientBlindsSpotlightRadius}
+              value={massageLabGradientBlindsSpotlightRadius}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsSpotlightRadius: Number(event.target.value),
+                massageLabGradientBlindsSpotlightRadius: Number(event.target.value),
               })}
-              aria-label="React Bits Gradient Blinds spotlight radius"
+              aria-label="MassageLab Gradient Blinds spotlight radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spotlight softness ({reactBitsGradientBlindsSpotlightSoftness.toFixed(1)})</span>
+            <span>Spotlight softness ({massageLabGradientBlindsSpotlightSoftness.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="4"
               step="0.1"
-              value={reactBitsGradientBlindsSpotlightSoftness}
+              value={massageLabGradientBlindsSpotlightSoftness}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsSpotlightSoftness: Number(event.target.value),
+                massageLabGradientBlindsSpotlightSoftness: Number(event.target.value),
               })}
-              aria-label="React Bits Gradient Blinds spotlight softness"
+              aria-label="MassageLab Gradient Blinds spotlight softness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spotlight opacity ({reactBitsGradientBlindsSpotlightOpacity.toFixed(2)})</span>
+            <span>Spotlight opacity ({massageLabGradientBlindsSpotlightOpacity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsGradientBlindsSpotlightOpacity}
+              value={massageLabGradientBlindsSpotlightOpacity}
               onChange={(event) => handleSettingsChange({
-                reactBitsGradientBlindsSpotlightOpacity: Number(event.target.value),
+                massageLabGradientBlindsSpotlightOpacity: Number(event.target.value),
               })}
-              aria-label="React Bits Gradient Blinds spotlight opacity"
+              aria-label="MassageLab Gradient Blinds spotlight opacity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distortion ({reactBitsGradientBlindsDistort.toFixed(2)})</span>
+            <span>Distortion ({massageLabGradientBlindsDistort.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsGradientBlindsDistort}
-              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsDistort: Number(event.target.value) })}
-              aria-label="React Bits Gradient Blinds distortion"
+              value={massageLabGradientBlindsDistort}
+              onChange={(event) => handleSettingsChange({ massageLabGradientBlindsDistort: Number(event.target.value) })}
+              aria-label="MassageLab Gradient Blinds distortion"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel ratio ({reactBitsGradientBlindsDpr.toFixed(1)})</span>
+            <span>Pixel ratio ({massageLabGradientBlindsDpr.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="2"
               step="0.1"
-              value={reactBitsGradientBlindsDpr}
-              onChange={(event) => handleSettingsChange({ reactBitsGradientBlindsDpr: Number(event.target.value) })}
-              aria-label="React Bits Gradient Blinds pixel ratio"
+              value={massageLabGradientBlindsDpr}
+              onChange={(event) => handleSettingsChange({ massageLabGradientBlindsDpr: Number(event.target.value) })}
+              aria-label="MassageLab Gradient Blinds pixel ratio"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-grainient" && (
+      {option.id === "massage-lab-grainient" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsGrainientPaletteMode}
+              value={massageLabGrainientPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGrainientPaletteMode: event.target.value as ReactBitsGrainientPaletteMode,
+                massageLabGrainientPaletteMode: event.target.value as MassageLabGrainientPaletteMode,
               })}
-              aria-label="React Bits Grainient color mode"
+              aria-label="MassageLab Grainient color mode"
             >
               <option value="source">Source magenta, violet, and mauve</option>
               <option value="custom">Custom grain colors</option>
@@ -8908,57 +10169,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsGrainientPaletteMode === "custom" ? (
+          {massageLabGrainientPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsGrainientColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsGrainientColorOne: event.target.value })}
-                  aria-label="React Bits Grainient color 1"
+                  value={massageLabGrainientColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabGrainientColorOne: event.target.value })}
+                  aria-label="MassageLab Grainient color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsGrainientColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsGrainientColorTwo: event.target.value })}
-                  aria-label="React Bits Grainient color 2"
+                  value={massageLabGrainientColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabGrainientColorTwo: event.target.value })}
+                  aria-label="MassageLab Grainient color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsGrainientColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsGrainientColorThree: event.target.value })}
-                  aria-label="React Bits Grainient color 3"
+                  value={massageLabGrainientColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabGrainientColorThree: event.target.value })}
+                  aria-label="MassageLab Grainient color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsGrainientPaletteMode === "harmony" ? (
+          {massageLabGrainientPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsGrainientPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGrainientPrimaryColor: event.target.value })}
-                  aria-label="React Bits Grainient primary color"
+                  value={massageLabGrainientPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGrainientPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Grainient primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsGrainientHarmony}
+                  value={massageLabGrainientHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsGrainientHarmony: event.target.value as ColorHarmony,
+                    massageLabGrainientHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Grainient color harmony"
+                  aria-label="MassageLab Grainient color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -8973,258 +10234,258 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsGrainientGrainAnimated}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientGrainAnimated: event.target.checked })}
+              checked={massageLabGrainientGrainAnimated}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientGrainAnimated: event.target.checked })}
             />
             <span>Animated grain</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Time speed ({reactBitsGrainientTimeSpeed.toFixed(2)})</span>
+            <span>Time speed ({massageLabGrainientTimeSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsGrainientTimeSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientTimeSpeed: Number(event.target.value) })}
-              aria-label="React Bits Grainient time speed"
+              value={massageLabGrainientTimeSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientTimeSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Grainient time speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Color balance ({reactBitsGrainientColorBalance.toFixed(2)})</span>
+            <span>Color balance ({massageLabGrainientColorBalance.toFixed(2)})</span>
             <input
               type="range"
               min="-1"
               max="1"
               step="0.01"
-              value={reactBitsGrainientColorBalance}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientColorBalance: Number(event.target.value) })}
-              aria-label="React Bits Grainient color balance"
+              value={massageLabGrainientColorBalance}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientColorBalance: Number(event.target.value) })}
+              aria-label="MassageLab Grainient color balance"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp strength ({reactBitsGrainientWarpStrength.toFixed(2)})</span>
+            <span>Warp strength ({massageLabGrainientWarpStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsGrainientWarpStrength}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpStrength: Number(event.target.value) })}
-              aria-label="React Bits Grainient warp strength"
+              value={massageLabGrainientWarpStrength}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientWarpStrength: Number(event.target.value) })}
+              aria-label="MassageLab Grainient warp strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp frequency ({reactBitsGrainientWarpFrequency.toFixed(1)})</span>
+            <span>Warp frequency ({massageLabGrainientWarpFrequency.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="20"
               step="0.1"
-              value={reactBitsGrainientWarpFrequency}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpFrequency: Number(event.target.value) })}
-              aria-label="React Bits Grainient warp frequency"
+              value={massageLabGrainientWarpFrequency}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientWarpFrequency: Number(event.target.value) })}
+              aria-label="MassageLab Grainient warp frequency"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp speed ({reactBitsGrainientWarpSpeed.toFixed(2)})</span>
+            <span>Warp speed ({massageLabGrainientWarpSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="6"
               step="0.05"
-              value={reactBitsGrainientWarpSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpSpeed: Number(event.target.value) })}
-              aria-label="React Bits Grainient warp speed"
+              value={massageLabGrainientWarpSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientWarpSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Grainient warp speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Warp amplitude ({reactBitsGrainientWarpAmplitude.toFixed(0)})</span>
+            <span>Warp amplitude ({massageLabGrainientWarpAmplitude.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="160"
               step="1"
-              value={reactBitsGrainientWarpAmplitude}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientWarpAmplitude: Number(event.target.value) })}
-              aria-label="React Bits Grainient warp amplitude"
+              value={massageLabGrainientWarpAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientWarpAmplitude: Number(event.target.value) })}
+              aria-label="MassageLab Grainient warp amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Blend angle ({reactBitsGrainientBlendAngle.toFixed(0)}deg)</span>
+            <span>Blend angle ({massageLabGrainientBlendAngle.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsGrainientBlendAngle}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientBlendAngle: Number(event.target.value) })}
-              aria-label="React Bits Grainient blend angle"
+              value={massageLabGrainientBlendAngle}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientBlendAngle: Number(event.target.value) })}
+              aria-label="MassageLab Grainient blend angle"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Blend softness ({reactBitsGrainientBlendSoftness.toFixed(2)})</span>
+            <span>Blend softness ({massageLabGrainientBlendSoftness.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGrainientBlendSoftness}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientBlendSoftness: Number(event.target.value) })}
-              aria-label="React Bits Grainient blend softness"
+              value={massageLabGrainientBlendSoftness}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientBlendSoftness: Number(event.target.value) })}
+              aria-label="MassageLab Grainient blend softness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation amount ({reactBitsGrainientRotationAmount.toFixed(0)})</span>
+            <span>Rotation amount ({massageLabGrainientRotationAmount.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="1200"
               step="10"
-              value={reactBitsGrainientRotationAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientRotationAmount: Number(event.target.value) })}
-              aria-label="React Bits Grainient rotation amount"
+              value={massageLabGrainientRotationAmount}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientRotationAmount: Number(event.target.value) })}
+              aria-label="MassageLab Grainient rotation amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise scale ({reactBitsGrainientNoiseScale.toFixed(1)})</span>
+            <span>Noise scale ({massageLabGrainientNoiseScale.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="8"
               step="0.1"
-              value={reactBitsGrainientNoiseScale}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientNoiseScale: Number(event.target.value) })}
-              aria-label="React Bits Grainient noise scale"
+              value={massageLabGrainientNoiseScale}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientNoiseScale: Number(event.target.value) })}
+              aria-label="MassageLab Grainient noise scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grain amount ({reactBitsGrainientGrainAmount.toFixed(2)})</span>
+            <span>Grain amount ({massageLabGrainientGrainAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGrainientGrainAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientGrainAmount: Number(event.target.value) })}
-              aria-label="React Bits Grainient grain amount"
+              value={massageLabGrainientGrainAmount}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientGrainAmount: Number(event.target.value) })}
+              aria-label="MassageLab Grainient grain amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grain scale ({reactBitsGrainientGrainScale.toFixed(1)})</span>
+            <span>Grain scale ({massageLabGrainientGrainScale.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="12"
               step="0.1"
-              value={reactBitsGrainientGrainScale}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientGrainScale: Number(event.target.value) })}
-              aria-label="React Bits Grainient grain scale"
+              value={massageLabGrainientGrainScale}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientGrainScale: Number(event.target.value) })}
+              aria-label="MassageLab Grainient grain scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Contrast ({reactBitsGrainientContrast.toFixed(2)})</span>
+            <span>Contrast ({massageLabGrainientContrast.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="4"
               step="0.05"
-              value={reactBitsGrainientContrast}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientContrast: Number(event.target.value) })}
-              aria-label="React Bits Grainient contrast"
+              value={massageLabGrainientContrast}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientContrast: Number(event.target.value) })}
+              aria-label="MassageLab Grainient contrast"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Gamma ({reactBitsGrainientGamma.toFixed(2)})</span>
+            <span>Gamma ({massageLabGrainientGamma.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="4"
               step="0.05"
-              value={reactBitsGrainientGamma}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientGamma: Number(event.target.value) })}
-              aria-label="React Bits Grainient gamma"
+              value={massageLabGrainientGamma}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientGamma: Number(event.target.value) })}
+              aria-label="MassageLab Grainient gamma"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Saturation ({reactBitsGrainientSaturation.toFixed(2)})</span>
+            <span>Saturation ({massageLabGrainientSaturation.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsGrainientSaturation}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientSaturation: Number(event.target.value) })}
-              aria-label="React Bits Grainient saturation"
+              value={massageLabGrainientSaturation}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientSaturation: Number(event.target.value) })}
+              aria-label="MassageLab Grainient saturation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Center X ({reactBitsGrainientCenterX.toFixed(2)})</span>
+            <span>Center X ({massageLabGrainientCenterX.toFixed(2)})</span>
             <input
               type="range"
               min="-1"
               max="1"
               step="0.01"
-              value={reactBitsGrainientCenterX}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientCenterX: Number(event.target.value) })}
-              aria-label="React Bits Grainient center X"
+              value={massageLabGrainientCenterX}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientCenterX: Number(event.target.value) })}
+              aria-label="MassageLab Grainient center X"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Center Y ({reactBitsGrainientCenterY.toFixed(2)})</span>
+            <span>Center Y ({massageLabGrainientCenterY.toFixed(2)})</span>
             <input
               type="range"
               min="-1"
               max="1"
               step="0.01"
-              value={reactBitsGrainientCenterY}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientCenterY: Number(event.target.value) })}
-              aria-label="React Bits Grainient center Y"
+              value={massageLabGrainientCenterY}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientCenterY: Number(event.target.value) })}
+              aria-label="MassageLab Grainient center Y"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Zoom ({reactBitsGrainientZoom.toFixed(2)})</span>
+            <span>Zoom ({massageLabGrainientZoom.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="3"
               step="0.05"
-              value={reactBitsGrainientZoom}
-              onChange={(event) => handleSettingsChange({ reactBitsGrainientZoom: Number(event.target.value) })}
-              aria-label="React Bits Grainient zoom"
+              value={massageLabGrainientZoom}
+              onChange={(event) => handleSettingsChange({ massageLabGrainientZoom: Number(event.target.value) })}
+              aria-label="MassageLab Grainient zoom"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-grid-scan" && (
+      {option.id === "massage-lab-grid-scan" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsGridScanPaletteMode}
+              value={massageLabGridScanPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridScanPaletteMode: event.target.value as ReactBitsGridScanPaletteMode,
+                massageLabGridScanPaletteMode: event.target.value as MassageLabGridScanPaletteMode,
               })}
-              aria-label="React Bits Grid Scan color mode"
+              aria-label="MassageLab Grid Scan color mode"
             >
               <option value="source">Source dark grid and magenta scan</option>
               <option value="custom">Custom grid and scan colors</option>
@@ -9232,48 +10493,48 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsGridScanPaletteMode === "custom" ? (
+          {massageLabGridScanPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Grid lines</span>
                 <input
                   type="color"
-                  value={reactBitsGridScanLinesColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridScanLinesColor: event.target.value })}
-                  aria-label="React Bits Grid Scan line color"
+                  value={massageLabGridScanLinesColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridScanLinesColor: event.target.value })}
+                  aria-label="MassageLab Grid Scan line color"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Scan color</span>
                 <input
                   type="color"
-                  value={reactBitsGridScanScanColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridScanScanColor: event.target.value })}
-                  aria-label="React Bits Grid Scan scan color"
+                  value={massageLabGridScanScanColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridScanScanColor: event.target.value })}
+                  aria-label="MassageLab Grid Scan scan color"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsGridScanPaletteMode === "harmony" ? (
+          {massageLabGridScanPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsGridScanPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridScanPrimaryColor: event.target.value })}
-                  aria-label="React Bits Grid Scan primary color"
+                  value={massageLabGridScanPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridScanPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Grid Scan primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsGridScanHarmony}
+                  value={massageLabGridScanHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsGridScanHarmony: event.target.value as ColorHarmony,
+                    massageLabGridScanHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Grid Scan color harmony"
+                  aria-label="MassageLab Grid Scan color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -9288,9 +10549,9 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsGridScanEnablePointerInteraction}
+              checked={massageLabGridScanEnablePointerInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridScanEnablePointerInteraction: event.target.checked,
+                massageLabGridScanEnablePointerInteraction: event.target.checked,
               })}
             />
             <span>Pointer skew</span>
@@ -9299,8 +10560,8 @@ export function RunningTimer({
           <label className={styles.checkboxRow}>
             <input
               type="checkbox"
-              checked={reactBitsGridScanScanOnClick}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanOnClick: event.target.checked })}
+              checked={massageLabGridScanScanOnClick}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanScanOnClick: event.target.checked })}
             />
             <span>Click scan pulses</span>
           </label>
@@ -9308,11 +10569,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Line style</span>
             <select
-              value={reactBitsGridScanLineStyle}
+              value={massageLabGridScanLineStyle}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridScanLineStyle: event.target.value as ReactBitsGridScanLineStyle,
+                massageLabGridScanLineStyle: event.target.value as MassageLabGridScanLineStyle,
               })}
-              aria-label="React Bits Grid Scan line style"
+              aria-label="MassageLab Grid Scan line style"
             >
               <option value="solid">Solid</option>
               <option value="dashed">Dashed</option>
@@ -9323,11 +10584,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Scan direction</span>
             <select
-              value={reactBitsGridScanDirection}
+              value={massageLabGridScanDirection}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridScanDirection: event.target.value as ReactBitsGridScanDirection,
+                massageLabGridScanDirection: event.target.value as MassageLabGridScanDirection,
               })}
-              aria-label="React Bits Grid Scan direction"
+              aria-label="MassageLab Grid Scan direction"
             >
               <option value="forward">Forward</option>
               <option value="backward">Backward</option>
@@ -9336,173 +10597,173 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Sensitivity ({reactBitsGridScanSensitivity.toFixed(2)})</span>
+            <span>Sensitivity ({massageLabGridScanSensitivity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGridScanSensitivity}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanSensitivity: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan sensitivity"
+              value={massageLabGridScanSensitivity}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanSensitivity: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan sensitivity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Line thickness ({reactBitsGridScanLineThickness.toFixed(1)})</span>
+            <span>Line thickness ({massageLabGridScanLineThickness.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="6"
               step="0.1"
-              value={reactBitsGridScanLineThickness}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanLineThickness: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan line thickness"
+              value={massageLabGridScanLineThickness}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanLineThickness: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan line thickness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scan opacity ({reactBitsGridScanScanOpacity.toFixed(2)})</span>
+            <span>Scan opacity ({massageLabGridScanScanOpacity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGridScanScanOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanOpacity: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan opacity"
+              value={massageLabGridScanScanOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanScanOpacity: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan opacity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid scale ({reactBitsGridScanGridScale.toFixed(2)})</span>
+            <span>Grid scale ({massageLabGridScanGridScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.02"
               max="0.5"
               step="0.01"
-              value={reactBitsGridScanGridScale}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanGridScale: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan grid scale"
+              value={massageLabGridScanGridScale}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanGridScale: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan grid scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Line jitter ({reactBitsGridScanLineJitter.toFixed(2)})</span>
+            <span>Line jitter ({massageLabGridScanLineJitter.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGridScanLineJitter}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanLineJitter: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan line jitter"
+              value={massageLabGridScanLineJitter}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanLineJitter: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan line jitter"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsGridScanNoiseIntensity.toFixed(3)})</span>
+            <span>Noise ({massageLabGridScanNoiseIntensity.toFixed(3)})</span>
             <input
               type="range"
               min="0"
               max="0.25"
               step="0.005"
-              value={reactBitsGridScanNoiseIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanNoiseIntensity: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan noise"
+              value={massageLabGridScanNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanNoiseIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan noise"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Bloom opacity ({reactBitsGridScanBloomOpacity.toFixed(2)})</span>
+            <span>Bloom opacity ({massageLabGridScanBloomOpacity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.05"
-              value={reactBitsGridScanBloomOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanBloomOpacity: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan bloom opacity"
+              value={massageLabGridScanBloomOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanBloomOpacity: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan bloom opacity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scan glow ({reactBitsGridScanScanGlow.toFixed(2)})</span>
+            <span>Scan glow ({massageLabGridScanScanGlow.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.05"
-              value={reactBitsGridScanScanGlow}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanGlow: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan glow"
+              value={massageLabGridScanScanGlow}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanScanGlow: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan glow"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scan softness ({reactBitsGridScanScanSoftness.toFixed(1)})</span>
+            <span>Scan softness ({massageLabGridScanScanSoftness.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="6"
               step="0.1"
-              value={reactBitsGridScanScanSoftness}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanSoftness: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan softness"
+              value={massageLabGridScanScanSoftness}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanScanSoftness: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan softness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Phase taper ({reactBitsGridScanPhaseTaper.toFixed(2)})</span>
+            <span>Phase taper ({massageLabGridScanPhaseTaper.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.49"
               step="0.01"
-              value={reactBitsGridScanPhaseTaper}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanPhaseTaper: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan phase taper"
+              value={massageLabGridScanPhaseTaper}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanPhaseTaper: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan phase taper"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scan duration ({reactBitsGridScanScanDuration.toFixed(2)}s)</span>
+            <span>Scan duration ({massageLabGridScanScanDuration.toFixed(2)}s)</span>
             <input
               type="range"
               min="0.05"
               max="10"
               step="0.05"
-              value={reactBitsGridScanScanDuration}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanDuration: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan duration"
+              value={massageLabGridScanScanDuration}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanScanDuration: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan duration"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scan delay ({reactBitsGridScanScanDelay.toFixed(2)}s)</span>
+            <span>Scan delay ({massageLabGridScanScanDelay.toFixed(2)}s)</span>
             <input
               type="range"
               min="0"
               max="10"
               step="0.05"
-              value={reactBitsGridScanScanDelay}
-              onChange={(event) => handleSettingsChange({ reactBitsGridScanScanDelay: Number(event.target.value) })}
-              aria-label="React Bits Grid Scan delay"
+              value={massageLabGridScanScanDelay}
+              onChange={(event) => handleSettingsChange({ massageLabGridScanScanDelay: Number(event.target.value) })}
+              aria-label="MassageLab Grid Scan delay"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-beams" && (
+      {option.id === "massage-lab-beams" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsBeamsPaletteMode}
+              value={massageLabBeamsPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsBeamsPaletteMode: event.target.value as ReactBitsBeamsPaletteMode,
+                massageLabBeamsPaletteMode: event.target.value as MassageLabBeamsPaletteMode,
               })}
-              aria-label="React Bits Beams color mode"
+              aria-label="MassageLab Beams color mode"
             >
               <option value="source">Source white light</option>
               <option value="custom">Custom light color</option>
@@ -9510,37 +10771,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsBeamsPaletteMode === "custom" ? (
+          {massageLabBeamsPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Light color</span>
               <input
                 type="color"
-                value={reactBitsBeamsLightColor}
-                onChange={(event) => handleSettingsChange({ reactBitsBeamsLightColor: event.target.value })}
-                aria-label="React Bits Beams light color"
+                value={massageLabBeamsLightColor}
+                onChange={(event) => handleSettingsChange({ massageLabBeamsLightColor: event.target.value })}
+                aria-label="MassageLab Beams light color"
               />
             </label>
           ) : null}
 
-          {reactBitsBeamsPaletteMode === "harmony" ? (
+          {massageLabBeamsPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsBeamsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsBeamsPrimaryColor: event.target.value })}
-                  aria-label="React Bits Beams primary color"
+                  value={massageLabBeamsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabBeamsPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Beams primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsBeamsHarmony}
+                  value={massageLabBeamsHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsBeamsHarmony: event.target.value as ColorHarmony,
+                    massageLabBeamsHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Beams color harmony"
+                  aria-label="MassageLab Beams color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -9553,108 +10814,108 @@ export function RunningTimer({
           ) : null}
 
           <label className={styles.rangeRow}>
-            <span>Beam width ({reactBitsBeamsBeamWidth.toFixed(1)})</span>
+            <span>Beam width ({massageLabBeamsBeamWidth.toFixed(1)})</span>
             <input
               type="range"
               min="0.2"
               max="6"
               step="0.1"
-              value={reactBitsBeamsBeamWidth}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamWidth: Number(event.target.value) })}
-              aria-label="React Bits Beams width"
+              value={massageLabBeamsBeamWidth}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsBeamWidth: Number(event.target.value) })}
+              aria-label="MassageLab Beams width"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Beam height ({reactBitsBeamsBeamHeight.toFixed(0)})</span>
+            <span>Beam height ({massageLabBeamsBeamHeight.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="32"
               step="1"
-              value={reactBitsBeamsBeamHeight}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamHeight: Number(event.target.value) })}
-              aria-label="React Bits Beams height"
+              value={massageLabBeamsBeamHeight}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsBeamHeight: Number(event.target.value) })}
+              aria-label="MassageLab Beams height"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Beam count ({reactBitsBeamsBeamNumber.toFixed(0)})</span>
+            <span>Beam count ({massageLabBeamsBeamNumber.toFixed(0)})</span>
             <input
               type="range"
               min="1"
               max="48"
               step="1"
-              value={reactBitsBeamsBeamNumber}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsBeamNumber: Number(event.target.value) })}
-              aria-label="React Bits Beams count"
+              value={massageLabBeamsBeamNumber}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsBeamNumber: Number(event.target.value) })}
+              aria-label="MassageLab Beams count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsBeamsSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabBeamsSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="8"
               step="0.05"
-              value={reactBitsBeamsSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsSpeed: Number(event.target.value) })}
-              aria-label="React Bits Beams speed"
+              value={massageLabBeamsSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Beams speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsBeamsNoiseIntensity.toFixed(2)})</span>
+            <span>Noise ({massageLabBeamsNoiseIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsBeamsNoiseIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsNoiseIntensity: Number(event.target.value) })}
-              aria-label="React Bits Beams noise"
+              value={massageLabBeamsNoiseIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsNoiseIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Beams noise"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsBeamsScale.toFixed(2)})</span>
+            <span>Scale ({massageLabBeamsScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.02"
               max="1.5"
               step="0.01"
-              value={reactBitsBeamsScale}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsScale: Number(event.target.value) })}
-              aria-label="React Bits Beams scale"
+              value={massageLabBeamsScale}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsScale: Number(event.target.value) })}
+              aria-label="MassageLab Beams scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsBeamsRotation.toFixed(0)}deg)</span>
+            <span>Rotation ({massageLabBeamsRotation.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsBeamsRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsBeamsRotation: Number(event.target.value) })}
-              aria-label="React Bits Beams rotation"
+              value={massageLabBeamsRotation}
+              onChange={(event) => handleSettingsChange({ massageLabBeamsRotation: Number(event.target.value) })}
+              aria-label="MassageLab Beams rotation"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-pixel-snow" && (
+      {option.id === "massage-lab-pixel-snow" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsPixelSnowPaletteMode}
+              value={massageLabPixelSnowPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelSnowPaletteMode: event.target.value as ReactBitsPixelSnowPaletteMode,
+                massageLabPixelSnowPaletteMode: event.target.value as MassageLabPixelSnowPaletteMode,
               })}
-              aria-label="React Bits Pixel Snow color mode"
+              aria-label="MassageLab Pixel Snow color mode"
             >
               <option value="source">Source white snow</option>
               <option value="custom">Custom snow color</option>
@@ -9662,37 +10923,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsPixelSnowPaletteMode === "custom" ? (
+          {massageLabPixelSnowPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Snow color</span>
               <input
                 type="color"
-                value={reactBitsPixelSnowColor}
-                onChange={(event) => handleSettingsChange({ reactBitsPixelSnowColor: event.target.value })}
-                aria-label="React Bits Pixel Snow color"
+                value={massageLabPixelSnowColor}
+                onChange={(event) => handleSettingsChange({ massageLabPixelSnowColor: event.target.value })}
+                aria-label="MassageLab Pixel Snow color"
               />
             </label>
           ) : null}
 
-          {reactBitsPixelSnowPaletteMode === "harmony" ? (
+          {massageLabPixelSnowPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsPixelSnowPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsPixelSnowPrimaryColor: event.target.value })}
-                  aria-label="React Bits Pixel Snow primary color"
+                  value={massageLabPixelSnowPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabPixelSnowPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Pixel Snow primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsPixelSnowHarmony}
+                  value={massageLabPixelSnowHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPixelSnowHarmony: event.target.value as ColorHarmony,
+                    massageLabPixelSnowHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Pixel Snow color harmony"
+                  aria-label="MassageLab Pixel Snow color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -9707,11 +10968,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Variant</span>
             <select
-              value={reactBitsPixelSnowVariant}
+              value={massageLabPixelSnowVariant}
               onChange={(event) => handleSettingsChange({
-                reactBitsPixelSnowVariant: event.target.value as ReactBitsPixelSnowVariant,
+                massageLabPixelSnowVariant: event.target.value as MassageLabPixelSnowVariant,
               })}
-              aria-label="React Bits Pixel Snow variant"
+              aria-label="MassageLab Pixel Snow variant"
             >
               <option value="square">Square</option>
               <option value="round">Round</option>
@@ -9720,147 +10981,147 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flake size ({reactBitsPixelSnowFlakeSize.toFixed(3)})</span>
+            <span>Flake size ({massageLabPixelSnowFlakeSize.toFixed(3)})</span>
             <input
               type="range"
               min="0.001"
               max="0.08"
               step="0.001"
-              value={reactBitsPixelSnowFlakeSize}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowFlakeSize: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow flake size"
+              value={massageLabPixelSnowFlakeSize}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowFlakeSize: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow flake size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Minimum flake ({reactBitsPixelSnowMinFlakeSize.toFixed(2)})</span>
+            <span>Minimum flake ({massageLabPixelSnowMinFlakeSize.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="6"
               step="0.05"
-              value={reactBitsPixelSnowMinFlakeSize}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowMinFlakeSize: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow minimum flake size"
+              value={massageLabPixelSnowMinFlakeSize}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowMinFlakeSize: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow minimum flake size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel resolution ({reactBitsPixelSnowPixelResolution.toFixed(0)})</span>
+            <span>Pixel resolution ({massageLabPixelSnowPixelResolution.toFixed(0)})</span>
             <input
               type="range"
               min="40"
               max="640"
               step="10"
-              value={reactBitsPixelSnowPixelResolution}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowPixelResolution: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow pixel resolution"
+              value={massageLabPixelSnowPixelResolution}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowPixelResolution: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow pixel resolution"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsPixelSnowSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabPixelSnowSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsPixelSnowSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowSpeed: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow speed"
+              value={massageLabPixelSnowSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Depth fade ({reactBitsPixelSnowDepthFade.toFixed(1)})</span>
+            <span>Depth fade ({massageLabPixelSnowDepthFade.toFixed(1)})</span>
             <input
               type="range"
               min="1"
               max="40"
               step="0.5"
-              value={reactBitsPixelSnowDepthFade}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDepthFade: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow depth fade"
+              value={massageLabPixelSnowDepthFade}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowDepthFade: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow depth fade"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Far plane ({reactBitsPixelSnowFarPlane.toFixed(0)})</span>
+            <span>Far plane ({massageLabPixelSnowFarPlane.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="80"
               step="1"
-              value={reactBitsPixelSnowFarPlane}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowFarPlane: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow far plane"
+              value={massageLabPixelSnowFarPlane}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowFarPlane: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow far plane"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Brightness ({reactBitsPixelSnowBrightness.toFixed(2)})</span>
+            <span>Brightness ({massageLabPixelSnowBrightness.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="4"
               step="0.05"
-              value={reactBitsPixelSnowBrightness}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowBrightness: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow brightness"
+              value={massageLabPixelSnowBrightness}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowBrightness: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow brightness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Gamma ({reactBitsPixelSnowGamma.toFixed(3)})</span>
+            <span>Gamma ({massageLabPixelSnowGamma.toFixed(3)})</span>
             <input
               type="range"
               min="0.1"
               max="2"
               step="0.01"
-              value={reactBitsPixelSnowGamma}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowGamma: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow gamma"
+              value={massageLabPixelSnowGamma}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowGamma: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow gamma"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Density ({reactBitsPixelSnowDensity.toFixed(2)})</span>
+            <span>Density ({massageLabPixelSnowDensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.02"
               max="1"
               step="0.01"
-              value={reactBitsPixelSnowDensity}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDensity: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow density"
+              value={massageLabPixelSnowDensity}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowDensity: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow density"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Direction ({reactBitsPixelSnowDirection.toFixed(0)}deg)</span>
+            <span>Direction ({massageLabPixelSnowDirection.toFixed(0)}deg)</span>
             <input
               type="range"
               min="0"
               max="360"
               step="1"
-              value={reactBitsPixelSnowDirection}
-              onChange={(event) => handleSettingsChange({ reactBitsPixelSnowDirection: Number(event.target.value) })}
-              aria-label="React Bits Pixel Snow direction"
+              value={massageLabPixelSnowDirection}
+              onChange={(event) => handleSettingsChange({ massageLabPixelSnowDirection: Number(event.target.value) })}
+              aria-label="MassageLab Pixel Snow direction"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-lightning" && (
+      {option.id === "massage-lab-lightning" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsLightningPaletteMode}
+              value={massageLabLightningPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLightningPaletteMode: event.target.value as ReactBitsLightningPaletteMode,
+                massageLabLightningPaletteMode: event.target.value as MassageLabLightningPaletteMode,
               })}
-              aria-label="React Bits Lightning color mode"
+              aria-label="MassageLab Lightning color mode"
             >
               <option value="source">Source hue</option>
               <option value="custom">Custom color</option>
@@ -9868,52 +11129,52 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLightningPaletteMode === "source" ? (
+          {massageLabLightningPaletteMode === "source" ? (
             <label className={styles.rangeRow}>
-              <span>Hue ({reactBitsLightningHue.toFixed(0)}deg)</span>
+              <span>Hue ({massageLabLightningHue.toFixed(0)}deg)</span>
               <input
                 type="range"
                 min="0"
                 max="360"
                 step="1"
-                value={reactBitsLightningHue}
-                onChange={(event) => handleSettingsChange({ reactBitsLightningHue: Number(event.target.value) })}
-                aria-label="React Bits Lightning hue"
+                value={massageLabLightningHue}
+                onChange={(event) => handleSettingsChange({ massageLabLightningHue: Number(event.target.value) })}
+                aria-label="MassageLab Lightning hue"
               />
             </label>
           ) : null}
 
-          {reactBitsLightningPaletteMode === "custom" ? (
+          {massageLabLightningPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Lightning color</span>
               <input
                 type="color"
-                value={reactBitsLightningColor}
-                onChange={(event) => handleSettingsChange({ reactBitsLightningColor: event.target.value })}
-                aria-label="React Bits Lightning color"
+                value={massageLabLightningColor}
+                onChange={(event) => handleSettingsChange({ massageLabLightningColor: event.target.value })}
+                aria-label="MassageLab Lightning color"
               />
             </label>
           ) : null}
 
-          {reactBitsLightningPaletteMode === "harmony" ? (
+          {massageLabLightningPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLightningPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLightningPrimaryColor: event.target.value })}
-                  aria-label="React Bits Lightning primary color"
+                  value={massageLabLightningPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLightningPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Lightning primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsLightningHarmony}
+                  value={massageLabLightningHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLightningHarmony: event.target.value as ColorHarmony,
+                    massageLabLightningHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Lightning color harmony"
+                  aria-label="MassageLab Lightning color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -9926,69 +11187,69 @@ export function RunningTimer({
           ) : null}
 
           <label className={styles.rangeRow}>
-            <span>X offset ({reactBitsLightningXOffset.toFixed(2)})</span>
+            <span>X offset ({massageLabLightningXOffset.toFixed(2)})</span>
             <input
               type="range"
               min="-2"
               max="2"
               step="0.05"
-              value={reactBitsLightningXOffset}
-              onChange={(event) => handleSettingsChange({ reactBitsLightningXOffset: Number(event.target.value) })}
-              aria-label="React Bits Lightning X offset"
+              value={massageLabLightningXOffset}
+              onChange={(event) => handleSettingsChange({ massageLabLightningXOffset: Number(event.target.value) })}
+              aria-label="MassageLab Lightning X offset"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsLightningSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabLightningSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsLightningSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsLightningSpeed: Number(event.target.value) })}
-              aria-label="React Bits Lightning speed"
+              value={massageLabLightningSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLightningSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Lightning speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Intensity ({reactBitsLightningIntensity.toFixed(2)})</span>
+            <span>Intensity ({massageLabLightningIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="5"
               step="0.05"
-              value={reactBitsLightningIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsLightningIntensity: Number(event.target.value) })}
-              aria-label="React Bits Lightning intensity"
+              value={massageLabLightningIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabLightningIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Lightning intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Size ({reactBitsLightningSize.toFixed(2)})</span>
+            <span>Size ({massageLabLightningSize.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="5"
               step="0.05"
-              value={reactBitsLightningSize}
-              onChange={(event) => handleSettingsChange({ reactBitsLightningSize: Number(event.target.value) })}
-              aria-label="React Bits Lightning size"
+              value={massageLabLightningSize}
+              onChange={(event) => handleSettingsChange({ massageLabLightningSize: Number(event.target.value) })}
+              aria-label="MassageLab Lightning size"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-prismatic-burst" && (
+      {option.id === "massage-lab-prismatic-burst" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsPrismaticBurstPaletteMode}
+              value={massageLabPrismaticBurstPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismaticBurstPaletteMode: event.target.value as ReactBitsPrismaticBurstPaletteMode,
+                massageLabPrismaticBurstPaletteMode: event.target.value as MassageLabPrismaticBurstPaletteMode,
               })}
-              aria-label="React Bits Prismatic Burst color mode"
+              aria-label="MassageLab Prismatic Burst color mode"
             >
               <option value="source">Source spectrum</option>
               <option value="custom">Custom gradient</option>
@@ -9996,70 +11257,70 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsPrismaticBurstPaletteMode === "custom" ? (
+          {massageLabPrismaticBurstPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsPrismaticBurstColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorOne: event.target.value })}
-                  aria-label="React Bits Prismatic Burst color 1"
+                  value={massageLabPrismaticBurstColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstColorOne: event.target.value })}
+                  aria-label="MassageLab Prismatic Burst color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsPrismaticBurstColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorTwo: event.target.value })}
-                  aria-label="React Bits Prismatic Burst color 2"
+                  value={massageLabPrismaticBurstColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstColorTwo: event.target.value })}
+                  aria-label="MassageLab Prismatic Burst color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsPrismaticBurstColorThree}
+                  value={massageLabPrismaticBurstColorThree}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPrismaticBurstColorThree: event.target.value,
+                    massageLabPrismaticBurstColorThree: event.target.value,
                   })}
-                  aria-label="React Bits Prismatic Burst color 3"
+                  aria-label="MassageLab Prismatic Burst color 3"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 4</span>
                 <input
                   type="color"
-                  value={reactBitsPrismaticBurstColorFour}
-                  onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstColorFour: event.target.value })}
-                  aria-label="React Bits Prismatic Burst color 4"
+                  value={massageLabPrismaticBurstColorFour}
+                  onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstColorFour: event.target.value })}
+                  aria-label="MassageLab Prismatic Burst color 4"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsPrismaticBurstPaletteMode === "harmony" ? (
+          {massageLabPrismaticBurstPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsPrismaticBurstPrimaryColor}
+                  value={massageLabPrismaticBurstPrimaryColor}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPrismaticBurstPrimaryColor: event.target.value,
+                    massageLabPrismaticBurstPrimaryColor: event.target.value,
                   })}
-                  aria-label="React Bits Prismatic Burst primary color"
+                  aria-label="MassageLab Prismatic Burst primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsPrismaticBurstHarmony}
+                  value={massageLabPrismaticBurstHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsPrismaticBurstHarmony: event.target.value as ColorHarmony,
+                    massageLabPrismaticBurstHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Prismatic Burst color harmony"
+                  aria-label="MassageLab Prismatic Burst color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -10074,11 +11335,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Animation</span>
             <select
-              value={reactBitsPrismaticBurstAnimationType}
+              value={massageLabPrismaticBurstAnimationType}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismaticBurstAnimationType: event.target.value as ReactBitsPrismaticBurstAnimationType,
+                massageLabPrismaticBurstAnimationType: event.target.value as MassageLabPrismaticBurstAnimationType,
               })}
-              aria-label="React Bits Prismatic Burst animation"
+              aria-label="MassageLab Prismatic Burst animation"
             >
               <option value="rotate3d">Rotate 3D</option>
               <option value="rotate">Rotate</option>
@@ -10089,11 +11350,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Blend</span>
             <select
-              value={reactBitsPrismaticBurstMixBlendMode}
+              value={massageLabPrismaticBurstMixBlendMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismaticBurstMixBlendMode: event.target.value as ReactBitsPrismaticBurstMixBlendMode,
+                massageLabPrismaticBurstMixBlendMode: event.target.value as MassageLabPrismaticBurstMixBlendMode,
               })}
-              aria-label="React Bits Prismatic Burst blend mode"
+              aria-label="MassageLab Prismatic Burst blend mode"
             >
               <option value="lighten">Lighten</option>
               <option value="screen">Screen</option>
@@ -10102,114 +11363,114 @@ export function RunningTimer({
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Intensity ({reactBitsPrismaticBurstIntensity.toFixed(2)})</span>
+            <span>Intensity ({massageLabPrismaticBurstIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsPrismaticBurstIntensity}
+              value={massageLabPrismaticBurstIntensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismaticBurstIntensity: Number(event.target.value),
+                massageLabPrismaticBurstIntensity: Number(event.target.value),
               })}
-              aria-label="React Bits Prismatic Burst intensity"
+              aria-label="MassageLab Prismatic Burst intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsPrismaticBurstSpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabPrismaticBurstSpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsPrismaticBurstSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstSpeed: Number(event.target.value) })}
-              aria-label="React Bits Prismatic Burst speed"
+              value={massageLabPrismaticBurstSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Prismatic Burst speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distortion ({reactBitsPrismaticBurstDistort.toFixed(1)})</span>
+            <span>Distortion ({massageLabPrismaticBurstDistort.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="50"
               step="0.5"
-              value={reactBitsPrismaticBurstDistort}
+              value={massageLabPrismaticBurstDistort}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismaticBurstDistort: Number(event.target.value),
+                massageLabPrismaticBurstDistort: Number(event.target.value),
               })}
-              aria-label="React Bits Prismatic Burst distortion"
+              aria-label="MassageLab Prismatic Burst distortion"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Offset X ({reactBitsPrismaticBurstOffsetX.toFixed(0)}px)</span>
+            <span>Offset X ({massageLabPrismaticBurstOffsetX.toFixed(0)}px)</span>
             <input
               type="range"
               min="-1000"
               max="1000"
               step="10"
-              value={reactBitsPrismaticBurstOffsetX}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstOffsetX: Number(event.target.value) })}
-              aria-label="React Bits Prismatic Burst offset X"
+              value={massageLabPrismaticBurstOffsetX}
+              onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstOffsetX: Number(event.target.value) })}
+              aria-label="MassageLab Prismatic Burst offset X"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Offset Y ({reactBitsPrismaticBurstOffsetY.toFixed(0)}px)</span>
+            <span>Offset Y ({massageLabPrismaticBurstOffsetY.toFixed(0)}px)</span>
             <input
               type="range"
               min="-1000"
               max="1000"
               step="10"
-              value={reactBitsPrismaticBurstOffsetY}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstOffsetY: Number(event.target.value) })}
-              aria-label="React Bits Prismatic Burst offset Y"
+              value={massageLabPrismaticBurstOffsetY}
+              onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstOffsetY: Number(event.target.value) })}
+              aria-label="MassageLab Prismatic Burst offset Y"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Hover damping ({reactBitsPrismaticBurstHoverDampness.toFixed(2)})</span>
+            <span>Hover damping ({massageLabPrismaticBurstHoverDampness.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsPrismaticBurstHoverDampness}
+              value={massageLabPrismaticBurstHoverDampness}
               onChange={(event) => handleSettingsChange({
-                reactBitsPrismaticBurstHoverDampness: Number(event.target.value),
+                massageLabPrismaticBurstHoverDampness: Number(event.target.value),
               })}
-              aria-label="React Bits Prismatic Burst hover damping"
+              aria-label="MassageLab Prismatic Burst hover damping"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ray count ({reactBitsPrismaticBurstRayCount.toFixed(0)})</span>
+            <span>Ray count ({massageLabPrismaticBurstRayCount.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="64"
               step="1"
-              value={reactBitsPrismaticBurstRayCount}
-              onChange={(event) => handleSettingsChange({ reactBitsPrismaticBurstRayCount: Number(event.target.value) })}
-              aria-label="React Bits Prismatic Burst ray count"
+              value={massageLabPrismaticBurstRayCount}
+              onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstRayCount: Number(event.target.value) })}
+              aria-label="MassageLab Prismatic Burst ray count"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-galaxy" && (
+      {option.id === "massage-lab-galaxy" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsGalaxyPaletteMode}
+              value={massageLabGalaxyPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGalaxyPaletteMode: event.target.value as ReactBitsGalaxyPaletteMode,
+                massageLabGalaxyPaletteMode: event.target.value as MassageLabGalaxyPaletteMode,
               })}
-              aria-label="React Bits Galaxy color mode"
+              aria-label="MassageLab Galaxy color mode"
             >
               <option value="source">Source hue shift</option>
               <option value="custom">Custom color</option>
@@ -10217,52 +11478,52 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsGalaxyPaletteMode === "source" ? (
+          {massageLabGalaxyPaletteMode === "source" ? (
             <label className={styles.rangeRow}>
-              <span>Hue shift ({reactBitsGalaxyHueShift.toFixed(0)}deg)</span>
+              <span>Hue shift ({massageLabGalaxyHueShift.toFixed(0)}deg)</span>
               <input
                 type="range"
                 min="0"
                 max="360"
                 step="1"
-                value={reactBitsGalaxyHueShift}
-                onChange={(event) => handleSettingsChange({ reactBitsGalaxyHueShift: Number(event.target.value) })}
-                aria-label="React Bits Galaxy hue shift"
+                value={massageLabGalaxyHueShift}
+                onChange={(event) => handleSettingsChange({ massageLabGalaxyHueShift: Number(event.target.value) })}
+                aria-label="MassageLab Galaxy hue shift"
               />
             </label>
           ) : null}
 
-          {reactBitsGalaxyPaletteMode === "custom" ? (
+          {massageLabGalaxyPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Galaxy color</span>
               <input
                 type="color"
-                value={reactBitsGalaxyColor}
-                onChange={(event) => handleSettingsChange({ reactBitsGalaxyColor: event.target.value })}
-                aria-label="React Bits Galaxy color"
+                value={massageLabGalaxyColor}
+                onChange={(event) => handleSettingsChange({ massageLabGalaxyColor: event.target.value })}
+                aria-label="MassageLab Galaxy color"
               />
             </label>
           ) : null}
 
-          {reactBitsGalaxyPaletteMode === "harmony" ? (
+          {massageLabGalaxyPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsGalaxyPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGalaxyPrimaryColor: event.target.value })}
-                  aria-label="React Bits Galaxy primary color"
+                  value={massageLabGalaxyPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGalaxyPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Galaxy primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsGalaxyHarmony}
+                  value={massageLabGalaxyHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsGalaxyHarmony: event.target.value as ColorHarmony,
+                    massageLabGalaxyHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Galaxy color harmony"
+                  aria-label="MassageLab Galaxy color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -10277,9 +11538,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsGalaxyTransparent}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyTransparent: event.target.checked })}
-              aria-label="React Bits Galaxy transparent background"
+              checked={massageLabGalaxyTransparent}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyTransparent: event.target.checked })}
+              aria-label="MassageLab Galaxy transparent background"
             />
             <span>Transparent background</span>
           </label>
@@ -10287,9 +11548,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsGalaxyMouseInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyMouseInteraction: event.target.checked })}
-              aria-label="React Bits Galaxy cursor interaction"
+              checked={massageLabGalaxyMouseInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyMouseInteraction: event.target.checked })}
+              aria-label="MassageLab Galaxy cursor interaction"
             />
             <span>Cursor interaction</span>
           </label>
@@ -10297,183 +11558,183 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsGalaxyMouseRepulsion}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyMouseRepulsion: event.target.checked })}
-              aria-label="React Bits Galaxy cursor repulsion"
+              checked={massageLabGalaxyMouseRepulsion}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyMouseRepulsion: event.target.checked })}
+              aria-label="MassageLab Galaxy cursor repulsion"
             />
             <span>Cursor repulsion</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Focal X ({reactBitsGalaxyFocalX.toFixed(2)})</span>
+            <span>Focal X ({massageLabGalaxyFocalX.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGalaxyFocalX}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyFocalX: Number(event.target.value) })}
-              aria-label="React Bits Galaxy focal X"
+              value={massageLabGalaxyFocalX}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyFocalX: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy focal X"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Focal Y ({reactBitsGalaxyFocalY.toFixed(2)})</span>
+            <span>Focal Y ({massageLabGalaxyFocalY.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGalaxyFocalY}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyFocalY: Number(event.target.value) })}
-              aria-label="React Bits Galaxy focal Y"
+              value={massageLabGalaxyFocalY}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyFocalY: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy focal Y"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsGalaxyRotationDeg.toFixed(0)}deg)</span>
+            <span>Rotation ({massageLabGalaxyRotationDeg.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-360"
               max="360"
               step="1"
-              value={reactBitsGalaxyRotationDeg}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRotationDeg: Number(event.target.value) })}
-              aria-label="React Bits Galaxy rotation"
+              value={massageLabGalaxyRotationDeg}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyRotationDeg: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy rotation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Star speed ({reactBitsGalaxyStarSpeed.toFixed(2)})</span>
+            <span>Star speed ({massageLabGalaxyStarSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsGalaxyStarSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyStarSpeed: Number(event.target.value) })}
-              aria-label="React Bits Galaxy star speed"
+              value={massageLabGalaxyStarSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyStarSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy star speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Density ({reactBitsGalaxyDensity.toFixed(2)})</span>
+            <span>Density ({massageLabGalaxyDensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.05"
-              value={reactBitsGalaxyDensity}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyDensity: Number(event.target.value) })}
-              aria-label="React Bits Galaxy density"
+              value={massageLabGalaxyDensity}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyDensity: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy density"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsGalaxySpeed.toFixed(2)}x)</span>
+            <span>Speed ({massageLabGalaxySpeed.toFixed(2)}x)</span>
             <input
               type="range"
               min="0"
               max="5"
               step="0.05"
-              value={reactBitsGalaxySpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxySpeed: Number(event.target.value) })}
-              aria-label="React Bits Galaxy speed"
+              value={massageLabGalaxySpeed}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxySpeed: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({reactBitsGalaxyGlowIntensity.toFixed(2)})</span>
+            <span>Glow ({massageLabGalaxyGlowIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0.01"
               max="2"
               step="0.01"
-              value={reactBitsGalaxyGlowIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyGlowIntensity: Number(event.target.value) })}
-              aria-label="React Bits Galaxy glow intensity"
+              value={massageLabGalaxyGlowIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyGlowIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy glow intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Saturation ({reactBitsGalaxySaturation.toFixed(2)})</span>
+            <span>Saturation ({massageLabGalaxySaturation.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsGalaxySaturation}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxySaturation: Number(event.target.value) })}
-              aria-label="React Bits Galaxy saturation"
+              value={massageLabGalaxySaturation}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxySaturation: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy saturation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Twinkle ({reactBitsGalaxyTwinkleIntensity.toFixed(2)})</span>
+            <span>Twinkle ({massageLabGalaxyTwinkleIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsGalaxyTwinkleIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyTwinkleIntensity: Number(event.target.value) })}
-              aria-label="React Bits Galaxy twinkle intensity"
+              value={massageLabGalaxyTwinkleIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyTwinkleIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy twinkle intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation speed ({reactBitsGalaxyRotationSpeed.toFixed(2)})</span>
+            <span>Rotation speed ({massageLabGalaxyRotationSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="-2"
               max="2"
               step="0.01"
-              value={reactBitsGalaxyRotationSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRotationSpeed: Number(event.target.value) })}
-              aria-label="React Bits Galaxy rotation speed"
+              value={massageLabGalaxyRotationSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyRotationSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy rotation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Repulsion ({reactBitsGalaxyRepulsionStrength.toFixed(2)})</span>
+            <span>Repulsion ({massageLabGalaxyRepulsionStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="6"
               step="0.05"
-              value={reactBitsGalaxyRepulsionStrength}
-              onChange={(event) => handleSettingsChange({ reactBitsGalaxyRepulsionStrength: Number(event.target.value) })}
-              aria-label="React Bits Galaxy repulsion strength"
+              value={massageLabGalaxyRepulsionStrength}
+              onChange={(event) => handleSettingsChange({ massageLabGalaxyRepulsionStrength: Number(event.target.value) })}
+              aria-label="MassageLab Galaxy repulsion strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Center repulsion ({reactBitsGalaxyAutoCenterRepulsion.toFixed(2)})</span>
+            <span>Center repulsion ({massageLabGalaxyAutoCenterRepulsion.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="6"
               step="0.05"
-              value={reactBitsGalaxyAutoCenterRepulsion}
+              value={massageLabGalaxyAutoCenterRepulsion}
               onChange={(event) => handleSettingsChange({
-                reactBitsGalaxyAutoCenterRepulsion: Number(event.target.value),
+                massageLabGalaxyAutoCenterRepulsion: Number(event.target.value),
               })}
-              aria-label="React Bits Galaxy center repulsion"
+              aria-label="MassageLab Galaxy center repulsion"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-dither" && (
+      {option.id === "massage-lab-dither" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsDitherPaletteMode}
+              value={massageLabDitherPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsDitherPaletteMode: event.target.value as ReactBitsDitherPaletteMode,
+                massageLabDitherPaletteMode: event.target.value as MassageLabDitherPaletteMode,
               })}
-              aria-label="React Bits Dither color mode"
+              aria-label="MassageLab Dither color mode"
             >
               <option value="source">Source grey</option>
               <option value="custom">Custom color</option>
@@ -10481,37 +11742,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsDitherPaletteMode === "custom" ? (
+          {massageLabDitherPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Dither color</span>
               <input
                 type="color"
-                value={reactBitsDitherColor}
-                onChange={(event) => handleSettingsChange({ reactBitsDitherColor: event.target.value })}
-                aria-label="React Bits Dither color"
+                value={massageLabDitherColor}
+                onChange={(event) => handleSettingsChange({ massageLabDitherColor: event.target.value })}
+                aria-label="MassageLab Dither color"
               />
             </label>
           ) : null}
 
-          {reactBitsDitherPaletteMode === "harmony" ? (
+          {massageLabDitherPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsDitherPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsDitherPrimaryColor: event.target.value })}
-                  aria-label="React Bits Dither primary color"
+                  value={massageLabDitherPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabDitherPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Dither primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsDitherHarmony}
+                  value={massageLabDitherHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsDitherHarmony: event.target.value as ColorHarmony,
+                    massageLabDitherHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Dither color harmony"
+                  aria-label="MassageLab Dither color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -10525,105 +11786,105 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsDitherMouseInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsDitherMouseInteraction: event.target.checked })}
-              aria-label="React Bits Dither cursor interaction"
+              checked={massageLabDitherMouseInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabDitherMouseInteraction: event.target.checked })}
+              aria-label="MassageLab Dither cursor interaction"
             />
             <span>Cursor interaction</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave speed ({reactBitsDitherWaveSpeed.toFixed(3)})</span>
+            <span>Wave speed ({massageLabDitherWaveSpeed.toFixed(3)})</span>
             <input
               type="range"
               min="0"
               max="0.5"
               step="0.005"
-              value={reactBitsDitherWaveSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsDitherWaveSpeed: Number(event.target.value) })}
-              aria-label="React Bits Dither wave speed"
+              value={massageLabDitherWaveSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabDitherWaveSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Dither wave speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave frequency ({reactBitsDitherWaveFrequency.toFixed(1)})</span>
+            <span>Wave frequency ({massageLabDitherWaveFrequency.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="8"
               step="0.1"
-              value={reactBitsDitherWaveFrequency}
-              onChange={(event) => handleSettingsChange({ reactBitsDitherWaveFrequency: Number(event.target.value) })}
-              aria-label="React Bits Dither wave frequency"
+              value={massageLabDitherWaveFrequency}
+              onChange={(event) => handleSettingsChange({ massageLabDitherWaveFrequency: Number(event.target.value) })}
+              aria-label="MassageLab Dither wave frequency"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave amplitude ({reactBitsDitherWaveAmplitude.toFixed(2)})</span>
+            <span>Wave amplitude ({massageLabDitherWaveAmplitude.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsDitherWaveAmplitude}
-              onChange={(event) => handleSettingsChange({ reactBitsDitherWaveAmplitude: Number(event.target.value) })}
-              aria-label="React Bits Dither wave amplitude"
+              value={massageLabDitherWaveAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabDitherWaveAmplitude: Number(event.target.value) })}
+              aria-label="MassageLab Dither wave amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Color count ({reactBitsDitherColorNum})</span>
+            <span>Color count ({massageLabDitherColorNum})</span>
             <input
               type="range"
               min="2"
               max="16"
               step="1"
-              value={reactBitsDitherColorNum}
-              onChange={(event) => handleSettingsChange({ reactBitsDitherColorNum: Number(event.target.value) })}
-              aria-label="React Bits Dither color count"
+              value={massageLabDitherColorNum}
+              onChange={(event) => handleSettingsChange({ massageLabDitherColorNum: Number(event.target.value) })}
+              aria-label="MassageLab Dither color count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel size ({reactBitsDitherPixelSize}px)</span>
+            <span>Pixel size ({massageLabDitherPixelSize}px)</span>
             <input
               type="range"
               min="1"
               max="24"
               step="1"
-              value={reactBitsDitherPixelSize}
-              onChange={(event) => handleSettingsChange({ reactBitsDitherPixelSize: Number(event.target.value) })}
-              aria-label="React Bits Dither pixel size"
+              value={massageLabDitherPixelSize}
+              onChange={(event) => handleSettingsChange({ massageLabDitherPixelSize: Number(event.target.value) })}
+              aria-label="MassageLab Dither pixel size"
             />
           </label>
 
-          {reactBitsDitherMouseInteraction ? (
+          {massageLabDitherMouseInteraction ? (
             <label className={styles.rangeRow}>
-              <span>Cursor radius ({reactBitsDitherMouseRadius.toFixed(2)})</span>
+              <span>Cursor radius ({massageLabDitherMouseRadius.toFixed(2)})</span>
               <input
                 type="range"
                 min="0.05"
                 max="3"
                 step="0.05"
-                value={reactBitsDitherMouseRadius}
-                onChange={(event) => handleSettingsChange({ reactBitsDitherMouseRadius: Number(event.target.value) })}
-                aria-label="React Bits Dither cursor radius"
+                value={massageLabDitherMouseRadius}
+                onChange={(event) => handleSettingsChange({ massageLabDitherMouseRadius: Number(event.target.value) })}
+                aria-label="MassageLab Dither cursor radius"
               />
             </label>
           ) : null}
         </>
       )}
 
-      {option.id === "react-bits-faulty-terminal" && (
+      {option.id === "massage-lab-faulty-terminal" && (
         <>
           <label className={styles.selectRow}>
             <span>Tint mode</span>
             <select
-              value={reactBitsFaultyTerminalPaletteMode}
+              value={massageLabFaultyTerminalPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsFaultyTerminalPaletteMode: event.target.value as ReactBitsFaultyTerminalPaletteMode,
+                massageLabFaultyTerminalPaletteMode: event.target.value as MassageLabFaultyTerminalPaletteMode,
               })}
-              aria-label="React Bits Faulty Terminal tint mode"
+              aria-label="MassageLab Faulty Terminal tint mode"
             >
               <option value="source">Source white</option>
               <option value="custom">Custom tint</option>
@@ -10631,37 +11892,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsFaultyTerminalPaletteMode === "custom" ? (
+          {massageLabFaultyTerminalPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Terminal tint</span>
               <input
                 type="color"
-                value={reactBitsFaultyTerminalTint}
-                onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalTint: event.target.value })}
-                aria-label="React Bits Faulty Terminal tint"
+                value={massageLabFaultyTerminalTint}
+                onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalTint: event.target.value })}
+                aria-label="MassageLab Faulty Terminal tint"
               />
             </label>
           ) : null}
 
-          {reactBitsFaultyTerminalPaletteMode === "harmony" ? (
+          {massageLabFaultyTerminalPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsFaultyTerminalPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalPrimaryColor: event.target.value })}
-                  aria-label="React Bits Faulty Terminal primary color"
+                  value={massageLabFaultyTerminalPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Faulty Terminal primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsFaultyTerminalHarmony}
+                  value={massageLabFaultyTerminalHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsFaultyTerminalHarmony: event.target.value as ColorHarmony,
+                    massageLabFaultyTerminalHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Faulty Terminal color harmony"
+                  aria-label="MassageLab Faulty Terminal color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -10675,9 +11936,9 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsFaultyTerminalMouseReact}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalMouseReact: event.target.checked })}
-              aria-label="React Bits Faulty Terminal cursor reaction"
+              checked={massageLabFaultyTerminalMouseReact}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalMouseReact: event.target.checked })}
+              aria-label="MassageLab Faulty Terminal cursor reaction"
             />
             <span>Cursor reaction</span>
           </label>
@@ -10685,221 +11946,221 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsFaultyTerminalPageLoadAnimation}
+              checked={massageLabFaultyTerminalPageLoadAnimation}
               onChange={(event) => handleSettingsChange({
-                reactBitsFaultyTerminalPageLoadAnimation: event.target.checked,
+                massageLabFaultyTerminalPageLoadAnimation: event.target.checked,
               })}
-              aria-label="React Bits Faulty Terminal page-load animation"
+              aria-label="MassageLab Faulty Terminal page-load animation"
             />
             <span>Page-load animation</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scale ({reactBitsFaultyTerminalScale.toFixed(2)})</span>
+            <span>Scale ({massageLabFaultyTerminalScale.toFixed(2)})</span>
             <input
               type="range"
               min="0.25"
               max="4"
               step="0.05"
-              value={reactBitsFaultyTerminalScale}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalScale: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal scale"
+              value={massageLabFaultyTerminalScale}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalScale: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid X ({reactBitsFaultyTerminalGridMulX.toFixed(2)})</span>
+            <span>Grid X ({massageLabFaultyTerminalGridMulX.toFixed(2)})</span>
             <input
               type="range"
               min="0.25"
               max="6"
               step="0.05"
-              value={reactBitsFaultyTerminalGridMulX}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalGridMulX: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal grid X multiplier"
+              value={massageLabFaultyTerminalGridMulX}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalGridMulX: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal grid X multiplier"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid Y ({reactBitsFaultyTerminalGridMulY.toFixed(2)})</span>
+            <span>Grid Y ({massageLabFaultyTerminalGridMulY.toFixed(2)})</span>
             <input
               type="range"
               min="0.25"
               max="6"
               step="0.05"
-              value={reactBitsFaultyTerminalGridMulY}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalGridMulY: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal grid Y multiplier"
+              value={massageLabFaultyTerminalGridMulY}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalGridMulY: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal grid Y multiplier"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Digit size ({reactBitsFaultyTerminalDigitSize.toFixed(2)})</span>
+            <span>Digit size ({massageLabFaultyTerminalDigitSize.toFixed(2)})</span>
             <input
               type="range"
               min="0.5"
               max="4"
               step="0.05"
-              value={reactBitsFaultyTerminalDigitSize}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalDigitSize: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal digit size"
+              value={massageLabFaultyTerminalDigitSize}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalDigitSize: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal digit size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Time scale ({reactBitsFaultyTerminalTimeScale.toFixed(2)})</span>
+            <span>Time scale ({massageLabFaultyTerminalTimeScale.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsFaultyTerminalTimeScale}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalTimeScale: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal time scale"
+              value={massageLabFaultyTerminalTimeScale}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalTimeScale: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal time scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Scanlines ({reactBitsFaultyTerminalScanlineIntensity.toFixed(2)})</span>
+            <span>Scanlines ({massageLabFaultyTerminalScanlineIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsFaultyTerminalScanlineIntensity}
+              value={massageLabFaultyTerminalScanlineIntensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsFaultyTerminalScanlineIntensity: Number(event.target.value),
+                massageLabFaultyTerminalScanlineIntensity: Number(event.target.value),
               })}
-              aria-label="React Bits Faulty Terminal scanline intensity"
+              aria-label="MassageLab Faulty Terminal scanline intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glitch ({reactBitsFaultyTerminalGlitchAmount.toFixed(2)})</span>
+            <span>Glitch ({massageLabFaultyTerminalGlitchAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.01"
-              value={reactBitsFaultyTerminalGlitchAmount}
+              value={massageLabFaultyTerminalGlitchAmount}
               onChange={(event) => handleSettingsChange({
-                reactBitsFaultyTerminalGlitchAmount: Number(event.target.value),
+                massageLabFaultyTerminalGlitchAmount: Number(event.target.value),
               })}
-              aria-label="React Bits Faulty Terminal glitch amount"
+              aria-label="MassageLab Faulty Terminal glitch amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flicker ({reactBitsFaultyTerminalFlickerAmount.toFixed(2)})</span>
+            <span>Flicker ({massageLabFaultyTerminalFlickerAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsFaultyTerminalFlickerAmount}
+              value={massageLabFaultyTerminalFlickerAmount}
               onChange={(event) => handleSettingsChange({
-                reactBitsFaultyTerminalFlickerAmount: Number(event.target.value),
+                massageLabFaultyTerminalFlickerAmount: Number(event.target.value),
               })}
-              aria-label="React Bits Faulty Terminal flicker amount"
+              aria-label="MassageLab Faulty Terminal flicker amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Noise ({reactBitsFaultyTerminalNoiseAmp.toFixed(2)})</span>
+            <span>Noise ({massageLabFaultyTerminalNoiseAmp.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.01"
-              value={reactBitsFaultyTerminalNoiseAmp}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalNoiseAmp: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal noise amplitude"
+              value={massageLabFaultyTerminalNoiseAmp}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalNoiseAmp: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal noise amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Chromatic ({reactBitsFaultyTerminalChromaticAberration.toFixed(1)})</span>
+            <span>Chromatic ({massageLabFaultyTerminalChromaticAberration.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="8"
               step="0.1"
-              value={reactBitsFaultyTerminalChromaticAberration}
+              value={massageLabFaultyTerminalChromaticAberration}
               onChange={(event) => handleSettingsChange({
-                reactBitsFaultyTerminalChromaticAberration: Number(event.target.value),
+                massageLabFaultyTerminalChromaticAberration: Number(event.target.value),
               })}
-              aria-label="React Bits Faulty Terminal chromatic aberration"
+              aria-label="MassageLab Faulty Terminal chromatic aberration"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Dither ({reactBitsFaultyTerminalDither.toFixed(0)})</span>
+            <span>Dither ({massageLabFaultyTerminalDither.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="255"
               step="1"
-              value={reactBitsFaultyTerminalDither}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalDither: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal dither"
+              value={massageLabFaultyTerminalDither}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalDither: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal dither"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Curvature ({reactBitsFaultyTerminalCurvature.toFixed(2)})</span>
+            <span>Curvature ({massageLabFaultyTerminalCurvature.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsFaultyTerminalCurvature}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalCurvature: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal curvature"
+              value={massageLabFaultyTerminalCurvature}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalCurvature: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal curvature"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Brightness ({reactBitsFaultyTerminalBrightness.toFixed(2)})</span>
+            <span>Brightness ({massageLabFaultyTerminalBrightness.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="3"
               step="0.01"
-              value={reactBitsFaultyTerminalBrightness}
-              onChange={(event) => handleSettingsChange({ reactBitsFaultyTerminalBrightness: Number(event.target.value) })}
-              aria-label="React Bits Faulty Terminal brightness"
+              value={massageLabFaultyTerminalBrightness}
+              onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalBrightness: Number(event.target.value) })}
+              aria-label="MassageLab Faulty Terminal brightness"
             />
           </label>
 
-          {reactBitsFaultyTerminalMouseReact ? (
+          {massageLabFaultyTerminalMouseReact ? (
             <label className={styles.rangeRow}>
-              <span>Cursor strength ({reactBitsFaultyTerminalMouseStrength.toFixed(2)})</span>
+              <span>Cursor strength ({massageLabFaultyTerminalMouseStrength.toFixed(2)})</span>
               <input
                 type="range"
                 min="0"
                 max="2"
                 step="0.01"
-                value={reactBitsFaultyTerminalMouseStrength}
+                value={massageLabFaultyTerminalMouseStrength}
                 onChange={(event) => handleSettingsChange({
-                  reactBitsFaultyTerminalMouseStrength: Number(event.target.value),
+                  massageLabFaultyTerminalMouseStrength: Number(event.target.value),
                 })}
-                aria-label="React Bits Faulty Terminal cursor strength"
+                aria-label="MassageLab Faulty Terminal cursor strength"
               />
             </label>
           ) : null}
         </>
       )}
 
-      {option.id === "react-bits-ripple-grid" && (
+      {option.id === "massage-lab-ripple-grid" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsRippleGridPaletteMode}
+              value={massageLabRippleGridPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsRippleGridPaletteMode: event.target.value as ReactBitsRippleGridPaletteMode,
+                massageLabRippleGridPaletteMode: event.target.value as MassageLabRippleGridPaletteMode,
               })}
-              aria-label="React Bits Ripple Grid color mode"
+              aria-label="MassageLab Ripple Grid color mode"
             >
               <option value="source">Source white</option>
               <option value="rainbow">Source rainbow</option>
@@ -10908,37 +12169,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsRippleGridPaletteMode === "custom" ? (
+          {massageLabRippleGridPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Grid color</span>
               <input
                 type="color"
-                value={reactBitsRippleGridColor}
-                onChange={(event) => handleSettingsChange({ reactBitsRippleGridColor: event.target.value })}
-                aria-label="React Bits Ripple Grid color"
+                value={massageLabRippleGridColor}
+                onChange={(event) => handleSettingsChange({ massageLabRippleGridColor: event.target.value })}
+                aria-label="MassageLab Ripple Grid color"
               />
             </label>
           ) : null}
 
-          {reactBitsRippleGridPaletteMode === "harmony" ? (
+          {massageLabRippleGridPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsRippleGridPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsRippleGridPrimaryColor: event.target.value })}
-                  aria-label="React Bits Ripple Grid primary color"
+                  value={massageLabRippleGridPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabRippleGridPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Ripple Grid primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsRippleGridHarmony}
+                  value={massageLabRippleGridHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsRippleGridHarmony: event.target.value as ColorHarmony,
+                    massageLabRippleGridHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Ripple Grid color harmony"
+                  aria-label="MassageLab Ripple Grid color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -10952,150 +12213,150 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <input
               type="checkbox"
-              checked={reactBitsRippleGridMouseInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridMouseInteraction: event.target.checked })}
-              aria-label="React Bits Ripple Grid cursor interaction"
+              checked={massageLabRippleGridMouseInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridMouseInteraction: event.target.checked })}
+              aria-label="MassageLab Ripple Grid cursor interaction"
             />
             <span>Cursor interaction</span>
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ripple ({reactBitsRippleGridRippleIntensity.toFixed(3)})</span>
+            <span>Ripple ({massageLabRippleGridRippleIntensity.toFixed(3)})</span>
             <input
               type="range"
               min="0"
               max="0.3"
               step="0.005"
-              value={reactBitsRippleGridRippleIntensity}
+              value={massageLabRippleGridRippleIntensity}
               onChange={(event) => handleSettingsChange({
-                reactBitsRippleGridRippleIntensity: Number(event.target.value),
+                massageLabRippleGridRippleIntensity: Number(event.target.value),
               })}
-              aria-label="React Bits Ripple Grid ripple intensity"
+              aria-label="MassageLab Ripple Grid ripple intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid size ({reactBitsRippleGridGridSize.toFixed(1)})</span>
+            <span>Grid size ({massageLabRippleGridGridSize.toFixed(1)})</span>
             <input
               type="range"
               min="2"
               max="30"
               step="0.5"
-              value={reactBitsRippleGridGridSize}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridSize: Number(event.target.value) })}
-              aria-label="React Bits Ripple Grid size"
+              value={massageLabRippleGridGridSize}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridGridSize: Number(event.target.value) })}
+              aria-label="MassageLab Ripple Grid size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Thickness ({reactBitsRippleGridGridThickness.toFixed(1)})</span>
+            <span>Thickness ({massageLabRippleGridGridThickness.toFixed(1)})</span>
             <input
               type="range"
               min="1"
               max="50"
               step="0.5"
-              value={reactBitsRippleGridGridThickness}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridThickness: Number(event.target.value) })}
-              aria-label="React Bits Ripple Grid thickness"
+              value={massageLabRippleGridGridThickness}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridGridThickness: Number(event.target.value) })}
+              aria-label="MassageLab Ripple Grid thickness"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Fade ({reactBitsRippleGridFadeDistance.toFixed(2)})</span>
+            <span>Fade ({massageLabRippleGridFadeDistance.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="5"
               step="0.05"
-              value={reactBitsRippleGridFadeDistance}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridFadeDistance: Number(event.target.value) })}
-              aria-label="React Bits Ripple Grid fade distance"
+              value={massageLabRippleGridFadeDistance}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridFadeDistance: Number(event.target.value) })}
+              aria-label="MassageLab Ripple Grid fade distance"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Vignette ({reactBitsRippleGridVignetteStrength.toFixed(2)})</span>
+            <span>Vignette ({massageLabRippleGridVignetteStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0.1"
               max="6"
               step="0.05"
-              value={reactBitsRippleGridVignetteStrength}
+              value={massageLabRippleGridVignetteStrength}
               onChange={(event) => handleSettingsChange({
-                reactBitsRippleGridVignetteStrength: Number(event.target.value),
+                massageLabRippleGridVignetteStrength: Number(event.target.value),
               })}
-              aria-label="React Bits Ripple Grid vignette strength"
+              aria-label="MassageLab Ripple Grid vignette strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow ({reactBitsRippleGridGlowIntensity.toFixed(2)})</span>
+            <span>Glow ({massageLabRippleGridGlowIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsRippleGridGlowIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGlowIntensity: Number(event.target.value) })}
-              aria-label="React Bits Ripple Grid glow intensity"
+              value={massageLabRippleGridGlowIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridGlowIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Ripple Grid glow intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Opacity ({reactBitsRippleGridOpacity.toFixed(2)})</span>
+            <span>Opacity ({massageLabRippleGridOpacity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsRippleGridOpacity}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridOpacity: Number(event.target.value) })}
-              aria-label="React Bits Ripple Grid opacity"
+              value={massageLabRippleGridOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridOpacity: Number(event.target.value) })}
+              aria-label="MassageLab Ripple Grid opacity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Rotation ({reactBitsRippleGridGridRotation.toFixed(0)}deg)</span>
+            <span>Rotation ({massageLabRippleGridGridRotation.toFixed(0)}deg)</span>
             <input
               type="range"
               min="-180"
               max="180"
               step="1"
-              value={reactBitsRippleGridGridRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsRippleGridGridRotation: Number(event.target.value) })}
-              aria-label="React Bits Ripple Grid rotation"
+              value={massageLabRippleGridGridRotation}
+              onChange={(event) => handleSettingsChange({ massageLabRippleGridGridRotation: Number(event.target.value) })}
+              aria-label="MassageLab Ripple Grid rotation"
             />
           </label>
 
-          {reactBitsRippleGridMouseInteraction ? (
+          {massageLabRippleGridMouseInteraction ? (
             <label className={styles.rangeRow}>
-              <span>Cursor radius ({reactBitsRippleGridMouseInteractionRadius.toFixed(2)})</span>
+              <span>Cursor radius ({massageLabRippleGridMouseInteractionRadius.toFixed(2)})</span>
               <input
                 type="range"
                 min="0.1"
                 max="5"
                 step="0.05"
-                value={reactBitsRippleGridMouseInteractionRadius}
+                value={massageLabRippleGridMouseInteractionRadius}
                 onChange={(event) => handleSettingsChange({
-                  reactBitsRippleGridMouseInteractionRadius: Number(event.target.value),
+                  massageLabRippleGridMouseInteractionRadius: Number(event.target.value),
                 })}
-                aria-label="React Bits Ripple Grid cursor radius"
+                aria-label="MassageLab Ripple Grid cursor radius"
               />
             </label>
           ) : null}
         </>
       )}
 
-      {option.id === "react-bits-dot-field" && (
+      {option.id === "massage-lab-dot-field" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsDotFieldPaletteMode}
+              value={massageLabDotFieldPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsDotFieldPaletteMode: event.target.value as ReactBitsDotFieldPaletteMode,
+                massageLabDotFieldPaletteMode: event.target.value as MassageLabDotFieldPaletteMode,
               })}
-              aria-label="React Bits Dot Field color mode"
+              aria-label="MassageLab Dot Field color mode"
             >
               <option value="source">Source purple</option>
               <option value="custom">Custom colors</option>
@@ -11103,57 +12364,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsDotFieldPaletteMode === "custom" ? (
+          {massageLabDotFieldPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Gradient start</span>
                 <input
                   type="color"
-                  value={reactBitsDotFieldGradientFromColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGradientFromColor: event.target.value })}
-                  aria-label="React Bits Dot Field gradient start color"
+                  value={massageLabDotFieldGradientFromColor}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGradientFromColor: event.target.value })}
+                  aria-label="MassageLab Dot Field gradient start color"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Gradient end</span>
                 <input
                   type="color"
-                  value={reactBitsDotFieldGradientToColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGradientToColor: event.target.value })}
-                  aria-label="React Bits Dot Field gradient end color"
+                  value={massageLabDotFieldGradientToColor}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGradientToColor: event.target.value })}
+                  aria-label="MassageLab Dot Field gradient end color"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Glow color</span>
                 <input
                   type="color"
-                  value={reactBitsDotFieldGlowColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGlowColor: event.target.value })}
-                  aria-label="React Bits Dot Field glow color"
+                  value={massageLabDotFieldGlowColor}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGlowColor: event.target.value })}
+                  aria-label="MassageLab Dot Field glow color"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsDotFieldPaletteMode === "harmony" ? (
+          {massageLabDotFieldPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsDotFieldPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldPrimaryColor: event.target.value })}
-                  aria-label="React Bits Dot Field primary color"
+                  value={massageLabDotFieldPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Dot Field primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsDotFieldHarmony}
+                  value={massageLabDotFieldHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsDotFieldHarmony: event.target.value as ColorHarmony,
+                    massageLabDotFieldHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Dot Field color harmony"
+                  aria-label="MassageLab Dot Field color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -11164,34 +12425,34 @@ export function RunningTimer({
             </>
           ) : null}
 
-          {reactBitsDotFieldPaletteMode !== "source" ? (
+          {massageLabDotFieldPaletteMode !== "source" ? (
             <>
               <label className={styles.rangeRow}>
-                <span>Start alpha ({reactBitsDotFieldGradientFromAlpha.toFixed(2)})</span>
+                <span>Start alpha ({massageLabDotFieldGradientFromAlpha.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.01"
-                  value={reactBitsDotFieldGradientFromAlpha}
+                  value={massageLabDotFieldGradientFromAlpha}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsDotFieldGradientFromAlpha: Number(event.target.value),
+                    massageLabDotFieldGradientFromAlpha: Number(event.target.value),
                   })}
-                  aria-label="React Bits Dot Field gradient start alpha"
+                  aria-label="MassageLab Dot Field gradient start alpha"
                 />
               </label>
               <label className={styles.rangeRow}>
-                <span>End alpha ({reactBitsDotFieldGradientToAlpha.toFixed(2)})</span>
+                <span>End alpha ({massageLabDotFieldGradientToAlpha.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.01"
-                  value={reactBitsDotFieldGradientToAlpha}
+                  value={massageLabDotFieldGradientToAlpha}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsDotFieldGradientToAlpha: Number(event.target.value),
+                    massageLabDotFieldGradientToAlpha: Number(event.target.value),
                   })}
-                  aria-label="React Bits Dot Field gradient end alpha"
+                  aria-label="MassageLab Dot Field gradient end alpha"
                 />
               </label>
             </>
@@ -11201,9 +12462,9 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsDotFieldCursorInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsDotFieldCursorInteraction: event.target.checked })}
-              aria-label="React Bits Dot Field cursor interaction"
+              checked={massageLabDotFieldCursorInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabDotFieldCursorInteraction: event.target.checked })}
+              aria-label="MassageLab Dot Field cursor interaction"
             />
           </label>
 
@@ -11211,9 +12472,9 @@ export function RunningTimer({
             <span>Bulge mode</span>
             <input
               type="checkbox"
-              checked={reactBitsDotFieldBulgeOnly}
-              onChange={(event) => handleSettingsChange({ reactBitsDotFieldBulgeOnly: event.target.checked })}
-              aria-label="React Bits Dot Field bulge mode"
+              checked={massageLabDotFieldBulgeOnly}
+              onChange={(event) => handleSettingsChange({ massageLabDotFieldBulgeOnly: event.target.checked })}
+              aria-label="MassageLab Dot Field bulge mode"
             />
           </label>
 
@@ -11221,116 +12482,116 @@ export function RunningTimer({
             <span>Sparkle</span>
             <input
               type="checkbox"
-              checked={reactBitsDotFieldSparkle}
-              onChange={(event) => handleSettingsChange({ reactBitsDotFieldSparkle: event.target.checked })}
-              aria-label="React Bits Dot Field sparkle"
+              checked={massageLabDotFieldSparkle}
+              onChange={(event) => handleSettingsChange({ massageLabDotFieldSparkle: event.target.checked })}
+              aria-label="MassageLab Dot Field sparkle"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Dot radius ({reactBitsDotFieldDotRadius.toFixed(1)})</span>
+            <span>Dot radius ({massageLabDotFieldDotRadius.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="8"
               step="0.1"
-              value={reactBitsDotFieldDotRadius}
-              onChange={(event) => handleSettingsChange({ reactBitsDotFieldDotRadius: Number(event.target.value) })}
-              aria-label="React Bits Dot Field dot radius"
+              value={massageLabDotFieldDotRadius}
+              onChange={(event) => handleSettingsChange({ massageLabDotFieldDotRadius: Number(event.target.value) })}
+              aria-label="MassageLab Dot Field dot radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Dot spacing ({reactBitsDotFieldDotSpacing.toFixed(1)})</span>
+            <span>Dot spacing ({massageLabDotFieldDotSpacing.toFixed(1)})</span>
             <input
               type="range"
               min="4"
               max="48"
               step="0.5"
-              value={reactBitsDotFieldDotSpacing}
-              onChange={(event) => handleSettingsChange({ reactBitsDotFieldDotSpacing: Number(event.target.value) })}
-              aria-label="React Bits Dot Field dot spacing"
+              value={massageLabDotFieldDotSpacing}
+              onChange={(event) => handleSettingsChange({ massageLabDotFieldDotSpacing: Number(event.target.value) })}
+              aria-label="MassageLab Dot Field dot spacing"
             />
           </label>
 
-          {reactBitsDotFieldCursorInteraction ? (
+          {massageLabDotFieldCursorInteraction ? (
             <>
               <label className={styles.rangeRow}>
-                <span>Cursor radius ({reactBitsDotFieldCursorRadius.toFixed(0)})</span>
+                <span>Cursor radius ({massageLabDotFieldCursorRadius.toFixed(0)})</span>
                 <input
                   type="range"
                   min="60"
                   max="900"
                   step="10"
-                  value={reactBitsDotFieldCursorRadius}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldCursorRadius: Number(event.target.value) })}
-                  aria-label="React Bits Dot Field cursor radius"
+                  value={massageLabDotFieldCursorRadius}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldCursorRadius: Number(event.target.value) })}
+                  aria-label="MassageLab Dot Field cursor radius"
                 />
               </label>
               <label className={styles.rangeRow}>
-                <span>Cursor force ({reactBitsDotFieldCursorForce.toFixed(2)})</span>
+                <span>Cursor force ({massageLabDotFieldCursorForce.toFixed(2)})</span>
                 <input
                   type="range"
                   min="0.01"
                   max="1"
                   step="0.01"
-                  value={reactBitsDotFieldCursorForce}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldCursorForce: Number(event.target.value) })}
-                  aria-label="React Bits Dot Field cursor force"
+                  value={massageLabDotFieldCursorForce}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldCursorForce: Number(event.target.value) })}
+                  aria-label="MassageLab Dot Field cursor force"
                 />
               </label>
               <label className={styles.rangeRow}>
-                <span>Bulge strength ({reactBitsDotFieldBulgeStrength.toFixed(0)})</span>
+                <span>Bulge strength ({massageLabDotFieldBulgeStrength.toFixed(0)})</span>
                 <input
                   type="range"
                   min="0"
                   max="160"
                   step="1"
-                  value={reactBitsDotFieldBulgeStrength}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldBulgeStrength: Number(event.target.value) })}
-                  aria-label="React Bits Dot Field bulge strength"
+                  value={massageLabDotFieldBulgeStrength}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldBulgeStrength: Number(event.target.value) })}
+                  aria-label="MassageLab Dot Field bulge strength"
                 />
               </label>
               <label className={styles.rangeRow}>
-                <span>Glow radius ({reactBitsDotFieldGlowRadius.toFixed(0)})</span>
+                <span>Glow radius ({massageLabDotFieldGlowRadius.toFixed(0)})</span>
                 <input
                   type="range"
                   min="0"
                   max="360"
                   step="4"
-                  value={reactBitsDotFieldGlowRadius}
-                  onChange={(event) => handleSettingsChange({ reactBitsDotFieldGlowRadius: Number(event.target.value) })}
-                  aria-label="React Bits Dot Field glow radius"
+                  value={massageLabDotFieldGlowRadius}
+                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGlowRadius: Number(event.target.value) })}
+                  aria-label="MassageLab Dot Field glow radius"
                 />
               </label>
             </>
           ) : null}
 
           <label className={styles.rangeRow}>
-            <span>Wave ({reactBitsDotFieldWaveAmplitude.toFixed(1)})</span>
+            <span>Wave ({massageLabDotFieldWaveAmplitude.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="48"
               step="0.5"
-              value={reactBitsDotFieldWaveAmplitude}
-              onChange={(event) => handleSettingsChange({ reactBitsDotFieldWaveAmplitude: Number(event.target.value) })}
-              aria-label="React Bits Dot Field wave amplitude"
+              value={massageLabDotFieldWaveAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabDotFieldWaveAmplitude: Number(event.target.value) })}
+              aria-label="MassageLab Dot Field wave amplitude"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-dot-grid" && (
+      {option.id === "massage-lab-dot-grid" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsDotGridPaletteMode}
+              value={massageLabDotGridPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsDotGridPaletteMode: event.target.value as ReactBitsDotGridPaletteMode,
+                massageLabDotGridPaletteMode: event.target.value as MassageLabDotGridPaletteMode,
               })}
-              aria-label="React Bits Dot Grid color mode"
+              aria-label="MassageLab Dot Grid color mode"
             >
               <option value="source">Source violet</option>
               <option value="custom">Custom colors</option>
@@ -11338,28 +12599,28 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsDotGridPaletteMode === "custom" ? (
+          {massageLabDotGridPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Base color</span>
-                <input type="color" value={reactBitsDotGridBaseColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridBaseColor: event.target.value })} aria-label="React Bits Dot Grid base color" />
+                <input type="color" value={massageLabDotGridBaseColor} onChange={(event) => handleSettingsChange({ massageLabDotGridBaseColor: event.target.value })} aria-label="MassageLab Dot Grid base color" />
               </label>
               <label className={styles.colorRow}>
                 <span>Active color</span>
-                <input type="color" value={reactBitsDotGridActiveColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridActiveColor: event.target.value })} aria-label="React Bits Dot Grid active color" />
+                <input type="color" value={massageLabDotGridActiveColor} onChange={(event) => handleSettingsChange({ massageLabDotGridActiveColor: event.target.value })} aria-label="MassageLab Dot Grid active color" />
               </label>
             </>
           ) : null}
 
-          {reactBitsDotGridPaletteMode === "harmony" ? (
+          {massageLabDotGridPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
-                <input type="color" value={reactBitsDotGridPrimaryColor} onChange={(event) => handleSettingsChange({ reactBitsDotGridPrimaryColor: event.target.value })} aria-label="React Bits Dot Grid primary color" />
+                <input type="color" value={massageLabDotGridPrimaryColor} onChange={(event) => handleSettingsChange({ massageLabDotGridPrimaryColor: event.target.value })} aria-label="MassageLab Dot Grid primary color" />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
-                <select value={reactBitsDotGridHarmony} onChange={(event) => handleSettingsChange({ reactBitsDotGridHarmony: event.target.value as ColorHarmony })} aria-label="React Bits Dot Grid color harmony">
+                <select value={massageLabDotGridHarmony} onChange={(event) => handleSettingsChange({ massageLabDotGridHarmony: event.target.value as ColorHarmony })} aria-label="MassageLab Dot Grid color harmony">
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
                   <option value="complementary">Complementary</option>
@@ -11371,35 +12632,35 @@ export function RunningTimer({
 
           <label className={styles.switchRow}>
             <span>Cursor interaction</span>
-            <input type="checkbox" checked={reactBitsDotGridCursorInteraction} onChange={(event) => handleSettingsChange({ reactBitsDotGridCursorInteraction: event.target.checked })} aria-label="React Bits Dot Grid cursor interaction" />
+            <input type="checkbox" checked={massageLabDotGridCursorInteraction} onChange={(event) => handleSettingsChange({ massageLabDotGridCursorInteraction: event.target.checked })} aria-label="MassageLab Dot Grid cursor interaction" />
           </label>
           <label className={styles.switchRow}>
             <span>Click shock</span>
-            <input type="checkbox" checked={reactBitsDotGridClickShock} onChange={(event) => handleSettingsChange({ reactBitsDotGridClickShock: event.target.checked })} aria-label="React Bits Dot Grid click shock" />
+            <input type="checkbox" checked={massageLabDotGridClickShock} onChange={(event) => handleSettingsChange({ massageLabDotGridClickShock: event.target.checked })} aria-label="MassageLab Dot Grid click shock" />
           </label>
 
-          <label className={styles.rangeRow}><span>Dot size ({reactBitsDotGridDotSize.toFixed(1)})</span><input type="range" min="2" max="40" step="0.5" value={reactBitsDotGridDotSize} onChange={(event) => handleSettingsChange({ reactBitsDotGridDotSize: Number(event.target.value) })} aria-label="React Bits Dot Grid dot size" /></label>
-          <label className={styles.rangeRow}><span>Gap ({reactBitsDotGridGap.toFixed(1)})</span><input type="range" min="4" max="80" step="0.5" value={reactBitsDotGridGap} onChange={(event) => handleSettingsChange({ reactBitsDotGridGap: Number(event.target.value) })} aria-label="React Bits Dot Grid gap" /></label>
-          <label className={styles.rangeRow}><span>Proximity ({reactBitsDotGridProximity.toFixed(0)})</span><input type="range" min="40" max="500" step="5" value={reactBitsDotGridProximity} onChange={(event) => handleSettingsChange({ reactBitsDotGridProximity: Number(event.target.value) })} aria-label="React Bits Dot Grid proximity" /></label>
-          <label className={styles.rangeRow}><span>Speed trigger ({reactBitsDotGridSpeedTrigger.toFixed(0)})</span><input type="range" min="0" max="1000" step="10" value={reactBitsDotGridSpeedTrigger} onChange={(event) => handleSettingsChange({ reactBitsDotGridSpeedTrigger: Number(event.target.value) })} aria-label="React Bits Dot Grid speed trigger" /></label>
-          <label className={styles.rangeRow}><span>Shock radius ({reactBitsDotGridShockRadius.toFixed(0)})</span><input type="range" min="40" max="700" step="10" value={reactBitsDotGridShockRadius} onChange={(event) => handleSettingsChange({ reactBitsDotGridShockRadius: Number(event.target.value) })} aria-label="React Bits Dot Grid shock radius" /></label>
-          <label className={styles.rangeRow}><span>Shock strength ({reactBitsDotGridShockStrength.toFixed(1)})</span><input type="range" min="0" max="12" step="0.1" value={reactBitsDotGridShockStrength} onChange={(event) => handleSettingsChange({ reactBitsDotGridShockStrength: Number(event.target.value) })} aria-label="React Bits Dot Grid shock strength" /></label>
-          <label className={styles.rangeRow}><span>Max speed ({reactBitsDotGridMaxSpeed.toFixed(0)})</span><input type="range" min="100" max="8000" step="100" value={reactBitsDotGridMaxSpeed} onChange={(event) => handleSettingsChange({ reactBitsDotGridMaxSpeed: Number(event.target.value) })} aria-label="React Bits Dot Grid max speed" /></label>
-          <label className={styles.rangeRow}><span>Resistance ({reactBitsDotGridResistance.toFixed(0)})</span><input type="range" min="120" max="1600" step="20" value={reactBitsDotGridResistance} onChange={(event) => handleSettingsChange({ reactBitsDotGridResistance: Number(event.target.value) })} aria-label="React Bits Dot Grid resistance" /></label>
-          <label className={styles.rangeRow}><span>Return ({reactBitsDotGridReturnDuration.toFixed(2)}s)</span><input type="range" min="0.1" max="4" step="0.05" value={reactBitsDotGridReturnDuration} onChange={(event) => handleSettingsChange({ reactBitsDotGridReturnDuration: Number(event.target.value) })} aria-label="React Bits Dot Grid return duration" /></label>
+          <label className={styles.rangeRow}><span>Dot size ({massageLabDotGridDotSize.toFixed(1)})</span><input type="range" min="2" max="40" step="0.5" value={massageLabDotGridDotSize} onChange={(event) => handleSettingsChange({ massageLabDotGridDotSize: Number(event.target.value) })} aria-label="MassageLab Dot Grid dot size" /></label>
+          <label className={styles.rangeRow}><span>Gap ({massageLabDotGridGap.toFixed(1)})</span><input type="range" min="4" max="80" step="0.5" value={massageLabDotGridGap} onChange={(event) => handleSettingsChange({ massageLabDotGridGap: Number(event.target.value) })} aria-label="MassageLab Dot Grid gap" /></label>
+          <label className={styles.rangeRow}><span>Proximity ({massageLabDotGridProximity.toFixed(0)})</span><input type="range" min="40" max="500" step="5" value={massageLabDotGridProximity} onChange={(event) => handleSettingsChange({ massageLabDotGridProximity: Number(event.target.value) })} aria-label="MassageLab Dot Grid proximity" /></label>
+          <label className={styles.rangeRow}><span>Speed trigger ({massageLabDotGridSpeedTrigger.toFixed(0)})</span><input type="range" min="0" max="1000" step="10" value={massageLabDotGridSpeedTrigger} onChange={(event) => handleSettingsChange({ massageLabDotGridSpeedTrigger: Number(event.target.value) })} aria-label="MassageLab Dot Grid speed trigger" /></label>
+          <label className={styles.rangeRow}><span>Shock radius ({massageLabDotGridShockRadius.toFixed(0)})</span><input type="range" min="40" max="700" step="10" value={massageLabDotGridShockRadius} onChange={(event) => handleSettingsChange({ massageLabDotGridShockRadius: Number(event.target.value) })} aria-label="MassageLab Dot Grid shock radius" /></label>
+          <label className={styles.rangeRow}><span>Shock strength ({massageLabDotGridShockStrength.toFixed(1)})</span><input type="range" min="0" max="12" step="0.1" value={massageLabDotGridShockStrength} onChange={(event) => handleSettingsChange({ massageLabDotGridShockStrength: Number(event.target.value) })} aria-label="MassageLab Dot Grid shock strength" /></label>
+          <label className={styles.rangeRow}><span>Max speed ({massageLabDotGridMaxSpeed.toFixed(0)})</span><input type="range" min="100" max="8000" step="100" value={massageLabDotGridMaxSpeed} onChange={(event) => handleSettingsChange({ massageLabDotGridMaxSpeed: Number(event.target.value) })} aria-label="MassageLab Dot Grid max speed" /></label>
+          <label className={styles.rangeRow}><span>Resistance ({massageLabDotGridResistance.toFixed(0)})</span><input type="range" min="120" max="1600" step="20" value={massageLabDotGridResistance} onChange={(event) => handleSettingsChange({ massageLabDotGridResistance: Number(event.target.value) })} aria-label="MassageLab Dot Grid resistance" /></label>
+          <label className={styles.rangeRow}><span>Return ({massageLabDotGridReturnDuration.toFixed(2)}s)</span><input type="range" min="0.1" max="4" step="0.05" value={massageLabDotGridReturnDuration} onChange={(event) => handleSettingsChange({ massageLabDotGridReturnDuration: Number(event.target.value) })} aria-label="MassageLab Dot Grid return duration" /></label>
         </>
       )}
 
-      {option.id === "react-bits-threads" && (
+      {option.id === "massage-lab-threads" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsThreadsPaletteMode}
+              value={massageLabThreadsPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsThreadsPaletteMode: event.target.value as ReactBitsThreadsPaletteMode,
+                massageLabThreadsPaletteMode: event.target.value as MassageLabThreadsPaletteMode,
               })}
-              aria-label="React Bits Threads color mode"
+              aria-label="MassageLab Threads color mode"
             >
               <option value="source">Source white</option>
               <option value="custom">Custom color</option>
@@ -11407,37 +12668,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsThreadsPaletteMode === "custom" ? (
+          {massageLabThreadsPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Thread color</span>
               <input
                 type="color"
-                value={reactBitsThreadsColor}
-                onChange={(event) => handleSettingsChange({ reactBitsThreadsColor: event.target.value })}
-                aria-label="React Bits Threads color"
+                value={massageLabThreadsColor}
+                onChange={(event) => handleSettingsChange({ massageLabThreadsColor: event.target.value })}
+                aria-label="MassageLab Threads color"
               />
             </label>
           ) : null}
 
-          {reactBitsThreadsPaletteMode === "harmony" ? (
+          {massageLabThreadsPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsThreadsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsThreadsPrimaryColor: event.target.value })}
-                  aria-label="React Bits Threads primary color"
+                  value={massageLabThreadsPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabThreadsPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Threads primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsThreadsHarmony}
+                  value={massageLabThreadsHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsThreadsHarmony: event.target.value as ColorHarmony,
+                    massageLabThreadsHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Threads color harmony"
+                  aria-label="MassageLab Threads color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -11452,52 +12713,52 @@ export function RunningTimer({
             <span>Mouse interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsThreadsEnableMouseInteraction}
+              checked={massageLabThreadsEnableMouseInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsThreadsEnableMouseInteraction: event.target.checked,
+                massageLabThreadsEnableMouseInteraction: event.target.checked,
               })}
-              aria-label="React Bits Threads mouse interaction"
+              aria-label="MassageLab Threads mouse interaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Amplitude ({reactBitsThreadsAmplitude.toFixed(2)})</span>
+            <span>Amplitude ({massageLabThreadsAmplitude.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsThreadsAmplitude}
-              onChange={(event) => handleSettingsChange({ reactBitsThreadsAmplitude: Number(event.target.value) })}
-              aria-label="React Bits Threads amplitude"
+              value={massageLabThreadsAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabThreadsAmplitude: Number(event.target.value) })}
+              aria-label="MassageLab Threads amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distance ({reactBitsThreadsDistance.toFixed(2)})</span>
+            <span>Distance ({massageLabThreadsDistance.toFixed(2)})</span>
             <input
               type="range"
               min="-1"
               max="1.5"
               step="0.05"
-              value={reactBitsThreadsDistance}
-              onChange={(event) => handleSettingsChange({ reactBitsThreadsDistance: Number(event.target.value) })}
-              aria-label="React Bits Threads distance"
+              value={massageLabThreadsDistance}
+              onChange={(event) => handleSettingsChange({ massageLabThreadsDistance: Number(event.target.value) })}
+              aria-label="MassageLab Threads distance"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-iridescence" && (
+      {option.id === "massage-lab-iridescence" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={reactBitsIridescencePaletteMode}
+              value={massageLabIridescencePaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsIridescencePaletteMode: event.target.value as ReactBitsIridescencePaletteMode,
+                massageLabIridescencePaletteMode: event.target.value as MassageLabIridescencePaletteMode,
               })}
-              aria-label="React Bits Iridescence color mode"
+              aria-label="MassageLab Iridescence color mode"
             >
               <option value="source">Source white</option>
               <option value="custom">Custom color</option>
@@ -11505,37 +12766,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsIridescencePaletteMode === "custom" ? (
+          {massageLabIridescencePaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Tint color</span>
               <input
                 type="color"
-                value={reactBitsIridescenceColor}
-                onChange={(event) => handleSettingsChange({ reactBitsIridescenceColor: event.target.value })}
-                aria-label="React Bits Iridescence tint color"
+                value={massageLabIridescenceColor}
+                onChange={(event) => handleSettingsChange({ massageLabIridescenceColor: event.target.value })}
+                aria-label="MassageLab Iridescence tint color"
               />
             </label>
           ) : null}
 
-          {reactBitsIridescencePaletteMode === "harmony" ? (
+          {massageLabIridescencePaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsIridescencePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsIridescencePrimaryColor: event.target.value })}
-                  aria-label="React Bits Iridescence primary color"
+                  value={massageLabIridescencePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabIridescencePrimaryColor: event.target.value })}
+                  aria-label="MassageLab Iridescence primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsIridescenceHarmony}
+                  value={massageLabIridescenceHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsIridescenceHarmony: event.target.value as ColorHarmony,
+                    massageLabIridescenceHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Iridescence color harmony"
+                  aria-label="MassageLab Iridescence color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -11551,52 +12812,52 @@ export function RunningTimer({
             <span>Mouse reaction</span>
             <input
               type="checkbox"
-              checked={reactBitsIridescenceMouseReact}
+              checked={massageLabIridescenceMouseReact}
               onChange={(event) => handleSettingsChange({
-                reactBitsIridescenceMouseReact: event.target.checked,
+                massageLabIridescenceMouseReact: event.target.checked,
               })}
-              aria-label="React Bits Iridescence mouse reaction"
+              aria-label="MassageLab Iridescence mouse reaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsIridescenceSpeed.toFixed(2)})</span>
+            <span>Speed ({massageLabIridescenceSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.05"
-              value={reactBitsIridescenceSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsIridescenceSpeed: Number(event.target.value) })}
-              aria-label="React Bits Iridescence speed"
+              value={massageLabIridescenceSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabIridescenceSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Iridescence speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Amplitude ({reactBitsIridescenceAmplitude.toFixed(2)})</span>
+            <span>Amplitude ({massageLabIridescenceAmplitude.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsIridescenceAmplitude}
-              onChange={(event) => handleSettingsChange({ reactBitsIridescenceAmplitude: Number(event.target.value) })}
-              aria-label="React Bits Iridescence amplitude"
+              value={massageLabIridescenceAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabIridescenceAmplitude: Number(event.target.value) })}
+              aria-label="MassageLab Iridescence amplitude"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-waves" && (
+      {option.id === "massage-lab-waves" && (
         <>
           <label className={styles.selectRow}>
             <span>Line color mode</span>
             <select
-              value={reactBitsWavesPaletteMode}
+              value={massageLabWavesPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsWavesPaletteMode: event.target.value as ReactBitsWavesPaletteMode,
+                massageLabWavesPaletteMode: event.target.value as MassageLabWavesPaletteMode,
               })}
-              aria-label="React Bits Waves line color mode"
+              aria-label="MassageLab Waves line color mode"
             >
               <option value="source">Source black</option>
               <option value="custom">Custom color</option>
@@ -11604,37 +12865,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsWavesPaletteMode === "custom" ? (
+          {massageLabWavesPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Line color</span>
               <input
                 type="color"
-                value={reactBitsWavesLineColor}
-                onChange={(event) => handleSettingsChange({ reactBitsWavesLineColor: event.target.value })}
-                aria-label="React Bits Waves line color"
+                value={massageLabWavesLineColor}
+                onChange={(event) => handleSettingsChange({ massageLabWavesLineColor: event.target.value })}
+                aria-label="MassageLab Waves line color"
               />
             </label>
           ) : null}
 
-          {reactBitsWavesPaletteMode === "harmony" ? (
+          {massageLabWavesPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsWavesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsWavesPrimaryColor: event.target.value })}
-                  aria-label="React Bits Waves primary color"
+                  value={massageLabWavesPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabWavesPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Waves primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsWavesHarmony}
+                  value={massageLabWavesHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsWavesHarmony: event.target.value as ColorHarmony,
+                    massageLabWavesHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Waves color harmony"
+                  aria-label="MassageLab Waves color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -11650,22 +12911,22 @@ export function RunningTimer({
             <span>Transparent background</span>
             <input
               type="checkbox"
-              checked={reactBitsWavesTransparentBackground}
+              checked={massageLabWavesTransparentBackground}
               onChange={(event) => handleSettingsChange({
-                reactBitsWavesTransparentBackground: event.target.checked,
+                massageLabWavesTransparentBackground: event.target.checked,
               })}
-              aria-label="React Bits Waves transparent background"
+              aria-label="MassageLab Waves transparent background"
             />
           </label>
 
-          {!reactBitsWavesTransparentBackground ? (
+          {!massageLabWavesTransparentBackground ? (
             <label className={styles.colorRow}>
               <span>Background color</span>
               <input
                 type="color"
-                value={reactBitsWavesBackgroundColor}
-                onChange={(event) => handleSettingsChange({ reactBitsWavesBackgroundColor: event.target.value })}
-                aria-label="React Bits Waves background color"
+                value={massageLabWavesBackgroundColor}
+                onChange={(event) => handleSettingsChange({ massageLabWavesBackgroundColor: event.target.value })}
+                aria-label="MassageLab Waves background color"
               />
             </label>
           ) : null}
@@ -11674,143 +12935,143 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsWavesCursorInteraction}
+              checked={massageLabWavesCursorInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsWavesCursorInteraction: event.target.checked,
+                massageLabWavesCursorInteraction: event.target.checked,
               })}
-              aria-label="React Bits Waves cursor interaction"
+              aria-label="MassageLab Waves cursor interaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave speed X ({reactBitsWavesSpeedX.toFixed(4)})</span>
+            <span>Wave speed X ({massageLabWavesSpeedX.toFixed(4)})</span>
             <input
               type="range"
               min="0"
               max="0.05"
               step="0.0005"
-              value={reactBitsWavesSpeedX}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesSpeedX: Number(event.target.value) })}
-              aria-label="React Bits Waves X speed"
+              value={massageLabWavesSpeedX}
+              onChange={(event) => handleSettingsChange({ massageLabWavesSpeedX: Number(event.target.value) })}
+              aria-label="MassageLab Waves X speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave speed Y ({reactBitsWavesSpeedY.toFixed(4)})</span>
+            <span>Wave speed Y ({massageLabWavesSpeedY.toFixed(4)})</span>
             <input
               type="range"
               min="0"
               max="0.05"
               step="0.0005"
-              value={reactBitsWavesSpeedY}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesSpeedY: Number(event.target.value) })}
-              aria-label="React Bits Waves Y speed"
+              value={massageLabWavesSpeedY}
+              onChange={(event) => handleSettingsChange({ massageLabWavesSpeedY: Number(event.target.value) })}
+              aria-label="MassageLab Waves Y speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Amplitude X ({reactBitsWavesAmplitudeX.toFixed(0)})</span>
+            <span>Amplitude X ({massageLabWavesAmplitudeX.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="96"
               step="1"
-              value={reactBitsWavesAmplitudeX}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesAmplitudeX: Number(event.target.value) })}
-              aria-label="React Bits Waves X amplitude"
+              value={massageLabWavesAmplitudeX}
+              onChange={(event) => handleSettingsChange({ massageLabWavesAmplitudeX: Number(event.target.value) })}
+              aria-label="MassageLab Waves X amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Amplitude Y ({reactBitsWavesAmplitudeY.toFixed(0)})</span>
+            <span>Amplitude Y ({massageLabWavesAmplitudeY.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="96"
               step="1"
-              value={reactBitsWavesAmplitudeY}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesAmplitudeY: Number(event.target.value) })}
-              aria-label="React Bits Waves Y amplitude"
+              value={massageLabWavesAmplitudeY}
+              onChange={(event) => handleSettingsChange({ massageLabWavesAmplitudeY: Number(event.target.value) })}
+              aria-label="MassageLab Waves Y amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Line gap X ({reactBitsWavesGapX.toFixed(0)})</span>
+            <span>Line gap X ({massageLabWavesGapX.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="40"
               step="1"
-              value={reactBitsWavesGapX}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesGapX: Number(event.target.value) })}
-              aria-label="React Bits Waves X gap"
+              value={massageLabWavesGapX}
+              onChange={(event) => handleSettingsChange({ massageLabWavesGapX: Number(event.target.value) })}
+              aria-label="MassageLab Waves X gap"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Point gap Y ({reactBitsWavesGapY.toFixed(0)})</span>
+            <span>Point gap Y ({massageLabWavesGapY.toFixed(0)})</span>
             <input
               type="range"
               min="8"
               max="96"
               step="1"
-              value={reactBitsWavesGapY}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesGapY: Number(event.target.value) })}
-              aria-label="React Bits Waves Y gap"
+              value={massageLabWavesGapY}
+              onChange={(event) => handleSettingsChange({ massageLabWavesGapY: Number(event.target.value) })}
+              aria-label="MassageLab Waves Y gap"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Friction ({reactBitsWavesFriction.toFixed(3)})</span>
+            <span>Friction ({massageLabWavesFriction.toFixed(3)})</span>
             <input
               type="range"
               min="0.8"
               max="0.99"
               step="0.005"
-              value={reactBitsWavesFriction}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesFriction: Number(event.target.value) })}
-              aria-label="React Bits Waves friction"
+              value={massageLabWavesFriction}
+              onChange={(event) => handleSettingsChange({ massageLabWavesFriction: Number(event.target.value) })}
+              aria-label="MassageLab Waves friction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Tension ({reactBitsWavesTension.toFixed(3)})</span>
+            <span>Tension ({massageLabWavesTension.toFixed(3)})</span>
             <input
               type="range"
               min="0.001"
               max="0.05"
               step="0.001"
-              value={reactBitsWavesTension}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesTension: Number(event.target.value) })}
-              aria-label="React Bits Waves tension"
+              value={massageLabWavesTension}
+              onChange={(event) => handleSettingsChange({ massageLabWavesTension: Number(event.target.value) })}
+              aria-label="MassageLab Waves tension"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Cursor movement ({reactBitsWavesMaxCursorMove.toFixed(0)})</span>
+            <span>Cursor movement ({massageLabWavesMaxCursorMove.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="240"
               step="5"
-              value={reactBitsWavesMaxCursorMove}
-              onChange={(event) => handleSettingsChange({ reactBitsWavesMaxCursorMove: Number(event.target.value) })}
-              aria-label="React Bits Waves max cursor movement"
+              value={massageLabWavesMaxCursorMove}
+              onChange={(event) => handleSettingsChange({ massageLabWavesMaxCursorMove: Number(event.target.value) })}
+              aria-label="MassageLab Waves max cursor movement"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-grid-distortion" && (
+      {option.id === "massage-lab-grid-distortion" && (
         <>
           <label className={styles.selectRow}>
             <span>Texture color mode</span>
             <select
-              value={reactBitsGridDistortionPaletteMode}
+              value={massageLabGridDistortionPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridDistortionPaletteMode: event.target.value as ReactBitsGridDistortionPaletteMode,
+                massageLabGridDistortionPaletteMode: event.target.value as MassageLabGridDistortionPaletteMode,
               })}
-              aria-label="React Bits Grid Distortion color mode"
+              aria-label="MassageLab Grid Distortion color mode"
             >
               <option value="source">Source generated texture</option>
               <option value="custom">Custom colors</option>
@@ -11818,57 +13079,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsGridDistortionPaletteMode === "custom" ? (
+          {massageLabGridDistortionPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Texture color 1</span>
                 <input
                   type="color"
-                  value={reactBitsGridDistortionColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionColorOne: event.target.value })}
-                  aria-label="React Bits Grid Distortion texture color 1"
+                  value={massageLabGridDistortionColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionColorOne: event.target.value })}
+                  aria-label="MassageLab Grid Distortion texture color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Texture color 2</span>
                 <input
                   type="color"
-                  value={reactBitsGridDistortionColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionColorTwo: event.target.value })}
-                  aria-label="React Bits Grid Distortion texture color 2"
+                  value={massageLabGridDistortionColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionColorTwo: event.target.value })}
+                  aria-label="MassageLab Grid Distortion texture color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Texture color 3</span>
                 <input
                   type="color"
-                  value={reactBitsGridDistortionColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionColorThree: event.target.value })}
-                  aria-label="React Bits Grid Distortion texture color 3"
+                  value={massageLabGridDistortionColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionColorThree: event.target.value })}
+                  aria-label="MassageLab Grid Distortion texture color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsGridDistortionPaletteMode === "harmony" ? (
+          {massageLabGridDistortionPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsGridDistortionPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridDistortionPrimaryColor: event.target.value })}
-                  aria-label="React Bits Grid Distortion primary color"
+                  value={massageLabGridDistortionPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Grid Distortion primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsGridDistortionHarmony}
+                  value={massageLabGridDistortionHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsGridDistortionHarmony: event.target.value as ColorHarmony,
+                    massageLabGridDistortionHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Grid Distortion color harmony"
+                  aria-label="MassageLab Grid Distortion color harmony"
                 >
                   <option value="monochromatic">Monochromatic</option>
                   <option value="analogous">Analogous</option>
@@ -11884,78 +13145,78 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsGridDistortionCursorInteraction}
+              checked={massageLabGridDistortionCursorInteraction}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridDistortionCursorInteraction: event.target.checked,
+                massageLabGridDistortionCursorInteraction: event.target.checked,
               })}
-              aria-label="React Bits Grid Distortion cursor interaction"
+              aria-label="MassageLab Grid Distortion cursor interaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Grid ({reactBitsGridDistortionGrid.toFixed(0)})</span>
+            <span>Grid ({massageLabGridDistortionGrid.toFixed(0)})</span>
             <input
               type="range"
               min="4"
               max="40"
               step="1"
-              value={reactBitsGridDistortionGrid}
-              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionGrid: Number(event.target.value) })}
-              aria-label="React Bits Grid Distortion grid"
+              value={massageLabGridDistortionGrid}
+              onChange={(event) => handleSettingsChange({ massageLabGridDistortionGrid: Number(event.target.value) })}
+              aria-label="MassageLab Grid Distortion grid"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Mouse radius ({reactBitsGridDistortionMouse.toFixed(2)})</span>
+            <span>Mouse radius ({massageLabGridDistortionMouse.toFixed(2)})</span>
             <input
               type="range"
               min="0.02"
               max="0.5"
               step="0.01"
-              value={reactBitsGridDistortionMouse}
-              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionMouse: Number(event.target.value) })}
-              aria-label="React Bits Grid Distortion mouse radius"
+              value={massageLabGridDistortionMouse}
+              onChange={(event) => handleSettingsChange({ massageLabGridDistortionMouse: Number(event.target.value) })}
+              aria-label="MassageLab Grid Distortion mouse radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Strength ({reactBitsGridDistortionStrength.toFixed(2)})</span>
+            <span>Strength ({massageLabGridDistortionStrength.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="0.6"
               step="0.01"
-              value={reactBitsGridDistortionStrength}
-              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionStrength: Number(event.target.value) })}
-              aria-label="React Bits Grid Distortion strength"
+              value={massageLabGridDistortionStrength}
+              onChange={(event) => handleSettingsChange({ massageLabGridDistortionStrength: Number(event.target.value) })}
+              aria-label="MassageLab Grid Distortion strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Relaxation ({reactBitsGridDistortionRelaxation.toFixed(2)})</span>
+            <span>Relaxation ({massageLabGridDistortionRelaxation.toFixed(2)})</span>
             <input
               type="range"
               min="0.75"
               max="0.99"
               step="0.01"
-              value={reactBitsGridDistortionRelaxation}
-              onChange={(event) => handleSettingsChange({ reactBitsGridDistortionRelaxation: Number(event.target.value) })}
-              aria-label="React Bits Grid Distortion relaxation"
+              value={massageLabGridDistortionRelaxation}
+              onChange={(event) => handleSettingsChange({ massageLabGridDistortionRelaxation: Number(event.target.value) })}
+              aria-label="MassageLab Grid Distortion relaxation"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-orb" && (
+      {option.id === "massage-lab-orb" && (
         <>
           <label className={styles.selectRow}>
             <span>Orb color mode</span>
             <select
-              value={reactBitsOrbPaletteMode}
+              value={massageLabOrbPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsOrbPaletteMode: event.target.value as ReactBitsOrbPaletteMode,
+                massageLabOrbPaletteMode: event.target.value as MassageLabOrbPaletteMode,
               })}
-              aria-label="React Bits Orb color mode"
+              aria-label="MassageLab Orb color mode"
             >
               <option value="source">Source hue</option>
               <option value="custom">Custom color</option>
@@ -11963,50 +13224,50 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsOrbPaletteMode === "source" ? (
+          {massageLabOrbPaletteMode === "source" ? (
             <label className={styles.rangeRow}>
-              <span>Hue ({reactBitsOrbHue.toFixed(0)})</span>
+              <span>Hue ({massageLabOrbHue.toFixed(0)})</span>
               <input
                 type="range"
                 min="0"
                 max="360"
                 step="1"
-                value={reactBitsOrbHue}
-                onChange={(event) => handleSettingsChange({ reactBitsOrbHue: Number(event.target.value) })}
-                aria-label="React Bits Orb hue"
+                value={massageLabOrbHue}
+                onChange={(event) => handleSettingsChange({ massageLabOrbHue: Number(event.target.value) })}
+                aria-label="MassageLab Orb hue"
               />
             </label>
           ) : null}
 
-          {reactBitsOrbPaletteMode === "custom" ? (
+          {massageLabOrbPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Orb color</span>
               <input
                 type="color"
-                value={reactBitsOrbColor}
-                onChange={(event) => handleSettingsChange({ reactBitsOrbColor: event.target.value })}
-                aria-label="React Bits Orb color"
+                value={massageLabOrbColor}
+                onChange={(event) => handleSettingsChange({ massageLabOrbColor: event.target.value })}
+                aria-label="MassageLab Orb color"
               />
             </label>
           ) : null}
 
-          {reactBitsOrbPaletteMode === "harmony" ? (
+          {massageLabOrbPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsOrbPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsOrbPrimaryColor: event.target.value })}
-                  aria-label="React Bits Orb primary color"
+                  value={massageLabOrbPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabOrbPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Orb primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsOrbHarmony}
-                  onChange={(event) => handleSettingsChange({ reactBitsOrbHarmony: event.target.value as ColorHarmony })}
-                  aria-label="React Bits Orb color harmony"
+                  value={massageLabOrbHarmony}
+                  onChange={(event) => handleSettingsChange({ massageLabOrbHarmony: event.target.value as ColorHarmony })}
+                  aria-label="MassageLab Orb color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -12022,9 +13283,9 @@ export function RunningTimer({
             <span>Background</span>
             <input
               type="color"
-              value={reactBitsOrbBackgroundColor}
-              onChange={(event) => handleSettingsChange({ reactBitsOrbBackgroundColor: event.target.value })}
-              aria-label="React Bits Orb background color"
+              value={massageLabOrbBackgroundColor}
+              onChange={(event) => handleSettingsChange({ massageLabOrbBackgroundColor: event.target.value })}
+              aria-label="MassageLab Orb background color"
             />
           </label>
 
@@ -12032,9 +13293,9 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsOrbCursorInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsOrbCursorInteraction: event.target.checked })}
-              aria-label="React Bits Orb cursor interaction"
+              checked={massageLabOrbCursorInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabOrbCursorInteraction: event.target.checked })}
+              aria-label="MassageLab Orb cursor interaction"
             />
           </label>
 
@@ -12042,9 +13303,9 @@ export function RunningTimer({
             <span>Rotate on hover</span>
             <input
               type="checkbox"
-              checked={reactBitsOrbRotateOnHover}
-              onChange={(event) => handleSettingsChange({ reactBitsOrbRotateOnHover: event.target.checked })}
-              aria-label="React Bits Orb rotate on hover"
+              checked={massageLabOrbRotateOnHover}
+              onChange={(event) => handleSettingsChange({ massageLabOrbRotateOnHover: event.target.checked })}
+              aria-label="MassageLab Orb rotate on hover"
             />
           </label>
 
@@ -12052,37 +13313,37 @@ export function RunningTimer({
             <span>Force hover state</span>
             <input
               type="checkbox"
-              checked={reactBitsOrbForceHoverState}
-              onChange={(event) => handleSettingsChange({ reactBitsOrbForceHoverState: event.target.checked })}
-              aria-label="React Bits Orb force hover state"
+              checked={massageLabOrbForceHoverState}
+              onChange={(event) => handleSettingsChange({ massageLabOrbForceHoverState: event.target.checked })}
+              aria-label="MassageLab Orb force hover state"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Hover intensity ({reactBitsOrbHoverIntensity.toFixed(2)})</span>
+            <span>Hover intensity ({massageLabOrbHoverIntensity.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsOrbHoverIntensity}
-              onChange={(event) => handleSettingsChange({ reactBitsOrbHoverIntensity: Number(event.target.value) })}
-              aria-label="React Bits Orb hover intensity"
+              value={massageLabOrbHoverIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabOrbHoverIntensity: Number(event.target.value) })}
+              aria-label="MassageLab Orb hover intensity"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-letter-glitch" && (
+      {option.id === "massage-lab-letter-glitch" && (
         <>
           <label className={styles.selectRow}>
             <span>Glitch color mode</span>
             <select
-              value={reactBitsLetterGlitchPaletteMode}
+              value={massageLabLetterGlitchPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLetterGlitchPaletteMode: event.target.value as ReactBitsLetterGlitchPaletteMode,
+                massageLabLetterGlitchPaletteMode: event.target.value as MassageLabLetterGlitchPaletteMode,
               })}
-              aria-label="React Bits Letter Glitch color mode"
+              aria-label="MassageLab Letter Glitch color mode"
             >
               <option value="source">Source colors</option>
               <option value="custom">Custom colors</option>
@@ -12090,57 +13351,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLetterGlitchPaletteMode === "custom" ? (
+          {massageLabLetterGlitchPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsLetterGlitchColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchColorOne: event.target.value })}
-                  aria-label="React Bits Letter Glitch color 1"
+                  value={massageLabLetterGlitchColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchColorOne: event.target.value })}
+                  aria-label="MassageLab Letter Glitch color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsLetterGlitchColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchColorTwo: event.target.value })}
-                  aria-label="React Bits Letter Glitch color 2"
+                  value={massageLabLetterGlitchColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchColorTwo: event.target.value })}
+                  aria-label="MassageLab Letter Glitch color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsLetterGlitchColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchColorThree: event.target.value })}
-                  aria-label="React Bits Letter Glitch color 3"
+                  value={massageLabLetterGlitchColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchColorThree: event.target.value })}
+                  aria-label="MassageLab Letter Glitch color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsLetterGlitchPaletteMode === "harmony" ? (
+          {massageLabLetterGlitchPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLetterGlitchPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchPrimaryColor: event.target.value })}
-                  aria-label="React Bits Letter Glitch primary color"
+                  value={massageLabLetterGlitchPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Letter Glitch primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsLetterGlitchHarmony}
+                  value={massageLabLetterGlitchHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLetterGlitchHarmony: event.target.value as ColorHarmony,
+                    massageLabLetterGlitchHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Letter Glitch color harmony"
+                  aria-label="MassageLab Letter Glitch color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -12156,9 +13417,9 @@ export function RunningTimer({
             <span>Center vignette</span>
             <input
               type="checkbox"
-              checked={reactBitsLetterGlitchCenterVignette}
-              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchCenterVignette: event.target.checked })}
-              aria-label="React Bits Letter Glitch center vignette"
+              checked={massageLabLetterGlitchCenterVignette}
+              onChange={(event) => handleSettingsChange({ massageLabLetterGlitchCenterVignette: event.target.checked })}
+              aria-label="MassageLab Letter Glitch center vignette"
             />
           </label>
 
@@ -12166,9 +13427,9 @@ export function RunningTimer({
             <span>Outer vignette</span>
             <input
               type="checkbox"
-              checked={reactBitsLetterGlitchOuterVignette}
-              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchOuterVignette: event.target.checked })}
-              aria-label="React Bits Letter Glitch outer vignette"
+              checked={massageLabLetterGlitchOuterVignette}
+              onChange={(event) => handleSettingsChange({ massageLabLetterGlitchOuterVignette: event.target.checked })}
+              aria-label="MassageLab Letter Glitch outer vignette"
             />
           </label>
 
@@ -12176,37 +13437,37 @@ export function RunningTimer({
             <span>Smooth colors</span>
             <input
               type="checkbox"
-              checked={reactBitsLetterGlitchSmooth}
-              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchSmooth: event.target.checked })}
-              aria-label="React Bits Letter Glitch smooth colors"
+              checked={massageLabLetterGlitchSmooth}
+              onChange={(event) => handleSettingsChange({ massageLabLetterGlitchSmooth: event.target.checked })}
+              aria-label="MassageLab Letter Glitch smooth colors"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glitch speed ({reactBitsLetterGlitchGlitchSpeed.toFixed(0)} ms)</span>
+            <span>Glitch speed ({massageLabLetterGlitchGlitchSpeed.toFixed(0)} ms)</span>
             <input
               type="range"
               min="16"
               max="500"
               step="1"
-              value={reactBitsLetterGlitchGlitchSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsLetterGlitchGlitchSpeed: Number(event.target.value) })}
-              aria-label="React Bits Letter Glitch speed"
+              value={massageLabLetterGlitchGlitchSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLetterGlitchGlitchSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Letter Glitch speed"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-grid-motion" && (
+      {option.id === "massage-lab-grid-motion" && (
         <>
           <label className={styles.selectRow}>
             <span>Motion color mode</span>
             <select
-              value={reactBitsGridMotionPaletteMode}
+              value={massageLabGridMotionPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsGridMotionPaletteMode: event.target.value as ReactBitsGridMotionPaletteMode,
+                massageLabGridMotionPaletteMode: event.target.value as MassageLabGridMotionPaletteMode,
               })}
-              aria-label="React Bits Grid Motion color mode"
+              aria-label="MassageLab Grid Motion color mode"
             >
               <option value="source">Source colors</option>
               <option value="custom">Custom colors</option>
@@ -12214,57 +13475,57 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsGridMotionPaletteMode === "custom" ? (
+          {massageLabGridMotionPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Gradient</span>
                 <input
                   type="color"
-                  value={reactBitsGridMotionGradientColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionGradientColor: event.target.value })}
-                  aria-label="React Bits Grid Motion gradient color"
+                  value={massageLabGridMotionGradientColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridMotionGradientColor: event.target.value })}
+                  aria-label="MassageLab Grid Motion gradient color"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Tile</span>
                 <input
                   type="color"
-                  value={reactBitsGridMotionTileColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionTileColor: event.target.value })}
-                  aria-label="React Bits Grid Motion tile color"
+                  value={massageLabGridMotionTileColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridMotionTileColor: event.target.value })}
+                  aria-label="MassageLab Grid Motion tile color"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Text</span>
                 <input
                   type="color"
-                  value={reactBitsGridMotionTextColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionTextColor: event.target.value })}
-                  aria-label="React Bits Grid Motion text color"
+                  value={massageLabGridMotionTextColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridMotionTextColor: event.target.value })}
+                  aria-label="MassageLab Grid Motion text color"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsGridMotionPaletteMode === "harmony" ? (
+          {massageLabGridMotionPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsGridMotionPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsGridMotionPrimaryColor: event.target.value })}
-                  aria-label="React Bits Grid Motion primary color"
+                  value={massageLabGridMotionPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabGridMotionPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Grid Motion primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsGridMotionHarmony}
+                  value={massageLabGridMotionHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsGridMotionHarmony: event.target.value as ColorHarmony,
+                    massageLabGridMotionHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Grid Motion color harmony"
+                  aria-label="MassageLab Grid Motion color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -12280,50 +13541,50 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsGridMotionCursorInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsGridMotionCursorInteraction: event.target.checked })}
-              aria-label="React Bits Grid Motion cursor interaction"
+              checked={massageLabGridMotionCursorInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabGridMotionCursorInteraction: event.target.checked })}
+              aria-label="MassageLab Grid Motion cursor interaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Row travel ({reactBitsGridMotionMaxMoveAmount.toFixed(0)})</span>
+            <span>Row travel ({massageLabGridMotionMaxMoveAmount.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="600"
               step="10"
-              value={reactBitsGridMotionMaxMoveAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsGridMotionMaxMoveAmount: Number(event.target.value) })}
-              aria-label="React Bits Grid Motion row travel"
+              value={massageLabGridMotionMaxMoveAmount}
+              onChange={(event) => handleSettingsChange({ massageLabGridMotionMaxMoveAmount: Number(event.target.value) })}
+              aria-label="MassageLab Grid Motion row travel"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Ease duration ({reactBitsGridMotionBaseDuration.toFixed(2)}s)</span>
+            <span>Ease duration ({massageLabGridMotionBaseDuration.toFixed(2)}s)</span>
             <input
               type="range"
               min="0.1"
               max="2"
               step="0.05"
-              value={reactBitsGridMotionBaseDuration}
-              onChange={(event) => handleSettingsChange({ reactBitsGridMotionBaseDuration: Number(event.target.value) })}
-              aria-label="React Bits Grid Motion base duration"
+              value={massageLabGridMotionBaseDuration}
+              onChange={(event) => handleSettingsChange({ massageLabGridMotionBaseDuration: Number(event.target.value) })}
+              aria-label="MassageLab Grid Motion base duration"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-shape-grid" && (
+      {option.id === "massage-lab-shape-grid" && (
         <>
           <label className={styles.selectRow}>
             <span>Grid color mode</span>
             <select
-              value={reactBitsShapeGridPaletteMode}
+              value={massageLabShapeGridPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsShapeGridPaletteMode: event.target.value as ReactBitsShapeGridPaletteMode,
+                massageLabShapeGridPaletteMode: event.target.value as MassageLabShapeGridPaletteMode,
               })}
-              aria-label="React Bits Shape Grid color mode"
+              aria-label="MassageLab Shape Grid color mode"
             >
               <option value="source">Source colors</option>
               <option value="custom">Custom colors</option>
@@ -12331,48 +13592,48 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsShapeGridPaletteMode === "custom" ? (
+          {massageLabShapeGridPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Border</span>
                 <input
                   type="color"
-                  value={reactBitsShapeGridBorderColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsShapeGridBorderColor: event.target.value })}
-                  aria-label="React Bits Shape Grid border color"
+                  value={massageLabShapeGridBorderColor}
+                  onChange={(event) => handleSettingsChange({ massageLabShapeGridBorderColor: event.target.value })}
+                  aria-label="MassageLab Shape Grid border color"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Hover fill</span>
                 <input
                   type="color"
-                  value={reactBitsShapeGridHoverFillColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsShapeGridHoverFillColor: event.target.value })}
-                  aria-label="React Bits Shape Grid hover fill color"
+                  value={massageLabShapeGridHoverFillColor}
+                  onChange={(event) => handleSettingsChange({ massageLabShapeGridHoverFillColor: event.target.value })}
+                  aria-label="MassageLab Shape Grid hover fill color"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsShapeGridPaletteMode === "harmony" ? (
+          {massageLabShapeGridPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsShapeGridPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsShapeGridPrimaryColor: event.target.value })}
-                  aria-label="React Bits Shape Grid primary color"
+                  value={massageLabShapeGridPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabShapeGridPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Shape Grid primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsShapeGridHarmony}
+                  value={massageLabShapeGridHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsShapeGridHarmony: event.target.value as ColorHarmony,
+                    massageLabShapeGridHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Shape Grid color harmony"
+                  aria-label="MassageLab Shape Grid color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -12387,11 +13648,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Direction</span>
             <select
-              value={reactBitsShapeGridDirection}
+              value={massageLabShapeGridDirection}
               onChange={(event) => handleSettingsChange({
-                reactBitsShapeGridDirection: event.target.value as ChimerSettings["reactBitsShapeGridDirection"],
+                massageLabShapeGridDirection: event.target.value as ChimerSettings["massageLabShapeGridDirection"],
               })}
-              aria-label="React Bits Shape Grid direction"
+              aria-label="MassageLab Shape Grid direction"
             >
               <option value="right">Right</option>
               <option value="left">Left</option>
@@ -12404,11 +13665,11 @@ export function RunningTimer({
           <label className={styles.selectRow}>
             <span>Shape</span>
             <select
-              value={reactBitsShapeGridShape}
+              value={massageLabShapeGridShape}
               onChange={(event) => handleSettingsChange({
-                reactBitsShapeGridShape: event.target.value as ChimerSettings["reactBitsShapeGridShape"],
+                massageLabShapeGridShape: event.target.value as ChimerSettings["massageLabShapeGridShape"],
               })}
-              aria-label="React Bits Shape Grid shape"
+              aria-label="MassageLab Shape Grid shape"
             >
               <option value="square">Square</option>
               <option value="circle">Circle</option>
@@ -12421,63 +13682,63 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsShapeGridCursorInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsShapeGridCursorInteraction: event.target.checked })}
-              aria-label="React Bits Shape Grid cursor interaction"
+              checked={massageLabShapeGridCursorInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabShapeGridCursorInteraction: event.target.checked })}
+              aria-label="MassageLab Shape Grid cursor interaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsShapeGridSpeed.toFixed(2)})</span>
+            <span>Speed ({massageLabShapeGridSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="4"
               step="0.05"
-              value={reactBitsShapeGridSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsShapeGridSpeed: Number(event.target.value) })}
-              aria-label="React Bits Shape Grid speed"
+              value={massageLabShapeGridSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabShapeGridSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Shape Grid speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Cell size ({reactBitsShapeGridSquareSize.toFixed(0)})</span>
+            <span>Cell size ({massageLabShapeGridSquareSize.toFixed(0)})</span>
             <input
               type="range"
               min="12"
               max="96"
               step="1"
-              value={reactBitsShapeGridSquareSize}
-              onChange={(event) => handleSettingsChange({ reactBitsShapeGridSquareSize: Number(event.target.value) })}
-              aria-label="React Bits Shape Grid cell size"
+              value={massageLabShapeGridSquareSize}
+              onChange={(event) => handleSettingsChange({ massageLabShapeGridSquareSize: Number(event.target.value) })}
+              aria-label="MassageLab Shape Grid cell size"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Hover trail ({reactBitsShapeGridHoverTrailAmount.toFixed(0)})</span>
+            <span>Hover trail ({massageLabShapeGridHoverTrailAmount.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="12"
               step="1"
-              value={reactBitsShapeGridHoverTrailAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsShapeGridHoverTrailAmount: Number(event.target.value) })}
-              aria-label="React Bits Shape Grid hover trail"
+              value={massageLabShapeGridHoverTrailAmount}
+              onChange={(event) => handleSettingsChange({ massageLabShapeGridHoverTrailAmount: Number(event.target.value) })}
+              aria-label="MassageLab Shape Grid hover trail"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-liquid-chrome" && (
+      {option.id === "massage-lab-liquid-chrome" && (
         <>
           <label className={styles.selectRow}>
             <span>Chrome color mode</span>
             <select
-              value={reactBitsLiquidChromePaletteMode}
+              value={massageLabLiquidChromePaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsLiquidChromePaletteMode: event.target.value as ReactBitsLiquidChromePaletteMode,
+                massageLabLiquidChromePaletteMode: event.target.value as MassageLabLiquidChromePaletteMode,
               })}
-              aria-label="React Bits Liquid Chrome color mode"
+              aria-label="MassageLab Liquid Chrome color mode"
             >
               <option value="source">Source base color</option>
               <option value="custom">Custom color</option>
@@ -12485,37 +13746,37 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsLiquidChromePaletteMode === "custom" ? (
+          {massageLabLiquidChromePaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Base color</span>
               <input
                 type="color"
-                value={reactBitsLiquidChromeBaseColor}
-                onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeBaseColor: event.target.value })}
-                aria-label="React Bits Liquid Chrome base color"
+                value={massageLabLiquidChromeBaseColor}
+                onChange={(event) => handleSettingsChange({ massageLabLiquidChromeBaseColor: event.target.value })}
+                aria-label="MassageLab Liquid Chrome base color"
               />
             </label>
           ) : null}
 
-          {reactBitsLiquidChromePaletteMode === "harmony" ? (
+          {massageLabLiquidChromePaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsLiquidChromePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsLiquidChromePrimaryColor: event.target.value })}
-                  aria-label="React Bits Liquid Chrome primary color"
+                  value={massageLabLiquidChromePrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabLiquidChromePrimaryColor: event.target.value })}
+                  aria-label="MassageLab Liquid Chrome primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsLiquidChromeHarmony}
+                  value={massageLabLiquidChromeHarmony}
                   onChange={(event) => handleSettingsChange({
-                    reactBitsLiquidChromeHarmony: event.target.value as ColorHarmony,
+                    massageLabLiquidChromeHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="React Bits Liquid Chrome color harmony"
+                  aria-label="MassageLab Liquid Chrome color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -12531,76 +13792,76 @@ export function RunningTimer({
             <span>Cursor interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsLiquidChromeInteractive}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeInteractive: event.target.checked })}
-              aria-label="React Bits Liquid Chrome cursor interaction"
+              checked={massageLabLiquidChromeInteractive}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidChromeInteractive: event.target.checked })}
+              aria-label="MassageLab Liquid Chrome cursor interaction"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Speed ({reactBitsLiquidChromeSpeed.toFixed(2)})</span>
+            <span>Speed ({massageLabLiquidChromeSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.01"
-              value={reactBitsLiquidChromeSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeSpeed: Number(event.target.value) })}
-              aria-label="React Bits Liquid Chrome speed"
+              value={massageLabLiquidChromeSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidChromeSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Liquid Chrome speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Amplitude ({reactBitsLiquidChromeAmplitude.toFixed(2)})</span>
+            <span>Amplitude ({massageLabLiquidChromeAmplitude.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsLiquidChromeAmplitude}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeAmplitude: Number(event.target.value) })}
-              aria-label="React Bits Liquid Chrome amplitude"
+              value={massageLabLiquidChromeAmplitude}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidChromeAmplitude: Number(event.target.value) })}
+              aria-label="MassageLab Liquid Chrome amplitude"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Frequency X ({reactBitsLiquidChromeFrequencyX.toFixed(1)})</span>
+            <span>Frequency X ({massageLabLiquidChromeFrequencyX.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="12"
               step="0.1"
-              value={reactBitsLiquidChromeFrequencyX}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeFrequencyX: Number(event.target.value) })}
-              aria-label="React Bits Liquid Chrome frequency X"
+              value={massageLabLiquidChromeFrequencyX}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidChromeFrequencyX: Number(event.target.value) })}
+              aria-label="MassageLab Liquid Chrome frequency X"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Frequency Y ({reactBitsLiquidChromeFrequencyY.toFixed(1)})</span>
+            <span>Frequency Y ({massageLabLiquidChromeFrequencyY.toFixed(1)})</span>
             <input
               type="range"
               min="0.1"
               max="12"
               step="0.1"
-              value={reactBitsLiquidChromeFrequencyY}
-              onChange={(event) => handleSettingsChange({ reactBitsLiquidChromeFrequencyY: Number(event.target.value) })}
-              aria-label="React Bits Liquid Chrome frequency Y"
+              value={massageLabLiquidChromeFrequencyY}
+              onChange={(event) => handleSettingsChange({ massageLabLiquidChromeFrequencyY: Number(event.target.value) })}
+              aria-label="MassageLab Liquid Chrome frequency Y"
             />
           </label>
         </>
       )}
 
-      {option.id === "react-bits-balatro" && (
+      {option.id === "massage-lab-balatro" && (
         <>
           <label className={styles.selectRow}>
             <span>Balatro color mode</span>
             <select
-              value={reactBitsBalatroPaletteMode}
+              value={massageLabBalatroPaletteMode}
               onChange={(event) => handleSettingsChange({
-                reactBitsBalatroPaletteMode: event.target.value as ReactBitsBalatroPaletteMode,
+                massageLabBalatroPaletteMode: event.target.value as MassageLabBalatroPaletteMode,
               })}
-              aria-label="React Bits Balatro color mode"
+              aria-label="MassageLab Balatro color mode"
             >
               <option value="source">Source colors</option>
               <option value="custom">Custom colors</option>
@@ -12608,55 +13869,55 @@ export function RunningTimer({
             </select>
           </label>
 
-          {reactBitsBalatroPaletteMode === "custom" ? (
+          {massageLabBalatroPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={reactBitsBalatroColorOne}
-                  onChange={(event) => handleSettingsChange({ reactBitsBalatroColorOne: event.target.value })}
-                  aria-label="React Bits Balatro color 1"
+                  value={massageLabBalatroColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabBalatroColorOne: event.target.value })}
+                  aria-label="MassageLab Balatro color 1"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={reactBitsBalatroColorTwo}
-                  onChange={(event) => handleSettingsChange({ reactBitsBalatroColorTwo: event.target.value })}
-                  aria-label="React Bits Balatro color 2"
+                  value={massageLabBalatroColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabBalatroColorTwo: event.target.value })}
+                  aria-label="MassageLab Balatro color 2"
                 />
               </label>
               <label className={styles.colorRow}>
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={reactBitsBalatroColorThree}
-                  onChange={(event) => handleSettingsChange({ reactBitsBalatroColorThree: event.target.value })}
-                  aria-label="React Bits Balatro color 3"
+                  value={massageLabBalatroColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabBalatroColorThree: event.target.value })}
+                  aria-label="MassageLab Balatro color 3"
                 />
               </label>
             </>
           ) : null}
 
-          {reactBitsBalatroPaletteMode === "harmony" ? (
+          {massageLabBalatroPaletteMode === "harmony" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={reactBitsBalatroPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ reactBitsBalatroPrimaryColor: event.target.value })}
-                  aria-label="React Bits Balatro primary color"
+                  value={massageLabBalatroPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabBalatroPrimaryColor: event.target.value })}
+                  aria-label="MassageLab Balatro primary color"
                 />
               </label>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
-                  value={reactBitsBalatroHarmony}
-                  onChange={(event) => handleSettingsChange({ reactBitsBalatroHarmony: event.target.value as ColorHarmony })}
-                  aria-label="React Bits Balatro color harmony"
+                  value={massageLabBalatroHarmony}
+                  onChange={(event) => handleSettingsChange({ massageLabBalatroHarmony: event.target.value as ColorHarmony })}
+                  aria-label="MassageLab Balatro color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -12672,9 +13933,9 @@ export function RunningTimer({
             <span>Mouse interaction</span>
             <input
               type="checkbox"
-              checked={reactBitsBalatroMouseInteraction}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroMouseInteraction: event.target.checked })}
-              aria-label="React Bits Balatro mouse interaction"
+              checked={massageLabBalatroMouseInteraction}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroMouseInteraction: event.target.checked })}
+              aria-label="MassageLab Balatro mouse interaction"
             />
           </label>
 
@@ -12682,113 +13943,113 @@ export function RunningTimer({
             <span>Rotate field</span>
             <input
               type="checkbox"
-              checked={reactBitsBalatroIsRotate}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroIsRotate: event.target.checked })}
-              aria-label="React Bits Balatro rotate field"
+              checked={massageLabBalatroIsRotate}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroIsRotate: event.target.checked })}
+              aria-label="MassageLab Balatro rotate field"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spin speed ({reactBitsBalatroSpinSpeed.toFixed(1)})</span>
+            <span>Spin speed ({massageLabBalatroSpinSpeed.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="14"
               step="0.1"
-              value={reactBitsBalatroSpinSpeed}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinSpeed: Number(event.target.value) })}
-              aria-label="React Bits Balatro spin speed"
+              value={massageLabBalatroSpinSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroSpinSpeed: Number(event.target.value) })}
+              aria-label="MassageLab Balatro spin speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spin rotation ({reactBitsBalatroSpinRotation.toFixed(1)})</span>
+            <span>Spin rotation ({massageLabBalatroSpinRotation.toFixed(1)})</span>
             <input
               type="range"
               min="-8"
               max="8"
               step="0.1"
-              value={reactBitsBalatroSpinRotation}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinRotation: Number(event.target.value) })}
-              aria-label="React Bits Balatro spin rotation"
+              value={massageLabBalatroSpinRotation}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroSpinRotation: Number(event.target.value) })}
+              aria-label="MassageLab Balatro spin rotation"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Contrast ({reactBitsBalatroContrast.toFixed(1)})</span>
+            <span>Contrast ({massageLabBalatroContrast.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="8"
               step="0.1"
-              value={reactBitsBalatroContrast}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroContrast: Number(event.target.value) })}
-              aria-label="React Bits Balatro contrast"
+              value={massageLabBalatroContrast}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroContrast: Number(event.target.value) })}
+              aria-label="MassageLab Balatro contrast"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Lighting ({reactBitsBalatroLighting.toFixed(2)})</span>
+            <span>Lighting ({massageLabBalatroLighting.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsBalatroLighting}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroLighting: Number(event.target.value) })}
-              aria-label="React Bits Balatro lighting"
+              value={massageLabBalatroLighting}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroLighting: Number(event.target.value) })}
+              aria-label="MassageLab Balatro lighting"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spin amount ({reactBitsBalatroSpinAmount.toFixed(2)})</span>
+            <span>Spin amount ({massageLabBalatroSpinAmount.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.01"
-              value={reactBitsBalatroSpinAmount}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinAmount: Number(event.target.value) })}
-              aria-label="React Bits Balatro spin amount"
+              value={massageLabBalatroSpinAmount}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroSpinAmount: Number(event.target.value) })}
+              aria-label="MassageLab Balatro spin amount"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Pixel filter ({reactBitsBalatroPixelFilter.toFixed(0)})</span>
+            <span>Pixel filter ({massageLabBalatroPixelFilter.toFixed(0)})</span>
             <input
               type="range"
               min="120"
               max="1200"
               step="5"
-              value={reactBitsBalatroPixelFilter}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroPixelFilter: Number(event.target.value) })}
-              aria-label="React Bits Balatro pixel filter"
+              value={massageLabBalatroPixelFilter}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroPixelFilter: Number(event.target.value) })}
+              aria-label="MassageLab Balatro pixel filter"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spin ease ({reactBitsBalatroSpinEase.toFixed(2)})</span>
+            <span>Spin ease ({massageLabBalatroSpinEase.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="3"
               step="0.01"
-              value={reactBitsBalatroSpinEase}
-              onChange={(event) => handleSettingsChange({ reactBitsBalatroSpinEase: Number(event.target.value) })}
-              aria-label="React Bits Balatro spin ease"
+              value={massageLabBalatroSpinEase}
+              onChange={(event) => handleSettingsChange({ massageLabBalatroSpinEase: Number(event.target.value) })}
+              aria-label="MassageLab Balatro spin ease"
             />
           </label>
         </>
       )}
 
-      {option.id === "eldora-photon-beam" && (
+      {option.id === "massage-lab-photon-beam" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={eldoraPhotonBeamPaletteMode}
+              value={massageLabPhotonBeamPaletteMode}
               onChange={(event) => handleSettingsChange({
-                eldoraPhotonBeamPaletteMode: event.target.value as EldoraPhotonBeamPaletteMode,
+                massageLabPhotonBeamPaletteMode: event.target.value as MassageLabPhotonBeamPaletteMode,
               })}
               aria-label="Photon Beam color mode"
             >
@@ -12797,14 +14058,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {eldoraPhotonBeamPaletteMode === "custom" ? (
+          {massageLabPhotonBeamPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Background</span>
                 <input
                   type="color"
-                  value={eldoraPhotonBeamColorBg}
-                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorBg: event.target.value })}
+                  value={massageLabPhotonBeamColorBg}
+                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorBg: event.target.value })}
                   aria-label="Photon Beam background color"
                 />
               </label>
@@ -12812,8 +14073,8 @@ export function RunningTimer({
                 <span>Beam lines</span>
                 <input
                   type="color"
-                  value={eldoraPhotonBeamColorLine}
-                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorLine: event.target.value })}
+                  value={massageLabPhotonBeamColorLine}
+                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorLine: event.target.value })}
                   aria-label="Photon Beam line color"
                 />
               </label>
@@ -12821,8 +14082,8 @@ export function RunningTimer({
                 <span>Signal 1</span>
                 <input
                   type="color"
-                  value={eldoraPhotonBeamColorSignal}
-                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorSignal: event.target.value })}
+                  value={massageLabPhotonBeamColorSignal}
+                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorSignal: event.target.value })}
                   aria-label="Photon Beam signal color"
                 />
               </label>
@@ -12830,18 +14091,18 @@ export function RunningTimer({
                 <span>Signal 2</span>
                 <input
                   type="checkbox"
-                  checked={eldoraPhotonBeamUseColor2}
-                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamUseColor2: event.target.checked })}
+                  checked={massageLabPhotonBeamUseColor2}
+                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamUseColor2: event.target.checked })}
                   aria-label="Photon Beam use second signal color"
                 />
               </label>
-              {eldoraPhotonBeamUseColor2 && (
+              {massageLabPhotonBeamUseColor2 && (
                 <label className={styles.colorRow}>
                   <span>Signal 2 color</span>
                   <input
                     type="color"
-                    value={eldoraPhotonBeamColorSignal2}
-                    onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorSignal2: event.target.value })}
+                    value={massageLabPhotonBeamColorSignal2}
+                    onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorSignal2: event.target.value })}
                     aria-label="Photon Beam second signal color"
                   />
                 </label>
@@ -12850,18 +14111,18 @@ export function RunningTimer({
                 <span>Signal 3</span>
                 <input
                   type="checkbox"
-                  checked={eldoraPhotonBeamUseColor3}
-                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamUseColor3: event.target.checked })}
+                  checked={massageLabPhotonBeamUseColor3}
+                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamUseColor3: event.target.checked })}
                   aria-label="Photon Beam use third signal color"
                 />
               </label>
-              {eldoraPhotonBeamUseColor3 && (
+              {massageLabPhotonBeamUseColor3 && (
                 <label className={styles.colorRow}>
                   <span>Signal 3 color</span>
                   <input
                     type="color"
-                    value={eldoraPhotonBeamColorSignal3}
-                    onChange={(event) => handleSettingsChange({ eldoraPhotonBeamColorSignal3: event.target.value })}
+                    value={massageLabPhotonBeamColorSignal3}
+                    onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorSignal3: event.target.value })}
                     aria-label="Photon Beam third signal color"
                   />
                 </label>
@@ -12873,8 +14134,8 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={eldoraPhotonBeamPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ eldoraPhotonBeamPrimaryColor: event.target.value })}
+                  value={massageLabPhotonBeamPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamPrimaryColor: event.target.value })}
                   aria-label="Photon Beam primary color"
                 />
               </label>
@@ -12882,9 +14143,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={eldoraPhotonBeamHarmony}
+                  value={massageLabPhotonBeamHarmony}
                   onChange={(event) => handleSettingsChange({
-                    eldoraPhotonBeamHarmony: event.target.value as ColorHarmony,
+                    massageLabPhotonBeamHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Photon Beam color harmony"
                 >
@@ -12902,212 +14163,212 @@ export function RunningTimer({
             <span>Animation speed ({photonBeamSpeed}%)</span>
             <input
               type="range"
-              min={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MIN}
-              max={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_MAX}
-              step={ELDORA_PHOTON_BEAM_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_PHOTON_BEAM_DISPLAY_SPEED_STEP}
               value={photonBeamSpeed}
               onChange={(event) => handleSettingsChange({
-                eldoraPhotonBeamSpeedGlobal: getEldoraPhotonBeamSourceSpeed(Number(event.target.value)),
+                massageLabPhotonBeamSpeedGlobal: getMassageLabPhotonBeamSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Photon Beam animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Lines ({eldoraPhotonBeamLineCount})</span>
+            <span>Lines ({massageLabPhotonBeamLineCount})</span>
             <input
               type="range"
               min="12"
               max="160"
               step="1"
-              value={eldoraPhotonBeamLineCount}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamLineCount: Number(event.target.value) })}
+              value={massageLabPhotonBeamLineCount}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamLineCount: Number(event.target.value) })}
               aria-label="Photon Beam line count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Signals ({eldoraPhotonBeamSignalCount})</span>
+            <span>Signals ({massageLabPhotonBeamSignalCount})</span>
             <input
               type="range"
               min="0"
               max="220"
               step="1"
-              value={eldoraPhotonBeamSignalCount}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamSignalCount: Number(event.target.value) })}
+              value={massageLabPhotonBeamSignalCount}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamSignalCount: Number(event.target.value) })}
               aria-label="Photon Beam signal count"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Spread ({eldoraPhotonBeamSpreadHeight.toFixed(0)})</span>
+            <span>Spread ({massageLabPhotonBeamSpreadHeight.toFixed(0)})</span>
             <input
               type="range"
               min="5"
               max="90"
               step="1"
-              value={eldoraPhotonBeamSpreadHeight}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamSpreadHeight: Number(event.target.value) })}
+              value={massageLabPhotonBeamSpreadHeight}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamSpreadHeight: Number(event.target.value) })}
               aria-label="Photon Beam spread height"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Depth ({eldoraPhotonBeamSpreadDepth.toFixed(0)})</span>
+            <span>Depth ({massageLabPhotonBeamSpreadDepth.toFixed(0)})</span>
             <input
               type="range"
               min="0"
               max="60"
               step="1"
-              value={eldoraPhotonBeamSpreadDepth}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamSpreadDepth: Number(event.target.value) })}
+              value={massageLabPhotonBeamSpreadDepth}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamSpreadDepth: Number(event.target.value) })}
               aria-label="Photon Beam spread depth"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Trail length ({eldoraPhotonBeamTrailLength})</span>
+            <span>Trail length ({massageLabPhotonBeamTrailLength})</span>
             <input
               type="range"
               min="1"
               max="16"
               step="1"
-              value={eldoraPhotonBeamTrailLength}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamTrailLength: Number(event.target.value) })}
+              value={massageLabPhotonBeamTrailLength}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamTrailLength: Number(event.target.value) })}
               aria-label="Photon Beam trail length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Line opacity ({Math.round(eldoraPhotonBeamLineOpacity * 100)}%)</span>
+            <span>Line opacity ({Math.round(massageLabPhotonBeamLineOpacity * 100)}%)</span>
             <input
               type="range"
               min="0.05"
               max="1"
               step="0.01"
-              value={eldoraPhotonBeamLineOpacity}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamLineOpacity: Number(event.target.value) })}
+              value={massageLabPhotonBeamLineOpacity}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamLineOpacity: Number(event.target.value) })}
               aria-label="Photon Beam line opacity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Bloom strength ({eldoraPhotonBeamBloomStrength.toFixed(1)})</span>
+            <span>Bloom strength ({massageLabPhotonBeamBloomStrength.toFixed(1)})</span>
             <input
               type="range"
               min="0"
               max="6"
               step="0.1"
-              value={eldoraPhotonBeamBloomStrength}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamBloomStrength: Number(event.target.value) })}
+              value={massageLabPhotonBeamBloomStrength}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamBloomStrength: Number(event.target.value) })}
               aria-label="Photon Beam bloom strength"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Bloom radius ({eldoraPhotonBeamBloomRadius.toFixed(2)})</span>
+            <span>Bloom radius ({massageLabPhotonBeamBloomRadius.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="1.5"
               step="0.05"
-              value={eldoraPhotonBeamBloomRadius}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamBloomRadius: Number(event.target.value) })}
+              value={massageLabPhotonBeamBloomRadius}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamBloomRadius: Number(event.target.value) })}
               aria-label="Photon Beam bloom radius"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave speed ({eldoraPhotonBeamWaveSpeed.toFixed(2)})</span>
+            <span>Wave speed ({massageLabPhotonBeamWaveSpeed.toFixed(2)})</span>
             <input
               type="range"
               min="0"
               max="8"
               step="0.05"
-              value={eldoraPhotonBeamWaveSpeed}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamWaveSpeed: Number(event.target.value) })}
+              value={massageLabPhotonBeamWaveSpeed}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamWaveSpeed: Number(event.target.value) })}
               aria-label="Photon Beam wave speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Wave height ({eldoraPhotonBeamWaveHeight.toFixed(3)})</span>
+            <span>Wave height ({massageLabPhotonBeamWaveHeight.toFixed(3)})</span>
             <input
               type="range"
               min="0"
               max="1"
               step="0.005"
-              value={eldoraPhotonBeamWaveHeight}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamWaveHeight: Number(event.target.value) })}
+              value={massageLabPhotonBeamWaveHeight}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamWaveHeight: Number(event.target.value) })}
               aria-label="Photon Beam wave height"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Curve length ({eldoraPhotonBeamCurveLength.toFixed(0)})</span>
+            <span>Curve length ({massageLabPhotonBeamCurveLength.toFixed(0)})</span>
             <input
               type="range"
               min="16"
               max="120"
               step="1"
-              value={eldoraPhotonBeamCurveLength}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamCurveLength: Number(event.target.value) })}
+              value={massageLabPhotonBeamCurveLength}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamCurveLength: Number(event.target.value) })}
               aria-label="Photon Beam curve length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Straight length ({eldoraPhotonBeamStraightLength.toFixed(0)})</span>
+            <span>Straight length ({massageLabPhotonBeamStraightLength.toFixed(0)})</span>
             <input
               type="range"
               min="40"
               max="220"
               step="1"
-              value={eldoraPhotonBeamStraightLength}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamStraightLength: Number(event.target.value) })}
+              value={massageLabPhotonBeamStraightLength}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamStraightLength: Number(event.target.value) })}
               aria-label="Photon Beam straight length"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Curve power ({eldoraPhotonBeamCurvePower.toFixed(2)})</span>
+            <span>Curve power ({massageLabPhotonBeamCurvePower.toFixed(2)})</span>
             <input
               type="range"
               min="0.2"
               max="2"
               step="0.01"
-              value={eldoraPhotonBeamCurvePower}
-              onChange={(event) => handleSettingsChange({ eldoraPhotonBeamCurvePower: Number(event.target.value) })}
+              value={massageLabPhotonBeamCurvePower}
+              onChange={(event) => handleSettingsChange({ massageLabPhotonBeamCurvePower: Number(event.target.value) })}
               aria-label="Photon Beam curve power"
             />
           </label>
         </>
       )}
 
-      {option.id === "eldora-hacker-background" && (
+      {option.id === "massage-lab-matrix-rain" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={eldoraHackerPaletteMode}
+              value={massageLabMatrixRainPaletteMode}
               onChange={(event) => handleSettingsChange({
-                eldoraHackerPaletteMode: event.target.value as EldoraHackerPaletteMode,
+                massageLabMatrixRainPaletteMode: event.target.value as MassageLabMatrixRainPaletteMode,
               })}
-              aria-label="Hacker Background color mode"
+              aria-label="Matrix Rain color mode"
             >
               <option value="custom">Custom color</option>
               <option value="harmony">Harmony from primary</option>
             </select>
           </label>
 
-          {eldoraHackerPaletteMode === "custom" ? (
+          {massageLabMatrixRainPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Character color</span>
               <input
                 type="color"
-                value={eldoraHackerColor}
-                onChange={(event) => handleSettingsChange({ eldoraHackerColor: event.target.value })}
-                aria-label="Hacker Background character color"
+                value={massageLabMatrixRainColor}
+                onChange={(event) => handleSettingsChange({ massageLabMatrixRainColor: event.target.value })}
+                aria-label="Matrix Rain character color"
               />
             </label>
           ) : (
@@ -13116,20 +14377,20 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={eldoraHackerPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ eldoraHackerPrimaryColor: event.target.value })}
-                  aria-label="Hacker Background primary color"
+                  value={massageLabMatrixRainPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabMatrixRainPrimaryColor: event.target.value })}
+                  aria-label="Matrix Rain primary color"
                 />
               </label>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={eldoraHackerHarmony}
+                  value={massageLabMatrixRainHarmony}
                   onChange={(event) => handleSettingsChange({
-                    eldoraHackerHarmony: event.target.value as ColorHarmony,
+                    massageLabMatrixRainHarmony: event.target.value as ColorHarmony,
                   })}
-                  aria-label="Hacker Background color harmony"
+                  aria-label="Matrix Rain color harmony"
                 >
                   {COLOR_HARMONY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -13142,43 +14403,43 @@ export function RunningTimer({
           )}
 
           <label className={styles.rangeRow}>
-            <span>Animation speed ({hackerSpeed}%)</span>
+            <span>Animation speed ({matrixRainSpeed}%)</span>
             <input
               type="range"
-              min={ELDORA_HACKER_DISPLAY_SPEED_MIN}
-              max={ELDORA_HACKER_DISPLAY_SPEED_MAX}
-              step={ELDORA_HACKER_DISPLAY_SPEED_STEP}
-              value={hackerSpeed}
+              min={MASSAGE_LAB_HACKER_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_HACKER_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_HACKER_DISPLAY_SPEED_STEP}
+              value={matrixRainSpeed}
               onChange={(event) => handleSettingsChange({
-                eldoraHackerSpeed: getEldoraHackerSourceSpeed(Number(event.target.value)),
+                massageLabMatrixRainSpeed: getMassageLabMatrixRainSourceSpeed(Number(event.target.value)),
               })}
-              aria-label="Hacker Background animation speed"
+              aria-label="Matrix Rain animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Font size ({eldoraHackerFontSize}px)</span>
+            <span>Font size ({massageLabMatrixRainFontSize}px)</span>
             <input
               type="range"
               min="8"
               max="28"
               step="1"
-              value={eldoraHackerFontSize}
-              onChange={(event) => handleSettingsChange({ eldoraHackerFontSize: Number(event.target.value) })}
-              aria-label="Hacker Background font size"
+              value={massageLabMatrixRainFontSize}
+              onChange={(event) => handleSettingsChange({ massageLabMatrixRainFontSize: Number(event.target.value) })}
+              aria-label="Matrix Rain font size"
             />
           </label>
         </>
       )}
 
-      {option.id === "eldora-novatrix-background" && (
+      {option.id === "massage-lab-novatrix" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={eldoraNovatrixPaletteMode}
+              value={massageLabNovatrixPaletteMode}
               onChange={(event) => handleSettingsChange({
-                eldoraNovatrixPaletteMode: event.target.value as EldoraNovatrixPaletteMode,
+                massageLabNovatrixPaletteMode: event.target.value as MassageLabNovatrixPaletteMode,
               })}
               aria-label="Novatrix color mode"
             >
@@ -13187,13 +14448,13 @@ export function RunningTimer({
             </select>
           </label>
 
-          {eldoraNovatrixPaletteMode === "custom" ? (
+          {massageLabNovatrixPaletteMode === "custom" ? (
             <label className={styles.colorRow}>
               <span>Animation color</span>
               <input
                 type="color"
-                value={eldoraNovatrixColor}
-                onChange={(event) => handleSettingsChange({ eldoraNovatrixColor: event.target.value })}
+                value={massageLabNovatrixColor}
+                onChange={(event) => handleSettingsChange({ massageLabNovatrixColor: event.target.value })}
                 aria-label="Novatrix animation color"
               />
             </label>
@@ -13203,8 +14464,8 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={eldoraNovatrixPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ eldoraNovatrixPrimaryColor: event.target.value })}
+                  value={massageLabNovatrixPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabNovatrixPrimaryColor: event.target.value })}
                   aria-label="Novatrix primary color"
                 />
               </label>
@@ -13212,9 +14473,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={eldoraNovatrixHarmony}
+                  value={massageLabNovatrixHarmony}
                   onChange={(event) => handleSettingsChange({
-                    eldoraNovatrixHarmony: event.target.value as ColorHarmony,
+                    massageLabNovatrixHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Novatrix color harmony"
                 >
@@ -13232,12 +14493,12 @@ export function RunningTimer({
             <span>Animation speed ({novatrixSpeed}%)</span>
             <input
               type="range"
-              min={ELDORA_NOVATRIX_DISPLAY_SPEED_MIN}
-              max={ELDORA_NOVATRIX_DISPLAY_SPEED_MAX}
-              step={ELDORA_NOVATRIX_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_NOVATRIX_DISPLAY_SPEED_STEP}
               value={novatrixSpeed}
               onChange={(event) => handleSettingsChange({
-                eldoraNovatrixSpeed: getEldoraNovatrixSourceSpeed(Number(event.target.value)),
+                massageLabNovatrixSpeed: getMassageLabNovatrixSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Novatrix animation speed"
             />
@@ -13247,12 +14508,12 @@ export function RunningTimer({
             <span>Amplitude ({novatrixAmplitude}%)</span>
             <input
               type="range"
-              min={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MIN}
-              max={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_MAX}
-              step={ELDORA_NOVATRIX_DISPLAY_AMPLITUDE_STEP}
+              min={MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MIN}
+              max={MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_MAX}
+              step={MASSAGE_LAB_NOVATRIX_DISPLAY_AMPLITUDE_STEP}
               value={novatrixAmplitude}
               onChange={(event) => handleSettingsChange({
-                eldoraNovatrixAmplitude: getEldoraNovatrixSourceAmplitude(Number(event.target.value)),
+                massageLabNovatrixAmplitude: getMassageLabNovatrixSourceAmplitude(Number(event.target.value)),
               })}
               aria-label="Novatrix amplitude"
             />
@@ -13260,14 +14521,14 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "chamaac-synthesis" && (
+      {option.id === "massage-lab-synthesis" && (
         <>
           <label className={styles.selectRow}>
             <span>Color mode</span>
             <select
-              value={chamaacSynthesisPaletteMode}
+              value={massageLabSynthesisPaletteMode}
               onChange={(event) => handleSettingsChange({
-                chamaacSynthesisPaletteMode: event.target.value as ChamaacSynthesisPaletteMode,
+                massageLabSynthesisPaletteMode: event.target.value as MassageLabSynthesisPaletteMode,
               })}
               aria-label="Synthesis color mode"
             >
@@ -13276,14 +14537,14 @@ export function RunningTimer({
             </select>
           </label>
 
-          {chamaacSynthesisPaletteMode === "custom" ? (
+          {massageLabSynthesisPaletteMode === "custom" ? (
             <>
               <label className={styles.colorRow}>
                 <span>Color 1</span>
                 <input
                   type="color"
-                  value={chamaacSynthesisColorOne}
-                  onChange={(event) => handleSettingsChange({ chamaacSynthesisColorOne: event.target.value })}
+                  value={massageLabSynthesisColorOne}
+                  onChange={(event) => handleSettingsChange({ massageLabSynthesisColorOne: event.target.value })}
                   aria-label="Synthesis color 1"
                 />
               </label>
@@ -13292,8 +14553,8 @@ export function RunningTimer({
                 <span>Color 2</span>
                 <input
                   type="color"
-                  value={chamaacSynthesisColorTwo}
-                  onChange={(event) => handleSettingsChange({ chamaacSynthesisColorTwo: event.target.value })}
+                  value={massageLabSynthesisColorTwo}
+                  onChange={(event) => handleSettingsChange({ massageLabSynthesisColorTwo: event.target.value })}
                   aria-label="Synthesis color 2"
                 />
               </label>
@@ -13302,8 +14563,8 @@ export function RunningTimer({
                 <span>Color 3</span>
                 <input
                   type="color"
-                  value={chamaacSynthesisColorThree}
-                  onChange={(event) => handleSettingsChange({ chamaacSynthesisColorThree: event.target.value })}
+                  value={massageLabSynthesisColorThree}
+                  onChange={(event) => handleSettingsChange({ massageLabSynthesisColorThree: event.target.value })}
                   aria-label="Synthesis color 3"
                 />
               </label>
@@ -13314,8 +14575,8 @@ export function RunningTimer({
                 <span>Primary color</span>
                 <input
                   type="color"
-                  value={chamaacSynthesisPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ chamaacSynthesisPrimaryColor: event.target.value })}
+                  value={massageLabSynthesisPrimaryColor}
+                  onChange={(event) => handleSettingsChange({ massageLabSynthesisPrimaryColor: event.target.value })}
                   aria-label="Synthesis primary color"
                 />
               </label>
@@ -13323,9 +14584,9 @@ export function RunningTimer({
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
-                  value={chamaacSynthesisHarmony}
+                  value={massageLabSynthesisHarmony}
                   onChange={(event) => handleSettingsChange({
-                    chamaacSynthesisHarmony: event.target.value as ColorHarmony,
+                    massageLabSynthesisHarmony: event.target.value as ColorHarmony,
                   })}
                   aria-label="Synthesis color harmony"
                 >
@@ -13343,85 +14604,85 @@ export function RunningTimer({
             <span>Animation speed ({synthesisDisplaySpeed.toFixed(2)}x)</span>
             <input
               type="range"
-              min={CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MIN}
-              max={CHAMAAC_SYNTHESIS_DISPLAY_SPEED_MAX}
-              step={CHAMAAC_SYNTHESIS_DISPLAY_SPEED_STEP}
+              min={MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MIN}
+              max={MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_MAX}
+              step={MASSAGE_LAB_SYNTHESIS_DISPLAY_SPEED_STEP}
               value={synthesisDisplaySpeed}
               onChange={(event) => handleSettingsChange({
-                chamaacSynthesisSpeed: getChamaacSynthesisSourceSpeed(Number(event.target.value)),
+                massageLabSynthesisSpeed: getMassageLabSynthesisSourceSpeed(Number(event.target.value)),
               })}
               aria-label="Synthesis animation speed"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Complexity ({chamaacSynthesisComplexity})</span>
+            <span>Complexity ({massageLabSynthesisComplexity})</span>
             <input
               type="range"
               min="1"
               max="20"
               step="1"
-              value={chamaacSynthesisComplexity}
-              onChange={(event) => handleSettingsChange({ chamaacSynthesisComplexity: Number(event.target.value) })}
+              value={massageLabSynthesisComplexity}
+              onChange={(event) => handleSettingsChange({ massageLabSynthesisComplexity: Number(event.target.value) })}
               aria-label="Synthesis complexity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Zoom scale ({chamaacSynthesisScale.toFixed(1)}x)</span>
+            <span>Zoom scale ({massageLabSynthesisScale.toFixed(1)}x)</span>
             <input
               type="range"
               min="0.1"
               max="5"
               step="0.1"
-              value={chamaacSynthesisScale}
-              onChange={(event) => handleSettingsChange({ chamaacSynthesisScale: Number(event.target.value) })}
+              value={massageLabSynthesisScale}
+              onChange={(event) => handleSettingsChange({ massageLabSynthesisScale: Number(event.target.value) })}
               aria-label="Synthesis zoom scale"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Distortion ({chamaacSynthesisDistortion.toFixed(1)}x)</span>
+            <span>Distortion ({massageLabSynthesisDistortion.toFixed(1)}x)</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.1"
-              value={chamaacSynthesisDistortion}
-              onChange={(event) => handleSettingsChange({ chamaacSynthesisDistortion: Number(event.target.value) })}
+              value={massageLabSynthesisDistortion}
+              onChange={(event) => handleSettingsChange({ massageLabSynthesisDistortion: Number(event.target.value) })}
               aria-label="Synthesis distortion"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Glow intensity ({chamaacSynthesisGlowIntensity.toFixed(1)}x)</span>
+            <span>Glow intensity ({massageLabSynthesisGlowIntensity.toFixed(1)}x)</span>
             <input
               type="range"
               min="0"
               max="2"
               step="0.1"
-              value={chamaacSynthesisGlowIntensity}
-              onChange={(event) => handleSettingsChange({ chamaacSynthesisGlowIntensity: Number(event.target.value) })}
+              value={massageLabSynthesisGlowIntensity}
+              onChange={(event) => handleSettingsChange({ massageLabSynthesisGlowIntensity: Number(event.target.value) })}
               aria-label="Synthesis glow intensity"
             />
           </label>
 
           <label className={styles.rangeRow}>
-            <span>Flow frequency ({chamaacSynthesisFlowFrequency.toFixed(1)})</span>
+            <span>Flow frequency ({massageLabSynthesisFlowFrequency.toFixed(1)})</span>
             <input
               type="range"
               min="0.5"
               max="10"
               step="0.5"
-              value={chamaacSynthesisFlowFrequency}
-              onChange={(event) => handleSettingsChange({ chamaacSynthesisFlowFrequency: Number(event.target.value) })}
+              value={massageLabSynthesisFlowFrequency}
+              onChange={(event) => handleSettingsChange({ massageLabSynthesisFlowFrequency: Number(event.target.value) })}
               aria-label="Synthesis flow frequency"
             />
           </label>
         </>
       )}
 
-      {option.id === "aceternity-background-lines" && (
+      {option.id === "massage-lab-background-lines" && (
         <label className={styles.rangeRow}>
           <span>Line duration</span>
           <input
@@ -13431,12 +14692,12 @@ export function RunningTimer({
             step="1"
             value={backgroundLinesDuration}
             onChange={(event) => handleSettingsChange({ backgroundLinesDuration: Number(event.target.value) })}
-            aria-label="Background lines animation duration"
+            aria-label="Light lines animation duration"
           />
         </label>
       )}
 
-      {option.id === "aceternity-shooting-stars" && (
+      {option.id === "massage-lab-shooting-stars" && (
         <>
           <label className={styles.colorRow}>
             <span>Stars</span>
@@ -13531,7 +14792,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "aceternity-canvas-reveal-dots" && (
+      {option.id === "massage-lab-reveal-dots" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
@@ -13539,7 +14800,7 @@ export function RunningTimer({
               type="color"
               value={canvasRevealDotsBackgroundColor}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsBackgroundColor: event.target.value })}
-              aria-label="Canvas reveal dots background color"
+              aria-label="Reveal dots background color"
             />
           </label>
 
@@ -13549,7 +14810,7 @@ export function RunningTimer({
               type="color"
               value={canvasRevealDotsDotColor}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsDotColor: event.target.value })}
-              aria-label="Canvas reveal dots dot color"
+              aria-label="Reveal dots dot color"
             />
           </label>
 
@@ -13559,7 +14820,7 @@ export function RunningTimer({
               type="color"
               value={canvasRevealDotsAccentColor}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsAccentColor: event.target.value })}
-              aria-label="Canvas reveal dots accent color"
+              aria-label="Reveal dots accent color"
             />
           </label>
 
@@ -13572,7 +14833,7 @@ export function RunningTimer({
               step="0.2"
               value={canvasRevealDotsDotSize}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsDotSize: Number(event.target.value) })}
-              aria-label="Canvas reveal dots dot size"
+              aria-label="Reveal dots dot size"
             />
           </label>
 
@@ -13585,7 +14846,7 @@ export function RunningTimer({
               step="1"
               value={canvasRevealDotsDotSpacing}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsDotSpacing: Number(event.target.value) })}
-              aria-label="Canvas reveal dots spacing"
+              aria-label="Reveal dots spacing"
             />
           </label>
 
@@ -13598,7 +14859,7 @@ export function RunningTimer({
               step="0.02"
               value={canvasRevealDotsOpacity}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsOpacity: Number(event.target.value) })}
-              aria-label="Canvas reveal dots opacity"
+              aria-label="Reveal dots opacity"
             />
           </label>
 
@@ -13611,7 +14872,7 @@ export function RunningTimer({
               step="0.1"
               value={canvasRevealDotsAnimationSpeed}
               onChange={(event) => handleSettingsChange({ canvasRevealDotsAnimationSpeed: Number(event.target.value) })}
-              aria-label="Canvas reveal dots motion speed"
+              aria-label="Reveal dots motion speed"
             />
           </label>
 
@@ -13626,7 +14887,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "aceternity-spotlight-new" && (
+      {option.id === "massage-lab-spotlight" && (
         <>
           <label className={styles.colorRow}>
             <span>Spotlight color</span>
@@ -13731,7 +14992,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "aceternity-lamp-effect" && (
+      {option.id === "massage-lab-lamp-effect" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
@@ -13820,7 +15081,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "aceternity-vortex" && (
+      {option.id === "massage-lab-vortex" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
@@ -13828,7 +15089,7 @@ export function RunningTimer({
               type="color"
               value={vortexBackgroundColor}
               onChange={(event) => handleSettingsChange({ vortexBackgroundColor: event.target.value })}
-              aria-label="Vortex background color"
+              aria-label="Vortex field color"
             />
           </label>
 
@@ -13925,7 +15186,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "aceternity-wavy-background" && (
+      {option.id === "massage-lab-wavy-background" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
@@ -13933,7 +15194,7 @@ export function RunningTimer({
               type="color"
               value={wavyBackgroundFill}
               onChange={(event) => handleSettingsChange({ wavyBackgroundFill: event.target.value })}
-              aria-label="Wavy background fill color"
+              aria-label="Wave flow fill color"
             />
           </label>
 
@@ -14040,7 +15301,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "unlumen-aurora-bars" && (
+      {option.id === "massage-lab-aurora-bars" && (
         <>
           <label className={styles.colorRow}>
             <span>Background</span>
@@ -14210,7 +15471,7 @@ export function RunningTimer({
         </>
       )}
 
-      {option.id === "unlumen-pixel-liquid" && (
+      {option.id === "massage-lab-pixel-liquid" && (
         <>
           <label className={styles.colorRow}>
             <span>Background color</span>
@@ -14614,6 +15875,13 @@ export function RunningTimer({
   const containerStyle = {
     "--chimer-timer-color": resolvedTimerDisplayColor,
     "--chimer-clock-color": resolvedCurrentTimeDisplayColor,
+    "--chimer-display-font-family": getClockFontStack(clockFontFamily),
+    "--chimer-digit-stroke-width": clockStrokeEnabled ? `${clockStrokeWidth}px` : "0px",
+    "--chimer-digit-stroke-color": resolvedClockStrokeColor,
+    "--chimer-digit-glow": resolvedClockTextShadow,
+    "--brand-orange": getCssHsl(globalPalettePrimary, DEFAULT_CHIMER_GLOBAL_COLORS.primary),
+    "--brand-orange-soft": getCssHsl(globalPaletteSecondary, DEFAULT_CHIMER_GLOBAL_COLORS.secondary),
+    "--brand-orange-glow": getCssHsl(globalPaletteAccent, DEFAULT_CHIMER_GLOBAL_COLORS.accent),
   } as CSSProperties
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
@@ -14625,16 +15893,18 @@ export function RunningTimer({
   const currentTimeSwapClass = swapAnimationTarget
     ? swapAnimationTarget === "currentTime" ? styles.swapToPrimary : styles.swapToSecondary
     : ""
+  const accountColorDisabledHint = canUseCoreColorControls ? undefined : "Sign in to set clock and Lamp colors."
+  const customColorDisabledHint = canUseCustomColors ? undefined : "Subscribe to unlock advanced custom color controls."
   const premiumBackgroundClassName = [
     styles.runningBackground,
-    isFullscreen && backgroundId === "aceternity-lamp-effect" ? styles.runningLampFullscreenBackground : "",
+    isFullscreen && backgroundId === "massage-lab-lamp-effect" ? styles.runningLampFullscreenBackground : "",
   ].filter(Boolean).join(" ")
   const fullscreenLampBeamScale = Math.min(4.2, Math.max(2.75, 2.25 + fontSize * 0.03))
   const fullscreenLampGlowScale = Math.min(3.65, Math.max(2.35, 1.95 + fontSize * 0.026))
   const fullscreenLampLineWidth = Math.min(78, Math.max(62, 48 + fontSize * 0.42))
   const fullscreenLampGlowWidth = Math.min(68, Math.max(52, 42 + fontSize * 0.36))
   const fullscreenLampCoreGlowWidth = Math.min(42, Math.max(30, 24 + fontSize * 0.2))
-  const premiumBackgroundStyle = isFullscreen && backgroundId === "aceternity-lamp-effect"
+  const premiumBackgroundStyle = isFullscreen && backgroundId === "massage-lab-lamp-effect"
     ? {
       "--ml-lamp-beam-scale": fullscreenLampBeamScale,
       "--ml-lamp-glow-scale": fullscreenLampGlowScale,
@@ -14650,704 +15920,704 @@ export function RunningTimer({
       aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
       style={containerStyle}
     >
-      {movingBackgroundEnabled && useOriginalLampBackground && (
+      {shouldRenderLiveBackground && useOriginalLampBackground && (
         <MovingBackground
           className={styles.runningBackground}
-          mainColor={movingBackgroundMainColor}
-          orbColor={movingBackgroundOrbColor}
+          mainColor={resolvedMovingBackgroundMainColor}
+          orbColor={resolvedMovingBackgroundOrbColor}
           testId="chimer-premium-background"
         />
       )}
 
-      {movingBackgroundEnabled && !useOriginalLampBackground && (
+      {shouldRenderLiveBackground && !useOriginalLampBackground && (
         <BackgroundHost
           className={premiumBackgroundClassName}
           style={premiumBackgroundStyle}
           selectedId={backgroundId}
           featureKeys={featureKeys}
           category={backgroundCategory}
-          mainColor={movingBackgroundMainColor}
-          orbColor={movingBackgroundOrbColor}
+          mainColor={resolvedMovingBackgroundMainColor}
+          orbColor={resolvedMovingBackgroundOrbColor}
           sparkles={{
             maxSize: sparklesMaxSize,
             minSize: sparklesMinSize,
-            particleColor: sparklesParticleColor,
+            particleColor: resolvedSparklesParticleColor,
             particleDensity: sparklesParticleDensity,
             speed: sparklesSpeed,
           }}
           gradientAnimation={{
-            backgroundStartColor: gradientAnimationBackgroundStartColor,
-            backgroundEndColor: gradientAnimationBackgroundEndColor,
-            firstColor: gradientAnimationFirstColor,
-            secondColor: gradientAnimationSecondColor,
-            thirdColor: gradientAnimationThirdColor,
-            fourthColor: gradientAnimationFourthColor,
-            fifthColor: gradientAnimationFifthColor,
+            backgroundStartColor: resolvedGradientAnimationBackgroundStartColor,
+            backgroundEndColor: resolvedGradientAnimationBackgroundEndColor,
+            firstColor: resolvedGradientAnimationFirstColor,
+            secondColor: resolvedGradientAnimationSecondColor,
+            thirdColor: resolvedGradientAnimationThirdColor,
+            fourthColor: resolvedGradientAnimationFourthColor,
+            fifthColor: resolvedGradientAnimationFifthColor,
             speed: gradientAnimationSpeed,
             size: gradientAnimationSize,
           }}
-          animateUiGradient={{
-            primaryColor: animateUiGradientPrimaryColor,
-            harmony: animateUiGradientHarmony,
-            opacity: animateUiGradientOpacity,
+          massageLabGradient={{
+            primaryColor: resolvedMassageLabGradientPrimaryColor,
+            harmony: massageLabGradientHarmony,
+            opacity: massageLabGradientOpacity,
           }}
-          animateUiStars={{
-            starColor: animateUiStarsColor,
-            speed: animateUiStarsSpeed,
-            density: animateUiStarsDensity,
-            factor: animateUiStarsParallax,
+          massageLabStars={{
+            starColor: resolvedMassageLabStarsColor,
+            speed: massageLabStarsSpeed,
+            density: massageLabStarsDensity,
+            factor: massageLabStarsParallax,
           }}
-          animateUiHole={{
-            strokeColor: animateUiHoleStrokeColor,
-            particleColor: animateUiHoleParticleColor,
-            numberOfLines: animateUiHoleLineCount,
-            numberOfDiscs: animateUiHoleDiscCount,
+          massageLabHole={{
+            strokeColor: resolvedMassageLabHoleStrokeColor,
+            particleColor: resolvedMassageLabHoleParticleColor,
+            numberOfLines: massageLabHoleLineCount,
+            numberOfDiscs: massageLabHoleDiscCount,
           }}
-          chamaacLightSpeed={{
-            warpSpeed: chamaacLightSpeedWarpSpeed,
-            particleCount: chamaacLightSpeedParticleCount,
-            lightColor: chamaacLightSpeedLightColor,
-            intensity: chamaacLightSpeedIntensity,
-            radius: chamaacLightSpeedRadius,
-            cylinderLength: chamaacLightSpeedCylinderLength,
+          massageLabLightSpeed={{
+            warpSpeed: massageLabLightSpeedWarpSpeed,
+            particleCount: massageLabLightSpeedParticleCount,
+            lightColor: resolvedMassageLabLightSpeedLightColor,
+            intensity: massageLabLightSpeedIntensity,
+            radius: massageLabLightSpeedRadius,
+            cylinderLength: massageLabLightSpeedCylinderLength,
           }}
-          chamaacElectricMist={{
-            color: chamaacElectricMistColor,
-            speed: chamaacElectricMistSpeed,
-            detail: chamaacElectricMistDetail,
-            distortion: chamaacElectricMistDistortion,
-            brightness: chamaacElectricMistBrightness,
+          massageLabElectricMist={{
+            color: resolvedMassageLabElectricMistColor,
+            speed: massageLabElectricMistSpeed,
+            detail: massageLabElectricMistDetail,
+            distortion: massageLabElectricMistDistortion,
+            brightness: massageLabElectricMistBrightness,
           }}
-          chamaacAstralFlow={{
+          massageLabAstralFlow={{
             color1: astralFlowColors[0],
             color2: astralFlowColors[1],
             color3: astralFlowColors[2],
-            speed: chamaacAstralFlowSpeed,
-            flowMin: chamaacAstralFlowFlowMin,
-            flowMax: chamaacAstralFlowFlowMax,
+            speed: massageLabAstralFlowSpeed,
+            flowMin: massageLabAstralFlowFlowMin,
+            flowMax: massageLabAstralFlowFlowMax,
           }}
-          chamaacDeepSpaceNebula={{
+          massageLabDeepSpaceNebula={{
             color1: deepSpaceNebulaColors[0],
             color2: deepSpaceNebulaColors[1],
             color3: deepSpaceNebulaColors[2],
-            speed: chamaacDeepSpaceNebulaSpeed,
+            speed: massageLabDeepSpaceNebulaSpeed,
           }}
-          chamaacGridBloom={{
-            color: chamaacGridBloomColor,
-            speed: chamaacGridBloomSpeed,
-            gridScale: chamaacGridBloomGridScale,
-            rotationSpeed: chamaacGridBloomRotationSpeed,
-            fadeFalloff: chamaacGridBloomFadeFalloff,
-            distortionAmount: chamaacGridBloomDistortionAmount,
-            flowSpeedX: chamaacGridBloomFlowSpeedX,
-            flowSpeedY: chamaacGridBloomFlowSpeedY,
+          massageLabGridBloom={{
+            color: massageLabGridBloomColor,
+            speed: massageLabGridBloomSpeed,
+            gridScale: massageLabGridBloomGridScale,
+            rotationSpeed: massageLabGridBloomRotationSpeed,
+            fadeFalloff: massageLabGridBloomFadeFalloff,
+            distortionAmount: massageLabGridBloomDistortionAmount,
+            flowSpeedX: massageLabGridBloomFlowSpeedX,
+            flowSpeedY: massageLabGridBloomFlowSpeedY,
           }}
-          chamaacLiquidChrome={{
+          massageLabChromeFlow={{
             color: liquidChromeColors[0],
             color2: liquidChromeColors[1],
-            speed: chamaacLiquidChromeFlowSpeed,
-            timeScale: chamaacLiquidChromeTimeScale,
+            speed: massageLabChromeFlowFlowSpeed,
+            timeScale: massageLabChromeFlowTimeScale,
           }}
-          chamaacWaves={{
+          massageLabWaveCurrent={{
             backgroundColor: wavesColors[0],
             waveColor1: wavesColors[1],
             waveColor2: wavesColors[2],
             waveColor3: wavesColors[3],
-            waveSpeedX: chamaacWavesSpeedX,
-            waveSpeedY: chamaacWavesSpeedY,
-            waveAmpX: chamaacWavesAmplitude,
+            waveSpeedX: massageLabWaveCurrentSpeedX,
+            waveSpeedY: massageLabWaveCurrentSpeedY,
+            waveAmpX: massageLabWaveCurrentAmplitude,
           }}
-          reactBitsFerrofluid={{
+          massageLabFerrofluid={{
             colors: ferrofluidColors,
-            speed: reactBitsFerrofluidSpeed,
-            scale: reactBitsFerrofluidScale,
-            turbulence: reactBitsFerrofluidTurbulence,
-            fluidity: reactBitsFerrofluidFluidity,
-            rimWidth: reactBitsFerrofluidRimWidth,
-            sharpness: reactBitsFerrofluidSharpness,
-            shimmer: reactBitsFerrofluidShimmer,
-            glow: reactBitsFerrofluidGlow,
-            flowDirection: reactBitsFerrofluidFlowDirection,
-            opacity: reactBitsFerrofluidOpacity,
+            speed: massageLabFerrofluidSpeed,
+            scale: massageLabFerrofluidScale,
+            turbulence: massageLabFerrofluidTurbulence,
+            fluidity: massageLabFerrofluidFluidity,
+            rimWidth: massageLabFerrofluidRimWidth,
+            sharpness: massageLabFerrofluidSharpness,
+            shimmer: massageLabFerrofluidShimmer,
+            glow: massageLabFerrofluidGlow,
+            flowDirection: massageLabFerrofluidFlowDirection,
+            opacity: massageLabFerrofluidOpacity,
           }}
-          reactBitsLightfall={{
+          massageLabLightfall={{
             colors: lightfallColors,
-            backgroundColor: reactBitsLightfallBackgroundColor,
-            speed: reactBitsLightfallSpeed,
-            streakCount: reactBitsLightfallStreakCount,
-            streakWidth: reactBitsLightfallStreakWidth,
-            streakLength: reactBitsLightfallStreakLength,
-            glow: reactBitsLightfallGlow,
-            density: reactBitsLightfallDensity,
-            twinkle: reactBitsLightfallTwinkle,
-            zoom: reactBitsLightfallZoom,
-            backgroundGlow: reactBitsLightfallBackgroundGlow,
-            opacity: reactBitsLightfallOpacity,
-            mouseInteraction: reactBitsLightfallCursorEnabled,
-            mouseStrength: reactBitsLightfallCursorStrength,
-            mouseRadius: reactBitsLightfallCursorRadius,
-            mouseDampening: reactBitsLightfallCursorDampening,
+            backgroundColor: massageLabLightfallBackgroundColor,
+            speed: massageLabLightfallSpeed,
+            streakCount: massageLabLightfallStreakCount,
+            streakWidth: massageLabLightfallStreakWidth,
+            streakLength: massageLabLightfallStreakLength,
+            glow: massageLabLightfallGlow,
+            density: massageLabLightfallDensity,
+            twinkle: massageLabLightfallTwinkle,
+            zoom: massageLabLightfallZoom,
+            backgroundGlow: massageLabLightfallBackgroundGlow,
+            opacity: massageLabLightfallOpacity,
+            mouseInteraction: massageLabLightfallCursorEnabled,
+            mouseStrength: massageLabLightfallCursorStrength,
+            mouseRadius: massageLabLightfallCursorRadius,
+            mouseDampening: massageLabLightfallCursorDampening,
           }}
-          reactBitsLiquidEther={{
+          massageLabLiquidEther={{
             colors: liquidEtherColors,
-            mouseInteraction: reactBitsLiquidEtherCursorEnabled,
-            mouseForce: reactBitsLiquidEtherMouseForce,
-            cursorSize: reactBitsLiquidEtherCursorSize,
-            isViscous: reactBitsLiquidEtherIsViscous,
-            viscous: reactBitsLiquidEtherViscous,
-            iterationsViscous: reactBitsLiquidEtherIterationsViscous,
-            iterationsPoisson: reactBitsLiquidEtherIterationsPoisson,
-            dt: reactBitsLiquidEtherDt,
-            bfecc: reactBitsLiquidEtherBfecc,
-            resolution: reactBitsLiquidEtherResolution,
-            isBounce: reactBitsLiquidEtherIsBounce,
-            autoDemo: reactBitsLiquidEtherAutoDemo,
-            autoSpeed: reactBitsLiquidEtherAutoSpeed,
-            autoIntensity: reactBitsLiquidEtherAutoIntensity,
-            autoResumeDelay: reactBitsLiquidEtherAutoResumeDelay,
-            autoRampDuration: reactBitsLiquidEtherAutoRampDuration,
-            opacity: reactBitsLiquidEtherOpacity,
+            mouseInteraction: massageLabLiquidEtherCursorEnabled,
+            mouseForce: massageLabLiquidEtherMouseForce,
+            cursorSize: massageLabLiquidEtherCursorSize,
+            isViscous: massageLabLiquidEtherIsViscous,
+            viscous: massageLabLiquidEtherViscous,
+            iterationsViscous: massageLabLiquidEtherIterationsViscous,
+            iterationsPoisson: massageLabLiquidEtherIterationsPoisson,
+            dt: massageLabLiquidEtherDt,
+            bfecc: massageLabLiquidEtherBfecc,
+            resolution: massageLabLiquidEtherResolution,
+            isBounce: massageLabLiquidEtherIsBounce,
+            autoDemo: massageLabLiquidEtherAutoDemo,
+            autoSpeed: massageLabLiquidEtherAutoSpeed,
+            autoIntensity: massageLabLiquidEtherAutoIntensity,
+            autoResumeDelay: massageLabLiquidEtherAutoResumeDelay,
+            autoRampDuration: massageLabLiquidEtherAutoRampDuration,
+            opacity: massageLabLiquidEtherOpacity,
           }}
-          reactBitsPrism={{
-            height: reactBitsPrismHeight,
-            baseWidth: reactBitsPrismBaseWidth,
-            animationType: reactBitsPrismAnimationType,
-            glow: reactBitsPrismGlow,
-            offsetX: reactBitsPrismOffsetX,
-            offsetY: reactBitsPrismOffsetY,
-            noise: reactBitsPrismNoise,
-            transparent: reactBitsPrismTransparent,
-            scale: reactBitsPrismScale,
-            hueShift: reactBitsPrismHueShift,
-            colorFrequency: reactBitsPrismColorFrequency,
-            hoverStrength: reactBitsPrismHoverStrength,
-            inertia: reactBitsPrismInertia,
-            bloom: reactBitsPrismBloom,
-            timeScale: reactBitsPrismTimeScale,
+          massageLabPrism={{
+            height: massageLabPrismHeight,
+            baseWidth: massageLabPrismBaseWidth,
+            animationType: massageLabPrismAnimationType,
+            glow: massageLabPrismGlow,
+            offsetX: massageLabPrismOffsetX,
+            offsetY: massageLabPrismOffsetY,
+            noise: massageLabPrismNoise,
+            transparent: massageLabPrismTransparent,
+            scale: massageLabPrismScale,
+            hueShift: massageLabPrismHueShift,
+            colorFrequency: massageLabPrismColorFrequency,
+            hoverStrength: massageLabPrismHoverStrength,
+            inertia: massageLabPrismInertia,
+            bloom: massageLabPrismBloom,
+            timeScale: massageLabPrismTimeScale,
           }}
-          reactBitsDarkVeil={{
-            hueShift: reactBitsDarkVeilHueShift,
-            noiseIntensity: reactBitsDarkVeilNoiseIntensity,
-            scanlineIntensity: reactBitsDarkVeilScanlineIntensity,
-            speed: reactBitsDarkVeilSpeed,
-            scanlineFrequency: reactBitsDarkVeilScanlineFrequency,
-            warpAmount: reactBitsDarkVeilWarpAmount,
-            resolutionScale: reactBitsDarkVeilResolutionScale,
+          massageLabDarkVeil={{
+            hueShift: massageLabDarkVeilHueShift,
+            noiseIntensity: massageLabDarkVeilNoiseIntensity,
+            scanlineIntensity: massageLabDarkVeilScanlineIntensity,
+            speed: massageLabDarkVeilSpeed,
+            scanlineFrequency: massageLabDarkVeilScanlineFrequency,
+            warpAmount: massageLabDarkVeilWarpAmount,
+            resolutionScale: massageLabDarkVeilResolutionScale,
           }}
-          reactBitsLightPillar={{
+          massageLabLightPillar={{
             topColor: lightPillarColors[0],
             bottomColor: lightPillarColors[1],
-            intensity: reactBitsLightPillarIntensity,
-            rotationSpeed: reactBitsLightPillarRotationSpeed,
-            interactive: reactBitsLightPillarInteractive,
-            glowAmount: reactBitsLightPillarGlowAmount,
-            pillarWidth: reactBitsLightPillarWidth,
-            pillarHeight: reactBitsLightPillarHeight,
-            noiseIntensity: reactBitsLightPillarNoiseIntensity,
-            mixBlendMode: reactBitsLightPillarBlendMode,
-            pillarRotation: reactBitsLightPillarRotation,
-            quality: reactBitsLightPillarQuality,
+            intensity: massageLabLightPillarIntensity,
+            rotationSpeed: massageLabLightPillarRotationSpeed,
+            interactive: massageLabLightPillarInteractive,
+            glowAmount: massageLabLightPillarGlowAmount,
+            pillarWidth: massageLabLightPillarWidth,
+            pillarHeight: massageLabLightPillarHeight,
+            noiseIntensity: massageLabLightPillarNoiseIntensity,
+            mixBlendMode: massageLabLightPillarBlendMode,
+            pillarRotation: massageLabLightPillarRotation,
+            quality: massageLabLightPillarQuality,
           }}
-          reactBitsSilk={{
+          massageLabSilk={{
             color: silkColor,
-            speed: reactBitsSilkSpeed,
-            scale: reactBitsSilkScale,
-            noiseIntensity: reactBitsSilkNoiseIntensity,
-            rotation: reactBitsSilkRotation,
+            speed: massageLabSilkSpeed,
+            scale: massageLabSilkScale,
+            noiseIntensity: massageLabSilkNoiseIntensity,
+            rotation: massageLabSilkRotation,
           }}
-          reactBitsFloatingLines={{
+          massageLabFloatingLines={{
             linesGradient: floatingLinesGradient,
-            enableTop: reactBitsFloatingLinesEnableTop,
-            enableMiddle: reactBitsFloatingLinesEnableMiddle,
-            enableBottom: reactBitsFloatingLinesEnableBottom,
-            topLineCount: reactBitsFloatingLinesTopLineCount,
-            middleLineCount: reactBitsFloatingLinesMiddleLineCount,
-            bottomLineCount: reactBitsFloatingLinesBottomLineCount,
-            topLineDistance: reactBitsFloatingLinesTopLineDistance,
-            middleLineDistance: reactBitsFloatingLinesMiddleLineDistance,
-            bottomLineDistance: reactBitsFloatingLinesBottomLineDistance,
-            topWaveX: reactBitsFloatingLinesTopWaveX,
-            topWaveY: reactBitsFloatingLinesTopWaveY,
-            topWaveRotate: reactBitsFloatingLinesTopWaveRotate,
-            middleWaveX: reactBitsFloatingLinesMiddleWaveX,
-            middleWaveY: reactBitsFloatingLinesMiddleWaveY,
-            middleWaveRotate: reactBitsFloatingLinesMiddleWaveRotate,
-            bottomWaveX: reactBitsFloatingLinesBottomWaveX,
-            bottomWaveY: reactBitsFloatingLinesBottomWaveY,
-            bottomWaveRotate: reactBitsFloatingLinesBottomWaveRotate,
-            animationSpeed: reactBitsFloatingLinesAnimationSpeed,
-            interactive: reactBitsFloatingLinesInteractive,
-            bendRadius: reactBitsFloatingLinesBendRadius,
-            bendStrength: reactBitsFloatingLinesBendStrength,
-            mouseDamping: reactBitsFloatingLinesMouseDamping,
-            parallax: reactBitsFloatingLinesParallax,
-            parallaxStrength: reactBitsFloatingLinesParallaxStrength,
-            mixBlendMode: reactBitsFloatingLinesBlendMode,
+            enableTop: massageLabFloatingLinesEnableTop,
+            enableMiddle: massageLabFloatingLinesEnableMiddle,
+            enableBottom: massageLabFloatingLinesEnableBottom,
+            topLineCount: massageLabFloatingLinesTopLineCount,
+            middleLineCount: massageLabFloatingLinesMiddleLineCount,
+            bottomLineCount: massageLabFloatingLinesBottomLineCount,
+            topLineDistance: massageLabFloatingLinesTopLineDistance,
+            middleLineDistance: massageLabFloatingLinesMiddleLineDistance,
+            bottomLineDistance: massageLabFloatingLinesBottomLineDistance,
+            topWaveX: massageLabFloatingLinesTopWaveX,
+            topWaveY: massageLabFloatingLinesTopWaveY,
+            topWaveRotate: massageLabFloatingLinesTopWaveRotate,
+            middleWaveX: massageLabFloatingLinesMiddleWaveX,
+            middleWaveY: massageLabFloatingLinesMiddleWaveY,
+            middleWaveRotate: massageLabFloatingLinesMiddleWaveRotate,
+            bottomWaveX: massageLabFloatingLinesBottomWaveX,
+            bottomWaveY: massageLabFloatingLinesBottomWaveY,
+            bottomWaveRotate: massageLabFloatingLinesBottomWaveRotate,
+            animationSpeed: massageLabFloatingLinesAnimationSpeed,
+            interactive: massageLabFloatingLinesInteractive,
+            bendRadius: massageLabFloatingLinesBendRadius,
+            bendStrength: massageLabFloatingLinesBendStrength,
+            mouseDamping: massageLabFloatingLinesMouseDamping,
+            parallax: massageLabFloatingLinesParallax,
+            parallaxStrength: massageLabFloatingLinesParallaxStrength,
+            mixBlendMode: massageLabFloatingLinesBlendMode,
           }}
-          reactBitsSideRays={{
+          massageLabSideRays={{
             rayColor1: sideRaysColors[0],
             rayColor2: sideRaysColors[1],
-            speed: reactBitsSideRaysSpeed,
-            intensity: reactBitsSideRaysIntensity,
-            spread: reactBitsSideRaysSpread,
-            origin: reactBitsSideRaysOrigin,
-            tilt: reactBitsSideRaysTilt,
-            saturation: reactBitsSideRaysSaturation,
-            blend: reactBitsSideRaysBlend,
-            falloff: reactBitsSideRaysFalloff,
-            opacity: reactBitsSideRaysOpacity,
+            speed: massageLabSideRaysSpeed,
+            intensity: massageLabSideRaysIntensity,
+            spread: massageLabSideRaysSpread,
+            origin: massageLabSideRaysOrigin,
+            tilt: massageLabSideRaysTilt,
+            saturation: massageLabSideRaysSaturation,
+            blend: massageLabSideRaysBlend,
+            falloff: massageLabSideRaysFalloff,
+            opacity: massageLabSideRaysOpacity,
           }}
-          reactBitsLightRays={{
-            raysOrigin: reactBitsLightRaysOrigin,
+          massageLabLightRays={{
+            raysOrigin: massageLabLightRaysOrigin,
             raysColor: lightRaysColor,
-            raysSpeed: reactBitsLightRaysSpeed,
-            lightSpread: reactBitsLightRaysSpread,
-            rayLength: reactBitsLightRaysLength,
-            pulsating: reactBitsLightRaysPulsating,
-            fadeDistance: reactBitsLightRaysFadeDistance,
-            saturation: reactBitsLightRaysSaturation,
-            followMouse: reactBitsLightRaysFollowMouse,
-            mouseInfluence: reactBitsLightRaysMouseInfluence,
-            noiseAmount: reactBitsLightRaysNoiseAmount,
-            distortion: reactBitsLightRaysDistortion,
+            raysSpeed: massageLabLightRaysSpeed,
+            lightSpread: massageLabLightRaysSpread,
+            rayLength: massageLabLightRaysLength,
+            pulsating: massageLabLightRaysPulsating,
+            fadeDistance: massageLabLightRaysFadeDistance,
+            saturation: massageLabLightRaysSaturation,
+            followMouse: massageLabLightRaysFollowMouse,
+            mouseInfluence: massageLabLightRaysMouseInfluence,
+            noiseAmount: massageLabLightRaysNoiseAmount,
+            distortion: massageLabLightRaysDistortion,
           }}
-          reactBitsPixelBlast={{
-            variant: reactBitsPixelBlastVariant,
-            pixelSize: reactBitsPixelBlastPixelSize,
+          massageLabPixelBlast={{
+            variant: massageLabPixelBlastVariant,
+            pixelSize: massageLabPixelBlastPixelSize,
             color: pixelBlastColor,
-            antialias: reactBitsPixelBlastAntialias,
-            patternScale: reactBitsPixelBlastPatternScale,
-            patternDensity: reactBitsPixelBlastPatternDensity,
-            liquid: reactBitsPixelBlastLiquid,
-            liquidStrength: reactBitsPixelBlastLiquidStrength,
-            liquidRadius: reactBitsPixelBlastLiquidRadius,
-            pixelSizeJitter: reactBitsPixelBlastPixelSizeJitter,
-            enableRipples: reactBitsPixelBlastEnableRipples,
-            rippleIntensityScale: reactBitsPixelBlastRippleIntensityScale,
-            rippleThickness: reactBitsPixelBlastRippleThickness,
-            rippleSpeed: reactBitsPixelBlastRippleSpeed,
-            liquidWobbleSpeed: reactBitsPixelBlastLiquidWobbleSpeed,
-            autoPauseOffscreen: reactBitsPixelBlastAutoPauseOffscreen,
-            speed: reactBitsPixelBlastSpeed,
-            transparent: reactBitsPixelBlastTransparent,
-            edgeFade: reactBitsPixelBlastEdgeFade,
-            noiseAmount: reactBitsPixelBlastNoiseAmount,
+            antialias: massageLabPixelBlastAntialias,
+            patternScale: massageLabPixelBlastPatternScale,
+            patternDensity: massageLabPixelBlastPatternDensity,
+            liquid: massageLabPixelBlastLiquid,
+            liquidStrength: massageLabPixelBlastLiquidStrength,
+            liquidRadius: massageLabPixelBlastLiquidRadius,
+            pixelSizeJitter: massageLabPixelBlastPixelSizeJitter,
+            enableRipples: massageLabPixelBlastEnableRipples,
+            rippleIntensityScale: massageLabPixelBlastRippleIntensityScale,
+            rippleThickness: massageLabPixelBlastRippleThickness,
+            rippleSpeed: massageLabPixelBlastRippleSpeed,
+            liquidWobbleSpeed: massageLabPixelBlastLiquidWobbleSpeed,
+            autoPauseOffscreen: massageLabPixelBlastAutoPauseOffscreen,
+            speed: massageLabPixelBlastSpeed,
+            transparent: massageLabPixelBlastTransparent,
+            edgeFade: massageLabPixelBlastEdgeFade,
+            noiseAmount: massageLabPixelBlastNoiseAmount,
           }}
-          reactBitsColorBends={{
-            rotation: reactBitsColorBendsRotation,
-            speed: reactBitsColorBendsSpeed,
+          massageLabColorBends={{
+            rotation: massageLabColorBendsRotation,
+            speed: massageLabColorBendsSpeed,
             colors: colorBendsColors,
-            transparent: reactBitsColorBendsTransparent,
-            autoRotate: reactBitsColorBendsAutoRotate,
-            scale: reactBitsColorBendsScale,
-            frequency: reactBitsColorBendsFrequency,
-            warpStrength: reactBitsColorBendsWarpStrength,
-            interactive: reactBitsColorBendsInteractive,
-            mouseInfluence: reactBitsColorBendsMouseInfluence,
-            parallax: reactBitsColorBendsParallax,
-            noise: reactBitsColorBendsNoise,
-            iterations: reactBitsColorBendsIterations,
-            intensity: reactBitsColorBendsIntensity,
-            bandWidth: reactBitsColorBendsBandWidth,
+            transparent: massageLabColorBendsTransparent,
+            autoRotate: massageLabColorBendsAutoRotate,
+            scale: massageLabColorBendsScale,
+            frequency: massageLabColorBendsFrequency,
+            warpStrength: massageLabColorBendsWarpStrength,
+            interactive: massageLabColorBendsInteractive,
+            mouseInfluence: massageLabColorBendsMouseInfluence,
+            parallax: massageLabColorBendsParallax,
+            noise: massageLabColorBendsNoise,
+            iterations: massageLabColorBendsIterations,
+            intensity: massageLabColorBendsIntensity,
+            bandWidth: massageLabColorBendsBandWidth,
           }}
-          reactBitsEvilEye={{
+          massageLabEvilEye={{
             eyeColor: evilEyeColor,
-            intensity: reactBitsEvilEyeIntensity,
-            pupilSize: reactBitsEvilEyePupilSize,
-            irisWidth: reactBitsEvilEyeIrisWidth,
-            glowIntensity: reactBitsEvilEyeGlowIntensity,
-            scale: reactBitsEvilEyeScale,
-            noiseScale: reactBitsEvilEyeNoiseScale,
-            pupilFollow: reactBitsEvilEyePupilFollow,
-            flameSpeed: reactBitsEvilEyeFlameSpeed,
-            backgroundColor: reactBitsEvilEyeBackgroundColor,
-            interactive: reactBitsEvilEyeInteractive,
+            intensity: massageLabEvilEyeIntensity,
+            pupilSize: massageLabEvilEyePupilSize,
+            irisWidth: massageLabEvilEyeIrisWidth,
+            glowIntensity: massageLabEvilEyeGlowIntensity,
+            scale: massageLabEvilEyeScale,
+            noiseScale: massageLabEvilEyeNoiseScale,
+            pupilFollow: massageLabEvilEyePupilFollow,
+            flameSpeed: massageLabEvilEyeFlameSpeed,
+            backgroundColor: massageLabEvilEyeBackgroundColor,
+            interactive: massageLabEvilEyeInteractive,
           }}
-          reactBitsLineWaves={{
+          massageLabLineWaves={{
             color1: lineWavesColors[0],
             color2: lineWavesColors[1],
             color3: lineWavesColors[2],
-            speed: reactBitsLineWavesSpeed,
-            innerLineCount: reactBitsLineWavesInnerLineCount,
-            outerLineCount: reactBitsLineWavesOuterLineCount,
-            warpIntensity: reactBitsLineWavesWarpIntensity,
-            rotation: reactBitsLineWavesRotation,
-            edgeFadeWidth: reactBitsLineWavesEdgeFadeWidth,
-            colorCycleSpeed: reactBitsLineWavesColorCycleSpeed,
-            brightness: reactBitsLineWavesBrightness,
-            enableMouseInteraction: reactBitsLineWavesEnableMouseInteraction,
-            mouseInfluence: reactBitsLineWavesMouseInfluence,
+            speed: massageLabLineWavesSpeed,
+            innerLineCount: massageLabLineWavesInnerLineCount,
+            outerLineCount: massageLabLineWavesOuterLineCount,
+            warpIntensity: massageLabLineWavesWarpIntensity,
+            rotation: massageLabLineWavesRotation,
+            edgeFadeWidth: massageLabLineWavesEdgeFadeWidth,
+            colorCycleSpeed: massageLabLineWavesColorCycleSpeed,
+            brightness: massageLabLineWavesBrightness,
+            enableMouseInteraction: massageLabLineWavesEnableMouseInteraction,
+            mouseInfluence: massageLabLineWavesMouseInfluence,
           }}
-          reactBitsRadar={{
+          massageLabRadar={{
             color: radarColor,
-            backgroundColor: reactBitsRadarBackgroundColor,
-            speed: reactBitsRadarSpeed,
-            scale: reactBitsRadarScale,
-            ringCount: reactBitsRadarRingCount,
-            spokeCount: reactBitsRadarSpokeCount,
-            ringThickness: reactBitsRadarRingThickness,
-            spokeThickness: reactBitsRadarSpokeThickness,
-            sweepSpeed: reactBitsRadarSweepSpeed,
-            sweepWidth: reactBitsRadarSweepWidth,
-            sweepLobes: reactBitsRadarSweepLobes,
-            falloff: reactBitsRadarFalloff,
-            brightness: reactBitsRadarBrightness,
-            enableMouseInteraction: reactBitsRadarEnableMouseInteraction,
-            mouseInfluence: reactBitsRadarMouseInfluence,
+            backgroundColor: massageLabRadarBackgroundColor,
+            speed: massageLabRadarSpeed,
+            scale: massageLabRadarScale,
+            ringCount: massageLabRadarRingCount,
+            spokeCount: massageLabRadarSpokeCount,
+            ringThickness: massageLabRadarRingThickness,
+            spokeThickness: massageLabRadarSpokeThickness,
+            sweepSpeed: massageLabRadarSweepSpeed,
+            sweepWidth: massageLabRadarSweepWidth,
+            sweepLobes: massageLabRadarSweepLobes,
+            falloff: massageLabRadarFalloff,
+            brightness: massageLabRadarBrightness,
+            enableMouseInteraction: massageLabRadarEnableMouseInteraction,
+            mouseInfluence: massageLabRadarMouseInfluence,
           }}
-          reactBitsSoftAurora={{
+          massageLabSoftAurora={{
             color1: softAuroraColors[0],
             color2: softAuroraColors[1],
-            speed: reactBitsSoftAuroraSpeed,
-            scale: reactBitsSoftAuroraScale,
-            brightness: reactBitsSoftAuroraBrightness,
-            noiseFrequency: reactBitsSoftAuroraNoiseFrequency,
-            noiseAmplitude: reactBitsSoftAuroraNoiseAmplitude,
-            bandHeight: reactBitsSoftAuroraBandHeight,
-            bandSpread: reactBitsSoftAuroraBandSpread,
-            octaveDecay: reactBitsSoftAuroraOctaveDecay,
-            layerOffset: reactBitsSoftAuroraLayerOffset,
-            colorSpeed: reactBitsSoftAuroraColorSpeed,
-            enableMouseInteraction: reactBitsSoftAuroraEnableMouseInteraction,
-            mouseInfluence: reactBitsSoftAuroraMouseInfluence,
+            speed: massageLabSoftAuroraSpeed,
+            scale: massageLabSoftAuroraScale,
+            brightness: massageLabSoftAuroraBrightness,
+            noiseFrequency: massageLabSoftAuroraNoiseFrequency,
+            noiseAmplitude: massageLabSoftAuroraNoiseAmplitude,
+            bandHeight: massageLabSoftAuroraBandHeight,
+            bandSpread: massageLabSoftAuroraBandSpread,
+            octaveDecay: massageLabSoftAuroraOctaveDecay,
+            layerOffset: massageLabSoftAuroraLayerOffset,
+            colorSpeed: massageLabSoftAuroraColorSpeed,
+            enableMouseInteraction: massageLabSoftAuroraEnableMouseInteraction,
+            mouseInfluence: massageLabSoftAuroraMouseInfluence,
           }}
-          reactBitsPlasma={{
+          massageLabPlasma={{
             color: plasmaColor,
-            speed: reactBitsPlasmaSpeed,
-            direction: reactBitsPlasmaDirection,
-            scale: reactBitsPlasmaScale,
-            opacity: reactBitsPlasmaOpacity,
-            mouseInteractive: reactBitsPlasmaMouseInteractive,
+            speed: massageLabPlasmaSpeed,
+            direction: massageLabPlasmaDirection,
+            scale: massageLabPlasmaScale,
+            opacity: massageLabPlasmaOpacity,
+            mouseInteractive: massageLabPlasmaMouseInteractive,
           }}
-          reactBitsPlasmaWave={{
+          massageLabPlasmaWave={{
             colors: plasmaWaveColors,
-            xOffset: reactBitsPlasmaWaveXOffset,
-            yOffset: reactBitsPlasmaWaveYOffset,
-            rotationDeg: reactBitsPlasmaWaveRotationDeg,
-            focalLength: reactBitsPlasmaWaveFocalLength,
-            speed1: reactBitsPlasmaWaveSpeedOne,
-            speed2: reactBitsPlasmaWaveSpeedTwo,
-            dir2: reactBitsPlasmaWaveDirectionTwo,
-            bend1: reactBitsPlasmaWaveBendOne,
-            bend2: reactBitsPlasmaWaveBendTwo,
+            xOffset: massageLabPlasmaWaveXOffset,
+            yOffset: massageLabPlasmaWaveYOffset,
+            rotationDeg: massageLabPlasmaWaveRotationDeg,
+            focalLength: massageLabPlasmaWaveFocalLength,
+            speed1: massageLabPlasmaWaveSpeedOne,
+            speed2: massageLabPlasmaWaveSpeedTwo,
+            dir2: massageLabPlasmaWaveDirectionTwo,
+            bend1: massageLabPlasmaWaveBendOne,
+            bend2: massageLabPlasmaWaveBendTwo,
           }}
-          reactBitsParticles={{
+          massageLabParticles={{
             colors: particlesColors,
-            particleCount: reactBitsParticlesCount,
-            particleSpread: reactBitsParticlesSpread,
-            speed: reactBitsParticlesSpeed,
-            moveParticlesOnHover: reactBitsParticlesMoveOnHover,
-            particleHoverFactor: reactBitsParticlesHoverFactor,
-            alphaParticles: reactBitsParticlesAlpha,
-            particleBaseSize: reactBitsParticlesBaseSize,
-            sizeRandomness: reactBitsParticlesSizeRandomness,
-            cameraDistance: reactBitsParticlesCameraDistance,
-            disableRotation: reactBitsParticlesDisableRotation,
-            pixelRatio: reactBitsParticlesPixelRatio,
+            particleCount: massageLabParticlesCount,
+            particleSpread: massageLabParticlesSpread,
+            speed: massageLabParticlesSpeed,
+            moveParticlesOnHover: massageLabParticlesMoveOnHover,
+            particleHoverFactor: massageLabParticlesHoverFactor,
+            alphaParticles: massageLabParticlesAlpha,
+            particleBaseSize: massageLabParticlesBaseSize,
+            sizeRandomness: massageLabParticlesSizeRandomness,
+            cameraDistance: massageLabParticlesCameraDistance,
+            disableRotation: massageLabParticlesDisableRotation,
+            pixelRatio: massageLabParticlesPixelRatio,
           }}
-          reactBitsGradientBlinds={{
-            dpr: reactBitsGradientBlindsDpr,
+          massageLabGradientBlinds={{
+            dpr: massageLabGradientBlindsDpr,
             gradientColors: gradientBlindsColors,
-            angle: reactBitsGradientBlindsAngle,
-            noise: reactBitsGradientBlindsNoise,
-            blindCount: reactBitsGradientBlindsBlindCount,
-            blindMinWidth: reactBitsGradientBlindsBlindMinWidth,
-            mouseDampening: reactBitsGradientBlindsMouseDampening,
-            mirrorGradient: reactBitsGradientBlindsMirror,
-            spotlightRadius: reactBitsGradientBlindsSpotlightRadius,
-            spotlightSoftness: reactBitsGradientBlindsSpotlightSoftness,
-            spotlightOpacity: reactBitsGradientBlindsSpotlightOpacity,
-            distortAmount: reactBitsGradientBlindsDistort,
-            shineDirection: reactBitsGradientBlindsShineDirection,
-            mixBlendMode: reactBitsGradientBlindsBlendMode,
-            enableMouseInteraction: reactBitsGradientBlindsEnableMouseInteraction,
+            angle: massageLabGradientBlindsAngle,
+            noise: massageLabGradientBlindsNoise,
+            blindCount: massageLabGradientBlindsBlindCount,
+            blindMinWidth: massageLabGradientBlindsBlindMinWidth,
+            mouseDampening: massageLabGradientBlindsMouseDampening,
+            mirrorGradient: massageLabGradientBlindsMirror,
+            spotlightRadius: massageLabGradientBlindsSpotlightRadius,
+            spotlightSoftness: massageLabGradientBlindsSpotlightSoftness,
+            spotlightOpacity: massageLabGradientBlindsSpotlightOpacity,
+            distortAmount: massageLabGradientBlindsDistort,
+            shineDirection: massageLabGradientBlindsShineDirection,
+            mixBlendMode: massageLabGradientBlindsBlendMode,
+            enableMouseInteraction: massageLabGradientBlindsEnableMouseInteraction,
           }}
-          reactBitsGrainient={{
+          massageLabGrainient={{
             color1: grainientColors[0],
             color2: grainientColors[1],
             color3: grainientColors[2],
-            timeSpeed: reactBitsGrainientTimeSpeed,
-            colorBalance: reactBitsGrainientColorBalance,
-            warpStrength: reactBitsGrainientWarpStrength,
-            warpFrequency: reactBitsGrainientWarpFrequency,
-            warpSpeed: reactBitsGrainientWarpSpeed,
-            warpAmplitude: reactBitsGrainientWarpAmplitude,
-            blendAngle: reactBitsGrainientBlendAngle,
-            blendSoftness: reactBitsGrainientBlendSoftness,
-            rotationAmount: reactBitsGrainientRotationAmount,
-            noiseScale: reactBitsGrainientNoiseScale,
-            grainAmount: reactBitsGrainientGrainAmount,
-            grainScale: reactBitsGrainientGrainScale,
-            grainAnimated: reactBitsGrainientGrainAnimated,
-            contrast: reactBitsGrainientContrast,
-            gamma: reactBitsGrainientGamma,
-            saturation: reactBitsGrainientSaturation,
-            centerX: reactBitsGrainientCenterX,
-            centerY: reactBitsGrainientCenterY,
-            zoom: reactBitsGrainientZoom,
+            timeSpeed: massageLabGrainientTimeSpeed,
+            colorBalance: massageLabGrainientColorBalance,
+            warpStrength: massageLabGrainientWarpStrength,
+            warpFrequency: massageLabGrainientWarpFrequency,
+            warpSpeed: massageLabGrainientWarpSpeed,
+            warpAmplitude: massageLabGrainientWarpAmplitude,
+            blendAngle: massageLabGrainientBlendAngle,
+            blendSoftness: massageLabGrainientBlendSoftness,
+            rotationAmount: massageLabGrainientRotationAmount,
+            noiseScale: massageLabGrainientNoiseScale,
+            grainAmount: massageLabGrainientGrainAmount,
+            grainScale: massageLabGrainientGrainScale,
+            grainAnimated: massageLabGrainientGrainAnimated,
+            contrast: massageLabGrainientContrast,
+            gamma: massageLabGrainientGamma,
+            saturation: massageLabGrainientSaturation,
+            centerX: massageLabGrainientCenterX,
+            centerY: massageLabGrainientCenterY,
+            zoom: massageLabGrainientZoom,
           }}
-          reactBitsGridScan={{
+          massageLabGridScan={{
             linesColor: gridScanColors[0],
             scanColor: gridScanColors[1],
-            sensitivity: reactBitsGridScanSensitivity,
-            lineThickness: reactBitsGridScanLineThickness,
-            scanOpacity: reactBitsGridScanScanOpacity,
-            gridScale: reactBitsGridScanGridScale,
-            lineStyle: reactBitsGridScanLineStyle,
-            lineJitter: reactBitsGridScanLineJitter,
-            scanDirection: reactBitsGridScanDirection,
-            noiseIntensity: reactBitsGridScanNoiseIntensity,
-            bloomOpacity: reactBitsGridScanBloomOpacity,
-            scanGlow: reactBitsGridScanScanGlow,
-            scanSoftness: reactBitsGridScanScanSoftness,
-            scanPhaseTaper: reactBitsGridScanPhaseTaper,
-            scanDuration: reactBitsGridScanScanDuration,
-            scanDelay: reactBitsGridScanScanDelay,
-            enablePointerInteraction: reactBitsGridScanEnablePointerInteraction,
-            scanOnClick: reactBitsGridScanScanOnClick,
+            sensitivity: massageLabGridScanSensitivity,
+            lineThickness: massageLabGridScanLineThickness,
+            scanOpacity: massageLabGridScanScanOpacity,
+            gridScale: massageLabGridScanGridScale,
+            lineStyle: massageLabGridScanLineStyle,
+            lineJitter: massageLabGridScanLineJitter,
+            scanDirection: massageLabGridScanDirection,
+            noiseIntensity: massageLabGridScanNoiseIntensity,
+            bloomOpacity: massageLabGridScanBloomOpacity,
+            scanGlow: massageLabGridScanScanGlow,
+            scanSoftness: massageLabGridScanScanSoftness,
+            scanPhaseTaper: massageLabGridScanPhaseTaper,
+            scanDuration: massageLabGridScanScanDuration,
+            scanDelay: massageLabGridScanScanDelay,
+            enablePointerInteraction: massageLabGridScanEnablePointerInteraction,
+            scanOnClick: massageLabGridScanScanOnClick,
           }}
-          reactBitsBeams={{
+          massageLabBeams={{
             lightColor: beamsColor,
-            beamWidth: reactBitsBeamsBeamWidth,
-            beamHeight: reactBitsBeamsBeamHeight,
-            beamNumber: reactBitsBeamsBeamNumber,
-            speed: reactBitsBeamsSpeed,
-            noiseIntensity: reactBitsBeamsNoiseIntensity,
-            scale: reactBitsBeamsScale,
-            rotation: reactBitsBeamsRotation,
+            beamWidth: massageLabBeamsBeamWidth,
+            beamHeight: massageLabBeamsBeamHeight,
+            beamNumber: massageLabBeamsBeamNumber,
+            speed: massageLabBeamsSpeed,
+            noiseIntensity: massageLabBeamsNoiseIntensity,
+            scale: massageLabBeamsScale,
+            rotation: massageLabBeamsRotation,
           }}
-          reactBitsPixelSnow={{
+          massageLabPixelSnow={{
             color: pixelSnowColor,
-            flakeSize: reactBitsPixelSnowFlakeSize,
-            minFlakeSize: reactBitsPixelSnowMinFlakeSize,
-            pixelResolution: reactBitsPixelSnowPixelResolution,
-            speed: reactBitsPixelSnowSpeed,
-            depthFade: reactBitsPixelSnowDepthFade,
-            farPlane: reactBitsPixelSnowFarPlane,
-            brightness: reactBitsPixelSnowBrightness,
-            gamma: reactBitsPixelSnowGamma,
-            density: reactBitsPixelSnowDensity,
-            variant: reactBitsPixelSnowVariant,
-            direction: reactBitsPixelSnowDirection,
+            flakeSize: massageLabPixelSnowFlakeSize,
+            minFlakeSize: massageLabPixelSnowMinFlakeSize,
+            pixelResolution: massageLabPixelSnowPixelResolution,
+            speed: massageLabPixelSnowSpeed,
+            depthFade: massageLabPixelSnowDepthFade,
+            farPlane: massageLabPixelSnowFarPlane,
+            brightness: massageLabPixelSnowBrightness,
+            gamma: massageLabPixelSnowGamma,
+            density: massageLabPixelSnowDensity,
+            variant: massageLabPixelSnowVariant,
+            direction: massageLabPixelSnowDirection,
           }}
-          reactBitsLightning={{
+          massageLabLightning={{
             hue: lightningHue,
-            xOffset: reactBitsLightningXOffset,
-            speed: reactBitsLightningSpeed,
-            intensity: reactBitsLightningIntensity,
-            size: reactBitsLightningSize,
+            xOffset: massageLabLightningXOffset,
+            speed: massageLabLightningSpeed,
+            intensity: massageLabLightningIntensity,
+            size: massageLabLightningSize,
           }}
-          reactBitsPrismaticBurst={{
+          massageLabPrismaticBurst={{
             colors: prismaticBurstColors,
-            intensity: reactBitsPrismaticBurstIntensity,
-            speed: reactBitsPrismaticBurstSpeed,
-            animationType: reactBitsPrismaticBurstAnimationType,
-            distort: reactBitsPrismaticBurstDistort,
-            offsetX: reactBitsPrismaticBurstOffsetX,
-            offsetY: reactBitsPrismaticBurstOffsetY,
-            hoverDampness: reactBitsPrismaticBurstHoverDampness,
-            rayCount: reactBitsPrismaticBurstRayCount,
-            mixBlendMode: reactBitsPrismaticBurstMixBlendMode,
+            intensity: massageLabPrismaticBurstIntensity,
+            speed: massageLabPrismaticBurstSpeed,
+            animationType: massageLabPrismaticBurstAnimationType,
+            distort: massageLabPrismaticBurstDistort,
+            offsetX: massageLabPrismaticBurstOffsetX,
+            offsetY: massageLabPrismaticBurstOffsetY,
+            hoverDampness: massageLabPrismaticBurstHoverDampness,
+            rayCount: massageLabPrismaticBurstRayCount,
+            mixBlendMode: massageLabPrismaticBurstMixBlendMode,
           }}
-          reactBitsGalaxy={{
-            focalX: reactBitsGalaxyFocalX,
-            focalY: reactBitsGalaxyFocalY,
-            rotationDeg: reactBitsGalaxyRotationDeg,
-            starSpeed: reactBitsGalaxyStarSpeed,
-            density: reactBitsGalaxyDensity,
+          massageLabGalaxy={{
+            focalX: massageLabGalaxyFocalX,
+            focalY: massageLabGalaxyFocalY,
+            rotationDeg: massageLabGalaxyRotationDeg,
+            starSpeed: massageLabGalaxyStarSpeed,
+            density: massageLabGalaxyDensity,
             hueShift: galaxyHueShift,
-            speed: reactBitsGalaxySpeed,
-            mouseInteraction: reactBitsGalaxyMouseInteraction,
-            glowIntensity: reactBitsGalaxyGlowIntensity,
-            saturation: reactBitsGalaxySaturation,
-            mouseRepulsion: reactBitsGalaxyMouseRepulsion,
-            repulsionStrength: reactBitsGalaxyRepulsionStrength,
-            twinkleIntensity: reactBitsGalaxyTwinkleIntensity,
-            rotationSpeed: reactBitsGalaxyRotationSpeed,
-            autoCenterRepulsion: reactBitsGalaxyAutoCenterRepulsion,
-            transparent: reactBitsGalaxyTransparent,
+            speed: massageLabGalaxySpeed,
+            mouseInteraction: massageLabGalaxyMouseInteraction,
+            glowIntensity: massageLabGalaxyGlowIntensity,
+            saturation: massageLabGalaxySaturation,
+            mouseRepulsion: massageLabGalaxyMouseRepulsion,
+            repulsionStrength: massageLabGalaxyRepulsionStrength,
+            twinkleIntensity: massageLabGalaxyTwinkleIntensity,
+            rotationSpeed: massageLabGalaxyRotationSpeed,
+            autoCenterRepulsion: massageLabGalaxyAutoCenterRepulsion,
+            transparent: massageLabGalaxyTransparent,
           }}
-          reactBitsDither={{
+          massageLabDither={{
             color: ditherColor,
-            waveSpeed: reactBitsDitherWaveSpeed,
-            waveFrequency: reactBitsDitherWaveFrequency,
-            waveAmplitude: reactBitsDitherWaveAmplitude,
-            colorNum: reactBitsDitherColorNum,
-            pixelSize: reactBitsDitherPixelSize,
-            mouseInteraction: reactBitsDitherMouseInteraction,
-            mouseRadius: reactBitsDitherMouseRadius,
+            waveSpeed: massageLabDitherWaveSpeed,
+            waveFrequency: massageLabDitherWaveFrequency,
+            waveAmplitude: massageLabDitherWaveAmplitude,
+            colorNum: massageLabDitherColorNum,
+            pixelSize: massageLabDitherPixelSize,
+            mouseInteraction: massageLabDitherMouseInteraction,
+            mouseRadius: massageLabDitherMouseRadius,
           }}
-          reactBitsFaultyTerminal={{
+          massageLabFaultyTerminal={{
             tint: faultyTerminalTint,
-            scale: reactBitsFaultyTerminalScale,
-            gridMulX: reactBitsFaultyTerminalGridMulX,
-            gridMulY: reactBitsFaultyTerminalGridMulY,
-            digitSize: reactBitsFaultyTerminalDigitSize,
-            timeScale: reactBitsFaultyTerminalTimeScale,
-            scanlineIntensity: reactBitsFaultyTerminalScanlineIntensity,
-            glitchAmount: reactBitsFaultyTerminalGlitchAmount,
-            flickerAmount: reactBitsFaultyTerminalFlickerAmount,
-            noiseAmp: reactBitsFaultyTerminalNoiseAmp,
-            chromaticAberration: reactBitsFaultyTerminalChromaticAberration,
-            dither: reactBitsFaultyTerminalDither,
-            curvature: reactBitsFaultyTerminalCurvature,
-            mouseReact: reactBitsFaultyTerminalMouseReact,
-            mouseStrength: reactBitsFaultyTerminalMouseStrength,
-            pageLoadAnimation: reactBitsFaultyTerminalPageLoadAnimation,
-            brightness: reactBitsFaultyTerminalBrightness,
+            scale: massageLabFaultyTerminalScale,
+            gridMulX: massageLabFaultyTerminalGridMulX,
+            gridMulY: massageLabFaultyTerminalGridMulY,
+            digitSize: massageLabFaultyTerminalDigitSize,
+            timeScale: massageLabFaultyTerminalTimeScale,
+            scanlineIntensity: massageLabFaultyTerminalScanlineIntensity,
+            glitchAmount: massageLabFaultyTerminalGlitchAmount,
+            flickerAmount: massageLabFaultyTerminalFlickerAmount,
+            noiseAmp: massageLabFaultyTerminalNoiseAmp,
+            chromaticAberration: massageLabFaultyTerminalChromaticAberration,
+            dither: massageLabFaultyTerminalDither,
+            curvature: massageLabFaultyTerminalCurvature,
+            mouseReact: massageLabFaultyTerminalMouseReact,
+            mouseStrength: massageLabFaultyTerminalMouseStrength,
+            pageLoadAnimation: massageLabFaultyTerminalPageLoadAnimation,
+            brightness: massageLabFaultyTerminalBrightness,
           }}
-          reactBitsRippleGrid={{
-            enableRainbow: reactBitsRippleGridPaletteMode === "rainbow",
+          massageLabRippleGrid={{
+            enableRainbow: massageLabRippleGridPaletteMode === "rainbow",
             gridColor: rippleGridColor,
-            rippleIntensity: reactBitsRippleGridRippleIntensity,
-            gridSize: reactBitsRippleGridGridSize,
-            gridThickness: reactBitsRippleGridGridThickness,
-            fadeDistance: reactBitsRippleGridFadeDistance,
-            vignetteStrength: reactBitsRippleGridVignetteStrength,
-            glowIntensity: reactBitsRippleGridGlowIntensity,
-            opacity: reactBitsRippleGridOpacity,
-            gridRotation: reactBitsRippleGridGridRotation,
-            mouseInteraction: reactBitsRippleGridMouseInteraction,
-            mouseInteractionRadius: reactBitsRippleGridMouseInteractionRadius,
+            rippleIntensity: massageLabRippleGridRippleIntensity,
+            gridSize: massageLabRippleGridGridSize,
+            gridThickness: massageLabRippleGridGridThickness,
+            fadeDistance: massageLabRippleGridFadeDistance,
+            vignetteStrength: massageLabRippleGridVignetteStrength,
+            glowIntensity: massageLabRippleGridGlowIntensity,
+            opacity: massageLabRippleGridOpacity,
+            gridRotation: massageLabRippleGridGridRotation,
+            mouseInteraction: massageLabRippleGridMouseInteraction,
+            mouseInteractionRadius: massageLabRippleGridMouseInteractionRadius,
           }}
-          reactBitsDotField={{
-            dotRadius: reactBitsDotFieldDotRadius,
-            dotSpacing: reactBitsDotFieldDotSpacing,
-            cursorRadius: reactBitsDotFieldCursorRadius,
-            cursorForce: reactBitsDotFieldCursorForce,
-            bulgeOnly: reactBitsDotFieldBulgeOnly,
-            bulgeStrength: reactBitsDotFieldBulgeStrength,
-            glowRadius: reactBitsDotFieldGlowRadius,
-            sparkle: reactBitsDotFieldSparkle,
-            waveAmplitude: reactBitsDotFieldWaveAmplitude,
+          massageLabDotField={{
+            dotRadius: massageLabDotFieldDotRadius,
+            dotSpacing: massageLabDotFieldDotSpacing,
+            cursorRadius: massageLabDotFieldCursorRadius,
+            cursorForce: massageLabDotFieldCursorForce,
+            bulgeOnly: massageLabDotFieldBulgeOnly,
+            bulgeStrength: massageLabDotFieldBulgeStrength,
+            glowRadius: massageLabDotFieldGlowRadius,
+            sparkle: massageLabDotFieldSparkle,
+            waveAmplitude: massageLabDotFieldWaveAmplitude,
             gradientFrom: dotFieldColors.gradientFrom,
             gradientTo: dotFieldColors.gradientTo,
             glowColor: dotFieldColors.glowColor,
-            cursorInteraction: reactBitsDotFieldCursorInteraction,
+            cursorInteraction: massageLabDotFieldCursorInteraction,
           }}
-          reactBitsDotGrid={{
-            dotSize: reactBitsDotGridDotSize,
-            gap: reactBitsDotGridGap,
+          massageLabDotGrid={{
+            dotSize: massageLabDotGridDotSize,
+            gap: massageLabDotGridGap,
             baseColor: dotGridColors[0],
             activeColor: dotGridColors[1],
-            proximity: reactBitsDotGridProximity,
-            speedTrigger: reactBitsDotGridSpeedTrigger,
-            shockRadius: reactBitsDotGridShockRadius,
-            shockStrength: reactBitsDotGridShockStrength,
-            maxSpeed: reactBitsDotGridMaxSpeed,
-            resistance: reactBitsDotGridResistance,
-            returnDuration: reactBitsDotGridReturnDuration,
-            cursorInteraction: reactBitsDotGridCursorInteraction,
-            clickShock: reactBitsDotGridClickShock,
+            proximity: massageLabDotGridProximity,
+            speedTrigger: massageLabDotGridSpeedTrigger,
+            shockRadius: massageLabDotGridShockRadius,
+            shockStrength: massageLabDotGridShockStrength,
+            maxSpeed: massageLabDotGridMaxSpeed,
+            resistance: massageLabDotGridResistance,
+            returnDuration: massageLabDotGridReturnDuration,
+            cursorInteraction: massageLabDotGridCursorInteraction,
+            clickShock: massageLabDotGridClickShock,
           }}
-          reactBitsThreads={{
+          massageLabThreads={{
             color: threadsColor,
-            amplitude: reactBitsThreadsAmplitude,
-            distance: reactBitsThreadsDistance,
-            enableMouseInteraction: reactBitsThreadsEnableMouseInteraction,
+            amplitude: massageLabThreadsAmplitude,
+            distance: massageLabThreadsDistance,
+            enableMouseInteraction: massageLabThreadsEnableMouseInteraction,
           }}
-          reactBitsIridescence={{
+          massageLabIridescence={{
             color: iridescenceColor,
-            speed: reactBitsIridescenceSpeed,
-            amplitude: reactBitsIridescenceAmplitude,
-            mouseReact: reactBitsIridescenceMouseReact,
+            speed: massageLabIridescenceSpeed,
+            amplitude: massageLabIridescenceAmplitude,
+            mouseReact: massageLabIridescenceMouseReact,
           }}
-          reactBitsWaves={{
+          massageLabWaves={{
             lineColor: wavesLineColor,
-            backgroundColor: reactBitsWavesBackgroundColor,
-            transparentBackground: reactBitsWavesTransparentBackground,
-            waveSpeedX: reactBitsWavesSpeedX,
-            waveSpeedY: reactBitsWavesSpeedY,
-            waveAmpX: reactBitsWavesAmplitudeX,
-            waveAmpY: reactBitsWavesAmplitudeY,
-            xGap: reactBitsWavesGapX,
-            yGap: reactBitsWavesGapY,
-            friction: reactBitsWavesFriction,
-            tension: reactBitsWavesTension,
-            maxCursorMove: reactBitsWavesMaxCursorMove,
-            cursorInteraction: reactBitsWavesCursorInteraction,
+            backgroundColor: massageLabWavesBackgroundColor,
+            transparentBackground: massageLabWavesTransparentBackground,
+            waveSpeedX: massageLabWavesSpeedX,
+            waveSpeedY: massageLabWavesSpeedY,
+            waveAmpX: massageLabWavesAmplitudeX,
+            waveAmpY: massageLabWavesAmplitudeY,
+            xGap: massageLabWavesGapX,
+            yGap: massageLabWavesGapY,
+            friction: massageLabWavesFriction,
+            tension: massageLabWavesTension,
+            maxCursorMove: massageLabWavesMaxCursorMove,
+            cursorInteraction: massageLabWavesCursorInteraction,
           }}
-          reactBitsGridDistortion={{
+          massageLabGridDistortion={{
             colorOne: gridDistortionColors[0],
             colorTwo: gridDistortionColors[1],
             colorThree: gridDistortionColors[2],
-            grid: reactBitsGridDistortionGrid,
-            mouse: reactBitsGridDistortionMouse,
-            strength: reactBitsGridDistortionStrength,
-            relaxation: reactBitsGridDistortionRelaxation,
-            cursorInteraction: reactBitsGridDistortionCursorInteraction,
+            grid: massageLabGridDistortionGrid,
+            mouse: massageLabGridDistortionMouse,
+            strength: massageLabGridDistortionStrength,
+            relaxation: massageLabGridDistortionRelaxation,
+            cursorInteraction: massageLabGridDistortionCursorInteraction,
           }}
-          reactBitsOrb={{
+          massageLabOrb={{
             hue: orbHue,
-            hoverIntensity: reactBitsOrbHoverIntensity,
-            rotateOnHover: reactBitsOrbRotateOnHover,
-            forceHoverState: reactBitsOrbForceHoverState,
-            backgroundColor: reactBitsOrbBackgroundColor,
-            cursorInteraction: reactBitsOrbCursorInteraction,
+            hoverIntensity: massageLabOrbHoverIntensity,
+            rotateOnHover: massageLabOrbRotateOnHover,
+            forceHoverState: massageLabOrbForceHoverState,
+            backgroundColor: massageLabOrbBackgroundColor,
+            cursorInteraction: massageLabOrbCursorInteraction,
           }}
-          reactBitsLetterGlitch={{
+          massageLabLetterGlitch={{
             colorOne: letterGlitchColors[0],
             colorTwo: letterGlitchColors[1],
             colorThree: letterGlitchColors[2],
-            glitchSpeed: reactBitsLetterGlitchGlitchSpeed,
-            centerVignette: reactBitsLetterGlitchCenterVignette,
-            outerVignette: reactBitsLetterGlitchOuterVignette,
-            smooth: reactBitsLetterGlitchSmooth,
-            characters: reactBitsLetterGlitchCharacters,
+            glitchSpeed: massageLabLetterGlitchGlitchSpeed,
+            centerVignette: massageLabLetterGlitchCenterVignette,
+            outerVignette: massageLabLetterGlitchOuterVignette,
+            smooth: massageLabLetterGlitchSmooth,
+            characters: massageLabLetterGlitchCharacters,
           }}
-          reactBitsGridMotion={{
+          massageLabGridMotion={{
             gradientColor: gridMotionColors[0],
             tileColor: gridMotionColors[1],
             textColor: gridMotionColors[2],
-            maxMoveAmount: reactBitsGridMotionMaxMoveAmount,
-            baseDuration: reactBitsGridMotionBaseDuration,
-            cursorInteraction: reactBitsGridMotionCursorInteraction,
+            maxMoveAmount: massageLabGridMotionMaxMoveAmount,
+            baseDuration: massageLabGridMotionBaseDuration,
+            cursorInteraction: massageLabGridMotionCursorInteraction,
           }}
-          reactBitsShapeGrid={{
+          massageLabShapeGrid={{
             borderColor: shapeGridColors[0],
             hoverFillColor: shapeGridColors[1],
-            direction: reactBitsShapeGridDirection,
-            speed: reactBitsShapeGridSpeed,
-            squareSize: reactBitsShapeGridSquareSize,
-            shape: reactBitsShapeGridShape,
-            hoverTrailAmount: reactBitsShapeGridHoverTrailAmount,
-            cursorInteraction: reactBitsShapeGridCursorInteraction,
+            direction: massageLabShapeGridDirection,
+            speed: massageLabShapeGridSpeed,
+            squareSize: massageLabShapeGridSquareSize,
+            shape: massageLabShapeGridShape,
+            hoverTrailAmount: massageLabShapeGridHoverTrailAmount,
+            cursorInteraction: massageLabShapeGridCursorInteraction,
           }}
-          reactBitsLiquidChrome={{
+          massageLabLiquidChrome={{
             baseColor: liquidChromeBaseColor,
-            speed: reactBitsLiquidChromeSpeed,
-            amplitude: reactBitsLiquidChromeAmplitude,
-            frequencyX: reactBitsLiquidChromeFrequencyX,
-            frequencyY: reactBitsLiquidChromeFrequencyY,
-            interactive: reactBitsLiquidChromeInteractive,
+            speed: massageLabLiquidChromeSpeed,
+            amplitude: massageLabLiquidChromeAmplitude,
+            frequencyX: massageLabLiquidChromeFrequencyX,
+            frequencyY: massageLabLiquidChromeFrequencyY,
+            interactive: massageLabLiquidChromeInteractive,
           }}
-          reactBitsBalatro={{
+          massageLabBalatro={{
             color1: balatroColors[0],
             color2: balatroColors[1],
             color3: balatroColors[2],
-            spinRotation: reactBitsBalatroSpinRotation,
-            spinSpeed: reactBitsBalatroSpinSpeed,
-            offsetX: reactBitsBalatroOffsetX,
-            offsetY: reactBitsBalatroOffsetY,
-            contrast: reactBitsBalatroContrast,
-            lighting: reactBitsBalatroLighting,
-            spinAmount: reactBitsBalatroSpinAmount,
-            pixelFilter: reactBitsBalatroPixelFilter,
-            spinEase: reactBitsBalatroSpinEase,
-            isRotate: reactBitsBalatroIsRotate,
-            mouseInteraction: reactBitsBalatroMouseInteraction,
+            spinRotation: massageLabBalatroSpinRotation,
+            spinSpeed: massageLabBalatroSpinSpeed,
+            offsetX: massageLabBalatroOffsetX,
+            offsetY: massageLabBalatroOffsetY,
+            contrast: massageLabBalatroContrast,
+            lighting: massageLabBalatroLighting,
+            spinAmount: massageLabBalatroSpinAmount,
+            pixelFilter: massageLabBalatroPixelFilter,
+            spinEase: massageLabBalatroSpinEase,
+            isRotate: massageLabBalatroIsRotate,
+            mouseInteraction: massageLabBalatroMouseInteraction,
           }}
-          eldoraNovatrix={{
+          massageLabNovatrix={{
             color: novatrixColor,
-            speed: eldoraNovatrixSpeed,
-            amplitude: eldoraNovatrixAmplitude,
+            speed: massageLabNovatrixSpeed,
+            amplitude: massageLabNovatrixAmplitude,
           }}
-          eldoraHacker={{
-            color: hackerColor,
-            speed: eldoraHackerSpeed,
-            fontSize: eldoraHackerFontSize,
+          massageLabMatrixRain={{
+            color: matrixRainColor,
+            speed: massageLabMatrixRainSpeed,
+            fontSize: massageLabMatrixRainFontSize,
           }}
-          eldoraPhotonBeam={{
+          massageLabPhotonBeam={{
             colorBg: photonBeamColors[0],
             colorLine: photonBeamColors[1],
             colorSignal: photonBeamColors[2],
@@ -15355,80 +16625,80 @@ export function RunningTimer({
             colorSignal2: photonBeamColors[4],
             useColor3: photonBeamColors[5],
             colorSignal3: photonBeamColors[6],
-            lineCount: eldoraPhotonBeamLineCount,
-            spreadHeight: eldoraPhotonBeamSpreadHeight,
-            spreadDepth: eldoraPhotonBeamSpreadDepth,
-            curveLength: eldoraPhotonBeamCurveLength,
-            straightLength: eldoraPhotonBeamStraightLength,
-            curvePower: eldoraPhotonBeamCurvePower,
-            waveSpeed: eldoraPhotonBeamWaveSpeed,
-            waveHeight: eldoraPhotonBeamWaveHeight,
-            lineOpacity: eldoraPhotonBeamLineOpacity,
-            signalCount: eldoraPhotonBeamSignalCount,
-            speedGlobal: eldoraPhotonBeamSpeedGlobal,
-            trailLength: eldoraPhotonBeamTrailLength,
-            bloomStrength: eldoraPhotonBeamBloomStrength,
-            bloomRadius: eldoraPhotonBeamBloomRadius,
+            lineCount: massageLabPhotonBeamLineCount,
+            spreadHeight: massageLabPhotonBeamSpreadHeight,
+            spreadDepth: massageLabPhotonBeamSpreadDepth,
+            curveLength: massageLabPhotonBeamCurveLength,
+            straightLength: massageLabPhotonBeamStraightLength,
+            curvePower: massageLabPhotonBeamCurvePower,
+            waveSpeed: massageLabPhotonBeamWaveSpeed,
+            waveHeight: massageLabPhotonBeamWaveHeight,
+            lineOpacity: massageLabPhotonBeamLineOpacity,
+            signalCount: massageLabPhotonBeamSignalCount,
+            speedGlobal: massageLabPhotonBeamSpeedGlobal,
+            trailLength: massageLabPhotonBeamTrailLength,
+            bloomStrength: massageLabPhotonBeamBloomStrength,
+            bloomRadius: massageLabPhotonBeamBloomRadius,
           }}
-          aceternity3DGlobe={{
-            viewStyle: aceternity3DGlobeViewStyle,
-            backgroundColor: aceternity3DGlobeBackgroundColor,
-            globeColor: aceternity3DGlobeGlobeColor,
-            graphicMapColor: aceternity3DGlobeGraphicMapColor,
-            graphicGlowColor: aceternity3DGlobeGraphicGlowColor,
-            graphicMarkerColor: aceternity3DGlobeGraphicMarkerColor,
-            graphicMapSamples: aceternity3DGlobeGraphicMapSamples,
-            autoRotateSpeed: aceternity3DGlobeAutoRotateSpeed,
-            reverseSpin: aceternity3DGlobeReverseSpin,
-            globeScale: aceternity3DGlobeScale,
-            bumpScale: aceternity3DGlobeBumpScale,
-            ambientIntensity: aceternity3DGlobeAmbientIntensity,
-            pointLightIntensity: aceternity3DGlobePointLightIntensity,
-            lightingMode: aceternity3DGlobeLightingMode,
-            enablePan: aceternity3DGlobeEnablePan,
-            panX: aceternity3DGlobePanX,
-            panY: aceternity3DGlobePanY,
-            showTilt: aceternity3DGlobeShowTilt,
-            showAtmosphere: aceternity3DGlobeShowAtmosphere,
-            atmosphereColor: aceternity3DGlobeAtmosphereColor,
-            atmosphereIntensity: aceternity3DGlobeAtmosphereIntensity,
-            atmosphereBlur: aceternity3DGlobeAtmosphereBlur,
-            showWireframe: aceternity3DGlobeShowWireframe,
-            wireframeColor: aceternity3DGlobeWireframeColor,
-            markerEnabled: aceternity3DGlobeMarkerEnabled,
-            markerLat: aceternity3DGlobeMarkerLat,
-            markerLng: aceternity3DGlobeMarkerLng,
-            markerLabel: aceternity3DGlobeMarkerLabel,
-            markerIcon: aceternity3DGlobeMarkerIcon,
-            markerSize: aceternity3DGlobeMarkerSize,
+          massageLab3DGlobe={{
+            viewStyle: massageLab3DGlobeViewStyle,
+            backgroundColor: massageLab3DGlobeBackgroundColor,
+            globeColor: massageLab3DGlobeGlobeColor,
+            graphicMapColor: massageLab3DGlobeGraphicMapColor,
+            graphicGlowColor: massageLab3DGlobeGraphicGlowColor,
+            graphicMarkerColor: massageLab3DGlobeGraphicMarkerColor,
+            graphicMapSamples: massageLab3DGlobeGraphicMapSamples,
+            autoRotateSpeed: massageLab3DGlobeAutoRotateSpeed,
+            reverseSpin: massageLab3DGlobeReverseSpin,
+            globeScale: massageLab3DGlobeScale,
+            bumpScale: massageLab3DGlobeBumpScale,
+            ambientIntensity: massageLab3DGlobeAmbientIntensity,
+            pointLightIntensity: massageLab3DGlobePointLightIntensity,
+            lightingMode: massageLab3DGlobeLightingMode,
+            enablePan: massageLab3DGlobeEnablePan,
+            panX: massageLab3DGlobePanX,
+            panY: massageLab3DGlobePanY,
+            showTilt: massageLab3DGlobeShowTilt,
+            showAtmosphere: massageLab3DGlobeShowAtmosphere,
+            atmosphereColor: massageLab3DGlobeAtmosphereColor,
+            atmosphereIntensity: massageLab3DGlobeAtmosphereIntensity,
+            atmosphereBlur: massageLab3DGlobeAtmosphereBlur,
+            showWireframe: massageLab3DGlobeShowWireframe,
+            wireframeColor: massageLab3DGlobeWireframeColor,
+            markerEnabled: massageLab3DGlobeMarkerEnabled,
+            markerLat: massageLab3DGlobeMarkerLat,
+            markerLng: massageLab3DGlobeMarkerLng,
+            markerLabel: massageLab3DGlobeMarkerLabel,
+            markerIcon: massageLab3DGlobeMarkerIcon,
+            markerSize: massageLab3DGlobeMarkerSize,
           }}
-          magicRetroGrid={{
-            backgroundColor: magicRetroGridBackgroundColor,
-            lightLineColor: magicRetroGridLightLineColor,
-            darkLineColor: magicRetroGridDarkLineColor,
-            angle: magicRetroGridAngle,
-            cellSize: magicRetroGridCellSize,
-            opacity: magicRetroGridOpacity,
+          massageLabRetroGrid={{
+            backgroundColor: massageLabRetroGridBackgroundColor,
+            lightLineColor: massageLabRetroGridLightLineColor,
+            darkLineColor: massageLabRetroGridDarkLineColor,
+            angle: massageLabRetroGridAngle,
+            cellSize: massageLabRetroGridCellSize,
+            opacity: massageLabRetroGridOpacity,
           }}
-          magicLightRays={{
-            backgroundColor: magicLightRaysBackgroundColor,
-            color: magicLightRaysColor,
-            count: magicLightRaysCount,
-            blur: magicLightRaysBlur,
-            speed: magicLightRaysSpeed,
-            length: magicLightRaysLength,
-            opacity: magicLightRaysOpacity,
+          massageLabAerialRays={{
+            backgroundColor: massageLabAerialRaysBackgroundColor,
+            color: massageLabAerialRaysColor,
+            count: massageLabAerialRaysCount,
+            blur: massageLabAerialRaysBlur,
+            speed: massageLabAerialRaysSpeed,
+            length: massageLabAerialRaysLength,
+            opacity: massageLabAerialRaysOpacity,
           }}
-          chamaacSynthesis={{
+          massageLabSynthesis={{
             color1: synthesisColors[0],
             color2: synthesisColors[1],
             color3: synthesisColors[2],
-            speed: chamaacSynthesisSpeed,
-            complexity: chamaacSynthesisComplexity,
-            scale: chamaacSynthesisScale,
-            distortion: chamaacSynthesisDistortion,
-            glowIntensity: chamaacSynthesisGlowIntensity,
-            flowFrequency: chamaacSynthesisFlowFrequency,
+            speed: massageLabSynthesisSpeed,
+            complexity: massageLabSynthesisComplexity,
+            scale: massageLabSynthesisScale,
+            distortion: massageLabSynthesisDistortion,
+            glowIntensity: massageLabSynthesisGlowIntensity,
+            flowFrequency: massageLabSynthesisFlowFrequency,
           }}
           backgroundLines={{
             duration: backgroundLinesDuration,
@@ -15554,12 +16824,15 @@ export function RunningTimer({
 
       {!isClockMode && (
         <button
-          type="button"
-          className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
-          onClick={isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer")}
-          disabled={isTimerPrimary && isComplete}
-          ref={isTimerPrimary ? primaryDisplayRef : undefined}
-          style={isTimerPrimary ? primaryDisplayStyle : undefined}
+        type="button"
+        className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
+        onClick={() => {
+          triggerHapticFeedback(hapticsEnabled)
+          ;(isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer"))()
+        }}
+        disabled={isTimerPrimary && isComplete}
+        ref={isTimerPrimary ? primaryDisplayRef : undefined}
+        style={isTimerPrimary ? primaryDisplayStyle : undefined}
           aria-label={isTimerPrimary ? (isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show timer in center"}
           aria-live={isTimerPrimary ? "polite" : undefined}
           data-testid="running-timer-clock"
@@ -15573,7 +16846,10 @@ export function RunningTimer({
       <button
         type="button"
         className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
-        onClick={isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime")}
+        onClick={() => {
+          triggerHapticFeedback(hapticsEnabled)
+          ;(isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime"))()
+        }}
         disabled={isCurrentTimePrimary && isComplete}
         ref={isCurrentTimePrimary ? primaryDisplayRef : undefined}
         data-testid="running-current-time"
@@ -15587,8 +16863,11 @@ export function RunningTimer({
 
       <div className={chromeClassName}>
         <button
-          className={`${styles.control} ${styles.closeButton}`}
-          onClick={onClose}
+          className={`${styles.control} ${styles.closeButton} ${styles.tactileButton}`}
+          onClick={() => {
+            triggerHapticFeedback(hapticsEnabled)
+            onClose()
+          }}
           aria-label={isClockMode ? "Close clock" : "End timer"}
           data-chimer-control="true"
         >
@@ -15596,8 +16875,11 @@ export function RunningTimer({
         </button>
 
         <button
-          className={`${styles.control} ${styles.fullscreenButton}`}
-          onClick={handleFullscreenControl}
+          className={`${styles.control} ${styles.fullscreenButton} ${styles.tactileButton}`}
+          onClick={() => {
+            triggerHapticFeedback(hapticsEnabled)
+            handleFullscreenControl()
+          }}
           aria-label="Toggle fullscreen"
           data-chimer-control="true"
         >
@@ -15606,8 +16888,11 @@ export function RunningTimer({
 
         <button
           ref={settingsButtonRef}
-          className={`${styles.control} ${styles.settingsButton}`}
-          onClick={handleSettingsButtonClick}
+          className={`${styles.control} ${styles.settingsButton} ${styles.tactileButton}`}
+          onClick={() => {
+            triggerHapticFeedback(hapticsEnabled)
+            handleSettingsButtonClick()
+          }}
           aria-label={isSettingsOpen ? "Close clock settings" : "Open clock settings"}
           aria-expanded={isSettingsOpen}
           data-chimer-control="true"
@@ -15628,165 +16913,652 @@ export function RunningTimer({
             onChange={handleSettingsPanelActivity}
             onInput={handleSettingsPanelActivity}
           >
-            <div className={styles.settingsHeaderBar}>
-              <div>
-                <div className={styles.settingsHeader}>Chimer Settings</div>
-                <div className={styles.settingsSubheader}>
-                  {isClockMode ? "Clock display and background" : "Active timer controls and preferences"}
-                </div>
-              </div>
-            </div>
-
             <Tabs value={settingsTab} onValueChange={handleSettingsTabChange} className={styles.settingsTabs}>
               <TabsList className={styles.settingsTabList}>
-                {!isClockMode && (
-                  <TabsTrigger value="timer" className={styles.settingsTabTrigger}>Timer</TabsTrigger>
-                )}
-                <TabsTrigger value="display" className={styles.settingsTabTrigger}>Display</TabsTrigger>
-                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Visuals</TabsTrigger>
+                <TabsTrigger value="clock" className={styles.settingsTabTrigger}>Clock</TabsTrigger>
+                <TabsTrigger value="visual" className={styles.settingsTabTrigger}>Visual</TabsTrigger>
+                <TabsTrigger value="backgrounds" className={styles.settingsTabTrigger}>Backgrounds</TabsTrigger>
               </TabsList>
 
-              {!isClockMode && (
-                <TabsContent value="timer" className={styles.settingsTabContent}>
-                  <label className={styles.switchRow}>
-                    <span>Show timer seconds</span>
-                    <input
-                      type="checkbox"
-                      checked={resolvedShowTimerSeconds}
-                      onChange={(event) => handleSettingsChange({ showTimerSeconds: event.target.checked })}
-                    />
-                  </label>
+              <TabsContent value="clock" className={styles.settingsTabContent}>
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Clock text</span>
+                    <span className={styles.settingsPill}>Display tuning</span>
+                  </div>
 
-                  {canEditActiveTimer ? (
-                    <>
-                      <div className={styles.settingsSection}>
-                        <div className={styles.settingsSectionHeader}>
-                          <span>Remaining time</span>
-                          <span className={styles.settingsPill}>Active only</span>
-                        </div>
-                        <div className={styles.quickAdjustGrid} aria-label="Adjust remaining time">
-                          <button type="button" onClick={() => handleActiveRemainingStep(-5)}>-5m</button>
-                          <button type="button" onClick={() => handleActiveRemainingStep(-1)}>-1m</button>
-                          <button type="button" onClick={() => handleActiveRemainingStep(1)}>+1m</button>
-                          <button type="button" onClick={() => handleActiveRemainingStep(5)}>+5m</button>
-                        </div>
-                        <div className={styles.exactTimeGrid}>
-                          <label className={styles.numberField}>
-                            <span>Hours</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={activeRemainingHours}
-                              onChange={(event) => handleActiveRemainingHoursChange(event.target.value)}
-                              aria-label="Exact remaining hours"
-                            />
-                          </label>
-                          <label className={styles.numberField}>
-                            <span>Minutes</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={activeRemainingMinutes}
-                              onChange={(event) => handleActiveRemainingMinutesChange(event.target.value)}
-                              aria-label="Exact remaining minutes"
-                            />
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className={styles.settingsSection}>
-                        <div className={styles.settingsSectionHeader}>
-                          <span>Chime interval</span>
-                          <span className={styles.settingsPill}>Active only</span>
-                        </div>
-                        <label className={styles.numberField}>
-                          <span>Minutes between chimes</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={activeIntervalMinutes ?? ""}
-                            onChange={(event) => handleActiveIntervalChange(event.target.value)}
-                            aria-label="Active chime interval minutes"
-                          />
-                        </label>
-                      </div>
-                    </>
-                  ) : (
-                    <div className={styles.settingsEmptyState}>
-                      {isComplete ? "Session complete. Active timer changes are disabled." : "Start or pause a timer to adjust it here."}
-                    </div>
-                  )}
-                </TabsContent>
-              )}
-
-              <TabsContent value="display" className={styles.settingsTabContent}>
-                <label className={styles.switchRow}>
-                  <span>Show clock seconds</span>
-                  <input
-                    type="checkbox"
-                    checked={showCurrentTimeSeconds}
-                    onChange={(event) => handleSettingsChange({ showCurrentTimeSeconds: event.target.checked })}
+                  {!isClockMode && (
+                  <StyledToggleControl
+                    label="Show timer seconds"
+                    checked={resolvedShowTimerSeconds}
+                    valueLabel={resolvedShowTimerSeconds ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ showTimerSeconds: value })}
                   />
-                </label>
+                  )}
 
-                <div className={styles.formatRow}>
-                  <span>Time format</span>
-                  <div className={styles.formatToggle} aria-label="Time format">
-                    <button
-                      type="button"
-                      className={`${styles.formatOption} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
-                      aria-pressed={timeFormat === "12h"}
-                      onClick={() => handleSettingsChange({ timeFormat: "12h" })}
-                    >
-                      12h
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.formatOption} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
-                      aria-pressed={timeFormat === "24h"}
-                      onClick={() => handleSettingsChange({ timeFormat: "24h" })}
-                    >
-                      24h
-                    </button>
+                  <StyledToggleControl
+                    label="Show clock seconds"
+                    checked={showCurrentTimeSeconds}
+                    valueLabel={showCurrentTimeSeconds ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ showCurrentTimeSeconds: value })}
+                  />
+
+                  <StyledRangeControl
+                    label="Font size"
+                    value={effectiveFontSize}
+                    min={MIN_FONT_SIZE}
+                    max={effectiveMaxFontSize}
+                    step={FONT_SIZE_STEP}
+                    displayValue={`${Math.round(effectiveFontSize)}vw`}
+                    hapticsEnabled={hapticsEnabled}
+                    onChange={handleFontSizeRangeChange}
+                  />
+
+                  <div className={styles.clockCompactRow}>
+                    <label className={styles.clockCompactField} title={customColorDisabledHint}>
+                      <span>Clock font</span>
+                      <select
+                        value={clockFontFamily}
+                        disabled={!canUseCustomColors}
+                        onChange={(event) => handleSettingsChange({
+                          clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
+                        })}
+                        aria-label="Clock font"
+                      >
+                        <option value="digital">Digital</option>
+                        <option value="mono">Mono</option>
+                        <option value="sans">Sans</option>
+                        <option value="serif">Serif</option>
+                      </select>
+                    </label>
+
+                    <div className={styles.clockCompactField} title={accountColorDisabledHint}>
+                      <span>Clock color</span>
+                      <ColorPickerSwatch
+                        label="Clock color"
+                        value={clockModeFontColor}
+                        fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
+                        disabled={!canUseCoreColorControls}
+                        onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
+                        className={styles.colorSwatchPicker}
+                        buttonClassName={styles.clockColorSwatchButton}
+                      />
+                    </div>
+
+                    <div className={styles.clockCompactField}>
+                      <span>Time format</span>
+                      <div className={styles.formatToggle} aria-label="Time format">
+                        <button
+                          type="button"
+                          className={`${styles.formatOption} ${styles.tactileButton} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                          aria-pressed={timeFormat === "12h"}
+                          onClick={() => {
+                            triggerHapticFeedback(hapticsEnabled)
+                            handleSettingsChange({ timeFormat: "12h" })
+                          }}
+                        >
+                          12h
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.formatOption} ${styles.tactileButton} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                          aria-pressed={timeFormat === "24h"}
+                          onClick={() => {
+                            triggerHapticFeedback(hapticsEnabled)
+                            handleSettingsChange({ timeFormat: "24h" })
+                          }}
+                        >
+                          24h
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!isClockMode ? (
+                    <div className={styles.clockControlGrid}>
+                      <label className={styles.colorRow} title={customColorDisabledHint}>
+                        <span>Timer color</span>
+                        <input
+                          type="color"
+                          value={primaryFontColor}
+                          disabled={!canUseCustomColors}
+                          onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
+                          aria-label="Timer color"
+                        />
+                      </label>
+                      <label className={styles.colorRow} title={customColorDisabledHint}>
+                        <span>Secondary color</span>
+                        <input
+                          type="color"
+                          value={secondaryFontColor}
+                          disabled={!canUseCustomColors}
+                          onChange={(event) => handleSettingsChange({ secondaryFontColor: event.target.value })}
+                          aria-label="Secondary display color"
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+
+                  <div className={styles.controlGroup}>
+                    <StyledToggleControl
+                      label="Clock stroke"
+                      checked={clockStrokeEnabled}
+                      valueLabel={clockStrokeEnabled ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      onCheckedChange={(value) => handleSettingsChange({ clockStrokeEnabled: value })}
+                    />
+                    {clockStrokeEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <label className={styles.colorRow}>
+                            <span>Stroke color</span>
+                            <input
+                              type="color"
+                              value={clockStrokeColor}
+                              onChange={(event) => handleSettingsChange({ clockStrokeColor: event.target.value })}
+                              aria-label="Clock stroke color"
+                            />
+                          </label>
+                          <StyledRangeControl
+                            label="Stroke width"
+                            value={clockStrokeWidth}
+                            min={0}
+                            max={3}
+                            step={0.25}
+                            displayValue={`${clockStrokeWidth.toFixed(2)}px`}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockStrokeWidth: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className={styles.controlGroup} title={customColorDisabledHint}>
+                    <StyledToggleControl
+                      label="Clock drop shadow"
+                      checked={clockShadowEnabled}
+                      valueLabel={clockShadowEnabled ? "On" : "Off"}
+                      disabled={!canUseCustomColors}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      onCheckedChange={(value) => handleSettingsChange({ clockShadowEnabled: value })}
+                    />
+                    {clockShadowEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <label className={styles.colorRow}>
+                            <span>Shadow color</span>
+                            <input
+                              type="color"
+                              value={clockShadowColor}
+                              disabled={!canUseCustomColors}
+                              onChange={(event) => handleSettingsChange({ clockShadowColor: event.target.value })}
+                              aria-label="Clock shadow color"
+                            />
+                          </label>
+                          <StyledRangeControl
+                            label="Shadow strength"
+                            value={clockShadowStrength}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            displayValue={`${Math.round(clockShadowStrength * 100)}%`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowStrength: value })}
+                          />
+                          <StyledRangeControl
+                            label="Shadow direction"
+                            value={clockShadowDirection}
+                            min={0}
+                            max={360}
+                            step={1}
+                            displayValue={`${Math.round(clockShadowDirection)}°`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowDirection: value })}
+                          />
+                          <StyledRangeControl
+                            label="Shadow distance"
+                            value={clockShadowDistance}
+                            min={0}
+                            max={32}
+                            step={1}
+                            displayValue={`${Math.round(clockShadowDistance)}px`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowDistance: value })}
+                          />
+                          <StyledRangeControl
+                            label="Shadow feather"
+                            value={clockShadowFeather}
+                            min={0}
+                            max={32}
+                            step={1}
+                            displayValue={`${Math.round(clockShadowFeather)}px`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowFeather: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className={styles.controlGroup} title={customColorDisabledHint}>
+                    <StyledToggleControl
+                      label="Clock outer glow"
+                      checked={clockGlowEnabled}
+                      valueLabel={clockGlowEnabled ? "On" : "Off"}
+                      disabled={!canUseCustomColors}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      onCheckedChange={(value) => handleSettingsChange({ clockGlowEnabled: value })}
+                    />
+                    {clockGlowEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <label className={styles.colorRow}>
+                            <span>Glow color</span>
+                            <input
+                              type="color"
+                              value={clockGlowColor}
+                              disabled={!canUseCustomColors}
+                              onChange={(event) => handleSettingsChange({ clockGlowColor: event.target.value })}
+                              aria-label="Clock outer glow color"
+                            />
+                          </label>
+                          <StyledRangeControl
+                            label="Glow strength"
+                            value={clockGlowStrength}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            displayValue={`${Math.round(clockGlowStrength * 100)}%`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockGlowStrength: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
                 {!isClockMode && (
-                  <label className={styles.switchRow}>
-                    <span>Keep timer screen awake</span>
-                    <input
-                      type="checkbox"
-                      checked={keepTimerScreenAwake}
-                      onChange={(event) => handleSettingsChange({ keepTimerScreenAwake: event.target.checked })}
-                    />
-                  </label>
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionHeader}>
+                      <span>Timer tools</span>
+                    </div>
+                    {canEditActiveTimer ? (
+                      <>
+                        <div className={styles.settingsSection}>
+                          <div className={styles.settingsSectionHeader}>
+                            <span>Remaining time</span>
+                            <span className={styles.settingsPill}>Active only</span>
+                          </div>
+                          <div className={styles.quickAdjustGrid} aria-label="Adjust remaining time">
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(-5)
+                              }}
+                            >
+                              -5m
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(-1)
+                              }}
+                            >
+                              -1m
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(1)
+                              }}
+                            >
+                              +1m
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(5)
+                              }}
+                            >
+                              +5m
+                            </button>
+                          </div>
+                          <div className={styles.exactTimeGrid}>
+                            <label className={styles.numberField}>
+                              <span>Hours</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={activeRemainingHours}
+                                onChange={(event) => handleActiveRemainingHoursChange(event.target.value)}
+                                aria-label="Exact remaining hours"
+                              />
+                            </label>
+                            <label className={styles.numberField}>
+                              <span>Minutes</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={activeRemainingMinutes}
+                                onChange={(event) => handleActiveRemainingMinutesChange(event.target.value)}
+                                aria-label="Exact remaining minutes"
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={styles.settingsSection}>
+                          <div className={styles.settingsSectionHeader}>
+                            <span>Chime interval</span>
+                            <span className={styles.settingsPill}>Active only</span>
+                          </div>
+                          <label className={styles.numberField}>
+                            <span>Minutes between chimes</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={activeIntervalMinutes ?? ""}
+                              onChange={(event) => handleActiveIntervalChange(event.target.value)}
+                              aria-label="Active chime interval minutes"
+                            />
+                          </label>
+                        </div>
+                      </>
+                    ) : (
+                      <div className={styles.settingsEmptyState}>
+                        {isComplete ? "Session complete. Active timer changes are disabled." : "Start or pause a timer to adjust it here."}
+                      </div>
+                    )}
+                  </div>
                 )}
+
+                <div className={styles.switchRow}>
+                  <StyledToggleControl
+                    label="Keep timer screen awake"
+                    checked={keepTimerScreenAwake}
+                    valueLabel={keepTimerScreenAwake ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })}
+                  />
+                </div>
 
               </TabsContent>
 
-              <TabsContent value="background" className={styles.settingsTabContent}>
-                <label className={styles.switchRow}>
-                  <span>Visual background</span>
-                  <input
-                    type="checkbox"
-                    checked={movingBackgroundEnabled}
-                    onChange={(event) => handleSettingsChange({ movingBackgroundEnabled: event.target.checked })}
-                  />
-                </label>
+              <TabsContent value="visual" className={styles.settingsTabContent}>
+                <StyledToggleControl
+                  label="Visual background"
+                  checked={movingBackgroundEnabled}
+                  valueLabel={movingBackgroundEnabled ? "On" : "Off"}
+                  hapticsEnabled={hapticsEnabled}
+                  onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
+                />
 
-                {movingBackgroundEnabled && (
-                  <BackgroundSelector
-                    compact
-                    value={backgroundId}
-                    onChange={(nextBackgroundId) => handleSettingsChange({ backgroundId: nextBackgroundId })}
-                    featureKeys={featureKeys}
-                    category={isClockMode ? "clock" : "chimer"}
-                    description="Premium visual candidates are paused while we review and add them one at a time."
-                    renderSelectedControls={renderBackgroundControls}
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Selected background controls</span>
+                    <span className={styles.settingsPill}>Visual tuning</span>
+                  </div>
+                  {movingBackgroundEnabled ? (
+                    renderBackgroundControls(
+                      selectedBackgroundDefinition,
+                    )
+                  ) : (
+                    <div className={styles.settingsEmptyState}>Enable visual background to show visual controls.</div>
+                  )}
+                </div>
+
+                <div className={styles.settingsSection}>
+                  <GlobalColorPicker
+                    value={globalColors}
+                    title="Global Colors"
+                    description="Set a primary color, then choose a harmony to fill the related colors automatically."
+                    harmonyControl={(
+                      <HarmonyToggleGroup
+                        label="Color harmony"
+                        value={globalHarmony}
+                        onChange={handleGlobalHarmonyChange}
+                        hapticsEnabled={hapticsEnabled}
+                        description="Generate related palette families from your primary color."
+                        embedded
+                      />
+                    )}
+                    paletteName={globalPaletteName}
+                    onPaletteNameChange={handleGlobalPaletteNameChange}
+                    onChange={handleGlobalColorsChange}
+                    onSave={handleGlobalPaletteSave}
+                    saveButtonLabel="Save palette"
                   />
+                </div>
+
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Saved palettes</span>
+                    <span className={styles.settingsPill}>Reusable</span>
+                  </div>
+                  {globalPalettes.length === 0 ? (
+                    <div className={styles.settingsEmptyState}>Save a palette to reuse it on future sessions.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                      {globalPalettes.map((palette) => (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          className={`${styles.inlineButton} ${styles.tactileButton}`}
+                          onClick={() => {
+                            triggerHapticFeedback(hapticsEnabled)
+                            handleGlobalPaletteLoad(palette)
+                          }}
+                          aria-label={`Apply ${palette.name} palette`}
+                        >
+                          <div style={{ display: "grid", gap: "0.35rem", textAlign: "left" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                              <span style={{ fontWeight: 700 }}>{palette.name}</span>
+                              {palette.isDefault ? <span className={styles.settingsPill}>Default</span> : null}
+                            </div>
+                            <span style={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "0.76rem" }}>
+                              {palette.harmony}
+                            </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                              {palette.generated.slice(0, 6).map((color) => (
+                                <span
+                                  key={`${palette.id}-${color}`}
+                                  aria-hidden="true"
+                                  style={{
+                                    width: "1rem",
+                                    height: "1rem",
+                                    borderRadius: "999px",
+                                    border: "1px solid rgba(255, 255, 255, 0.24)",
+                                    background: color,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="backgrounds" className={styles.settingsTabContent}>
+                <div className={styles.backgroundCategoryRow} role="tablist" aria-label="Background visual filters">
+                  {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
+                    <button
+                      key={category.value}
+                      type="button"
+                      className={`${styles.backgroundCategoryButton} ${styles.tactileButton} ${backgroundCategoryFilter === category.value ? styles.backgroundCategoryButtonActive : ""}`}
+                      onClick={() => {
+                        triggerHapticFeedback(hapticsEnabled)
+                        handleBackgroundFilterChange(category.value)
+                      }}
+                      role="tab"
+                      aria-selected={backgroundCategoryFilter === category.value}
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+
+                {hasVisibleBackgrounds && activeBackgroundOption ? (
+                  <div
+                    className={`${styles.backgroundRadialCarousel} ${isVerticalBackgroundCarousel ? styles.backgroundRadialCarouselVertical : ""}`}
+                    role="group"
+                    aria-label="Background visual carousel"
+                    tabIndex={0}
+                    onKeyDown={handleBackgroundCarouselKeyDown}
+                  >
+                    <div className={styles.backgroundRadialStage}>
+                      {visibleBackgroundOptions.map((option, optionIndex) => {
+                        const totalOptions = visibleBackgroundOptions.length
+                        const offset = getCircularCarouselOffset(optionIndex, activeBackgroundCarouselIndex, totalOptions)
+                        const absOffset = Math.abs(offset)
+
+                        if (absOffset > BACKGROUND_RADIAL_VISIBLE_OFFSET) {
+                          return null
+                        }
+
+                        const canUse = userCanUseBackground(option, featureKeys)
+                        const isSaved = savedBackgroundIds.includes(option.id)
+                        const isSelected = movingBackgroundEnabled && option.id === backgroundId
+                        const isActive = optionIndex === activeBackgroundCarouselIndex
+                        const isPreviewLoaded =
+                          visibleBackgroundPreviewIds.has(option.id) || option.id === selectedBackgroundDefinition.id || isActive
+                        const angle = offset * BACKGROUND_RADIAL_CARD_SPREAD_DEGREES
+                        const radians = (angle * Math.PI) / 180
+                        const translateX = isVerticalBackgroundCarousel ? 0 : BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians)
+                        const translateY = isVerticalBackgroundCarousel ? BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians) : 0
+                        const rotateY = isVerticalBackgroundCarousel ? 0 : -angle
+                        const rotateX = isVerticalBackgroundCarousel ? angle * 0.72 : 0
+                        const scale = Math.max(0.5, 1 - absOffset * 0.16)
+                        const opacity = Math.min(
+                          canUse ? 1 : 0.58,
+                          absOffset > 2 ? 0.18 : Math.max(0.18, 1 - absOffset * 0.36),
+                        )
+                        const cardStyle = {
+                          opacity,
+                          transform: `translate(-50%, -50%) translate3d(${translateX}px, ${translateY}px, ${-absOffset * 28}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${scale})`,
+                          zIndex: 20 - absOffset,
+                        } as CSSProperties
+
+                        return (
+                          <div
+                            key={option.id}
+                            className={`${styles.backgroundRadialCard} ${isActive ? styles.backgroundRadialCardActive : ""} ${isSelected ? styles.backgroundCardSelected : ""} ${!canUse ? styles.backgroundCardLocked : ""}`}
+                            style={cardStyle}
+                            aria-current={isSelected ? "true" : undefined}
+                            data-background-id={option.id}
+                            role="group"
+                            aria-label={`${option.label} background`}
+                          >
+                            <button
+                              type="button"
+                              className={styles.backgroundRadialCardPreviewButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                setActiveBackgroundCarouselIndex(optionIndex)
+                              }}
+                              aria-label={`Preview ${option.label} background`}
+                            >
+                              {renderBackgroundPreview(
+                                option,
+                                isPreviewLoaded,
+                                option.fallbackStyle ?? { background: "#0f172a" },
+                              )}
+                              <div className={styles.backgroundRadialCardVeil}>
+                                <span className={styles.backgroundRadialCardCategory}>
+                                  {getBackgroundVisualTags(option).slice(0, 2).join(" • ")}
+                                </span>
+                                <span className={styles.backgroundRadialCardTitle}>{option.label}</span>
+                                {isActive ? (
+                                  <span className={styles.backgroundRadialCardBadges}>
+                                    <span>{option.requiresSubscription ? "Premium" : "Free"}</span>
+                                    {isSelected ? <span>Selected</span> : null}
+                                    {isSaved ? <span>Saved</span> : null}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </button>
+
+                            {isActive ? (
+                              <div className={styles.backgroundRadialCardActions}>
+                                <button
+                                  type="button"
+                                  className={`${styles.backgroundRadialCardAction} ${isSelected ? styles.backgroundRadialCardActionSelected : ""}`}
+                                  onClick={() => {
+                                    triggerHapticFeedback(hapticsEnabled)
+                                    handleBackgroundSelection(option.id)
+                                  }}
+                                  disabled={!canUse}
+                                  aria-label={`${isSelected ? "Selected" : "Select"} ${option.label} background`}
+                                >
+                                  {isSelected ? "Selected" : "Select"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.backgroundRadialIconAction} ${isSaved ? styles.backgroundRadialIconActionActive : ""}`}
+                                  onClick={() => {
+                                    triggerHapticFeedback(hapticsEnabled)
+                                    handleBackgroundSavedToggle(option.id)
+                                  }}
+                                  aria-label={`${isSaved ? "Unsave" : "Save"} ${option.label}`}
+                                >
+                                  <Star className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className={styles.backgroundRadialNavRow}>
+                      <button
+                        type="button"
+                        className={`${styles.backgroundCarouselNav} ${styles.tactileButton}`}
+                        onClick={() => moveBackgroundCarousel(-1)}
+                        disabled={visibleBackgroundOptions.length <= 1}
+                        aria-label="Previous background"
+                      >
+                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.backgroundCarouselNav} ${styles.tactileButton}`}
+                        onClick={() => moveBackgroundCarousel(1)}
+                        disabled={visibleBackgroundOptions.length <= 1}
+                        aria-label="Next background"
+                      >
+                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className={styles.settingsEmptyState}>No backgrounds match this filter.</div>
                 )}
               </TabsContent>
             </Tabs>
@@ -15795,15 +17567,41 @@ export function RunningTimer({
 
         <div className={styles.bottomControls}>
           <div className={styles.bottomButtonRow}>
-            <button className={`${styles.fontButton} ${styles.decreaseFontButton}`} onClick={() => handleFontSizeChange("decrease")} disabled={!canDecreaseFontSize} aria-label="Decrease timer size" data-chimer-control="true">
+            <button
+              className={`${styles.fontButton} ${styles.decreaseFontButton}`}
+              onClick={() => {
+                triggerHapticFeedback(hapticsEnabled)
+                handleFontSizeChange("decrease")
+              }}
+              disabled={!canDecreaseFontSize}
+              aria-label="Decrease timer size"
+              data-chimer-control="true"
+            >
               <Minus className="h-5 w-5" />
             </button>
             {!isComplete && !isClockMode && (
-              <button className={`${styles.control} ${styles.pauseButton}`} onClick={handlePauseControl} aria-label={isPaused ? "Resume timer" : "Pause timer"} data-chimer-control="true">
+              <button
+                className={`${styles.control} ${styles.pauseButton}`}
+                onClick={() => {
+                  triggerHapticFeedback(hapticsEnabled)
+                  handlePauseControl()
+                }}
+                aria-label={isPaused ? "Resume timer" : "Pause timer"}
+                data-chimer-control="true"
+              >
                 {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </button>
             )}
-            <button className={`${styles.fontButton} ${styles.increaseFontButton}`} onClick={() => handleFontSizeChange("increase")} disabled={!canIncreaseFontSize} aria-label="Increase timer size" data-chimer-control="true">
+            <button
+              className={`${styles.fontButton} ${styles.increaseFontButton}`}
+              onClick={() => {
+                triggerHapticFeedback(hapticsEnabled)
+                handleFontSizeChange("increase")
+              }}
+              disabled={!canIncreaseFontSize}
+              aria-label="Increase timer size"
+              data-chimer-control="true"
+            >
               <Plus className="h-5 w-5" />
             </button>
           </div>
