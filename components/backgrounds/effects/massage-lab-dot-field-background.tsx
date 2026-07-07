@@ -65,9 +65,53 @@ export default function MassageLabDotFieldBackground({
   const engagementRef = useRef(0)
   const reactId = useId()
   const glowGradientId = `massage-lab-dot-field-glow-${reactId.replace(/:/g, "")}`
+  const {
+    dotRadius,
+    dotSpacing,
+    cursorRadius,
+    cursorForce,
+    bulgeOnly,
+    bulgeStrength,
+    glowRadius,
+    sparkle,
+    waveAmplitude,
+    gradientFrom,
+    gradientTo,
+    glowColor,
+    cursorInteraction,
+  } = massageLabDotField ?? {}
   const options = useMemo(
-    () => resolveDotFieldOptions(massageLabDotField),
-    [massageLabDotField],
+    () =>
+      resolveDotFieldOptions({
+        dotRadius,
+        dotSpacing,
+        cursorRadius,
+        cursorForce,
+        bulgeOnly,
+        bulgeStrength,
+        glowRadius,
+        sparkle,
+        waveAmplitude,
+        gradientFrom,
+        gradientTo,
+        glowColor,
+        cursorInteraction,
+      }),
+    [
+      bulgeOnly,
+      bulgeStrength,
+      cursorForce,
+      cursorInteraction,
+      cursorRadius,
+      dotRadius,
+      dotSpacing,
+      glowColor,
+      glowRadius,
+      gradientFrom,
+      gradientTo,
+      sparkle,
+      waveAmplitude,
+    ],
   )
 
   useEffect(() => {
