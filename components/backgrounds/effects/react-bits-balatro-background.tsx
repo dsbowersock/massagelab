@@ -142,9 +142,53 @@ export default function ReactBitsBalatroBackground({
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const mouseRef = useRef<[number, number]>([0.5, 0.5])
+  const balatroSpinRotation = reactBitsBalatro?.spinRotation
+  const balatroSpinSpeed = reactBitsBalatro?.spinSpeed
+  const balatroOffsetX = reactBitsBalatro?.offsetX
+  const balatroOffsetY = reactBitsBalatro?.offsetY
+  const balatroColor1 = reactBitsBalatro?.color1
+  const balatroColor2 = reactBitsBalatro?.color2
+  const balatroColor3 = reactBitsBalatro?.color3
+  const balatroContrast = reactBitsBalatro?.contrast
+  const balatroLighting = reactBitsBalatro?.lighting
+  const balatroSpinAmount = reactBitsBalatro?.spinAmount
+  const balatroPixelFilter = reactBitsBalatro?.pixelFilter
+  const balatroSpinEase = reactBitsBalatro?.spinEase
+  const balatroIsRotate = reactBitsBalatro?.isRotate
+  const balatroMouseInteraction = reactBitsBalatro?.mouseInteraction
   const options = useMemo(
-    () => resolveBalatroOptions(reactBitsBalatro),
-    [reactBitsBalatro],
+    () => resolveBalatroOptions({
+      spinRotation: balatroSpinRotation,
+      spinSpeed: balatroSpinSpeed,
+      offsetX: balatroOffsetX,
+      offsetY: balatroOffsetY,
+      color1: balatroColor1,
+      color2: balatroColor2,
+      color3: balatroColor3,
+      contrast: balatroContrast,
+      lighting: balatroLighting,
+      spinAmount: balatroSpinAmount,
+      pixelFilter: balatroPixelFilter,
+      spinEase: balatroSpinEase,
+      isRotate: balatroIsRotate,
+      mouseInteraction: balatroMouseInteraction,
+    }),
+    [
+      balatroSpinRotation,
+      balatroSpinSpeed,
+      balatroOffsetX,
+      balatroOffsetY,
+      balatroColor1,
+      balatroColor2,
+      balatroColor3,
+      balatroContrast,
+      balatroLighting,
+      balatroSpinAmount,
+      balatroPixelFilter,
+      balatroSpinEase,
+      balatroIsRotate,
+      balatroMouseInteraction,
+    ],
   )
 
   useEffect(() => {
