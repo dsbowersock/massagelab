@@ -1,6 +1,11 @@
 export type HapticPattern = number | number[]
 const APP_SETTINGS_STORAGE_KEY = "massage-lab-settings"
 
+/**
+ * Reads the persisted site-wide haptic preference when browser storage is available.
+ *
+ * @returns null when storage is unavailable, unset, malformed, or unreadable.
+ */
 function readSavedHapticsEnabled(): boolean | null {
   if (typeof window === "undefined") {
     return null
