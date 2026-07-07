@@ -54,11 +54,7 @@ export function withChimerPress(
     }
 
     if (!skipHaptics && shouldPlayHaptics(hapticsEnabled)) {
-      if (!("key" in maybeKeyboardEvent)) {
-        triggerHapticFeedback(hapticsEnabled, hapticDurationMs);
-      } else if (isActivationKey(maybeKeyboardEvent as KeyboardEvent)) {
-        triggerHapticFeedback(hapticsEnabled, hapticDurationMs);
-      }
+      triggerHapticFeedback(hapticsEnabled, hapticDurationMs);
     }
 
     handler();

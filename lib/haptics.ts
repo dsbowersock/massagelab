@@ -1,12 +1,6 @@
 export type HapticPattern = number | number[]
 const APP_SETTINGS_STORAGE_KEY = "massage-lab-settings"
 
-/**
- * Fires a short vibration pulse when supported and enabled.
- *
- * @param enabled user preference for haptic feedback
- * @param durationMilliseconds vibration length, typically 10-20ms
- */
 function readSavedHapticsEnabled(): boolean | null {
   if (typeof window === "undefined") {
     return null
@@ -37,6 +31,12 @@ export function shouldPlayHaptics(explicitEnabled?: boolean): boolean {
   return readSavedHapticsEnabled() ?? true
 }
 
+/**
+ * Fires a short vibration pulse when supported and enabled.
+ *
+ * @param enabled user preference for haptic feedback
+ * @param durationMilliseconds vibration length, typically 10-20ms
+ */
 export function triggerHapticFeedback(enabled: boolean | undefined, durationMilliseconds: HapticPattern = 15): void {
   if (!shouldPlayHaptics(enabled)) {
     return

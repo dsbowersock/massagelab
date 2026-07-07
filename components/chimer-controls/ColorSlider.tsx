@@ -54,6 +54,8 @@ export function ColorSlider({
   valueFormatter,
 }: ColorSliderProps) {
   const sliderId = useId()
+  const inputId = `color-slider-${channel}-${sliderId}`
+  const descriptionId = description ? `${inputId}-description` : undefined
   const safeValue = clampColorValue(value, min, max)
   const percent = max === min ? 0 : ((safeValue - min) / (max - min)) * 100
   const displayValue = formatColorValue(safeValue, unit, valueFormatter)
@@ -61,14 +63,14 @@ export function ColorSlider({
   return (
     <section className={cn(styles.controlCard, styles.colorSlider, className)}>
       <div className={styles.controlRow}>
-        <label htmlFor={`color-slider-${channel}-${sliderId}`} className={styles.controlLabel}>
+        <label htmlFor={inputId} className={styles.controlLabel}>
           {label}
         </label>
         <span className={styles.controlValue}>{displayValue}</span>
       </div>
-      {description ? <p className={styles.controlDescription}>{description}</p> : null}
+      {description ? <p id={descriptionId} className={styles.controlDescription}>{description}</p> : null}
       <input
-        id={`color-slider-${channel}-${sliderId}`}
+        id={inputId}
         type="range"
         min={min}
         max={max}
@@ -76,6 +78,7 @@ export function ColorSlider({
         value={safeValue}
         disabled={disabled}
         aria-label={label}
+        aria-describedby={descriptionId}
         className={styles.rangeInput}
         style={{
           "--chimer-range-progress": `${percent}%`,

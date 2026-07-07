@@ -281,14 +281,21 @@ export function ColorPickerSwatch({
 
       setIsOpen(false)
     }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false)
+      }
+    }
 
     updatePopoverPosition()
     document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
     window.addEventListener("resize", updatePopoverPosition)
     window.addEventListener("scroll", updatePopoverPosition, true)
 
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("resize", updatePopoverPosition)
       window.removeEventListener("scroll", updatePopoverPosition, true)
     }
@@ -377,6 +384,7 @@ export function ColorPickerSwatch({
           style={popoverStyle}
           role="dialog"
           aria-label={`${label} picker`}
+          aria-modal="false"
         >
           <div
             ref={colorAreaRef}

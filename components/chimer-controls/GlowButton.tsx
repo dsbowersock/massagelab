@@ -7,10 +7,10 @@ import styles from "./chimer-controls.module.css"
 /**
  * Subtle glass/glow treatment for premium or secondary visual actions.
  */
-export function GlowButton(props: TactileButtonProps) {
+export function GlowButton({ className, ...props }: TactileButtonProps) {
   return (
     <TactileButton
-      className={cn(styles.glowButton, props.className)}
+      className={cn(styles.glowButton, className)}
       {...props}
     />
   )

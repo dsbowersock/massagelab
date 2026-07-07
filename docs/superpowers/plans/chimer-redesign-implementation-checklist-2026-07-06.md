@@ -9,7 +9,7 @@
 - Preserve existing timer behavior and non-customization user flows.
 - Keep this work in small, reversible batches.
 - Harmony icon assets are available at:
-  - `C:\Users\derri\code\my_projects\massagelab\public\massagelab_color_harmony_icons`
+  - `public/massagelab_color_harmony_icons`
 
 ## Batch 0 (done / in-progress)
 - [x] Add `hapticFeedbackEnabled` to global app settings schema/defaults.

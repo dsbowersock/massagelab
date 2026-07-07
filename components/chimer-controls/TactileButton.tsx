@@ -68,7 +68,8 @@ function wrapKeyPress(
 }
 
 /**
- * Backward-compatibility passthrough kept for inline readability.
+ * Groups wrapped pointer, touch, and keyboard handlers so haptics stay
+ * consistent across button activation paths.
  */
 function createButtonHandlers(
   onClick: React.MouseEventHandler<HTMLButtonElement> | undefined,

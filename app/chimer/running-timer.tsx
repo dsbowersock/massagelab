@@ -828,23 +828,36 @@ const saveBackgroundIdsToStorage = (ids: BackgroundId[]) => {
   }
 }
 
-const hasMediaSource = (url: string, patterns: string[]) => {
-  const source = url.toLowerCase()
-  return patterns.some((pattern) => source.includes(pattern)) || source.includes("/media/")
+const hasPreviewMediaType = (option: BackgroundDefinition, type: BackgroundPreviewMedia["type"]) => {
+  const optionWithPreview = option as BackgroundDefinitionWithPreview
+  if (optionWithPreview.previewMediaType === type) {
+    return true
+  }
+
+  return type === "image"
+    ? Boolean(optionWithPreview.previewImageUrl)
+    : Boolean(optionWithPreview.previewVideoUrl || optionWithPreview.previewSquareVideoUrl || optionWithPreview.previewVerticalVideoUrl)
 }
 
+// Interactive backgrounds are identified from behavior hints until background
+// definitions grow first-class interaction metadata.
 const isInteractiveBackgroundOption = (option: BackgroundDefinition) => {
   const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
   return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
 }
 
+// Keep the Shader filter restricted to metadata that actually hints at shader,
+// canvas, WebGL, GLSL, or Three.js rendering.
 const isShaderBackgroundOption = (option: BackgroundDefinition) => {
-  if (hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS) || hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)) {
-    return false
-  }
-
-  const haystack = `${option.id} ${option.label} ${option.provider} ${option.sourceUrl}`.toLowerCase()
-  return option.motionIntensity !== "static" || SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
+  const haystack = [
+    option.id,
+    option.label,
+    option.provider,
+    option.sourceUrl,
+    option.recommendedUse,
+    option.customizationSummary ?? "",
+  ].join(" ").toLowerCase()
+  return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
 }
 
 const isBackgroundCategoryMatch = (
@@ -881,10 +894,10 @@ const isBackgroundCategoryMatch = (
   }
 
   if (filter === "image") {
-    return hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS)
+    return hasPreviewMediaType(option, "image")
   }
 
-  return hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)
+  return hasPreviewMediaType(option, "video")
 }
 
 const getBackgroundVisualTags = (option: BackgroundDefinition) => {
@@ -904,9 +917,9 @@ const getBackgroundVisualTags = (option: BackgroundDefinition) => {
     tags.push("Shader")
   }
 
-  if (hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS)) {
+  if (hasPreviewMediaType(option, "image")) {
     tags.push("Image")
-  } else if (hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)) {
+  } else if (hasPreviewMediaType(option, "video")) {
     tags.push("Video")
   }
 
@@ -17392,7 +17405,7 @@ export function RunningTimer({
               </TabsContent>
 
               <TabsContent value="backgrounds" className={styles.settingsTabContent}>
-                <div className={styles.backgroundCategoryRow} role="tablist" aria-label="Background category filters">
+                <div className={styles.backgroundCategoryRow} role="tablist" aria-label="Background visual filters">
                   {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
                     <button
                       key={category.value}

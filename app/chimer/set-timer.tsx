@@ -64,6 +64,8 @@ export type ChimerSetupStartOptions = {
   skipIntervalCues?: boolean
 }
 
+// Saved setup presets store only pre-start choices so timer runtime state does
+// not leak into reusable session templates.
 const createChimerSetupPresetState = (
   settings: ChimerSettings,
   skipIntervalCues = false,
@@ -81,6 +83,8 @@ const createChimerSetupPresetState = (
   skipIntervalCues,
 })
 
+// Local saved setups are normalized through the central Chimer sanitizer, sorted
+// newest-first, and capped so malformed or stale storage never blocks setup.
 const readChimerSetupPresets = (): ChimerSetupPreset[] => {
   if (typeof window === "undefined") {
     return []
@@ -149,6 +153,8 @@ const readChimerSetupPresets = (): ChimerSetupPreset[] => {
   }
 }
 
+// The quick-reuse setup is intentionally a single sanitized payload; corrupt
+// storage is removed so returning users can continue with defaults.
 const readLastChimerSetupPreset = (): ChimerSetupPresetState | null => {
   if (typeof window === "undefined") {
     return null
@@ -177,6 +183,7 @@ const readLastChimerSetupPreset = (): ChimerSetupPresetState | null => {
   }
 }
 
+// Persist only a bounded list of sanitized setup presets.
 const writeChimerSetupPresets = (presets: ChimerSetupPreset[]) => {
   if (typeof window === "undefined") {
     return
@@ -185,6 +192,7 @@ const writeChimerSetupPresets = (presets: ChimerSetupPreset[]) => {
   window.localStorage.setItem(CHIMER_SETUP_PRESETS_STORAGE_KEY, JSON.stringify(presets))
 }
 
+// Persist the latest setup separately from the named preset collection.
 const writeChimerLastSetupPreset = (preset: ChimerSetupPresetState) => {
   if (typeof window === "undefined") {
     return

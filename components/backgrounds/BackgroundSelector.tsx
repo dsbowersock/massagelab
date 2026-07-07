@@ -27,8 +27,6 @@ interface BackgroundSelectorProps {
 type BackgroundVisualFilter = "all" | "static" | "animated" | "interactive" | "shader" | "image" | "video" | "premium" | "saved"
 
 const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
-const IMAGE_SOURCE_PATTERNS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", "image"]
-const VIDEO_SOURCE_PATTERNS = [".mp4", ".webm", ".mov", "video"]
 const INTERACTIVE_HINT_PATTERNS = ["interactive", "hover", "cursor", "rotate", "orbit", "spin", "mouse", "tap", "drag", "pan"]
 const SHADER_HINT_PATTERNS = ["shader", "canvas", "webgl", "glsl", "fragment", "uniform", "three", "custom"]
 
@@ -78,23 +76,35 @@ function writeSavedBackgroundIds(ids: BackgroundId[]) {
   }
 }
 
-function hasMediaSource(url: string, patterns: string[]) {
-  const source = url.toLowerCase()
-  return patterns.some((pattern) => source.includes(pattern)) || source.includes("/media/")
+function hasPreviewMediaType(option: BackgroundDefinition, type: "image" | "video") {
+  if (option.previewMediaType === type) {
+    return true
+  }
+
+  return type === "image"
+    ? Boolean(option.previewImageUrl)
+    : Boolean(option.previewVideoUrl || option.previewSquareVideoUrl || option.previewVerticalVideoUrl)
 }
 
+// Interactive backgrounds are identified from user-facing behavior hints until
+// background definitions grow a first-class interaction metadata field.
 function isInteractiveBackground(option: BackgroundDefinition) {
   const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
   return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
 }
 
+// Keep the Shader filter restricted to metadata that actually hints at a shader,
+// canvas, WebGL, GLSL, or Three.js implementation.
 function isShaderBackground(option: BackgroundDefinition) {
-  if (hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS) || hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)) {
-    return false
-  }
-
-  const haystack = `${option.id} ${option.label} ${option.provider} ${option.sourceUrl}`.toLowerCase()
-  return option.motionIntensity !== "static" || SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
+  const haystack = [
+    option.id,
+    option.label,
+    option.provider,
+    option.sourceUrl,
+    option.recommendedUse,
+    option.customizationSummary ?? "",
+  ].join(" ").toLowerCase()
+  return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
 }
 
 function matchesVisualFilter(option: BackgroundDefinition, filter: BackgroundVisualFilter, savedBackgroundIds: BackgroundId[]) {
@@ -108,9 +118,9 @@ function matchesVisualFilter(option: BackgroundDefinition, filter: BackgroundVis
     case "shader":
       return isShaderBackground(option)
     case "image":
-      return hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS)
+      return hasPreviewMediaType(option, "image")
     case "video":
-      return hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)
+      return hasPreviewMediaType(option, "video")
     case "premium":
       return option.requiresSubscription
     case "saved":
@@ -206,7 +216,7 @@ export function BackgroundSelector({
         </div>
       ) : null}
 
-      <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Background categories">
+      <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Background visual filters">
         {VISUAL_FILTERS.map((filter) => (
           <button
             key={filter.value}
@@ -312,7 +322,7 @@ export function BackgroundSelector({
         })}
       </div>
       {visibleOptions.length === 0 ? (
-        <p className="text-xs leading-5 text-muted-foreground">No backgrounds match this category yet.</p>
+        <p className="text-xs leading-5 text-muted-foreground">No backgrounds match this filter yet.</p>
       ) : null}
       {upgradeMessage ? <p className="text-xs leading-5 text-primary">{upgradeMessage}</p> : null}
     </div>

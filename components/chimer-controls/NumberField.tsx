@@ -65,9 +65,10 @@ export function NumberField({
   valueFormatter,
 }: NumberFieldProps) {
   const inputId = useId()
-  const safeValue = clampNumber(value, min, max)
   const minSafe = Number.isFinite(min) ? min : 0
-  const maxSafe = Number.isFinite(max) ? max : 100
+  const hasFiniteMax = Number.isFinite(max)
+  const maxSafe = hasFiniteMax ? max : Number.POSITIVE_INFINITY
+  const safeValue = clampNumber(value, minSafe, maxSafe)
   const displayValue = formatFieldValue(safeValue, unit, valueFormatter)
 
   function changeValue(nextRaw: string) {
@@ -96,7 +97,7 @@ export function NumberField({
           type="number"
           value={Number.isFinite(safeValue) ? safeValue : ""}
           min={minSafe}
-          max={maxSafe}
+          max={hasFiniteMax ? maxSafe : undefined}
           step={step}
           inputMode="decimal"
           disabled={disabled}

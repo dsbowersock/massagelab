@@ -67,7 +67,6 @@ export function Loader({
         aria-hidden="true"
       />
       <span className={styles.loaderText}>{label}</span>
-      <span className={styles.srOnly}>Loading</span>
     </span>
   )
 }

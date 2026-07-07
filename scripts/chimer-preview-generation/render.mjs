@@ -240,8 +240,14 @@ async function startServer(options) {
   server.stdout.on("data", (chunk) => process.stdout.write(`[preview-server] ${chunk}`))
   server.stderr.on("data", (chunk) => process.stderr.write(`[preview-server] ${chunk}`))
 
-  await waitForServer(options.baseUrl)
-  await disableNextDevIndicator(options.baseUrl)
+  try {
+    await waitForServer(options.baseUrl)
+    await disableNextDevIndicator(options.baseUrl)
+  } catch (error) {
+    server.kill()
+    throw error
+  }
+
   return server
 }
 
