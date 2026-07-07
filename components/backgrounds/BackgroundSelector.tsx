@@ -42,6 +42,8 @@ const VISUAL_FILTERS: Array<{ value: BackgroundVisualFilter; label: string }> = 
   { value: "saved", label: "Saved" },
 ]
 
+// Local favorites are best-effort UI preferences; malformed saved data is
+// ignored so the background picker can always render.
 function readSavedBackgroundIds(): BackgroundId[] {
   if (typeof window === "undefined") {
     return []
@@ -76,6 +78,8 @@ function writeSavedBackgroundIds(ids: BackgroundId[]) {
   }
 }
 
+// Preview media filters use the structured generated-preview fields instead of
+// external source URLs, which usually point to documentation rather than assets.
 function hasPreviewMediaType(option: BackgroundDefinition, type: "image" | "video") {
   if (option.previewMediaType === type) {
     return true
@@ -107,6 +111,9 @@ function isShaderBackground(option: BackgroundDefinition) {
   return SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
 }
 
+// Visual filters are intentionally lightweight client-side classification. The
+// loose text heuristics can miss unusual labels, so registry metadata remains
+// the source of truth for entitlement and actual background rendering.
 function matchesVisualFilter(option: BackgroundDefinition, filter: BackgroundVisualFilter, savedBackgroundIds: BackgroundId[]) {
   switch (filter) {
     case "static":
@@ -131,6 +138,8 @@ function matchesVisualFilter(option: BackgroundDefinition, filter: BackgroundVis
   }
 }
 
+// Fallback previews keep the picker visual even before generated media loads or
+// when a background does not provide a custom fallback style.
 function getPreviewStyle(option: BackgroundDefinition): CSSProperties {
   return option.fallbackStyle ?? {
     background:
@@ -140,6 +149,8 @@ function getPreviewStyle(option: BackgroundDefinition): CSSProperties {
   }
 }
 
+// Tags summarize registry metadata and heuristic classifications for compact
+// card labels; they are descriptive only and do not control entitlements.
 function getVisualTags(option: BackgroundDefinition) {
   const tags = [option.motionIntensity === "static" ? "Static" : "Animated"]
 
