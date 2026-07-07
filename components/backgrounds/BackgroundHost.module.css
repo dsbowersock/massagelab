@@ -90,14 +90,14 @@
   animation-delay: -9s;
 }
 
-.chamaacLightSpeed {
+.massageLabLightSpeed {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(176, 38, 255, 0.16), transparent 34%),
     #000000;
 }
 
-.chamaacLightSpeedCanvas {
+.massageLabLightSpeedCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -106,14 +106,14 @@
   pointer-events: none;
 }
 
-.chamaacSynthesis {
+.massageLabSynthesis {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 54%, rgba(14, 165, 233, 0.22), transparent 42%),
     linear-gradient(180deg, #000000 0%, #020617 46%, #021b68 100%);
 }
 
-.chamaacSynthesisCanvas {
+.massageLabSynthesisCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -123,14 +123,14 @@
   transform: translateZ(0);
 }
 
-.chamaacElectricMist {
+.massageLabElectricMist {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(86, 189, 255, 0.2), transparent 34%),
     linear-gradient(135deg, #05050f 0%, #07111b 100%);
 }
 
-.chamaacElectricMistCanvas {
+.massageLabElectricMistCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -140,15 +140,15 @@
   transform: translateZ(0);
 }
 
-.aceternity3dGlobe {
+.massageLab3dGlobe {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 48%, rgba(77, 166, 255, 0.2), transparent 34%),
-    var(--ml-aceternity-globe-background, #020617);
+    var(--ml-globe-background, #020617);
 }
 
-.aceternity3dGlobeCanvas,
-.aceternity3dGlobeMarkerCanvas {
+.massageLab3dGlobeCanvas,
+.massageLab3dGlobeMarkerCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -158,20 +158,20 @@
   transform: translateZ(0);
 }
 
-.aceternity3dGlobeCanvas {
+.massageLab3dGlobeCanvas {
   z-index: 0;
 }
 
-.aceternity3dGlobeMarkerCanvas {
+.massageLab3dGlobeMarkerCanvas {
   z-index: 1;
 }
 
-.chamaacAstralFlow {
+.massageLabAstralFlow {
   overflow: hidden;
   background: #05070a;
 }
 
-.chamaacAstralFlowCanvas {
+.massageLabAstralFlowCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -181,7 +181,7 @@
   transform: translateZ(0);
 }
 
-.chamaacAstralFlowNoise {
+.massageLabAstralFlowNoise {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -190,14 +190,14 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
-.chamaacDeepSpaceNebula {
+.massageLabDeepSpaceNebula {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(118, 59, 101, 0.24), transparent 42%),
     linear-gradient(145deg, #1a0b2e 0%, #080311 62%, #010104 100%);
 }
 
-.chamaacDeepSpaceNebulaCanvas {
+.massageLabDeepSpaceNebulaCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -207,14 +207,14 @@
   transform: translateZ(0);
 }
 
-.chamaacGridBloom {
+.massageLabGridBloom {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(224, 64, 251, 0.2), transparent 42%),
     linear-gradient(145deg, #07010c 0%, #13051d 58%, #020104 100%);
 }
 
-.chamaacGridBloomCanvas {
+.massageLabGridBloomCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -224,7 +224,7 @@
   transform: translateZ(0);
 }
 
-.chamaacLiquidChrome {
+.massageLabChromeFlow {
   overflow: hidden;
   background:
     radial-gradient(circle at 42% 34%, rgba(255, 255, 255, 0.22), transparent 30%),
@@ -232,7 +232,7 @@
     linear-gradient(145deg, #111111 0%, #2e2e2e 52%, #070707 100%);
 }
 
-.chamaacLiquidChromeCanvas {
+.massageLabChromeFlowCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -242,7 +242,7 @@
   transform: translateZ(0);
 }
 
-.chamaacWaves {
+.massageLabWaveCurrent {
   overflow: hidden;
   background:
     radial-gradient(circle at 54% 36%, rgba(0, 212, 255, 0.22), transparent 34%),
@@ -250,7 +250,7 @@
     #000000;
 }
 
-.chamaacWavesCanvas {
+.massageLabWaveCurrentCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -260,14 +260,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsFerrofluid {
+.massageLabFerrofluid {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16), transparent 36%),
     linear-gradient(145deg, #020617 0%, #040711 58%, #000000 100%);
 }
 
-.reactBitsFerrofluidCanvas {
+.massageLabFerrofluidCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -277,14 +277,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsLightfall {
+.massageLabLightfall {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 45%, rgba(166, 200, 255, 0.18), transparent 34%),
     linear-gradient(145deg, #0615a8 0%, #091d5c 54%, #030614 100%);
 }
 
-.reactBitsLightfallCanvas {
+.massageLabLightfallCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -294,7 +294,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsLiquidEther {
+.massageLabLiquidEther {
   overflow: hidden;
   background:
     radial-gradient(circle at 42% 46%, rgba(82, 39, 255, 0.24), transparent 36%),
@@ -302,7 +302,7 @@
     linear-gradient(145deg, #070015 0%, #13072f 58%, #02010a 100%);
 }
 
-.reactBitsLiquidEtherCanvas {
+.massageLabLiquidEtherCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -312,7 +312,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsPrism {
+.massageLabPrism {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 48%, rgba(190, 145, 255, 0.22), transparent 36%),
@@ -320,7 +320,7 @@
     linear-gradient(145deg, #090214 0%, #17072f 58%, #02010a 100%);
 }
 
-.reactBitsPrismCanvas {
+.massageLabPrismCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -330,7 +330,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsDarkVeil {
+.massageLabDarkVeil {
   overflow: hidden;
   background:
     radial-gradient(circle at 46% 52%, rgba(124, 58, 237, 0.28), transparent 38%),
@@ -338,7 +338,7 @@
     linear-gradient(145deg, #05010d 0%, #12051f 58%, #020007 100%);
 }
 
-.reactBitsDarkVeilCanvas {
+.massageLabDarkVeilCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -348,7 +348,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsLightPillar {
+.massageLabLightPillar {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 46%, rgba(82, 39, 255, 0.24), transparent 32%),
@@ -356,7 +356,7 @@
     linear-gradient(145deg, #050013 0%, #120424 56%, #020007 100%);
 }
 
-.reactBitsLightPillarCanvas {
+.massageLabLightPillarCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -366,7 +366,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsSilk {
+.massageLabSilk {
   overflow: hidden;
   background:
     radial-gradient(circle at 48% 44%, rgba(123, 116, 129, 0.32), transparent 36%),
@@ -374,7 +374,7 @@
     linear-gradient(145deg, #07060a 0%, #181320 58%, #040307 100%);
 }
 
-.reactBitsSilkCanvas {
+.massageLabSilkCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -384,7 +384,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsFloatingLines {
+.massageLabFloatingLines {
   overflow: hidden;
   background:
     radial-gradient(circle at 20% 12%, rgba(233, 71, 245, 0.12), transparent 34%),
@@ -392,7 +392,7 @@
     linear-gradient(145deg, #02030a 0%, #060716 58%, #000000 100%);
 }
 
-.reactBitsFloatingLinesCanvas {
+.massageLabFloatingLinesCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -402,7 +402,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsSideRays {
+.massageLabSideRays {
   overflow: hidden;
   background:
     radial-gradient(circle at 86% 10%, rgba(234, 179, 8, 0.2), transparent 36%),
@@ -410,7 +410,7 @@
     linear-gradient(145deg, #03040a 0%, #07101f 58%, #000000 100%);
 }
 
-.reactBitsSideRaysCanvas {
+.massageLabSideRaysCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -420,7 +420,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsLightRays {
+.massageLabLightRays {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.24), transparent 42%),
@@ -428,7 +428,7 @@
     linear-gradient(180deg, #020617 0%, #05070d 100%);
 }
 
-.reactBitsLightRaysCanvas {
+.massageLabLightRaysCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -438,7 +438,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsPixelBlast {
+.massageLabPixelBlast {
   overflow: hidden;
   background:
     radial-gradient(circle at 48% 44%, rgba(180, 151, 207, 0.26), transparent 38%),
@@ -446,7 +446,7 @@
     linear-gradient(145deg, #05020a 0%, #0f0820 58%, #020106 100%);
 }
 
-.reactBitsPixelBlastCanvas {
+.massageLabPixelBlastCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -456,7 +456,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsColorBends {
+.massageLabColorBends {
   overflow: hidden;
   background:
     radial-gradient(circle at 46% 48%, rgba(138, 92, 246, 0.24), transparent 36%),
@@ -464,7 +464,7 @@
     linear-gradient(145deg, #05020a 0%, #10051e 58%, #020106 100%);
 }
 
-.reactBitsColorBendsCanvas {
+.massageLabColorBendsCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -474,7 +474,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsEvilEye {
+.massageLabEvilEye {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 111, 55, 0.24), transparent 36%),
@@ -482,7 +482,7 @@
     #000000;
 }
 
-.reactBitsEvilEyeCanvas {
+.massageLabEvilEyeCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -492,14 +492,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsLineWaves {
+.massageLabLineWaves {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 38%),
     linear-gradient(135deg, #020617 0%, #05070d 100%);
 }
 
-.reactBitsLineWavesCanvas {
+.massageLabLineWavesCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -509,14 +509,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsRadar {
+.massageLabRadar {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(159, 41, 255, 0.18), transparent 38%),
     linear-gradient(135deg, #000000 0%, #07030c 100%);
 }
 
-.reactBitsRadarCanvas {
+.massageLabRadarCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -526,7 +526,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsSoftAurora {
+.massageLabSoftAurora {
   overflow: hidden;
   background:
     radial-gradient(circle at 46% 64%, rgba(247, 247, 247, 0.16), transparent 38%),
@@ -534,7 +534,7 @@
     linear-gradient(180deg, #05010d 0%, #10071e 58%, #020006 100%);
 }
 
-.reactBitsSoftAuroraCanvas {
+.massageLabSoftAuroraCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -544,7 +544,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsPlasma {
+.massageLabPlasma {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 52%, rgba(255, 255, 255, 0.16), transparent 34%),
@@ -552,7 +552,7 @@
     linear-gradient(145deg, #05010d 0%, #12051f 58%, #020006 100%);
 }
 
-.reactBitsPlasmaCanvas {
+.massageLabPlasmaCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -562,7 +562,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsPlasmaWave {
+.massageLabPlasmaWave {
   overflow: hidden;
   background:
     radial-gradient(circle at 42% 48%, rgba(168, 85, 247, 0.18), transparent 36%),
@@ -570,7 +570,7 @@
     linear-gradient(145deg, #04030a 0%, #09111e 58%, #010105 100%);
 }
 
-.reactBitsPlasmaWaveCanvas {
+.massageLabPlasmaWaveCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -580,14 +580,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsParticles {
+.massageLabParticles {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12), transparent 35%),
     linear-gradient(145deg, #02030a 0%, #060812 58%, #000104 100%);
 }
 
-.reactBitsParticlesCanvas {
+.massageLabParticlesCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -597,14 +597,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsGradientBlinds {
+.massageLabGradientBlinds {
   overflow: hidden;
   background:
     linear-gradient(90deg, rgba(255, 159, 252, 0.28), rgba(82, 39, 255, 0.3)),
     linear-gradient(145deg, #05010d 0%, #12051f 58%, #020006 100%);
 }
 
-.reactBitsGradientBlindsCanvas {
+.massageLabGradientBlindsCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -614,7 +614,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsGrainient {
+.massageLabGrainient {
   overflow: hidden;
   background:
     radial-gradient(circle at 30% 28%, rgba(255, 159, 252, 0.2), transparent 36%),
@@ -622,7 +622,7 @@
     linear-gradient(145deg, #090012 0%, #140729 58%, #05020a 100%);
 }
 
-.reactBitsGrainientCanvas {
+.massageLabGrainientCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -632,14 +632,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsGridScan {
+.massageLabGridScan {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 46%, rgba(255, 159, 252, 0.14), transparent 32%),
     linear-gradient(145deg, #05030a 0%, #100719 58%, #020106 100%);
 }
 
-.reactBitsGridScanCanvas {
+.massageLabGridScanCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -649,12 +649,12 @@
   transform: translateZ(0);
 }
 
-.reactBitsBeams {
+.massageLabBeams {
   overflow: hidden;
   background: #000000;
 }
 
-.reactBitsBeamsCanvas {
+.massageLabBeamsCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -664,7 +664,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsPixelSnowCanvas {
+.massageLabPixelSnowCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -674,7 +674,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsLightningCanvas {
+.massageLabLightningCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -684,7 +684,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsPrismaticBurstCanvas {
+.massageLabPrismaticBurstCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -694,7 +694,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsGalaxyCanvas {
+.massageLabGalaxyCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -704,7 +704,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsDitherCanvas {
+.massageLabDitherCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -714,7 +714,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsFaultyTerminalCanvas {
+.massageLabFaultyTerminalCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -724,7 +724,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsRippleGridCanvas {
+.massageLabRippleGridCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -734,15 +734,15 @@
   transform: translateZ(0);
 }
 
-.reactBitsDotField {
+.massageLabDotField {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.reactBitsDotFieldCanvas,
-.reactBitsDotFieldGlowSvg {
+.massageLabDotFieldCanvas,
+.massageLabDotFieldGlowSvg {
   position: absolute;
   inset: 0;
   display: block;
@@ -751,12 +751,12 @@
   pointer-events: none;
 }
 
-.reactBitsDotFieldGlow {
+.massageLabDotFieldGlow {
   opacity: 0;
   will-change: opacity;
 }
 
-.reactBitsDotGrid {
+.massageLabDotGrid {
   position: absolute;
   inset: 0;
   display: block;
@@ -764,7 +764,7 @@
   pointer-events: none;
 }
 
-.reactBitsDotGridCanvas {
+.massageLabDotGridCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -774,14 +774,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsThreads {
+.massageLabThreads {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.reactBitsThreadsCanvas {
+.massageLabThreadsCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -791,14 +791,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsIridescence {
+.massageLabIridescence {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.reactBitsIridescenceCanvas {
+.massageLabIridescenceCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -808,14 +808,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsWaves {
+.massageLabWaves {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.reactBitsWavesCanvas {
+.massageLabWavesCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -825,14 +825,14 @@
   transform: translateZ(0);
 }
 
-.reactBitsGridDistortion {
+.massageLabGridDistortion {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.reactBitsGridDistortionCanvas {
+.massageLabGridDistortionCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -842,10 +842,10 @@
   transform: translateZ(0);
 }
 
-.reactBitsOrbCanvas,
-.reactBitsLiquidChromeCanvas,
-.reactBitsBalatroCanvas,
-.reactBitsShapeGridCanvas {
+.massageLabOrbCanvas,
+.massageLabLiquidChromeCanvas,
+.massageLabBalatroCanvas,
+.massageLabShapeGridCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -855,7 +855,7 @@
   transform: translateZ(0);
 }
 
-.reactBitsLetterGlitch {
+.massageLabLetterGlitch {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -863,7 +863,7 @@
   background: #000;
 }
 
-.reactBitsLetterGlitchCanvas {
+.massageLabLetterGlitchCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -873,41 +873,41 @@
   transform: translateZ(0);
 }
 
-.reactBitsLetterGlitchOuterVignette,
-.reactBitsLetterGlitchCenterVignette {
+.massageLabLetterGlitchOuterVignette,
+.massageLabLetterGlitchCenterVignette {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.reactBitsLetterGlitchOuterVignette {
+.massageLabLetterGlitchOuterVignette {
   background: radial-gradient(circle, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 1) 100%);
 }
 
-.reactBitsLetterGlitchCenterVignette {
+.massageLabLetterGlitchCenterVignette {
   background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 60%);
 }
 
-.reactBitsGridMotion {
+.massageLabGridMotion {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   background: #050505;
-  --react-bits-grid-motion-gradient: #000000;
-  --react-bits-grid-motion-tile: #111111;
-  --react-bits-grid-motion-text: #f8fafc;
+  --massage-lab-grid-motion-gradient: #000000;
+  --massage-lab-grid-motion-tile: #111111;
+  --massage-lab-grid-motion-text: #f8fafc;
 }
 
-.reactBitsGridMotionIntro {
+.massageLabGridMotionIntro {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle, var(--react-bits-grid-motion-gradient) 0%, transparent 100%);
+  background: radial-gradient(circle, var(--massage-lab-grid-motion-gradient) 0%, transparent 100%);
 }
 
-.reactBitsGridMotionContainer {
+.massageLabGridMotionContainer {
   display: flex;
   width: min(130vw, 1800px);
   height: min(92vh, 960px);
@@ -917,33 +917,33 @@
   transform: rotate(-12deg) scale(1.05);
 }
 
-.reactBitsGridMotionRow {
+.massageLabGridMotionRow {
   display: grid;
   grid-template-columns: repeat(7, minmax(8rem, 1fr));
   gap: clamp(0.75rem, 2vw, 1.6rem);
   will-change: transform;
 }
 
-.reactBitsGridMotionItem {
+.massageLabGridMotionItem {
   aspect-ratio: 1.35;
   min-width: 0;
 }
 
-.reactBitsGridMotionItemInner {
+.massageLabGridMotionItemInner {
   display: grid;
   width: 100%;
   height: 100%;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  background: var(--react-bits-grid-motion-tile);
-  color: var(--react-bits-grid-motion-text);
+  background: var(--massage-lab-grid-motion-tile);
+  color: var(--massage-lab-grid-motion-text);
   font-size: clamp(0.7rem, 1vw, 1rem);
   font-weight: 600;
   letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.eldoraNovatrixBackground {
+.massageLabNovatrixBackground {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18), transparent 34%),
@@ -951,7 +951,7 @@
     linear-gradient(145deg, #02030a 0%, #070814 58%, #000000 100%);
 }
 
-.eldoraNovatrixCanvas {
+.massageLabNovatrixCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -961,14 +961,14 @@
   transform: translateZ(0);
 }
 
-.eldoraHackerBackground {
+.massageLabMatrixRainBackground {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 44%, rgba(0, 255, 0, 0.12), transparent 34%),
     linear-gradient(180deg, #000000 0%, #020802 100%);
 }
 
-.eldoraHackerCanvas {
+.massageLabMatrixRainCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -978,14 +978,14 @@
   transform: translateZ(0);
 }
 
-.eldoraPhotonBeamBackground {
+.massageLabPhotonBeamBackground {
   overflow: hidden;
   background:
     radial-gradient(circle at 58% 50%, rgba(0, 217, 255, 0.16), transparent 38%),
     linear-gradient(180deg, #080808 0%, #020405 100%);
 }
 
-.eldoraPhotonBeamCanvas {
+.massageLabPhotonBeamCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -995,12 +995,12 @@
   transform: translateZ(0);
 }
 
-.magicRetroGridBackground {
+.massageLabRetroGridBackground {
   overflow: hidden;
   background: var(--ml-retro-grid-background, #020617);
 }
 
-.magicRetroGridCanvas {
+.massageLabRetroGridCanvas {
   position: absolute;
   inset: 0;
   display: block;
@@ -1011,7 +1011,7 @@
   transform: translateZ(0);
 }
 
-.magicRetroGridFallbackPerspective {
+.massageLabRetroGridFallbackPerspective {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -1019,13 +1019,13 @@
   pointer-events: none;
 }
 
-.magicRetroGridFallbackRotation {
+.massageLabRetroGridFallbackRotation {
   position: absolute;
   inset: 0;
   transform-origin: 50% 100%;
 }
 
-.magicRetroGridFallbackGrid {
+.massageLabRetroGridFallbackGrid {
   position: absolute;
   left: -200%;
   top: -150%;
@@ -1038,10 +1038,10 @@
   background-repeat: repeat;
   background-size: var(--ml-retro-grid-cell-size, 60px) var(--ml-retro-grid-cell-size, 60px);
   transform: translateY(-50%);
-  animation: magicRetroGridFallbackScroll 15s linear infinite;
+  animation: massageLabRetroGridFallbackScroll 15s linear infinite;
 }
 
-@keyframes magicRetroGridFallbackScroll {
+@keyframes massageLabRetroGridFallbackScroll {
   from {
     transform: translateY(-50%);
   }
@@ -1052,26 +1052,26 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .magicRetroGridFallbackGrid {
+  .massageLabRetroGridFallbackGrid {
     animation: none;
     transform: translateY(-50%);
   }
 }
 
-.magicLightRaysBackground {
+.massageLabAerialRaysBackground {
   overflow: hidden;
   background: var(--ml-light-rays-background, #020617);
 }
 
-.magicLightRaysGlowOne,
-.magicLightRaysGlowTwo {
+.massageLabAerialRaysGlowOne,
+.massageLabAerialRaysGlowTwo {
   position: absolute;
   inset: 0;
   pointer-events: none;
   mix-blend-mode: screen;
 }
 
-.magicLightRaysGlowOne {
+.massageLabAerialRaysGlowOne {
   opacity: 0.6;
   background:
     radial-gradient(
@@ -1081,7 +1081,7 @@
     );
 }
 
-.magicLightRaysGlowTwo {
+.massageLabAerialRaysGlowTwo {
   opacity: 0.6;
   background:
     radial-gradient(
@@ -1091,7 +1091,7 @@
     );
 }
 
-.magicLightRaysRay {
+.massageLabAerialRaysRay {
   position: absolute;
   top: -12%;
   left: var(--ml-light-rays-left, 50%);
@@ -1110,11 +1110,11 @@
       color-mix(in srgb, var(--ml-light-rays-color, #a0d2ff) 70%, transparent),
       transparent
     );
-  animation: magicLightRaysDrift var(--ml-light-rays-duration, 14s) ease-in-out var(--ml-light-rays-delay, 0s) infinite;
+  animation: massageLabAerialRaysDrift var(--ml-light-rays-duration, 14s) ease-in-out var(--ml-light-rays-delay, 0s) infinite;
   will-change: opacity, transform;
 }
 
-@keyframes magicLightRaysDrift {
+@keyframes massageLabAerialRaysDrift {
   0%,
   100% {
     opacity: 0;
@@ -1128,7 +1128,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .magicLightRaysRay {
+  .massageLabAerialRaysRay {
     animation: none;
     opacity: var(--ml-light-rays-static-opacity, 0.32);
   }
@@ -1160,8 +1160,8 @@
   transform: rotate(12deg);
 }
 
-.aceternityAurora {
-  --aceternity-aurora: repeating-linear-gradient(
+.massageLabAurora {
+  --massage-lab-aurora: repeating-linear-gradient(
     100deg,
     #3b82f6 10%,
     #a5b4fc 15%,
@@ -1169,7 +1169,7 @@
     #ddd6fe 25%,
     #60a5fa 30%
   );
-  --aceternity-dark-gradient: repeating-linear-gradient(
+  --massage-lab-dark-gradient: repeating-linear-gradient(
     100deg,
     #000 0%,
     #000 7%,
@@ -1181,26 +1181,26 @@
   background: #09090b;
 }
 
-.aceternityAuroraField {
+.massageLabAuroraField {
   position: absolute;
   inset: -10px;
   pointer-events: none;
-  background-image: var(--aceternity-dark-gradient), var(--aceternity-aurora);
+  background-image: var(--massage-lab-dark-gradient), var(--massage-lab-aurora);
   background-position: 50% 50%, 50% 50%;
   background-size: 300%, 200%;
   filter: blur(10px);
   mask-image: radial-gradient(ellipse at 100% 0%, black 10%, transparent 70%);
   opacity: 0.5;
   will-change: background-position;
-  animation: mlBackgroundAceternityAurora 60s linear infinite;
+  animation: mlBackgroundMassageLabAurora 60s linear infinite;
 }
 
-.aceternityAuroraField::after {
+.massageLabAuroraField::after {
   content: "";
   position: absolute;
   inset: 0;
   background-attachment: fixed;
-  background-image: var(--aceternity-dark-gradient), var(--aceternity-aurora);
+  background-image: var(--massage-lab-dark-gradient), var(--massage-lab-aurora);
   background-size: 200%, 100%;
   mix-blend-mode: difference;
 }
@@ -1222,7 +1222,7 @@
     linear-gradient(145deg, rgba(5, 5, 5, 0.24), rgba(5, 5, 5, 0.86));
 }
 
-.aceternitySparklesLayer {
+.massageLabSparklesLayer {
   overflow: hidden;
   opacity: 0;
   transition: opacity 700ms ease;
@@ -1232,11 +1232,11 @@
     linear-gradient(145deg, rgba(5, 5, 5, 0.18), rgba(5, 5, 5, 0.82));
 }
 
-.aceternitySparklesLoaded {
+.massageLabSparklesLoaded {
   opacity: 0.86;
 }
 
-.aceternitySparklesCanvas {
+.massageLabSparklesCanvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1244,7 +1244,7 @@
   pointer-events: none;
 }
 
-.aceternityGradientAnimation {
+.massageLabGradientAnimation {
   overflow: hidden;
   background:
     radial-gradient(circle at 52% 42%, rgba(var(--ml-gradient-third-color), 0.1), transparent 38%),
@@ -1323,7 +1323,7 @@
   animation: mlGradientMoveInCircle var(--ml-gradient-fifth-duration) ease infinite;
 }
 
-.aceternityBackgroundBeams {
+.massageLabBackgroundBeams {
   overflow: hidden;
   background:
     radial-gradient(circle at 52% 46%, rgba(24, 204, 252, 0.12), transparent 34%),
@@ -1347,7 +1347,7 @@
   filter: drop-shadow(0 0 10px rgba(24, 204, 252, 0.12));
 }
 
-.aceternityBackgroundBeamsCollision {
+.massageLabBackgroundBeamsCollision {
   overflow: hidden;
   background:
     radial-gradient(circle at 52% 46%, rgba(99, 102, 241, 0.14), transparent 34%),
@@ -1435,7 +1435,7 @@
   animation-delay: var(--ml-collision-beam-delay);
 }
 
-.aceternityBackgroundLines {
+.massageLabBackgroundLines {
   overflow: hidden;
   background:
     radial-gradient(circle at 52% 45%, rgba(36, 122, 251, 0.12), transparent 36%),
@@ -1466,7 +1466,7 @@
   will-change: stroke-dashoffset, opacity;
 }
 
-.aceternityGlowingStars {
+.massageLabGlowingStars {
   overflow: hidden;
   background:
     radial-gradient(circle at 52% 42%, rgba(59, 130, 246, 0.11), transparent 34%),
@@ -1527,7 +1527,7 @@
   animation: mlGlowingStarGlow 2s ease-in-out var(--ml-glowing-star-delay, 0s) both;
 }
 
-.aceternityMeteors {
+.massageLabMeteors {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 38%, rgba(100, 116, 139, 0.14), transparent 34%),
@@ -1571,7 +1571,7 @@
   transform: translateY(-50%);
 }
 
-.aceternityShootingStars {
+.massageLabShootingStars {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 42%, rgba(72, 220, 249, 0.12), transparent 34%),
@@ -1617,7 +1617,7 @@
   will-change: opacity, transform;
 }
 
-.aceternityCanvasRevealDots {
+.massageLabCanvasRevealDots {
   overflow: hidden;
   background: var(--ml-canvas-reveal-background, #020617);
 }
@@ -1643,7 +1643,7 @@
   opacity: var(--ml-canvas-reveal-gradient-opacity, 0);
 }
 
-.aceternitySpotlightNew {
+.massageLabSpotlightNew {
   overflow: hidden;
   background:
     radial-gradient(ellipse at 22% -10%, rgba(var(--ml-spotlight-color, 213, 236, 255), 0.12), transparent 45%),
@@ -1741,7 +1741,7 @@
   transform: translateY(calc(var(--ml-spotlight-translate-y, -350px) + 13rem)) rotate(45deg);
 }
 
-.aceternityLampEffect {
+.massageLabLampEffect {
   overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 40%, rgba(var(--ml-lamp-color, 6, 182, 212), 0.18), transparent 34%),
@@ -1882,14 +1882,14 @@
     mlLampLinePulse var(--ml-lamp-pulse-speed, 9s) ease-in-out 1s infinite alternate;
 }
 
-.aceternityWavyBackground {
+.massageLabWavyBackground {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.12), transparent 36%),
     linear-gradient(180deg, #000 0%, #020617 100%);
 }
 
-.aceternityVortexBackground {
+.massageLabVortexBackground {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 46%, rgba(59, 130, 246, 0.14), transparent 34%),
@@ -1919,7 +1919,7 @@
   pointer-events: none;
 }
 
-.unlumenPixelLiquid {
+.massageLabPixelLiquid {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 44%, rgba(0, 224, 215, 0.14), transparent 34%),
@@ -1984,7 +1984,7 @@
   pointer-events: none;
 }
 
-.unlumenAuroraBars {
+.massageLabAuroraBars {
   overflow: hidden;
   background: var(--ml-aurora-bars-background, #000);
 }
@@ -2032,7 +2032,7 @@
     radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.1) 58%, rgba(0, 0, 0, 0.82) 100%);
 }
 
-.animateUiGradient {
+.massageLabGradient {
   overflow: hidden;
   background:
     linear-gradient(
@@ -2043,10 +2043,10 @@
     );
   background-size: 400% 400%;
   opacity: var(--ml-animate-gradient-opacity, 1);
-  animation: mlAnimateUiGradientShift 15s ease-in-out infinite;
+  animation: mlMassageLabGradientShift 15s ease-in-out infinite;
 }
 
-.animateUiStars {
+.massageLabStars {
   overflow: hidden;
   pointer-events: none;
   background: radial-gradient(ellipse at bottom, #262626 0%, #000000 100%);
@@ -2070,7 +2070,7 @@
   width: 100%;
   height: 2000px;
   pointer-events: none;
-  animation: mlAnimateUiStarsDrift var(--ml-stars-speed-small, 50s) linear infinite;
+  animation: mlMassageLabStarsDrift var(--ml-stars-speed-small, 50s) linear infinite;
   will-change: transform;
 }
 
@@ -2111,7 +2111,7 @@
   top: 2000px;
 }
 
-.animateUiHole {
+.massageLabHole {
   overflow: hidden;
   --ml-hole-stroke: #737373;
   --ml-hole-particle-color: 255, 255, 255;
@@ -2119,8 +2119,8 @@
   background: #000000;
 }
 
-.animateUiHole::before,
-.animateUiHole::after {
+.massageLabHole::before,
+.massageLabHole::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -2129,7 +2129,7 @@
   transform: translate3d(-50%, -50%, 0);
 }
 
-.animateUiHole::before {
+.massageLabHole::before {
   z-index: 0;
   display: block;
   width: 140%;
@@ -2137,7 +2137,7 @@
   background: radial-gradient(ellipse at 50% 55%, transparent 10%, #000000 50%);
 }
 
-.animateUiHole::after {
+.massageLabHole::after {
   z-index: 5;
   display: block;
   width: 100%;
@@ -2147,7 +2147,7 @@
   opacity: 0.5;
 }
 
-.animateUiHoleCanvas {
+.massageLabHoleCanvas {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -2185,7 +2185,7 @@
   mix-blend-mode: screen;
   opacity: 0.75;
   transform: translate3d(-50%, 0, 0);
-  animation: mlAnimateUiHoleGlow 5.6s linear infinite;
+  animation: mlMassageLabHoleGlow 5.6s linear infinite;
 }
 
 .holeScanlines {
@@ -2205,7 +2205,7 @@
   opacity: 0.5;
 }
 
-.animateUiBubble {
+.massageLabBubble {
   overflow: hidden;
   background: linear-gradient(135deg, #2e1065 0%, #1e3a8a 100%);
 }
@@ -2339,7 +2339,7 @@
   }
 }
 
-@keyframes mlBackgroundAceternityAurora {
+@keyframes mlBackgroundMassageLabAurora {
   from {
     background-position: 50% 50%, 50% 50%;
   }
@@ -2394,7 +2394,7 @@
   }
 }
 
-@keyframes mlAnimateUiGradientShift {
+@keyframes mlMassageLabGradientShift {
   0%,
   100% {
     background-position: 0% 50%;
@@ -2405,7 +2405,7 @@
   }
 }
 
-@keyframes mlAnimateUiStarsDrift {
+@keyframes mlMassageLabStarsDrift {
   from {
     transform: translate3d(0, 0, 0);
   }
@@ -2415,7 +2415,7 @@
   }
 }
 
-@keyframes mlAnimateUiHoleGlow {
+@keyframes mlMassageLabHoleGlow {
   from {
     background-position: 0% 100%;
   }
@@ -2746,11 +2746,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aceternitySpotlightNew {
+  .massageLabSpotlightNew {
     opacity: 1;
   }
 
-  .aceternityLampEffect {
+  .massageLabLampEffect {
     opacity: 1;
   }
 
@@ -2758,9 +2758,9 @@
   .wavePath,
   .electricMist::before,
   .electricMist::after,
-  .aceternityAuroraField,
+  .massageLabAuroraField,
   .gradientAnimationBlob,
-  .animateUiGradient,
+  .massageLabGradient,
   .starsLayer,
   .holeGlow,
   .collisionBeam,
@@ -2771,13 +2771,13 @@
   .glowingStarsGlow,
   .meteor,
   .shootingStarsBackgroundStar,
-  .aceternitySpotlightNew,
+  .massageLabSpotlightNew,
   .spotlightNewGroup,
   .lampBeam,
   .lampWideGlow,
   .lampCoreGlow,
   .lampLine,
-  .aceternityLampEffect,
+  .massageLabLampEffect,
   .vortexCanvas,
   .sparkle {
     animation: none;

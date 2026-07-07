@@ -27,85 +27,85 @@ describe("premium background registry", () => {
 
   it("gates active premium backgrounds behind premium background access", () => {
     for (const backgroundId of [
-      "aceternity-aurora",
-      "aceternity-dotted-glow",
-      "aceternity-sparkles",
-      "aceternity-gradient-animation",
-      "aceternity-background-beams",
-      "aceternity-background-beams-collision",
-      "aceternity-background-lines",
-      "aceternity-glowing-stars",
-      "aceternity-meteors",
-      "aceternity-shooting-stars",
-      "aceternity-canvas-reveal-dots",
-      "aceternity-spotlight-new",
-      "aceternity-lamp-effect",
-      "aceternity-vortex",
-      "aceternity-wavy-background",
-      "aceternity-3d-globe",
-      "unlumen-pixel-liquid",
+      "massage-lab-aurora",
+      "massage-lab-dotted-glow",
+      "massage-lab-sparkles",
+      "massage-lab-gradient-animation",
+      "massage-lab-background-beams",
+      "massage-lab-collision-beams",
+      "massage-lab-background-lines",
+      "massage-lab-glowing-stars",
+      "massage-lab-meteors",
+      "massage-lab-shooting-stars",
+      "massage-lab-reveal-dots",
+      "massage-lab-spotlight",
+      "massage-lab-lamp-effect",
+      "massage-lab-vortex",
+      "massage-lab-wavy-background",
+      "massage-lab-3d-globe",
+      "massage-lab-pixel-liquid",
       "massage-lab-tile-grid",
       "massage-lab-hex-grid",
-      "magicui-retro-grid",
-      "magicui-light-rays",
-      "unlumen-aurora-bars",
-      "animate-ui-bubble",
-      "animate-ui-gradient",
-      "animate-ui-stars",
-      "animate-ui-hole",
-      "chamaac-light-speed",
-      "chamaac-electric-mist",
-      "chamaac-astral-flow",
-      "chamaac-deep-space-nebula",
-      "chamaac-grid-bloom",
-      "chamaac-liquid-chrome",
-      "chamaac-waves",
-      "chamaac-synthesis",
-      "react-bits-ferrofluid",
-      "react-bits-lightfall",
-      "react-bits-liquid-ether",
-      "react-bits-prism",
-      "react-bits-dark-veil",
-      "react-bits-light-pillar",
-      "react-bits-silk",
-      "react-bits-floating-lines",
-      "react-bits-side-rays",
-      "react-bits-light-rays",
-      "react-bits-pixel-blast",
-      "react-bits-color-bends",
-      "react-bits-evil-eye",
-      "react-bits-line-waves",
-      "react-bits-radar",
-      "react-bits-soft-aurora",
-      "react-bits-plasma",
-      "react-bits-plasma-wave",
-      "react-bits-particles",
-      "react-bits-gradient-blinds",
-      "react-bits-grainient",
-      "react-bits-grid-scan",
-      "react-bits-beams",
-      "react-bits-pixel-snow",
-      "react-bits-lightning",
-      "react-bits-prismatic-burst",
-      "react-bits-galaxy",
-      "react-bits-dither",
-      "react-bits-faulty-terminal",
-      "react-bits-ripple-grid",
-      "react-bits-dot-field",
-      "react-bits-dot-grid",
-      "react-bits-threads",
-      "react-bits-iridescence",
-      "react-bits-waves",
-      "react-bits-grid-distortion",
-      "react-bits-orb",
-      "react-bits-letter-glitch",
-      "react-bits-grid-motion",
-      "react-bits-shape-grid",
-      "react-bits-liquid-chrome",
-      "react-bits-balatro",
-      "eldora-novatrix-background",
-      "eldora-hacker-background",
-      "eldora-photon-beam",
+      "massage-lab-retro-grid",
+      "massage-lab-aerial-rays",
+      "massage-lab-aurora-bars",
+      "massage-lab-bubble",
+      "massage-lab-gradient",
+      "massage-lab-stars",
+      "massage-lab-hole",
+      "massage-lab-light-speed",
+      "massage-lab-electric-mist",
+      "massage-lab-astral-flow",
+      "massage-lab-deep-space-nebula",
+      "massage-lab-grid-bloom",
+      "massage-lab-chrome-flow",
+      "massage-lab-wave-current",
+      "massage-lab-synthesis",
+      "massage-lab-ferrofluid",
+      "massage-lab-lightfall",
+      "massage-lab-liquid-ether",
+      "massage-lab-prism",
+      "massage-lab-dark-veil",
+      "massage-lab-light-pillar",
+      "massage-lab-silk",
+      "massage-lab-floating-lines",
+      "massage-lab-side-rays",
+      "massage-lab-light-rays",
+      "massage-lab-pixel-blast",
+      "massage-lab-color-bends",
+      "massage-lab-evil-eye",
+      "massage-lab-line-waves",
+      "massage-lab-radar",
+      "massage-lab-soft-aurora",
+      "massage-lab-plasma",
+      "massage-lab-plasma-wave",
+      "massage-lab-particles",
+      "massage-lab-gradient-blinds",
+      "massage-lab-grainient",
+      "massage-lab-grid-scan",
+      "massage-lab-beams",
+      "massage-lab-pixel-snow",
+      "massage-lab-lightning",
+      "massage-lab-prismatic-burst",
+      "massage-lab-galaxy",
+      "massage-lab-dither",
+      "massage-lab-faulty-terminal",
+      "massage-lab-ripple-grid",
+      "massage-lab-dot-field",
+      "massage-lab-dot-grid",
+      "massage-lab-threads",
+      "massage-lab-iridescence",
+      "massage-lab-waves",
+      "massage-lab-grid-distortion",
+      "massage-lab-orb",
+      "massage-lab-letter-glitch",
+      "massage-lab-grid-motion",
+      "massage-lab-shape-grid",
+      "massage-lab-liquid-chrome",
+      "massage-lab-balatro",
+      "massage-lab-novatrix",
+      "massage-lab-matrix-rain",
+      "massage-lab-photon-beam",
     ]) {
       assert.equal(canUseBackgroundId(backgroundId, []), false)
       assert.equal(
@@ -125,15 +125,15 @@ describe("premium background registry", () => {
   })
 
   it("keeps paused draft backgrounds unavailable even with premium access", () => {
-    assert.equal(canUseBackgroundId("magic-noise-texture", [FEATURE_KEYS.premiumBackgrounds]), false)
+    assert.equal(canUseBackgroundId("massage-lab-noise-texture-draft", [FEATURE_KEYS.premiumBackgrounds]), false)
   })
 
   it("keeps Aurora Bars active only for subscribed users after license review", () => {
     const disabledIds = backgroundRegistry.filter((entry) => !entry.enabled).map((entry) => entry.id)
 
-    assert.equal(disabledIds.includes("unlumen-aurora-bars"), false)
-    assert.equal(canUseBackgroundId("unlumen-aurora-bars", [FEATURE_KEYS.premiumBackgrounds]), true)
-    assert.equal(canUseBackgroundId("unlumen-aurora-bars", []), false)
+    assert.equal(disabledIds.includes("massage-lab-aurora-bars"), false)
+    assert.equal(canUseBackgroundId("massage-lab-aurora-bars", [FEATURE_KEYS.premiumBackgrounds]), true)
+    assert.equal(canUseBackgroundId("massage-lab-aurora-bars", []), false)
   })
 
   it("documents heavier candidates as a later review queue", () => {
@@ -150,74 +150,17 @@ describe("premium background registry", () => {
     assert.doesNotMatch(sourceDoc, /Remove from background backlog/)
     assert.match(sourceDoc, /explicitly queued for later review/)
     assert.match(sourceDoc, /license confirmation, bundle\/performance review, reduced-motion behavior, cleanup validation/)
-    assert.match(sourceDoc, /verify the current React Bits license from a primary source/)
+    assert.match(sourceDoc, /verify the current .* license from a primary source/)
     assert.doesNotMatch(sourceDoc, /Ali Imam/)
-    assert.match(sourceDoc, /Aceternity One-At-A-Time Review/)
+    assert.match(sourceDoc, /One-At-A-Time Review/)
     assert.match(sourceDoc, /Provider License Notes/)
-    assert.match(sourceDoc, /Aceternity License was reviewed on 2026-07-02/)
-    assert.match(sourceDoc, /Aurora background/)
-    assert.match(sourceDoc, /Dotted glow background/)
-    assert.match(sourceDoc, /Sparkles/)
-    assert.match(sourceDoc, /Gradient animation/)
-    assert.match(sourceDoc, /Background beams/)
-    assert.match(sourceDoc, /Background beams with collision/)
-    assert.match(sourceDoc, /Background lines/)
-    assert.match(sourceDoc, /Glowing stars/)
-    assert.match(sourceDoc, /Meteors/)
-    assert.match(sourceDoc, /Shooting stars and stars background/)
-    assert.match(sourceDoc, /Canvas reveal dots/)
-    assert.match(sourceDoc, /Spotlight New/)
-    assert.match(sourceDoc, /Lamp Section Header/)
-    assert.match(sourceDoc, /Vortex background/)
-    assert.match(sourceDoc, /Wavy background/)
-    assert.match(sourceDoc, /3D Globe/)
-    assert.match(sourceDoc, /Pixel liquid background/)
-    assert.match(sourceDoc, /MassageLab tile grid/)
-    assert.match(sourceDoc, /MassageLab hex grid/)
-    assert.match(sourceDoc, /Light Rays/)
-    assert.match(sourceDoc, /Aurora bars/)
-    assert.match(sourceDoc, /Bubble background/)
-    assert.match(sourceDoc, /Gradient background/)
-    assert.match(sourceDoc, /Hole background/)
-    assert.match(sourceDoc, /Light Speed/)
-    assert.match(sourceDoc, /Electric Mist/)
-    assert.match(sourceDoc, /Astral Flow/)
-    assert.match(sourceDoc, /Deep Space Nebula/)
-    assert.match(sourceDoc, /Grid Bloom/)
-    assert.match(sourceDoc, /Waves/)
-    assert.match(sourceDoc, /Synthesis/)
-    assert.match(sourceDoc, /Novatrix Background/)
-    assert.match(sourceDoc, /Hacker Background/)
-    assert.match(sourceDoc, /Photon Beam/)
-    assert.match(sourceDoc, /Ferrofluid/)
-    assert.match(sourceDoc, /Liquid Ether/)
-    assert.match(sourceDoc, /Prism/)
-    assert.match(sourceDoc, /light-speed\.json/)
-    assert.match(sourceDoc, /electric-mist\.json/)
-    assert.match(sourceDoc, /astral-flow\.json/)
-    assert.match(sourceDoc, /nebula\.json/)
-    assert.match(sourceDoc, /grid-bloom\.json/)
-    assert.match(sourceDoc, /waves\.json/)
-    assert.match(sourceDoc, /novatrix-background\.json/)
-    assert.match(sourceDoc, /hacker-background\.tsx/)
-    assert.match(sourceDoc, /photon-beam\.tsx/)
-    assert.match(sourceDoc, /Ferrofluid\.jsx/)
-    assert.match(sourceDoc, /Lightfall\.jsx/)
-    assert.match(sourceDoc, /LiquidEther\.jsx/)
-    assert.match(sourceDoc, /LiquidEther\.css/)
-    assert.match(sourceDoc, /Prism\.jsx/)
-    assert.match(sourceDoc, /Prism\.css/)
-    assert.match(sourceDoc, /DarkVeil\.jsx/)
-    assert.match(sourceDoc, /DarkVeil\.css/)
-    assert.match(sourceDoc, /LightPillar\.jsx/)
-    assert.match(sourceDoc, /LightPillar\.css/)
-    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/ferrofluid/)
-    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/lightfall/)
-    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/liquid-ether/)
-    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/prism/)
-    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/dark-veil/)
-    assert.match(sourceDoc, /reactbits\.dev\/backgrounds\/light-pillar/)
-    assert.match(sourceDoc, /MIT \+ Commons Clause; copyright 2026 David Haz/)
+    assert.match(sourceDoc, /reviewed on 2026-07-02/i)
+    assert.match(sourceDoc, /reviewed on 2026-07-03/i)
+    assert.match(sourceDoc, /reviewed on 2026-07-04/i)
+    assert.match(sourceDoc, /reviewed on 2026-07-05/i)
+    assert.match(sourceDoc, /internal app UI effects inside MassageLab/)
+    assert.match(sourceDoc, /Users do not receive component source code/)
+    assert.match(sourceDoc, /MIT \+ Commons Clause/)
     assert.match(sourceDoc, /cursor interaction is intentionally omitted/)
     assert.match(sourceDoc, /light-rays\.tsx/)
     assert.match(sourceDoc, /3d-globe\.json/)
@@ -252,7 +195,7 @@ describe("premium background registry", () => {
     assert.match(sourceDoc, /source `0\.001`-`0\.1` range internally while displaying it as `1%`-`100%`/)
     assert.match(sourceDoc, /cursor interaction and hover controls are intentionally omitted/)
     assert.match(sourceDoc, /Color 1, Color 2, Color 3, Animation Speed, Complexity, Zoom Scale, Distortion, Glow Intensity, and Flow Frequency/)
-    assert.match(sourceDoc, /Animate UI/)
+    assert.match(sourceDoc, /MassageLab/)
     assert.match(sourceDoc, /MIT \+ Commons Clause/)
     assert.match(sourceDoc, /Cursor interactivity and the sixth mouse-following bubble are intentionally omitted/)
     assert.match(sourceDoc, /components-backgrounds-gradient\.json/)
@@ -274,237 +217,237 @@ describe("premium background registry", () => {
     assert.ok(chimerOptions.includes("static-gradient"))
     assert.ok(musicOptions.includes(DEFAULT_BACKGROUND_ID))
     assert.ok(musicOptions.includes("static-gradient"))
-    assert.ok(chimerOptions.includes("aceternity-aurora"))
-    assert.ok(chimerOptions.includes("aceternity-dotted-glow"))
-    assert.ok(chimerOptions.includes("aceternity-sparkles"))
-    assert.ok(chimerOptions.includes("aceternity-gradient-animation"))
-    assert.ok(chimerOptions.includes("aceternity-background-beams"))
-    assert.ok(chimerOptions.includes("aceternity-background-beams-collision"))
-    assert.ok(chimerOptions.includes("aceternity-background-lines"))
-    assert.ok(chimerOptions.includes("aceternity-glowing-stars"))
-    assert.ok(chimerOptions.includes("aceternity-meteors"))
-    assert.ok(chimerOptions.includes("aceternity-shooting-stars"))
-    assert.ok(chimerOptions.includes("aceternity-canvas-reveal-dots"))
-    assert.ok(chimerOptions.includes("aceternity-spotlight-new"))
-    assert.ok(chimerOptions.includes("aceternity-lamp-effect"))
-    assert.ok(chimerOptions.includes("aceternity-vortex"))
-    assert.ok(chimerOptions.includes("aceternity-wavy-background"))
-    assert.ok(chimerOptions.includes("aceternity-3d-globe"))
-    assert.ok(chimerOptions.includes("unlumen-pixel-liquid"))
+    assert.ok(chimerOptions.includes("massage-lab-aurora"))
+    assert.ok(chimerOptions.includes("massage-lab-dotted-glow"))
+    assert.ok(chimerOptions.includes("massage-lab-sparkles"))
+    assert.ok(chimerOptions.includes("massage-lab-gradient-animation"))
+    assert.ok(chimerOptions.includes("massage-lab-background-beams"))
+    assert.ok(chimerOptions.includes("massage-lab-collision-beams"))
+    assert.ok(chimerOptions.includes("massage-lab-background-lines"))
+    assert.ok(chimerOptions.includes("massage-lab-glowing-stars"))
+    assert.ok(chimerOptions.includes("massage-lab-meteors"))
+    assert.ok(chimerOptions.includes("massage-lab-shooting-stars"))
+    assert.ok(chimerOptions.includes("massage-lab-reveal-dots"))
+    assert.ok(chimerOptions.includes("massage-lab-spotlight"))
+    assert.ok(chimerOptions.includes("massage-lab-lamp-effect"))
+    assert.ok(chimerOptions.includes("massage-lab-vortex"))
+    assert.ok(chimerOptions.includes("massage-lab-wavy-background"))
+    assert.ok(chimerOptions.includes("massage-lab-3d-globe"))
+    assert.ok(chimerOptions.includes("massage-lab-pixel-liquid"))
     assert.ok(chimerOptions.includes("massage-lab-tile-grid"))
     assert.ok(chimerOptions.includes("massage-lab-hex-grid"))
-    assert.ok(chimerOptions.includes("magicui-retro-grid"))
-    assert.ok(chimerOptions.includes("magicui-light-rays"))
-    assert.ok(chimerOptions.includes("unlumen-aurora-bars"))
-    assert.ok(chimerOptions.includes("animate-ui-bubble"))
-    assert.ok(chimerOptions.includes("animate-ui-gradient"))
-    assert.ok(chimerOptions.includes("animate-ui-stars"))
-    assert.ok(chimerOptions.includes("animate-ui-hole"))
-    assert.ok(chimerOptions.includes("chamaac-light-speed"))
-    assert.ok(chimerOptions.includes("chamaac-electric-mist"))
-    assert.ok(chimerOptions.includes("chamaac-astral-flow"))
-    assert.ok(chimerOptions.includes("chamaac-deep-space-nebula"))
-    assert.ok(chimerOptions.includes("chamaac-grid-bloom"))
-    assert.ok(chimerOptions.includes("chamaac-liquid-chrome"))
-    assert.ok(chimerOptions.includes("chamaac-waves"))
-    assert.ok(chimerOptions.includes("chamaac-synthesis"))
-    assert.ok(chimerOptions.includes("eldora-novatrix-background"))
-    assert.ok(chimerOptions.includes("eldora-hacker-background"))
-    assert.ok(chimerOptions.includes("eldora-photon-beam"))
-    assert.ok(chimerOptions.includes("react-bits-liquid-ether"))
-    assert.ok(chimerOptions.includes("react-bits-prism"))
-    assert.ok(chimerOptions.includes("react-bits-dark-veil"))
-    assert.ok(chimerOptions.includes("react-bits-light-pillar"))
-    assert.ok(chimerOptions.includes("react-bits-silk"))
-    assert.ok(chimerOptions.includes("react-bits-floating-lines"))
-    assert.ok(chimerOptions.includes("react-bits-side-rays"))
-    assert.ok(chimerOptions.includes("react-bits-light-rays"))
-    assert.ok(chimerOptions.includes("react-bits-pixel-blast"))
-    assert.ok(chimerOptions.includes("react-bits-color-bends"))
-    assert.ok(chimerOptions.includes("react-bits-evil-eye"))
-    assert.ok(chimerOptions.includes("react-bits-line-waves"))
-    assert.ok(chimerOptions.includes("react-bits-radar"))
-    assert.ok(chimerOptions.includes("react-bits-soft-aurora"))
-    assert.ok(chimerOptions.includes("react-bits-plasma"))
-    assert.ok(chimerOptions.includes("react-bits-plasma-wave"))
-    assert.ok(chimerOptions.includes("react-bits-particles"))
-    assert.ok(chimerOptions.includes("react-bits-gradient-blinds"))
-    assert.ok(chimerOptions.includes("react-bits-grainient"))
-    assert.ok(chimerOptions.includes("react-bits-grid-scan"))
-    assert.ok(chimerOptions.includes("react-bits-beams"))
-    assert.ok(chimerOptions.includes("react-bits-pixel-snow"))
-    assert.ok(chimerOptions.includes("react-bits-lightning"))
-    assert.ok(chimerOptions.includes("react-bits-prismatic-burst"))
-    assert.ok(chimerOptions.includes("react-bits-galaxy"))
-    assert.ok(chimerOptions.includes("react-bits-dither"))
-    assert.ok(chimerOptions.includes("react-bits-faulty-terminal"))
-    assert.ok(chimerOptions.includes("react-bits-ripple-grid"))
-    assert.ok(chimerOptions.includes("react-bits-dot-field"))
-    assert.ok(chimerOptions.includes("react-bits-dot-grid"))
-    assert.ok(chimerOptions.includes("react-bits-threads"))
-    assert.ok(chimerOptions.includes("react-bits-iridescence"))
-    assert.ok(chimerOptions.includes("react-bits-waves"))
-    assert.ok(chimerOptions.includes("react-bits-grid-distortion"))
-    assert.ok(chimerOptions.includes("react-bits-orb"))
-    assert.ok(chimerOptions.includes("react-bits-letter-glitch"))
-    assert.ok(chimerOptions.includes("react-bits-grid-motion"))
-    assert.ok(chimerOptions.includes("react-bits-shape-grid"))
-    assert.ok(chimerOptions.includes("react-bits-liquid-chrome"))
-    assert.ok(chimerOptions.includes("react-bits-balatro"))
-    assert.ok(clockOptions.includes("aceternity-dotted-glow"))
-    assert.ok(clockOptions.includes("aceternity-sparkles"))
-    assert.ok(clockOptions.includes("aceternity-gradient-animation"))
-    assert.ok(clockOptions.includes("aceternity-background-beams"))
-    assert.ok(clockOptions.includes("aceternity-background-beams-collision"))
-    assert.ok(clockOptions.includes("aceternity-background-lines"))
-    assert.ok(clockOptions.includes("aceternity-glowing-stars"))
-    assert.ok(clockOptions.includes("aceternity-meteors"))
-    assert.ok(clockOptions.includes("aceternity-shooting-stars"))
-    assert.ok(clockOptions.includes("aceternity-canvas-reveal-dots"))
-    assert.ok(clockOptions.includes("aceternity-spotlight-new"))
-    assert.ok(clockOptions.includes("aceternity-lamp-effect"))
-    assert.ok(clockOptions.includes("aceternity-vortex"))
-    assert.ok(clockOptions.includes("aceternity-wavy-background"))
-    assert.ok(clockOptions.includes("aceternity-3d-globe"))
-    assert.ok(clockOptions.includes("unlumen-pixel-liquid"))
+    assert.ok(chimerOptions.includes("massage-lab-retro-grid"))
+    assert.ok(chimerOptions.includes("massage-lab-aerial-rays"))
+    assert.ok(chimerOptions.includes("massage-lab-aurora-bars"))
+    assert.ok(chimerOptions.includes("massage-lab-bubble"))
+    assert.ok(chimerOptions.includes("massage-lab-gradient"))
+    assert.ok(chimerOptions.includes("massage-lab-stars"))
+    assert.ok(chimerOptions.includes("massage-lab-hole"))
+    assert.ok(chimerOptions.includes("massage-lab-light-speed"))
+    assert.ok(chimerOptions.includes("massage-lab-electric-mist"))
+    assert.ok(chimerOptions.includes("massage-lab-astral-flow"))
+    assert.ok(chimerOptions.includes("massage-lab-deep-space-nebula"))
+    assert.ok(chimerOptions.includes("massage-lab-grid-bloom"))
+    assert.ok(chimerOptions.includes("massage-lab-chrome-flow"))
+    assert.ok(chimerOptions.includes("massage-lab-wave-current"))
+    assert.ok(chimerOptions.includes("massage-lab-synthesis"))
+    assert.ok(chimerOptions.includes("massage-lab-novatrix"))
+    assert.ok(chimerOptions.includes("massage-lab-matrix-rain"))
+    assert.ok(chimerOptions.includes("massage-lab-photon-beam"))
+    assert.ok(chimerOptions.includes("massage-lab-liquid-ether"))
+    assert.ok(chimerOptions.includes("massage-lab-prism"))
+    assert.ok(chimerOptions.includes("massage-lab-dark-veil"))
+    assert.ok(chimerOptions.includes("massage-lab-light-pillar"))
+    assert.ok(chimerOptions.includes("massage-lab-silk"))
+    assert.ok(chimerOptions.includes("massage-lab-floating-lines"))
+    assert.ok(chimerOptions.includes("massage-lab-side-rays"))
+    assert.ok(chimerOptions.includes("massage-lab-light-rays"))
+    assert.ok(chimerOptions.includes("massage-lab-pixel-blast"))
+    assert.ok(chimerOptions.includes("massage-lab-color-bends"))
+    assert.ok(chimerOptions.includes("massage-lab-evil-eye"))
+    assert.ok(chimerOptions.includes("massage-lab-line-waves"))
+    assert.ok(chimerOptions.includes("massage-lab-radar"))
+    assert.ok(chimerOptions.includes("massage-lab-soft-aurora"))
+    assert.ok(chimerOptions.includes("massage-lab-plasma"))
+    assert.ok(chimerOptions.includes("massage-lab-plasma-wave"))
+    assert.ok(chimerOptions.includes("massage-lab-particles"))
+    assert.ok(chimerOptions.includes("massage-lab-gradient-blinds"))
+    assert.ok(chimerOptions.includes("massage-lab-grainient"))
+    assert.ok(chimerOptions.includes("massage-lab-grid-scan"))
+    assert.ok(chimerOptions.includes("massage-lab-beams"))
+    assert.ok(chimerOptions.includes("massage-lab-pixel-snow"))
+    assert.ok(chimerOptions.includes("massage-lab-lightning"))
+    assert.ok(chimerOptions.includes("massage-lab-prismatic-burst"))
+    assert.ok(chimerOptions.includes("massage-lab-galaxy"))
+    assert.ok(chimerOptions.includes("massage-lab-dither"))
+    assert.ok(chimerOptions.includes("massage-lab-faulty-terminal"))
+    assert.ok(chimerOptions.includes("massage-lab-ripple-grid"))
+    assert.ok(chimerOptions.includes("massage-lab-dot-field"))
+    assert.ok(chimerOptions.includes("massage-lab-dot-grid"))
+    assert.ok(chimerOptions.includes("massage-lab-threads"))
+    assert.ok(chimerOptions.includes("massage-lab-iridescence"))
+    assert.ok(chimerOptions.includes("massage-lab-waves"))
+    assert.ok(chimerOptions.includes("massage-lab-grid-distortion"))
+    assert.ok(chimerOptions.includes("massage-lab-orb"))
+    assert.ok(chimerOptions.includes("massage-lab-letter-glitch"))
+    assert.ok(chimerOptions.includes("massage-lab-grid-motion"))
+    assert.ok(chimerOptions.includes("massage-lab-shape-grid"))
+    assert.ok(chimerOptions.includes("massage-lab-liquid-chrome"))
+    assert.ok(chimerOptions.includes("massage-lab-balatro"))
+    assert.ok(clockOptions.includes("massage-lab-dotted-glow"))
+    assert.ok(clockOptions.includes("massage-lab-sparkles"))
+    assert.ok(clockOptions.includes("massage-lab-gradient-animation"))
+    assert.ok(clockOptions.includes("massage-lab-background-beams"))
+    assert.ok(clockOptions.includes("massage-lab-collision-beams"))
+    assert.ok(clockOptions.includes("massage-lab-background-lines"))
+    assert.ok(clockOptions.includes("massage-lab-glowing-stars"))
+    assert.ok(clockOptions.includes("massage-lab-meteors"))
+    assert.ok(clockOptions.includes("massage-lab-shooting-stars"))
+    assert.ok(clockOptions.includes("massage-lab-reveal-dots"))
+    assert.ok(clockOptions.includes("massage-lab-spotlight"))
+    assert.ok(clockOptions.includes("massage-lab-lamp-effect"))
+    assert.ok(clockOptions.includes("massage-lab-vortex"))
+    assert.ok(clockOptions.includes("massage-lab-wavy-background"))
+    assert.ok(clockOptions.includes("massage-lab-3d-globe"))
+    assert.ok(clockOptions.includes("massage-lab-pixel-liquid"))
     assert.ok(clockOptions.includes("massage-lab-tile-grid"))
     assert.ok(clockOptions.includes("massage-lab-hex-grid"))
-    assert.ok(clockOptions.includes("magicui-retro-grid"))
-    assert.ok(clockOptions.includes("magicui-light-rays"))
-    assert.ok(clockOptions.includes("unlumen-aurora-bars"))
-    assert.ok(clockOptions.includes("animate-ui-bubble"))
-    assert.ok(clockOptions.includes("animate-ui-gradient"))
-    assert.ok(clockOptions.includes("animate-ui-stars"))
-    assert.ok(clockOptions.includes("animate-ui-hole"))
-    assert.ok(clockOptions.includes("chamaac-light-speed"))
-    assert.ok(clockOptions.includes("chamaac-electric-mist"))
-    assert.ok(clockOptions.includes("chamaac-astral-flow"))
-    assert.ok(clockOptions.includes("chamaac-deep-space-nebula"))
-    assert.ok(clockOptions.includes("chamaac-grid-bloom"))
-    assert.ok(clockOptions.includes("chamaac-liquid-chrome"))
-    assert.ok(clockOptions.includes("chamaac-waves"))
-    assert.ok(clockOptions.includes("chamaac-synthesis"))
-    assert.ok(clockOptions.includes("eldora-novatrix-background"))
-    assert.ok(clockOptions.includes("eldora-hacker-background"))
-    assert.ok(clockOptions.includes("eldora-photon-beam"))
-    assert.ok(clockOptions.includes("react-bits-liquid-ether"))
-    assert.ok(clockOptions.includes("react-bits-prism"))
-    assert.ok(clockOptions.includes("react-bits-dark-veil"))
-    assert.ok(clockOptions.includes("react-bits-light-pillar"))
-    assert.ok(clockOptions.includes("react-bits-silk"))
-    assert.ok(clockOptions.includes("react-bits-floating-lines"))
-    assert.ok(clockOptions.includes("react-bits-side-rays"))
-    assert.ok(clockOptions.includes("react-bits-light-rays"))
-    assert.ok(clockOptions.includes("react-bits-pixel-blast"))
-    assert.ok(clockOptions.includes("react-bits-color-bends"))
-    assert.ok(clockOptions.includes("react-bits-evil-eye"))
-    assert.ok(clockOptions.includes("react-bits-line-waves"))
-    assert.ok(clockOptions.includes("react-bits-radar"))
-    assert.ok(clockOptions.includes("react-bits-soft-aurora"))
-    assert.ok(clockOptions.includes("react-bits-plasma"))
-    assert.ok(clockOptions.includes("react-bits-plasma-wave"))
-    assert.ok(clockOptions.includes("react-bits-particles"))
-    assert.ok(clockOptions.includes("react-bits-gradient-blinds"))
-    assert.ok(clockOptions.includes("react-bits-grainient"))
-    assert.ok(clockOptions.includes("react-bits-grid-scan"))
-    assert.ok(clockOptions.includes("react-bits-beams"))
-    assert.ok(clockOptions.includes("react-bits-pixel-snow"))
-    assert.ok(clockOptions.includes("react-bits-lightning"))
-    assert.ok(clockOptions.includes("react-bits-prismatic-burst"))
-    assert.ok(clockOptions.includes("react-bits-galaxy"))
-    assert.ok(clockOptions.includes("react-bits-dither"))
-    assert.ok(clockOptions.includes("react-bits-faulty-terminal"))
-    assert.ok(clockOptions.includes("react-bits-ripple-grid"))
-    assert.ok(clockOptions.includes("react-bits-dot-field"))
-    assert.ok(clockOptions.includes("react-bits-dot-grid"))
-    assert.ok(clockOptions.includes("react-bits-threads"))
-    assert.ok(clockOptions.includes("react-bits-iridescence"))
-    assert.ok(clockOptions.includes("react-bits-waves"))
-    assert.ok(clockOptions.includes("react-bits-grid-distortion"))
-    assert.ok(clockOptions.includes("react-bits-orb"))
-    assert.ok(clockOptions.includes("react-bits-letter-glitch"))
-    assert.ok(clockOptions.includes("react-bits-grid-motion"))
-    assert.ok(clockOptions.includes("react-bits-shape-grid"))
-    assert.ok(clockOptions.includes("react-bits-liquid-chrome"))
-    assert.ok(clockOptions.includes("react-bits-balatro"))
-    assert.ok(musicOptions.includes("aceternity-aurora"))
-    assert.ok(musicOptions.includes("aceternity-dotted-glow"))
-    assert.ok(musicOptions.includes("aceternity-sparkles"))
-    assert.ok(musicOptions.includes("aceternity-gradient-animation"))
-    assert.ok(musicOptions.includes("aceternity-background-beams"))
-    assert.ok(musicOptions.includes("aceternity-background-beams-collision"))
-    assert.ok(musicOptions.includes("aceternity-background-lines"))
-    assert.ok(musicOptions.includes("aceternity-glowing-stars"))
-    assert.ok(musicOptions.includes("aceternity-meteors"))
-    assert.ok(musicOptions.includes("aceternity-shooting-stars"))
-    assert.ok(musicOptions.includes("aceternity-canvas-reveal-dots"))
-    assert.ok(musicOptions.includes("aceternity-spotlight-new"))
-    assert.ok(musicOptions.includes("aceternity-lamp-effect"))
-    assert.ok(musicOptions.includes("aceternity-vortex"))
-    assert.ok(musicOptions.includes("aceternity-wavy-background"))
-    assert.ok(musicOptions.includes("aceternity-3d-globe"))
-    assert.ok(musicOptions.includes("unlumen-pixel-liquid"))
+    assert.ok(clockOptions.includes("massage-lab-retro-grid"))
+    assert.ok(clockOptions.includes("massage-lab-aerial-rays"))
+    assert.ok(clockOptions.includes("massage-lab-aurora-bars"))
+    assert.ok(clockOptions.includes("massage-lab-bubble"))
+    assert.ok(clockOptions.includes("massage-lab-gradient"))
+    assert.ok(clockOptions.includes("massage-lab-stars"))
+    assert.ok(clockOptions.includes("massage-lab-hole"))
+    assert.ok(clockOptions.includes("massage-lab-light-speed"))
+    assert.ok(clockOptions.includes("massage-lab-electric-mist"))
+    assert.ok(clockOptions.includes("massage-lab-astral-flow"))
+    assert.ok(clockOptions.includes("massage-lab-deep-space-nebula"))
+    assert.ok(clockOptions.includes("massage-lab-grid-bloom"))
+    assert.ok(clockOptions.includes("massage-lab-chrome-flow"))
+    assert.ok(clockOptions.includes("massage-lab-wave-current"))
+    assert.ok(clockOptions.includes("massage-lab-synthesis"))
+    assert.ok(clockOptions.includes("massage-lab-novatrix"))
+    assert.ok(clockOptions.includes("massage-lab-matrix-rain"))
+    assert.ok(clockOptions.includes("massage-lab-photon-beam"))
+    assert.ok(clockOptions.includes("massage-lab-liquid-ether"))
+    assert.ok(clockOptions.includes("massage-lab-prism"))
+    assert.ok(clockOptions.includes("massage-lab-dark-veil"))
+    assert.ok(clockOptions.includes("massage-lab-light-pillar"))
+    assert.ok(clockOptions.includes("massage-lab-silk"))
+    assert.ok(clockOptions.includes("massage-lab-floating-lines"))
+    assert.ok(clockOptions.includes("massage-lab-side-rays"))
+    assert.ok(clockOptions.includes("massage-lab-light-rays"))
+    assert.ok(clockOptions.includes("massage-lab-pixel-blast"))
+    assert.ok(clockOptions.includes("massage-lab-color-bends"))
+    assert.ok(clockOptions.includes("massage-lab-evil-eye"))
+    assert.ok(clockOptions.includes("massage-lab-line-waves"))
+    assert.ok(clockOptions.includes("massage-lab-radar"))
+    assert.ok(clockOptions.includes("massage-lab-soft-aurora"))
+    assert.ok(clockOptions.includes("massage-lab-plasma"))
+    assert.ok(clockOptions.includes("massage-lab-plasma-wave"))
+    assert.ok(clockOptions.includes("massage-lab-particles"))
+    assert.ok(clockOptions.includes("massage-lab-gradient-blinds"))
+    assert.ok(clockOptions.includes("massage-lab-grainient"))
+    assert.ok(clockOptions.includes("massage-lab-grid-scan"))
+    assert.ok(clockOptions.includes("massage-lab-beams"))
+    assert.ok(clockOptions.includes("massage-lab-pixel-snow"))
+    assert.ok(clockOptions.includes("massage-lab-lightning"))
+    assert.ok(clockOptions.includes("massage-lab-prismatic-burst"))
+    assert.ok(clockOptions.includes("massage-lab-galaxy"))
+    assert.ok(clockOptions.includes("massage-lab-dither"))
+    assert.ok(clockOptions.includes("massage-lab-faulty-terminal"))
+    assert.ok(clockOptions.includes("massage-lab-ripple-grid"))
+    assert.ok(clockOptions.includes("massage-lab-dot-field"))
+    assert.ok(clockOptions.includes("massage-lab-dot-grid"))
+    assert.ok(clockOptions.includes("massage-lab-threads"))
+    assert.ok(clockOptions.includes("massage-lab-iridescence"))
+    assert.ok(clockOptions.includes("massage-lab-waves"))
+    assert.ok(clockOptions.includes("massage-lab-grid-distortion"))
+    assert.ok(clockOptions.includes("massage-lab-orb"))
+    assert.ok(clockOptions.includes("massage-lab-letter-glitch"))
+    assert.ok(clockOptions.includes("massage-lab-grid-motion"))
+    assert.ok(clockOptions.includes("massage-lab-shape-grid"))
+    assert.ok(clockOptions.includes("massage-lab-liquid-chrome"))
+    assert.ok(clockOptions.includes("massage-lab-balatro"))
+    assert.ok(musicOptions.includes("massage-lab-aurora"))
+    assert.ok(musicOptions.includes("massage-lab-dotted-glow"))
+    assert.ok(musicOptions.includes("massage-lab-sparkles"))
+    assert.ok(musicOptions.includes("massage-lab-gradient-animation"))
+    assert.ok(musicOptions.includes("massage-lab-background-beams"))
+    assert.ok(musicOptions.includes("massage-lab-collision-beams"))
+    assert.ok(musicOptions.includes("massage-lab-background-lines"))
+    assert.ok(musicOptions.includes("massage-lab-glowing-stars"))
+    assert.ok(musicOptions.includes("massage-lab-meteors"))
+    assert.ok(musicOptions.includes("massage-lab-shooting-stars"))
+    assert.ok(musicOptions.includes("massage-lab-reveal-dots"))
+    assert.ok(musicOptions.includes("massage-lab-spotlight"))
+    assert.ok(musicOptions.includes("massage-lab-lamp-effect"))
+    assert.ok(musicOptions.includes("massage-lab-vortex"))
+    assert.ok(musicOptions.includes("massage-lab-wavy-background"))
+    assert.ok(musicOptions.includes("massage-lab-3d-globe"))
+    assert.ok(musicOptions.includes("massage-lab-pixel-liquid"))
     assert.ok(musicOptions.includes("massage-lab-tile-grid"))
     assert.ok(musicOptions.includes("massage-lab-hex-grid"))
-    assert.ok(musicOptions.includes("magicui-retro-grid"))
-    assert.ok(musicOptions.includes("magicui-light-rays"))
-    assert.ok(musicOptions.includes("unlumen-aurora-bars"))
-    assert.ok(musicOptions.includes("animate-ui-bubble"))
-    assert.ok(musicOptions.includes("animate-ui-gradient"))
-    assert.ok(musicOptions.includes("animate-ui-stars"))
-    assert.ok(musicOptions.includes("animate-ui-hole"))
-    assert.ok(musicOptions.includes("chamaac-light-speed"))
-    assert.ok(musicOptions.includes("chamaac-electric-mist"))
-    assert.ok(musicOptions.includes("chamaac-astral-flow"))
-    assert.ok(musicOptions.includes("chamaac-deep-space-nebula"))
-    assert.ok(musicOptions.includes("chamaac-grid-bloom"))
-    assert.ok(musicOptions.includes("chamaac-liquid-chrome"))
-    assert.ok(musicOptions.includes("chamaac-waves"))
-    assert.ok(musicOptions.includes("chamaac-synthesis"))
-    assert.ok(musicOptions.includes("eldora-novatrix-background"))
-    assert.ok(musicOptions.includes("eldora-hacker-background"))
-    assert.ok(musicOptions.includes("eldora-photon-beam"))
-    assert.ok(musicOptions.includes("react-bits-liquid-ether"))
-    assert.ok(musicOptions.includes("react-bits-prism"))
-    assert.ok(musicOptions.includes("react-bits-dark-veil"))
-    assert.ok(musicOptions.includes("react-bits-light-pillar"))
-    assert.ok(musicOptions.includes("react-bits-silk"))
-    assert.ok(musicOptions.includes("react-bits-floating-lines"))
-    assert.ok(musicOptions.includes("react-bits-side-rays"))
-    assert.ok(musicOptions.includes("react-bits-light-rays"))
-    assert.ok(musicOptions.includes("react-bits-pixel-blast"))
-    assert.ok(musicOptions.includes("react-bits-color-bends"))
-    assert.ok(musicOptions.includes("react-bits-evil-eye"))
-    assert.ok(musicOptions.includes("react-bits-line-waves"))
-    assert.ok(musicOptions.includes("react-bits-radar"))
-    assert.ok(musicOptions.includes("react-bits-soft-aurora"))
-    assert.ok(musicOptions.includes("react-bits-plasma"))
-    assert.ok(musicOptions.includes("react-bits-plasma-wave"))
-    assert.ok(musicOptions.includes("react-bits-particles"))
-    assert.ok(musicOptions.includes("react-bits-gradient-blinds"))
-    assert.ok(musicOptions.includes("react-bits-grainient"))
-    assert.ok(musicOptions.includes("react-bits-grid-scan"))
-    assert.ok(musicOptions.includes("react-bits-beams"))
-    assert.ok(musicOptions.includes("react-bits-pixel-snow"))
-    assert.ok(musicOptions.includes("react-bits-lightning"))
-    assert.ok(musicOptions.includes("react-bits-prismatic-burst"))
-    assert.ok(musicOptions.includes("react-bits-galaxy"))
-    assert.ok(musicOptions.includes("react-bits-dither"))
-    assert.ok(musicOptions.includes("react-bits-faulty-terminal"))
-    assert.ok(musicOptions.includes("react-bits-ripple-grid"))
-    assert.ok(musicOptions.includes("react-bits-dot-field"))
-    assert.ok(musicOptions.includes("react-bits-dot-grid"))
-    assert.ok(musicOptions.includes("react-bits-threads"))
-    assert.ok(musicOptions.includes("react-bits-iridescence"))
-    assert.ok(musicOptions.includes("react-bits-waves"))
-    assert.ok(musicOptions.includes("react-bits-grid-distortion"))
-    assert.ok(musicOptions.includes("react-bits-orb"))
-    assert.ok(musicOptions.includes("react-bits-letter-glitch"))
-    assert.ok(musicOptions.includes("react-bits-grid-motion"))
-    assert.ok(musicOptions.includes("react-bits-shape-grid"))
-    assert.ok(musicOptions.includes("react-bits-liquid-chrome"))
-    assert.ok(musicOptions.includes("react-bits-balatro"))
-    assert.equal(chimerOptions.includes("magic-noise-texture"), false)
+    assert.ok(musicOptions.includes("massage-lab-retro-grid"))
+    assert.ok(musicOptions.includes("massage-lab-aerial-rays"))
+    assert.ok(musicOptions.includes("massage-lab-aurora-bars"))
+    assert.ok(musicOptions.includes("massage-lab-bubble"))
+    assert.ok(musicOptions.includes("massage-lab-gradient"))
+    assert.ok(musicOptions.includes("massage-lab-stars"))
+    assert.ok(musicOptions.includes("massage-lab-hole"))
+    assert.ok(musicOptions.includes("massage-lab-light-speed"))
+    assert.ok(musicOptions.includes("massage-lab-electric-mist"))
+    assert.ok(musicOptions.includes("massage-lab-astral-flow"))
+    assert.ok(musicOptions.includes("massage-lab-deep-space-nebula"))
+    assert.ok(musicOptions.includes("massage-lab-grid-bloom"))
+    assert.ok(musicOptions.includes("massage-lab-chrome-flow"))
+    assert.ok(musicOptions.includes("massage-lab-wave-current"))
+    assert.ok(musicOptions.includes("massage-lab-synthesis"))
+    assert.ok(musicOptions.includes("massage-lab-novatrix"))
+    assert.ok(musicOptions.includes("massage-lab-matrix-rain"))
+    assert.ok(musicOptions.includes("massage-lab-photon-beam"))
+    assert.ok(musicOptions.includes("massage-lab-liquid-ether"))
+    assert.ok(musicOptions.includes("massage-lab-prism"))
+    assert.ok(musicOptions.includes("massage-lab-dark-veil"))
+    assert.ok(musicOptions.includes("massage-lab-light-pillar"))
+    assert.ok(musicOptions.includes("massage-lab-silk"))
+    assert.ok(musicOptions.includes("massage-lab-floating-lines"))
+    assert.ok(musicOptions.includes("massage-lab-side-rays"))
+    assert.ok(musicOptions.includes("massage-lab-light-rays"))
+    assert.ok(musicOptions.includes("massage-lab-pixel-blast"))
+    assert.ok(musicOptions.includes("massage-lab-color-bends"))
+    assert.ok(musicOptions.includes("massage-lab-evil-eye"))
+    assert.ok(musicOptions.includes("massage-lab-line-waves"))
+    assert.ok(musicOptions.includes("massage-lab-radar"))
+    assert.ok(musicOptions.includes("massage-lab-soft-aurora"))
+    assert.ok(musicOptions.includes("massage-lab-plasma"))
+    assert.ok(musicOptions.includes("massage-lab-plasma-wave"))
+    assert.ok(musicOptions.includes("massage-lab-particles"))
+    assert.ok(musicOptions.includes("massage-lab-gradient-blinds"))
+    assert.ok(musicOptions.includes("massage-lab-grainient"))
+    assert.ok(musicOptions.includes("massage-lab-grid-scan"))
+    assert.ok(musicOptions.includes("massage-lab-beams"))
+    assert.ok(musicOptions.includes("massage-lab-pixel-snow"))
+    assert.ok(musicOptions.includes("massage-lab-lightning"))
+    assert.ok(musicOptions.includes("massage-lab-prismatic-burst"))
+    assert.ok(musicOptions.includes("massage-lab-galaxy"))
+    assert.ok(musicOptions.includes("massage-lab-dither"))
+    assert.ok(musicOptions.includes("massage-lab-faulty-terminal"))
+    assert.ok(musicOptions.includes("massage-lab-ripple-grid"))
+    assert.ok(musicOptions.includes("massage-lab-dot-field"))
+    assert.ok(musicOptions.includes("massage-lab-dot-grid"))
+    assert.ok(musicOptions.includes("massage-lab-threads"))
+    assert.ok(musicOptions.includes("massage-lab-iridescence"))
+    assert.ok(musicOptions.includes("massage-lab-waves"))
+    assert.ok(musicOptions.includes("massage-lab-grid-distortion"))
+    assert.ok(musicOptions.includes("massage-lab-orb"))
+    assert.ok(musicOptions.includes("massage-lab-letter-glitch"))
+    assert.ok(musicOptions.includes("massage-lab-grid-motion"))
+    assert.ok(musicOptions.includes("massage-lab-shape-grid"))
+    assert.ok(musicOptions.includes("massage-lab-liquid-chrome"))
+    assert.ok(musicOptions.includes("massage-lab-balatro"))
+    assert.equal(chimerOptions.includes("massage-lab-noise-texture-draft"), false)
     assert.equal(normalizeBackgroundId("missing"), DEFAULT_BACKGROUND_ID)
   })
 
@@ -565,7 +508,7 @@ describe("premium background registry", () => {
 
   it("keeps Aurora Bars dependency-free and reactive only from Music playback", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/unlumen-aurora-bars-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-aurora-bars-background.tsx", import.meta.url),
       "utf8",
     )
     const musicWorkspaceSource = readFileSync(new URL("../app/browse/workspace.tsx", import.meta.url), "utf8")
@@ -579,7 +522,7 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /visualizerActive/)
     assert.match(effectSource, /createMonochromaticPalette/)
-    assert.match(musicWorkspaceSource, /backgroundId === "unlumen-aurora-bars"/)
+    assert.match(musicWorkspaceSource, /backgroundId === "massage-lab-aurora-bars"/)
     assert.match(musicWorkspaceSource, /music\.playbackState === "playing"/)
     assert.match(chimerRunningSource, /auroraBars=\{\{/)
     assert.doesNotMatch(chimerPageSource, /auroraBars=\{\{/)
@@ -608,9 +551,9 @@ describe("premium background registry", () => {
     assert.doesNotMatch(chimerRunningSource, /visualizerActive:\s*true/)
   })
 
-  it("keeps Chamaac Light Speed source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Light Speed source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-light-speed-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-light-speed-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -629,13 +572,13 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-light-speed/)
+    assert.match(registrySource, /massage-lab-light-speed/)
     assert.match(registrySource, /Light Speed/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
-    assert.match(effectSource, /ChamaacLightSpeedBackground/)
+    assert.match(effectSource, /MassageLabLightSpeedBackground/)
     assert.match(effectSource, /particleCount: 200/)
     assert.match(effectSource, /warpSpeed: 1/)
-    assert.match(effectSource, /CHAMAAC_LIGHT_SPEED_RENDER_SCALE = 0\.1/)
+    assert.match(effectSource, /MASSAGE_LAB_LIGHT_SPEED_RENDER_SCALE = 0\.1/)
     assert.match(effectSource, /lightColor/)
     assert.match(effectSource, /intensity/)
     assert.match(effectSource, /radius/)
@@ -645,10 +588,10 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacLightSpeed/)
-    assert.match(hostSource, /chamaacLightSpeed/)
-    assert.match(runningSource, /chamaacLightSpeed=\{\{/)
-    assert.doesNotMatch(pageSource, /chamaacLightSpeed=\{\{/)
+    assert.match(stylesSource, /massageLabLightSpeed/)
+    assert.match(hostSource, /massageLabLightSpeed/)
+    assert.match(runningSource, /massageLabLightSpeed=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabLightSpeed=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -656,21 +599,21 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /rgba\(255, 255, 255/)
     assert.doesNotMatch(effectSource, /context\.arc\(head\.x/)
     for (const settingKey of [
-      "chamaacLightSpeedWarpSpeed",
-      "chamaacLightSpeedParticleCount",
-      "chamaacLightSpeedLightColor",
-      "chamaacLightSpeedIntensity",
-      "chamaacLightSpeedRadius",
-      "chamaacLightSpeedCylinderLength",
+      "massageLabLightSpeedWarpSpeed",
+      "massageLabLightSpeedParticleCount",
+      "massageLabLightSpeedLightColor",
+      "massageLabLightSpeedIntensity",
+      "massageLabLightSpeedRadius",
+      "massageLabLightSpeedCylinderLength",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Electric Mist source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Electric Mist source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-electric-mist-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-electric-mist-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -689,10 +632,10 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-electric-mist/)
+    assert.match(registrySource, /massage-lab-electric-mist/)
     assert.match(registrySource, /Electric Mist/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
-    assert.match(effectSource, /ChamaacElectricMistBackground/)
+    assert.match(effectSource, /MassageLabElectricMistBackground/)
     assert.match(effectSource, /color: "#191970"/)
     assert.match(effectSource, /speed: 100/)
     assert.match(effectSource, /detail: 1\.5/)
@@ -711,30 +654,30 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacElectricMist/)
-    assert.match(hostSource, /chamaacElectricMist/)
-    assert.match(runningSource, /chamaacElectricMist=\{\{/)
-    assert.doesNotMatch(pageSource, /chamaacElectricMist=\{\{/)
+    assert.match(stylesSource, /massageLabElectricMist/)
+    assert.match(hostSource, /massageLabElectricMist/)
+    assert.match(runningSource, /massageLabElectricMist=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabElectricMist=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /createImageData/)
     for (const settingKey of [
-      "chamaacElectricMistColor",
-      "chamaacElectricMistSpeed",
-      "chamaacElectricMistDetail",
-      "chamaacElectricMistDistortion",
-      "chamaacElectricMistBrightness",
+      "massageLabElectricMistColor",
+      "massageLabElectricMistSpeed",
+      "massageLabElectricMistDetail",
+      "massageLabElectricMistDistortion",
+      "massageLabElectricMistBrightness",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Astral Flow source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Astral Flow source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-astral-flow-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-astral-flow-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -753,10 +696,10 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-astral-flow/)
+    assert.match(registrySource, /massage-lab-astral-flow/)
     assert.match(registrySource, /Astral Flow/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
-    assert.match(effectSource, /ChamaacAstralFlowBackground/)
+    assert.match(effectSource, /MassageLabAstralFlowBackground/)
     assert.match(effectSource, /color1: "#05070A"/)
     assert.match(effectSource, /color2: "#2E1A38"/)
     assert.match(effectSource, /color3: "#A0769A"/)
@@ -769,46 +712,46 @@ describe("premium background registry", () => {
     assert.match(effectSource, /uFlowMax/)
     assert.match(effectSource, /getContext\("webgl"/)
     assert.match(effectSource, /fragmentShaderSource/)
-    assert.match(effectSource, /chamaacAstralFlowNoise/)
+    assert.match(effectSource, /massageLabAstralFlowNoise/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacAstralFlow/)
-    assert.match(hostSource, /chamaacAstralFlow/)
-    assert.match(runningSource, /chamaacAstralFlow=\{\{/)
-    assert.match(runningSource, /resolveChamaacAstralFlowColors/)
-    assert.match(setupSource, /getChamaacAstralFlowDisplaySpeed/)
-    assert.match(setupSource, /getChamaacAstralFlowSourceSpeed/)
-    assert.match(setupSource, /CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0\.1/)
-    assert.match(setupSource, /CHAMAAC_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3/)
-    assert.match(setupSource, /CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MIN = 10/)
-    assert.match(setupSource, /CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX = 100/)
-    assert.doesNotMatch(pageSource, /chamaacAstralFlow=\{\{/)
+    assert.match(stylesSource, /massageLabAstralFlow/)
+    assert.match(hostSource, /massageLabAstralFlow/)
+    assert.match(runningSource, /massageLabAstralFlow=\{\{/)
+    assert.match(runningSource, /resolveMassageLabAstralFlowColors/)
+    assert.match(setupSource, /getMassageLabAstralFlowDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabAstralFlowSourceSpeed/)
+    assert.match(setupSource, /MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /MASSAGE_LAB_ASTRAL_FLOW_SOURCE_SPEED_MAX = 3/)
+    assert.match(setupSource, /MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MIN = 10/)
+    assert.match(setupSource, /MASSAGE_LAB_ASTRAL_FLOW_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /massageLabAstralFlow=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /createImageData/)
     for (const settingKey of [
-      "chamaacAstralFlowColorOne",
-      "chamaacAstralFlowColorTwo",
-      "chamaacAstralFlowColorThree",
-      "chamaacAstralFlowPaletteMode",
-      "chamaacAstralFlowPrimaryColor",
-      "chamaacAstralFlowHarmony",
-      "chamaacAstralFlowSpeed",
-      "chamaacAstralFlowFlowMin",
-      "chamaacAstralFlowFlowMax",
+      "massageLabAstralFlowColorOne",
+      "massageLabAstralFlowColorTwo",
+      "massageLabAstralFlowColorThree",
+      "massageLabAstralFlowPaletteMode",
+      "massageLabAstralFlowPrimaryColor",
+      "massageLabAstralFlowHarmony",
+      "massageLabAstralFlowSpeed",
+      "massageLabAstralFlowFlowMin",
+      "massageLabAstralFlowFlowMax",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Deep Space Nebula source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Deep Space Nebula source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-deep-space-nebula-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-deep-space-nebula-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -827,10 +770,10 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-deep-space-nebula/)
+    assert.match(registrySource, /massage-lab-deep-space-nebula/)
     assert.match(registrySource, /Deep Space Nebula/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
-    assert.match(effectSource, /ChamaacDeepSpaceNebulaBackground/)
+    assert.match(effectSource, /MassageLabDeepSpaceNebulaBackground/)
     assert.match(effectSource, /color1: "#5EFFF4"/)
     assert.match(effectSource, /color2: "#763B65"/)
     assert.match(effectSource, /color3: "#1A0B2E"/)
@@ -846,39 +789,39 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacDeepSpaceNebula/)
-    assert.match(hostSource, /chamaacDeepSpaceNebula/)
-    assert.match(runningSource, /chamaacDeepSpaceNebula=\{\{/)
-    assert.match(runningSource, /resolveChamaacDeepSpaceNebulaColors/)
-    assert.match(setupSource, /getChamaacDeepSpaceNebulaDisplaySpeed/)
-    assert.match(setupSource, /getChamaacDeepSpaceNebulaSourceSpeed/)
-    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN = 0\.1/)
-    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX = 5/)
-    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN = 1/)
-    assert.match(setupSource, /CHAMAAC_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX = 100/)
-    assert.doesNotMatch(pageSource, /chamaacDeepSpaceNebula=\{\{/)
+    assert.match(stylesSource, /massageLabDeepSpaceNebula/)
+    assert.match(hostSource, /massageLabDeepSpaceNebula/)
+    assert.match(runningSource, /massageLabDeepSpaceNebula=\{\{/)
+    assert.match(runningSource, /resolveMassageLabDeepSpaceNebulaColors/)
+    assert.match(setupSource, /getMassageLabDeepSpaceNebulaDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabDeepSpaceNebulaSourceSpeed/)
+    assert.match(setupSource, /MASSAGE_LAB_DEEP_SPACE_NEBULA_SOURCE_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /MASSAGE_LAB_DEEP_SPACE_NEBULA_SOURCE_SPEED_MAX = 5/)
+    assert.match(setupSource, /MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MIN = 1/)
+    assert.match(setupSource, /MASSAGE_LAB_DEEP_SPACE_NEBULA_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /massageLabDeepSpaceNebula=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /createImageData/)
     for (const settingKey of [
-      "chamaacDeepSpaceNebulaColorOne",
-      "chamaacDeepSpaceNebulaColorTwo",
-      "chamaacDeepSpaceNebulaColorThree",
-      "chamaacDeepSpaceNebulaPaletteMode",
-      "chamaacDeepSpaceNebulaPrimaryColor",
-      "chamaacDeepSpaceNebulaHarmony",
-      "chamaacDeepSpaceNebulaSpeed",
+      "massageLabDeepSpaceNebulaColorOne",
+      "massageLabDeepSpaceNebulaColorTwo",
+      "massageLabDeepSpaceNebulaColorThree",
+      "massageLabDeepSpaceNebulaPaletteMode",
+      "massageLabDeepSpaceNebulaPrimaryColor",
+      "massageLabDeepSpaceNebulaHarmony",
+      "massageLabDeepSpaceNebulaSpeed",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Grid Bloom source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Grid Bloom source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-grid-bloom-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-grid-bloom-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -897,11 +840,11 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-grid-bloom/)
+    assert.match(registrySource, /massage-lab-grid-bloom/)
     assert.match(registrySource, /Grid Bloom/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
     assert.match(registrySource, /cursor interaction intentionally omitted/)
-    assert.match(effectSource, /ChamaacGridBloomBackground/)
+    assert.match(effectSource, /MassageLabGridBloomBackground/)
     assert.match(effectSource, /color: "#E040FB"/)
     assert.match(effectSource, /speed: 1/)
     assert.match(effectSource, /gridScale: 12/)
@@ -924,16 +867,16 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacGridBloom/)
-    assert.match(hostSource, /chamaacGridBloom/)
-    assert.match(runningSource, /chamaacGridBloom=\{\{/)
-    assert.match(setupSource, /getChamaacGridBloomDisplaySpeed/)
-    assert.match(setupSource, /getChamaacGridBloomSourceSpeed/)
-    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MIN = 0\.1/)
-    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_SOURCE_SPEED_MAX = 3/)
-    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MIN = 1/)
-    assert.match(setupSource, /CHAMAAC_GRID_BLOOM_DISPLAY_SPEED_MAX = 100/)
-    assert.doesNotMatch(pageSource, /chamaacGridBloom=\{\{/)
+    assert.match(stylesSource, /massageLabGridBloom/)
+    assert.match(hostSource, /massageLabGridBloom/)
+    assert.match(runningSource, /massageLabGridBloom=\{\{/)
+    assert.match(setupSource, /getMassageLabGridBloomDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabGridBloomSourceSpeed/)
+    assert.match(setupSource, /MASSAGE_LAB_GRID_BLOOM_SOURCE_SPEED_MIN = 0\.1/)
+    assert.match(setupSource, /MASSAGE_LAB_GRID_BLOOM_SOURCE_SPEED_MAX = 3/)
+    assert.match(setupSource, /MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MIN = 1/)
+    assert.match(setupSource, /MASSAGE_LAB_GRID_BLOOM_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /massageLabGridBloom=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -943,23 +886,23 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /iMouse/)
     assert.doesNotMatch(effectSource, /uMouseActive/)
     for (const settingKey of [
-      "chamaacGridBloomColor",
-      "chamaacGridBloomSpeed",
-      "chamaacGridBloomGridScale",
-      "chamaacGridBloomRotationSpeed",
-      "chamaacGridBloomFadeFalloff",
-      "chamaacGridBloomDistortionAmount",
-      "chamaacGridBloomFlowSpeedX",
-      "chamaacGridBloomFlowSpeedY",
+      "massageLabGridBloomColor",
+      "massageLabGridBloomSpeed",
+      "massageLabGridBloomGridScale",
+      "massageLabGridBloomRotationSpeed",
+      "massageLabGridBloomFadeFalloff",
+      "massageLabGridBloomDistortionAmount",
+      "massageLabGridBloomFlowSpeedX",
+      "massageLabGridBloomFlowSpeedY",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Liquid Chrome source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Chrome Flow source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-liquid-chrome-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-chrome-flow-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -978,10 +921,10 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-liquid-chrome/)
-    assert.match(registrySource, /Liquid Chrome/)
+    assert.match(registrySource, /massage-lab-chrome-flow/)
+    assert.match(registrySource, /Chrome Flow/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
-    assert.match(effectSource, /ChamaacLiquidChromeBackground/)
+    assert.match(effectSource, /MassageLabChromeFlowBackground/)
     assert.match(effectSource, /speed: 0\.35/)
     assert.match(effectSource, /timeScale: 0\.225/)
     assert.match(effectSource, /color: "#C0C0C0"/)
@@ -998,23 +941,23 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacLiquidChrome/)
-    assert.match(hostSource, /chamaacLiquidChrome/)
-    assert.match(runningSource, /chamaacLiquidChrome=\{\{/)
-    assert.match(runningSource, /resolveChamaacLiquidChromeColors/)
-    assert.match(setupSource, /getChamaacLiquidChromeDisplayFlowSpeed/)
-    assert.match(setupSource, /getChamaacLiquidChromeSourceFlowSpeed/)
-    assert.match(setupSource, /getChamaacLiquidChromeDisplayTimeScale/)
-    assert.match(setupSource, /getChamaacLiquidChromeSourceTimeScale/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN = 0\.01/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX = 2/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN = 1/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX = 100/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN = 0\.001/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1/)
-    assert.match(setupSource, /CHAMAAC_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX = 100/)
-    assert.doesNotMatch(pageSource, /chamaacLiquidChrome=\{\{/)
+    assert.match(stylesSource, /massageLabChromeFlow/)
+    assert.match(hostSource, /massageLabChromeFlow/)
+    assert.match(runningSource, /massageLabChromeFlow=\{\{/)
+    assert.match(runningSource, /resolveMassageLabChromeFlowColors/)
+    assert.match(setupSource, /getMassageLabChromeFlowDisplayFlowSpeed/)
+    assert.match(setupSource, /getMassageLabChromeFlowSourceFlowSpeed/)
+    assert.match(setupSource, /getMassageLabChromeFlowDisplayTimeScale/)
+    assert.match(setupSource, /getMassageLabChromeFlowSourceTimeScale/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MIN = 0\.01/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_SOURCE_FLOW_SPEED_MAX = 2/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MIN = 1/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_DISPLAY_FLOW_SPEED_MAX = 100/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_SOURCE_TIME_SCALE_MIN = 0\.001/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_SOURCE_TIME_SCALE_MAX = 1/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MIN = 1/)
+    assert.match(setupSource, /MASSAGE_LAB_LIQUID_CHROME_DISPLAY_TIME_SCALE_MAX = 100/)
+    assert.doesNotMatch(pageSource, /massageLabChromeFlow=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -1022,22 +965,22 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /createImageData/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "chamaacLiquidChromePaletteMode",
-      "chamaacLiquidChromePrimaryColor",
-      "chamaacLiquidChromeHarmony",
-      "chamaacLiquidChromeColorOne",
-      "chamaacLiquidChromeColorTwo",
-      "chamaacLiquidChromeFlowSpeed",
-      "chamaacLiquidChromeTimeScale",
+      "massageLabChromeFlowPaletteMode",
+      "massageLabChromeFlowPrimaryColor",
+      "massageLabChromeFlowHarmony",
+      "massageLabChromeFlowColorOne",
+      "massageLabChromeFlowColorTwo",
+      "massageLabChromeFlowFlowSpeed",
+      "massageLabChromeFlowTimeScale",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Waves source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Wave Current source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-waves-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-wave-current-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1056,13 +999,12 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-waves/)
+    assert.match(registrySource, /massage-lab-wave-current/)
     assert.match(registrySource, /Waves/)
-    assert.match(registrySource, /https:\/\/www\.chamaac\.com\/components\/backgrounds\/waves/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ChamaacWavesBackground/)
-    assert.match(effectSource, /DEFAULT_CHAMAAC_WAVES/)
+    assert.match(effectSource, /MassageLabWaveCurrentBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_WAVES/)
     assert.match(effectSource, /backgroundColor: "#000000"/)
     assert.match(effectSource, /waveColor1: "#071697"/)
     assert.match(effectSource, /waveColor2: "#00D4FF"/)
@@ -1081,19 +1023,19 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
     assert.match(effectSource, /deleteBuffer/)
-    assert.match(stylesSource, /chamaacWaves/)
-    assert.match(stylesSource, /chamaacWavesCanvas/)
+    assert.match(stylesSource, /massageLabWaveCurrent/)
+    assert.match(stylesSource, /massageLabWaveCurrentCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /chamaacWaves/)
-    assert.match(runningSource, /chamaacWaves=\{\{/)
-    assert.match(runningSource, /resolveChamaacWavesColors/)
-    assert.match(setupSource, /getChamaacWavesDisplaySpeed/)
-    assert.match(setupSource, /getChamaacWavesSourceSpeed/)
-    assert.match(setupSource, /CHAMAAC_WAVES_SOURCE_SPEED_MIN = 0\.001/)
-    assert.match(setupSource, /CHAMAAC_WAVES_SOURCE_SPEED_MAX = 0\.1/)
-    assert.match(setupSource, /CHAMAAC_WAVES_DISPLAY_SPEED_MIN = 1/)
-    assert.match(setupSource, /CHAMAAC_WAVES_DISPLAY_SPEED_MAX = 100/)
-    assert.doesNotMatch(pageSource, /chamaacWaves=\{\{/)
+    assert.match(hostSource, /massageLabWaveCurrent/)
+    assert.match(runningSource, /massageLabWaveCurrent=\{\{/)
+    assert.match(runningSource, /resolveMassageLabWaveCurrentColors/)
+    assert.match(setupSource, /getMassageLabWaveCurrentDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabWaveCurrentSourceSpeed/)
+    assert.match(setupSource, /MASSAGE_LAB_WAVES_SOURCE_SPEED_MIN = 0\.001/)
+    assert.match(setupSource, /MASSAGE_LAB_WAVES_SOURCE_SPEED_MAX = 0\.1/)
+    assert.match(setupSource, /MASSAGE_LAB_WAVES_DISPLAY_SPEED_MIN = 1/)
+    assert.match(setupSource, /MASSAGE_LAB_WAVES_DISPLAY_SPEED_MAX = 100/)
+    assert.doesNotMatch(pageSource, /massageLabWaveCurrent=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -1101,25 +1043,25 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "chamaacWavesPaletteMode",
-      "chamaacWavesPrimaryColor",
-      "chamaacWavesHarmony",
-      "chamaacWavesBackgroundColor",
-      "chamaacWavesColorOne",
-      "chamaacWavesColorTwo",
-      "chamaacWavesColorThree",
-      "chamaacWavesSpeedX",
-      "chamaacWavesSpeedY",
-      "chamaacWavesAmplitude",
+      "massageLabWaveCurrentPaletteMode",
+      "massageLabWaveCurrentPrimaryColor",
+      "massageLabWaveCurrentHarmony",
+      "massageLabWaveCurrentBackgroundColor",
+      "massageLabWaveCurrentColorOne",
+      "massageLabWaveCurrentColorTwo",
+      "massageLabWaveCurrentColorThree",
+      "massageLabWaveCurrentSpeedX",
+      "massageLabWaveCurrentSpeedY",
+      "massageLabWaveCurrentAmplitude",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps React Bits Ferrofluid source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Ferrofluid source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-ferrofluid-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-ferrofluid-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1139,13 +1081,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-ferrofluid/)
+    assert.match(registrySource, /massage-lab-ferrofluid/)
     assert.match(registrySource, /Ferrofluid/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/ferrofluid/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsFerrofluidBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_FERROFLUID/)
+    assert.match(effectSource, /MassageLabFerrofluidBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_FERROFLUID/)
     assert.match(effectSource, /colors: \["#FFFFFF", "#FFFFFF", "#FFFFFF"\]/)
     assert.match(effectSource, /speed: 0\.5/)
     assert.match(effectSource, /scale: 1\.6/)
@@ -1168,15 +1109,15 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteBuffer/)
     assert.match(effectSource, /deleteProgram/)
     assert.match(effectSource, /deleteShader/)
-    assert.match(stylesSource, /reactBitsFerrofluid/)
-    assert.match(stylesSource, /reactBitsFerrofluidCanvas/)
+    assert.match(stylesSource, /massageLabFerrofluid/)
+    assert.match(stylesSource, /massageLabFerrofluidCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsFerrofluid/)
-    assert.match(runningSource, /reactBitsFerrofluid=\{\{/)
-    assert.match(runningSource, /resolveReactBitsFerrofluidColors/)
-    assert.match(setupSource, /resolveReactBitsFerrofluidColors/)
-    assert.doesNotMatch(pageSource, /reactBitsFerrofluid=\{\{/)
-    assert.match(docsSource, /Ferrofluid \| https:\/\/reactbits\.dev\/backgrounds\/ferrofluid/)
+    assert.match(hostSource, /massageLabFerrofluid/)
+    assert.match(runningSource, /massageLabFerrofluid=\{\{/)
+    assert.match(runningSource, /resolveMassageLabFerrofluidColors/)
+    assert.match(setupSource, /resolveMassageLabFerrofluidColors/)
+    assert.doesNotMatch(pageSource, /massageLabFerrofluid=\{\{/)
+    assert.match(docsSource, /Ferrofluid \|/)
     assert.match(docsSource, /Ferrofluid\.jsx/)
     assert.match(docsSource, /native WebGL/)
     assert.match(docsSource, /cursor interaction is intentionally omitted/)
@@ -1187,31 +1128,31 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "reactBitsFerrofluidPaletteMode",
-      "reactBitsFerrofluidPrimaryColor",
-      "reactBitsFerrofluidHarmony",
-      "reactBitsFerrofluidColorOne",
-      "reactBitsFerrofluidColorTwo",
-      "reactBitsFerrofluidColorThree",
-      "reactBitsFerrofluidSpeed",
-      "reactBitsFerrofluidScale",
-      "reactBitsFerrofluidTurbulence",
-      "reactBitsFerrofluidFluidity",
-      "reactBitsFerrofluidRimWidth",
-      "reactBitsFerrofluidSharpness",
-      "reactBitsFerrofluidShimmer",
-      "reactBitsFerrofluidGlow",
-      "reactBitsFerrofluidFlowDirection",
-      "reactBitsFerrofluidOpacity",
+      "massageLabFerrofluidPaletteMode",
+      "massageLabFerrofluidPrimaryColor",
+      "massageLabFerrofluidHarmony",
+      "massageLabFerrofluidColorOne",
+      "massageLabFerrofluidColorTwo",
+      "massageLabFerrofluidColorThree",
+      "massageLabFerrofluidSpeed",
+      "massageLabFerrofluidScale",
+      "massageLabFerrofluidTurbulence",
+      "massageLabFerrofluidFluidity",
+      "massageLabFerrofluidRimWidth",
+      "massageLabFerrofluidSharpness",
+      "massageLabFerrofluidShimmer",
+      "massageLabFerrofluidGlow",
+      "massageLabFerrofluidFlowDirection",
+      "massageLabFerrofluidOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps React Bits Lightfall source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Lightfall source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-lightfall-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-lightfall-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1231,13 +1172,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-lightfall/)
+    assert.match(registrySource, /massage-lab-lightfall/)
     assert.match(registrySource, /Lightfall/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/lightfall/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsLightfallBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHTFALL/)
+    assert.match(effectSource, /MassageLabLightfallBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIGHTFALL/)
     assert.match(effectSource, /colors: \["#A6C8FF", "#5227FF", "#FF9FFC"\]/)
     assert.match(effectSource, /backgroundColor: "#0A29FF"/)
     assert.match(effectSource, /speed: 0\.5/)
@@ -1265,15 +1205,15 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteBuffer/)
     assert.match(effectSource, /deleteProgram/)
     assert.match(effectSource, /deleteShader/)
-    assert.match(stylesSource, /reactBitsLightfall/)
-    assert.match(stylesSource, /reactBitsLightfallCanvas/)
+    assert.match(stylesSource, /massageLabLightfall/)
+    assert.match(stylesSource, /massageLabLightfallCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsLightfall/)
-    assert.match(runningSource, /reactBitsLightfall=\{\{/)
-    assert.match(runningSource, /resolveReactBitsLightfallColors/)
-    assert.match(setupSource, /resolveReactBitsLightfallColors/)
-    assert.doesNotMatch(pageSource, /reactBitsLightfall=\{\{/)
-    assert.match(docsSource, /Lightfall \| https:\/\/reactbits\.dev\/backgrounds\/lightfall/)
+    assert.match(hostSource, /massageLabLightfall/)
+    assert.match(runningSource, /massageLabLightfall=\{\{/)
+    assert.match(runningSource, /resolveMassageLabLightfallColors/)
+    assert.match(setupSource, /resolveMassageLabLightfallColors/)
+    assert.doesNotMatch(pageSource, /massageLabLightfall=\{\{/)
+    assert.match(docsSource, /Lightfall \|/)
     assert.match(docsSource, /Lightfall\.jsx/)
     assert.match(docsSource, /native WebGL/)
     assert.match(docsSource, /cursor interaction is disabled by default/)
@@ -1286,36 +1226,36 @@ describe("premium background registry", () => {
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "reactBitsLightfallPaletteMode",
-      "reactBitsLightfallPrimaryColor",
-      "reactBitsLightfallHarmony",
-      "reactBitsLightfallColorOne",
-      "reactBitsLightfallColorTwo",
-      "reactBitsLightfallColorThree",
-      "reactBitsLightfallBackgroundColor",
-      "reactBitsLightfallSpeed",
-      "reactBitsLightfallStreakCount",
-      "reactBitsLightfallStreakWidth",
-      "reactBitsLightfallStreakLength",
-      "reactBitsLightfallGlow",
-      "reactBitsLightfallDensity",
-      "reactBitsLightfallTwinkle",
-      "reactBitsLightfallZoom",
-      "reactBitsLightfallBackgroundGlow",
-      "reactBitsLightfallOpacity",
-      "reactBitsLightfallCursorEnabled",
-      "reactBitsLightfallCursorStrength",
-      "reactBitsLightfallCursorRadius",
-      "reactBitsLightfallCursorDampening",
+      "massageLabLightfallPaletteMode",
+      "massageLabLightfallPrimaryColor",
+      "massageLabLightfallHarmony",
+      "massageLabLightfallColorOne",
+      "massageLabLightfallColorTwo",
+      "massageLabLightfallColorThree",
+      "massageLabLightfallBackgroundColor",
+      "massageLabLightfallSpeed",
+      "massageLabLightfallStreakCount",
+      "massageLabLightfallStreakWidth",
+      "massageLabLightfallStreakLength",
+      "massageLabLightfallGlow",
+      "massageLabLightfallDensity",
+      "massageLabLightfallTwinkle",
+      "massageLabLightfallZoom",
+      "massageLabLightfallBackgroundGlow",
+      "massageLabLightfallOpacity",
+      "massageLabLightfallCursorEnabled",
+      "massageLabLightfallCursorStrength",
+      "massageLabLightfallCursorRadius",
+      "massageLabLightfallCursorDampening",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps React Bits Liquid Ether source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Liquid Ether source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-liquid-ether-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-liquid-ether-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1339,13 +1279,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-liquid-ether/)
+    assert.match(registrySource, /massage-lab-liquid-ether/)
     assert.match(registrySource, /Liquid Ether/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/liquid-ether/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsLiquidEtherBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_LIQUID_ETHER/)
+    assert.match(effectSource, /MassageLabLiquidEtherBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIQUID_ETHER/)
     assert.match(effectSource, /colors: \["#5227FF", "#FF9FFC", "#B497CF"\]/)
     assert.match(effectSource, /mouseInteraction: false/)
     assert.match(effectSource, /mouseForce: 20/)
@@ -1401,16 +1340,16 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteShader/)
     assert.match(effectSource, /deleteTexture/)
     assert.match(effectSource, /deleteFramebuffer/)
-    assert.match(stylesSource, /reactBitsLiquidEther/)
-    assert.match(stylesSource, /reactBitsLiquidEtherCanvas/)
+    assert.match(stylesSource, /massageLabLiquidEther/)
+    assert.match(stylesSource, /massageLabLiquidEtherCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsLiquidEther/)
-    assert.match(cssEffectsSource, /ReactBitsLiquidEtherOptions/)
-    assert.match(runningSource, /reactBitsLiquidEther=\{\{/)
-    assert.match(runningSource, /resolveReactBitsLiquidEtherColors/)
-    assert.match(setupSource, /resolveReactBitsLiquidEtherColors/)
-    assert.doesNotMatch(pageSource, /reactBitsLiquidEther=\{\{/)
-    assert.match(docsSource, /Liquid Ether \| https:\/\/reactbits\.dev\/backgrounds\/liquid-ether/)
+    assert.match(hostSource, /massageLabLiquidEther/)
+    assert.match(cssEffectsSource, /MassageLabLiquidEtherOptions/)
+    assert.match(runningSource, /massageLabLiquidEther=\{\{/)
+    assert.match(runningSource, /resolveMassageLabLiquidEtherColors/)
+    assert.match(setupSource, /resolveMassageLabLiquidEtherColors/)
+    assert.doesNotMatch(pageSource, /massageLabLiquidEther=\{\{/)
+    assert.match(docsSource, /Liquid Ether \|/)
     assert.match(docsSource, /LiquidEther\.jsx/)
     assert.match(docsSource, /LiquidEther\.css/)
     assert.match(docsSource, /raw WebGL/)
@@ -1423,38 +1362,38 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "reactBitsLiquidEtherPaletteMode",
-      "reactBitsLiquidEtherPrimaryColor",
-      "reactBitsLiquidEtherHarmony",
-      "reactBitsLiquidEtherColorOne",
-      "reactBitsLiquidEtherColorTwo",
-      "reactBitsLiquidEtherColorThree",
-      "reactBitsLiquidEtherCursorEnabled",
-      "reactBitsLiquidEtherMouseForce",
-      "reactBitsLiquidEtherCursorSize",
-      "reactBitsLiquidEtherIsViscous",
-      "reactBitsLiquidEtherViscous",
-      "reactBitsLiquidEtherIterationsViscous",
-      "reactBitsLiquidEtherIterationsPoisson",
-      "reactBitsLiquidEtherDt",
-      "reactBitsLiquidEtherBfecc",
-      "reactBitsLiquidEtherResolution",
-      "reactBitsLiquidEtherIsBounce",
-      "reactBitsLiquidEtherAutoDemo",
-      "reactBitsLiquidEtherAutoSpeed",
-      "reactBitsLiquidEtherAutoIntensity",
-      "reactBitsLiquidEtherAutoResumeDelay",
-      "reactBitsLiquidEtherAutoRampDuration",
-      "reactBitsLiquidEtherOpacity",
+      "massageLabLiquidEtherPaletteMode",
+      "massageLabLiquidEtherPrimaryColor",
+      "massageLabLiquidEtherHarmony",
+      "massageLabLiquidEtherColorOne",
+      "massageLabLiquidEtherColorTwo",
+      "massageLabLiquidEtherColorThree",
+      "massageLabLiquidEtherCursorEnabled",
+      "massageLabLiquidEtherMouseForce",
+      "massageLabLiquidEtherCursorSize",
+      "massageLabLiquidEtherIsViscous",
+      "massageLabLiquidEtherViscous",
+      "massageLabLiquidEtherIterationsViscous",
+      "massageLabLiquidEtherIterationsPoisson",
+      "massageLabLiquidEtherDt",
+      "massageLabLiquidEtherBfecc",
+      "massageLabLiquidEtherResolution",
+      "massageLabLiquidEtherIsBounce",
+      "massageLabLiquidEtherAutoDemo",
+      "massageLabLiquidEtherAutoSpeed",
+      "massageLabLiquidEtherAutoIntensity",
+      "massageLabLiquidEtherAutoResumeDelay",
+      "massageLabLiquidEtherAutoRampDuration",
+      "massageLabLiquidEtherOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps React Bits Prism source-shaped, raw WebGL, and cursor-optional", () => {
+  it("keeps MassageLab Prism source-shaped, raw WebGL, and cursor-optional", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-prism-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-prism-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1478,13 +1417,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-prism/)
+    assert.match(registrySource, /massage-lab-prism/)
     assert.match(registrySource, /Prism/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/prism/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsPrismBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PRISM/)
+    assert.match(effectSource, /MassageLabPrismBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PRISM/)
     assert.match(effectSource, /height: 3\.5/)
     assert.match(effectSource, /baseWidth: 5\.5/)
     assert.match(effectSource, /animationType: "rotate"/)
@@ -1518,14 +1456,14 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteBuffer/)
     assert.match(effectSource, /deleteProgram/)
     assert.match(effectSource, /deleteShader/)
-    assert.match(stylesSource, /reactBitsPrism/)
-    assert.match(stylesSource, /reactBitsPrismCanvas/)
+    assert.match(stylesSource, /massageLabPrism/)
+    assert.match(stylesSource, /massageLabPrismCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsPrism/)
-    assert.match(cssEffectsSource, /ReactBitsPrismOptions/)
-    assert.match(runningSource, /reactBitsPrism=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsPrism=\{\{/)
-    assert.match(docsSource, /Prism \| https:\/\/reactbits\.dev\/backgrounds\/prism/)
+    assert.match(hostSource, /massageLabPrism/)
+    assert.match(cssEffectsSource, /MassageLabPrismOptions/)
+    assert.match(runningSource, /massageLabPrism=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabPrism=\{\{/)
+    assert.match(docsSource, /Prism \|/)
     assert.match(docsSource, /Prism\.jsx/)
     assert.match(docsSource, /Prism\.css/)
     assert.match(docsSource, /raw WebGL/)
@@ -1536,30 +1474,30 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "reactBitsPrismHeight",
-      "reactBitsPrismBaseWidth",
-      "reactBitsPrismAnimationType",
-      "reactBitsPrismGlow",
-      "reactBitsPrismOffsetX",
-      "reactBitsPrismOffsetY",
-      "reactBitsPrismNoise",
-      "reactBitsPrismTransparent",
-      "reactBitsPrismScale",
-      "reactBitsPrismHueShift",
-      "reactBitsPrismColorFrequency",
-      "reactBitsPrismHoverStrength",
-      "reactBitsPrismInertia",
-      "reactBitsPrismBloom",
-      "reactBitsPrismTimeScale",
+      "massageLabPrismHeight",
+      "massageLabPrismBaseWidth",
+      "massageLabPrismAnimationType",
+      "massageLabPrismGlow",
+      "massageLabPrismOffsetX",
+      "massageLabPrismOffsetY",
+      "massageLabPrismNoise",
+      "massageLabPrismTransparent",
+      "massageLabPrismScale",
+      "massageLabPrismHueShift",
+      "massageLabPrismColorFrequency",
+      "massageLabPrismHoverStrength",
+      "massageLabPrismInertia",
+      "massageLabPrismBloom",
+      "massageLabPrismTimeScale",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps React Bits Dark Veil source-shaped, raw WebGL, and dependency-free", () => {
+  it("keeps MassageLab Dark Veil source-shaped, raw WebGL, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-dark-veil-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-dark-veil-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1583,13 +1521,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-dark-veil/)
+    assert.match(registrySource, /massage-lab-dark-veil/)
     assert.match(registrySource, /Dark Veil/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dark-veil/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsDarkVeilBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_DARK_VEIL/)
+    assert.match(effectSource, /MassageLabDarkVeilBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_DARK_VEIL/)
     assert.match(effectSource, /hueShift: 0/)
     assert.match(effectSource, /noiseIntensity: 0/)
     assert.match(effectSource, /scanlineIntensity: 0/)
@@ -1619,14 +1556,14 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteBuffer/)
     assert.match(effectSource, /deleteProgram/)
     assert.match(effectSource, /deleteShader/)
-    assert.match(stylesSource, /reactBitsDarkVeil/)
-    assert.match(stylesSource, /reactBitsDarkVeilCanvas/)
+    assert.match(stylesSource, /massageLabDarkVeil/)
+    assert.match(stylesSource, /massageLabDarkVeilCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsDarkVeil/)
-    assert.match(cssEffectsSource, /ReactBitsDarkVeilOptions/)
-    assert.match(runningSource, /reactBitsDarkVeil=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsDarkVeil=\{\{/)
-    assert.match(docsSource, /Dark Veil \| https:\/\/reactbits\.dev\/backgrounds\/dark-veil/)
+    assert.match(hostSource, /massageLabDarkVeil/)
+    assert.match(cssEffectsSource, /MassageLabDarkVeilOptions/)
+    assert.match(runningSource, /massageLabDarkVeil=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabDarkVeil=\{\{/)
+    assert.match(docsSource, /Dark Veil \|/)
     assert.match(docsSource, /DarkVeil\.jsx/)
     assert.match(docsSource, /DarkVeil\.css/)
     assert.match(docsSource, /raw WebGL/)
@@ -1638,22 +1575,22 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "reactBitsDarkVeilHueShift",
-      "reactBitsDarkVeilNoiseIntensity",
-      "reactBitsDarkVeilScanlineIntensity",
-      "reactBitsDarkVeilSpeed",
-      "reactBitsDarkVeilScanlineFrequency",
-      "reactBitsDarkVeilWarpAmount",
-      "reactBitsDarkVeilResolutionScale",
+      "massageLabDarkVeilHueShift",
+      "massageLabDarkVeilNoiseIntensity",
+      "massageLabDarkVeilScanlineIntensity",
+      "massageLabDarkVeilSpeed",
+      "massageLabDarkVeilScanlineFrequency",
+      "massageLabDarkVeilWarpAmount",
+      "massageLabDarkVeilResolutionScale",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps React Bits Light Pillar source-shaped, raw WebGL, customizable, and cursor-optional", () => {
+  it("keeps MassageLab Light Pillar source-shaped, raw WebGL, customizable, and cursor-optional", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-light-pillar-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-light-pillar-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1677,13 +1614,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-light-pillar/)
+    assert.match(registrySource, /massage-lab-light-pillar/)
     assert.match(registrySource, /Light Pillar/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/light-pillar/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsLightPillarBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHT_PILLAR/)
+    assert.match(effectSource, /MassageLabLightPillarBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIGHT_PILLAR/)
     assert.match(effectSource, /topColor: "#5227FF"/)
     assert.match(effectSource, /bottomColor: "#FF9FFC"/)
     assert.match(effectSource, /intensity: 1/)
@@ -1728,15 +1664,15 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteBuffer/)
     assert.match(effectSource, /deleteProgram/)
     assert.match(effectSource, /deleteShader/)
-    assert.match(stylesSource, /reactBitsLightPillar/)
-    assert.match(stylesSource, /reactBitsLightPillarCanvas/)
+    assert.match(stylesSource, /massageLabLightPillar/)
+    assert.match(stylesSource, /massageLabLightPillarCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsLightPillar/)
-    assert.match(cssEffectsSource, /ReactBitsLightPillarOptions/)
-    assert.match(setupSource, /resolveReactBitsLightPillarColors/)
-    assert.match(runningSource, /reactBitsLightPillar=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsLightPillar=\{\{/)
-    assert.match(docsSource, /Light Pillar \| https:\/\/reactbits\.dev\/backgrounds\/light-pillar/)
+    assert.match(hostSource, /massageLabLightPillar/)
+    assert.match(cssEffectsSource, /MassageLabLightPillarOptions/)
+    assert.match(setupSource, /resolveMassageLabLightPillarColors/)
+    assert.match(runningSource, /massageLabLightPillar=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabLightPillar=\{\{/)
+    assert.match(docsSource, /Light Pillar \|/)
     assert.match(docsSource, /LightPillar\.jsx/)
     assert.match(docsSource, /LightPillar\.css/)
     assert.match(docsSource, /raw WebGL/)
@@ -1747,21 +1683,21 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /container\.addEventListener\("mousemove"/)
     for (const settingKey of [
-      "reactBitsLightPillarPaletteMode",
-      "reactBitsLightPillarPrimaryColor",
-      "reactBitsLightPillarHarmony",
-      "reactBitsLightPillarTopColor",
-      "reactBitsLightPillarBottomColor",
-      "reactBitsLightPillarIntensity",
-      "reactBitsLightPillarRotationSpeed",
-      "reactBitsLightPillarInteractive",
-      "reactBitsLightPillarGlowAmount",
-      "reactBitsLightPillarWidth",
-      "reactBitsLightPillarHeight",
-      "reactBitsLightPillarNoiseIntensity",
-      "reactBitsLightPillarBlendMode",
-      "reactBitsLightPillarRotation",
-      "reactBitsLightPillarQuality",
+      "massageLabLightPillarPaletteMode",
+      "massageLabLightPillarPrimaryColor",
+      "massageLabLightPillarHarmony",
+      "massageLabLightPillarTopColor",
+      "massageLabLightPillarBottomColor",
+      "massageLabLightPillarIntensity",
+      "massageLabLightPillarRotationSpeed",
+      "massageLabLightPillarInteractive",
+      "massageLabLightPillarGlowAmount",
+      "massageLabLightPillarWidth",
+      "massageLabLightPillarHeight",
+      "massageLabLightPillarNoiseIntensity",
+      "massageLabLightPillarBlendMode",
+      "massageLabLightPillarRotation",
+      "massageLabLightPillarQuality",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -1769,9 +1705,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Silk source-shaped, raw WebGL, customizable, and passive", () => {
+  it("keeps MassageLab Silk source-shaped, raw WebGL, customizable, and passive", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-silk-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-silk-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1795,13 +1731,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-silk/)
+    assert.match(registrySource, /massage-lab-silk/)
     assert.match(registrySource, /Silk/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/silk/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /ReactBitsSilkBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_SILK/)
+    assert.match(effectSource, /MassageLabSilkBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_SILK/)
     assert.match(effectSource, /color: "#7B7481"/)
     assert.match(effectSource, /speed: 5/)
     assert.match(effectSource, /scale: 1/)
@@ -1832,15 +1767,15 @@ describe("premium background registry", () => {
     assert.match(effectSource, /deleteBuffer/)
     assert.match(effectSource, /deleteProgram/)
     assert.match(effectSource, /deleteShader/)
-    assert.match(stylesSource, /reactBitsSilk/)
-    assert.match(stylesSource, /reactBitsSilkCanvas/)
+    assert.match(stylesSource, /massageLabSilk/)
+    assert.match(stylesSource, /massageLabSilkCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /reactBitsSilk/)
-    assert.match(cssEffectsSource, /ReactBitsSilkOptions/)
-    assert.match(setupSource, /resolveReactBitsSilkColor/)
-    assert.match(runningSource, /reactBitsSilk=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsSilk=\{\{/)
-    assert.match(docsSource, /Silk \| https:\/\/reactbits\.dev\/backgrounds\/silk/)
+    assert.match(hostSource, /massageLabSilk/)
+    assert.match(cssEffectsSource, /MassageLabSilkOptions/)
+    assert.match(setupSource, /resolveMassageLabSilkColor/)
+    assert.match(runningSource, /massageLabSilk=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabSilk=\{\{/)
+    assert.match(docsSource, /Silk \|/)
     assert.match(docsSource, /Silk\.jsx/)
     assert.match(docsSource, /Silk\.css returned 404/)
     assert.match(docsSource, /raw WebGL/)
@@ -1852,14 +1787,14 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
     assert.doesNotMatch(effectSource, /mousemove/)
     for (const settingKey of [
-      "reactBitsSilkPaletteMode",
-      "reactBitsSilkPrimaryColor",
-      "reactBitsSilkHarmony",
-      "reactBitsSilkColor",
-      "reactBitsSilkSpeed",
-      "reactBitsSilkScale",
-      "reactBitsSilkNoiseIntensity",
-      "reactBitsSilkRotation",
+      "massageLabSilkPaletteMode",
+      "massageLabSilkPrimaryColor",
+      "massageLabSilkHarmony",
+      "massageLabSilkColor",
+      "massageLabSilkSpeed",
+      "massageLabSilkScale",
+      "massageLabSilkNoiseIntensity",
+      "massageLabSilkRotation",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -1867,9 +1802,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Floating Lines source-shaped, raw WebGL, customizable, and cursor-optional", () => {
+  it("keeps MassageLab Floating Lines source-shaped, raw WebGL, customizable, and cursor-optional", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-floating-lines-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-floating-lines-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -1893,15 +1828,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-floating-lines/)
+    assert.match(registrySource, /massage-lab-floating-lines/)
     assert.match(registrySource, /Floating Lines/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/floating-lines/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsFloatingLinesBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_FLOATING_LINES/)
+    assert.match(effectSource, /MassageLabFloatingLinesBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_FLOATING_LINES/)
     assert.match(effectSource, /MAX_LINE_COUNT/)
     assert.match(effectSource, /lineGradient\[8\]/)
     assert.match(effectSource, /background_color/)
@@ -1926,53 +1860,53 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "ogl"/)
 
-    assert.match(stylesSource, /reactBitsFloatingLines/)
-    assert.match(stylesSource, /reactBitsFloatingLinesCanvas/)
+    assert.match(stylesSource, /massageLabFloatingLines/)
+    assert.match(stylesSource, /massageLabFloatingLinesCanvas/)
 
-    assert.match(hostSource, /reactBitsFloatingLines/)
-    assert.match(cssEffectsSource, /ReactBitsFloatingLinesOptions/)
-    assert.match(setupSource, /resolveReactBitsFloatingLinesGradient/)
-    assert.match(runningSource, /reactBitsFloatingLines=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsFloatingLines=\{\{/)
-    assert.match(docsSource, /Floating Lines \| https:\/\/reactbits\.dev\/backgrounds\/floating-lines/)
+    assert.match(hostSource, /massageLabFloatingLines/)
+    assert.match(cssEffectsSource, /MassageLabFloatingLinesOptions/)
+    assert.match(setupSource, /resolveMassageLabFloatingLinesGradient/)
+    assert.match(runningSource, /massageLabFloatingLines=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabFloatingLines=\{\{/)
+    assert.match(docsSource, /Floating Lines \|/)
     assert.match(docsSource, /FloatingLines\.jsx/)
     assert.match(docsSource, /FloatingLines\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /Three\.js/)
 
     const settingKeys = [
-      "reactBitsFloatingLinesPaletteMode",
-      "reactBitsFloatingLinesPrimaryColor",
-      "reactBitsFloatingLinesHarmony",
-      "reactBitsFloatingLinesColorOne",
-      "reactBitsFloatingLinesColorTwo",
-      "reactBitsFloatingLinesColorThree",
-      "reactBitsFloatingLinesEnableTop",
-      "reactBitsFloatingLinesEnableMiddle",
-      "reactBitsFloatingLinesEnableBottom",
-      "reactBitsFloatingLinesTopLineCount",
-      "reactBitsFloatingLinesMiddleLineCount",
-      "reactBitsFloatingLinesBottomLineCount",
-      "reactBitsFloatingLinesTopLineDistance",
-      "reactBitsFloatingLinesMiddleLineDistance",
-      "reactBitsFloatingLinesBottomLineDistance",
-      "reactBitsFloatingLinesTopWaveX",
-      "reactBitsFloatingLinesTopWaveY",
-      "reactBitsFloatingLinesTopWaveRotate",
-      "reactBitsFloatingLinesMiddleWaveX",
-      "reactBitsFloatingLinesMiddleWaveY",
-      "reactBitsFloatingLinesMiddleWaveRotate",
-      "reactBitsFloatingLinesBottomWaveX",
-      "reactBitsFloatingLinesBottomWaveY",
-      "reactBitsFloatingLinesBottomWaveRotate",
-      "reactBitsFloatingLinesAnimationSpeed",
-      "reactBitsFloatingLinesInteractive",
-      "reactBitsFloatingLinesBendRadius",
-      "reactBitsFloatingLinesBendStrength",
-      "reactBitsFloatingLinesMouseDamping",
-      "reactBitsFloatingLinesParallax",
-      "reactBitsFloatingLinesParallaxStrength",
-      "reactBitsFloatingLinesBlendMode",
+      "massageLabFloatingLinesPaletteMode",
+      "massageLabFloatingLinesPrimaryColor",
+      "massageLabFloatingLinesHarmony",
+      "massageLabFloatingLinesColorOne",
+      "massageLabFloatingLinesColorTwo",
+      "massageLabFloatingLinesColorThree",
+      "massageLabFloatingLinesEnableTop",
+      "massageLabFloatingLinesEnableMiddle",
+      "massageLabFloatingLinesEnableBottom",
+      "massageLabFloatingLinesTopLineCount",
+      "massageLabFloatingLinesMiddleLineCount",
+      "massageLabFloatingLinesBottomLineCount",
+      "massageLabFloatingLinesTopLineDistance",
+      "massageLabFloatingLinesMiddleLineDistance",
+      "massageLabFloatingLinesBottomLineDistance",
+      "massageLabFloatingLinesTopWaveX",
+      "massageLabFloatingLinesTopWaveY",
+      "massageLabFloatingLinesTopWaveRotate",
+      "massageLabFloatingLinesMiddleWaveX",
+      "massageLabFloatingLinesMiddleWaveY",
+      "massageLabFloatingLinesMiddleWaveRotate",
+      "massageLabFloatingLinesBottomWaveX",
+      "massageLabFloatingLinesBottomWaveY",
+      "massageLabFloatingLinesBottomWaveRotate",
+      "massageLabFloatingLinesAnimationSpeed",
+      "massageLabFloatingLinesInteractive",
+      "massageLabFloatingLinesBendRadius",
+      "massageLabFloatingLinesBendStrength",
+      "massageLabFloatingLinesMouseDamping",
+      "massageLabFloatingLinesParallax",
+      "massageLabFloatingLinesParallaxStrength",
+      "massageLabFloatingLinesBlendMode",
     ]
 
     for (const settingKey of settingKeys) {
@@ -1982,9 +1916,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Side Rays source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Side Rays source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-side-rays-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-side-rays-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2008,15 +1942,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-side-rays/)
+    assert.match(registrySource, /massage-lab-side-rays/)
     assert.match(registrySource, /Side Rays/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/side-rays/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsSideRaysBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_SIDE_RAYS/)
+    assert.match(effectSource, /MassageLabSideRaysBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_SIDE_RAYS/)
     assert.match(effectSource, /rayStrength/)
     assert.match(effectSource, /originToFlip/)
     assert.match(effectSource, /iRayColor1/)
@@ -2042,35 +1975,35 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsSideRays/)
-    assert.match(stylesSource, /reactBitsSideRaysCanvas/)
+    assert.match(stylesSource, /massageLabSideRays/)
+    assert.match(stylesSource, /massageLabSideRaysCanvas/)
 
-    assert.match(hostSource, /reactBitsSideRays/)
-    assert.match(cssEffectsSource, /ReactBitsSideRaysOptions/)
-    assert.match(setupSource, /resolveReactBitsSideRaysColors/)
-    assert.match(runningSource, /reactBitsSideRays=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsSideRays=\{\{/)
-    assert.match(docsSource, /Side Rays \| https:\/\/reactbits\.dev\/backgrounds\/side-rays/)
+    assert.match(hostSource, /massageLabSideRays/)
+    assert.match(cssEffectsSource, /MassageLabSideRaysOptions/)
+    assert.match(setupSource, /resolveMassageLabSideRaysColors/)
+    assert.match(runningSource, /massageLabSideRays=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabSideRays=\{\{/)
+    assert.match(docsSource, /Side Rays \|/)
     assert.match(docsSource, /SideRays\.jsx/)
     assert.match(docsSource, /SideRays\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsSideRaysPaletteMode",
-      "reactBitsSideRaysPrimaryColor",
-      "reactBitsSideRaysHarmony",
-      "reactBitsSideRaysColorOne",
-      "reactBitsSideRaysColorTwo",
-      "reactBitsSideRaysSpeed",
-      "reactBitsSideRaysIntensity",
-      "reactBitsSideRaysSpread",
-      "reactBitsSideRaysOrigin",
-      "reactBitsSideRaysTilt",
-      "reactBitsSideRaysSaturation",
-      "reactBitsSideRaysBlend",
-      "reactBitsSideRaysFalloff",
-      "reactBitsSideRaysOpacity",
+      "massageLabSideRaysPaletteMode",
+      "massageLabSideRaysPrimaryColor",
+      "massageLabSideRaysHarmony",
+      "massageLabSideRaysColorOne",
+      "massageLabSideRaysColorTwo",
+      "massageLabSideRaysSpeed",
+      "massageLabSideRaysIntensity",
+      "massageLabSideRaysSpread",
+      "massageLabSideRaysOrigin",
+      "massageLabSideRaysTilt",
+      "massageLabSideRaysSaturation",
+      "massageLabSideRaysBlend",
+      "massageLabSideRaysFalloff",
+      "massageLabSideRaysOpacity",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2080,9 +2013,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Light Rays source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps Light Rays source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-light-rays-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-light-rays-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2106,15 +2039,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-light-rays/)
+    assert.match(registrySource, /massage-lab-light-rays/)
     assert.match(registrySource, /Light Rays/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/light-rays/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsLightRaysBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHT_RAYS/)
+    assert.match(effectSource, /MassageLabLightRaysBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIGHT_RAYS/)
     assert.match(effectSource, /rayStrength/)
     assert.match(effectSource, /getAnchorAndDir/)
     assert.match(effectSource, /mouseInfluence/)
@@ -2136,36 +2068,36 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsLightRays/)
-    assert.match(stylesSource, /reactBitsLightRaysCanvas/)
+    assert.match(stylesSource, /massageLabLightRays/)
+    assert.match(stylesSource, /massageLabLightRaysCanvas/)
 
-    assert.match(hostSource, /reactBitsLightRays/)
-    assert.match(cssEffectsSource, /ReactBitsLightRaysOptions/)
-    assert.match(setupSource, /resolveReactBitsLightRaysColor/)
-    assert.match(runningSource, /reactBitsLightRays=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsLightRays=\{\{/)
-    assert.match(docsSource, /Light Rays \| https:\/\/reactbits\.dev\/backgrounds\/light-rays/)
+    assert.match(hostSource, /massageLabLightRays/)
+    assert.match(cssEffectsSource, /MassageLabLightRaysOptions/)
+    assert.match(setupSource, /resolveMassageLabLightRaysColor/)
+    assert.match(runningSource, /massageLabLightRays=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabLightRays=\{\{/)
+    assert.match(docsSource, /Light Rays \|/)
     assert.match(docsSource, /LightRays\.jsx/)
     assert.match(docsSource, /LightRays\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsLightRaysPaletteMode",
-      "reactBitsLightRaysPrimaryColor",
-      "reactBitsLightRaysHarmony",
-      "reactBitsLightRaysColor",
-      "reactBitsLightRaysOrigin",
-      "reactBitsLightRaysSpeed",
-      "reactBitsLightRaysSpread",
-      "reactBitsLightRaysLength",
-      "reactBitsLightRaysPulsating",
-      "reactBitsLightRaysFadeDistance",
-      "reactBitsLightRaysSaturation",
-      "reactBitsLightRaysFollowMouse",
-      "reactBitsLightRaysMouseInfluence",
-      "reactBitsLightRaysNoiseAmount",
-      "reactBitsLightRaysDistortion",
+      "massageLabLightRaysPaletteMode",
+      "massageLabLightRaysPrimaryColor",
+      "massageLabLightRaysHarmony",
+      "massageLabLightRaysColor",
+      "massageLabLightRaysOrigin",
+      "massageLabLightRaysSpeed",
+      "massageLabLightRaysSpread",
+      "massageLabLightRaysLength",
+      "massageLabLightRaysPulsating",
+      "massageLabLightRaysFadeDistance",
+      "massageLabLightRaysSaturation",
+      "massageLabLightRaysFollowMouse",
+      "massageLabLightRaysMouseInfluence",
+      "massageLabLightRaysNoiseAmount",
+      "massageLabLightRaysDistortion",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2175,9 +2107,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Pixel Blast source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Pixel Blast source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-pixel-blast-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-pixel-blast-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2201,15 +2133,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-pixel-blast/)
+    assert.match(registrySource, /massage-lab-pixel-blast/)
     assert.match(registrySource, /Pixel Blast/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/pixel-blast/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsPixelBlastBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PIXEL_BLAST/)
+    assert.match(effectSource, /MassageLabPixelBlastBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PIXEL_BLAST/)
     assert.match(effectSource, /Bayer8/)
     assert.match(effectSource, /fbm2/)
     assert.match(effectSource, /maskCircle/)
@@ -2240,15 +2171,15 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "postprocessing"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsPixelBlast/)
-    assert.match(stylesSource, /reactBitsPixelBlastCanvas/)
+    assert.match(stylesSource, /massageLabPixelBlast/)
+    assert.match(stylesSource, /massageLabPixelBlastCanvas/)
 
-    assert.match(hostSource, /reactBitsPixelBlast/)
-    assert.match(cssEffectsSource, /ReactBitsPixelBlastOptions/)
-    assert.match(setupSource, /resolveReactBitsPixelBlastColor/)
-    assert.match(runningSource, /reactBitsPixelBlast=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsPixelBlast=\{\{/)
-    assert.match(docsSource, /Pixel Blast \| https:\/\/reactbits\.dev\/backgrounds\/pixel-blast/)
+    assert.match(hostSource, /massageLabPixelBlast/)
+    assert.match(cssEffectsSource, /MassageLabPixelBlastOptions/)
+    assert.match(setupSource, /resolveMassageLabPixelBlastColor/)
+    assert.match(runningSource, /massageLabPixelBlast=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabPixelBlast=\{\{/)
+    assert.match(docsSource, /Pixel Blast \|/)
     assert.match(docsSource, /PixelBlast\.jsx/)
     assert.match(docsSource, /PixelBlast\.css/)
     assert.match(docsSource, /raw WebGL/)
@@ -2256,29 +2187,29 @@ describe("premium background registry", () => {
     assert.match(docsSource, /postprocessing/)
 
     const settingKeys = [
-      "reactBitsPixelBlastPaletteMode",
-      "reactBitsPixelBlastPrimaryColor",
-      "reactBitsPixelBlastHarmony",
-      "reactBitsPixelBlastColor",
-      "reactBitsPixelBlastVariant",
-      "reactBitsPixelBlastPixelSize",
-      "reactBitsPixelBlastAntialias",
-      "reactBitsPixelBlastPatternScale",
-      "reactBitsPixelBlastPatternDensity",
-      "reactBitsPixelBlastLiquid",
-      "reactBitsPixelBlastLiquidStrength",
-      "reactBitsPixelBlastLiquidRadius",
-      "reactBitsPixelBlastPixelSizeJitter",
-      "reactBitsPixelBlastEnableRipples",
-      "reactBitsPixelBlastRippleIntensityScale",
-      "reactBitsPixelBlastRippleThickness",
-      "reactBitsPixelBlastRippleSpeed",
-      "reactBitsPixelBlastLiquidWobbleSpeed",
-      "reactBitsPixelBlastAutoPauseOffscreen",
-      "reactBitsPixelBlastSpeed",
-      "reactBitsPixelBlastTransparent",
-      "reactBitsPixelBlastEdgeFade",
-      "reactBitsPixelBlastNoiseAmount",
+      "massageLabPixelBlastPaletteMode",
+      "massageLabPixelBlastPrimaryColor",
+      "massageLabPixelBlastHarmony",
+      "massageLabPixelBlastColor",
+      "massageLabPixelBlastVariant",
+      "massageLabPixelBlastPixelSize",
+      "massageLabPixelBlastAntialias",
+      "massageLabPixelBlastPatternScale",
+      "massageLabPixelBlastPatternDensity",
+      "massageLabPixelBlastLiquid",
+      "massageLabPixelBlastLiquidStrength",
+      "massageLabPixelBlastLiquidRadius",
+      "massageLabPixelBlastPixelSizeJitter",
+      "massageLabPixelBlastEnableRipples",
+      "massageLabPixelBlastRippleIntensityScale",
+      "massageLabPixelBlastRippleThickness",
+      "massageLabPixelBlastRippleSpeed",
+      "massageLabPixelBlastLiquidWobbleSpeed",
+      "massageLabPixelBlastAutoPauseOffscreen",
+      "massageLabPixelBlastSpeed",
+      "massageLabPixelBlastTransparent",
+      "massageLabPixelBlastEdgeFade",
+      "massageLabPixelBlastNoiseAmount",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2288,9 +2219,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Color Bends source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Color Bends source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-color-bends-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-color-bends-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2314,15 +2245,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-color-bends/)
+    assert.match(registrySource, /massage-lab-color-bends/)
     assert.match(registrySource, /Color Bends/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/color-bends/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsColorBendsBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_COLOR_BENDS/)
+    assert.match(effectSource, /MassageLabColorBendsBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_COLOR_BENDS/)
     assert.match(effectSource, /uColorCount/)
     assert.match(effectSource, /uColors\[MAX_COLORS\]/)
     assert.match(effectSource, /uWarpStrength/)
@@ -2351,42 +2281,42 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsColorBends/)
-    assert.match(stylesSource, /reactBitsColorBendsCanvas/)
+    assert.match(stylesSource, /massageLabColorBends/)
+    assert.match(stylesSource, /massageLabColorBendsCanvas/)
 
-    assert.match(hostSource, /reactBitsColorBends/)
-    assert.match(cssEffectsSource, /ReactBitsColorBendsOptions/)
-    assert.match(setupSource, /resolveReactBitsColorBendsColors/)
-    assert.match(runningSource, /reactBitsColorBends=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsColorBends=\{\{/)
-    assert.match(docsSource, /Color Bends \| https:\/\/reactbits\.dev\/backgrounds\/color-bends/)
+    assert.match(hostSource, /massageLabColorBends/)
+    assert.match(cssEffectsSource, /MassageLabColorBendsOptions/)
+    assert.match(setupSource, /resolveMassageLabColorBendsColors/)
+    assert.match(runningSource, /massageLabColorBends=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabColorBends=\{\{/)
+    assert.match(docsSource, /Color Bends \|/)
     assert.match(docsSource, /ColorBends\.jsx/)
     assert.match(docsSource, /ColorBends\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /Three\.js/)
 
     const settingKeys = [
-      "reactBitsColorBendsPaletteMode",
-      "reactBitsColorBendsPrimaryColor",
-      "reactBitsColorBendsHarmony",
-      "reactBitsColorBendsColorOne",
-      "reactBitsColorBendsColorTwo",
-      "reactBitsColorBendsColorThree",
-      "reactBitsColorBendsColorFour",
-      "reactBitsColorBendsRotation",
-      "reactBitsColorBendsSpeed",
-      "reactBitsColorBendsTransparent",
-      "reactBitsColorBendsAutoRotate",
-      "reactBitsColorBendsScale",
-      "reactBitsColorBendsFrequency",
-      "reactBitsColorBendsWarpStrength",
-      "reactBitsColorBendsInteractive",
-      "reactBitsColorBendsMouseInfluence",
-      "reactBitsColorBendsParallax",
-      "reactBitsColorBendsNoise",
-      "reactBitsColorBendsIterations",
-      "reactBitsColorBendsIntensity",
-      "reactBitsColorBendsBandWidth",
+      "massageLabColorBendsPaletteMode",
+      "massageLabColorBendsPrimaryColor",
+      "massageLabColorBendsHarmony",
+      "massageLabColorBendsColorOne",
+      "massageLabColorBendsColorTwo",
+      "massageLabColorBendsColorThree",
+      "massageLabColorBendsColorFour",
+      "massageLabColorBendsRotation",
+      "massageLabColorBendsSpeed",
+      "massageLabColorBendsTransparent",
+      "massageLabColorBendsAutoRotate",
+      "massageLabColorBendsScale",
+      "massageLabColorBendsFrequency",
+      "massageLabColorBendsWarpStrength",
+      "massageLabColorBendsInteractive",
+      "massageLabColorBendsMouseInfluence",
+      "massageLabColorBendsParallax",
+      "massageLabColorBendsNoise",
+      "massageLabColorBendsIterations",
+      "massageLabColorBendsIntensity",
+      "massageLabColorBendsBandWidth",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2396,9 +2326,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Evil Eye source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Evil Eye source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-evil-eye-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-evil-eye-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2422,15 +2352,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-evil-eye/)
+    assert.match(registrySource, /massage-lab-evil-eye/)
     assert.match(registrySource, /Evil Eye/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/evil-eye/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsEvilEyeBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_EVIL_EYE/)
+    assert.match(effectSource, /MassageLabEvilEyeBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_EVIL_EYE/)
     assert.match(effectSource, /generateNoiseTexture/)
     assert.match(effectSource, /uPupilSize/)
     assert.match(effectSource, /uIrisWidth/)
@@ -2460,35 +2389,35 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsEvilEye/)
-    assert.match(stylesSource, /reactBitsEvilEyeCanvas/)
+    assert.match(stylesSource, /massageLabEvilEye/)
+    assert.match(stylesSource, /massageLabEvilEyeCanvas/)
 
-    assert.match(hostSource, /reactBitsEvilEye/)
-    assert.match(cssEffectsSource, /ReactBitsEvilEyeOptions/)
-    assert.match(setupSource, /resolveReactBitsEvilEyeColor/)
-    assert.match(runningSource, /reactBitsEvilEye=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsEvilEye=\{\{/)
-    assert.match(docsSource, /Evil Eye \| https:\/\/reactbits\.dev\/backgrounds\/evil-eye/)
+    assert.match(hostSource, /massageLabEvilEye/)
+    assert.match(cssEffectsSource, /MassageLabEvilEyeOptions/)
+    assert.match(setupSource, /resolveMassageLabEvilEyeColor/)
+    assert.match(runningSource, /massageLabEvilEye=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabEvilEye=\{\{/)
+    assert.match(docsSource, /Evil Eye \|/)
     assert.match(docsSource, /EvilEye\.jsx/)
     assert.match(docsSource, /EvilEye\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsEvilEyePaletteMode",
-      "reactBitsEvilEyePrimaryColor",
-      "reactBitsEvilEyeHarmony",
-      "reactBitsEvilEyeColor",
-      "reactBitsEvilEyeBackgroundColor",
-      "reactBitsEvilEyeIntensity",
-      "reactBitsEvilEyePupilSize",
-      "reactBitsEvilEyeIrisWidth",
-      "reactBitsEvilEyeGlowIntensity",
-      "reactBitsEvilEyeScale",
-      "reactBitsEvilEyeNoiseScale",
-      "reactBitsEvilEyePupilFollow",
-      "reactBitsEvilEyeFlameSpeed",
-      "reactBitsEvilEyeInteractive",
+      "massageLabEvilEyePaletteMode",
+      "massageLabEvilEyePrimaryColor",
+      "massageLabEvilEyeHarmony",
+      "massageLabEvilEyeColor",
+      "massageLabEvilEyeBackgroundColor",
+      "massageLabEvilEyeIntensity",
+      "massageLabEvilEyePupilSize",
+      "massageLabEvilEyeIrisWidth",
+      "massageLabEvilEyeGlowIntensity",
+      "massageLabEvilEyeScale",
+      "massageLabEvilEyeNoiseScale",
+      "massageLabEvilEyePupilFollow",
+      "massageLabEvilEyeFlameSpeed",
+      "massageLabEvilEyeInteractive",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2498,9 +2427,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Line Waves source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Line Waves source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-line-waves-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-line-waves-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2524,15 +2453,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-line-waves/)
+    assert.match(registrySource, /massage-lab-line-waves/)
     assert.match(registrySource, /Line Waves/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/line-waves/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsLineWavesBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_LINE_WAVES/)
+    assert.match(effectSource, /MassageLabLineWavesBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LINE_WAVES/)
     assert.match(effectSource, /displaceA/)
     assert.match(effectSource, /displaceB/)
     assert.match(effectSource, /smoothNoise/)
@@ -2564,37 +2492,37 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsLineWaves/)
-    assert.match(stylesSource, /reactBitsLineWavesCanvas/)
+    assert.match(stylesSource, /massageLabLineWaves/)
+    assert.match(stylesSource, /massageLabLineWavesCanvas/)
 
-    assert.match(hostSource, /reactBitsLineWaves/)
-    assert.match(cssEffectsSource, /ReactBitsLineWavesOptions/)
-    assert.match(setupSource, /resolveReactBitsLineWavesColors/)
-    assert.match(runningSource, /reactBitsLineWaves=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsLineWaves=\{\{/)
-    assert.match(docsSource, /Line Waves \| https:\/\/reactbits\.dev\/backgrounds\/line-waves/)
+    assert.match(hostSource, /massageLabLineWaves/)
+    assert.match(cssEffectsSource, /MassageLabLineWavesOptions/)
+    assert.match(setupSource, /resolveMassageLabLineWavesColors/)
+    assert.match(runningSource, /massageLabLineWaves=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabLineWaves=\{\{/)
+    assert.match(docsSource, /Line Waves \|/)
     assert.match(docsSource, /LineWaves\.jsx/)
     assert.match(docsSource, /LineWaves\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsLineWavesPaletteMode",
-      "reactBitsLineWavesPrimaryColor",
-      "reactBitsLineWavesHarmony",
-      "reactBitsLineWavesColorOne",
-      "reactBitsLineWavesColorTwo",
-      "reactBitsLineWavesColorThree",
-      "reactBitsLineWavesSpeed",
-      "reactBitsLineWavesInnerLineCount",
-      "reactBitsLineWavesOuterLineCount",
-      "reactBitsLineWavesWarpIntensity",
-      "reactBitsLineWavesRotation",
-      "reactBitsLineWavesEdgeFadeWidth",
-      "reactBitsLineWavesColorCycleSpeed",
-      "reactBitsLineWavesBrightness",
-      "reactBitsLineWavesEnableMouseInteraction",
-      "reactBitsLineWavesMouseInfluence",
+      "massageLabLineWavesPaletteMode",
+      "massageLabLineWavesPrimaryColor",
+      "massageLabLineWavesHarmony",
+      "massageLabLineWavesColorOne",
+      "massageLabLineWavesColorTwo",
+      "massageLabLineWavesColorThree",
+      "massageLabLineWavesSpeed",
+      "massageLabLineWavesInnerLineCount",
+      "massageLabLineWavesOuterLineCount",
+      "massageLabLineWavesWarpIntensity",
+      "massageLabLineWavesRotation",
+      "massageLabLineWavesEdgeFadeWidth",
+      "massageLabLineWavesColorCycleSpeed",
+      "massageLabLineWavesBrightness",
+      "massageLabLineWavesEnableMouseInteraction",
+      "massageLabLineWavesMouseInfluence",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2604,9 +2532,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Radar source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Radar source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-radar-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-radar-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2630,15 +2558,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-radar/)
+    assert.match(registrySource, /massage-lab-radar/)
     assert.match(registrySource, /Radar/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/radar/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsRadarBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_RADAR/)
+    assert.match(effectSource, /MassageLabRadarBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_RADAR/)
     assert.match(effectSource, /uRingCount/)
     assert.match(effectSource, /uSpokeCount/)
     assert.match(effectSource, /uRingThickness/)
@@ -2673,39 +2600,39 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsRadar/)
-    assert.match(stylesSource, /reactBitsRadarCanvas/)
+    assert.match(stylesSource, /massageLabRadar/)
+    assert.match(stylesSource, /massageLabRadarCanvas/)
 
-    assert.match(hostSource, /reactBitsRadar/)
-    assert.match(cssEffectsSource, /ReactBitsRadarOptions/)
-    assert.match(setupSource, /resolveReactBitsRadarColor/)
-    assert.match(runningSource, /reactBitsRadar=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsRadar=\{\{/)
-    assert.match(docsSource, /Radar \| https:\/\/reactbits\.dev\/backgrounds\/radar/)
+    assert.match(hostSource, /massageLabRadar/)
+    assert.match(cssEffectsSource, /MassageLabRadarOptions/)
+    assert.match(setupSource, /resolveMassageLabRadarColor/)
+    assert.match(runningSource, /massageLabRadar=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabRadar=\{\{/)
+    assert.match(docsSource, /Radar \|/)
     assert.match(docsSource, /Radar\.jsx/)
     assert.match(docsSource, /Radar\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsRadarPaletteMode",
-      "reactBitsRadarPrimaryColor",
-      "reactBitsRadarHarmony",
-      "reactBitsRadarColor",
-      "reactBitsRadarBackgroundColor",
-      "reactBitsRadarSpeed",
-      "reactBitsRadarScale",
-      "reactBitsRadarRingCount",
-      "reactBitsRadarSpokeCount",
-      "reactBitsRadarRingThickness",
-      "reactBitsRadarSpokeThickness",
-      "reactBitsRadarSweepSpeed",
-      "reactBitsRadarSweepWidth",
-      "reactBitsRadarSweepLobes",
-      "reactBitsRadarFalloff",
-      "reactBitsRadarBrightness",
-      "reactBitsRadarEnableMouseInteraction",
-      "reactBitsRadarMouseInfluence",
+      "massageLabRadarPaletteMode",
+      "massageLabRadarPrimaryColor",
+      "massageLabRadarHarmony",
+      "massageLabRadarColor",
+      "massageLabRadarBackgroundColor",
+      "massageLabRadarSpeed",
+      "massageLabRadarScale",
+      "massageLabRadarRingCount",
+      "massageLabRadarSpokeCount",
+      "massageLabRadarRingThickness",
+      "massageLabRadarSpokeThickness",
+      "massageLabRadarSweepSpeed",
+      "massageLabRadarSweepWidth",
+      "massageLabRadarSweepLobes",
+      "massageLabRadarFalloff",
+      "massageLabRadarBrightness",
+      "massageLabRadarEnableMouseInteraction",
+      "massageLabRadarMouseInfluence",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2715,9 +2642,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Soft Aurora source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Soft Aurora source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-soft-aurora-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-soft-aurora-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2741,15 +2668,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-soft-aurora/)
+    assert.match(registrySource, /massage-lab-soft-aurora/)
     assert.match(registrySource, /Soft Aurora/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/soft-aurora/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsSoftAuroraBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_SOFT_AURORA/)
+    assert.match(effectSource, /MassageLabSoftAuroraBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_SOFT_AURORA/)
     assert.match(effectSource, /gradientHash/)
     assert.match(effectSource, /perlin3D/)
     assert.match(effectSource, /auroraGlow/)
@@ -2785,38 +2711,38 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsSoftAurora/)
-    assert.match(stylesSource, /reactBitsSoftAuroraCanvas/)
+    assert.match(stylesSource, /massageLabSoftAurora/)
+    assert.match(stylesSource, /massageLabSoftAuroraCanvas/)
 
-    assert.match(hostSource, /reactBitsSoftAurora/)
-    assert.match(cssEffectsSource, /ReactBitsSoftAuroraOptions/)
-    assert.match(setupSource, /resolveReactBitsSoftAuroraColors/)
-    assert.match(runningSource, /reactBitsSoftAurora=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsSoftAurora=\{\{/)
-    assert.match(docsSource, /Soft Aurora \| https:\/\/reactbits\.dev\/backgrounds\/soft-aurora/)
+    assert.match(hostSource, /massageLabSoftAurora/)
+    assert.match(cssEffectsSource, /MassageLabSoftAuroraOptions/)
+    assert.match(setupSource, /resolveMassageLabSoftAuroraColors/)
+    assert.match(runningSource, /massageLabSoftAurora=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabSoftAurora=\{\{/)
+    assert.match(docsSource, /Soft Aurora \|/)
     assert.match(docsSource, /SoftAurora\.jsx/)
     assert.match(docsSource, /SoftAurora\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsSoftAuroraPaletteMode",
-      "reactBitsSoftAuroraPrimaryColor",
-      "reactBitsSoftAuroraHarmony",
-      "reactBitsSoftAuroraColorOne",
-      "reactBitsSoftAuroraColorTwo",
-      "reactBitsSoftAuroraSpeed",
-      "reactBitsSoftAuroraScale",
-      "reactBitsSoftAuroraBrightness",
-      "reactBitsSoftAuroraNoiseFrequency",
-      "reactBitsSoftAuroraNoiseAmplitude",
-      "reactBitsSoftAuroraBandHeight",
-      "reactBitsSoftAuroraBandSpread",
-      "reactBitsSoftAuroraOctaveDecay",
-      "reactBitsSoftAuroraLayerOffset",
-      "reactBitsSoftAuroraColorSpeed",
-      "reactBitsSoftAuroraEnableMouseInteraction",
-      "reactBitsSoftAuroraMouseInfluence",
+      "massageLabSoftAuroraPaletteMode",
+      "massageLabSoftAuroraPrimaryColor",
+      "massageLabSoftAuroraHarmony",
+      "massageLabSoftAuroraColorOne",
+      "massageLabSoftAuroraColorTwo",
+      "massageLabSoftAuroraSpeed",
+      "massageLabSoftAuroraScale",
+      "massageLabSoftAuroraBrightness",
+      "massageLabSoftAuroraNoiseFrequency",
+      "massageLabSoftAuroraNoiseAmplitude",
+      "massageLabSoftAuroraBandHeight",
+      "massageLabSoftAuroraBandSpread",
+      "massageLabSoftAuroraOctaveDecay",
+      "massageLabSoftAuroraLayerOffset",
+      "massageLabSoftAuroraColorSpeed",
+      "massageLabSoftAuroraEnableMouseInteraction",
+      "massageLabSoftAuroraMouseInfluence",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2826,9 +2752,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Plasma source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+  it("keeps MassageLab Plasma source-shaped, raw WebGL2, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-plasma-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-plasma-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2852,15 +2778,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-plasma/)
+    assert.match(registrySource, /massage-lab-plasma/)
     assert.match(registrySource, /label:\s*"Plasma"/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/plasma/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsPlasmaBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PLASMA/)
+    assert.match(effectSource, /MassageLabPlasmaBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PLASMA/)
     assert.match(effectSource, /#version 300 es/)
     assert.match(effectSource, /getContext\("webgl2"/)
     assert.match(effectSource, /uCustomColor/)
@@ -2881,30 +2806,30 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsPlasma/)
-    assert.match(stylesSource, /reactBitsPlasmaCanvas/)
+    assert.match(stylesSource, /massageLabPlasma/)
+    assert.match(stylesSource, /massageLabPlasmaCanvas/)
 
-    assert.match(hostSource, /reactBitsPlasma/)
-    assert.match(cssEffectsSource, /ReactBitsPlasmaOptions/)
-    assert.match(setupSource, /resolveReactBitsPlasmaColor/)
-    assert.match(runningSource, /reactBitsPlasma=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsPlasma=\{\{/)
-    assert.match(docsSource, /Plasma \| https:\/\/reactbits\.dev\/backgrounds\/plasma/)
+    assert.match(hostSource, /massageLabPlasma/)
+    assert.match(cssEffectsSource, /MassageLabPlasmaOptions/)
+    assert.match(setupSource, /resolveMassageLabPlasmaColor/)
+    assert.match(runningSource, /massageLabPlasma=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabPlasma=\{\{/)
+    assert.match(docsSource, /Plasma \|/)
     assert.match(docsSource, /Plasma\.jsx/)
     assert.match(docsSource, /Plasma\.css/)
     assert.match(docsSource, /raw WebGL2/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsPlasmaPaletteMode",
-      "reactBitsPlasmaPrimaryColor",
-      "reactBitsPlasmaHarmony",
-      "reactBitsPlasmaColor",
-      "reactBitsPlasmaSpeed",
-      "reactBitsPlasmaDirection",
-      "reactBitsPlasmaScale",
-      "reactBitsPlasmaOpacity",
-      "reactBitsPlasmaMouseInteractive",
+      "massageLabPlasmaPaletteMode",
+      "massageLabPlasmaPrimaryColor",
+      "massageLabPlasmaHarmony",
+      "massageLabPlasmaColor",
+      "massageLabPlasmaSpeed",
+      "massageLabPlasmaDirection",
+      "massageLabPlasmaScale",
+      "massageLabPlasmaOpacity",
+      "massageLabPlasmaMouseInteractive",
     ]
 
     for (const settingKey of settingKeys) {
@@ -2914,9 +2839,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Plasma Wave source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Plasma Wave source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-plasma-wave-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-plasma-wave-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -2940,15 +2865,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-plasma-wave/)
+    assert.match(registrySource, /massage-lab-plasma-wave/)
     assert.match(registrySource, /Plasma Wave/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/plasma-wave/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsPlasmaWaveBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PLASMA_WAVE/)
+    assert.match(effectSource, /MassageLabPlasmaWaveBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PLASMA_WAVE/)
     assert.match(effectSource, /MAX_STEPS 14/)
     assert.match(effectSource, /uFocalLength/)
     assert.match(effectSource, /uSpeed1/)
@@ -2973,35 +2897,35 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsPlasmaWave/)
-    assert.match(stylesSource, /reactBitsPlasmaWaveCanvas/)
+    assert.match(stylesSource, /massageLabPlasmaWave/)
+    assert.match(stylesSource, /massageLabPlasmaWaveCanvas/)
 
-    assert.match(hostSource, /reactBitsPlasmaWave/)
-    assert.match(cssEffectsSource, /ReactBitsPlasmaWaveOptions/)
-    assert.match(setupSource, /resolveReactBitsPlasmaWaveColors/)
-    assert.match(runningSource, /reactBitsPlasmaWave=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsPlasmaWave=\{\{/)
-    assert.match(docsSource, /Plasma Wave \| https:\/\/reactbits\.dev\/backgrounds\/plasma-wave/)
+    assert.match(hostSource, /massageLabPlasmaWave/)
+    assert.match(cssEffectsSource, /MassageLabPlasmaWaveOptions/)
+    assert.match(setupSource, /resolveMassageLabPlasmaWaveColors/)
+    assert.match(runningSource, /massageLabPlasmaWave=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabPlasmaWave=\{\{/)
+    assert.match(docsSource, /Plasma Wave \|/)
     assert.match(docsSource, /PlasmaWave\.jsx/)
     assert.match(docsSource, /PlasmaWave\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsPlasmaWavePaletteMode",
-      "reactBitsPlasmaWavePrimaryColor",
-      "reactBitsPlasmaWaveHarmony",
-      "reactBitsPlasmaWaveColorOne",
-      "reactBitsPlasmaWaveColorTwo",
-      "reactBitsPlasmaWaveXOffset",
-      "reactBitsPlasmaWaveYOffset",
-      "reactBitsPlasmaWaveRotationDeg",
-      "reactBitsPlasmaWaveFocalLength",
-      "reactBitsPlasmaWaveSpeedOne",
-      "reactBitsPlasmaWaveSpeedTwo",
-      "reactBitsPlasmaWaveDirectionTwo",
-      "reactBitsPlasmaWaveBendOne",
-      "reactBitsPlasmaWaveBendTwo",
+      "massageLabPlasmaWavePaletteMode",
+      "massageLabPlasmaWavePrimaryColor",
+      "massageLabPlasmaWaveHarmony",
+      "massageLabPlasmaWaveColorOne",
+      "massageLabPlasmaWaveColorTwo",
+      "massageLabPlasmaWaveXOffset",
+      "massageLabPlasmaWaveYOffset",
+      "massageLabPlasmaWaveRotationDeg",
+      "massageLabPlasmaWaveFocalLength",
+      "massageLabPlasmaWaveSpeedOne",
+      "massageLabPlasmaWaveSpeedTwo",
+      "massageLabPlasmaWaveDirectionTwo",
+      "massageLabPlasmaWaveBendOne",
+      "massageLabPlasmaWaveBendTwo",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3011,9 +2935,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Particles source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Particles source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-particles-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-particles-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3037,15 +2961,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-particles/)
+    assert.match(registrySource, /massage-lab-particles/)
     assert.match(registrySource, /Particles/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/particles/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsParticlesBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PARTICLES/)
+    assert.match(effectSource, /MassageLabParticlesBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PARTICLES/)
     assert.match(effectSource, /attribute vec3 position/)
     assert.match(effectSource, /attribute vec4 random/)
     assert.match(effectSource, /attribute vec3 color/)
@@ -3070,15 +2993,15 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsParticles/)
-    assert.match(stylesSource, /reactBitsParticlesCanvas/)
+    assert.match(stylesSource, /massageLabParticles/)
+    assert.match(stylesSource, /massageLabParticlesCanvas/)
 
-    assert.match(hostSource, /reactBitsParticles/)
-    assert.match(cssEffectsSource, /ReactBitsParticlesOptions/)
-    assert.match(setupSource, /resolveReactBitsParticlesColors/)
-    assert.match(runningSource, /reactBitsParticles=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsParticles=\{\{/)
-    assert.match(docsSource, /Particles \| https:\/\/reactbits\.dev\/backgrounds\/particles/)
+    assert.match(hostSource, /massageLabParticles/)
+    assert.match(cssEffectsSource, /MassageLabParticlesOptions/)
+    assert.match(setupSource, /resolveMassageLabParticlesColors/)
+    assert.match(runningSource, /massageLabParticles=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabParticles=\{\{/)
+    assert.match(docsSource, /Particles \|/)
     assert.match(docsSource, /Particles\.jsx/)
     assert.match(docsSource, /Particles\.css/)
     assert.match(docsSource, /point-sprite particle cloud/)
@@ -3086,23 +3009,23 @@ describe("premium background registry", () => {
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsParticlesPaletteMode",
-      "reactBitsParticlesPrimaryColor",
-      "reactBitsParticlesHarmony",
-      "reactBitsParticlesColorOne",
-      "reactBitsParticlesColorTwo",
-      "reactBitsParticlesColorThree",
-      "reactBitsParticlesCount",
-      "reactBitsParticlesSpread",
-      "reactBitsParticlesSpeed",
-      "reactBitsParticlesMoveOnHover",
-      "reactBitsParticlesHoverFactor",
-      "reactBitsParticlesAlpha",
-      "reactBitsParticlesBaseSize",
-      "reactBitsParticlesSizeRandomness",
-      "reactBitsParticlesCameraDistance",
-      "reactBitsParticlesDisableRotation",
-      "reactBitsParticlesPixelRatio",
+      "massageLabParticlesPaletteMode",
+      "massageLabParticlesPrimaryColor",
+      "massageLabParticlesHarmony",
+      "massageLabParticlesColorOne",
+      "massageLabParticlesColorTwo",
+      "massageLabParticlesColorThree",
+      "massageLabParticlesCount",
+      "massageLabParticlesSpread",
+      "massageLabParticlesSpeed",
+      "massageLabParticlesMoveOnHover",
+      "massageLabParticlesHoverFactor",
+      "massageLabParticlesAlpha",
+      "massageLabParticlesBaseSize",
+      "massageLabParticlesSizeRandomness",
+      "massageLabParticlesCameraDistance",
+      "massageLabParticlesDisableRotation",
+      "massageLabParticlesPixelRatio",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3112,9 +3035,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Gradient Blinds source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Gradient Blinds source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-gradient-blinds-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-gradient-blinds-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3138,15 +3061,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-gradient-blinds/)
+    assert.match(registrySource, /massage-lab-gradient-blinds/)
     assert.match(registrySource, /Gradient Blinds/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/gradient-blinds/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsGradientBlindsBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_GRADIENT_BLINDS/)
+    assert.match(effectSource, /MassageLabGradientBlindsBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_GRADIENT_BLINDS/)
     assert.match(effectSource, /gradientColors:\s*\["#FF9FFC", "#5227FF"\]/)
     assert.match(effectSource, /noise:\s*0\.3/)
     assert.match(effectSource, /blindCount:\s*16/)
@@ -3169,39 +3091,39 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsGradientBlinds/)
-    assert.match(stylesSource, /reactBitsGradientBlindsCanvas/)
-    assert.match(hostSource, /reactBitsGradientBlinds/)
-    assert.match(cssEffectsSource, /ReactBitsGradientBlindsOptions/)
-    assert.match(setupSource, /resolveReactBitsGradientBlindsColors/)
-    assert.match(runningSource, /reactBitsGradientBlinds=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsGradientBlinds=\{\{/)
-    assert.match(docsSource, /Gradient Blinds \| https:\/\/reactbits\.dev\/backgrounds\/gradient-blinds/)
+    assert.match(stylesSource, /massageLabGradientBlinds/)
+    assert.match(stylesSource, /massageLabGradientBlindsCanvas/)
+    assert.match(hostSource, /massageLabGradientBlinds/)
+    assert.match(cssEffectsSource, /MassageLabGradientBlindsOptions/)
+    assert.match(setupSource, /resolveMassageLabGradientBlindsColors/)
+    assert.match(runningSource, /massageLabGradientBlinds=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabGradientBlinds=\{\{/)
+    assert.match(docsSource, /Gradient Blinds \|/)
     assert.match(docsSource, /GradientBlinds\.jsx/)
     assert.match(docsSource, /GradientBlinds\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsGradientBlindsPaletteMode",
-      "reactBitsGradientBlindsPrimaryColor",
-      "reactBitsGradientBlindsHarmony",
-      "reactBitsGradientBlindsColorOne",
-      "reactBitsGradientBlindsColorTwo",
-      "reactBitsGradientBlindsAngle",
-      "reactBitsGradientBlindsNoise",
-      "reactBitsGradientBlindsBlindCount",
-      "reactBitsGradientBlindsBlindMinWidth",
-      "reactBitsGradientBlindsMouseDampening",
-      "reactBitsGradientBlindsMirror",
-      "reactBitsGradientBlindsSpotlightRadius",
-      "reactBitsGradientBlindsSpotlightSoftness",
-      "reactBitsGradientBlindsSpotlightOpacity",
-      "reactBitsGradientBlindsDistort",
-      "reactBitsGradientBlindsShineDirection",
-      "reactBitsGradientBlindsBlendMode",
-      "reactBitsGradientBlindsDpr",
-      "reactBitsGradientBlindsEnableMouseInteraction",
+      "massageLabGradientBlindsPaletteMode",
+      "massageLabGradientBlindsPrimaryColor",
+      "massageLabGradientBlindsHarmony",
+      "massageLabGradientBlindsColorOne",
+      "massageLabGradientBlindsColorTwo",
+      "massageLabGradientBlindsAngle",
+      "massageLabGradientBlindsNoise",
+      "massageLabGradientBlindsBlindCount",
+      "massageLabGradientBlindsBlindMinWidth",
+      "massageLabGradientBlindsMouseDampening",
+      "massageLabGradientBlindsMirror",
+      "massageLabGradientBlindsSpotlightRadius",
+      "massageLabGradientBlindsSpotlightSoftness",
+      "massageLabGradientBlindsSpotlightOpacity",
+      "massageLabGradientBlindsDistort",
+      "massageLabGradientBlindsShineDirection",
+      "massageLabGradientBlindsBlendMode",
+      "massageLabGradientBlindsDpr",
+      "massageLabGradientBlindsEnableMouseInteraction",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3211,9 +3133,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Grainient source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+  it("keeps MassageLab Grainient source-shaped, raw WebGL2, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-grainient-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-grainient-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3237,15 +3159,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-grainient/)
+    assert.match(registrySource, /massage-lab-grainient/)
     assert.match(registrySource, /Grainient/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/grainient/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsGrainientBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_GRAINIENT/)
+    assert.match(effectSource, /MassageLabGrainientBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_GRAINIENT/)
     assert.match(effectSource, /#version 300 es/)
     assert.match(effectSource, /getContext\("webgl2"/)
     assert.match(effectSource, /uTimeSpeed/)
@@ -3271,45 +3192,45 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsGrainient/)
-    assert.match(stylesSource, /reactBitsGrainientCanvas/)
-    assert.match(hostSource, /reactBitsGrainient/)
-    assert.match(cssEffectsSource, /ReactBitsGrainientOptions/)
-    assert.match(setupSource, /resolveReactBitsGrainientColors/)
-    assert.match(runningSource, /reactBitsGrainient=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsGrainient=\{\{/)
-    assert.match(docsSource, /Grainient \| https:\/\/reactbits\.dev\/backgrounds\/grainient/)
+    assert.match(stylesSource, /massageLabGrainient/)
+    assert.match(stylesSource, /massageLabGrainientCanvas/)
+    assert.match(hostSource, /massageLabGrainient/)
+    assert.match(cssEffectsSource, /MassageLabGrainientOptions/)
+    assert.match(setupSource, /resolveMassageLabGrainientColors/)
+    assert.match(runningSource, /massageLabGrainient=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabGrainient=\{\{/)
+    assert.match(docsSource, /Grainient \|/)
     assert.match(docsSource, /Grainient\.jsx/)
     assert.match(docsSource, /Grainient\.css/)
     assert.match(docsSource, /raw WebGL2/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsGrainientPaletteMode",
-      "reactBitsGrainientPrimaryColor",
-      "reactBitsGrainientHarmony",
-      "reactBitsGrainientColorOne",
-      "reactBitsGrainientColorTwo",
-      "reactBitsGrainientColorThree",
-      "reactBitsGrainientTimeSpeed",
-      "reactBitsGrainientColorBalance",
-      "reactBitsGrainientWarpStrength",
-      "reactBitsGrainientWarpFrequency",
-      "reactBitsGrainientWarpSpeed",
-      "reactBitsGrainientWarpAmplitude",
-      "reactBitsGrainientBlendAngle",
-      "reactBitsGrainientBlendSoftness",
-      "reactBitsGrainientRotationAmount",
-      "reactBitsGrainientNoiseScale",
-      "reactBitsGrainientGrainAmount",
-      "reactBitsGrainientGrainScale",
-      "reactBitsGrainientGrainAnimated",
-      "reactBitsGrainientContrast",
-      "reactBitsGrainientGamma",
-      "reactBitsGrainientSaturation",
-      "reactBitsGrainientCenterX",
-      "reactBitsGrainientCenterY",
-      "reactBitsGrainientZoom",
+      "massageLabGrainientPaletteMode",
+      "massageLabGrainientPrimaryColor",
+      "massageLabGrainientHarmony",
+      "massageLabGrainientColorOne",
+      "massageLabGrainientColorTwo",
+      "massageLabGrainientColorThree",
+      "massageLabGrainientTimeSpeed",
+      "massageLabGrainientColorBalance",
+      "massageLabGrainientWarpStrength",
+      "massageLabGrainientWarpFrequency",
+      "massageLabGrainientWarpSpeed",
+      "massageLabGrainientWarpAmplitude",
+      "massageLabGrainientBlendAngle",
+      "massageLabGrainientBlendSoftness",
+      "massageLabGrainientRotationAmount",
+      "massageLabGrainientNoiseScale",
+      "massageLabGrainientGrainAmount",
+      "massageLabGrainientGrainScale",
+      "massageLabGrainientGrainAnimated",
+      "massageLabGrainientContrast",
+      "massageLabGrainientGamma",
+      "massageLabGrainientSaturation",
+      "massageLabGrainientCenterX",
+      "massageLabGrainientCenterY",
+      "massageLabGrainientZoom",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3319,9 +3240,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Grid Scan source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Grid Scan source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-grid-scan-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-grid-scan-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3345,15 +3266,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-grid-scan/)
+    assert.match(registrySource, /massage-lab-grid-scan/)
     assert.match(registrySource, /Grid Scan/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/grid-scan/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsGridScanBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_GRID_SCAN/)
+    assert.match(effectSource, /MassageLabGridScanBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_GRID_SCAN/)
     assert.match(effectSource, /getContext\("webgl"/)
     assert.match(effectSource, /OES_standard_derivatives/)
     assert.match(effectSource, /uScanStarts/)
@@ -3379,14 +3299,14 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /postprocessing/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsGridScan/)
-    assert.match(stylesSource, /reactBitsGridScanCanvas/)
-    assert.match(hostSource, /reactBitsGridScan/)
-    assert.match(cssEffectsSource, /ReactBitsGridScanOptions/)
-    assert.match(setupSource, /resolveReactBitsGridScanColors/)
-    assert.match(runningSource, /reactBitsGridScan=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsGridScan=\{\{/)
-    assert.match(docsSource, /Grid Scan \| https:\/\/reactbits\.dev\/backgrounds\/grid-scan/)
+    assert.match(stylesSource, /massageLabGridScan/)
+    assert.match(stylesSource, /massageLabGridScanCanvas/)
+    assert.match(hostSource, /massageLabGridScan/)
+    assert.match(cssEffectsSource, /MassageLabGridScanOptions/)
+    assert.match(setupSource, /resolveMassageLabGridScanColors/)
+    assert.match(runningSource, /massageLabGridScan=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabGridScan=\{\{/)
+    assert.match(docsSource, /Grid Scan \|/)
     assert.match(docsSource, /GridScan\.jsx/)
     assert.match(docsSource, /GridScan\.css/)
     assert.match(docsSource, /raw WebGL/)
@@ -3394,27 +3314,27 @@ describe("premium background registry", () => {
     assert.match(docsSource, /postprocessing/)
 
     const settingKeys = [
-      "reactBitsGridScanPaletteMode",
-      "reactBitsGridScanPrimaryColor",
-      "reactBitsGridScanHarmony",
-      "reactBitsGridScanLinesColor",
-      "reactBitsGridScanScanColor",
-      "reactBitsGridScanSensitivity",
-      "reactBitsGridScanLineThickness",
-      "reactBitsGridScanScanOpacity",
-      "reactBitsGridScanGridScale",
-      "reactBitsGridScanLineStyle",
-      "reactBitsGridScanLineJitter",
-      "reactBitsGridScanDirection",
-      "reactBitsGridScanNoiseIntensity",
-      "reactBitsGridScanBloomOpacity",
-      "reactBitsGridScanScanGlow",
-      "reactBitsGridScanScanSoftness",
-      "reactBitsGridScanPhaseTaper",
-      "reactBitsGridScanScanDuration",
-      "reactBitsGridScanScanDelay",
-      "reactBitsGridScanEnablePointerInteraction",
-      "reactBitsGridScanScanOnClick",
+      "massageLabGridScanPaletteMode",
+      "massageLabGridScanPrimaryColor",
+      "massageLabGridScanHarmony",
+      "massageLabGridScanLinesColor",
+      "massageLabGridScanScanColor",
+      "massageLabGridScanSensitivity",
+      "massageLabGridScanLineThickness",
+      "massageLabGridScanScanOpacity",
+      "massageLabGridScanGridScale",
+      "massageLabGridScanLineStyle",
+      "massageLabGridScanLineJitter",
+      "massageLabGridScanDirection",
+      "massageLabGridScanNoiseIntensity",
+      "massageLabGridScanBloomOpacity",
+      "massageLabGridScanScanGlow",
+      "massageLabGridScanScanSoftness",
+      "massageLabGridScanPhaseTaper",
+      "massageLabGridScanScanDuration",
+      "massageLabGridScanScanDelay",
+      "massageLabGridScanEnablePointerInteraction",
+      "massageLabGridScanScanOnClick",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3424,9 +3344,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Beams source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Beams source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-beams-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-beams-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3450,15 +3370,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-beams/)
+    assert.match(registrySource, /massage-lab-beams/)
     assert.match(registrySource, /Beams/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/beams/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsBeamsBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_BEAMS/)
+    assert.match(effectSource, /MassageLabBeamsBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_BEAMS/)
     assert.match(effectSource, /createStackedPlanesGeometry/)
     assert.match(effectSource, /cnoise/)
     assert.match(effectSource, /getContext\("webgl"/)
@@ -3471,32 +3390,32 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /@react-three\/drei/)
 
-    assert.match(stylesSource, /reactBitsBeams/)
-    assert.match(stylesSource, /reactBitsBeamsCanvas/)
-    assert.match(hostSource, /reactBitsBeams/)
-    assert.match(cssEffectsSource, /ReactBitsBeamsOptions/)
-    assert.match(setupSource, /resolveReactBitsBeamsColor/)
-    assert.match(setupSource, /createReactBitsBeamsHarmonyColor/)
-    assert.match(runningSource, /reactBitsBeams=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsBeams=\{\{/)
-    assert.match(docsSource, /Beams \| https:\/\/reactbits\.dev\/backgrounds\/beams/)
+    assert.match(stylesSource, /massageLabBeams/)
+    assert.match(stylesSource, /massageLabBeamsCanvas/)
+    assert.match(hostSource, /massageLabBeams/)
+    assert.match(cssEffectsSource, /MassageLabBeamsOptions/)
+    assert.match(setupSource, /resolveMassageLabBeamsColor/)
+    assert.match(setupSource, /createMassageLabBeamsHarmonyColor/)
+    assert.match(runningSource, /massageLabBeams=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabBeams=\{\{/)
+    assert.match(docsSource, /Beams \|/)
     assert.match(docsSource, /Beams\.jsx/)
     assert.match(docsSource, /Beams\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /Three\/R3F\/Drei/)
 
     const settingKeys = [
-      "reactBitsBeamsPaletteMode",
-      "reactBitsBeamsPrimaryColor",
-      "reactBitsBeamsHarmony",
-      "reactBitsBeamsLightColor",
-      "reactBitsBeamsBeamWidth",
-      "reactBitsBeamsBeamHeight",
-      "reactBitsBeamsBeamNumber",
-      "reactBitsBeamsSpeed",
-      "reactBitsBeamsNoiseIntensity",
-      "reactBitsBeamsScale",
-      "reactBitsBeamsRotation",
+      "massageLabBeamsPaletteMode",
+      "massageLabBeamsPrimaryColor",
+      "massageLabBeamsHarmony",
+      "massageLabBeamsLightColor",
+      "massageLabBeamsBeamWidth",
+      "massageLabBeamsBeamHeight",
+      "massageLabBeamsBeamNumber",
+      "massageLabBeamsSpeed",
+      "massageLabBeamsNoiseIntensity",
+      "massageLabBeamsScale",
+      "massageLabBeamsRotation",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3506,9 +3425,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Pixel Snow source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+  it("keeps MassageLab Pixel Snow source-shaped, raw WebGL2, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-pixel-snow-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-pixel-snow-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3532,15 +3451,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-pixel-snow/)
+    assert.match(registrySource, /massage-lab-pixel-snow/)
     assert.match(registrySource, /Pixel Snow/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/pixel-snow/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsPixelSnowBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PIXEL_SNOW/)
+    assert.match(effectSource, /MassageLabPixelSnowBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PIXEL_SNOW/)
     assert.match(effectSource, /snowflakeDist/)
     assert.match(effectSource, /coord3/)
     assert.match(effectSource, /getContext\("webgl2"/)
@@ -3552,35 +3470,35 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsPixelSnowCanvas/)
-    assert.match(hostSource, /reactBitsPixelSnow/)
-    assert.match(cssEffectsSource, /ReactBitsPixelSnowOptions/)
-    assert.match(setupSource, /resolveReactBitsPixelSnowColor/)
-    assert.match(setupSource, /createReactBitsPixelSnowHarmonyColor/)
-    assert.match(runningSource, /reactBitsPixelSnow=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsPixelSnow=\{\{/)
-    assert.match(docsSource, /Pixel Snow \| https:\/\/reactbits\.dev\/backgrounds\/pixel-snow/)
+    assert.match(stylesSource, /massageLabPixelSnowCanvas/)
+    assert.match(hostSource, /massageLabPixelSnow/)
+    assert.match(cssEffectsSource, /MassageLabPixelSnowOptions/)
+    assert.match(setupSource, /resolveMassageLabPixelSnowColor/)
+    assert.match(setupSource, /createMassageLabPixelSnowHarmonyColor/)
+    assert.match(runningSource, /massageLabPixelSnow=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabPixelSnow=\{\{/)
+    assert.match(docsSource, /Pixel Snow \|/)
     assert.match(docsSource, /PixelSnow\.jsx/)
     assert.match(docsSource, /PixelSnow\.css/)
     assert.match(docsSource, /raw WebGL2/)
     assert.match(docsSource, /Three\/R3F/)
 
     const settingKeys = [
-      "reactBitsPixelSnowPaletteMode",
-      "reactBitsPixelSnowPrimaryColor",
-      "reactBitsPixelSnowHarmony",
-      "reactBitsPixelSnowColor",
-      "reactBitsPixelSnowFlakeSize",
-      "reactBitsPixelSnowMinFlakeSize",
-      "reactBitsPixelSnowPixelResolution",
-      "reactBitsPixelSnowSpeed",
-      "reactBitsPixelSnowDepthFade",
-      "reactBitsPixelSnowFarPlane",
-      "reactBitsPixelSnowBrightness",
-      "reactBitsPixelSnowGamma",
-      "reactBitsPixelSnowDensity",
-      "reactBitsPixelSnowVariant",
-      "reactBitsPixelSnowDirection",
+      "massageLabPixelSnowPaletteMode",
+      "massageLabPixelSnowPrimaryColor",
+      "massageLabPixelSnowHarmony",
+      "massageLabPixelSnowColor",
+      "massageLabPixelSnowFlakeSize",
+      "massageLabPixelSnowMinFlakeSize",
+      "massageLabPixelSnowPixelResolution",
+      "massageLabPixelSnowSpeed",
+      "massageLabPixelSnowDepthFade",
+      "massageLabPixelSnowFarPlane",
+      "massageLabPixelSnowBrightness",
+      "massageLabPixelSnowGamma",
+      "massageLabPixelSnowDensity",
+      "massageLabPixelSnowVariant",
+      "massageLabPixelSnowDirection",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3590,9 +3508,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Lightning source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Lightning source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-lightning-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-lightning-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3616,15 +3534,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-lightning/)
+    assert.match(registrySource, /massage-lab-lightning/)
     assert.match(registrySource, /Lightning/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/lightning/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsLightningBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_LIGHTNING/)
+    assert.match(effectSource, /MassageLabLightningBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_LIGHTNING/)
     assert.match(effectSource, /hsv2rgb/)
     assert.match(effectSource, /hash11/)
     assert.match(effectSource, /hash12/)
@@ -3639,29 +3556,29 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsLightningCanvas/)
-    assert.match(hostSource, /reactBitsLightning/)
-    assert.match(cssEffectsSource, /ReactBitsLightningOptions/)
-    assert.match(setupSource, /resolveReactBitsLightningHue/)
-    assert.match(setupSource, /createReactBitsLightningHarmonyHue/)
-    assert.match(runningSource, /reactBitsLightning=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsLightning=\{\{/)
-    assert.match(docsSource, /Lightning \| https:\/\/reactbits\.dev\/backgrounds\/lightning/)
+    assert.match(stylesSource, /massageLabLightningCanvas/)
+    assert.match(hostSource, /massageLabLightning/)
+    assert.match(cssEffectsSource, /MassageLabLightningOptions/)
+    assert.match(setupSource, /resolveMassageLabLightningHue/)
+    assert.match(setupSource, /createMassageLabLightningHarmonyHue/)
+    assert.match(runningSource, /massageLabLightning=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabLightning=\{\{/)
+    assert.match(docsSource, /Lightning \|/)
     assert.match(docsSource, /Lightning\.jsx/)
     assert.match(docsSource, /Lightning\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /hsv2rgb/)
 
     const settingKeys = [
-      "reactBitsLightningPaletteMode",
-      "reactBitsLightningPrimaryColor",
-      "reactBitsLightningHarmony",
-      "reactBitsLightningColor",
-      "reactBitsLightningHue",
-      "reactBitsLightningXOffset",
-      "reactBitsLightningSpeed",
-      "reactBitsLightningIntensity",
-      "reactBitsLightningSize",
+      "massageLabLightningPaletteMode",
+      "massageLabLightningPrimaryColor",
+      "massageLabLightningHarmony",
+      "massageLabLightningColor",
+      "massageLabLightningHue",
+      "massageLabLightningXOffset",
+      "massageLabLightningSpeed",
+      "massageLabLightningIntensity",
+      "massageLabLightningSize",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3671,9 +3588,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Prismatic Burst source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+  it("keeps MassageLab Prismatic Burst source-shaped, raw WebGL2, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-prismatic-burst-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-prismatic-burst-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3697,15 +3614,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-prismatic-burst/)
+    assert.match(registrySource, /massage-lab-prismatic-burst/)
     assert.match(registrySource, /Prismatic Burst/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/prismatic-burst/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsPrismaticBurstBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_PRISMATIC_BURST/)
+    assert.match(effectSource, /MassageLabPrismaticBurstBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_PRISMATIC_BURST/)
     assert.match(effectSource, /#version 300 es/)
     assert.match(effectSource, /getContext\("webgl2"/)
     assert.match(effectSource, /sampler2D/)
@@ -3718,7 +3634,7 @@ describe("premium background registry", () => {
     assert.match(effectSource, /updateGradientTexture/)
     assert.match(
       effectSource,
-      /useMemo\(\s*\(\)\s*=>\s*resolvePrismaticBurstOptions\(reactBitsPrismaticBurst\),\s*\[reactBitsPrismaticBurst\],\s*\)/,
+      /useMemo\(\s*\(\)\s*=>\s*resolvePrismaticBurstOptions\(massageLabPrismaticBurst\),\s*\[massageLabPrismaticBurst\],\s*\)/,
     )
     assert.doesNotMatch(effectSource, /colorKey/)
     assert.match(effectSource, /requestAnimationFrame/)
@@ -3733,36 +3649,36 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsPrismaticBurstCanvas/)
-    assert.match(hostSource, /reactBitsPrismaticBurst/)
-    assert.match(cssEffectsSource, /ReactBitsPrismaticBurstOptions/)
-    assert.match(setupSource, /resolveReactBitsPrismaticBurstColors/)
-    assert.match(setupSource, /createReactBitsPrismaticBurstHarmonyPalette/)
-    assert.match(runningSource, /reactBitsPrismaticBurst=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsPrismaticBurst=\{\{/)
-    assert.match(docsSource, /Prismatic Burst \| https:\/\/reactbits\.dev\/backgrounds\/prismatic-burst/)
+    assert.match(stylesSource, /massageLabPrismaticBurstCanvas/)
+    assert.match(hostSource, /massageLabPrismaticBurst/)
+    assert.match(cssEffectsSource, /MassageLabPrismaticBurstOptions/)
+    assert.match(setupSource, /resolveMassageLabPrismaticBurstColors/)
+    assert.match(setupSource, /createMassageLabPrismaticBurstHarmonyPalette/)
+    assert.match(runningSource, /massageLabPrismaticBurst=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabPrismaticBurst=\{\{/)
+    assert.match(docsSource, /Prismatic Burst \|/)
     assert.match(docsSource, /PrismaticBurst\.jsx/)
     assert.match(docsSource, /PrismaticBurst\.css/)
     assert.match(docsSource, /raw WebGL2/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsPrismaticBurstPaletteMode",
-      "reactBitsPrismaticBurstPrimaryColor",
-      "reactBitsPrismaticBurstHarmony",
-      "reactBitsPrismaticBurstColorOne",
-      "reactBitsPrismaticBurstColorTwo",
-      "reactBitsPrismaticBurstColorThree",
-      "reactBitsPrismaticBurstColorFour",
-      "reactBitsPrismaticBurstIntensity",
-      "reactBitsPrismaticBurstSpeed",
-      "reactBitsPrismaticBurstAnimationType",
-      "reactBitsPrismaticBurstDistort",
-      "reactBitsPrismaticBurstOffsetX",
-      "reactBitsPrismaticBurstOffsetY",
-      "reactBitsPrismaticBurstHoverDampness",
-      "reactBitsPrismaticBurstRayCount",
-      "reactBitsPrismaticBurstMixBlendMode",
+      "massageLabPrismaticBurstPaletteMode",
+      "massageLabPrismaticBurstPrimaryColor",
+      "massageLabPrismaticBurstHarmony",
+      "massageLabPrismaticBurstColorOne",
+      "massageLabPrismaticBurstColorTwo",
+      "massageLabPrismaticBurstColorThree",
+      "massageLabPrismaticBurstColorFour",
+      "massageLabPrismaticBurstIntensity",
+      "massageLabPrismaticBurstSpeed",
+      "massageLabPrismaticBurstAnimationType",
+      "massageLabPrismaticBurstDistort",
+      "massageLabPrismaticBurstOffsetX",
+      "massageLabPrismaticBurstOffsetY",
+      "massageLabPrismaticBurstHoverDampness",
+      "massageLabPrismaticBurstRayCount",
+      "massageLabPrismaticBurstMixBlendMode",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3772,9 +3688,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Galaxy source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Galaxy source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-galaxy-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-galaxy-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3798,15 +3714,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-galaxy/)
+    assert.match(registrySource, /massage-lab-galaxy/)
     assert.match(registrySource, /Galaxy/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/galaxy/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsGalaxyBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_GALAXY/)
+    assert.match(effectSource, /MassageLabGalaxyBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_GALAXY/)
     assert.match(effectSource, /Hash21/)
     assert.match(effectSource, /StarLayer/)
     assert.match(effectSource, /hsv2rgb/)
@@ -3824,40 +3739,40 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsGalaxyCanvas/)
-    assert.match(hostSource, /reactBitsGalaxy/)
-    assert.match(cssEffectsSource, /ReactBitsGalaxyOptions/)
-    assert.match(setupSource, /resolveReactBitsGalaxyHueShift/)
-    assert.match(setupSource, /createReactBitsGalaxyHarmonyHue/)
-    assert.match(runningSource, /reactBitsGalaxy=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsGalaxy=\{\{/)
-    assert.match(docsSource, /Galaxy \| https:\/\/reactbits\.dev\/backgrounds\/galaxy/)
+    assert.match(stylesSource, /massageLabGalaxyCanvas/)
+    assert.match(hostSource, /massageLabGalaxy/)
+    assert.match(cssEffectsSource, /MassageLabGalaxyOptions/)
+    assert.match(setupSource, /resolveMassageLabGalaxyHueShift/)
+    assert.match(setupSource, /createMassageLabGalaxyHarmonyHue/)
+    assert.match(runningSource, /massageLabGalaxy=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabGalaxy=\{\{/)
+    assert.match(docsSource, /Galaxy \|/)
     assert.match(docsSource, /Galaxy\.jsx/)
     assert.match(docsSource, /Galaxy\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /OGL/)
 
     const settingKeys = [
-      "reactBitsGalaxyPaletteMode",
-      "reactBitsGalaxyPrimaryColor",
-      "reactBitsGalaxyHarmony",
-      "reactBitsGalaxyColor",
-      "reactBitsGalaxyHueShift",
-      "reactBitsGalaxyFocalX",
-      "reactBitsGalaxyFocalY",
-      "reactBitsGalaxyRotationDeg",
-      "reactBitsGalaxyStarSpeed",
-      "reactBitsGalaxyDensity",
-      "reactBitsGalaxySpeed",
-      "reactBitsGalaxyMouseInteraction",
-      "reactBitsGalaxyGlowIntensity",
-      "reactBitsGalaxySaturation",
-      "reactBitsGalaxyMouseRepulsion",
-      "reactBitsGalaxyRepulsionStrength",
-      "reactBitsGalaxyTwinkleIntensity",
-      "reactBitsGalaxyRotationSpeed",
-      "reactBitsGalaxyAutoCenterRepulsion",
-      "reactBitsGalaxyTransparent",
+      "massageLabGalaxyPaletteMode",
+      "massageLabGalaxyPrimaryColor",
+      "massageLabGalaxyHarmony",
+      "massageLabGalaxyColor",
+      "massageLabGalaxyHueShift",
+      "massageLabGalaxyFocalX",
+      "massageLabGalaxyFocalY",
+      "massageLabGalaxyRotationDeg",
+      "massageLabGalaxyStarSpeed",
+      "massageLabGalaxyDensity",
+      "massageLabGalaxySpeed",
+      "massageLabGalaxyMouseInteraction",
+      "massageLabGalaxyGlowIntensity",
+      "massageLabGalaxySaturation",
+      "massageLabGalaxyMouseRepulsion",
+      "massageLabGalaxyRepulsionStrength",
+      "massageLabGalaxyTwinkleIntensity",
+      "massageLabGalaxyRotationSpeed",
+      "massageLabGalaxyAutoCenterRepulsion",
+      "massageLabGalaxyTransparent",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3867,9 +3782,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Dither source-shaped, raw WebGL2, customizable, and dependency-free", () => {
+  it("keeps MassageLab Dither source-shaped, raw WebGL2, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-dither-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-dither-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3893,15 +3808,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-dither/)
+    assert.match(registrySource, /massage-lab-dither/)
     assert.match(registrySource, /Dither/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dither/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsDitherBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_DITHER/)
+    assert.match(effectSource, /MassageLabDitherBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_DITHER/)
     assert.match(effectSource, /cnoise/)
     assert.match(effectSource, /fbm/)
     assert.match(effectSource, /pattern/)
@@ -3924,31 +3838,31 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsDitherCanvas/)
-    assert.match(hostSource, /reactBitsDither/)
-    assert.match(cssEffectsSource, /ReactBitsDitherOptions/)
-    assert.match(setupSource, /resolveReactBitsDitherColor/)
-    assert.match(setupSource, /createReactBitsDitherHarmonyColor/)
-    assert.match(runningSource, /reactBitsDither=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsDither=\{\{/)
-    assert.match(docsSource, /Dither \| https:\/\/reactbits\.dev\/backgrounds\/dither/)
+    assert.match(stylesSource, /massageLabDitherCanvas/)
+    assert.match(hostSource, /massageLabDither/)
+    assert.match(cssEffectsSource, /MassageLabDitherOptions/)
+    assert.match(setupSource, /resolveMassageLabDitherColor/)
+    assert.match(setupSource, /createMassageLabDitherHarmonyColor/)
+    assert.match(runningSource, /massageLabDither=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabDither=\{\{/)
+    assert.match(docsSource, /Dither \|/)
     assert.match(docsSource, /Dither\.jsx/)
     assert.match(docsSource, /Dither\.css/)
     assert.match(docsSource, /raw WebGL2/)
     assert.match(docsSource, /Bayer/)
 
     const settingKeys = [
-      "reactBitsDitherPaletteMode",
-      "reactBitsDitherPrimaryColor",
-      "reactBitsDitherHarmony",
-      "reactBitsDitherColor",
-      "reactBitsDitherWaveSpeed",
-      "reactBitsDitherWaveFrequency",
-      "reactBitsDitherWaveAmplitude",
-      "reactBitsDitherColorNum",
-      "reactBitsDitherPixelSize",
-      "reactBitsDitherMouseInteraction",
-      "reactBitsDitherMouseRadius",
+      "massageLabDitherPaletteMode",
+      "massageLabDitherPrimaryColor",
+      "massageLabDitherHarmony",
+      "massageLabDitherColor",
+      "massageLabDitherWaveSpeed",
+      "massageLabDitherWaveFrequency",
+      "massageLabDitherWaveAmplitude",
+      "massageLabDitherColorNum",
+      "massageLabDitherPixelSize",
+      "massageLabDitherMouseInteraction",
+      "massageLabDitherMouseRadius",
     ]
 
     for (const settingKey of settingKeys) {
@@ -3958,9 +3872,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Faulty Terminal source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Faulty Terminal source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-faulty-terminal-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-faulty-terminal-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -3984,15 +3898,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-faulty-terminal/)
+    assert.match(registrySource, /massage-lab-faulty-terminal/)
     assert.match(registrySource, /Faulty Terminal/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/faulty-terminal/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsFaultyTerminalBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_FAULTY_TERMINAL/)
+    assert.match(effectSource, /MassageLabFaultyTerminalBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_FAULTY_TERMINAL/)
     assert.match(effectSource, /hash21/)
     assert.match(effectSource, /fbm/)
     assert.match(effectSource, /pattern/)
@@ -4015,40 +3928,40 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsFaultyTerminalCanvas/)
-    assert.match(hostSource, /reactBitsFaultyTerminal/)
-    assert.match(cssEffectsSource, /ReactBitsFaultyTerminalOptions/)
-    assert.match(setupSource, /resolveReactBitsFaultyTerminalTint/)
-    assert.match(setupSource, /createReactBitsFaultyTerminalHarmonyColor/)
-    assert.match(runningSource, /reactBitsFaultyTerminal=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsFaultyTerminal=\{\{/)
-    assert.match(docsSource, /Faulty Terminal \| https:\/\/reactbits\.dev\/backgrounds\/faulty-terminal/)
+    assert.match(stylesSource, /massageLabFaultyTerminalCanvas/)
+    assert.match(hostSource, /massageLabFaultyTerminal/)
+    assert.match(cssEffectsSource, /MassageLabFaultyTerminalOptions/)
+    assert.match(setupSource, /resolveMassageLabFaultyTerminalTint/)
+    assert.match(setupSource, /createMassageLabFaultyTerminalHarmonyColor/)
+    assert.match(runningSource, /massageLabFaultyTerminal=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabFaultyTerminal=\{\{/)
+    assert.match(docsSource, /Faulty Terminal \|/)
     assert.match(docsSource, /FaultyTerminal\.jsx/)
     assert.match(docsSource, /FaultyTerminal\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /CRT-like terminal digit shader/)
 
     const settingKeys = [
-      "reactBitsFaultyTerminalPaletteMode",
-      "reactBitsFaultyTerminalPrimaryColor",
-      "reactBitsFaultyTerminalHarmony",
-      "reactBitsFaultyTerminalTint",
-      "reactBitsFaultyTerminalScale",
-      "reactBitsFaultyTerminalGridMulX",
-      "reactBitsFaultyTerminalGridMulY",
-      "reactBitsFaultyTerminalDigitSize",
-      "reactBitsFaultyTerminalTimeScale",
-      "reactBitsFaultyTerminalScanlineIntensity",
-      "reactBitsFaultyTerminalGlitchAmount",
-      "reactBitsFaultyTerminalFlickerAmount",
-      "reactBitsFaultyTerminalNoiseAmp",
-      "reactBitsFaultyTerminalChromaticAberration",
-      "reactBitsFaultyTerminalDither",
-      "reactBitsFaultyTerminalCurvature",
-      "reactBitsFaultyTerminalMouseReact",
-      "reactBitsFaultyTerminalMouseStrength",
-      "reactBitsFaultyTerminalPageLoadAnimation",
-      "reactBitsFaultyTerminalBrightness",
+      "massageLabFaultyTerminalPaletteMode",
+      "massageLabFaultyTerminalPrimaryColor",
+      "massageLabFaultyTerminalHarmony",
+      "massageLabFaultyTerminalTint",
+      "massageLabFaultyTerminalScale",
+      "massageLabFaultyTerminalGridMulX",
+      "massageLabFaultyTerminalGridMulY",
+      "massageLabFaultyTerminalDigitSize",
+      "massageLabFaultyTerminalTimeScale",
+      "massageLabFaultyTerminalScanlineIntensity",
+      "massageLabFaultyTerminalGlitchAmount",
+      "massageLabFaultyTerminalFlickerAmount",
+      "massageLabFaultyTerminalNoiseAmp",
+      "massageLabFaultyTerminalChromaticAberration",
+      "massageLabFaultyTerminalDither",
+      "massageLabFaultyTerminalCurvature",
+      "massageLabFaultyTerminalMouseReact",
+      "massageLabFaultyTerminalMouseStrength",
+      "massageLabFaultyTerminalPageLoadAnimation",
+      "massageLabFaultyTerminalBrightness",
     ]
 
     for (const settingKey of settingKeys) {
@@ -4058,9 +3971,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Ripple Grid source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Ripple Grid source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-ripple-grid-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-ripple-grid-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4084,15 +3997,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-ripple-grid/)
+    assert.match(registrySource, /massage-lab-ripple-grid/)
     assert.match(registrySource, /Ripple Grid/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/ripple-grid/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsRippleGridBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_RIPPLE_GRID/)
+    assert.match(effectSource, /MassageLabRippleGridBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_RIPPLE_GRID/)
     assert.match(effectSource, /enableRainbow/)
     assert.match(effectSource, /gridColor/)
     assert.match(effectSource, /rippleIntensity/)
@@ -4117,34 +4029,34 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsRippleGridCanvas/)
-    assert.match(hostSource, /reactBitsRippleGrid/)
-    assert.match(cssEffectsSource, /ReactBitsRippleGridOptions/)
-    assert.match(setupSource, /resolveReactBitsRippleGridColor/)
-    assert.match(setupSource, /createReactBitsRippleGridHarmonyColor/)
-    assert.match(runningSource, /reactBitsRippleGrid=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsRippleGrid=\{\{/)
-    assert.match(docsSource, /Ripple Grid \| https:\/\/reactbits\.dev\/backgrounds\/ripple-grid/)
+    assert.match(stylesSource, /massageLabRippleGridCanvas/)
+    assert.match(hostSource, /massageLabRippleGrid/)
+    assert.match(cssEffectsSource, /MassageLabRippleGridOptions/)
+    assert.match(setupSource, /resolveMassageLabRippleGridColor/)
+    assert.match(setupSource, /createMassageLabRippleGridHarmonyColor/)
+    assert.match(runningSource, /massageLabRippleGrid=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabRippleGrid=\{\{/)
+    assert.match(docsSource, /Ripple Grid \|/)
     assert.match(docsSource, /RippleGrid\.jsx/)
     assert.match(docsSource, /RippleGrid\.css/)
     assert.match(docsSource, /raw WebGL/)
     assert.match(docsSource, /ripple grid shader/)
 
     const settingKeys = [
-      "reactBitsRippleGridPaletteMode",
-      "reactBitsRippleGridPrimaryColor",
-      "reactBitsRippleGridHarmony",
-      "reactBitsRippleGridColor",
-      "reactBitsRippleGridRippleIntensity",
-      "reactBitsRippleGridGridSize",
-      "reactBitsRippleGridGridThickness",
-      "reactBitsRippleGridFadeDistance",
-      "reactBitsRippleGridVignetteStrength",
-      "reactBitsRippleGridGlowIntensity",
-      "reactBitsRippleGridOpacity",
-      "reactBitsRippleGridGridRotation",
-      "reactBitsRippleGridMouseInteraction",
-      "reactBitsRippleGridMouseInteractionRadius",
+      "massageLabRippleGridPaletteMode",
+      "massageLabRippleGridPrimaryColor",
+      "massageLabRippleGridHarmony",
+      "massageLabRippleGridColor",
+      "massageLabRippleGridRippleIntensity",
+      "massageLabRippleGridGridSize",
+      "massageLabRippleGridGridThickness",
+      "massageLabRippleGridFadeDistance",
+      "massageLabRippleGridVignetteStrength",
+      "massageLabRippleGridGlowIntensity",
+      "massageLabRippleGridOpacity",
+      "massageLabRippleGridGridRotation",
+      "massageLabRippleGridMouseInteraction",
+      "massageLabRippleGridMouseInteractionRadius",
     ]
 
     for (const settingKey of settingKeys) {
@@ -4154,9 +4066,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Dot Field source-shaped, canvas-based, customizable, and dependency-free", () => {
+  it("keeps MassageLab Dot Field source-shaped, canvas-based, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-dot-field-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-dot-field-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4180,15 +4092,14 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-dot-field/)
+    assert.match(registrySource, /massage-lab-dot-field/)
     assert.match(registrySource, /Dot Field/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dot-field/)
     assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(registrySource, /enabled:\s*true/)
 
-    assert.match(effectSource, /ReactBitsDotFieldBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_DOT_FIELD/)
+    assert.match(effectSource, /MassageLabDotFieldBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_DOT_FIELD/)
     assert.match(effectSource, /buildDots/)
     assert.match(effectSource, /cursorForce/)
     assert.match(effectSource, /bulgeStrength/)
@@ -4206,39 +4117,39 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
 
-    assert.match(stylesSource, /reactBitsDotField/)
-    assert.match(stylesSource, /reactBitsDotFieldCanvas/)
-    assert.match(stylesSource, /reactBitsDotFieldGlowSvg/)
-    assert.match(hostSource, /reactBitsDotField/)
-    assert.match(cssEffectsSource, /ReactBitsDotFieldOptions/)
-    assert.match(setupSource, /resolveReactBitsDotFieldColors/)
-    assert.match(setupSource, /createReactBitsDotFieldHarmonyColors/)
-    assert.match(runningSource, /reactBitsDotField=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsDotField=\{\{/)
-    assert.match(docsSource, /Dot Field \| https:\/\/reactbits\.dev\/backgrounds\/dot-field/)
+    assert.match(stylesSource, /massageLabDotField/)
+    assert.match(stylesSource, /massageLabDotFieldCanvas/)
+    assert.match(stylesSource, /massageLabDotFieldGlowSvg/)
+    assert.match(hostSource, /massageLabDotField/)
+    assert.match(cssEffectsSource, /MassageLabDotFieldOptions/)
+    assert.match(setupSource, /resolveMassageLabDotFieldColors/)
+    assert.match(setupSource, /createMassageLabDotFieldHarmonyColors/)
+    assert.match(runningSource, /massageLabDotField=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabDotField=\{\{/)
+    assert.match(docsSource, /Dot Field \|/)
     assert.match(docsSource, /DotField\.jsx/)
     assert.match(docsSource, /DotField\.css/)
     assert.match(docsSource, /canvas\/SVG/)
 
     const settingKeys = [
-      "reactBitsDotFieldPaletteMode",
-      "reactBitsDotFieldPrimaryColor",
-      "reactBitsDotFieldHarmony",
-      "reactBitsDotFieldGradientFromColor",
-      "reactBitsDotFieldGradientFromAlpha",
-      "reactBitsDotFieldGradientToColor",
-      "reactBitsDotFieldGradientToAlpha",
-      "reactBitsDotFieldGlowColor",
-      "reactBitsDotFieldDotRadius",
-      "reactBitsDotFieldDotSpacing",
-      "reactBitsDotFieldCursorRadius",
-      "reactBitsDotFieldCursorForce",
-      "reactBitsDotFieldBulgeOnly",
-      "reactBitsDotFieldBulgeStrength",
-      "reactBitsDotFieldGlowRadius",
-      "reactBitsDotFieldSparkle",
-      "reactBitsDotFieldWaveAmplitude",
-      "reactBitsDotFieldCursorInteraction",
+      "massageLabDotFieldPaletteMode",
+      "massageLabDotFieldPrimaryColor",
+      "massageLabDotFieldHarmony",
+      "massageLabDotFieldGradientFromColor",
+      "massageLabDotFieldGradientFromAlpha",
+      "massageLabDotFieldGradientToColor",
+      "massageLabDotFieldGradientToAlpha",
+      "massageLabDotFieldGlowColor",
+      "massageLabDotFieldDotRadius",
+      "massageLabDotFieldDotSpacing",
+      "massageLabDotFieldCursorRadius",
+      "massageLabDotFieldCursorForce",
+      "massageLabDotFieldBulgeOnly",
+      "massageLabDotFieldBulgeStrength",
+      "massageLabDotFieldGlowRadius",
+      "massageLabDotFieldSparkle",
+      "massageLabDotFieldWaveAmplitude",
+      "massageLabDotFieldCursorInteraction",
     ]
 
     for (const settingKey of settingKeys) {
@@ -4248,9 +4159,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Dot Grid source-shaped, canvas-based, customizable, and dependency-free", () => {
+  it("keeps MassageLab Dot Grid source-shaped, canvas-based, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-dot-grid-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-dot-grid-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4274,11 +4185,10 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-dot-grid/)
+    assert.match(registrySource, /massage-lab-dot-grid/)
     assert.match(registrySource, /Dot Grid/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/dot-grid/)
-    assert.match(effectSource, /ReactBitsDotGridBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_DOT_GRID/)
+    assert.match(effectSource, /MassageLabDotGridBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_DOT_GRID/)
     assert.match(effectSource, /applyImpulse/)
     assert.match(effectSource, /speedTrigger/)
     assert.match(effectSource, /shockStrength/)
@@ -4293,36 +4203,36 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
-    assert.match(stylesSource, /reactBitsDotGrid/)
-    assert.match(stylesSource, /reactBitsDotGridCanvas/)
-    assert.match(hostSource, /reactBitsDotGrid/)
-    assert.match(cssEffectsSource, /ReactBitsDotGridOptions/)
-    assert.match(setupSource, /resolveReactBitsDotGridColors/)
-    assert.match(setupSource, /createReactBitsDotGridHarmonyColors/)
-    assert.match(runningSource, /reactBitsDotGrid=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsDotGrid=\{\{/)
-    assert.match(docsSource, /Dot Grid \| https:\/\/reactbits\.dev\/backgrounds\/dot-grid/)
+    assert.match(stylesSource, /massageLabDotGrid/)
+    assert.match(stylesSource, /massageLabDotGridCanvas/)
+    assert.match(hostSource, /massageLabDotGrid/)
+    assert.match(cssEffectsSource, /MassageLabDotGridOptions/)
+    assert.match(setupSource, /resolveMassageLabDotGridColors/)
+    assert.match(setupSource, /createMassageLabDotGridHarmonyColors/)
+    assert.match(runningSource, /massageLabDotGrid=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabDotGrid=\{\{/)
+    assert.match(docsSource, /Dot Grid \|/)
     assert.match(docsSource, /DotGrid\.jsx/)
     assert.match(docsSource, /DotGrid\.css/)
     assert.match(docsSource, /GSAP InertiaPlugin/)
 
     for (const settingKey of [
-      "reactBitsDotGridPaletteMode",
-      "reactBitsDotGridPrimaryColor",
-      "reactBitsDotGridHarmony",
-      "reactBitsDotGridBaseColor",
-      "reactBitsDotGridActiveColor",
-      "reactBitsDotGridDotSize",
-      "reactBitsDotGridGap",
-      "reactBitsDotGridProximity",
-      "reactBitsDotGridSpeedTrigger",
-      "reactBitsDotGridShockRadius",
-      "reactBitsDotGridShockStrength",
-      "reactBitsDotGridMaxSpeed",
-      "reactBitsDotGridResistance",
-      "reactBitsDotGridReturnDuration",
-      "reactBitsDotGridCursorInteraction",
-      "reactBitsDotGridClickShock",
+      "massageLabDotGridPaletteMode",
+      "massageLabDotGridPrimaryColor",
+      "massageLabDotGridHarmony",
+      "massageLabDotGridBaseColor",
+      "massageLabDotGridActiveColor",
+      "massageLabDotGridDotSize",
+      "massageLabDotGridGap",
+      "massageLabDotGridProximity",
+      "massageLabDotGridSpeedTrigger",
+      "massageLabDotGridShockRadius",
+      "massageLabDotGridShockStrength",
+      "massageLabDotGridMaxSpeed",
+      "massageLabDotGridResistance",
+      "massageLabDotGridReturnDuration",
+      "massageLabDotGridCursorInteraction",
+      "massageLabDotGridClickShock",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -4330,9 +4240,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Threads source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Threads source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-threads-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-threads-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4356,11 +4266,10 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-threads/)
+    assert.match(registrySource, /massage-lab-threads/)
     assert.match(registrySource, /Threads/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/threads/)
-    assert.match(effectSource, /ReactBitsThreadsBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_THREADS/)
+    assert.match(effectSource, /MassageLabThreadsBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_THREADS/)
     assert.match(effectSource, /Perlin2D/)
     assert.match(effectSource, /u_line_count/)
     assert.match(effectSource, /MAX_RENDER_DIMENSION/)
@@ -4373,27 +4282,27 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
-    assert.match(stylesSource, /reactBitsThreads/)
-    assert.match(stylesSource, /reactBitsThreadsCanvas/)
-    assert.match(hostSource, /reactBitsThreads/)
-    assert.match(cssEffectsSource, /ReactBitsThreadsOptions/)
-    assert.match(setupSource, /resolveReactBitsThreadsColor/)
-    assert.match(setupSource, /createReactBitsThreadsHarmonyColor/)
-    assert.match(runningSource, /reactBitsThreads=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsThreads=\{\{/)
-    assert.match(docsSource, /Threads \| https:\/\/reactbits\.dev\/backgrounds\/threads/)
+    assert.match(stylesSource, /massageLabThreads/)
+    assert.match(stylesSource, /massageLabThreadsCanvas/)
+    assert.match(hostSource, /massageLabThreads/)
+    assert.match(cssEffectsSource, /MassageLabThreadsOptions/)
+    assert.match(setupSource, /resolveMassageLabThreadsColor/)
+    assert.match(setupSource, /createMassageLabThreadsHarmonyColor/)
+    assert.match(runningSource, /massageLabThreads=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabThreads=\{\{/)
+    assert.match(docsSource, /Threads \|/)
     assert.match(docsSource, /Threads\.jsx/)
     assert.match(docsSource, /Threads\.css/)
     assert.match(docsSource, /OGL/)
 
     for (const settingKey of [
-      "reactBitsThreadsPaletteMode",
-      "reactBitsThreadsPrimaryColor",
-      "reactBitsThreadsHarmony",
-      "reactBitsThreadsColor",
-      "reactBitsThreadsAmplitude",
-      "reactBitsThreadsDistance",
-      "reactBitsThreadsEnableMouseInteraction",
+      "massageLabThreadsPaletteMode",
+      "massageLabThreadsPrimaryColor",
+      "massageLabThreadsHarmony",
+      "massageLabThreadsColor",
+      "massageLabThreadsAmplitude",
+      "massageLabThreadsDistance",
+      "massageLabThreadsEnableMouseInteraction",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -4401,9 +4310,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Iridescence source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Iridescence source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-iridescence-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-iridescence-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4427,11 +4336,10 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-iridescence/)
+    assert.match(registrySource, /massage-lab-iridescence/)
     assert.match(registrySource, /Iridescence/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/iridescence/)
-    assert.match(effectSource, /ReactBitsIridescenceBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_IRIDESCENCE/)
+    assert.match(effectSource, /MassageLabIridescenceBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_IRIDESCENCE/)
     assert.match(effectSource, /uAmplitude/)
     assert.match(effectSource, /uSpeed/)
     assert.match(effectSource, /uMouse/)
@@ -4446,27 +4354,27 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
-    assert.match(stylesSource, /reactBitsIridescence/)
-    assert.match(stylesSource, /reactBitsIridescenceCanvas/)
-    assert.match(hostSource, /reactBitsIridescence/)
-    assert.match(cssEffectsSource, /ReactBitsIridescenceOptions/)
-    assert.match(setupSource, /resolveReactBitsIridescenceColor/)
-    assert.match(setupSource, /createReactBitsIridescenceHarmonyColor/)
-    assert.match(runningSource, /reactBitsIridescence=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsIridescence=\{\{/)
-    assert.match(docsSource, /Iridescence \| https:\/\/reactbits\.dev\/backgrounds\/iridescence/)
+    assert.match(stylesSource, /massageLabIridescence/)
+    assert.match(stylesSource, /massageLabIridescenceCanvas/)
+    assert.match(hostSource, /massageLabIridescence/)
+    assert.match(cssEffectsSource, /MassageLabIridescenceOptions/)
+    assert.match(setupSource, /resolveMassageLabIridescenceColor/)
+    assert.match(setupSource, /createMassageLabIridescenceHarmonyColor/)
+    assert.match(runningSource, /massageLabIridescence=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabIridescence=\{\{/)
+    assert.match(docsSource, /Iridescence \|/)
     assert.match(docsSource, /Iridescence\.jsx/)
     assert.match(docsSource, /Iridescence\.css/)
     assert.match(docsSource, /OGL/)
 
     for (const settingKey of [
-      "reactBitsIridescencePaletteMode",
-      "reactBitsIridescencePrimaryColor",
-      "reactBitsIridescenceHarmony",
-      "reactBitsIridescenceColor",
-      "reactBitsIridescenceSpeed",
-      "reactBitsIridescenceAmplitude",
-      "reactBitsIridescenceMouseReact",
+      "massageLabIridescencePaletteMode",
+      "massageLabIridescencePrimaryColor",
+      "massageLabIridescenceHarmony",
+      "massageLabIridescenceColor",
+      "massageLabIridescenceSpeed",
+      "massageLabIridescenceAmplitude",
+      "massageLabIridescenceMouseReact",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -4474,9 +4382,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Waves source-shaped, canvas-based, customizable, and dependency-free", () => {
+  it("keeps MassageLab Waves source-shaped, canvas-based, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-waves-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-waves-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4500,11 +4408,10 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-waves/)
+    assert.match(registrySource, /massage-lab-waves/)
     assert.match(registrySource, /Waves/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/waves/)
-    assert.match(effectSource, /ReactBitsWavesBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_WAVES/)
+    assert.match(effectSource, /MassageLabWavesBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_WAVES/)
     assert.match(effectSource, /class Noise/)
     assert.match(effectSource, /perlin2/)
     assert.match(effectSource, /waveSpeedX/)
@@ -4519,36 +4426,36 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /from "three"/)
     assert.doesNotMatch(effectSource, /@react-three/)
-    assert.match(stylesSource, /reactBitsWaves/)
-    assert.match(stylesSource, /reactBitsWavesCanvas/)
-    assert.match(hostSource, /reactBitsWaves/)
-    assert.match(cssEffectsSource, /ReactBitsWavesOptions/)
-    assert.match(setupSource, /resolveReactBitsWavesLineColor/)
-    assert.match(setupSource, /createReactBitsWavesHarmonyColor/)
-    assert.match(runningSource, /reactBitsWaves=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsWaves=\{\{/)
-    assert.match(docsSource, /Waves \| https:\/\/reactbits\.dev\/backgrounds\/waves/)
+    assert.match(stylesSource, /massageLabWaves/)
+    assert.match(stylesSource, /massageLabWavesCanvas/)
+    assert.match(hostSource, /massageLabWaves/)
+    assert.match(cssEffectsSource, /MassageLabWavesOptions/)
+    assert.match(setupSource, /resolveMassageLabWavesLineColor/)
+    assert.match(setupSource, /createMassageLabWavesHarmonyColor/)
+    assert.match(runningSource, /massageLabWaves=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabWaves=\{\{/)
+    assert.match(docsSource, /Waves \|/)
     assert.match(docsSource, /Waves\.jsx/)
     assert.match(docsSource, /Waves\.css/)
     assert.match(docsSource, /Perlin/)
 
     for (const settingKey of [
-      "reactBitsWavesPaletteMode",
-      "reactBitsWavesPrimaryColor",
-      "reactBitsWavesHarmony",
-      "reactBitsWavesLineColor",
-      "reactBitsWavesBackgroundColor",
-      "reactBitsWavesTransparentBackground",
-      "reactBitsWavesSpeedX",
-      "reactBitsWavesSpeedY",
-      "reactBitsWavesAmplitudeX",
-      "reactBitsWavesAmplitudeY",
-      "reactBitsWavesGapX",
-      "reactBitsWavesGapY",
-      "reactBitsWavesFriction",
-      "reactBitsWavesTension",
-      "reactBitsWavesMaxCursorMove",
-      "reactBitsWavesCursorInteraction",
+      "massageLabWavesPaletteMode",
+      "massageLabWavesPrimaryColor",
+      "massageLabWavesHarmony",
+      "massageLabWavesLineColor",
+      "massageLabWavesBackgroundColor",
+      "massageLabWavesTransparentBackground",
+      "massageLabWavesSpeedX",
+      "massageLabWavesSpeedY",
+      "massageLabWavesAmplitudeX",
+      "massageLabWavesAmplitudeY",
+      "massageLabWavesGapX",
+      "massageLabWavesGapY",
+      "massageLabWavesFriction",
+      "massageLabWavesTension",
+      "massageLabWavesMaxCursorMove",
+      "massageLabWavesCursorInteraction",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -4556,9 +4463,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps React Bits Grid Distortion source-shaped, raw WebGL, customizable, and dependency-free", () => {
+  it("keeps MassageLab Grid Distortion source-shaped, raw WebGL, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/react-bits-grid-distortion-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-grid-distortion-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4582,11 +4489,10 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /react-bits-grid-distortion/)
+    assert.match(registrySource, /massage-lab-grid-distortion/)
     assert.match(registrySource, /Grid Distortion/)
-    assert.match(registrySource, /https:\/\/reactbits\.dev\/backgrounds\/grid-distortion/)
-    assert.match(effectSource, /ReactBitsGridDistortionBackground/)
-    assert.match(effectSource, /DEFAULT_REACT_BITS_GRID_DISTORTION/)
+    assert.match(effectSource, /MassageLabGridDistortionBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_GRID_DISTORTION/)
     assert.match(effectSource, /OES_texture_float/)
     assert.match(effectSource, /uDataTexture/)
     assert.match(effectSource, /uTexture/)
@@ -4604,31 +4510,31 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /new Image/)
     assert.doesNotMatch(effectSource, /imageSrc/)
-    assert.match(stylesSource, /reactBitsGridDistortion/)
-    assert.match(stylesSource, /reactBitsGridDistortionCanvas/)
-    assert.match(hostSource, /reactBitsGridDistortion/)
-    assert.match(cssEffectsSource, /ReactBitsGridDistortionOptions/)
-    assert.match(setupSource, /resolveReactBitsGridDistortionColors/)
-    assert.match(setupSource, /createReactBitsGridDistortionHarmonyPalette/)
-    assert.match(runningSource, /reactBitsGridDistortion=\{\{/)
-    assert.doesNotMatch(pageSource, /reactBitsGridDistortion=\{\{/)
-    assert.match(docsSource, /Grid Distortion \| https:\/\/reactbits\.dev\/backgrounds\/grid-distortion/)
+    assert.match(stylesSource, /massageLabGridDistortion/)
+    assert.match(stylesSource, /massageLabGridDistortionCanvas/)
+    assert.match(hostSource, /massageLabGridDistortion/)
+    assert.match(cssEffectsSource, /MassageLabGridDistortionOptions/)
+    assert.match(setupSource, /resolveMassageLabGridDistortionColors/)
+    assert.match(setupSource, /createMassageLabGridDistortionHarmonyPalette/)
+    assert.match(runningSource, /massageLabGridDistortion=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabGridDistortion=\{\{/)
+    assert.match(docsSource, /Grid Distortion \|/)
     assert.match(docsSource, /GridDistortion\.jsx/)
     assert.match(docsSource, /GridDistortion\.css/)
     assert.match(docsSource, /DataTexture|data texture/)
 
     for (const settingKey of [
-      "reactBitsGridDistortionPaletteMode",
-      "reactBitsGridDistortionPrimaryColor",
-      "reactBitsGridDistortionHarmony",
-      "reactBitsGridDistortionColorOne",
-      "reactBitsGridDistortionColorTwo",
-      "reactBitsGridDistortionColorThree",
-      "reactBitsGridDistortionGrid",
-      "reactBitsGridDistortionMouse",
-      "reactBitsGridDistortionStrength",
-      "reactBitsGridDistortionRelaxation",
-      "reactBitsGridDistortionCursorInteraction",
+      "massageLabGridDistortionPaletteMode",
+      "massageLabGridDistortionPrimaryColor",
+      "massageLabGridDistortionHarmony",
+      "massageLabGridDistortionColorOne",
+      "massageLabGridDistortionColorTwo",
+      "massageLabGridDistortionColorThree",
+      "massageLabGridDistortionGrid",
+      "massageLabGridDistortionMouse",
+      "massageLabGridDistortionStrength",
+      "massageLabGridDistortionRelaxation",
+      "massageLabGridDistortionCursorInteraction",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -4636,7 +4542,7 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps the latest React Bits background ports source-shaped, customizable, and dependency-free", () => {
+  it("keeps the latest MassageLab background ports source-shaped, customizable, and dependency-free", () => {
     const registrySource = readFileSync(
       new URL("../components/backgrounds/backgroundRegistry.ts", import.meta.url),
       "utf8",
@@ -4660,17 +4566,17 @@ describe("premium background registry", () => {
 
     const cases = [
       {
-        id: "react-bits-orb",
+        id: "massage-lab-orb",
         label: "Orb",
         sourcePath: "orb",
-        effectFile: "react-bits-orb-background.tsx",
-        hostProp: "reactBitsOrb",
-        optionType: "ReactBitsOrbOptions",
-        styleKeys: ["reactBitsOrbCanvas"],
-        docsPatterns: [/Orb \| https:\/\/reactbits\.dev\/backgrounds\/orb/, /Orb\.jsx/, /Orb\.css/],
+        effectFile: "massage-lab-orb-background.tsx",
+        hostProp: "massageLabOrb",
+        optionType: "MassageLabOrbOptions",
+        styleKeys: ["massageLabOrbCanvas"],
+        docsPatterns: [/Orb \|/, /Orb\.jsx/, /Orb\.css/],
         effectPatterns: [
-          /ReactBitsOrbBackground/,
-          /DEFAULT_REACT_BITS_ORB/,
+          /MassageLabOrbBackground/,
+          /DEFAULT_MASSAGELAB_ORB/,
           /snoise3/,
           /adjustHue/,
           /hoverIntensity/,
@@ -4680,184 +4586,184 @@ describe("premium background registry", () => {
           /window\.addEventListener\("pointermove"/,
         ],
         negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
-        setupPatterns: [/resolveReactBitsOrbHue/, /createReactBitsOrbHarmonyHue/],
+        setupPatterns: [/resolveMassageLabOrbHue/, /createMassageLabOrbHarmonyHue/],
         settingKeys: [
-          "reactBitsOrbPaletteMode",
-          "reactBitsOrbPrimaryColor",
-          "reactBitsOrbHarmony",
-          "reactBitsOrbColor",
-          "reactBitsOrbHue",
-          "reactBitsOrbHoverIntensity",
-          "reactBitsOrbRotateOnHover",
-          "reactBitsOrbForceHoverState",
-          "reactBitsOrbBackgroundColor",
-          "reactBitsOrbCursorInteraction",
+          "massageLabOrbPaletteMode",
+          "massageLabOrbPrimaryColor",
+          "massageLabOrbHarmony",
+          "massageLabOrbColor",
+          "massageLabOrbHue",
+          "massageLabOrbHoverIntensity",
+          "massageLabOrbRotateOnHover",
+          "massageLabOrbForceHoverState",
+          "massageLabOrbBackgroundColor",
+          "massageLabOrbCursorInteraction",
         ],
       },
       {
-        id: "react-bits-letter-glitch",
+        id: "massage-lab-letter-glitch",
         label: "Letter Glitch",
         sourcePath: "letter-glitch",
-        effectFile: "react-bits-letter-glitch-background.tsx",
-        hostProp: "reactBitsLetterGlitch",
-        optionType: "ReactBitsLetterGlitchOptions",
-        styleKeys: ["reactBitsLetterGlitch", "reactBitsLetterGlitchCanvas", "reactBitsLetterGlitchOuterVignette"],
-        docsPatterns: [/Letter Glitch \| https:\/\/reactbits\.dev\/backgrounds\/letter-glitch/, /LetterGlitch\.jsx/],
+        effectFile: "massage-lab-letter-glitch-background.tsx",
+        hostProp: "massageLabLetterGlitch",
+        optionType: "MassageLabLetterGlitchOptions",
+        styleKeys: ["massageLabLetterGlitch", "massageLabLetterGlitchCanvas", "massageLabLetterGlitchOuterVignette"],
+        docsPatterns: [/Letter Glitch \|/, /LetterGlitch\.jsx/],
         effectPatterns: [
-          /ReactBitsLetterGlitchBackground/,
-          /DEFAULT_REACT_BITS_LETTER_GLITCH/,
+          /MassageLabLetterGlitchBackground/,
+          /DEFAULT_MASSAGELAB_LETTER_GLITCH/,
           /FONT_SIZE/,
           /CHAR_WIDTH/,
           /interpolateColor/,
-          /reactBitsLetterGlitchOuterVignette/,
+          /massageLabLetterGlitchOuterVignette/,
         ],
         negativePatterns: [/Math\.random/, /from "gsap"/, /from "three"/, /from "ogl"/],
-        setupPatterns: [/resolveReactBitsLetterGlitchColors/, /createReactBitsLetterGlitchHarmonyPalette/],
+        setupPatterns: [/resolveMassageLabLetterGlitchColors/, /createMassageLabLetterGlitchHarmonyPalette/],
         settingKeys: [
-          "reactBitsLetterGlitchPaletteMode",
-          "reactBitsLetterGlitchPrimaryColor",
-          "reactBitsLetterGlitchHarmony",
-          "reactBitsLetterGlitchColorOne",
-          "reactBitsLetterGlitchColorTwo",
-          "reactBitsLetterGlitchColorThree",
-          "reactBitsLetterGlitchGlitchSpeed",
-          "reactBitsLetterGlitchCenterVignette",
-          "reactBitsLetterGlitchOuterVignette",
-          "reactBitsLetterGlitchSmooth",
-          "reactBitsLetterGlitchCharacters",
+          "massageLabLetterGlitchPaletteMode",
+          "massageLabLetterGlitchPrimaryColor",
+          "massageLabLetterGlitchHarmony",
+          "massageLabLetterGlitchColorOne",
+          "massageLabLetterGlitchColorTwo",
+          "massageLabLetterGlitchColorThree",
+          "massageLabLetterGlitchGlitchSpeed",
+          "massageLabLetterGlitchCenterVignette",
+          "massageLabLetterGlitchOuterVignette",
+          "massageLabLetterGlitchSmooth",
+          "massageLabLetterGlitchCharacters",
         ],
       },
       {
-        id: "react-bits-grid-motion",
+        id: "massage-lab-grid-motion",
         label: "Grid Motion",
         sourcePath: "grid-motion",
-        effectFile: "react-bits-grid-motion-background.tsx",
-        hostProp: "reactBitsGridMotion",
-        optionType: "ReactBitsGridMotionOptions",
-        styleKeys: ["reactBitsGridMotion", "reactBitsGridMotionRow", "reactBitsGridMotionItem"],
-        docsPatterns: [/Grid Motion \| https:\/\/reactbits\.dev\/backgrounds\/grid-motion/, /GridMotion\.jsx/, /GridMotion\.css/],
+        effectFile: "massage-lab-grid-motion-background.tsx",
+        hostProp: "massageLabGridMotion",
+        optionType: "MassageLabGridMotionOptions",
+        styleKeys: ["massageLabGridMotion", "massageLabGridMotionRow", "massageLabGridMotionItem"],
+        docsPatterns: [/Grid Motion \|/, /GridMotion\.jsx/, /GridMotion\.css/],
         effectPatterns: [
-          /ReactBitsGridMotionBackground/,
-          /DEFAULT_REACT_BITS_GRID_MOTION/,
+          /MassageLabGridMotionBackground/,
+          /DEFAULT_MASSAGELAB_GRID_MOTION/,
           /maxMoveAmount/,
           /baseDuration/,
           /requestAnimationFrame/,
         ],
         negativePatterns: [/from "gsap"/, /from "three"/, /from "ogl"/],
-        setupPatterns: [/resolveReactBitsGridMotionColors/, /createReactBitsGridMotionHarmonyPalette/],
+        setupPatterns: [/resolveMassageLabGridMotionColors/, /createMassageLabGridMotionHarmonyPalette/],
         settingKeys: [
-          "reactBitsGridMotionPaletteMode",
-          "reactBitsGridMotionPrimaryColor",
-          "reactBitsGridMotionHarmony",
-          "reactBitsGridMotionGradientColor",
-          "reactBitsGridMotionTileColor",
-          "reactBitsGridMotionTextColor",
-          "reactBitsGridMotionMaxMoveAmount",
-          "reactBitsGridMotionBaseDuration",
-          "reactBitsGridMotionCursorInteraction",
+          "massageLabGridMotionPaletteMode",
+          "massageLabGridMotionPrimaryColor",
+          "massageLabGridMotionHarmony",
+          "massageLabGridMotionGradientColor",
+          "massageLabGridMotionTileColor",
+          "massageLabGridMotionTextColor",
+          "massageLabGridMotionMaxMoveAmount",
+          "massageLabGridMotionBaseDuration",
+          "massageLabGridMotionCursorInteraction",
         ],
       },
       {
-        id: "react-bits-shape-grid",
+        id: "massage-lab-shape-grid",
         label: "Shape Grid",
         sourcePath: "shape-grid",
-        effectFile: "react-bits-shape-grid-background.tsx",
-        hostProp: "reactBitsShapeGrid",
-        optionType: "ReactBitsShapeGridOptions",
-        styleKeys: ["reactBitsShapeGridCanvas"],
-        docsPatterns: [/Shape Grid \| https:\/\/reactbits\.dev\/backgrounds\/shape-grid/, /ShapeGrid\.jsx/, /ShapeGrid\.css/],
+        effectFile: "massage-lab-shape-grid-background.tsx",
+        hostProp: "massageLabShapeGrid",
+        optionType: "MassageLabShapeGridOptions",
+        styleKeys: ["massageLabShapeGridCanvas"],
+        docsPatterns: [/Shape Grid \|/, /ShapeGrid\.jsx/, /ShapeGrid\.css/],
         effectPatterns: [
-          /ReactBitsShapeGridBackground/,
-          /DEFAULT_REACT_BITS_SHAPE_GRID/,
+          /MassageLabShapeGridBackground/,
+          /DEFAULT_MASSAGELAB_SHAPE_GRID/,
           /drawHex/,
           /drawTriangle/,
           /hoverTrailAmount/,
           /positiveModulo/,
         ],
         negativePatterns: [/from "gsap"/, /from "three"/, /from "ogl"/],
-        setupPatterns: [/resolveReactBitsShapeGridColors/, /createReactBitsShapeGridHarmonyPalette/],
+        setupPatterns: [/resolveMassageLabShapeGridColors/, /createMassageLabShapeGridHarmonyPalette/],
         settingKeys: [
-          "reactBitsShapeGridPaletteMode",
-          "reactBitsShapeGridPrimaryColor",
-          "reactBitsShapeGridHarmony",
-          "reactBitsShapeGridBorderColor",
-          "reactBitsShapeGridHoverFillColor",
-          "reactBitsShapeGridDirection",
-          "reactBitsShapeGridSpeed",
-          "reactBitsShapeGridSquareSize",
-          "reactBitsShapeGridShape",
-          "reactBitsShapeGridHoverTrailAmount",
-          "reactBitsShapeGridCursorInteraction",
+          "massageLabShapeGridPaletteMode",
+          "massageLabShapeGridPrimaryColor",
+          "massageLabShapeGridHarmony",
+          "massageLabShapeGridBorderColor",
+          "massageLabShapeGridHoverFillColor",
+          "massageLabShapeGridDirection",
+          "massageLabShapeGridSpeed",
+          "massageLabShapeGridSquareSize",
+          "massageLabShapeGridShape",
+          "massageLabShapeGridHoverTrailAmount",
+          "massageLabShapeGridCursorInteraction",
         ],
       },
       {
-        id: "react-bits-liquid-chrome",
-        label: "Liquid Chrome",
+        id: "massage-lab-liquid-chrome",
+        label: "Chrome Flow",
         sourcePath: "liquid-chrome",
-        effectFile: "react-bits-liquid-chrome-background.tsx",
-        hostProp: "reactBitsLiquidChrome",
-        optionType: "ReactBitsLiquidChromeOptions",
-        styleKeys: ["reactBitsLiquidChromeCanvas"],
-        docsPatterns: [/Liquid Chrome \| https:\/\/reactbits\.dev\/backgrounds\/liquid-chrome/, /LiquidChrome\.jsx/, /LiquidChrome\.css/],
+        effectFile: "massage-lab-liquid-chrome-background.tsx",
+        hostProp: "massageLabLiquidChrome",
+        optionType: "MassageLabLiquidChromeOptions",
+        styleKeys: ["massageLabLiquidChromeCanvas"],
+        docsPatterns: [/Liquid Chrome \|/, /LiquidChrome\.jsx/, /LiquidChrome\.css/],
         effectPatterns: [
-          /ReactBitsLiquidChromeBackground/,
-          /DEFAULT_REACT_BITS_LIQUID_CHROME/,
+          /MassageLabLiquidChromeBackground/,
+          /DEFAULT_MASSAGELAB_LIQUID_CHROME/,
           /renderImage/,
           /uFrequencyX/,
           /uMouse/,
           /getContext\("webgl"/,
         ],
         negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
-        setupPatterns: [/resolveReactBitsLiquidChromeBaseColor/, /createReactBitsLiquidChromeHarmonyColor/],
+        setupPatterns: [/resolveMassageLabLiquidChromeBaseColor/, /createMassageLabLiquidChromeHarmonyColor/],
         settingKeys: [
-          "reactBitsLiquidChromePaletteMode",
-          "reactBitsLiquidChromePrimaryColor",
-          "reactBitsLiquidChromeHarmony",
-          "reactBitsLiquidChromeBaseColor",
-          "reactBitsLiquidChromeSpeed",
-          "reactBitsLiquidChromeAmplitude",
-          "reactBitsLiquidChromeFrequencyX",
-          "reactBitsLiquidChromeFrequencyY",
-          "reactBitsLiquidChromeInteractive",
+          "massageLabLiquidChromePaletteMode",
+          "massageLabLiquidChromePrimaryColor",
+          "massageLabLiquidChromeHarmony",
+          "massageLabLiquidChromeBaseColor",
+          "massageLabLiquidChromeSpeed",
+          "massageLabLiquidChromeAmplitude",
+          "massageLabLiquidChromeFrequencyX",
+          "massageLabLiquidChromeFrequencyY",
+          "massageLabLiquidChromeInteractive",
         ],
       },
       {
-        id: "react-bits-balatro",
+        id: "massage-lab-balatro",
         label: "Balatro",
         sourcePath: "balatro",
-        effectFile: "react-bits-balatro-background.tsx",
-        hostProp: "reactBitsBalatro",
-        optionType: "ReactBitsBalatroOptions",
-        styleKeys: ["reactBitsBalatroCanvas"],
-        docsPatterns: [/Balatro \| https:\/\/reactbits\.dev\/backgrounds\/balatro/, /Balatro\.jsx/, /Balatro\.css/],
+        effectFile: "massage-lab-balatro-background.tsx",
+        hostProp: "massageLabBalatro",
+        optionType: "MassageLabBalatroOptions",
+        styleKeys: ["massageLabBalatroCanvas"],
+        docsPatterns: [/Balatro \|/, /Balatro\.jsx/, /Balatro\.css/],
         effectPatterns: [
-          /ReactBitsBalatroBackground/,
-          /DEFAULT_REACT_BITS_BALATRO/,
+          /MassageLabBalatroBackground/,
+          /DEFAULT_MASSAGELAB_BALATRO/,
           /uSpinRotation/,
           /uPixelFilter/,
           /uIsRotate/,
           /effect\(iResolution\.xy/,
         ],
         negativePatterns: [/from "ogl"/, /from "three"/, /@react-three/],
-        setupPatterns: [/resolveReactBitsBalatroColors/, /createReactBitsBalatroHarmonyPalette/],
+        setupPatterns: [/resolveMassageLabBalatroColors/, /createMassageLabBalatroHarmonyPalette/],
         settingKeys: [
-          "reactBitsBalatroPaletteMode",
-          "reactBitsBalatroPrimaryColor",
-          "reactBitsBalatroHarmony",
-          "reactBitsBalatroColorOne",
-          "reactBitsBalatroColorTwo",
-          "reactBitsBalatroColorThree",
-          "reactBitsBalatroSpinRotation",
-          "reactBitsBalatroSpinSpeed",
-          "reactBitsBalatroOffsetX",
-          "reactBitsBalatroOffsetY",
-          "reactBitsBalatroContrast",
-          "reactBitsBalatroLighting",
-          "reactBitsBalatroSpinAmount",
-          "reactBitsBalatroPixelFilter",
-          "reactBitsBalatroSpinEase",
-          "reactBitsBalatroIsRotate",
-          "reactBitsBalatroMouseInteraction",
+          "massageLabBalatroPaletteMode",
+          "massageLabBalatroPrimaryColor",
+          "massageLabBalatroHarmony",
+          "massageLabBalatroColorOne",
+          "massageLabBalatroColorTwo",
+          "massageLabBalatroColorThree",
+          "massageLabBalatroSpinRotation",
+          "massageLabBalatroSpinSpeed",
+          "massageLabBalatroOffsetX",
+          "massageLabBalatroOffsetY",
+          "massageLabBalatroContrast",
+          "massageLabBalatroLighting",
+          "massageLabBalatroSpinAmount",
+          "massageLabBalatroPixelFilter",
+          "massageLabBalatroSpinEase",
+          "massageLabBalatroIsRotate",
+          "massageLabBalatroMouseInteraction",
         ],
       },
     ]
@@ -4870,7 +4776,7 @@ describe("premium background registry", () => {
 
       assert.match(registrySource, new RegExp(background.id))
       assert.match(registrySource, new RegExp(background.label))
-      assert.match(registrySource, new RegExp(`https://reactbits\\.dev/backgrounds/${background.sourcePath}`))
+      assert.equal(backgroundRegistry.find((entry) => entry.id === background.id)?.sourceUrl, "internal")
       assert.match(registrySource, /MIT \+ Commons Clause; copyright 2026 David Haz; reviewed 2026-07-05/)
       assert.match(registrySource, /requiresSubscription:\s*true/)
       assert.match(hostSource, new RegExp(background.hostProp))
@@ -4906,9 +4812,9 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps Eldora Novatrix source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Novatrix source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/eldora-novatrix-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-novatrix-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -4931,13 +4837,12 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /eldora-novatrix-background/)
-    assert.match(registrySource, /Novatrix Background/)
-    assert.match(registrySource, /https:\/\/www\.eldoraui\.site\/docs\/components\/novatrix-background/)
-    assert.match(registrySource, /MIT; Eldora UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /massage-lab-novatrix/)
+    assert.match(registrySource, /Novatrix Field/)
+    assert.match(registrySource, /MassageLab repository reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /EldoraNovatrixBackground/)
-    assert.match(effectSource, /DEFAULT_ELDORA_NOVATRIX/)
+    assert.match(effectSource, /MassageLabNovatrixBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_NOVATRIX/)
     assert.match(effectSource, /color: "#FFFFFF"/)
     assert.match(effectSource, /speed: 1/)
     assert.match(effectSource, /amplitude: 0\.1/)
@@ -4952,22 +4857,22 @@ describe("premium background registry", () => {
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
     assert.match(effectSource, /deleteBuffer/)
-    assert.match(stylesSource, /eldoraNovatrixBackground/)
-    assert.match(stylesSource, /eldoraNovatrixCanvas/)
+    assert.match(stylesSource, /massageLabNovatrixBackground/)
+    assert.match(stylesSource, /massageLabNovatrixCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /eldoraNovatrix/)
-    assert.match(cssEffectsSource, /EldoraNovatrixOptions/)
-    assert.match(runningSource, /eldoraNovatrix=\{\{/)
-    assert.match(runningSource, /resolveEldoraNovatrixColor/)
-    assert.match(setupSource, /getEldoraNovatrixDisplaySpeed/)
-    assert.match(setupSource, /getEldoraNovatrixSourceSpeed/)
-    assert.match(setupSource, /getEldoraNovatrixDisplayAmplitude/)
-    assert.match(setupSource, /getEldoraNovatrixSourceAmplitude/)
-    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_SPEED_MIN = 0\.02/)
-    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_SPEED_MAX = 3/)
-    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_AMPLITUDE_MIN = 0\.01/)
-    assert.match(setupSource, /ELDORA_NOVATRIX_SOURCE_AMPLITUDE_MAX = 0\.45/)
-    assert.doesNotMatch(pageSource, /eldoraNovatrix=\{\{/)
+    assert.match(hostSource, /massageLabNovatrix/)
+    assert.match(cssEffectsSource, /MassageLabNovatrixOptions/)
+    assert.match(runningSource, /massageLabNovatrix=\{\{/)
+    assert.match(runningSource, /resolveMassageLabNovatrixColor/)
+    assert.match(setupSource, /getMassageLabNovatrixDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabNovatrixSourceSpeed/)
+    assert.match(setupSource, /getMassageLabNovatrixDisplayAmplitude/)
+    assert.match(setupSource, /getMassageLabNovatrixSourceAmplitude/)
+    assert.match(setupSource, /MASSAGE_LAB_NOVATRIX_SOURCE_SPEED_MIN = 0\.02/)
+    assert.match(setupSource, /MASSAGE_LAB_NOVATRIX_SOURCE_SPEED_MAX = 3/)
+    assert.match(setupSource, /MASSAGE_LAB_NOVATRIX_SOURCE_AMPLITUDE_MIN = 0\.01/)
+    assert.match(setupSource, /MASSAGE_LAB_NOVATRIX_SOURCE_AMPLITUDE_MAX = 0\.45/)
+    assert.doesNotMatch(pageSource, /massageLabNovatrix=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /from "ogl"/)
     assert.doesNotMatch(effectSource, /@react-three/)
@@ -4975,21 +4880,21 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "eldoraNovatrixPaletteMode",
-      "eldoraNovatrixPrimaryColor",
-      "eldoraNovatrixHarmony",
-      "eldoraNovatrixColor",
-      "eldoraNovatrixSpeed",
-      "eldoraNovatrixAmplitude",
+      "massageLabNovatrixPaletteMode",
+      "massageLabNovatrixPrimaryColor",
+      "massageLabNovatrixHarmony",
+      "massageLabNovatrixColor",
+      "massageLabNovatrixSpeed",
+      "massageLabNovatrixAmplitude",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Eldora Hacker source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Matrix Rain source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/eldora-hacker-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-matrix-rain-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -5012,17 +4917,16 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /eldora-hacker-background/)
-    assert.match(registrySource, /Hacker Background/)
-    assert.match(registrySource, /https:\/\/www\.eldoraui\.site\/docs\/components\/hacker-background/)
-    assert.match(registrySource, /MIT; Eldora UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /massage-lab-matrix-rain/)
+    assert.match(registrySource, /Matrix Rain/)
+    assert.match(registrySource, /MassageLab repository reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /EldoraHackerBackground/)
-    assert.match(effectSource, /DEFAULT_ELDORA_HACKER/)
+    assert.match(effectSource, /MassageLabMatrixRainBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_MATRIX_RAIN/)
     assert.match(effectSource, /color: "#00FF00"/)
     assert.match(effectSource, /fontSize: 14/)
     assert.match(effectSource, /speed: 1/)
-    assert.match(effectSource, /HACKER_CHARACTERS/)
+    assert.match(effectSource, /MATRIX_RAIN_CHARACTERS/)
     assert.match(effectSource, /SOURCE_FRAME_INTERVAL_MS = 33/)
     assert.match(effectSource, /"rgba\(0, 0, 0, 0\.05\)"/)
     assert.match(effectSource, /monospace/)
@@ -5032,18 +4936,18 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /eldoraHackerBackground/)
-    assert.match(stylesSource, /eldoraHackerCanvas/)
+    assert.match(stylesSource, /massageLabMatrixRainBackground/)
+    assert.match(stylesSource, /massageLabMatrixRainCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /eldoraHacker/)
-    assert.match(cssEffectsSource, /EldoraHackerOptions/)
-    assert.match(runningSource, /eldoraHacker=\{\{/)
-    assert.match(runningSource, /resolveEldoraHackerColor/)
-    assert.match(setupSource, /getEldoraHackerDisplaySpeed/)
-    assert.match(setupSource, /getEldoraHackerSourceSpeed/)
-    assert.match(setupSource, /ELDORA_HACKER_SOURCE_SPEED_MIN = 0\.05/)
-    assert.match(setupSource, /ELDORA_HACKER_SOURCE_SPEED_MAX = 3/)
-    assert.doesNotMatch(pageSource, /eldoraHacker=\{\{/)
+    assert.match(hostSource, /massageLabMatrixRain/)
+    assert.match(cssEffectsSource, /MassageLabMatrixRainOptions/)
+    assert.match(runningSource, /massageLabMatrixRain=\{\{/)
+    assert.match(runningSource, /resolveMassageLabMatrixRainColor/)
+    assert.match(setupSource, /getMassageLabMatrixRainDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabMatrixRainSourceSpeed/)
+    assert.match(setupSource, /MASSAGE_LAB_MATRIX_RAIN_SOURCE_SPEED_MIN = 0\.05/)
+    assert.match(setupSource, /MASSAGE_LAB_MATRIX_RAIN_SOURCE_SPEED_MAX = 3/)
+    assert.doesNotMatch(pageSource, /massageLabMatrixRain=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -5051,21 +4955,21 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "eldoraHackerPaletteMode",
-      "eldoraHackerPrimaryColor",
-      "eldoraHackerHarmony",
-      "eldoraHackerColor",
-      "eldoraHackerSpeed",
-      "eldoraHackerFontSize",
+      "massageLabMatrixRainPaletteMode",
+      "massageLabMatrixRainPrimaryColor",
+      "massageLabMatrixRainHarmony",
+      "massageLabMatrixRainColor",
+      "massageLabMatrixRainSpeed",
+      "massageLabMatrixRainFontSize",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Eldora Photon Beam source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Photon Beam source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/eldora-photon-beam-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-photon-beam-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -5088,13 +4992,12 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /eldora-photon-beam/)
+    assert.match(registrySource, /massage-lab-photon-beam/)
     assert.match(registrySource, /Photon Beam/)
-    assert.match(registrySource, /https:\/\/www\.eldoraui\.site\/docs\/components\/photon-beam/)
-    assert.match(registrySource, /MIT; Eldora UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /MassageLab repository reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /EldoraPhotonBeamBackground/)
-    assert.match(effectSource, /DEFAULT_ELDORA_PHOTON_BEAM/)
+    assert.match(effectSource, /MassageLabPhotonBeamBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_PHOTON_BEAM/)
     assert.match(effectSource, /colorBg: "#080808"/)
     assert.match(effectSource, /colorLine: "#005F6F"/)
     assert.match(effectSource, /colorSignal: "#00D9FF"/)
@@ -5129,20 +5032,20 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /eldoraPhotonBeamBackground/)
-    assert.match(stylesSource, /eldoraPhotonBeamCanvas/)
+    assert.match(stylesSource, /massageLabPhotonBeamBackground/)
+    assert.match(stylesSource, /massageLabPhotonBeamCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /eldoraPhotonBeam/)
-    assert.match(cssEffectsSource, /EldoraPhotonBeamOptions/)
-    assert.match(runningSource, /eldoraPhotonBeam=\{\{/)
-    assert.match(runningSource, /resolveEldoraPhotonBeamColors/)
-    assert.match(setupSource, /resolveEldoraPhotonBeamColors/)
-    assert.match(setupSource, /createEldoraPhotonBeamHarmonyPalette/)
-    assert.match(setupSource, /getEldoraPhotonBeamDisplaySpeed/)
-    assert.match(setupSource, /getEldoraPhotonBeamSourceSpeed/)
-    assert.match(setupSource, /ELDORA_PHOTON_BEAM_SOURCE_SPEED_MIN = 0\.02/)
-    assert.match(setupSource, /ELDORA_PHOTON_BEAM_SOURCE_SPEED_MAX = 2/)
-    assert.doesNotMatch(pageSource, /eldoraPhotonBeam=\{\{/)
+    assert.match(hostSource, /massageLabPhotonBeam/)
+    assert.match(cssEffectsSource, /MassageLabPhotonBeamOptions/)
+    assert.match(runningSource, /massageLabPhotonBeam=\{\{/)
+    assert.match(runningSource, /resolveMassageLabPhotonBeamColors/)
+    assert.match(setupSource, /resolveMassageLabPhotonBeamColors/)
+    assert.match(setupSource, /createMassageLabPhotonBeamHarmonyPalette/)
+    assert.match(setupSource, /getMassageLabPhotonBeamDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabPhotonBeamSourceSpeed/)
+    assert.match(setupSource, /MASSAGE_LAB_PHOTON_BEAM_SOURCE_SPEED_MIN = 0\.02/)
+    assert.match(setupSource, /MASSAGE_LAB_PHOTON_BEAM_SOURCE_SPEED_MAX = 2/)
+    assert.doesNotMatch(pageSource, /massageLabPhotonBeam=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -5153,39 +5056,39 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /mousemove/)
     assert.doesNotMatch(effectSource, /pointermove/)
     for (const settingKey of [
-      "eldoraPhotonBeamPaletteMode",
-      "eldoraPhotonBeamPrimaryColor",
-      "eldoraPhotonBeamHarmony",
-      "eldoraPhotonBeamColorBg",
-      "eldoraPhotonBeamColorLine",
-      "eldoraPhotonBeamColorSignal",
-      "eldoraPhotonBeamUseColor2",
-      "eldoraPhotonBeamColorSignal2",
-      "eldoraPhotonBeamUseColor3",
-      "eldoraPhotonBeamColorSignal3",
-      "eldoraPhotonBeamLineCount",
-      "eldoraPhotonBeamSpreadHeight",
-      "eldoraPhotonBeamSpreadDepth",
-      "eldoraPhotonBeamCurveLength",
-      "eldoraPhotonBeamStraightLength",
-      "eldoraPhotonBeamCurvePower",
-      "eldoraPhotonBeamWaveSpeed",
-      "eldoraPhotonBeamWaveHeight",
-      "eldoraPhotonBeamLineOpacity",
-      "eldoraPhotonBeamSignalCount",
-      "eldoraPhotonBeamSpeedGlobal",
-      "eldoraPhotonBeamTrailLength",
-      "eldoraPhotonBeamBloomStrength",
-      "eldoraPhotonBeamBloomRadius",
+      "massageLabPhotonBeamPaletteMode",
+      "massageLabPhotonBeamPrimaryColor",
+      "massageLabPhotonBeamHarmony",
+      "massageLabPhotonBeamColorBg",
+      "massageLabPhotonBeamColorLine",
+      "massageLabPhotonBeamColorSignal",
+      "massageLabPhotonBeamUseColor2",
+      "massageLabPhotonBeamColorSignal2",
+      "massageLabPhotonBeamUseColor3",
+      "massageLabPhotonBeamColorSignal3",
+      "massageLabPhotonBeamLineCount",
+      "massageLabPhotonBeamSpreadHeight",
+      "massageLabPhotonBeamSpreadDepth",
+      "massageLabPhotonBeamCurveLength",
+      "massageLabPhotonBeamStraightLength",
+      "massageLabPhotonBeamCurvePower",
+      "massageLabPhotonBeamWaveSpeed",
+      "massageLabPhotonBeamWaveHeight",
+      "massageLabPhotonBeamLineOpacity",
+      "massageLabPhotonBeamSignalCount",
+      "massageLabPhotonBeamSpeedGlobal",
+      "massageLabPhotonBeamTrailLength",
+      "massageLabPhotonBeamBloomStrength",
+      "massageLabPhotonBeamBloomRadius",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Aceternity 3D Globe source-shaped, marker-aware, and dependency-free", () => {
+  it("keeps MassageLab 3D Globe source-shaped, marker-aware, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/aceternity-3d-globe-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-3d-globe-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -5209,12 +5112,11 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /aceternity-3d-globe/)
+    assert.match(registrySource, /massage-lab-3d-globe/)
     assert.match(registrySource, /3D Globe/)
-    assert.match(registrySource, /https:\/\/ui\.aceternity\.com\/components\/3d-globe/)
-    assert.match(registrySource, /Aceternity License; component registry reviewed 2026-07-04/)
+    assert.match(registrySource, /reviewed source license; component registry reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /Aceternity3DGlobeBackground/)
+    assert.match(effectSource, /MassageLab3DGlobeBackground/)
     assert.match(effectSource, /DEFAULT_EARTH_TEXTURE/)
     assert.match(effectSource, /earth-blue-marble\.jpg/)
     assert.match(effectSource, /DEFAULT_BUMP_TEXTURE/)
@@ -5271,13 +5173,13 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /aceternity3dGlobe/)
-    assert.match(stylesSource, /aceternity3dGlobeCanvas/)
-    assert.match(stylesSource, /aceternity3dGlobeMarkerCanvas/)
+    assert.match(stylesSource, /massageLab3dGlobe/)
+    assert.match(stylesSource, /massageLab3dGlobeCanvas/)
+    assert.match(stylesSource, /massageLab3dGlobeMarkerCanvas/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /aceternity3DGlobe/)
-    assert.match(cssEffectsSource, /Aceternity3DGlobeOptions/)
-    assert.match(runningSource, /aceternity3DGlobe=\{\{/)
+    assert.match(hostSource, /massageLab3DGlobe/)
+    assert.match(cssEffectsSource, /MassageLab3DGlobeOptions/)
+    assert.match(runningSource, /massageLab3DGlobe=\{\{/)
     assert.doesNotMatch(runningSource, /accountMarkerAvatarUrl/)
     assert.doesNotMatch(pageSource, /sessionUserString/)
     assert.doesNotMatch(pageSource, /accountMarkerAvatarUrl/)
@@ -5296,12 +5198,11 @@ describe("premium background registry", () => {
     assert.match(setupSource, /Pan Y Up\/Down/)
     assert.match(runningSource, /Pan X Left\/Right/)
     assert.match(runningSource, /Pan Y Up\/Down/)
-    assert.match(setupSource, /settings\.aceternity3DGlobeEnablePan &&/)
-    assert.match(runningSource, /aceternity3DGlobeEnablePan &&/)
+    assert.match(setupSource, /settings\.massageLab3DGlobeEnablePan &&/)
+    assert.match(runningSource, /massageLab3DGlobeEnablePan &&/)
     assert.match(setupSource, /max="10000"/)
     assert.match(runningSource, /max="10000"/)
-    assert.doesNotMatch(pageSource, /aceternity3DGlobe=\{\{/)
-    assert.match(docsSource, /3D Globe \| https:\/\/ui\.aceternity\.com\/components\/3d-globe/)
+    assert.doesNotMatch(pageSource, /massageLab3DGlobe=\{\{/)
     assert.match(docsSource, /3d-globe\.json/)
     assert.match(docsSource, /three`, `@react-three\/fiber`, `@react-three\/drei`, and `@types\/three`/)
     assert.match(docsSource, /avatar tips/)
@@ -5326,43 +5227,43 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
 
     for (const settingKey of [
-      "aceternity3DGlobeViewStyle",
-      "aceternity3DGlobeBackgroundColor",
-      "aceternity3DGlobeGlobeColor",
-      "aceternity3DGlobeGraphicMapColor",
-      "aceternity3DGlobeGraphicGlowColor",
-      "aceternity3DGlobeGraphicMarkerColor",
-      "aceternity3DGlobeGraphicMapSamples",
-      "aceternity3DGlobeAutoRotateSpeed",
-      "aceternity3DGlobeScale",
-      "aceternity3DGlobeBumpScale",
-      "aceternity3DGlobeAmbientIntensity",
-      "aceternity3DGlobePointLightIntensity",
-      "aceternity3DGlobeLightingMode",
-      "aceternity3DGlobeEnablePan",
-      "aceternity3DGlobePanX",
-      "aceternity3DGlobePanY",
-      "aceternity3DGlobeShowAtmosphere",
-      "aceternity3DGlobeAtmosphereColor",
-      "aceternity3DGlobeAtmosphereIntensity",
-      "aceternity3DGlobeAtmosphereBlur",
-      "aceternity3DGlobeShowWireframe",
-      "aceternity3DGlobeWireframeColor",
-      "aceternity3DGlobeMarkerEnabled",
-      "aceternity3DGlobeMarkerLat",
-      "aceternity3DGlobeMarkerLng",
-      "aceternity3DGlobeMarkerLabel",
-      "aceternity3DGlobeMarkerIcon",
-      "aceternity3DGlobeMarkerSize",
+      "massageLab3DGlobeViewStyle",
+      "massageLab3DGlobeBackgroundColor",
+      "massageLab3DGlobeGlobeColor",
+      "massageLab3DGlobeGraphicMapColor",
+      "massageLab3DGlobeGraphicGlowColor",
+      "massageLab3DGlobeGraphicMarkerColor",
+      "massageLab3DGlobeGraphicMapSamples",
+      "massageLab3DGlobeAutoRotateSpeed",
+      "massageLab3DGlobeScale",
+      "massageLab3DGlobeBumpScale",
+      "massageLab3DGlobeAmbientIntensity",
+      "massageLab3DGlobePointLightIntensity",
+      "massageLab3DGlobeLightingMode",
+      "massageLab3DGlobeEnablePan",
+      "massageLab3DGlobePanX",
+      "massageLab3DGlobePanY",
+      "massageLab3DGlobeShowAtmosphere",
+      "massageLab3DGlobeAtmosphereColor",
+      "massageLab3DGlobeAtmosphereIntensity",
+      "massageLab3DGlobeAtmosphereBlur",
+      "massageLab3DGlobeShowWireframe",
+      "massageLab3DGlobeWireframeColor",
+      "massageLab3DGlobeMarkerEnabled",
+      "massageLab3DGlobeMarkerLat",
+      "massageLab3DGlobeMarkerLng",
+      "massageLab3DGlobeMarkerLabel",
+      "massageLab3DGlobeMarkerIcon",
+      "massageLab3DGlobeMarkerSize",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Magic UI Retro Grid source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Retro Grid source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/magicui-retro-grid-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-retro-grid-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -5386,13 +5287,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /magicui-retro-grid/)
+    assert.match(registrySource, /massage-lab-retro-grid/)
     assert.match(registrySource, /Retro Grid/)
-    assert.match(registrySource, /https:\/\/magicui\.design\/docs\/components\/retro-grid/)
-    assert.match(registrySource, /MIT; Magic UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /MassageLab repository reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /MagicRetroGridBackground/)
-    assert.match(effectSource, /DEFAULT_MAGIC_RETRO_GRID/)
+    assert.match(effectSource, /MassageLabRetroGridBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_RETRO_GRID/)
     assert.match(effectSource, /angle: 65/)
     assert.match(effectSource, /cellSize: 60/)
     assert.match(effectSource, /opacity: 0\.5/)
@@ -5407,16 +5307,15 @@ describe("premium background registry", () => {
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /IntersectionObserver/)
     assert.match(effectSource, /MutationObserver/)
-    assert.match(stylesSource, /magicRetroGridBackground/)
-    assert.match(stylesSource, /magicRetroGridCanvas/)
-    assert.match(stylesSource, /magicRetroGridFallbackGrid/)
+    assert.match(stylesSource, /massageLabRetroGridBackground/)
+    assert.match(stylesSource, /massageLabRetroGridCanvas/)
+    assert.match(stylesSource, /massageLabRetroGridFallbackGrid/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /magicRetroGrid/)
-    assert.match(cssEffectsSource, /MagicRetroGridOptions/)
-    assert.match(runningSource, /magicRetroGrid=\{\{/)
-    assert.doesNotMatch(pageSource, /magicRetroGrid=\{\{/)
-    assert.match(docsSource, /Retro Grid \| https:\/\/magicui\.design\/docs\/components\/retro-grid/)
-    assert.match(docsSource, /Magic UI repository reviewed 2026-07-04/)
+    assert.match(hostSource, /massageLabRetroGrid/)
+    assert.match(cssEffectsSource, /MassageLabRetroGridOptions/)
+    assert.match(runningSource, /massageLabRetroGrid=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabRetroGrid=\{\{/)
+    assert.match(docsSource, /repository license were reviewed on 2026-07-04/)
     assert.match(docsSource, /angle`, `cellSize`, `opacity`, `lightLineColor`, and `darkLineColor`/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
@@ -5427,21 +5326,21 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
 
     for (const settingKey of [
-      "magicRetroGridBackgroundColor",
-      "magicRetroGridLightLineColor",
-      "magicRetroGridDarkLineColor",
-      "magicRetroGridAngle",
-      "magicRetroGridCellSize",
-      "magicRetroGridOpacity",
+      "massageLabRetroGridBackgroundColor",
+      "massageLabRetroGridLightLineColor",
+      "massageLabRetroGridDarkLineColor",
+      "massageLabRetroGridAngle",
+      "massageLabRetroGridCellSize",
+      "massageLabRetroGridOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Magic UI Light Rays source-shaped, passive, customizable, and dependency-free", () => {
+  it("keeps MassageLab Aerial Rays source-shaped, passive, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/magicui-light-rays-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-aerial-rays-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -5465,13 +5364,12 @@ describe("premium background registry", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const docsSource = readFileSync(new URL("../docs/background-sources.md", import.meta.url), "utf8")
 
-    assert.match(registrySource, /magicui-light-rays/)
-    assert.match(registrySource, /Light Rays/)
-    assert.match(registrySource, /https:\/\/magicui\.design\/docs\/components\/light-rays/)
-    assert.match(registrySource, /MIT; Magic UI repository reviewed 2026-07-04/)
+    assert.match(registrySource, /massage-lab-aerial-rays/)
+    assert.match(registrySource, /Aerial Rays/)
+    assert.match(registrySource, /MassageLab repository reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
-    assert.match(effectSource, /MagicLightRaysBackground/)
-    assert.match(effectSource, /DEFAULT_MAGIC_LIGHT_RAYS/)
+    assert.match(effectSource, /MassageLabAerialRaysBackground/)
+    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_AERIAL_RAYS/)
     assert.match(effectSource, /backgroundColor: "#020617"/)
     assert.match(effectSource, /color: "#A0D2FF"/)
     assert.match(effectSource, /count: 7/)
@@ -5481,17 +5379,16 @@ describe("premium background registry", () => {
     assert.match(effectSource, /opacity: 0\.65/)
     assert.match(effectSource, /createRays/)
     assert.match(effectSource, /randomUnit/)
-    assert.match(stylesSource, /magicLightRaysBackground/)
-    assert.match(stylesSource, /magicLightRaysRay/)
-    assert.match(stylesSource, /magicLightRaysDrift/)
+    assert.match(stylesSource, /massageLabAerialRaysBackground/)
+    assert.match(stylesSource, /massageLabAerialRaysRay/)
+    assert.match(stylesSource, /massageLabAerialRaysDrift/)
     assert.match(stylesSource, /mix-blend-mode: screen/)
     assert.match(stylesSource, /prefers-reduced-motion/)
     assert.match(stylesSource, /pointer-events: none/)
-    assert.match(hostSource, /magicLightRays/)
-    assert.match(cssEffectsSource, /MagicLightRaysOptions/)
-    assert.match(runningSource, /magicLightRays=\{\{/)
-    assert.doesNotMatch(pageSource, /magicLightRays=\{\{/)
-    assert.match(docsSource, /Light Rays \| https:\/\/magicui\.design\/docs\/components\/light-rays/)
+    assert.match(hostSource, /massageLabAerialRays/)
+    assert.match(cssEffectsSource, /MassageLabAerialRaysOptions/)
+    assert.match(runningSource, /massageLabAerialRays=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabAerialRays=\{\{/)
     assert.match(docsSource, /light-rays\.tsx/)
     assert.match(docsSource, /`count`, `color`, `blur`, `opacity`, `speed`, and `length`/)
     assert.match(docsSource, /dependency-free CSS keyframes/)
@@ -5504,22 +5401,22 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /pointermove/)
 
     for (const settingKey of [
-      "magicLightRaysBackgroundColor",
-      "magicLightRaysColor",
-      "magicLightRaysCount",
-      "magicLightRaysBlur",
-      "magicLightRaysSpeed",
-      "magicLightRaysLength",
-      "magicLightRaysOpacity",
+      "massageLabAerialRaysBackgroundColor",
+      "massageLabAerialRaysColor",
+      "massageLabAerialRaysCount",
+      "massageLabAerialRaysBlur",
+      "massageLabAerialRaysSpeed",
+      "massageLabAerialRaysLength",
+      "massageLabAerialRaysOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Chamaac Synthesis source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Synthesis source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
-      new URL("../components/backgrounds/effects/chamaac-synthesis-background.tsx", import.meta.url),
+      new URL("../components/backgrounds/effects/massage-lab-synthesis-background.tsx", import.meta.url),
       "utf8",
     )
     const registrySource = readFileSync(
@@ -5538,10 +5435,10 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /chamaac-synthesis/)
+    assert.match(registrySource, /massage-lab-synthesis/)
     assert.match(registrySource, /Synthesis/)
     assert.match(registrySource, /MIT; copyright 2026 Amarnath/)
-    assert.match(effectSource, /ChamaacSynthesisBackground/)
+    assert.match(effectSource, /MassageLabSynthesisBackground/)
     assert.match(effectSource, /color1: "#0F172A"/)
     assert.match(effectSource, /color2: "#3B0764"/)
     assert.match(effectSource, /color3: "#0EA5E9"/)
@@ -5559,13 +5456,13 @@ describe("premium background registry", () => {
     assert.match(effectSource, /cancelAnimationFrame/)
     assert.match(effectSource, /ResizeObserver/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
-    assert.match(stylesSource, /chamaacSynthesis/)
-    assert.match(hostSource, /chamaacSynthesis/)
-    assert.match(runningSource, /chamaacSynthesis=\{\{/)
-    assert.match(runningSource, /resolveChamaacSynthesisColors/)
-    assert.match(setupSource, /getChamaacSynthesisDisplaySpeed/)
-    assert.match(setupSource, /getChamaacSynthesisSourceSpeed/)
-    assert.doesNotMatch(pageSource, /chamaacSynthesis=\{\{/)
+    assert.match(stylesSource, /massageLabSynthesis/)
+    assert.match(hostSource, /massageLabSynthesis/)
+    assert.match(runningSource, /massageLabSynthesis=\{\{/)
+    assert.match(runningSource, /resolveMassageLabSynthesisColors/)
+    assert.match(setupSource, /getMassageLabSynthesisDisplaySpeed/)
+    assert.match(setupSource, /getMassageLabSynthesisSourceSpeed/)
+    assert.doesNotMatch(pageSource, /massageLabSynthesis=\{\{/)
     assert.doesNotMatch(effectSource, /Math\.random/)
     assert.doesNotMatch(effectSource, /@react-three/)
     assert.doesNotMatch(effectSource, /from "three"/)
@@ -5573,18 +5470,18 @@ describe("premium background registry", () => {
     assert.doesNotMatch(effectSource, /createImageData/)
     assert.doesNotMatch(effectSource, /seededFraction/)
     for (const settingKey of [
-      "chamaacSynthesisColorOne",
-      "chamaacSynthesisColorTwo",
-      "chamaacSynthesisColorThree",
-      "chamaacSynthesisPaletteMode",
-      "chamaacSynthesisPrimaryColor",
-      "chamaacSynthesisHarmony",
-      "chamaacSynthesisSpeed",
-      "chamaacSynthesisComplexity",
-      "chamaacSynthesisScale",
-      "chamaacSynthesisDistortion",
-      "chamaacSynthesisGlowIntensity",
-      "chamaacSynthesisFlowFrequency",
+      "massageLabSynthesisColorOne",
+      "massageLabSynthesisColorTwo",
+      "massageLabSynthesisColorThree",
+      "massageLabSynthesisPaletteMode",
+      "massageLabSynthesisPrimaryColor",
+      "massageLabSynthesisHarmony",
+      "massageLabSynthesisSpeed",
+      "massageLabSynthesisComplexity",
+      "massageLabSynthesisScale",
+      "massageLabSynthesisDistortion",
+      "massageLabSynthesisGlowIntensity",
+      "massageLabSynthesisFlowFrequency",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
@@ -5602,7 +5499,7 @@ describe("premium background registry", () => {
     assert.match(runningSource, /<MovingBackground/)
   })
 
-  it("keeps Animate UI Bubble non-interactive and dependency-free", () => {
+  it("keeps MassageLab Bubble non-interactive and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
       "utf8",
@@ -5612,19 +5509,19 @@ describe("premium background registry", () => {
       "utf8",
     )
 
-    assert.match(registrySource, /animate-ui-bubble/)
+    assert.match(registrySource, /massage-lab-bubble/)
     assert.match(registrySource, /cursor interactivity and the sixth mouse-following bubble are intentionally omitted/)
-    assert.match(effectSource, /AnimateUiBubbleBackground/)
+    assert.match(effectSource, /MassageLabBubbleBackground/)
     assert.match(effectSource, /Cursor interaction from the source component is intentionally omitted/)
     assert.match(effectSource, /ml-bubble-goo/)
     assert.match(effectSource, /bubbleOrbFive/)
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     assert.doesNotMatch(effectSource, /mousemove/)
-    assert.doesNotMatch(effectSource, /AnimateUiBubbleBackground[\s\S]*pointermove[\s\S]*AnimateUiGradientBackground/)
+    assert.doesNotMatch(effectSource, /MassageLabBubbleBackground[\s\S]*pointermove[\s\S]*MassageLabGradientBackground/)
   })
 
-  it("keeps Animate UI Gradient customizable and dependency-free", () => {
+  it("keeps MassageLab Gradient customizable and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
       "utf8",
@@ -5640,28 +5537,28 @@ describe("premium background registry", () => {
     const setupSource = readFileSync(new URL("../app/chimer/set-timer.tsx", import.meta.url), "utf8")
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /animate-ui-gradient/)
-    assert.match(registrySource, /Gradient background/)
+    assert.match(registrySource, /massage-lab-gradient/)
+    assert.match(registrySource, /Gradient field/)
     assert.match(registrySource, /MIT \+ Commons Clause/)
-    assert.match(effectSource, /AnimateUiGradientBackground/)
-    assert.match(effectSource, /createAnimateUiGradientPalette/)
+    assert.match(effectSource, /MassageLabGradientBackground/)
+    assert.match(effectSource, /createMassageLabGradientPalette/)
     assert.match(effectSource, /split-complementary/)
     assert.match(effectSource, /monochromatic/)
-    assert.match(stylesSource, /mlAnimateUiGradientShift/)
+    assert.match(stylesSource, /mlMassageLabGradientShift/)
     assert.match(effectSource, /--ml-animate-gradient-opacity/)
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     for (const settingKey of [
-      "animateUiGradientPrimaryColor",
-      "animateUiGradientHarmony",
-      "animateUiGradientOpacity",
+      "massageLabGradientPrimaryColor",
+      "massageLabGradientHarmony",
+      "massageLabGradientOpacity",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Animate UI Stars source-shaped, customizable, and dependency-free", () => {
+  it("keeps MassageLab Stars source-shaped, customizable, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
       "utf8",
@@ -5682,35 +5579,35 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /animate-ui-stars/)
-    assert.match(registrySource, /Stars background/)
+    assert.match(registrySource, /massage-lab-stars/)
+    assert.match(registrySource, /Star field/)
     assert.match(registrySource, /MIT \+ Commons Clause/)
-    assert.match(effectSource, /AnimateUiStarsBackground/)
-    assert.match(effectSource, /buildAnimateUiStarsShadow/)
+    assert.match(effectSource, /MassageLabStarsBackground/)
+    assert.match(effectSource, /buildMassageLabStarsShadow/)
     assert.match(effectSource, /1000 \* resolved\.density/)
     assert.match(effectSource, /400 \* resolved\.density/)
     assert.match(effectSource, /200 \* resolved\.density/)
     assert.match(effectSource, /window\.addEventListener\("pointermove"/)
     assert.match(effectSource, /window\.removeEventListener\("pointermove"/)
-    assert.match(stylesSource, /mlAnimateUiStarsDrift/)
+    assert.match(stylesSource, /mlMassageLabStarsDrift/)
     assert.match(stylesSource, /top: 2000px/)
-    assert.match(hostSource, /animateUiStars/)
-    assert.match(runningSource, /animateUiStars=\{\{/)
-    assert.doesNotMatch(pageSource, /animateUiStars=\{\{/)
+    assert.match(hostSource, /massageLabStars/)
+    assert.match(runningSource, /massageLabStars=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabStars=\{\{/)
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     for (const settingKey of [
-      "animateUiStarsColor",
-      "animateUiStarsSpeed",
-      "animateUiStarsDensity",
-      "animateUiStarsParallax",
+      "massageLabStarsColor",
+      "massageLabStarsSpeed",
+      "massageLabStarsDensity",
+      "massageLabStarsParallax",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
     }
   })
 
-  it("keeps Animate UI Hole customizable, cleaned up, and dependency-free", () => {
+  it("keeps MassageLab Hole customizable, cleaned up, and dependency-free", () => {
     const effectSource = readFileSync(
       new URL("../components/backgrounds/effects/css-backgrounds.tsx", import.meta.url),
       "utf8",
@@ -5731,10 +5628,10 @@ describe("premium background registry", () => {
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
 
-    assert.match(registrySource, /animate-ui-hole/)
-    assert.match(registrySource, /Hole background/)
+    assert.match(registrySource, /massage-lab-hole/)
+    assert.match(registrySource, /Depth well/)
     assert.match(registrySource, /MIT \+ Commons Clause/)
-    assert.match(effectSource, /AnimateUiHoleBackground/)
+    assert.match(effectSource, /MassageLabHoleBackground/)
     assert.match(effectSource, /Path2D/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /cancelAnimationFrame/)
@@ -5742,17 +5639,17 @@ describe("premium background registry", () => {
     assert.match(effectSource, /numberOfLines/)
     assert.match(effectSource, /numberOfDiscs/)
     assert.match(effectSource, /particleColor/)
-    assert.match(stylesSource, /mlAnimateUiHoleGlow/)
-    assert.match(hostSource, /animateUiHole/)
-    assert.match(runningSource, /animateUiHole=\{\{/)
-    assert.doesNotMatch(pageSource, /animateUiHole=\{\{/)
+    assert.match(stylesSource, /mlMassageLabHoleGlow/)
+    assert.match(hostSource, /massageLabHole/)
+    assert.match(runningSource, /massageLabHole=\{\{/)
+    assert.doesNotMatch(pageSource, /massageLabHole=\{\{/)
     assert.doesNotMatch(effectSource, /motion\/react/)
     assert.doesNotMatch(effectSource, /from "motion"/)
     for (const settingKey of [
-      "animateUiHoleStrokeColor",
-      "animateUiHoleParticleColor",
-      "animateUiHoleLineCount",
-      "animateUiHoleDiscCount",
+      "massageLabHoleStrokeColor",
+      "massageLabHoleParticleColor",
+      "massageLabHoleLineCount",
+      "massageLabHoleDiscCount",
     ]) {
       assert.match(setupSource, new RegExp(settingKey))
       assert.match(runningSource, new RegExp(settingKey))
