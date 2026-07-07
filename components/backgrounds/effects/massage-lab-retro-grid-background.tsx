@@ -18,7 +18,7 @@ const MAX_DEVICE_PIXEL_RATIO = 2
 const MIN_ANGLE = 1
 const PERSPECTIVE_PX = 200
 
-const DEFAULT_MASSAGE_LAB_RETRO_GRID = {
+const DEFAULT_MASSAGELAB_RETRO_GRID = {
   angle: 65,
   cellSize: 60,
   opacity: 0.5,
@@ -524,12 +524,12 @@ export default function MassageLabRetroGridBackground({
 
 function resolveRetroGridOptions(options?: MassageLabRetroGridOptions): Required<MassageLabRetroGridOptions> {
   return {
-    angle: clampNumber(options?.angle, DEFAULT_MASSAGE_LAB_RETRO_GRID.angle, MIN_ANGLE, MAX_ANGLE),
-    cellSize: clampNumber(options?.cellSize, DEFAULT_MASSAGE_LAB_RETRO_GRID.cellSize, 12, 160),
-    opacity: clampNumber(options?.opacity, DEFAULT_MASSAGE_LAB_RETRO_GRID.opacity, 0.05, 1),
-    lightLineColor: normalizeHexColor(options?.lightLineColor, DEFAULT_MASSAGE_LAB_RETRO_GRID.lightLineColor),
-    darkLineColor: normalizeHexColor(options?.darkLineColor, DEFAULT_MASSAGE_LAB_RETRO_GRID.darkLineColor),
-    backgroundColor: normalizeHexColor(options?.backgroundColor, DEFAULT_MASSAGE_LAB_RETRO_GRID.backgroundColor),
+    angle: clampNumber(options?.angle, DEFAULT_MASSAGELAB_RETRO_GRID.angle, MIN_ANGLE, MAX_ANGLE),
+    cellSize: clampNumber(options?.cellSize, DEFAULT_MASSAGELAB_RETRO_GRID.cellSize, 12, 160),
+    opacity: clampNumber(options?.opacity, DEFAULT_MASSAGELAB_RETRO_GRID.opacity, 0.05, 1),
+    lightLineColor: normalizeHexColor(options?.lightLineColor, DEFAULT_MASSAGELAB_RETRO_GRID.lightLineColor),
+    darkLineColor: normalizeHexColor(options?.darkLineColor, DEFAULT_MASSAGELAB_RETRO_GRID.darkLineColor),
+    backgroundColor: normalizeHexColor(options?.backgroundColor, DEFAULT_MASSAGELAB_RETRO_GRID.backgroundColor),
   }
 }
 
@@ -556,7 +556,7 @@ function normalizeHexColor(value: string | undefined, fallback: string) {
 }
 
 function hexToRgba(value: string, opacity: number) {
-  const normalized = normalizeHexColor(value, DEFAULT_MASSAGE_LAB_RETRO_GRID.darkLineColor)
+  const normalized = normalizeHexColor(value, DEFAULT_MASSAGELAB_RETRO_GRID.darkLineColor)
   const red = Number.parseInt(normalized.slice(1, 3), 16) / 255
   const green = Number.parseInt(normalized.slice(3, 5), 16) / 255
   const blue = Number.parseInt(normalized.slice(5, 7), 16) / 255

@@ -26,7 +26,7 @@ type LiquidChromeWebGlResources = {
   }
 }
 
-const DEFAULT_MASSAGE_LAB_LIQUID_CHROME: ResolvedLiquidChromeOptions = {
+const DEFAULT_MASSAGELAB_LIQUID_CHROME: ResolvedLiquidChromeOptions = {
   speed: 0.35,
   timeScale: 0.225,
   color: "#C0C0C0",
@@ -445,10 +445,10 @@ function getUniformLocation(context: WebGLRenderingContext, program: WebGLProgra
 
 function resolveLiquidChromeOptions(options: MassageLabChromeFlowOptions): ResolvedLiquidChromeOptions {
   return {
-    speed: clampNumber(options.speed, DEFAULT_MASSAGE_LAB_LIQUID_CHROME.speed, 0.01, 2),
-    timeScale: clampNumber(options.timeScale, DEFAULT_MASSAGE_LAB_LIQUID_CHROME.timeScale, 0.001, 1),
-    color: normalizeHexColor(options.color, DEFAULT_MASSAGE_LAB_LIQUID_CHROME.color),
-    color2: normalizeHexColor(options.color2, DEFAULT_MASSAGE_LAB_LIQUID_CHROME.color2),
+    speed: clampNumber(options.speed, DEFAULT_MASSAGELAB_LIQUID_CHROME.speed, 0.01, 2),
+    timeScale: clampNumber(options.timeScale, DEFAULT_MASSAGELAB_LIQUID_CHROME.timeScale, 0.001, 1),
+    color: normalizeHexColor(options.color, DEFAULT_MASSAGELAB_LIQUID_CHROME.color),
+    color2: normalizeHexColor(options.color2, DEFAULT_MASSAGELAB_LIQUID_CHROME.color2),
   }
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useId, useMemo, useRef } from "react"
 import { shouldAnimateAmbientBackground } from "@/lib/motion-preferences"
 import { cn } from "@/lib/utils"
 import styles from "@/components/backgrounds/BackgroundHost.module.css"
@@ -63,6 +63,8 @@ export default function MassageLabDotFieldBackground({
   })
   const glowOpacityRef = useRef(0)
   const engagementRef = useRef(0)
+  const reactId = useId()
+  const glowGradientId = `massage-lab-dot-field-glow-${reactId.replace(/:/g, "")}`
   const options = useMemo(
     () => resolveDotFieldOptions(massageLabDotField),
     [massageLabDotField],
@@ -294,7 +296,7 @@ export default function MassageLabDotFieldBackground({
       <canvas ref={canvasRef} className={styles.massageLabDotFieldCanvas} />
       <svg className={styles.massageLabDotFieldGlowSvg}>
         <defs>
-          <radialGradient id="massage-lab-dot-field-glow">
+          <radialGradient id={glowGradientId}>
             <stop offset="0%" stopColor={options.glowColor} />
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
@@ -304,7 +306,7 @@ export default function MassageLabDotFieldBackground({
           cx={OFFSCREEN_MOUSE}
           cy={OFFSCREEN_MOUSE}
           r={options.glowRadius}
-          fill="url(#massage-lab-dot-field-glow)"
+          fill={`url(#${glowGradientId})`}
           className={styles.massageLabDotFieldGlow}
         />
       </svg>

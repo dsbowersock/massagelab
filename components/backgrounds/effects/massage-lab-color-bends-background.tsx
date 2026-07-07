@@ -188,9 +188,81 @@ export default function MassageLabColorBendsBackground({
 }: BackgroundEffectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const rotation = massageLabColorBends?.rotation
+  const speed = massageLabColorBends?.speed
+  const colorStops = massageLabColorBends?.colors
+  const colorStop0 = colorStops?.[0]
+  const colorStop1 = colorStops?.[1]
+  const colorStop2 = colorStops?.[2]
+  const colorStop3 = colorStops?.[3]
+  const colorStop4 = colorStops?.[4]
+  const colorStop5 = colorStops?.[5]
+  const colorStop6 = colorStops?.[6]
+  const colorStop7 = colorStops?.[7]
+  const transparent = massageLabColorBends?.transparent
+  const autoRotate = massageLabColorBends?.autoRotate
+  const scale = massageLabColorBends?.scale
+  const frequency = massageLabColorBends?.frequency
+  const warpStrength = massageLabColorBends?.warpStrength
+  const mouseInfluence = massageLabColorBends?.mouseInfluence
+  const parallax = massageLabColorBends?.parallax
+  const noise = massageLabColorBends?.noise
+  const iterations = massageLabColorBends?.iterations
+  const intensity = massageLabColorBends?.intensity
+  const bandWidth = massageLabColorBends?.bandWidth
+  const interactive = massageLabColorBends?.interactive
   const options = useMemo(
-    () => resolveColorBendsOptions(massageLabColorBends),
-    [massageLabColorBends],
+    () =>
+      resolveColorBendsOptions({
+        rotation,
+        speed,
+        colors: [
+          colorStop0,
+          colorStop1,
+          colorStop2,
+          colorStop3,
+          colorStop4,
+          colorStop5,
+          colorStop6,
+          colorStop7,
+        ].filter((color): color is string => typeof color === "string"),
+        transparent,
+        autoRotate,
+        scale,
+        frequency,
+        warpStrength,
+        mouseInfluence,
+        parallax,
+        noise,
+        iterations,
+        intensity,
+        bandWidth,
+        interactive,
+      }),
+    [
+      autoRotate,
+      bandWidth,
+      colorStop0,
+      colorStop1,
+      colorStop2,
+      colorStop3,
+      colorStop4,
+      colorStop5,
+      colorStop6,
+      colorStop7,
+      frequency,
+      intensity,
+      interactive,
+      iterations,
+      mouseInfluence,
+      noise,
+      parallax,
+      rotation,
+      scale,
+      speed,
+      transparent,
+      warpStrength,
+    ],
   )
   const colors = useMemo(() => {
     return options.colors.slice(0, MAX_COLORS).map(parseHexColorToRgb)

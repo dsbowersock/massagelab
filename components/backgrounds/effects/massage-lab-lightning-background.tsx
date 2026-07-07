@@ -128,9 +128,14 @@ export default function MassageLabLightningBackground({
   massageLabLightning,
 }: BackgroundEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const hue = massageLabLightning?.hue
+  const xOffset = massageLabLightning?.xOffset
+  const speed = massageLabLightning?.speed
+  const intensity = massageLabLightning?.intensity
+  const size = massageLabLightning?.size
   const options = useMemo(
-    () => resolveLightningOptions(massageLabLightning),
-    [massageLabLightning],
+    () => resolveLightningOptions({ hue, xOffset, speed, intensity, size }),
+    [hue, intensity, size, speed, xOffset],
   )
 
   useEffect(() => {

@@ -225,9 +225,27 @@ export default function MassageLabBeamsBackground({
 }: BackgroundEffectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const beamWidth = massageLabBeams?.beamWidth
+  const beamHeight = massageLabBeams?.beamHeight
+  const beamNumber = massageLabBeams?.beamNumber
+  const lightColorValue = massageLabBeams?.lightColor
+  const speed = massageLabBeams?.speed
+  const noiseIntensity = massageLabBeams?.noiseIntensity
+  const scale = massageLabBeams?.scale
+  const rotation = massageLabBeams?.rotation
   const options = useMemo(
-    () => resolveBeamsOptions(massageLabBeams),
-    [massageLabBeams],
+    () =>
+      resolveBeamsOptions({
+        beamWidth,
+        beamHeight,
+        beamNumber,
+        lightColor: lightColorValue,
+        speed,
+        noiseIntensity,
+        scale,
+        rotation,
+      }),
+    [beamHeight, beamNumber, beamWidth, lightColorValue, noiseIntensity, rotation, scale, speed],
   )
   const lightColor = useMemo(() => parseHexColorToRgb(options.lightColor), [options.lightColor])
 

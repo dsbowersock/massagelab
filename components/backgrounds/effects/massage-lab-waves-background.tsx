@@ -164,9 +164,51 @@ export default function MassageLabWavesBackground({
     set: false,
   })
   const noiseRef = useRef(new Noise(0.5))
+  const lineColor = massageLabWaves?.lineColor
+  const backgroundColor = massageLabWaves?.backgroundColor
+  const transparentBackground = massageLabWaves?.transparentBackground
+  const waveSpeedX = massageLabWaves?.waveSpeedX
+  const waveSpeedY = massageLabWaves?.waveSpeedY
+  const waveAmpX = massageLabWaves?.waveAmpX
+  const waveAmpY = massageLabWaves?.waveAmpY
+  const xGap = massageLabWaves?.xGap
+  const yGap = massageLabWaves?.yGap
+  const friction = massageLabWaves?.friction
+  const tension = massageLabWaves?.tension
+  const maxCursorMove = massageLabWaves?.maxCursorMove
+  const cursorInteraction = massageLabWaves?.cursorInteraction
   const options = useMemo(
-    () => resolveWavesOptions(massageLabWaves),
-    [massageLabWaves],
+    () =>
+      resolveWavesOptions({
+        lineColor,
+        backgroundColor,
+        transparentBackground,
+        waveSpeedX,
+        waveSpeedY,
+        waveAmpX,
+        waveAmpY,
+        xGap,
+        yGap,
+        friction,
+        tension,
+        maxCursorMove,
+        cursorInteraction,
+      }),
+    [
+      backgroundColor,
+      cursorInteraction,
+      friction,
+      lineColor,
+      maxCursorMove,
+      tension,
+      transparentBackground,
+      waveAmpX,
+      waveAmpY,
+      waveSpeedX,
+      waveSpeedY,
+      xGap,
+      yGap,
+    ],
   )
 
   useEffect(() => {

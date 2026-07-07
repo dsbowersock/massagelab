@@ -32,7 +32,7 @@ type GridBloomWebGlResources = {
   }
 }
 
-const DEFAULT_MASSAGE_LAB_GRID_BLOOM: ResolvedGridBloomOptions = {
+const DEFAULT_MASSAGELAB_GRID_BLOOM: ResolvedGridBloomOptions = {
   color: "#E040FB",
   speed: 1,
   gridScale: 12,
@@ -495,14 +495,14 @@ function getUniformLocation(context: WebGLRenderingContext, program: WebGLProgra
 
 function resolveGridBloomOptions(options: MassageLabGridBloomOptions): ResolvedGridBloomOptions {
   return {
-    color: normalizeHexColor(options.color, DEFAULT_MASSAGE_LAB_GRID_BLOOM.color),
-    speed: clampNumber(options.speed, DEFAULT_MASSAGE_LAB_GRID_BLOOM.speed, 0.1, 3),
-    gridScale: clampNumber(options.gridScale, DEFAULT_MASSAGE_LAB_GRID_BLOOM.gridScale, 4, 32),
-    rotationSpeed: clampNumber(options.rotationSpeed, DEFAULT_MASSAGE_LAB_GRID_BLOOM.rotationSpeed, -3, 3),
-    fadeFalloff: clampNumber(options.fadeFalloff, DEFAULT_MASSAGE_LAB_GRID_BLOOM.fadeFalloff, 1, 24),
-    distortionAmount: clampNumber(options.distortionAmount, DEFAULT_MASSAGE_LAB_GRID_BLOOM.distortionAmount, 0, 0.5),
-    flowSpeedX: clampNumber(options.flowSpeedX, DEFAULT_MASSAGE_LAB_GRID_BLOOM.flowSpeedX, -2, 2),
-    flowSpeedY: clampNumber(options.flowSpeedY, DEFAULT_MASSAGE_LAB_GRID_BLOOM.flowSpeedY, -2, 2),
+    color: normalizeHexColor(options.color, DEFAULT_MASSAGELAB_GRID_BLOOM.color),
+    speed: clampNumber(options.speed, DEFAULT_MASSAGELAB_GRID_BLOOM.speed, 0.1, 3),
+    gridScale: clampNumber(options.gridScale, DEFAULT_MASSAGELAB_GRID_BLOOM.gridScale, 4, 32),
+    rotationSpeed: clampNumber(options.rotationSpeed, DEFAULT_MASSAGELAB_GRID_BLOOM.rotationSpeed, -3, 3),
+    fadeFalloff: clampNumber(options.fadeFalloff, DEFAULT_MASSAGELAB_GRID_BLOOM.fadeFalloff, 1, 24),
+    distortionAmount: clampNumber(options.distortionAmount, DEFAULT_MASSAGELAB_GRID_BLOOM.distortionAmount, 0, 0.5),
+    flowSpeedX: clampNumber(options.flowSpeedX, DEFAULT_MASSAGELAB_GRID_BLOOM.flowSpeedX, -2, 2),
+    flowSpeedY: clampNumber(options.flowSpeedY, DEFAULT_MASSAGELAB_GRID_BLOOM.flowSpeedY, -2, 2),
   }
 }
 

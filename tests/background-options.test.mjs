@@ -5292,7 +5292,7 @@ describe("premium background registry", () => {
     assert.match(registrySource, /MassageLab repository reviewed 2026-07-04/)
     assert.match(registrySource, /requiresSubscription:\s*true/)
     assert.match(effectSource, /MassageLabRetroGridBackground/)
-    assert.match(effectSource, /DEFAULT_MASSAGE_LAB_RETRO_GRID/)
+    assert.match(effectSource, /DEFAULT_MASSAGELAB_RETRO_GRID/)
     assert.match(effectSource, /angle: 65/)
     assert.match(effectSource, /cellSize: 60/)
     assert.match(effectSource, /opacity: 0\.5/)

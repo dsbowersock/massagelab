@@ -68,9 +68,51 @@ export default function MassageLabDotGridBackground({
     lastY: 0,
     lastMove: 0,
   })
+  const dotSize = massageLabDotGrid?.dotSize
+  const gap = massageLabDotGrid?.gap
+  const baseColor = massageLabDotGrid?.baseColor
+  const activeColor = massageLabDotGrid?.activeColor
+  const proximity = massageLabDotGrid?.proximity
+  const speedTrigger = massageLabDotGrid?.speedTrigger
+  const shockRadius = massageLabDotGrid?.shockRadius
+  const shockStrength = massageLabDotGrid?.shockStrength
+  const maxSpeed = massageLabDotGrid?.maxSpeed
+  const resistance = massageLabDotGrid?.resistance
+  const returnDuration = massageLabDotGrid?.returnDuration
+  const cursorInteraction = massageLabDotGrid?.cursorInteraction
+  const clickShock = massageLabDotGrid?.clickShock
   const options = useMemo(
-    () => resolveDotGridOptions(massageLabDotGrid),
-    [massageLabDotGrid],
+    () =>
+      resolveDotGridOptions({
+        dotSize,
+        gap,
+        baseColor,
+        activeColor,
+        proximity,
+        speedTrigger,
+        shockRadius,
+        shockStrength,
+        maxSpeed,
+        resistance,
+        returnDuration,
+        cursorInteraction,
+        clickShock,
+      }),
+    [
+      activeColor,
+      baseColor,
+      clickShock,
+      cursorInteraction,
+      dotSize,
+      gap,
+      maxSpeed,
+      proximity,
+      resistance,
+      returnDuration,
+      shockRadius,
+      shockStrength,
+      speedTrigger,
+    ],
   )
 
   useEffect(() => {

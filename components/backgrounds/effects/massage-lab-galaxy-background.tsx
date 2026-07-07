@@ -232,9 +232,60 @@ export default function MassageLabGalaxyBackground({
   const smoothMouseRef = useRef<[number, number]>([0.5, 0.5])
   const targetActiveRef = useRef(0)
   const smoothActiveRef = useRef(0)
+  const focalX = massageLabGalaxy?.focalX
+  const focalY = massageLabGalaxy?.focalY
+  const rotationDeg = massageLabGalaxy?.rotationDeg
+  const starSpeed = massageLabGalaxy?.starSpeed
+  const density = massageLabGalaxy?.density
+  const hueShift = massageLabGalaxy?.hueShift
+  const speed = massageLabGalaxy?.speed
+  const mouseInteraction = massageLabGalaxy?.mouseInteraction
+  const glowIntensity = massageLabGalaxy?.glowIntensity
+  const saturation = massageLabGalaxy?.saturation
+  const mouseRepulsion = massageLabGalaxy?.mouseRepulsion
+  const repulsionStrength = massageLabGalaxy?.repulsionStrength
+  const twinkleIntensity = massageLabGalaxy?.twinkleIntensity
+  const rotationSpeed = massageLabGalaxy?.rotationSpeed
+  const autoCenterRepulsion = massageLabGalaxy?.autoCenterRepulsion
+  const transparent = massageLabGalaxy?.transparent
   const options = useMemo(
-    () => resolveGalaxyOptions(massageLabGalaxy),
-    [massageLabGalaxy],
+    () =>
+      resolveGalaxyOptions({
+        focalX,
+        focalY,
+        rotationDeg,
+        starSpeed,
+        density,
+        hueShift,
+        speed,
+        mouseInteraction,
+        glowIntensity,
+        saturation,
+        mouseRepulsion,
+        repulsionStrength,
+        twinkleIntensity,
+        rotationSpeed,
+        autoCenterRepulsion,
+        transparent,
+      }),
+    [
+      autoCenterRepulsion,
+      density,
+      focalX,
+      focalY,
+      glowIntensity,
+      hueShift,
+      mouseInteraction,
+      mouseRepulsion,
+      repulsionStrength,
+      rotationDeg,
+      rotationSpeed,
+      saturation,
+      speed,
+      starSpeed,
+      transparent,
+      twinkleIntensity,
+    ],
   )
 
   useEffect(() => {
