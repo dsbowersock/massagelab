@@ -65,6 +65,8 @@ export default function MassageLabDotFieldBackground({
   const engagementRef = useRef(0)
   const reactId = useId()
   const glowGradientId = `massage-lab-dot-field-glow-${reactId.replace(/:/g, "")}`
+  // Pull out primitive option fields so the memo below does not invalidate just
+  // because a parent render created a new massageLabDotField object reference.
   const {
     dotRadius,
     dotSpacing,
