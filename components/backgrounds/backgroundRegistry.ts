@@ -1,6 +1,8 @@
 import type { CSSProperties, ComponentType } from "react"
 import { DEFAULT_BACKGROUND_ID } from "../../lib/background-options.js"
 import { hasPremiumBackgroundAccess } from "../../lib/membership.js"
+import { backgroundPreviewManifest } from "./backgroundPreviewManifest.ts"
+import type { BackgroundPreviewManifestEntry } from "./backgroundPreviewManifest.ts"
 import type { BackgroundEffectProps } from "./effects/css-backgrounds"
 
 export type BackgroundId =
@@ -112,6 +114,13 @@ export interface BackgroundDefinition {
   enabled: boolean
   customizationSummary?: string
   disabledReason?: string
+  previewMediaUrl?: string
+  previewMediaType?: "image" | "video"
+  previewImageUrl?: string
+  previewVideoUrl?: string
+  previewSquareVideoUrl?: string
+  previewVerticalVideoUrl?: string
+  previewVariants?: BackgroundPreviewManifestEntry["variants"]
   component?: BackgroundComponentLoader
   fallbackClassName?: string
   fallbackStyle?: CSSProperties
@@ -183,7 +192,7 @@ const massageLabTileGrid = () => import("./effects/massage-lab-tile-grid-backgro
 const massageLabHexGrid = () => import("./effects/massage-lab-hex-grid-background")
 const unlumenAuroraBars = () => import("./effects/unlumen-aurora-bars-background")
 
-export const backgroundRegistry: readonly BackgroundDefinition[] = [
+const rawBackgroundRegistry: readonly BackgroundDefinition[] = [
   {
     id: "massage-lab-moving-gradient",
     label: "MassageLaba Lamp",
@@ -1950,6 +1959,27 @@ export const backgroundRegistry: readonly BackgroundDefinition[] = [
     },
   },
 ] as const
+
+function withGeneratedPreview(entry: BackgroundDefinition): BackgroundDefinition {
+  const preview = backgroundPreviewManifest[entry.id as keyof typeof backgroundPreviewManifest]
+
+  if (!preview) {
+    return entry
+  }
+
+  return {
+    ...entry,
+    previewMediaUrl: preview.previewMediaUrl,
+    previewMediaType: preview.previewMediaType,
+    previewVideoUrl: preview.previewVideoUrl ?? (preview.previewMediaType === "video" ? preview.previewMediaUrl : entry.previewVideoUrl),
+    previewSquareVideoUrl: preview.previewSquareVideoUrl ?? entry.previewSquareVideoUrl,
+    previewVerticalVideoUrl: preview.previewVerticalVideoUrl ?? entry.previewVerticalVideoUrl,
+    previewVariants: preview.variants ?? entry.previewVariants,
+    previewImageUrl: preview.previewMediaType === "image" ? preview.previewMediaUrl : entry.previewImageUrl,
+  }
+}
+
+export const backgroundRegistry: readonly BackgroundDefinition[] = rawBackgroundRegistry.map(withGeneratedPreview)
 
 export function getBackgroundDefinition(id: unknown) {
   return backgroundRegistry.find((entry) => entry.id === id) ?? backgroundRegistry[0]

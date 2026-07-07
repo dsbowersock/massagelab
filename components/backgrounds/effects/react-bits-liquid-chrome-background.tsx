@@ -104,14 +104,7 @@ export default function ReactBitsLiquidChromeBackground({
   const mouseRef = useRef<[number, number]>([0, 0])
   const options = useMemo(
     () => resolveLiquidChromeOptions(reactBitsLiquidChrome),
-    [
-      reactBitsLiquidChrome?.baseColor,
-      reactBitsLiquidChrome?.speed,
-      reactBitsLiquidChrome?.amplitude,
-      reactBitsLiquidChrome?.frequencyX,
-      reactBitsLiquidChrome?.frequencyY,
-      reactBitsLiquidChrome?.interactive,
-    ],
+    [reactBitsLiquidChrome],
   )
 
   useEffect(() => {

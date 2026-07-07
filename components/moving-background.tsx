@@ -175,7 +175,12 @@ export function MovingBackground({
   }, [mainColor, orbColor, settings.ambientMotionMode])
 
   return (
-    <div aria-hidden="true" className={className} data-testid={testId}>
+    <div
+      aria-hidden="true"
+      className={className}
+      data-ml-ambient-motion={settings.ambientMotionMode}
+      data-testid={testId}
+    >
       <div className="massagelab-background-fallback" style={fallbackStyle} />
       <canvas
         ref={canvasRef}

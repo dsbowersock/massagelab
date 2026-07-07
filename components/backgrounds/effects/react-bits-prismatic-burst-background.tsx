@@ -227,23 +227,9 @@ export default function ReactBitsPrismaticBurstBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const pointerTargetRef = useRef<[number, number]>([0.5, 0.5])
   const pointerSmoothRef = useRef<[number, number]>([0.5, 0.5])
-  const colorKey = Array.isArray(reactBitsPrismaticBurst?.colors)
-    ? reactBitsPrismaticBurst.colors.join("|")
-    : ""
   const options = useMemo(
     () => resolvePrismaticBurstOptions(reactBitsPrismaticBurst),
-    [
-      reactBitsPrismaticBurst?.intensity,
-      reactBitsPrismaticBurst?.speed,
-      reactBitsPrismaticBurst?.animationType,
-      colorKey,
-      reactBitsPrismaticBurst?.distort,
-      reactBitsPrismaticBurst?.offsetX,
-      reactBitsPrismaticBurst?.offsetY,
-      reactBitsPrismaticBurst?.hoverDampness,
-      reactBitsPrismaticBurst?.rayCount,
-      reactBitsPrismaticBurst?.mixBlendMode,
-    ],
+    [reactBitsPrismaticBurst],
   )
 
   useEffect(() => {

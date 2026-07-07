@@ -234,24 +234,7 @@ export default function ReactBitsGalaxyBackground({
   const smoothActiveRef = useRef(0)
   const options = useMemo(
     () => resolveGalaxyOptions(reactBitsGalaxy),
-    [
-      reactBitsGalaxy?.focalX,
-      reactBitsGalaxy?.focalY,
-      reactBitsGalaxy?.rotationDeg,
-      reactBitsGalaxy?.starSpeed,
-      reactBitsGalaxy?.density,
-      reactBitsGalaxy?.hueShift,
-      reactBitsGalaxy?.speed,
-      reactBitsGalaxy?.mouseInteraction,
-      reactBitsGalaxy?.glowIntensity,
-      reactBitsGalaxy?.saturation,
-      reactBitsGalaxy?.mouseRepulsion,
-      reactBitsGalaxy?.repulsionStrength,
-      reactBitsGalaxy?.twinkleIntensity,
-      reactBitsGalaxy?.rotationSpeed,
-      reactBitsGalaxy?.autoCenterRepulsion,
-      reactBitsGalaxy?.transparent,
-    ],
+    [reactBitsGalaxy],
   )
 
   useEffect(() => {

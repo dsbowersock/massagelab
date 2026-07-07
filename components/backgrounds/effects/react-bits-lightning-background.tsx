@@ -130,13 +130,7 @@ export default function ReactBitsLightningBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveLightningOptions(reactBitsLightning),
-    [
-      reactBitsLightning?.hue,
-      reactBitsLightning?.xOffset,
-      reactBitsLightning?.speed,
-      reactBitsLightning?.intensity,
-      reactBitsLightning?.size,
-    ],
+    [reactBitsLightning],
   )
 
   useEffect(() => {

@@ -13,16 +13,24 @@
 # testing
 /coverage
 /.playwright-mcp/
+/.playwright-cli/
 /test-results/
 /anatomy-table-top-scrollbar.png
 
 # generated local audio samples
 /public/audio/atmosphere/observable-streams-vsco-adaptation/samples/
 
+# generated local Chimer preview media; publish these to the public media bucket
+/public/chimer/background-previews/*.webm
+/public/chimer/background-previews/index.json
+
 # local Codex workspace artifacts
+/.codex/
 /.codex-dev/
 /.codex-dev-server.*
 /.codex-remote-attachments/
+/graphify-out/
+/output/
 
 # next.js
 /.next/

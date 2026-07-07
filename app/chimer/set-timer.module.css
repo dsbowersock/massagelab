@@ -1,4 +1,17 @@
 .container {
+  --chimer-button-orange: #ff7a1a;
+  --chimer-button-orange-red: #ff5119;
+  --chimer-button-copper: #cc793d;
+  --chimer-button-walnut: #996c4d;
+  --chimer-button-earth: #665447;
+  --chimer-button-charcoal: #33302e;
+  --chimer-button-ink: #15120f;
+  --chimer-button-blue: hsl(var(--ml-site-blue));
+  --chimer-button-blue-glow: hsl(var(--ml-site-blue-glow));
+  --chimer-button-blue-deep: color-mix(in srgb, hsl(var(--ml-site-blue)) 66%, var(--chimer-button-ink) 34%);
+  --chimer-button-blue-border: color-mix(in srgb, hsl(var(--ml-site-blue-glow)) 70%, var(--chimer-button-ink) 30%);
+  --chimer-button-blue-bottom: color-mix(in srgb, hsl(var(--ml-site-blue)) 58%, var(--chimer-button-ink) 42%);
+
   width: 100%;
   margin: 0 auto;
   padding: clamp(1rem, 3vw, 2rem);
@@ -23,12 +36,39 @@
 .syncNotice {
   display: grid;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.85rem);
+  left: 50%;
+  z-index: 60;
+  width: min(50rem, calc(100vw - 2rem));
+  margin: 0;
   padding: 1rem;
   border: 1px solid hsl(var(--brand-orange) / 0.3);
-  border-radius: 0.5rem;
-  background: hsl(var(--brand-orange) / 0.1);
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 56%),
+    rgba(22, 19, 17, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 36px rgba(0, 0, 0, 0.42);
   color: hsl(var(--brand-orange-soft));
+  backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+  animation: syncNoticeSlideInTop 240ms ease-out both;
+}
+
+.syncNotice[data-app-bar-position="top"] {
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
+  animation-name: syncNoticeSlideInBottom;
+}
+
+.syncNoticeExiting {
+  animation: syncNoticeSlideOutTop 220ms ease-in forwards;
+}
+
+.syncNoticeExiting[data-app-bar-position="top"] {
+  animation-name: syncNoticeSlideOutBottom;
 }
 
 .syncNotice p {
@@ -80,24 +120,82 @@
 }
 
 .syncButton {
-  min-height: 2.5rem;
-  padding: 0 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0.5rem;
-  background: rgba(17, 17, 17, 0.86);
+  min-height: 2.75rem;
+  padding: 0.55rem 0.95rem;
+  border: 2px solid var(--chimer-button-blue-border);
+  border-bottom-width: 5px;
+  border-bottom-color: var(--chimer-button-blue-bottom);
+  border-radius: 0.7rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 46%),
+    linear-gradient(135deg, var(--chimer-button-orange) 0%, var(--chimer-button-copper) 48%, hsl(var(--ml-site-blue)) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 6px hsl(var(--brand-orange-glow) / 0.14);
   color: white;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .syncButton:hover {
-  border-color: hsl(var(--brand-orange));
-  background: hsl(var(--brand-orange-glow) / 0.28);
+  border-color: var(--chimer-button-blue-glow);
+  border-bottom-color: var(--chimer-button-blue-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, transparent 46%),
+    linear-gradient(135deg, var(--chimer-button-orange-red) 0%, var(--chimer-button-orange) 42%, hsl(var(--ml-site-blue-glow)) 100%);
 }
 
 .syncButton:disabled {
   cursor: wait;
   opacity: 0.58;
+}
+
+@keyframes syncNoticeSlideInTop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 1rem));
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes syncNoticeSlideOutTop {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 1rem));
+  }
+}
+
+@keyframes syncNoticeSlideInBottom {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(100% + 1rem));
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes syncNoticeSlideOutBottom {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(100% + 1rem));
+  }
 }
 
 .clock {
@@ -109,6 +207,9 @@
   border: 1px solid #3a3a3a;
   border-radius: 0.5rem;
   background: rgba(17, 17, 17, 0.82);
+  box-shadow:
+    inset 0 -3px 0 rgba(255, 255, 255, 0.05),
+    0 18px 34px rgba(0, 0, 0, 0.24);
   color: white;
   font-family: "Digital", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: clamp(4rem, 18vw, 10rem);
@@ -116,7 +217,15 @@
   text-align: center;
   user-select: none;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
+}
+
+.clock:focus-within {
+  border-color: hsl(var(--brand-orange));
+  box-shadow:
+    0 0 0 2px hsl(var(--brand-orange) / 0.28),
+    inset 0 -3px 0 rgba(255, 255, 255, 0.05),
+    0 18px 34px rgba(0, 0, 0, 0.24);
 }
 
 .timerStatusBadge {
@@ -147,11 +256,40 @@
 .timeUnit {
   display: inline-block;
   min-width: 1.4em;
-  transition: color 150ms ease;
+  transition:
+    color 150ms ease,
+    filter 150ms ease,
+    transform 140ms ease;
 }
 
 .timeUnit:hover {
   color: hsl(var(--brand-orange));
+}
+
+.timeUnitButton {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.2em;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+}
+
+.timeUnitButton:hover {
+  filter: drop-shadow(0 0 0.14em hsl(var(--brand-orange) / 0.44));
+}
+
+.timeUnitButton:active {
+  transform: translateY(0.03em) scale(0.985);
+}
+
+.timeUnitButton:focus-visible {
+  outline: 2px solid hsl(var(--brand-orange));
+  outline-offset: 0.08em;
 }
 
 .colon {
@@ -201,6 +339,12 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.5rem;
   background: rgba(17, 17, 17, 0.62);
+}
+
+.notificationControlStack {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
 }
 
 .switchRow {
@@ -290,19 +434,30 @@
 }
 
 .inlineButton {
-  min-height: 2.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.08);
+  min-height: 2.75rem;
+  padding: 0.55rem 0.8rem;
+  border: 2px solid var(--chimer-button-blue-border);
+  border-bottom-width: 5px;
+  border-bottom-color: var(--chimer-button-blue-bottom);
+  border-radius: 0.7rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-blue-glow) 0%, var(--chimer-button-blue) 48%, var(--chimer-button-blue-deep) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 6px hsl(var(--ml-site-blue-glow) / 0.3);
   color: #fff;
   cursor: pointer;
-  font-size: 0.86rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 
 .inlineButton:hover {
-  border-color: hsl(var(--brand-orange));
-  background: hsl(var(--brand-orange));
+  border-color: var(--chimer-button-blue-glow);
+  border-bottom-color: var(--chimer-button-blue-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-blue-glow) 0%, var(--chimer-button-blue) 52%, var(--chimer-button-blue-deep) 100%);
 }
 
 .durationPicker {
@@ -353,9 +508,145 @@
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.75rem;
   margin-top: 1.5rem;
+}
+
+.stepper {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.stepHeader {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.6rem;
+  background: rgba(17, 17, 17, 0.86);
+  color: #d8d8d8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: left;
+  transition: border-color 160ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.step:hover,
+.step:focus-visible {
+  border-color: hsl(var(--brand-orange));
+}
+
+.step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stepActive {
+  border-color: hsl(var(--brand-orange));
+  background: hsl(var(--brand-orange) / 0.16);
+}
+
+.stepComplete {
+  border-color: rgba(134, 239, 172, 0.6);
+  color: #c5ffd5;
+}
+
+.stepIndex {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.stepName {
+  display: block;
+  line-height: 1.1;
+}
+
+.presetSelection {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.6rem;
+  background: rgba(17, 17, 17, 0.62);
+}
+
+.presetSelectRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.presetSelectRow .secondaryButton {
+  width: 100%;
+}
+
+.stepContent {
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.7rem;
+  background: rgba(17, 17, 17, 0.56);
+  display: grid;
+  gap: 1rem;
+}
+
+.stepNavActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.stepNavSpacer {
+  flex: 1;
+}
+
+.quickPresetRow {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.quickPresetGrid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.presetSummary {
+  margin: 0.65rem 0 0;
+  color: hsl(var(--brand-orange-soft));
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.formHint,
+.powerNotice {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.powerNotice {
+  color: #ffd5a6;
 }
 
 .button,
@@ -368,34 +659,90 @@
   justify-content: center;
   gap: 0.5rem;
   margin-top: 0;
-  border: 0;
-  border-radius: 0.5rem;
-  background-color: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
+  padding: 0.78rem 1rem;
+  border: 2px solid var(--chimer-button-ink);
+  border-bottom-width: 5px;
+  border-radius: 0.78rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-blue-glow) 0%, var(--chimer-button-blue) 48%, var(--chimer-button-blue-deep) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 6px hsl(var(--ml-site-blue-glow) / 0.3);
+  color: white;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 700;
+  letter-spacing: 0;
 }
 
 .clockModeButton {
-  margin-top: 0;
-  border: 1px solid #4a4a4a;
-  background-color: rgba(17, 17, 17, 0.86);
-  color: white;
+  margin-top: 0.75rem;
+  border-color: var(--chimer-button-blue-border);
+  border-bottom-color: var(--chimer-button-blue-bottom);
 }
 
 .clockModeButton:hover {
-  border-color: hsl(var(--brand-orange));
-  background-color: #1d1d1d;
+  border-color: var(--chimer-button-blue-glow);
+  border-bottom-color: var(--chimer-button-blue-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-blue-glow) 0%, var(--chimer-button-blue) 52%, var(--chimer-button-blue-deep) 100%);
+}
+
+.tactileButton {
+  transition:
+    transform 200ms linear,
+    border-bottom-width 200ms linear,
+    box-shadow 200ms linear,
+    filter 200ms linear,
+    background-color 200ms linear,
+    border-color 200ms linear;
+  transform: translateY(-3px);
+}
+
+.tactileButton:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.05);
+}
+
+.tactileButton:active {
+  transform: translateY(0);
+  border-bottom-width: 2px;
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.38),
+    0 1px 6px rgba(0, 0, 0, 0.2);
+}
+
+.tactileButton:focus-visible {
+  outline: 2px solid hsl(var(--brand-orange));
+  outline-offset: 2px;
+}
+
+.tactileButton:disabled {
+  transform: none;
+  border-bottom-width: 2px;
+  filter: none;
+  box-shadow: none;
 }
 
 .button {
-  border: 0;
-  background-color: hsl(var(--brand-orange));
+  border-color: hsl(var(--brand-orange) / 0.62);
+  border-bottom-color: #8a410e;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-orange-red) 0%, var(--chimer-button-orange) 48%, var(--chimer-button-copper) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 6px hsl(var(--brand-orange-glow) / 0.34);
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
 }
 
 .button:hover {
-  background-color: hsl(var(--brand-orange-glow));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-orange) 0%, var(--chimer-button-copper) 52%, var(--chimer-button-walnut) 100%);
 }
 
 .button:disabled {
@@ -403,15 +750,35 @@
   opacity: 0.55;
 }
 
+.button:active:not(:disabled) {
+  border-bottom-width: 2px;
+  box-shadow:
+    inset 0 3px 10px rgba(84, 38, 0, 0.42),
+    0 1px 6px hsl(var(--brand-orange-glow) / 0.2);
+}
+
 .secondaryButton {
-  border: 1px solid #4a4a4a;
-  background-color: rgba(17, 17, 17, 0.86);
-  color: white;
+  border-color: var(--chimer-button-blue-border);
+  border-bottom-color: var(--chimer-button-blue-bottom);
 }
 
 .secondaryButton:hover {
-  border-color: hsl(var(--brand-orange));
-  background-color: #1d1d1d;
+  border-color: var(--chimer-button-blue-glow);
+  border-bottom-color: var(--chimer-button-blue-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, transparent 44%),
+    linear-gradient(135deg, var(--chimer-button-blue-glow) 0%, var(--chimer-button-blue) 52%, var(--chimer-button-blue-deep) 100%);
+}
+
+.syncButton:active:not(:disabled),
+.inlineButton:active:not(:disabled),
+.secondaryButton:active:not(:disabled),
+.clockModeButton:active:not(:disabled) {
+  border-color: var(--chimer-button-blue-border);
+  border-bottom-color: var(--chimer-button-blue-bottom);
+  box-shadow:
+    inset 0 3px 10px rgba(14, 42, 118, 0.42),
+    0 1px 6px hsl(var(--ml-site-blue-glow) / 0.18);
 }
 
 .error {
@@ -419,8 +786,56 @@
   color: hsl(var(--brand-orange-soft));
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .syncNotice,
+  .timeUnit,
+  .timeUnitButton,
+  .inlineButton,
+  .button,
+  .secondaryButton,
+  .clockModeButton,
+  .tactileButton {
+    animation: none;
+    transition: none;
+  }
+
+  .timeUnitButton:active,
+  .tactileButton,
+  .tactileButton:hover,
+  .tactileButton:active {
+    transform: none;
+  }
+}
+
 @media (max-width: 720px) {
+  .syncNotice {
+    top: calc(env(safe-area-inset-top, 0px) + 0.7rem);
+    left: 50%;
+    width: min(calc(100% - 1.5rem), 44rem);
+  }
+
+  .syncNotice[data-app-bar-position="top"] {
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.7rem);
+  }
+
   .proofGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stepHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .quickPresetGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stepNavActions {
+    justify-content: stretch;
+  }
+
+  .presetSelectRow {
     grid-template-columns: 1fr;
   }
 

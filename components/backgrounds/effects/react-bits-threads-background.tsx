@@ -156,12 +156,7 @@ export default function ReactBitsThreadsBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveThreadsOptions(reactBitsThreads),
-    [
-      reactBitsThreads?.color,
-      reactBitsThreads?.amplitude,
-      reactBitsThreads?.distance,
-      reactBitsThreads?.enableMouseInteraction,
-    ],
+    [reactBitsThreads],
   )
   const color = useMemo(() => parseHexColorToRgb(options.color), [options.color])
 

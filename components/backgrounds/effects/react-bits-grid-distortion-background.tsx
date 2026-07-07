@@ -87,16 +87,7 @@ export default function ReactBitsGridDistortionBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveGridDistortionOptions(reactBitsGridDistortion),
-    [
-      reactBitsGridDistortion?.grid,
-      reactBitsGridDistortion?.mouse,
-      reactBitsGridDistortion?.strength,
-      reactBitsGridDistortion?.relaxation,
-      reactBitsGridDistortion?.colorOne,
-      reactBitsGridDistortion?.colorTwo,
-      reactBitsGridDistortion?.colorThree,
-      reactBitsGridDistortion?.cursorInteraction,
-    ],
+    [reactBitsGridDistortion],
   )
 
   useEffect(() => {

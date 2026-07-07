@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useSettings } from "@/components/providers/settings-provider"
 import {
   clampActiveTimerMs,
   CHIMER_STORAGE_KEY,
@@ -19,11 +20,15 @@ import {
 import { canSyncAccountPreferencesFromSession } from "@/lib/account-preferences"
 import { fetchWithTimeout } from "@/lib/client-fetch"
 import { FEATURE_KEYS } from "@/lib/membership"
-import { SetTimer, type ChimerSettings } from "./set-timer"
+import { triggerHapticFeedback } from "@/lib/haptics"
+import { SetTimer, type ChimerSettings, type ChimerSetupStartOptions } from "./set-timer"
 import { RunningTimer } from "./running-timer"
 
 type TimerStatus = "idle" | "running" | "paused" | "complete" | "clock"
 type AccountSyncStatus = "checking" | "local" | "synced" | "conflict"
+const SOUND_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["chime", "both", "chime-haptic", "all"])
+const FLASH_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["flash", "both", "flash-haptic", "all"])
+const HAPTIC_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["haptic", "chime-haptic", "flash-haptic", "all"])
 
 type CurrentTimeParts = {
   time: string
@@ -84,6 +89,7 @@ function areChimerSettingsEqual(left: ChimerSettings, right: ChimerSettings) {
 
 export default function ChimerPage() {
   const pathname = usePathname() ?? ""
+  const { settings: appSettings } = useSettings()
   const startsInClockMode = pathname === "/clock" || pathname.startsWith("/clock/")
   const [settings, setSettings] = useState<ChimerSettings>(DEFAULT_CHIMER_SETTINGS as ChimerSettings)
   const [timerState, setTimerState] = useState<TimerState>(() => (
@@ -96,12 +102,16 @@ export default function ChimerPage() {
   const [fontSize, setFontSize] = useState(20)
   const [error, setError] = useState<string | null>(null)
   const [isAlerting, setIsAlerting] = useState(false)
+  const [runWithoutAnimatedBackground, setRunWithoutAnimatedBackground] = useState(false)
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [canSync, setCanSync] = useState(false)
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>("checking")
   const [accountSettings, setAccountSettings] = useState<ChimerSettings | null>(null)
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
+  const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
+  const hasAccountPreferenceAccess = accountSyncStatus === "synced" || accountSyncStatus === "conflict"
+  const canUseAccountColorControls = canUseCustomColors || hasAccountPreferenceAccess
 
   const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const alertTimeout = useRef<number | null>(null)
@@ -203,7 +213,11 @@ export default function ChimerPage() {
         }
 
         if (hasSavedPreference(preferences.chimerSettings)) {
-          const nextSettings = sanitizeChimerSettingsForEntitlements(preferences.chimerSettings, nextFeatureKeys) as ChimerSettings
+          const nextSettings = sanitizeChimerSettingsForEntitlements(
+            preferences.chimerSettings,
+            nextFeatureKeys,
+            { canUseAccountColorControls: true },
+          ) as ChimerSettings
           if (areChimerSettingsEqual(localSettings, nextSettings)) {
             setSettings(nextSettings)
             window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
@@ -218,7 +232,11 @@ export default function ChimerPage() {
           return
         }
 
-        const seedSettings = sanitizeChimerSettingsForEntitlements(localSettings, nextFeatureKeys) as ChimerSettings
+        const seedSettings = sanitizeChimerSettingsForEntitlements(
+          localSettings,
+          nextFeatureKeys,
+          { canUseAccountColorControls: true },
+        ) as ChimerSettings
         const seedResponse = await fetchWithTimeout("/api/account/preferences", {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -426,7 +444,7 @@ export default function ChimerPage() {
     }
   }, [getAudioContext])
 
-  const playChime = useCallback(() => {
+  const playChime = useCallback((volume: number = DEFAULT_CHIMER_SETTINGS.alertVolume) => {
     const context = audioContextRef.current
     if (!context || context.state !== "running") {
       if (timerStateRef.current.status !== "idle") {
@@ -437,8 +455,9 @@ export default function ChimerPage() {
 
     const now = context.currentTime
     const gain = context.createGain()
+    const peakGain = Math.max(0.0001, Math.min(0.18, 0.2 * volume))
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.02)
+    gain.gain.exponentialRampToValueAtTime(peakGain, now + 0.02)
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9)
     gain.connect(context.destination)
 
@@ -458,16 +477,21 @@ export default function ChimerPage() {
   }, [])
 
   const triggerAlert = useCallback(() => {
-    const alertType = settingsRef.current.alertType
+    const currentSettings = settingsRef.current
+    const alertType = currentSettings.alertType
 
-    if (alertType === "chime" || alertType === "both") {
-      playChime()
+    if (SOUND_ALERT_TYPES.has(alertType)) {
+      playChime(currentSettings.alertVolume)
     }
 
-    if (alertType === "flash" || alertType === "both") {
+    if (FLASH_ALERT_TYPES.has(alertType)) {
       showFlashAlert()
     }
-  }, [playChime, showFlashAlert])
+
+    if (HAPTIC_ALERT_TYPES.has(alertType)) {
+      triggerHapticFeedback(appSettings.hapticFeedbackEnabled, currentSettings.hapticIntensityMs)
+    }
+  }, [appSettings.hapticFeedbackEnabled, playChime, showFlashAlert])
 
   const completeActiveTimer = useCallback((state: TimerState) => {
     clearTimerInterval()
@@ -482,6 +506,7 @@ export default function ChimerPage() {
 
     timerStateRef.current = completedState
     setTimerState(completedState)
+    setRunWithoutAnimatedBackground(false)
     triggerAlert()
   }, [clearTimerInterval, triggerAlert])
 
@@ -535,6 +560,7 @@ export default function ChimerPage() {
     setSettings((current) => sanitizeChimerSettingsForEntitlements(
       { ...current, ...nextSettings },
       featureKeysRef.current,
+      { canUseAccountColorControls },
     ) as ChimerSettings)
   }
 
@@ -551,32 +577,37 @@ export default function ChimerPage() {
   const testAlert = async () => {
     setError(null)
     const alertType = settingsRef.current.alertType
-    if ((alertType === "chime" || alertType === "both") && !(await unlockAudio())) {
+    if (SOUND_ALERT_TYPES.has(alertType) && !(await unlockAudio())) {
       setError("Audio could not be started by this browser. Check site sound permissions and try Test Alert again.")
-      if (alertType === "both") {
+      if (FLASH_ALERT_TYPES.has(alertType)) {
         showFlashAlert()
+      }
+      if (HAPTIC_ALERT_TYPES.has(alertType)) {
+        triggerHapticFeedback(appSettings.hapticFeedbackEnabled, settingsRef.current.hapticIntensityMs)
       }
       return
     }
     triggerAlert()
   }
 
-  const startTimer = async () => {
+  const startTimer = async (options: ChimerSetupStartOptions = {}) => {
     const totalMs = getTotalTimerMs(settings.hours, settings.minutes)
     if (totalMs <= 0) {
       setError("Set a duration greater than zero.")
       return
     }
+    setRunWithoutAnimatedBackground(Boolean(options.startWithoutAnimatedBackground))
+    setError(null)
 
     const alertType = settings.alertType
-    if ((alertType === "chime" || alertType === "both") && !(await unlockAudio())) {
+    if (SOUND_ALERT_TYPES.has(alertType) && !(await unlockAudio())) {
       setError("Audio could not be started by this browser. The timer will run, but the chime may not sound.")
     } else {
       setError(null)
     }
 
     const now = Date.now()
-    const intervalMs = getIntervalMs(settings, totalMs)
+    const intervalMs = options.skipIntervalCues ? null : getIntervalMs(settings, totalMs)
     const nextAlertAtMs = intervalMs && intervalMs < totalMs ? now + intervalMs : null
     const nextState: TimerState = {
       status: "running",
@@ -597,6 +628,7 @@ export default function ChimerPage() {
     clearTimerInterval()
     setError(null)
     setIsAlerting(false)
+    setRunWithoutAnimatedBackground(false)
 
     const clockState = createClockTimerState()
 
@@ -651,6 +683,7 @@ export default function ChimerPage() {
     }
     setError(null)
     setIsAlerting(false)
+    setRunWithoutAnimatedBackground(false)
     timerStateRef.current = idleTimerState
     setTimerState(idleTimerState)
     setIsFullscreen(false)
@@ -805,7 +838,6 @@ export default function ChimerPage() {
   const activeTimeDisplay = formatDurationParts(timerState.remainingMs)
   const timeDisplay = formatDurationParts(timerState.remainingMs, { showTimerSeconds: settings.showTimerSeconds })
   const isTimerActive = timerState.status !== "idle"
-  const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
   const backgroundCategory = startsInClockMode ? "clock" : "chimer"
 
   return (
@@ -824,6 +856,7 @@ export default function ChimerPage() {
             onSettingsChange={updateSettings}
             onStartTimer={startTimer}
             onStartClock={startClock}
+            hapticsEnabled={appSettings.hapticFeedbackEnabled}
             onTestAlert={testAlert}
             onUseDeviceSettings={useDeviceSettingsForAccount}
             onUseSavedSettings={useSavedAccountSettings}
@@ -837,7 +870,7 @@ export default function ChimerPage() {
             isFullscreen={isFullscreen}
             isAlerting={isAlerting}
             fontSize={fontSize}
-            movingBackgroundEnabled={settings.movingBackgroundEnabled}
+            movingBackgroundEnabled={runWithoutAnimatedBackground ? false : settings.movingBackgroundEnabled}
             backgroundId={settings.backgroundId}
             keepTimerScreenAwake={settings.keepTimerScreenAwake}
             showTimerSeconds={settings.showTimerSeconds}
@@ -846,6 +879,19 @@ export default function ChimerPage() {
             primaryFontColor={settings.primaryFontColor}
             secondaryFontColor={settings.secondaryFontColor}
             clockModeFontColor={settings.clockModeFontColor}
+            clockFontFamily={settings.clockFontFamily}
+            clockStrokeEnabled={settings.clockStrokeEnabled}
+            clockStrokeColor={settings.clockStrokeColor}
+            clockStrokeWidth={settings.clockStrokeWidth}
+            clockShadowEnabled={settings.clockShadowEnabled}
+            clockShadowColor={settings.clockShadowColor}
+            clockShadowStrength={settings.clockShadowStrength}
+            clockShadowDirection={settings.clockShadowDirection}
+            clockShadowDistance={settings.clockShadowDistance}
+            clockShadowFeather={settings.clockShadowFeather}
+            clockGlowEnabled={settings.clockGlowEnabled}
+            clockGlowColor={settings.clockGlowColor}
+            clockGlowStrength={settings.clockGlowStrength}
             movingBackgroundMainColor={settings.movingBackgroundMainColor}
             movingBackgroundOrbColor={settings.movingBackgroundOrbColor}
             sparklesMaxSize={settings.sparklesMaxSize}
@@ -1745,6 +1791,7 @@ export default function ChimerPage() {
             hexGridActivePercent={settings.hexGridActivePercent}
             hexGridOpacity={settings.hexGridOpacity}
             canUseCustomColors={canUseCustomColors}
+            canUseAccountColorControls={canUseAccountColorControls}
             featureKeys={featureKeys}
             activeIntervalMinutes={timerState.intervalMs ? Math.max(1, Math.round(timerState.intervalMs / 60_000)) : null}
             onClose={endTimer}
@@ -1755,6 +1802,7 @@ export default function ChimerPage() {
             onAdjustActiveRemainingMinutes={adjustActiveRemainingMinutes}
             onSetActiveRemainingDuration={setActiveRemainingDuration}
             onSetActiveIntervalMinutes={setActiveIntervalMinutes}
+            hapticsEnabled={appSettings.hapticFeedbackEnabled}
           />
         )}
 

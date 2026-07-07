@@ -123,20 +123,7 @@ export default function ReactBitsParticlesBackground({
   const mouseRef = useRef({ x: 0, y: 0 })
   const options = useMemo(
     () => resolveParticlesOptions(reactBitsParticles),
-    [
-      reactBitsParticles?.particleCount,
-      reactBitsParticles?.particleSpread,
-      reactBitsParticles?.speed,
-      reactBitsParticles?.colors,
-      reactBitsParticles?.moveParticlesOnHover,
-      reactBitsParticles?.particleHoverFactor,
-      reactBitsParticles?.alphaParticles,
-      reactBitsParticles?.particleBaseSize,
-      reactBitsParticles?.sizeRandomness,
-      reactBitsParticles?.cameraDistance,
-      reactBitsParticles?.disableRotation,
-      reactBitsParticles?.pixelRatio,
-    ],
+    [reactBitsParticles],
   )
 
   useEffect(() => {

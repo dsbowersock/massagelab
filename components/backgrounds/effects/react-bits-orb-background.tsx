@@ -207,14 +207,7 @@ export default function ReactBitsOrbBackground({
   const rotationRef = useRef(0)
   const options = useMemo(
     () => resolveOrbOptions(reactBitsOrb),
-    [
-      reactBitsOrb?.hue,
-      reactBitsOrb?.hoverIntensity,
-      reactBitsOrb?.rotateOnHover,
-      reactBitsOrb?.forceHoverState,
-      reactBitsOrb?.backgroundColor,
-      reactBitsOrb?.cursorInteraction,
-    ],
+    [reactBitsOrb],
   )
 
   useEffect(() => {

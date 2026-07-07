@@ -166,21 +166,7 @@ export default function ReactBitsWavesBackground({
   const noiseRef = useRef(new Noise(0.5))
   const options = useMemo(
     () => resolveWavesOptions(reactBitsWaves),
-    [
-      reactBitsWaves?.lineColor,
-      reactBitsWaves?.backgroundColor,
-      reactBitsWaves?.transparentBackground,
-      reactBitsWaves?.waveSpeedX,
-      reactBitsWaves?.waveSpeedY,
-      reactBitsWaves?.waveAmpX,
-      reactBitsWaves?.waveAmpY,
-      reactBitsWaves?.xGap,
-      reactBitsWaves?.yGap,
-      reactBitsWaves?.friction,
-      reactBitsWaves?.tension,
-      reactBitsWaves?.maxCursorMove,
-      reactBitsWaves?.cursorInteraction,
-    ],
+    [reactBitsWaves],
   )
 
   useEffect(() => {

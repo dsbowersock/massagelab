@@ -161,20 +161,7 @@ export default function ReactBitsLightRaysBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveLightRaysOptions(reactBitsLightRays),
-    [
-      reactBitsLightRays?.raysOrigin,
-      reactBitsLightRays?.raysColor,
-      reactBitsLightRays?.raysSpeed,
-      reactBitsLightRays?.lightSpread,
-      reactBitsLightRays?.rayLength,
-      reactBitsLightRays?.pulsating,
-      reactBitsLightRays?.fadeDistance,
-      reactBitsLightRays?.saturation,
-      reactBitsLightRays?.followMouse,
-      reactBitsLightRays?.mouseInfluence,
-      reactBitsLightRays?.noiseAmount,
-      reactBitsLightRays?.distortion,
-    ],
+    [reactBitsLightRays],
   )
   const raysColor = useMemo(() => parseHexColorToRgb(options.raysColor), [options.raysColor])
 

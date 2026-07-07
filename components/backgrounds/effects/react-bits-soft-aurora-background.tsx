@@ -198,22 +198,7 @@ export default function ReactBitsSoftAuroraBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveSoftAuroraOptions(reactBitsSoftAurora),
-    [
-      reactBitsSoftAurora?.speed,
-      reactBitsSoftAurora?.scale,
-      reactBitsSoftAurora?.brightness,
-      reactBitsSoftAurora?.color1,
-      reactBitsSoftAurora?.color2,
-      reactBitsSoftAurora?.noiseFrequency,
-      reactBitsSoftAurora?.noiseAmplitude,
-      reactBitsSoftAurora?.bandHeight,
-      reactBitsSoftAurora?.bandSpread,
-      reactBitsSoftAurora?.octaveDecay,
-      reactBitsSoftAurora?.layerOffset,
-      reactBitsSoftAurora?.colorSpeed,
-      reactBitsSoftAurora?.enableMouseInteraction,
-      reactBitsSoftAurora?.mouseInfluence,
-    ],
+    [reactBitsSoftAurora],
   )
   const colorOne = useMemo(() => parseHexColorToRgb(options.color1), [options.color1])
   const colorTwo = useMemo(() => parseHexColorToRgb(options.color2), [options.color2])

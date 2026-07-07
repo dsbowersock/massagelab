@@ -135,23 +135,7 @@ export default function ReactBitsRadarBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveRadarOptions(reactBitsRadar),
-    [
-      reactBitsRadar?.speed,
-      reactBitsRadar?.scale,
-      reactBitsRadar?.ringCount,
-      reactBitsRadar?.spokeCount,
-      reactBitsRadar?.ringThickness,
-      reactBitsRadar?.spokeThickness,
-      reactBitsRadar?.sweepSpeed,
-      reactBitsRadar?.sweepWidth,
-      reactBitsRadar?.sweepLobes,
-      reactBitsRadar?.color,
-      reactBitsRadar?.backgroundColor,
-      reactBitsRadar?.falloff,
-      reactBitsRadar?.brightness,
-      reactBitsRadar?.enableMouseInteraction,
-      reactBitsRadar?.mouseInfluence,
-    ],
+    [reactBitsRadar],
   )
   const color = useMemo(() => parseHexColorToRgb(options.color), [options.color])
   const backgroundColor = useMemo(

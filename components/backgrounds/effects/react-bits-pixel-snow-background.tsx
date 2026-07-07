@@ -210,20 +210,7 @@ export default function ReactBitsPixelSnowBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolvePixelSnowOptions(reactBitsPixelSnow),
-    [
-      reactBitsPixelSnow?.color,
-      reactBitsPixelSnow?.flakeSize,
-      reactBitsPixelSnow?.minFlakeSize,
-      reactBitsPixelSnow?.pixelResolution,
-      reactBitsPixelSnow?.speed,
-      reactBitsPixelSnow?.depthFade,
-      reactBitsPixelSnow?.farPlane,
-      reactBitsPixelSnow?.brightness,
-      reactBitsPixelSnow?.gamma,
-      reactBitsPixelSnow?.density,
-      reactBitsPixelSnow?.variant,
-      reactBitsPixelSnow?.direction,
-    ],
+    [reactBitsPixelSnow],
   )
   const color = useMemo(() => parseHexColorToRgb(options.color), [options.color])
 

@@ -196,16 +196,7 @@ export default function ReactBitsDitherBackground({
   const mouseRef = useRef<[number, number]>([0, 0])
   const options = useMemo(
     () => resolveDitherOptions(reactBitsDither),
-    [
-      reactBitsDither?.color,
-      reactBitsDither?.waveSpeed,
-      reactBitsDither?.waveFrequency,
-      reactBitsDither?.waveAmplitude,
-      reactBitsDither?.colorNum,
-      reactBitsDither?.pixelSize,
-      reactBitsDither?.mouseInteraction,
-      reactBitsDither?.mouseRadius,
-    ],
+    [reactBitsDither],
   )
 
   useEffect(() => {

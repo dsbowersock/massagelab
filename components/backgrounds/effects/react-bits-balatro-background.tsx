@@ -144,22 +144,7 @@ export default function ReactBitsBalatroBackground({
   const mouseRef = useRef<[number, number]>([0.5, 0.5])
   const options = useMemo(
     () => resolveBalatroOptions(reactBitsBalatro),
-    [
-      reactBitsBalatro?.spinRotation,
-      reactBitsBalatro?.spinSpeed,
-      reactBitsBalatro?.offsetX,
-      reactBitsBalatro?.offsetY,
-      reactBitsBalatro?.color1,
-      reactBitsBalatro?.color2,
-      reactBitsBalatro?.color3,
-      reactBitsBalatro?.contrast,
-      reactBitsBalatro?.lighting,
-      reactBitsBalatro?.spinAmount,
-      reactBitsBalatro?.pixelFilter,
-      reactBitsBalatro?.spinEase,
-      reactBitsBalatro?.isRotate,
-      reactBitsBalatro?.mouseInteraction,
-    ],
+    [reactBitsBalatro],
   )
 
   useEffect(() => {

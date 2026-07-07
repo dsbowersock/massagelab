@@ -227,16 +227,7 @@ export default function ReactBitsBeamsBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveBeamsOptions(reactBitsBeams),
-    [
-      reactBitsBeams?.beamWidth,
-      reactBitsBeams?.beamHeight,
-      reactBitsBeams?.beamNumber,
-      reactBitsBeams?.lightColor,
-      reactBitsBeams?.speed,
-      reactBitsBeams?.noiseIntensity,
-      reactBitsBeams?.scale,
-      reactBitsBeams?.rotation,
-    ],
+    [reactBitsBeams],
   )
   const lightColor = useMemo(() => parseHexColorToRgb(options.lightColor), [options.lightColor])
 

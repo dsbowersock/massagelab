@@ -1,12 +1,20 @@
 "use client"
 
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BellRing, Clock, MonitorSmartphone, Play, SlidersHorizontal } from "lucide-react"
 import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
 import type { BackgroundCategory, BackgroundDefinition, BackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import { PageHeading } from "@/components/ui/page-heading"
+import { useSettings } from "@/components/providers/settings-provider"
+import { withChimerPress } from "@/lib/chimer-press-handler"
+import { CTAButton } from "@/components/chimer-controls/CTAButton"
+import { NumberField } from "@/components/chimer-controls/NumberField"
+import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
+import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import {
   getAceternity3DGlobeScaleDisplayPercent,
   getAceternity3DGlobeScaleFromDisplayPercent,
+  sanitizeChimerSettings,
 } from "@/lib/chimer-timer"
 import styles from "./set-timer.module.css"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
@@ -14,6 +22,175 @@ import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 export {
   getAceternity3DGlobeScaleDisplayPercent,
   getAceternity3DGlobeScaleFromDisplayPercent,
+}
+
+const CHIMER_SETUP_PRESETS_STORAGE_KEY = "chimer-setup-presets-v1"
+const CHIMER_LAST_SETUP_STORAGE_KEY = "chimer-last-setup-v1"
+const MAX_CHIMER_SETUP_PRESETS = 12
+const QUICK_TIME_PRESETS_MINUTES = [1, 5, 10, 15, 20, 30, 45, 60] as const
+const CHIMER_SETUP_STEPS = [
+  "Enter time",
+  "Choose interval",
+  "Choose notification",
+  "Choose background",
+  "Start timer",
+] as const
+
+type ChimerSetupPresetState = Pick<
+  ChimerSettings,
+  | "hours"
+  | "minutes"
+  | "intervalType"
+  | "customInterval"
+  | "areasToMassage"
+  | "alertType"
+  | "alertVolume"
+  | "hapticIntensityMs"
+  | "movingBackgroundEnabled"
+  | "backgroundId"
+> & {
+  skipIntervalCues: boolean
+}
+
+type ChimerSetupPreset = {
+  id: string
+  name: string
+  createdAt: number
+  settings: ChimerSetupPresetState
+}
+
+export type ChimerSetupStartOptions = {
+  startWithoutAnimatedBackground?: boolean
+  skipIntervalCues?: boolean
+}
+
+const createChimerSetupPresetState = (
+  settings: ChimerSettings,
+  skipIntervalCues = false,
+): ChimerSetupPresetState => ({
+  hours: settings.hours,
+  minutes: settings.minutes,
+  intervalType: settings.intervalType,
+  customInterval: settings.customInterval,
+  areasToMassage: settings.areasToMassage,
+  alertType: settings.alertType,
+  alertVolume: settings.alertVolume,
+  hapticIntensityMs: settings.hapticIntensityMs,
+  movingBackgroundEnabled: settings.movingBackgroundEnabled,
+  backgroundId: settings.backgroundId,
+  skipIntervalCues,
+})
+
+const readChimerSetupPresets = (): ChimerSetupPreset[] => {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  const raw = window.localStorage.getItem(CHIMER_SETUP_PRESETS_STORAGE_KEY)
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    const normalized = parsed.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return []
+      }
+
+      const candidate = entry as {
+        id?: unknown
+        name?: unknown
+        createdAt?: unknown
+        settings?: {
+          skipIntervalCues?: unknown
+        }
+      }
+
+      if (typeof candidate.id !== "string" || candidate.id.trim().length === 0) {
+        return []
+      }
+
+      if (!candidate.settings) {
+        return []
+      }
+
+      const sanitized = sanitizeChimerSettings(candidate.settings as ChimerSettings)
+      const intervalSkip =
+        candidate.settings && typeof candidate.settings === "object"
+          ? typeof candidate.settings.skipIntervalCues === "boolean"
+            ? candidate.settings.skipIntervalCues
+            : false
+          : false
+      return [{
+        id: candidate.id,
+        name:
+          typeof candidate.name === "string" && candidate.name.trim().length > 0
+            ? candidate.name.trim()
+            : "Saved setup",
+        createdAt: Number.isFinite(candidate.createdAt as number) ? Number(candidate.createdAt) : Date.now(),
+        settings: {
+          ...createChimerSetupPresetState(sanitized as ChimerSettings),
+          skipIntervalCues: intervalSkip,
+        },
+      }]
+    })
+
+    return normalized
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, MAX_CHIMER_SETUP_PRESETS)
+  } catch {
+    window.localStorage.removeItem(CHIMER_SETUP_PRESETS_STORAGE_KEY)
+    return []
+  }
+}
+
+const readLastChimerSetupPreset = (): ChimerSetupPresetState | null => {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  const raw = window.localStorage.getItem(CHIMER_LAST_SETUP_STORAGE_KEY)
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object") {
+      return null
+    }
+
+    const sanitized = sanitizeChimerSettings(parsed as ChimerSettings)
+    const parsedState = parsed as ChimerSetupPresetState & { skipIntervalCues?: unknown }
+    return {
+      ...createChimerSetupPresetState(sanitized as ChimerSettings),
+      skipIntervalCues: typeof parsedState.skipIntervalCues === "boolean" ? parsedState.skipIntervalCues : false,
+    }
+  } catch {
+    window.localStorage.removeItem(CHIMER_LAST_SETUP_STORAGE_KEY)
+    return null
+  }
+}
+
+const writeChimerSetupPresets = (presets: ChimerSetupPreset[]) => {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.setItem(CHIMER_SETUP_PRESETS_STORAGE_KEY, JSON.stringify(presets))
+}
+
+const writeChimerLastSetupPreset = (preset: ChimerSetupPresetState) => {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.setItem(CHIMER_LAST_SETUP_STORAGE_KEY, JSON.stringify(preset))
 }
 
 export const COLOR_HARMONY_OPTIONS = [
@@ -474,7 +651,9 @@ export interface ChimerSettings {
   intervalType: "preset" | "custom" | "areas"
   customInterval: number
   areasToMassage: number
-  alertType: "chime" | "flash" | "both" | "silent"
+  alertType: "chime" | "flash" | "both" | "haptic" | "chime-haptic" | "flash-haptic" | "all" | "silent"
+  alertVolume: number
+  hapticIntensityMs: number
   movingBackgroundEnabled: boolean
   backgroundId: BackgroundId
   keepTimerScreenAwake: boolean
@@ -484,6 +663,19 @@ export interface ChimerSettings {
   primaryFontColor: string
   secondaryFontColor: string
   clockModeFontColor: string
+  clockFontFamily: "digital" | "mono" | "sans" | "serif"
+  clockStrokeEnabled: boolean
+  clockStrokeColor: string
+  clockStrokeWidth: number
+  clockShadowEnabled: boolean
+  clockShadowColor: string
+  clockShadowStrength: number
+  clockShadowDirection: number
+  clockShadowDistance: number
+  clockShadowFeather: number
+  clockGlowEnabled: boolean
+  clockGlowColor: string
+  clockGlowStrength: number
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
   sparklesMaxSize: number
@@ -4435,12 +4627,27 @@ interface SetTimerProps {
   backgroundCategory: BackgroundCategory
   onTimeClick: (unit: "hours" | "minutes") => void
   onSettingsChange: (settings: Partial<ChimerSettings>) => void
-  onStartTimer: () => void
+  onStartTimer: (options?: ChimerSetupStartOptions) => void
   onStartClock: () => void
+  hapticsEnabled: boolean
   onTestAlert: () => void
   onUseDeviceSettings: () => void
   onUseSavedSettings: () => void
 }
+
+const ALERT_TYPE_OPTIONS: Array<{ value: ChimerSettings["alertType"]; label: string }> = [
+  { value: "chime", label: "Sound" },
+  { value: "flash", label: "Visual flash" },
+  { value: "haptic", label: "Haptic cue" },
+  { value: "both", label: "Sound + visual" },
+  { value: "chime-haptic", label: "Sound + haptic" },
+  { value: "flash-haptic", label: "Visual + haptic" },
+  { value: "all", label: "Sound + visual + haptic" },
+  { value: "silent", label: "Silent" },
+]
+
+const SOUND_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["chime", "both", "chime-haptic", "all"])
+const HAPTIC_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["haptic", "chime-haptic", "flash-haptic", "all"])
 
 const timerProofs = [
   {
@@ -4472,11 +4679,26 @@ export function SetTimer({
   onSettingsChange,
   onStartTimer,
   onStartClock,
+  hapticsEnabled,
   onTestAlert,
   onUseDeviceSettings,
   onUseSavedSettings,
 }: SetTimerProps) {
+  const [activeStep, setActiveStep] = useState(0)
+  const [savedPresets, setSavedPresets] = useState<ChimerSetupPreset[]>([])
+  const [lastSetupPreset, setLastSetupPreset] = useState<ChimerSetupPresetState | null>(null)
+  const [selectedPresetId, setSelectedPresetId] = useState("")
+  const [newPresetName, setNewPresetName] = useState("")
+  const [skipIntervalCues, setSkipIntervalCues] = useState(false)
+  const { settings: appShellSettings } = useSettings()
+  const [syncNoticeDismissed, setSyncNoticeDismissed] = useState(false)
+  const [isSyncNoticeExiting, setIsSyncNoticeExiting] = useState(false)
+  const syncNoticeDismissTimerRef = useRef<number | null>(null)
+  const syncNoticeExitTimerRef = useRef<number | null>(null)
   const isTimerSet = totalDurationMs > 0
+  const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
+  const setupPresetState = useMemo(() => createChimerSetupPresetState(settings, skipIntervalCues), [settings, skipIntervalCues])
+
   const syncMessage = {
     checking: "Checking account sync. Changes stay on this device until sync is available.",
     local: "Settings stay on this device. Sign in or create an account to sync Chimer settings across devices.",
@@ -4497,6 +4719,145 @@ export function SetTimer({
       })
     })
   }
+
+  useEffect(() => {
+    setSavedPresets(readChimerSetupPresets())
+    setLastSetupPreset(readLastChimerSetupPreset())
+  }, [])
+
+  const clearSyncNoticeTimers = useCallback(() => {
+    if (syncNoticeDismissTimerRef.current) {
+      window.clearTimeout(syncNoticeDismissTimerRef.current)
+      syncNoticeDismissTimerRef.current = null
+    }
+
+    if (syncNoticeExitTimerRef.current) {
+      window.clearTimeout(syncNoticeExitTimerRef.current)
+      syncNoticeExitTimerRef.current = null
+    }
+  }, [])
+
+  const dismissSyncNotice = useCallback(() => {
+    clearSyncNoticeTimers()
+    setIsSyncNoticeExiting(true)
+    syncNoticeExitTimerRef.current = window.setTimeout(() => {
+      setSyncNoticeDismissed(true)
+      setIsSyncNoticeExiting(false)
+      syncNoticeExitTimerRef.current = null
+    }, 260)
+  }, [clearSyncNoticeTimers])
+
+  useEffect(() => {
+    setSyncNoticeDismissed(false)
+    setIsSyncNoticeExiting(false)
+    clearSyncNoticeTimers()
+
+    const visibleDuration = syncStatus === "conflict" ? 12000 : 7500
+    syncNoticeDismissTimerRef.current = window.setTimeout(() => {
+      dismissSyncNotice()
+    }, visibleDuration)
+
+    return clearSyncNoticeTimers
+  }, [clearSyncNoticeTimers, dismissSyncNotice, syncStatus])
+
+  const handleUseDeviceSettingsClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    withChimerPress(() => {
+      dismissSyncNotice()
+      onUseDeviceSettings()
+    }, { hapticsEnabled })(event)
+  }, [dismissSyncNotice, hapticsEnabled, onUseDeviceSettings])
+
+  const handleUseSavedSettingsClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    withChimerPress(() => {
+      dismissSyncNotice()
+      onUseSavedSettings()
+    }, { hapticsEnabled })(event)
+  }, [dismissSyncNotice, hapticsEnabled, onUseSavedSettings])
+
+  const isFinalStep = activeStep === CHIMER_SETUP_STEPS.length - 1
+  const canAdvanceStep = activeStep !== 0 || totalDurationMs > 0
+
+  const selectedPreset = savedPresets.find((entry) => entry.id === selectedPresetId) ?? null
+
+  const nextStep = () => {
+    setActiveStep((current) => Math.min(current + 1, CHIMER_SETUP_STEPS.length - 1))
+  }
+
+  const previousStep = () => {
+    setActiveStep((current) => Math.max(current - 1, 0))
+  }
+
+  const formatDurationMinutes = (hours: number, minutes: number) => {
+    if (hours > 0) {
+      return `${hours}h ${minutes.toString().padStart(2, "0")}m`
+    }
+    return `${minutes}m`
+  }
+
+  const applyPreset = (preset: ChimerSetupPresetState) => {
+    const { skipIntervalCues: intervalSkip, ...settingsToApply } = preset
+    onSettingsChange(settingsToApply)
+    setSkipIntervalCues(intervalSkip)
+  }
+
+  const loadLastSetup = () => {
+    if (lastSetupPreset) {
+      applyPreset(lastSetupPreset)
+    }
+  }
+
+  const saveCurrentPreset = () => {
+    const now = Date.now()
+    const name = newPresetName.trim() || `Preset ${new Date(now).toLocaleDateString()} ${new Date(now).toLocaleTimeString()}`
+    const nextPreset: ChimerSetupPreset = {
+      id: `chimer-setup-${now}`,
+      name,
+      createdAt: now,
+      settings: setupPresetState,
+    }
+
+    const remaining = savedPresets.filter((entry) => entry.id !== nextPreset.id)
+    const merged = [nextPreset, ...remaining].slice(0, MAX_CHIMER_SETUP_PRESETS)
+
+    setSavedPresets(merged)
+    setNewPresetName("")
+    writeChimerSetupPresets(merged)
+    writeChimerLastSetupPreset(setupPresetState)
+    setLastSetupPreset(setupPresetState)
+  }
+
+  const applySelectedPreset = () => {
+    if (selectedPreset) {
+      applyPreset(selectedPreset.settings)
+    }
+  }
+
+  const handleStartTimer = (startWithoutAnimatedBackground = false) => {
+    writeChimerLastSetupPreset(setupPresetState)
+    setLastSetupPreset(setupPresetState)
+    onStartTimer({
+      startWithoutAnimatedBackground,
+      skipIntervalCues,
+    })
+  }
+
+  const setQuickDuration = (totalMinutes: number) => {
+    const safeMinutes = Math.max(1, Math.min(240, totalMinutes))
+    const nextHours = Math.floor(safeMinutes / 60)
+    const nextMinutes = safeMinutes % 60
+    onSettingsChange({ hours: nextHours, minutes: nextMinutes })
+  }
+
+  const stepIntervalMode = skipIntervalCues ? "none" : settings.intervalType
+  const selectedAlertUsesSound = SOUND_ALERT_TYPES.has(settings.alertType)
+  const selectedAlertUsesHaptics = HAPTIC_ALERT_TYPES.has(settings.alertType)
+  const canGoToStep = (stepIndex: number) => (
+    stepIndex <= activeStep || isTimerSet || stepIndex === 0
+  )
+
+  const isStepComplete = (stepIndex: number) => (
+    stepIndex < activeStep || (stepIndex === 0 ? isTimerSet : false)
+  )
 
   const renderBackgroundControls = (option: BackgroundDefinition) => {
     if (option.id === "aceternity-gradient-animation") {
@@ -6444,7 +6805,11 @@ export function SetTimer({
                   />
                 </label>
               </div>
-              <button type="button" className={styles.inlineButton} onClick={useCurrentLocationForGlobe}>
+              <button
+                type="button"
+                className={`${styles.inlineButton} ${styles.tactileButton}`}
+                onClick={withPress(useCurrentLocationForGlobe)}
+              >
                 Use my location
               </button>
               <label className={styles.textField}>
@@ -16132,19 +16497,34 @@ export function SetTimer({
         <p className={styles.subtitle}>Massage session timer for treatment pacing, interval chimes, and full-screen clock visibility.</p>
       </div>
 
-      <div className={styles.syncNotice}>
-        <p>{syncMessage}</p>
-        {syncStatus === "conflict" && (
-          <div className={styles.syncActions}>
-            <button type="button" className={styles.syncButton} onClick={onUseDeviceSettings} disabled={isResolvingSync}>
-              Keep this device settings
-            </button>
-            <button type="button" className={styles.syncButton} onClick={onUseSavedSettings} disabled={isResolvingSync}>
-              Use saved favorites
-            </button>
-          </div>
-        )}
-      </div>
+      {!syncNoticeDismissed && (
+        <div
+          className={`${styles.syncNotice} ${isSyncNoticeExiting ? styles.syncNoticeExiting : ""}`}
+          data-app-bar-position={appShellSettings.appBarPosition}
+        >
+          <p>{syncMessage}</p>
+          {syncStatus === "conflict" && (
+            <div className={styles.syncActions}>
+              <button
+                type="button"
+                className={`${styles.syncButton} ${styles.tactileButton}`}
+                onClick={handleUseDeviceSettingsClick}
+                disabled={isResolvingSync}
+              >
+                Keep this device settings
+              </button>
+              <button
+                type="button"
+                className={`${styles.syncButton} ${styles.tactileButton}`}
+                onClick={handleUseSavedSettingsClick}
+                disabled={isResolvingSync}
+              >
+                Use saved favorites
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={styles.proofGrid} aria-label="Chimer massage session timer features">
         {timerProofs.map((proof) => {
@@ -16161,142 +16541,345 @@ export function SetTimer({
         })}
       </div>
 
-      <button
-        type="button"
-        className={styles.clock}
-        onClick={() => onTimeClick("minutes")}
-        aria-label="Set session length"
-      >
-        <span className={`${styles.timerStatusBadge} ${isTimerSet ? styles.timerSet : styles.timerUnset}`}>
-          {isTimerSet ? "Set" : "Unset"}
-        </span>
-        <span className={styles.timeUnit} onClick={(event) => {
-          event.stopPropagation()
-          onTimeClick("hours")
-        }}>
-          {settings.hours.toString().padStart(2, "0")}
-        </span>
-        <span className={styles.colon}>:</span>
-        <span className={styles.timeUnit} onClick={(event) => {
-          event.stopPropagation()
-          onTimeClick("minutes")
-        }}>
-          {settings.minutes.toString().padStart(2, "0")}
-        </span>
-      </button>
+      <div className={styles.stepper}>
+        <div className={styles.stepHeader}>
+          {CHIMER_SETUP_STEPS.map((stepName, stepIndex) => (
+            <button
+              key={stepName}
+              type="button"
+              className={`
+                ${styles.step}
+                ${stepIndex === activeStep ? styles.stepActive : ""}
+                ${isStepComplete(stepIndex) ? styles.stepComplete : ""}
+              `}
+              disabled={!canGoToStep(stepIndex)}
+              onClick={withPress(() => setActiveStep(stepIndex))}
+            >
+              <span className={styles.stepIndex}>{stepIndex + 1}</span>
+              <span className={styles.stepName}>{stepName}</span>
+            </button>
+          ))}
+        </div>
 
-      <button type="button" className={styles.clockModeButton} onClick={onStartClock}>
-        <Clock className="h-5 w-5" />
-        Clock Mode
-      </button>
-
-      <div className={styles.grid}>
-        <label className={styles.formGroup} htmlFor="interval-type">
-          <span>Alert Frequency</span>
-          <select
-            id="interval-type"
-            value={settings.intervalType}
-            onChange={(event) => onSettingsChange({ intervalType: event.target.value as ChimerSettings["intervalType"] })}
-          >
-            <option value="preset">Preset interval</option>
-            <option value="custom">Custom interval</option>
-            <option value="areas">Divide by body areas</option>
-          </select>
-        </label>
-
-        {(settings.intervalType === "preset" || settings.intervalType === "custom") && (
-          <label className={styles.formGroup} htmlFor="custom-interval-input">
-            <span>{settings.intervalType === "preset" ? "Preset minutes" : "Custom minutes"}</span>
-            {settings.intervalType === "preset" ? (
-              <select
-                id="custom-interval-input"
-                value={settings.customInterval}
-                onChange={(event) => onSettingsChange({ customInterval: Number(event.target.value) })}
-              >
-                <option value="1">1 minute</option>
-                <option value="5">5 minutes</option>
-                <option value="10">10 minutes</option>
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-              </select>
-            ) : (
-              <input
-                type="number"
-                id="custom-interval-input"
-                min="1"
-                max="240"
-                value={settings.customInterval}
-                onChange={(event) => onSettingsChange({ customInterval: Number(event.target.value) })}
-              />
-            )}
+        <div className={styles.presetSelection}>
+          <label className={styles.formGroup} htmlFor="chimer-setup-presets">
+            <span>Saved setups</span>
+            <select
+              id="chimer-setup-presets"
+              value={selectedPresetId}
+              onChange={(event) => setSelectedPresetId(event.target.value)}
+            >
+              <option value="">Select a saved setup</option>
+              {savedPresets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
           </label>
-        )}
+          <div className={styles.presetSelectRow}>
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              onClick={withPress(applySelectedPreset)}
+              disabled={!selectedPreset}
+            >
+              Apply selected
+            </button>
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              onClick={withPress(loadLastSetup)}
+              disabled={!lastSetupPreset}
+            >
+              Use last setup
+            </button>
+          </div>
+        </div>
 
-        {settings.intervalType === "areas" && (
-          <label className={styles.formGroup} htmlFor="areas-input">
-            <span>Body areas</span>
-            <input
-              type="number"
-              id="areas-input"
-              min="1"
-              max="24"
-              value={settings.areasToMassage}
-              onChange={(event) => onSettingsChange({ areasToMassage: Number(event.target.value) })}
-            />
-          </label>
-        )}
+        <div className={styles.stepContent}>
+          {activeStep === 0 && (
+            <div>
+              <div className={styles.formGroup}>
+                <span>Session duration</span>
+                <div
+                  className={styles.clock}
+                  role="group"
+                  aria-label={`Session duration: ${formatDurationMinutes(settings.hours, settings.minutes)}`}
+                >
+                  <span className={`${styles.timerStatusBadge} ${isTimerSet ? styles.timerSet : styles.timerUnset}`}>
+                    {isTimerSet ? "Set" : "Not set"}
+                  </span>
+                  <button
+                    type="button"
+                    className={`${styles.timeUnit} ${styles.timeUnitButton}`}
+                    onClick={withPress(() => onTimeClick("hours"))}
+                    aria-label={`Set hours. Current value ${settings.hours}.`}
+                  >
+                    {settings.hours.toString().padStart(2, "0")}
+                  </button>
+                  <span className={styles.colon} aria-hidden="true">:</span>
+                  <button
+                    type="button"
+                    className={`${styles.timeUnit} ${styles.timeUnitButton}`}
+                    onClick={withPress(() => onTimeClick("minutes"))}
+                    aria-label={`Set minutes. Current value ${settings.minutes}.`}
+                  >
+                    {settings.minutes.toString().padStart(2, "0")}
+                  </button>
+                </div>
+              </div>
+              <p className={styles.presetSummary}>
+                {`Total length: ${formatDurationMinutes(settings.hours, settings.minutes)}`}
+              </p>
+              <div className={styles.quickPresetGrid}>
+                {QUICK_TIME_PRESETS_MINUTES.map((minutes) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    className={`${styles.inlineButton} ${styles.tactileButton}`}
+                    onClick={withPress(() => setQuickDuration(minutes))}
+                  >
+                    {minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        <label className={styles.formGroup} htmlFor="alert-type">
-          <span>Alert type</span>
-          <select
-            id="alert-type"
-            value={settings.alertType}
-            onChange={(event) => onSettingsChange({ alertType: event.target.value as ChimerSettings["alertType"] })}
-          >
-            <option value="chime">Chime</option>
-            <option value="flash">Screen flash</option>
-            <option value="both">Chime and flash</option>
-            <option value="silent">Silent</option>
-          </select>
-        </label>
-      </div>
+          {activeStep === 1 && (
+            <div>
+              <label className={styles.formGroup} htmlFor="interval-mode">
+                <span>Interval cue</span>
+                <select
+                  id="interval-mode"
+                  value={stepIntervalMode}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    if (nextValue === "none") {
+                      setSkipIntervalCues(true)
+                      return
+                    }
 
-      <div className={styles.backgroundSettings}>
-        <label className={styles.switchRow}>
-          <span>Visual background</span>
-          <input
-            type="checkbox"
-            checked={settings.movingBackgroundEnabled}
-            onChange={(event) => onSettingsChange({ movingBackgroundEnabled: event.target.checked })}
-          />
-        </label>
-        {settings.movingBackgroundEnabled && (
-          <BackgroundSelector
-            value={settings.backgroundId}
-            onChange={(backgroundId) => onSettingsChange({ backgroundId })}
-            featureKeys={featureKeys}
-            category={backgroundCategory}
-            renderSelectedControls={renderBackgroundControls}
-          />
-        )}
+                    setSkipIntervalCues(false)
+                    onSettingsChange({ intervalType: nextValue as ChimerSettings["intervalType"] })
+                  }}
+                >
+                  <option value="none">No interval</option>
+                  <option value="preset">Common presets</option>
+                  <option value="custom">Custom minutes</option>
+                  <option value="areas">Divide by body areas</option>
+                </select>
+              </label>
+
+              {!skipIntervalCues && (
+                settings.intervalType === "areas" ? (
+                  <NumberField
+                    label="Body areas"
+                    value={settings.areasToMassage}
+                    min={1}
+                    max={24}
+                    step={1}
+                    hapticsEnabled={hapticsEnabled}
+                    onChange={(value) => onSettingsChange({ areasToMassage: value })}
+                  />
+                ) : (
+                  settings.intervalType === "preset" ? (
+                    <label className={styles.formGroup} htmlFor="custom-interval-input">
+                      <span>Preset minutes</span>
+                      <select
+                        id="custom-interval-input"
+                        value={settings.customInterval}
+                        onChange={(event) => onSettingsChange({ customInterval: Number(event.target.value) })}
+                      >
+                        <option value="1">1 minute</option>
+                        <option value="5">5 minutes</option>
+                        <option value="10">10 minutes</option>
+                        <option value="15">15 minutes</option>
+                        <option value="30">30 minutes</option>
+                      </select>
+                    </label>
+                  ) : (
+                    <NumberField
+                      label="Custom minutes"
+                      value={settings.customInterval}
+                      min={1}
+                      max={240}
+                      step={1}
+                      unit="m"
+                      hapticsEnabled={hapticsEnabled}
+                      onChange={(value) => onSettingsChange({ customInterval: value })}
+                    />
+                  )
+                )
+              )}
+            </div>
+          )}
+
+          {activeStep === 2 && (
+            <div>
+              <label className={styles.formGroup} htmlFor="alert-type">
+                <span>Notification</span>
+                <select
+                  id="alert-type"
+                  value={settings.alertType}
+                  onChange={(event) => onSettingsChange({ alertType: event.target.value as ChimerSettings["alertType"] })}
+                >
+                  {ALERT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <div className={styles.notificationControlStack}>
+                {selectedAlertUsesSound ? (
+                  <StyledRangeControl
+                    label="Sound volume"
+                    value={settings.alertVolume}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    displayValue={`${Math.round(settings.alertVolume * 100)}%`}
+                    hapticsEnabled={hapticsEnabled}
+                    onChange={(value) => onSettingsChange({ alertVolume: value })}
+                  />
+                ) : null}
+                {selectedAlertUsesHaptics ? (
+                  <StyledRangeControl
+                    label="Haptic intensity"
+                    value={settings.hapticIntensityMs}
+                    min={10}
+                    max={30}
+                    step={1}
+                    displayValue={`${settings.hapticIntensityMs}ms`}
+                    hapticsEnabled={hapticsEnabled}
+                    onChange={(value) => onSettingsChange({ hapticIntensityMs: value })}
+                  />
+                ) : null}
+              </div>
+
+              {!selectedAlertUsesSound && !selectedAlertUsesHaptics ? (
+                <p className={styles.formHint}>
+                  Silent keeps interval timing active without sound, flash, or haptic cues.
+                </p>
+              ) : null}
+            </div>
+          )}
+
+          {activeStep === 3 && (
+            <div>
+              <div className={styles.backgroundSettings}>
+                <StyledToggleControl
+                  label="Visual background"
+                  checked={settings.movingBackgroundEnabled}
+                  hapticsEnabled={hapticsEnabled}
+                  onCheckedChange={(value) => onSettingsChange({ movingBackgroundEnabled: value })}
+                />
+                {settings.movingBackgroundEnabled && (
+                  <BackgroundSelector
+                    value={settings.backgroundId}
+                    onChange={(backgroundId) => onSettingsChange({ backgroundId })}
+                    featureKeys={featureKeys}
+                    category={backgroundCategory}
+                    renderSelectedControls={renderBackgroundControls}
+                  />
+                )}
+              </div>
+              <p className={styles.formHint}>
+                Backgrounds are fully applied when timer starts. Use this section to set your preferred background and any per-background controls.
+              </p>
+            </div>
+          )}
+
+          {activeStep === 4 && (
+            <div>
+              <p className={styles.powerNotice}>
+                “Chimer can use extra battery power, especially with animated backgrounds, sounds, haptics, and fullscreen mode.
+                For the best experience on a phone, tablet, or laptop, plug in your device before starting so it does not lose power during the session.”
+              </p>
+              <div className={styles.presetSelection}>
+                <label className={styles.formGroup} htmlFor="chimer-preset-name">
+                  <span>Save this setup</span>
+                  <input
+                    id="chimer-preset-name"
+                    type="text"
+                    value={newPresetName}
+                    onChange={(event) => setNewPresetName(event.target.value)}
+                    placeholder="Preset name (optional)"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  onClick={withPress(saveCurrentPreset)}
+                  disabled={!isTimerSet}
+                >
+                  Save as preset
+                </button>
+              </div>
+              <div className={styles.actions}>
+                <button
+                  type="button"
+                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  onClick={withPress(onTestAlert)}
+                >
+                  Test Alert
+                </button>
+                <CTAButton
+                  type="button"
+                  withAttentionRing
+                  className={styles.button}
+                  onClick={withPress(() => handleStartTimer(false))}
+                  disabled={!isTimerSet}
+                >
+                  <Play className="h-5 w-5" />
+                  Start Chimer
+                </CTAButton>
+                <button
+                  type="button"
+                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  onClick={withPress(() => handleStartTimer(true))}
+                  disabled={!isTimerSet}
+                >
+                  Start without animated background
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.stepNavActions}>
+          {activeStep > 0 && (
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              onClick={withPress(previousStep)}
+            >
+              Back
+            </button>
+          )}
+          {!isFinalStep && (
+            <button
+              type="button"
+              className={`${styles.button} ${styles.tactileButton}`}
+              onClick={withPress(nextStep)}
+              disabled={!canAdvanceStep}
+            >
+              Continue
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <p className={styles.error}>{error}</p>}
-
-      <div className={styles.actions}>
-        <button type="button" className={styles.secondaryButton} onClick={onTestAlert}>
-          Test Alert
-        </button>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={onStartTimer}
-          disabled={totalDurationMs <= 0}
-        >
-          <Play className="h-5 w-5" />
-          Start Timer
-        </button>
-      </div>
+      <button
+        type="button"
+        className={`${styles.clockModeButton} ${styles.tactileButton}`}
+        onClick={withPress(onStartClock)}
+      >
+        <Clock className="h-5 w-5" />
+        Clock Mode
+      </button>
     </section>
   )
 }

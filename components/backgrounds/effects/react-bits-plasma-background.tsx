@@ -128,14 +128,7 @@ export default function ReactBitsPlasmaBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolvePlasmaOptions(reactBitsPlasma),
-    [
-      reactBitsPlasma?.color,
-      reactBitsPlasma?.speed,
-      reactBitsPlasma?.direction,
-      reactBitsPlasma?.scale,
-      reactBitsPlasma?.opacity,
-      reactBitsPlasma?.mouseInteractive,
-    ],
+    [reactBitsPlasma],
   )
   const color = useMemo(() => parseHexColorToRgb(options.color), [options.color])
 

@@ -196,23 +196,7 @@ export default function ReactBitsGradientBlindsBackground({
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 })
   const options = useMemo(
     () => resolveGradientBlindsOptions(reactBitsGradientBlinds),
-    [
-      reactBitsGradientBlinds?.dpr,
-      reactBitsGradientBlinds?.gradientColors,
-      reactBitsGradientBlinds?.angle,
-      reactBitsGradientBlinds?.noise,
-      reactBitsGradientBlinds?.blindCount,
-      reactBitsGradientBlinds?.blindMinWidth,
-      reactBitsGradientBlinds?.mouseDampening,
-      reactBitsGradientBlinds?.mirrorGradient,
-      reactBitsGradientBlinds?.spotlightRadius,
-      reactBitsGradientBlinds?.spotlightSoftness,
-      reactBitsGradientBlinds?.spotlightOpacity,
-      reactBitsGradientBlinds?.distortAmount,
-      reactBitsGradientBlinds?.shineDirection,
-      reactBitsGradientBlinds?.mixBlendMode,
-      reactBitsGradientBlinds?.enableMouseInteraction,
-    ],
+    [reactBitsGradientBlinds],
   )
 
   useEffect(() => {

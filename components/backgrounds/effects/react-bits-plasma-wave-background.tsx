@@ -153,18 +153,7 @@ export default function ReactBitsPlasmaWaveBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolvePlasmaWaveOptions(reactBitsPlasmaWave),
-    [
-      reactBitsPlasmaWave?.xOffset,
-      reactBitsPlasmaWave?.yOffset,
-      reactBitsPlasmaWave?.rotationDeg,
-      reactBitsPlasmaWave?.focalLength,
-      reactBitsPlasmaWave?.speed1,
-      reactBitsPlasmaWave?.speed2,
-      reactBitsPlasmaWave?.dir2,
-      reactBitsPlasmaWave?.bend1,
-      reactBitsPlasmaWave?.bend2,
-      reactBitsPlasmaWave?.colors,
-    ],
+    [reactBitsPlasmaWave],
   )
   const colors = useMemo(
     () => [parseHexColorToRgb(options.colors[0]), parseHexColorToRgb(options.colors[1])] as const,

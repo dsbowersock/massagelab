@@ -70,21 +70,7 @@ export default function ReactBitsDotGridBackground({
   })
   const options = useMemo(
     () => resolveDotGridOptions(reactBitsDotGrid),
-    [
-      reactBitsDotGrid?.dotSize,
-      reactBitsDotGrid?.gap,
-      reactBitsDotGrid?.baseColor,
-      reactBitsDotGrid?.activeColor,
-      reactBitsDotGrid?.proximity,
-      reactBitsDotGrid?.speedTrigger,
-      reactBitsDotGrid?.shockRadius,
-      reactBitsDotGrid?.shockStrength,
-      reactBitsDotGrid?.maxSpeed,
-      reactBitsDotGrid?.resistance,
-      reactBitsDotGrid?.returnDuration,
-      reactBitsDotGrid?.cursorInteraction,
-      reactBitsDotGrid?.clickShock,
-    ],
+    [reactBitsDotGrid],
   )
 
   useEffect(() => {

@@ -61,7 +61,9 @@ export async function PUT(request: Request) {
     ...payload.app_settings,
   }
   const chimerSettings = "chimerSettings" in body
-    ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, entitlements.features))
+    ? jsonObject(sanitizeChimerSettingsForEntitlements(payload.chimer_settings, entitlements.features, {
+      canUseAccountColorControls: true,
+    }))
     : (existing?.chimerSettings as Prisma.InputJsonValue | undefined) ?? {}
 
   const preferences = await prisma.userPreference.upsert({

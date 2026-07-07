@@ -43,16 +43,7 @@ export default function ReactBitsLetterGlitchBackground({
   const seedRef = useRef(1)
   const options = useMemo(
     () => resolveLetterGlitchOptions(reactBitsLetterGlitch),
-    [
-      reactBitsLetterGlitch?.colorOne,
-      reactBitsLetterGlitch?.colorTwo,
-      reactBitsLetterGlitch?.colorThree,
-      reactBitsLetterGlitch?.glitchSpeed,
-      reactBitsLetterGlitch?.centerVignette,
-      reactBitsLetterGlitch?.outerVignette,
-      reactBitsLetterGlitch?.smooth,
-      reactBitsLetterGlitch?.characters,
-    ],
+    [reactBitsLetterGlitch],
   )
 
   useEffect(() => {

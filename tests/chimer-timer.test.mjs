@@ -163,6 +163,65 @@ describe("Chimer timer helpers", () => {
     assert.equal(sanitizeChimerSettings({}).clockModeFontColor, "#FFFFFF")
   })
 
+  it("normalizes haptic notification and alert intensity preferences", () => {
+    assert.equal(DEFAULT_CHIMER_SETTINGS.alertVolume, 0.7)
+    assert.equal(DEFAULT_CHIMER_SETTINGS.hapticIntensityMs, 15)
+    assert.equal(sanitizeChimerSettings({ alertType: "haptic" }).alertType, "haptic")
+    assert.equal(sanitizeChimerSettings({ alertType: "chime-haptic" }).alertType, "chime-haptic")
+    assert.equal(sanitizeChimerSettings({ alertType: "flash-haptic" }).alertType, "flash-haptic")
+    assert.equal(sanitizeChimerSettings({ alertType: "all" }).alertType, "all")
+
+    const settings = sanitizeChimerSettings({
+      alertVolume: 99,
+      hapticIntensityMs: 99,
+    })
+
+    assert.equal(settings.alertVolume, 1)
+    assert.equal(settings.hapticIntensityMs, 30)
+    assert.equal(
+      sanitizeChimerSettings({ alertVolume: "loud" }).alertVolume,
+      DEFAULT_CHIMER_SETTINGS.alertVolume,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ hapticIntensityMs: "strong" }).hapticIntensityMs,
+      DEFAULT_CHIMER_SETTINGS.hapticIntensityMs,
+    )
+  })
+
+  it("normalizes clock appearance controls", () => {
+    const settings = sanitizeChimerSettings({
+      clockFontFamily: "mono",
+      clockStrokeEnabled: true,
+      clockStrokeColor: "#ff7a1a",
+      clockStrokeWidth: 99,
+      clockShadowEnabled: false,
+      clockShadowColor: "#000000",
+      clockShadowStrength: 99,
+      clockGlowEnabled: false,
+      clockGlowColor: "#4169e1",
+      clockGlowStrength: 99,
+    })
+
+    assert.equal(settings.clockFontFamily, "mono")
+    assert.equal(settings.clockStrokeEnabled, true)
+    assert.equal(settings.clockStrokeColor, "#FF7A1A")
+    assert.equal(settings.clockStrokeWidth, 3)
+    assert.equal(settings.clockShadowEnabled, false)
+    assert.equal(settings.clockShadowColor, "#000000")
+    assert.equal(settings.clockShadowStrength, 1)
+    assert.equal(settings.clockGlowEnabled, false)
+    assert.equal(settings.clockGlowColor, "#4169E1")
+    assert.equal(settings.clockGlowStrength, 1)
+    assert.equal(
+      sanitizeChimerSettings({ clockFontFamily: "comic" }).clockFontFamily,
+      DEFAULT_CHIMER_SETTINGS.clockFontFamily,
+    )
+    assert.equal(
+      sanitizeChimerSettings({ clockStrokeColor: "orange" }).clockStrokeColor,
+      DEFAULT_CHIMER_SETTINGS.clockStrokeColor,
+    )
+  })
+
   it("preserves saved timer seconds and display position color preferences", () => {
     const settings = sanitizeChimerSettings({
       showTimerSeconds: false,

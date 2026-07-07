@@ -203,30 +203,7 @@ export default function ReactBitsGrainientBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveGrainientOptions(reactBitsGrainient),
-    [
-      reactBitsGrainient?.timeSpeed,
-      reactBitsGrainient?.colorBalance,
-      reactBitsGrainient?.warpStrength,
-      reactBitsGrainient?.warpFrequency,
-      reactBitsGrainient?.warpSpeed,
-      reactBitsGrainient?.warpAmplitude,
-      reactBitsGrainient?.blendAngle,
-      reactBitsGrainient?.blendSoftness,
-      reactBitsGrainient?.rotationAmount,
-      reactBitsGrainient?.noiseScale,
-      reactBitsGrainient?.grainAmount,
-      reactBitsGrainient?.grainScale,
-      reactBitsGrainient?.grainAnimated,
-      reactBitsGrainient?.contrast,
-      reactBitsGrainient?.gamma,
-      reactBitsGrainient?.saturation,
-      reactBitsGrainient?.centerX,
-      reactBitsGrainient?.centerY,
-      reactBitsGrainient?.zoom,
-      reactBitsGrainient?.color1,
-      reactBitsGrainient?.color2,
-      reactBitsGrainient?.color3,
-    ],
+    [reactBitsGrainient],
   )
 
   useEffect(() => {

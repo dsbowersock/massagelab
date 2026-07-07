@@ -1,13 +1,27 @@
 "use client"
 
-import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, X } from "lucide-react"
+import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, Star, X } from "lucide-react"
+import Image from "next/image"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
 import { BackgroundHost } from "@/components/backgrounds/BackgroundHost"
-import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
-import { canUseBackgroundId, type BackgroundDefinition } from "@/components/backgrounds/backgroundRegistry"
+import {
+  canUseBackgroundId,
+  getBackgroundOptionsForCategory,
+  resolveAccessibleBackgroundDefinition,
+  type BackgroundId,
+  type BackgroundDefinition,
+  userCanUseBackground,
+} from "@/components/backgrounds/backgroundRegistry"
+import { triggerHapticFeedback } from "@/lib/haptics"
+import { Loader } from "@/components/chimer-controls/Loader"
 import { MovingBackground } from "@/components/moving-background"
+import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } from "@/components/chimer-controls/HarmonyToggleGroup"
+import { ColorPickerSwatch, GlobalColorPicker, type GlobalColorValues } from "@/components/chimer-controls/GlobalColorPicker"
+import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
+import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
   ANIMATE_UI_GRADIENT_HARMONY_OPTIONS,
   CHAMAAC_ASTRAL_FLOW_DISPLAY_SPEED_MAX,
@@ -187,7 +201,49 @@ import styles from "./running-timer.module.css"
 import { TileGridFadeTimeControl } from "./tile-grid-fade-time-control"
 
 type PrimaryDisplay = "timer" | "currentTime"
-type SettingsTab = "timer" | "display" | "background"
+type SettingsTab = "clock" | "visual" | "backgrounds"
+type BackgroundVisualCategory = "all" | "animated" | "image" | "interactive" | "premium" | "saved" | "static" | "shader" | "video"
+
+const BACKGROUND_VISUAL_CATEGORIES: ReadonlyArray<{ value: BackgroundVisualCategory; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "static", label: "Static" },
+  { value: "animated", label: "Animated" },
+  { value: "interactive", label: "Interactive" },
+  { value: "shader", label: "Shader" },
+  { value: "image", label: "Image" },
+  { value: "video", label: "Video" },
+  { value: "premium", label: "Premium" },
+  { value: "saved", label: "Saved" },
+]
+
+const CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY = "massagelab-chimer-saved-background-ids-v1"
+const CHIMER_GLOBAL_COLOR_STORAGE_KEY = "massagelab-chimer-global-color-v1"
+const CHIMER_GLOBAL_PALETTE_STORAGE_KEY = "massagelab-chimer-global-palettes-v1"
+const IMAGE_SOURCE_PATTERNS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".heic",
+  ".heif",
+  ".svg",
+]
+const VIDEO_SOURCE_PATTERNS = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv"]
+const INTERACTIVE_HINT_PATTERNS = [
+  "interactive",
+  "hover",
+  "cursor",
+  "rotate",
+  "orbit",
+  "spin",
+  "mouse",
+  "tap",
+  "drag",
+  "pan",
+]
+const SHADER_HINT_PATTERNS = ["shader", "canvas", "webgl", "glsl", "fragment", "uniform", "three", "custom"]
 
 type CurrentTimeParts = {
   time: string
@@ -203,13 +259,665 @@ const SETTINGS_AUTO_CLOSE_MS = 60_000
 const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
-const CUSTOM_COLOR_SETTING_KEYS = new Set([
+const BACKGROUND_RADIAL_CARD_SPREAD_DEGREES = 35
+const BACKGROUND_RADIAL_CARD_RADIUS_PX = 240
+const BACKGROUND_RADIAL_VISIBLE_OFFSET = 3
+
+const getCircularCarouselOffset = (index: number, activeIndex: number, total: number) => {
+  if (total <= 0) {
+    return 0
+  }
+
+  const rawOffset = (index - activeIndex + total) % total
+  return rawOffset > total / 2 ? rawOffset - total : rawOffset
+}
+const PREMIUM_CUSTOM_COLOR_SETTING_KEYS = new Set([
   "primaryFontColor",
   "secondaryFontColor",
+])
+const ACCOUNT_COLOR_SETTING_KEYS = new Set([
   "clockModeFontColor",
   "movingBackgroundMainColor",
   "movingBackgroundOrbColor",
 ])
+
+const DEFAULT_CHIMER_GLOBAL_COLORS: GlobalColorValues = {
+  primary: "#f97316",
+  secondary: "#fb923c",
+  accent: "#fb7185",
+  background: "#0f172a",
+  foreground: "#f8fafc",
+  ctaStart: "#db2777",
+  ctaEnd: "#ea580c",
+}
+const DEFAULT_CHIMER_GLOBAL_HARMONY = "custom" as ChimerHarmonyValue
+const CHIMER_GLOBAL_PALETTE_DEFAULT_NAME = "Saved palette"
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
+
+type ChimerSavedPalette = {
+  id: string
+  name: string
+  sourceColor: string
+  harmony: ChimerHarmonyValue
+  colors: GlobalColorValues
+  generated: string[]
+  isDefault: boolean
+  createdAt: string
+}
+
+type BackgroundPreviewMedia = {
+  type: "image" | "video"
+  source: string
+}
+
+type BackgroundDefinitionWithPreview = BackgroundDefinition & {
+  previewMediaUrl?: string
+  previewMediaType?: BackgroundPreviewMedia["type"]
+  previewImageUrl?: string
+  previewVideoUrl?: string
+  previewSquareVideoUrl?: string
+  previewVerticalVideoUrl?: string
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function normalizeHexColor(value: string, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback
+  }
+
+  const trimmed = value.trim()
+  if (!HEX_COLOR_PATTERN.test(trimmed)) {
+    return fallback
+  }
+
+  if (trimmed.length === 4) {
+    return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`.toLowerCase()
+  }
+
+  return trimmed.toLowerCase()
+}
+
+function getCssHsl(color: string, fallback: string) {
+  const normalized = normalizeHexColor(color, fallback)
+  const { red, green, blue } = parseColorToRgb(normalized)
+  const { h, s, l } = rgbToHsl(red, green, blue)
+
+  return `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`
+}
+
+function getCssHslColor(color: string, fallback: string, alpha = 1) {
+  return `hsl(${getCssHsl(color, fallback)} / ${clampNumber(alpha, 0, 1)})`
+}
+
+function getClockFontStack(fontFamily: ChimerSettings["clockFontFamily"]) {
+  switch (fontFamily) {
+    case "mono":
+      return "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", monospace"
+    case "sans":
+      return "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+    case "serif":
+      return "Georgia, Cambria, \"Times New Roman\", Times, serif"
+    case "digital":
+    default:
+      return "\"Digital\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+  }
+}
+
+function buildClockTextShadow(params: {
+  shadowEnabled: boolean
+  shadowColor: string
+  shadowStrength: number
+  shadowDirection: number
+  shadowDistance: number
+  shadowFeather: number
+  glowEnabled: boolean
+  glowColor: string
+  glowStrength: number
+}) {
+  const parts: string[] = []
+
+  if (params.shadowEnabled && params.shadowStrength > 0) {
+    const alpha = 0.14 + params.shadowStrength * 0.48
+    const angleRadians = (params.shadowDirection * Math.PI) / 180
+    const distance = clampNumber(params.shadowDistance, 0, 32)
+    const offsetX = Math.cos(angleRadians) * distance
+    const offsetY = Math.sin(angleRadians) * distance
+    const feather = clampNumber(params.shadowFeather, 0, 32)
+    parts.push(`${offsetX.toFixed(1)}px ${offsetY.toFixed(1)}px ${feather.toFixed(1)}px ${getCssHslColor(params.shadowColor, "#000000", alpha)}`)
+  }
+
+  if (params.glowEnabled && params.glowStrength > 0) {
+    const alpha = 0.12 + params.glowStrength * 0.34
+    parts.push(
+      `0 0 ${0.045 + params.glowStrength * 0.08}em ${getCssHslColor(params.glowColor, DEFAULT_CHIMER_GLOBAL_COLORS.accent, alpha)}`,
+      `0 0 ${0.18 + params.glowStrength * 0.2}em ${getCssHslColor(params.glowColor, DEFAULT_CHIMER_GLOBAL_COLORS.accent, alpha * 0.7)}`,
+      `0 0 ${0.42 + params.glowStrength * 0.26}em ${getCssHslColor(params.glowColor, DEFAULT_CHIMER_GLOBAL_COLORS.accent, alpha * 0.42)}`,
+    )
+  }
+
+  return parts.length > 0 ? parts.join(", ") : "none"
+}
+
+function resolvePaletteDrivenColor(params: {
+  value: string
+  defaultValue: string
+  globalValue: string
+}) {
+  const normalizedValue = normalizeHexColor(params.value, params.defaultValue)
+  const normalizedDefault = normalizeHexColor(params.defaultValue, params.value)
+
+  return normalizedValue === normalizedDefault ? params.globalValue : normalizedValue
+}
+
+function sanitizeGlobalColorValues(values: Partial<GlobalColorValues> | undefined) {
+  if (!values || typeof values !== "object") {
+    return DEFAULT_CHIMER_GLOBAL_COLORS
+  }
+
+  return {
+    primary: normalizeHexColor(String(values.primary ?? DEFAULT_CHIMER_GLOBAL_COLORS.primary), DEFAULT_CHIMER_GLOBAL_COLORS.primary),
+    secondary: normalizeHexColor(String(values.secondary ?? DEFAULT_CHIMER_GLOBAL_COLORS.secondary), DEFAULT_CHIMER_GLOBAL_COLORS.secondary),
+    accent: normalizeHexColor(String(values.accent ?? DEFAULT_CHIMER_GLOBAL_COLORS.accent), DEFAULT_CHIMER_GLOBAL_COLORS.accent),
+    background: normalizeHexColor(String(values.background ?? DEFAULT_CHIMER_GLOBAL_COLORS.background), DEFAULT_CHIMER_GLOBAL_COLORS.background),
+    foreground: normalizeHexColor(String(values.foreground ?? DEFAULT_CHIMER_GLOBAL_COLORS.foreground), DEFAULT_CHIMER_GLOBAL_COLORS.foreground),
+    ctaStart: normalizeHexColor(String(values.ctaStart ?? DEFAULT_CHIMER_GLOBAL_COLORS.ctaStart), DEFAULT_CHIMER_GLOBAL_COLORS.ctaStart),
+    ctaEnd: normalizeHexColor(String(values.ctaEnd ?? DEFAULT_CHIMER_GLOBAL_COLORS.ctaEnd), DEFAULT_CHIMER_GLOBAL_COLORS.ctaEnd),
+  } satisfies GlobalColorValues
+}
+
+function parseColorToRgb(value: string) {
+  const normalized = normalizeHexColor(value, "#000000")
+  const hex = normalized.slice(1)
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16),
+  }
+}
+
+function rgbToHsl(red: number, green: number, blue: number) {
+  const r = clampNumber(red, 0, 255) / 255
+  const g = clampNumber(green, 0, 255) / 255
+  const b = clampNumber(blue, 0, 255) / 255
+  const maxChannel = Math.max(r, g, b)
+  const minChannel = Math.min(r, g, b)
+  const delta = maxChannel - minChannel
+  let hue = 0
+  let saturation = 0
+  const lightness = (maxChannel + minChannel) / 2
+
+  if (delta !== 0) {
+    saturation = lightness > 0.5 ? delta / (2 - maxChannel - minChannel) : delta / (maxChannel + minChannel)
+
+    switch (maxChannel) {
+      case r: {
+        hue = ((g - b) / delta) + (g < b ? 6 : 0)
+        break
+      }
+      case g: {
+        hue = (b - r) / delta + 2
+        break
+      }
+      case b: {
+        hue = (r - g) / delta + 4
+        break
+      }
+    }
+
+    hue *= 60
+  }
+
+  return {
+    h: clampNumber(hue, 0, 360),
+    s: clampNumber(saturation * 100, 0, 100),
+    l: clampNumber(lightness * 100, 0, 100),
+  }
+}
+
+function hslToRgbChannel(channel: number, hue: number, saturation: number, lightness: number) {
+  const huePrime = (hue % 360 + 360) % 360
+  const sat = saturation / 100
+  const light = lightness / 100
+  const chroma = (1 - Math.abs(2 * light - 1)) * sat
+  const x = chroma * (1 - Math.abs((huePrime / 60) % 2 - 1))
+  const m = light - chroma / 2
+  let red = 0
+  let green = 0
+  let blue = 0
+
+  if (huePrime < 60) {
+    red = chroma
+    green = x
+  } else if (huePrime < 120) {
+    red = x
+    green = chroma
+  } else if (huePrime < 180) {
+    green = chroma
+    blue = x
+  } else if (huePrime < 240) {
+    green = x
+    blue = chroma
+  } else if (huePrime < 300) {
+    red = x
+    blue = chroma
+  } else {
+    red = chroma
+    blue = x
+  }
+
+  const values = [red, green, blue]
+  return Math.round((values[channel] + m) * 255)
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number) {
+  const toByte = (value: number) => `00${Math.max(0, Math.min(255, value)).toString(16).slice(-2)}`
+  const red = hslToRgbChannel(0, hue, saturation, lightness)
+  const green = hslToRgbChannel(1, hue, saturation, lightness)
+  const blue = hslToRgbChannel(2, hue, saturation, lightness)
+  return `#${toByte(red)}${toByte(green)}${toByte(blue)}`
+}
+
+function shiftHue(baseColor: string, hueOffset: number, saturationOffset = 0, lightnessOffset = 0) {
+  const { red, green, blue } = parseColorToRgb(baseColor)
+  const hsl = rgbToHsl(red, green, blue)
+  return hslToHex(
+    hsl.h + hueOffset,
+    hsl.s + saturationOffset,
+    hsl.l + lightnessOffset,
+  )
+}
+
+function getHarmonyColorsFromPrimary(primaryColor: string, harmony: ChimerHarmonyValue): GlobalColorValues {
+  const normalizedPrimary = normalizeHexColor(primaryColor, DEFAULT_CHIMER_GLOBAL_COLORS.primary)
+  const sourceColor = normalizedPrimary
+  const safeDefaults = sanitizeGlobalColorValues(DEFAULT_CHIMER_GLOBAL_COLORS)
+  const derivedBackground = shiftHue(sourceColor, 0, -24, -38)
+  const derivedBase = {
+    ...safeDefaults,
+    primary: sourceColor,
+    background: derivedBackground,
+  }
+
+  if (harmony === "custom") {
+    return {
+      ...safeDefaults,
+      primary: sourceColor,
+    }
+  }
+
+  switch (harmony) {
+    case "analogous": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 18),
+        accent: shiftHue(sourceColor, -18),
+        ctaStart: shiftHue(sourceColor, 0),
+        ctaEnd: shiftHue(sourceColor, 36),
+      }
+    }
+    case "complementary": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 180),
+        accent: shiftHue(sourceColor, -180),
+        ctaStart: shiftHue(sourceColor, 180),
+        ctaEnd: shiftHue(sourceColor, 195),
+      }
+    }
+    case "split-complementary": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 150),
+        accent: shiftHue(sourceColor, -150),
+        ctaStart: shiftHue(sourceColor, 150),
+        ctaEnd: shiftHue(sourceColor, -150),
+      }
+    }
+    case "triad": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 120),
+        accent: shiftHue(sourceColor, -120),
+        ctaStart: shiftHue(sourceColor, 120),
+        ctaEnd: shiftHue(sourceColor, -120),
+      }
+    }
+    case "square": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 90),
+        accent: shiftHue(sourceColor, -90),
+        ctaStart: shiftHue(sourceColor, 90),
+        ctaEnd: shiftHue(sourceColor, 180),
+      }
+    }
+    case "compound": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 150),
+        accent: shiftHue(sourceColor, 330),
+        ctaStart: shiftHue(sourceColor, 30),
+        ctaEnd: shiftHue(sourceColor, -150),
+      }
+    }
+    case "shades": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 0, 0, -8),
+        accent: shiftHue(sourceColor, 0, 0, 10),
+        ctaStart: shiftHue(sourceColor, 0, 0, -16),
+        ctaEnd: shiftHue(sourceColor, 0, 0, 22),
+      }
+    }
+    case "monochromatic": {
+      return {
+        ...derivedBase,
+        secondary: shiftHue(sourceColor, 0, -12, 8),
+        accent: shiftHue(sourceColor, 0, 14, 16),
+        ctaStart: shiftHue(sourceColor, 0, -6, 2),
+        ctaEnd: shiftHue(sourceColor, 0, 8, 20),
+      }
+    }
+  }
+
+  return derivedBase
+}
+
+function getPaletteColorsFromGlobalValues(values: GlobalColorValues) {
+  return [
+    values.primary,
+    values.secondary,
+    values.accent,
+    values.ctaStart,
+    values.ctaEnd,
+    values.background,
+    values.foreground,
+  ]
+}
+
+function getGlobalColorsFromStorage() {
+  if (typeof window === "undefined") {
+    return DEFAULT_CHIMER_GLOBAL_COLORS
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_GLOBAL_COLOR_STORAGE_KEY)
+    if (!raw) {
+      return DEFAULT_CHIMER_GLOBAL_COLORS
+    }
+
+    const parsed = JSON.parse(raw)
+    return sanitizeGlobalColorValues(parsed?.colors ?? parsed)
+  } catch {
+    return DEFAULT_CHIMER_GLOBAL_COLORS
+  }
+}
+
+function getGlobalHarmonyFromStorage() {
+  if (typeof window === "undefined") {
+    return DEFAULT_CHIMER_GLOBAL_HARMONY
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_GLOBAL_COLOR_STORAGE_KEY)
+    if (!raw) {
+      return DEFAULT_CHIMER_GLOBAL_HARMONY
+    }
+
+    const parsed = JSON.parse(raw)
+    const storedHarmony = String(parsed?.harmony ?? "")
+    return CHIMER_HARMONY_OPTIONS.some((option) => option.value === storedHarmony)
+      ? storedHarmony as ChimerHarmonyValue
+      : DEFAULT_CHIMER_GLOBAL_HARMONY
+  } catch {
+    return DEFAULT_CHIMER_GLOBAL_HARMONY
+  }
+}
+
+function saveGlobalColorState(values: GlobalColorValues, harmony: ChimerHarmonyValue) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(
+      CHIMER_GLOBAL_COLOR_STORAGE_KEY,
+      JSON.stringify({
+        colors: sanitizeGlobalColorValues(values),
+        harmony,
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+  } catch {
+    // noop
+  }
+}
+
+function getSavedGlobalPalettesFromStorage() {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_GLOBAL_PALETTE_STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter((entry): entry is ChimerSavedPalette => {
+      if (!entry || typeof entry !== "object") {
+        return false
+      }
+
+      return (
+        typeof entry.id === "string"
+        && typeof entry.name === "string"
+        && typeof entry.sourceColor === "string"
+        && CHIMER_HARMONY_OPTIONS.some((option) => option.value === entry.harmony)
+        && Array.isArray(entry.generated)
+        && typeof entry.colors?.primary === "string"
+      )
+    })
+  } catch {
+    return []
+  }
+}
+
+function saveGlobalPalettesToStorage(palettes: ChimerSavedPalette[]) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(CHIMER_GLOBAL_PALETTE_STORAGE_KEY, JSON.stringify(palettes))
+  } catch {
+    // noop
+  }
+}
+
+function getBackgroundPreviewMedia(
+  option: BackgroundDefinition,
+  preferredVariant: "landscape" | "square" | "vertical" = "landscape",
+): BackgroundPreviewMedia | null {
+  const optionWithPreview = option as BackgroundDefinitionWithPreview
+  const resolveTypeFromSource = (source: string): BackgroundPreviewMedia["type"] | null => {
+    const normalizedSource = source.toLowerCase()
+
+    if (VIDEO_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern))) {
+      return "video"
+    }
+
+    if (IMAGE_SOURCE_PATTERNS.some((pattern) => normalizedSource.includes(pattern)) || normalizedSource.includes("/media/")) {
+      return "image"
+    }
+
+    return null
+  }
+
+  const videoCandidates =
+    preferredVariant === "vertical"
+      ? [optionWithPreview.previewVerticalVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl]
+      : preferredVariant === "square"
+        ? [optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVideoUrl, optionWithPreview.previewVerticalVideoUrl]
+        : [optionWithPreview.previewVideoUrl, optionWithPreview.previewSquareVideoUrl, optionWithPreview.previewVerticalVideoUrl]
+  const previewCandidates: Array<{ typeHint?: BackgroundPreviewMedia["type"]; source?: string }> = [
+    ...videoCandidates.map((source) => ({ typeHint: "video" as const, source })),
+    { typeHint: optionWithPreview.previewMediaType, source: optionWithPreview.previewMediaUrl },
+    { typeHint: "image", source: optionWithPreview.previewImageUrl },
+  ]
+
+  for (const candidate of previewCandidates) {
+    if (!candidate.source) {
+      continue
+    }
+
+    const candidateType = candidate.typeHint ?? resolveTypeFromSource(candidate.source)
+    if (candidateType) {
+      return { type: candidateType, source: candidate.source }
+    }
+  }
+
+  const source = option.sourceUrl.toLowerCase()
+  const sourceType = resolveTypeFromSource(source)
+  if (sourceType) {
+    return { type: sourceType, source: option.sourceUrl }
+  }
+
+  return null
+}
+
+const getSavedBackgroundIdsFromStorage = (): BackgroundId[] => {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter((entry): entry is BackgroundId => typeof entry === "string")
+  } catch {
+    return []
+  }
+}
+
+const saveBackgroundIdsToStorage = (ids: BackgroundId[]) => {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(CHIMER_SAVED_BACKGROUND_IDS_STORAGE_KEY, JSON.stringify(ids))
+  } catch {
+    // noop
+  }
+}
+
+const hasMediaSource = (url: string, patterns: string[]) => {
+  const source = url.toLowerCase()
+  return patterns.some((pattern) => source.includes(pattern)) || source.includes("/media/")
+}
+
+const isInteractiveBackgroundOption = (option: BackgroundDefinition) => {
+  const haystack = `${option.id} ${option.label} ${option.recommendedUse} ${option.customizationSummary ?? ""}`.toLowerCase()
+  return INTERACTIVE_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
+}
+
+const isShaderBackgroundOption = (option: BackgroundDefinition) => {
+  if (hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS) || hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)) {
+    return false
+  }
+
+  const haystack = `${option.id} ${option.label} ${option.provider} ${option.sourceUrl}`.toLowerCase()
+  return option.motionIntensity !== "static" || SHADER_HINT_PATTERNS.some((pattern) => haystack.includes(pattern))
+}
+
+const isBackgroundCategoryMatch = (
+  option: BackgroundDefinition,
+  filter: BackgroundVisualCategory,
+  savedBackgroundIds: string[],
+) => {
+  if (filter === "all") {
+    return true
+  }
+
+  if (filter === "saved") {
+    return savedBackgroundIds.includes(option.id)
+  }
+
+  if (filter === "premium") {
+    return option.requiresSubscription
+  }
+
+  if (filter === "static") {
+    return option.motionIntensity === "static"
+  }
+
+  if (filter === "animated") {
+    return option.motionIntensity !== "static"
+  }
+
+  if (filter === "interactive") {
+    return isInteractiveBackgroundOption(option)
+  }
+
+  if (filter === "shader") {
+    return isShaderBackgroundOption(option)
+  }
+
+  if (filter === "image") {
+    return hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS)
+  }
+
+  return hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)
+}
+
+const getBackgroundVisualTags = (option: BackgroundDefinition) => {
+  const tags: string[] = []
+
+  if (option.motionIntensity === "static") {
+    tags.push("Static")
+  } else {
+    tags.push("Animated")
+  }
+
+  if (isInteractiveBackgroundOption(option)) {
+    tags.push("Interactive")
+  }
+
+  if (isShaderBackgroundOption(option)) {
+    tags.push("Shader")
+  }
+
+  if (hasMediaSource(option.sourceUrl, IMAGE_SOURCE_PATTERNS)) {
+    tags.push("Image")
+  } else if (hasMediaSource(option.sourceUrl, VIDEO_SOURCE_PATTERNS)) {
+    tags.push("Video")
+  }
+
+  if (option.requiresSubscription) {
+    tags.push("Premium")
+  } else {
+    tags.push("Free")
+  }
+
+  return Array.from(new Set(tags))
+}
 
 interface RunningTimerProps {
   timeDisplay: { hours: string; minutes: string; seconds: string }
@@ -228,6 +936,19 @@ interface RunningTimerProps {
   primaryFontColor: string
   secondaryFontColor: string
   clockModeFontColor: string
+  clockFontFamily: ChimerSettings["clockFontFamily"]
+  clockStrokeEnabled: boolean
+  clockStrokeColor: string
+  clockStrokeWidth: number
+  clockShadowEnabled: boolean
+  clockShadowColor: string
+  clockShadowStrength: number
+  clockShadowDirection: number
+  clockShadowDistance: number
+  clockShadowFeather: number
+  clockGlowEnabled: boolean
+  clockGlowColor: string
+  clockGlowStrength: number
   movingBackgroundMainColor: string
   movingBackgroundOrbColor: string
   sparklesMaxSize: number
@@ -1127,6 +1848,7 @@ interface RunningTimerProps {
   hexGridActivePercent: number
   hexGridOpacity: number
   canUseCustomColors: boolean
+  canUseAccountColorControls: boolean
   featureKeys: string[]
   activeIntervalMinutes: number | null
   onClose: () => void
@@ -1137,6 +1859,7 @@ interface RunningTimerProps {
   onAdjustActiveRemainingMinutes: (deltaMinutes: number) => void
   onSetActiveRemainingDuration: (hours: number, minutes: number) => void
   onSetActiveIntervalMinutes: (minutes: number) => void
+  hapticsEnabled: boolean
 }
 
 export function RunningTimer({
@@ -1156,6 +1879,19 @@ export function RunningTimer({
   primaryFontColor,
   secondaryFontColor,
   clockModeFontColor,
+  clockFontFamily,
+  clockStrokeEnabled,
+  clockStrokeColor,
+  clockStrokeWidth,
+  clockShadowEnabled,
+  clockShadowColor,
+  clockShadowStrength,
+  clockShadowDirection,
+  clockShadowDistance,
+  clockShadowFeather,
+  clockGlowEnabled,
+  clockGlowColor,
+  clockGlowStrength,
   movingBackgroundMainColor,
   movingBackgroundOrbColor,
   sparklesMaxSize,
@@ -2055,6 +2791,7 @@ export function RunningTimer({
   hexGridActivePercent,
   hexGridOpacity,
   canUseCustomColors,
+  canUseAccountColorControls,
   featureKeys,
   activeIntervalMinutes,
   onClose,
@@ -2065,6 +2802,7 @@ export function RunningTimer({
   onAdjustActiveRemainingMinutes,
   onSetActiveRemainingDuration,
   onSetActiveIntervalMinutes,
+  hapticsEnabled,
 }: RunningTimerProps) {
   const isPaused = status === "paused"
   const isComplete = status === "complete"
@@ -2073,6 +2811,8 @@ export function RunningTimer({
   const backgroundCategory = isClockMode ? "clock" : "chimer"
   // Preserve the original Lamp path; BackgroundHost owns static fallbacks for premium alternatives.
   const useOriginalLampBackground = backgroundId === DEFAULT_BACKGROUND_ID
+  const isLiveBackgroundSession = status === "running" || status === "paused" || status === "clock"
+  const shouldRenderLiveBackground = movingBackgroundEnabled && isLiveBackgroundSession
     || !canUseBackgroundId(backgroundId, featureKeys, backgroundCategory)
   const astralFlowDisplaySpeed = getChamaacAstralFlowDisplaySpeed(chamaacAstralFlowSpeed)
   const astralFlowColors = resolveChamaacAstralFlowColors({
@@ -2435,8 +3175,24 @@ export function RunningTimer({
   })
   const [primaryDisplay, setPrimaryDisplay] = useState<PrimaryDisplay>(isClockMode ? "currentTime" : "timer")
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>(isClockMode ? "display" : "timer")
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("clock")
+  const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
+    useState<BackgroundVisualCategory>("all")
+  const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
+  const [isVerticalBackgroundCarousel, setIsVerticalBackgroundCarousel] = useState(false)
+  const [activeBackgroundCarouselIndex, setActiveBackgroundCarouselIndex] = useState(0)
+  const [globalColors, setGlobalColors] = useState<GlobalColorValues>(DEFAULT_CHIMER_GLOBAL_COLORS)
+  const [globalHarmony, setGlobalHarmony] = useState<ChimerHarmonyValue>(DEFAULT_CHIMER_GLOBAL_HARMONY)
+  const [globalPalettes, setGlobalPalettes] = useState<ChimerSavedPalette[]>([])
+  const [globalPaletteName, setGlobalPaletteName] = useState(CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+  const [visibleBackgroundPreviewIds, setVisibleBackgroundPreviewIds] = useState<Set<BackgroundId>>(new Set())
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
+  const pressHaptic = useCallback(
+    () => {
+      triggerHapticFeedback(hapticsEnabled)
+    },
+    [hapticsEnabled],
+  )
   const [fitFontSize, setFitFontSize] = useState<number | null>(null)
   const [maxFittedFontSize, setMaxFittedFontSize] = useState<number | null>(null)
   const [swapAnimationTarget, setSwapAnimationTarget] = useState<PrimaryDisplay | null>(null)
@@ -2447,16 +3203,136 @@ export function RunningTimer({
   const settingsPanelRef = useRef<HTMLDivElement | null>(null)
   const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
+  const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
-  const resolvedPrimaryFontColor = primaryFontColor || DEFAULT_PRIMARY_FONT_COLOR
-  const resolvedSecondaryFontColor = secondaryFontColor || DEFAULT_SECONDARY_FONT_COLOR
-  const resolvedClockModeFontColor = clockModeFontColor || DEFAULT_CLOCK_MODE_FONT_COLOR
+  const resolvedPrimaryFontColor = primaryFontColor || globalColors.primary || DEFAULT_PRIMARY_FONT_COLOR
+  const resolvedSecondaryFontColor = secondaryFontColor || globalColors.secondary || DEFAULT_SECONDARY_FONT_COLOR
+  const resolvedClockModeFontColor = clockModeFontColor || globalColors.accent || DEFAULT_CLOCK_MODE_FONT_COLOR
   const resolvedTimerDisplayColor = isTimerPrimary ? resolvedPrimaryFontColor : resolvedSecondaryFontColor
   const resolvedCurrentTimeDisplayColor = isClockMode
     ? resolvedClockModeFontColor
     : isCurrentTimePrimary ? resolvedPrimaryFontColor : resolvedSecondaryFontColor
+  const [
+    globalPalettePrimary,
+    globalPaletteSecondary,
+    globalPaletteAccent,
+    globalPaletteCtaStart,
+    globalPaletteCtaEnd,
+    globalPaletteBackground,
+    globalPaletteForeground,
+  ] = getPaletteColorsFromGlobalValues(globalColors)
+  const resolvedClockStrokeColor = resolvePaletteDrivenColor({
+    value: clockStrokeColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.clockStrokeColor,
+    globalValue: globalPaletteBackground,
+  })
+  const resolvedClockShadowColor = resolvePaletteDrivenColor({
+    value: clockShadowColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.clockShadowColor,
+    globalValue: globalPaletteBackground,
+  })
+  const resolvedClockGlowColor = resolvePaletteDrivenColor({
+    value: clockGlowColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.clockGlowColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedClockTextShadow = buildClockTextShadow({
+    shadowEnabled: clockShadowEnabled,
+    shadowColor: resolvedClockShadowColor,
+    shadowStrength: clockShadowStrength,
+    shadowDirection: clockShadowDirection,
+    shadowDistance: clockShadowDistance,
+    shadowFeather: clockShadowFeather,
+    glowEnabled: clockGlowEnabled,
+    glowColor: resolvedClockGlowColor,
+    glowStrength: clockGlowStrength,
+  })
+  const resolvedMovingBackgroundMainColor = useOriginalLampBackground
+    ? normalizeHexColor(movingBackgroundMainColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor)
+    : resolvePaletteDrivenColor({
+      value: movingBackgroundMainColor,
+      defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor,
+      globalValue: globalPalettePrimary,
+    })
+  const resolvedMovingBackgroundOrbColor = useOriginalLampBackground
+    ? normalizeHexColor(movingBackgroundOrbColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor)
+    : resolvePaletteDrivenColor({
+      value: movingBackgroundOrbColor,
+      defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor,
+      globalValue: globalPaletteSecondary,
+    })
+  const resolvedSparklesParticleColor = resolvePaletteDrivenColor({
+    value: sparklesParticleColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.sparklesParticleColor,
+    globalValue: globalPaletteForeground,
+  })
+  const resolvedGradientAnimationBackgroundStartColor = resolvePaletteDrivenColor({
+    value: gradientAnimationBackgroundStartColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationBackgroundStartColor,
+    globalValue: globalPaletteBackground,
+  })
+  const resolvedGradientAnimationBackgroundEndColor = resolvePaletteDrivenColor({
+    value: gradientAnimationBackgroundEndColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationBackgroundEndColor,
+    globalValue: globalPaletteForeground,
+  })
+  const resolvedGradientAnimationFirstColor = resolvePaletteDrivenColor({
+    value: gradientAnimationFirstColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationFirstColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedGradientAnimationSecondColor = resolvePaletteDrivenColor({
+    value: gradientAnimationSecondColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationSecondColor,
+    globalValue: globalPaletteSecondary,
+  })
+  const resolvedGradientAnimationThirdColor = resolvePaletteDrivenColor({
+    value: gradientAnimationThirdColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationThirdColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedGradientAnimationFourthColor = resolvePaletteDrivenColor({
+    value: gradientAnimationFourthColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationFourthColor,
+    globalValue: globalPaletteCtaStart,
+  })
+  const resolvedGradientAnimationFifthColor = resolvePaletteDrivenColor({
+    value: gradientAnimationFifthColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.gradientAnimationFifthColor,
+    globalValue: globalPaletteCtaEnd,
+  })
+  const resolvedAnimateUiGradientPrimaryColor = resolvePaletteDrivenColor({
+    value: animateUiGradientPrimaryColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.animateUiGradientPrimaryColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedAnimateUiStarsColor = resolvePaletteDrivenColor({
+    value: animateUiStarsColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.animateUiStarsColor,
+    globalValue: globalPaletteForeground,
+  })
+  const resolvedAnimateUiHoleStrokeColor = resolvePaletteDrivenColor({
+    value: animateUiHoleStrokeColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.animateUiHoleStrokeColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedAnimateUiHoleParticleColor = resolvePaletteDrivenColor({
+    value: animateUiHoleParticleColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.animateUiHoleParticleColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedChamaacLightSpeedLightColor = resolvePaletteDrivenColor({
+    value: chamaacLightSpeedLightColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.chamaacLightSpeedLightColor,
+    globalValue: globalPaletteAccent,
+  })
+  const resolvedChamaacElectricMistColor = resolvePaletteDrivenColor({
+    value: chamaacElectricMistColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.chamaacElectricMistColor,
+    globalValue: globalPaletteForeground,
+  })
   const primaryActionLabel = isPaused ? "Resume timer" : "Pause timer"
   const statusText = isComplete ? "Session complete" : isPaused ? "Paused" : "Running"
   const hasTimerSeconds = Boolean(timeDisplay.seconds)
@@ -2478,6 +3354,21 @@ export function RunningTimer({
   const canDecreaseFontSize = effectiveFontSize > MIN_FONT_SIZE + 0.05
   const activeRemainingHours = Number(activeTimeDisplay.hours)
   const activeRemainingMinutes = Number(activeTimeDisplay.minutes)
+  const selectedBackgroundDefinition = resolveAccessibleBackgroundDefinition(
+    backgroundId,
+    featureKeys,
+    backgroundCategory,
+  )
+  const visibleBackgroundOptions = useMemo(
+    () => getBackgroundOptionsForCategory(backgroundCategory).filter((option) => isBackgroundCategoryMatch(
+      option,
+      backgroundCategoryFilter,
+      savedBackgroundIds,
+    )),
+    [backgroundCategory, backgroundCategoryFilter, savedBackgroundIds],
+  )
+  const hasVisibleBackgrounds = visibleBackgroundOptions.length > 0
+  const activeBackgroundOption = visibleBackgroundOptions[activeBackgroundCarouselIndex] ?? visibleBackgroundOptions[0] ?? null
 
   const clearControlTimers = useCallback(() => {
     if (fadeTimerRef.current) {
@@ -2642,6 +3533,104 @@ export function RunningTimer({
     return () => clearSettingsAutoCloseTimer()
   }, [clearSettingsAutoCloseTimer, isSettingsOpen, scheduleSettingsAutoClose])
 
+  useEffect(() => {
+    const loadedSavedBackgroundIds = getSavedBackgroundIdsFromStorage()
+    setSavedBackgroundIds(loadedSavedBackgroundIds)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return
+    }
+
+    const mediaQuery = window.matchMedia("(orientation: portrait) and (max-width: 480px)")
+    const updateCarouselAxis = () => {
+      setIsVerticalBackgroundCarousel(mediaQuery.matches)
+    }
+
+    updateCarouselAxis()
+    mediaQuery.addEventListener?.("change", updateCarouselAxis)
+
+    return () => {
+      mediaQuery.removeEventListener?.("change", updateCarouselAxis)
+    }
+  }, [])
+
+  useEffect(() => {
+    setActiveBackgroundCarouselIndex((currentIndex) => {
+      if (visibleBackgroundOptions.length === 0) {
+        return 0
+      }
+
+      const selectedIndex = visibleBackgroundOptions.findIndex((option) => option.id === backgroundId)
+      if (selectedIndex >= 0) {
+        return selectedIndex
+      }
+
+      return Math.min(currentIndex, visibleBackgroundOptions.length - 1)
+    })
+  }, [backgroundId, visibleBackgroundOptions])
+
+  useEffect(() => {
+    const loadedGlobalColors = getGlobalColorsFromStorage()
+    const loadedHarmony = getGlobalHarmonyFromStorage()
+    const loadedPalettes = getSavedGlobalPalettesFromStorage()
+    const defaultPalette = loadedPalettes.find((palette) => palette.isDefault)
+    const normalizedColors = loadedHarmony === "custom"
+      ? loadedGlobalColors
+      : getHarmonyColorsFromPrimary(loadedGlobalColors.primary, loadedHarmony)
+
+    setGlobalColors(normalizedColors)
+    setGlobalHarmony(loadedHarmony)
+    setGlobalPalettes(loadedPalettes)
+    setGlobalPaletteName(defaultPalette?.name ?? CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+    saveGlobalColorState(normalizedColors, loadedHarmony)
+    saveGlobalPalettesToStorage(loadedPalettes)
+  }, [])
+
+  useEffect(() => {
+    // The radial carousel renders several absolute cards, so preview loading is based on the active arc instead of scroll observation.
+    if (!isSettingsOpen || settingsTab !== "backgrounds") {
+      setVisibleBackgroundPreviewIds(new Set())
+      backgroundVideoRefMap.current.forEach((videoRef) => {
+        videoRef?.pause()
+      })
+      return
+    }
+
+    const nextVisibleIds = new Set<BackgroundId>([selectedBackgroundDefinition.id])
+    const totalOptions = visibleBackgroundOptions.length
+
+    visibleBackgroundOptions.forEach((option, index) => {
+      const offset = getCircularCarouselOffset(index, activeBackgroundCarouselIndex, totalOptions)
+      if (Math.abs(offset) <= 2) {
+        nextVisibleIds.add(option.id)
+      }
+    })
+
+    setVisibleBackgroundPreviewIds(nextVisibleIds)
+  }, [
+    activeBackgroundCarouselIndex,
+    isSettingsOpen,
+    selectedBackgroundDefinition.id,
+    settingsTab,
+    visibleBackgroundOptions,
+  ])
+
+  useEffect(() => {
+    backgroundVideoRefMap.current.forEach((videoRef, previewId) => {
+      if (!videoRef) {
+        return
+      }
+
+      if (visibleBackgroundPreviewIds.has(previewId) && isSettingsOpen && settingsTab === "backgrounds") {
+        void videoRef.play().catch(() => undefined)
+      } else {
+        videoRef.pause()
+      }
+    })
+  }, [isSettingsOpen, settingsTab, visibleBackgroundPreviewIds])
+
   useLayoutEffect(() => {
     const primaryElement = primaryDisplayRef.current
     const contentElement = primaryContentRef.current
@@ -2755,6 +3744,174 @@ export function RunningTimer({
     scheduleHideAfterControlAction({ force: true })
   }
 
+  const handleFontSizeRangeChange = (nextFontSize: number) => {
+    const clampedNextFontSize = Math.min(effectiveMaxFontSize, Math.max(MIN_FONT_SIZE, nextFontSize))
+
+    if (Math.abs(clampedNextFontSize - fontSize) < 0.05) {
+      scheduleHideAfterControlAction({ force: true })
+      return
+    }
+
+    onFontSizeChange(Number(clampedNextFontSize.toFixed(2)))
+    scheduleHideAfterControlAction({ force: true })
+  }
+
+  const handleBackgroundFilterChange = (nextFilter: BackgroundVisualCategory) => {
+    if (nextFilter === backgroundCategoryFilter) {
+      return
+    }
+
+    setBackgroundCategoryFilter(nextFilter)
+    scheduleSettingsAutoClose()
+  }
+
+  const handleBackgroundSelection = (nextBackgroundId: BackgroundId) => {
+    const nextBackgroundDefinition = visibleBackgroundOptions.find((option) => option.id === nextBackgroundId)
+
+    if (!nextBackgroundDefinition || !userCanUseBackground(nextBackgroundDefinition, featureKeys)) {
+      return
+    }
+
+    handleSettingsChange({ movingBackgroundEnabled: true, backgroundId: nextBackgroundId })
+  }
+
+  const moveBackgroundCarousel = useCallback(
+    (direction: 1 | -1) => {
+      if (visibleBackgroundOptions.length <= 1) {
+        return
+      }
+
+      triggerHapticFeedback(hapticsEnabled)
+      setActiveBackgroundCarouselIndex((currentIndex) => (
+        currentIndex + direction + visibleBackgroundOptions.length
+      ) % visibleBackgroundOptions.length)
+    },
+    [hapticsEnabled, visibleBackgroundOptions.length],
+  )
+
+  const handleBackgroundCarouselKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        event.preventDefault()
+        moveBackgroundCarousel(-1)
+      }
+
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        event.preventDefault()
+        moveBackgroundCarousel(1)
+      }
+    },
+    [moveBackgroundCarousel],
+  )
+
+  const handleBackgroundSavedToggle = (nextBackgroundId: BackgroundId) => {
+    setSavedBackgroundIds((current) => {
+      const isSaved = current.includes(nextBackgroundId)
+      const next = isSaved
+        ? current.filter((id) => id !== nextBackgroundId)
+        : [...current, nextBackgroundId]
+
+      saveBackgroundIdsToStorage(next)
+      return next
+    })
+    scheduleSettingsAutoClose()
+  }
+
+  const handleGlobalColorsChange = (nextColors: GlobalColorValues) => {
+    const sanitizedColors = sanitizeGlobalColorValues(nextColors)
+    const primaryChanged = sanitizedColors.primary !== globalColors.primary
+
+    if (globalHarmony !== "custom" && primaryChanged) {
+      const nextHarmonyColors = getHarmonyColorsFromPrimary(sanitizedColors.primary, globalHarmony)
+      setGlobalColors(nextHarmonyColors)
+      saveGlobalColorState(nextHarmonyColors, globalHarmony)
+      return
+    }
+
+    setGlobalColors(sanitizedColors)
+
+    if (globalHarmony === "custom") {
+      saveGlobalColorState(sanitizedColors, globalHarmony)
+      return
+    }
+
+    setGlobalHarmony(DEFAULT_CHIMER_GLOBAL_HARMONY)
+    saveGlobalColorState(sanitizedColors, DEFAULT_CHIMER_GLOBAL_HARMONY)
+  }
+
+  const handleGlobalHarmonyChange = (nextHarmony: ChimerHarmonyValue) => {
+    const nextColors = nextHarmony === "custom"
+      ? globalColors
+      : getHarmonyColorsFromPrimary(globalColors.primary, nextHarmony)
+
+    setGlobalColors(nextColors)
+    setGlobalHarmony(nextHarmony)
+    saveGlobalColorState(nextColors, nextHarmony)
+  }
+
+  const handleGlobalPaletteNameChange = (nextName: string) => {
+    setGlobalPaletteName(nextName.trim() || CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+  }
+
+  const handleGlobalPaletteSave = (nextColors: GlobalColorValues, paletteName: string) => {
+    const sourceColorName = paletteName.trim() || CHIMER_GLOBAL_PALETTE_DEFAULT_NAME
+    const normalizedColors = sanitizeGlobalColorValues(nextColors)
+    const generatedColors = getPaletteColorsFromGlobalValues(normalizedColors)
+    const hasExistingDefault = globalPalettes.some((palette) => palette.isDefault)
+
+    setGlobalPalettes((current) => {
+      const matchIndex = current.findIndex(
+        (palette) => palette.name.trim().toLowerCase() === sourceColorName.toLowerCase(),
+      )
+      const paletteId = matchIndex >= 0 ? current[matchIndex].id : `palette-${Date.now()}`
+      const nextPalette: ChimerSavedPalette = {
+        id: paletteId,
+        name: sourceColorName,
+        sourceColor: normalizedColors.primary,
+        harmony: globalHarmony,
+        colors: normalizedColors,
+        generated: generatedColors,
+        isDefault: current[matchIndex]?.isDefault ?? !hasExistingDefault,
+        createdAt: new Date().toISOString(),
+      }
+
+      if (matchIndex >= 0) {
+        const nextPalettes = [...current]
+        nextPalettes[matchIndex] = nextPalette
+        saveGlobalPalettesToStorage(nextPalettes)
+        return nextPalettes
+      }
+
+      const nextPalettes = [nextPalette, ...current]
+      saveGlobalPalettesToStorage(nextPalettes)
+      return nextPalettes
+    })
+
+    setGlobalPaletteName(sourceColorName)
+  }
+
+  const handleGlobalPaletteLoad = (palette: ChimerSavedPalette) => {
+    const normalizedColors = sanitizeGlobalColorValues(palette.colors)
+    const nextHarmony = palette.harmony
+    const nextColors = nextHarmony === "custom"
+      ? normalizedColors
+      : getHarmonyColorsFromPrimary(normalizedColors.primary, nextHarmony)
+
+    setGlobalColors(nextColors)
+    setGlobalHarmony(nextHarmony)
+    setGlobalPaletteName(palette.name)
+
+    const nextPalettes = globalPalettes.map((entry) => ({
+      ...entry,
+      isDefault: entry.id === palette.id,
+    }))
+    setGlobalPalettes(nextPalettes)
+
+    saveGlobalColorState(nextColors, nextHarmony)
+    saveGlobalPalettesToStorage(nextPalettes)
+    scheduleSettingsAutoClose()
+  }
+
   const handlePauseControl = () => {
     onPause()
     scheduleHideAfterControlAction({ force: true })
@@ -2774,12 +3931,20 @@ export function RunningTimer({
 
     clearControlTimers()
     setControlState("visible")
-    setSettingsTab(isClockMode ? "display" : "timer")
+    setSettingsTab("clock")
     setIsSettingsOpen(true)
   }
 
+  const canUseCoreColorControls = canUseCustomColors || canUseAccountColorControls
+
   const handleSettingsChange = (nextSettings: Partial<ChimerSettings>) => {
-    if (!canUseCustomColors && Object.keys(nextSettings).some((key) => CUSTOM_COLOR_SETTING_KEYS.has(key))) {
+    const settingKeys = Object.keys(nextSettings)
+
+    if (!canUseCustomColors && settingKeys.some((key) => PREMIUM_CUSTOM_COLOR_SETTING_KEYS.has(key))) {
+      return
+    }
+
+    if (!canUseCoreColorControls && settingKeys.some((key) => ACCOUNT_COLOR_SETTING_KEYS.has(key))) {
       return
     }
 
@@ -2793,7 +3958,9 @@ export function RunningTimer({
   }
 
   const handleSettingsTabChange = (nextTab: string) => {
-    setSettingsTab(nextTab as SettingsTab)
+    if (nextTab === "clock" || nextTab === "visual" || nextTab === "backgrounds") {
+      setSettingsTab(nextTab)
+    }
     scheduleSettingsAutoClose()
   }
 
@@ -2817,7 +3984,7 @@ export function RunningTimer({
     scheduleSettingsAutoClose()
   }
 
-  const useCurrentLocationForGlobe = () => {
+  const getCurrentLocationForGlobe = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       return
     }
@@ -2834,60 +4001,134 @@ export function RunningTimer({
   const aceternity3DGlobeScaleDisplayPercent = getAceternity3DGlobeScaleDisplayPercent(aceternity3DGlobeScale)
   const isGraphicGlobe = aceternity3DGlobeViewStyle === "graphic"
   const followSun = aceternity3DGlobeLightingMode === "sun"
+  /** Render a lightweight preview for catalog cards while keeping live rendering only on selected background activation. */
+  const renderBackgroundPreview = (
+    option: BackgroundDefinition,
+    isLoaded: boolean,
+    fallbackStyle?: CSSProperties,
+  ) => {
+    const media = getBackgroundPreviewMedia(option, isVerticalBackgroundCarousel ? "vertical" : "landscape")
+    const fallback = fallbackStyle ?? option.fallbackStyle ?? { background: "#0f172a" }
+
+    if (!media || !isLoaded) {
+      return (
+        <div className={styles.backgroundCardPreview} style={fallback}>
+          {media ? (
+            <Loader
+              shape="sphere"
+              variant="dither"
+              color="#ea580c"
+              size={38}
+              className={styles.backgroundCardLoader}
+              label="Loading preview"
+            />
+          ) : null}
+        </div>
+      )
+    }
+
+    if (media.type === "image") {
+      return (
+        <div className={styles.backgroundCardPreview} style={fallback}>
+          <Image
+            src={media.source}
+            alt=""
+            className={styles.backgroundCardMedia}
+            fill
+            sizes="100vw"
+            unoptimized
+            aria-hidden="true"
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className={styles.backgroundCardPreview} style={fallback}>
+        <video
+          ref={(element) => {
+            if (element) {
+              backgroundVideoRefMap.current.set(option.id, element)
+            } else {
+              backgroundVideoRefMap.current.delete(option.id)
+            }
+          }}
+          className={styles.backgroundCardMedia}
+          src={media.source}
+          muted
+          loop
+          playsInline
+          preload="none"
+          aria-hidden="true"
+        />
+      </div>
+    )
+  }
 
   const renderBackgroundControls = (option: BackgroundDefinition) => (
     <div className={styles.backgroundCardControls}>
       {!isClockMode && (
-        <label className={styles.colorRow}>
+        <div className={styles.colorRow} title={customColorDisabledHint}>
           <span>Primary color</span>
-          <input
-            type="color"
+          <ColorPickerSwatch
+            label="Primary display color"
             value={resolvedPrimaryFontColor}
+            fallback={DEFAULT_PRIMARY_FONT_COLOR}
             disabled={!canUseCustomColors}
-            onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
-            aria-label="Primary display color"
+            onChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })}
+            className={styles.colorSwatchPicker}
+            buttonClassName={styles.colorSwatchButton}
           />
-        </label>
+        </div>
       )}
 
-      <label className={styles.colorRow}>
+      <div
+        className={styles.colorRow}
+        title={isClockMode ? accountColorDisabledHint : customColorDisabledHint}
+      >
         <span>{isClockMode ? "Clock color" : "Secondary color"}</span>
-        <input
-          type="color"
+        <ColorPickerSwatch
+          label={isClockMode ? "Clock color" : "Secondary display color"}
           value={isClockMode ? resolvedClockModeFontColor : resolvedSecondaryFontColor}
-          disabled={!canUseCustomColors}
-          onChange={(event) => handleSettingsChange(
+          fallback={isClockMode ? DEFAULT_CLOCK_MODE_FONT_COLOR : DEFAULT_SECONDARY_FONT_COLOR}
+          disabled={isClockMode ? !canUseCoreColorControls : !canUseCustomColors}
+          onChange={(nextColor) => handleSettingsChange(
             isClockMode
-              ? { clockModeFontColor: event.target.value }
-              : { secondaryFontColor: event.target.value },
+              ? { clockModeFontColor: nextColor }
+              : { secondaryFontColor: nextColor },
           )}
-          aria-label={isClockMode ? "Clock color" : "Secondary display color"}
+          className={styles.colorSwatchPicker}
+          buttonClassName={styles.colorSwatchButton}
         />
-      </label>
+      </div>
 
       {option.id === "massage-lab-moving-gradient" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow} title={accountColorDisabledHint}>
             <span>Lamp main color</span>
-            <input
-              type="color"
+            <ColorPickerSwatch
+              label="Lamp main color"
               value={movingBackgroundMainColor}
-              disabled={!canUseCustomColors}
-              onChange={(event) => handleSettingsChange({ movingBackgroundMainColor: event.target.value })}
-              aria-label="Lamp main color"
+              fallback={DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor}
+              disabled={!canUseCoreColorControls}
+              onChange={(nextColor) => handleSettingsChange({ movingBackgroundMainColor: nextColor })}
+              className={styles.colorSwatchPicker}
+              buttonClassName={styles.colorSwatchButton}
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow} title={accountColorDisabledHint}>
             <span>Lamp orb color</span>
-            <input
-              type="color"
+            <ColorPickerSwatch
+              label="Lamp orb color"
               value={movingBackgroundOrbColor}
-              disabled={!canUseCustomColors}
-              onChange={(event) => handleSettingsChange({ movingBackgroundOrbColor: event.target.value })}
-              aria-label="Lamp orb color"
+              fallback={DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor}
+              disabled={!canUseCoreColorControls}
+              onChange={(nextColor) => handleSettingsChange({ movingBackgroundOrbColor: nextColor })}
+              className={styles.colorSwatchPicker}
+              buttonClassName={styles.colorSwatchButton}
             />
-          </label>
+          </div>
         </>
       )}
 
@@ -4086,7 +5327,14 @@ export function RunningTimer({
                   />
                 </label>
               </div>
-              <button type="button" className={styles.inlineButton} onClick={useCurrentLocationForGlobe}>
+              <button
+                type="button"
+                className={`${styles.inlineButton} ${styles.tactileButton}`}
+                onClick={() => {
+                  pressHaptic()
+                  getCurrentLocationForGlobe()
+                }}
+              >
                 Use my location
               </button>
               <label className={styles.textField}>
@@ -14614,6 +15862,13 @@ export function RunningTimer({
   const containerStyle = {
     "--chimer-timer-color": resolvedTimerDisplayColor,
     "--chimer-clock-color": resolvedCurrentTimeDisplayColor,
+    "--chimer-display-font-family": getClockFontStack(clockFontFamily),
+    "--chimer-digit-stroke-width": clockStrokeEnabled ? `${clockStrokeWidth}px` : "0px",
+    "--chimer-digit-stroke-color": resolvedClockStrokeColor,
+    "--chimer-digit-glow": resolvedClockTextShadow,
+    "--brand-orange": getCssHsl(globalPalettePrimary, DEFAULT_CHIMER_GLOBAL_COLORS.primary),
+    "--brand-orange-soft": getCssHsl(globalPaletteSecondary, DEFAULT_CHIMER_GLOBAL_COLORS.secondary),
+    "--brand-orange-glow": getCssHsl(globalPaletteAccent, DEFAULT_CHIMER_GLOBAL_COLORS.accent),
   } as CSSProperties
   const primaryDisplayStyle = {
     "--chimer-primary-font-size": `${fontSize}vw`,
@@ -14625,6 +15880,8 @@ export function RunningTimer({
   const currentTimeSwapClass = swapAnimationTarget
     ? swapAnimationTarget === "currentTime" ? styles.swapToPrimary : styles.swapToSecondary
     : ""
+  const accountColorDisabledHint = canUseCoreColorControls ? undefined : "Sign in to set clock and Lamp colors."
+  const customColorDisabledHint = canUseCustomColors ? undefined : "Subscribe to unlock advanced custom color controls."
   const premiumBackgroundClassName = [
     styles.runningBackground,
     isFullscreen && backgroundId === "aceternity-lamp-effect" ? styles.runningLampFullscreenBackground : "",
@@ -14650,69 +15907,69 @@ export function RunningTimer({
       aria-label={isClockMode ? "Chimer clock" : "Running Chimer timer"}
       style={containerStyle}
     >
-      {movingBackgroundEnabled && useOriginalLampBackground && (
+      {shouldRenderLiveBackground && useOriginalLampBackground && (
         <MovingBackground
           className={styles.runningBackground}
-          mainColor={movingBackgroundMainColor}
-          orbColor={movingBackgroundOrbColor}
+          mainColor={resolvedMovingBackgroundMainColor}
+          orbColor={resolvedMovingBackgroundOrbColor}
           testId="chimer-premium-background"
         />
       )}
 
-      {movingBackgroundEnabled && !useOriginalLampBackground && (
+      {shouldRenderLiveBackground && !useOriginalLampBackground && (
         <BackgroundHost
           className={premiumBackgroundClassName}
           style={premiumBackgroundStyle}
           selectedId={backgroundId}
           featureKeys={featureKeys}
           category={backgroundCategory}
-          mainColor={movingBackgroundMainColor}
-          orbColor={movingBackgroundOrbColor}
+          mainColor={resolvedMovingBackgroundMainColor}
+          orbColor={resolvedMovingBackgroundOrbColor}
           sparkles={{
             maxSize: sparklesMaxSize,
             minSize: sparklesMinSize,
-            particleColor: sparklesParticleColor,
+            particleColor: resolvedSparklesParticleColor,
             particleDensity: sparklesParticleDensity,
             speed: sparklesSpeed,
           }}
           gradientAnimation={{
-            backgroundStartColor: gradientAnimationBackgroundStartColor,
-            backgroundEndColor: gradientAnimationBackgroundEndColor,
-            firstColor: gradientAnimationFirstColor,
-            secondColor: gradientAnimationSecondColor,
-            thirdColor: gradientAnimationThirdColor,
-            fourthColor: gradientAnimationFourthColor,
-            fifthColor: gradientAnimationFifthColor,
+            backgroundStartColor: resolvedGradientAnimationBackgroundStartColor,
+            backgroundEndColor: resolvedGradientAnimationBackgroundEndColor,
+            firstColor: resolvedGradientAnimationFirstColor,
+            secondColor: resolvedGradientAnimationSecondColor,
+            thirdColor: resolvedGradientAnimationThirdColor,
+            fourthColor: resolvedGradientAnimationFourthColor,
+            fifthColor: resolvedGradientAnimationFifthColor,
             speed: gradientAnimationSpeed,
             size: gradientAnimationSize,
           }}
           animateUiGradient={{
-            primaryColor: animateUiGradientPrimaryColor,
+            primaryColor: resolvedAnimateUiGradientPrimaryColor,
             harmony: animateUiGradientHarmony,
             opacity: animateUiGradientOpacity,
           }}
           animateUiStars={{
-            starColor: animateUiStarsColor,
+            starColor: resolvedAnimateUiStarsColor,
             speed: animateUiStarsSpeed,
             density: animateUiStarsDensity,
             factor: animateUiStarsParallax,
           }}
           animateUiHole={{
-            strokeColor: animateUiHoleStrokeColor,
-            particleColor: animateUiHoleParticleColor,
+            strokeColor: resolvedAnimateUiHoleStrokeColor,
+            particleColor: resolvedAnimateUiHoleParticleColor,
             numberOfLines: animateUiHoleLineCount,
             numberOfDiscs: animateUiHoleDiscCount,
           }}
           chamaacLightSpeed={{
             warpSpeed: chamaacLightSpeedWarpSpeed,
             particleCount: chamaacLightSpeedParticleCount,
-            lightColor: chamaacLightSpeedLightColor,
+            lightColor: resolvedChamaacLightSpeedLightColor,
             intensity: chamaacLightSpeedIntensity,
             radius: chamaacLightSpeedRadius,
             cylinderLength: chamaacLightSpeedCylinderLength,
           }}
           chamaacElectricMist={{
-            color: chamaacElectricMistColor,
+            color: resolvedChamaacElectricMistColor,
             speed: chamaacElectricMistSpeed,
             detail: chamaacElectricMistDetail,
             distortion: chamaacElectricMistDistortion,
@@ -15554,12 +16811,15 @@ export function RunningTimer({
 
       {!isClockMode && (
         <button
-          type="button"
-          className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
-          onClick={isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer")}
-          disabled={isTimerPrimary && isComplete}
-          ref={isTimerPrimary ? primaryDisplayRef : undefined}
-          style={isTimerPrimary ? primaryDisplayStyle : undefined}
+        type="button"
+        className={`${styles.displayButton} ${isTimerPrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isTimerPrimary && !hasTimerSeconds ? styles.timerModeCompactTimer : ""} ${styles.timerDisplay} ${timerSwapClass}`}
+        onClick={() => {
+          triggerHapticFeedback(hapticsEnabled)
+          ;(isTimerPrimary ? handlePauseControl : () => handlePrimarySwitch("timer"))()
+        }}
+        disabled={isTimerPrimary && isComplete}
+        ref={isTimerPrimary ? primaryDisplayRef : undefined}
+        style={isTimerPrimary ? primaryDisplayStyle : undefined}
           aria-label={isTimerPrimary ? (isComplete ? "Session complete" : `${primaryActionLabel} from center display`) : "Show timer in center"}
           aria-live={isTimerPrimary ? "polite" : undefined}
           data-testid="running-timer-clock"
@@ -15573,7 +16833,10 @@ export function RunningTimer({
       <button
         type="button"
         className={`${styles.displayButton} ${isCurrentTimePrimary ? styles.primaryDisplay : styles.secondaryDisplay} ${isCurrentTimePrimary && !isClockMode ? styles.timerModeClockPrimary : ""} ${styles.currentTimeDisplay} ${currentTimeSwapClass}`}
-        onClick={isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime")}
+        onClick={() => {
+          triggerHapticFeedback(hapticsEnabled)
+          ;(isCurrentTimePrimary ? (isClockMode ? revealControls : handlePauseControl) : () => handlePrimarySwitch("currentTime"))()
+        }}
         disabled={isCurrentTimePrimary && isComplete}
         ref={isCurrentTimePrimary ? primaryDisplayRef : undefined}
         data-testid="running-current-time"
@@ -15587,8 +16850,11 @@ export function RunningTimer({
 
       <div className={chromeClassName}>
         <button
-          className={`${styles.control} ${styles.closeButton}`}
-          onClick={onClose}
+          className={`${styles.control} ${styles.closeButton} ${styles.tactileButton}`}
+          onClick={() => {
+            triggerHapticFeedback(hapticsEnabled)
+            onClose()
+          }}
           aria-label={isClockMode ? "Close clock" : "End timer"}
           data-chimer-control="true"
         >
@@ -15596,8 +16862,11 @@ export function RunningTimer({
         </button>
 
         <button
-          className={`${styles.control} ${styles.fullscreenButton}`}
-          onClick={handleFullscreenControl}
+          className={`${styles.control} ${styles.fullscreenButton} ${styles.tactileButton}`}
+          onClick={() => {
+            triggerHapticFeedback(hapticsEnabled)
+            handleFullscreenControl()
+          }}
           aria-label="Toggle fullscreen"
           data-chimer-control="true"
         >
@@ -15606,8 +16875,11 @@ export function RunningTimer({
 
         <button
           ref={settingsButtonRef}
-          className={`${styles.control} ${styles.settingsButton}`}
-          onClick={handleSettingsButtonClick}
+          className={`${styles.control} ${styles.settingsButton} ${styles.tactileButton}`}
+          onClick={() => {
+            triggerHapticFeedback(hapticsEnabled)
+            handleSettingsButtonClick()
+          }}
           aria-label={isSettingsOpen ? "Close clock settings" : "Open clock settings"}
           aria-expanded={isSettingsOpen}
           data-chimer-control="true"
@@ -15628,165 +16900,652 @@ export function RunningTimer({
             onChange={handleSettingsPanelActivity}
             onInput={handleSettingsPanelActivity}
           >
-            <div className={styles.settingsHeaderBar}>
-              <div>
-                <div className={styles.settingsHeader}>Chimer Settings</div>
-                <div className={styles.settingsSubheader}>
-                  {isClockMode ? "Clock display and background" : "Active timer controls and preferences"}
-                </div>
-              </div>
-            </div>
-
             <Tabs value={settingsTab} onValueChange={handleSettingsTabChange} className={styles.settingsTabs}>
               <TabsList className={styles.settingsTabList}>
-                {!isClockMode && (
-                  <TabsTrigger value="timer" className={styles.settingsTabTrigger}>Timer</TabsTrigger>
-                )}
-                <TabsTrigger value="display" className={styles.settingsTabTrigger}>Display</TabsTrigger>
-                <TabsTrigger value="background" className={styles.settingsTabTrigger}>Visuals</TabsTrigger>
+                <TabsTrigger value="clock" className={styles.settingsTabTrigger}>Clock</TabsTrigger>
+                <TabsTrigger value="visual" className={styles.settingsTabTrigger}>Visual</TabsTrigger>
+                <TabsTrigger value="backgrounds" className={styles.settingsTabTrigger}>Backgrounds</TabsTrigger>
               </TabsList>
 
-              {!isClockMode && (
-                <TabsContent value="timer" className={styles.settingsTabContent}>
-                  <label className={styles.switchRow}>
-                    <span>Show timer seconds</span>
-                    <input
-                      type="checkbox"
-                      checked={resolvedShowTimerSeconds}
-                      onChange={(event) => handleSettingsChange({ showTimerSeconds: event.target.checked })}
-                    />
-                  </label>
+              <TabsContent value="clock" className={styles.settingsTabContent}>
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Clock text</span>
+                    <span className={styles.settingsPill}>Display tuning</span>
+                  </div>
 
-                  {canEditActiveTimer ? (
-                    <>
-                      <div className={styles.settingsSection}>
-                        <div className={styles.settingsSectionHeader}>
-                          <span>Remaining time</span>
-                          <span className={styles.settingsPill}>Active only</span>
-                        </div>
-                        <div className={styles.quickAdjustGrid} aria-label="Adjust remaining time">
-                          <button type="button" onClick={() => handleActiveRemainingStep(-5)}>-5m</button>
-                          <button type="button" onClick={() => handleActiveRemainingStep(-1)}>-1m</button>
-                          <button type="button" onClick={() => handleActiveRemainingStep(1)}>+1m</button>
-                          <button type="button" onClick={() => handleActiveRemainingStep(5)}>+5m</button>
-                        </div>
-                        <div className={styles.exactTimeGrid}>
-                          <label className={styles.numberField}>
-                            <span>Hours</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={activeRemainingHours}
-                              onChange={(event) => handleActiveRemainingHoursChange(event.target.value)}
-                              aria-label="Exact remaining hours"
-                            />
-                          </label>
-                          <label className={styles.numberField}>
-                            <span>Minutes</span>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={activeRemainingMinutes}
-                              onChange={(event) => handleActiveRemainingMinutesChange(event.target.value)}
-                              aria-label="Exact remaining minutes"
-                            />
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className={styles.settingsSection}>
-                        <div className={styles.settingsSectionHeader}>
-                          <span>Chime interval</span>
-                          <span className={styles.settingsPill}>Active only</span>
-                        </div>
-                        <label className={styles.numberField}>
-                          <span>Minutes between chimes</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={activeIntervalMinutes ?? ""}
-                            onChange={(event) => handleActiveIntervalChange(event.target.value)}
-                            aria-label="Active chime interval minutes"
-                          />
-                        </label>
-                      </div>
-                    </>
-                  ) : (
-                    <div className={styles.settingsEmptyState}>
-                      {isComplete ? "Session complete. Active timer changes are disabled." : "Start or pause a timer to adjust it here."}
-                    </div>
-                  )}
-                </TabsContent>
-              )}
-
-              <TabsContent value="display" className={styles.settingsTabContent}>
-                <label className={styles.switchRow}>
-                  <span>Show clock seconds</span>
-                  <input
-                    type="checkbox"
-                    checked={showCurrentTimeSeconds}
-                    onChange={(event) => handleSettingsChange({ showCurrentTimeSeconds: event.target.checked })}
+                  {!isClockMode && (
+                  <StyledToggleControl
+                    label="Show timer seconds"
+                    checked={resolvedShowTimerSeconds}
+                    valueLabel={resolvedShowTimerSeconds ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ showTimerSeconds: value })}
                   />
-                </label>
+                  )}
 
-                <div className={styles.formatRow}>
-                  <span>Time format</span>
-                  <div className={styles.formatToggle} aria-label="Time format">
-                    <button
-                      type="button"
-                      className={`${styles.formatOption} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
-                      aria-pressed={timeFormat === "12h"}
-                      onClick={() => handleSettingsChange({ timeFormat: "12h" })}
-                    >
-                      12h
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.formatOption} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
-                      aria-pressed={timeFormat === "24h"}
-                      onClick={() => handleSettingsChange({ timeFormat: "24h" })}
-                    >
-                      24h
-                    </button>
+                  <StyledToggleControl
+                    label="Show clock seconds"
+                    checked={showCurrentTimeSeconds}
+                    valueLabel={showCurrentTimeSeconds ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ showCurrentTimeSeconds: value })}
+                  />
+
+                  <StyledRangeControl
+                    label="Font size"
+                    value={effectiveFontSize}
+                    min={MIN_FONT_SIZE}
+                    max={effectiveMaxFontSize}
+                    step={FONT_SIZE_STEP}
+                    displayValue={`${Math.round(effectiveFontSize)}vw`}
+                    hapticsEnabled={hapticsEnabled}
+                    onChange={handleFontSizeRangeChange}
+                  />
+
+                  <div className={styles.clockCompactRow}>
+                    <label className={styles.clockCompactField} title={customColorDisabledHint}>
+                      <span>Clock font</span>
+                      <select
+                        value={clockFontFamily}
+                        disabled={!canUseCustomColors}
+                        onChange={(event) => handleSettingsChange({
+                          clockFontFamily: event.target.value as ChimerSettings["clockFontFamily"],
+                        })}
+                        aria-label="Clock font"
+                      >
+                        <option value="digital">Digital</option>
+                        <option value="mono">Mono</option>
+                        <option value="sans">Sans</option>
+                        <option value="serif">Serif</option>
+                      </select>
+                    </label>
+
+                    <div className={styles.clockCompactField} title={accountColorDisabledHint}>
+                      <span>Clock color</span>
+                      <ColorPickerSwatch
+                        label="Clock color"
+                        value={clockModeFontColor}
+                        fallback={DEFAULT_CLOCK_MODE_FONT_COLOR}
+                        disabled={!canUseCoreColorControls}
+                        onChange={(nextColor) => handleSettingsChange({ clockModeFontColor: nextColor })}
+                        className={styles.colorSwatchPicker}
+                        buttonClassName={styles.clockColorSwatchButton}
+                      />
+                    </div>
+
+                    <div className={styles.clockCompactField}>
+                      <span>Time format</span>
+                      <div className={styles.formatToggle} aria-label="Time format">
+                        <button
+                          type="button"
+                          className={`${styles.formatOption} ${styles.tactileButton} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                          aria-pressed={timeFormat === "12h"}
+                          onClick={() => {
+                            triggerHapticFeedback(hapticsEnabled)
+                            handleSettingsChange({ timeFormat: "12h" })
+                          }}
+                        >
+                          12h
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.formatOption} ${styles.tactileButton} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                          aria-pressed={timeFormat === "24h"}
+                          onClick={() => {
+                            triggerHapticFeedback(hapticsEnabled)
+                            handleSettingsChange({ timeFormat: "24h" })
+                          }}
+                        >
+                          24h
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!isClockMode ? (
+                    <div className={styles.clockControlGrid}>
+                      <label className={styles.colorRow} title={customColorDisabledHint}>
+                        <span>Timer color</span>
+                        <input
+                          type="color"
+                          value={primaryFontColor}
+                          disabled={!canUseCustomColors}
+                          onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
+                          aria-label="Timer color"
+                        />
+                      </label>
+                      <label className={styles.colorRow} title={customColorDisabledHint}>
+                        <span>Secondary color</span>
+                        <input
+                          type="color"
+                          value={secondaryFontColor}
+                          disabled={!canUseCustomColors}
+                          onChange={(event) => handleSettingsChange({ secondaryFontColor: event.target.value })}
+                          aria-label="Secondary display color"
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+
+                  <div className={styles.controlGroup}>
+                    <StyledToggleControl
+                      label="Clock stroke"
+                      checked={clockStrokeEnabled}
+                      valueLabel={clockStrokeEnabled ? "On" : "Off"}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      onCheckedChange={(value) => handleSettingsChange({ clockStrokeEnabled: value })}
+                    />
+                    {clockStrokeEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <label className={styles.colorRow}>
+                            <span>Stroke color</span>
+                            <input
+                              type="color"
+                              value={clockStrokeColor}
+                              onChange={(event) => handleSettingsChange({ clockStrokeColor: event.target.value })}
+                              aria-label="Clock stroke color"
+                            />
+                          </label>
+                          <StyledRangeControl
+                            label="Stroke width"
+                            value={clockStrokeWidth}
+                            min={0}
+                            max={3}
+                            step={0.25}
+                            displayValue={`${clockStrokeWidth.toFixed(2)}px`}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockStrokeWidth: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className={styles.controlGroup} title={customColorDisabledHint}>
+                    <StyledToggleControl
+                      label="Clock drop shadow"
+                      checked={clockShadowEnabled}
+                      valueLabel={clockShadowEnabled ? "On" : "Off"}
+                      disabled={!canUseCustomColors}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      onCheckedChange={(value) => handleSettingsChange({ clockShadowEnabled: value })}
+                    />
+                    {clockShadowEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <label className={styles.colorRow}>
+                            <span>Shadow color</span>
+                            <input
+                              type="color"
+                              value={clockShadowColor}
+                              disabled={!canUseCustomColors}
+                              onChange={(event) => handleSettingsChange({ clockShadowColor: event.target.value })}
+                              aria-label="Clock shadow color"
+                            />
+                          </label>
+                          <StyledRangeControl
+                            label="Shadow strength"
+                            value={clockShadowStrength}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            displayValue={`${Math.round(clockShadowStrength * 100)}%`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowStrength: value })}
+                          />
+                          <StyledRangeControl
+                            label="Shadow direction"
+                            value={clockShadowDirection}
+                            min={0}
+                            max={360}
+                            step={1}
+                            displayValue={`${Math.round(clockShadowDirection)}°`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowDirection: value })}
+                          />
+                          <StyledRangeControl
+                            label="Shadow distance"
+                            value={clockShadowDistance}
+                            min={0}
+                            max={32}
+                            step={1}
+                            displayValue={`${Math.round(clockShadowDistance)}px`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowDistance: value })}
+                          />
+                          <StyledRangeControl
+                            label="Shadow feather"
+                            value={clockShadowFeather}
+                            min={0}
+                            max={32}
+                            step={1}
+                            displayValue={`${Math.round(clockShadowFeather)}px`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockShadowFeather: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className={styles.controlGroup} title={customColorDisabledHint}>
+                    <StyledToggleControl
+                      label="Clock outer glow"
+                      checked={clockGlowEnabled}
+                      valueLabel={clockGlowEnabled ? "On" : "Off"}
+                      disabled={!canUseCustomColors}
+                      hapticsEnabled={hapticsEnabled}
+                      className={styles.controlGroupToggle}
+                      onCheckedChange={(value) => handleSettingsChange({ clockGlowEnabled: value })}
+                    />
+                    {clockGlowEnabled ? (
+                      <div className={styles.controlGroupBody}>
+                        <div className={styles.clockControlGrid}>
+                          <label className={styles.colorRow}>
+                            <span>Glow color</span>
+                            <input
+                              type="color"
+                              value={clockGlowColor}
+                              disabled={!canUseCustomColors}
+                              onChange={(event) => handleSettingsChange({ clockGlowColor: event.target.value })}
+                              aria-label="Clock outer glow color"
+                            />
+                          </label>
+                          <StyledRangeControl
+                            label="Glow strength"
+                            value={clockGlowStrength}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            displayValue={`${Math.round(clockGlowStrength * 100)}%`}
+                            disabled={!canUseCustomColors}
+                            hapticsEnabled={hapticsEnabled}
+                            onChange={(value) => handleSettingsChange({ clockGlowStrength: value })}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
                 {!isClockMode && (
-                  <label className={styles.switchRow}>
-                    <span>Keep timer screen awake</span>
-                    <input
-                      type="checkbox"
-                      checked={keepTimerScreenAwake}
-                      onChange={(event) => handleSettingsChange({ keepTimerScreenAwake: event.target.checked })}
-                    />
-                  </label>
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionHeader}>
+                      <span>Timer tools</span>
+                    </div>
+                    {canEditActiveTimer ? (
+                      <>
+                        <div className={styles.settingsSection}>
+                          <div className={styles.settingsSectionHeader}>
+                            <span>Remaining time</span>
+                            <span className={styles.settingsPill}>Active only</span>
+                          </div>
+                          <div className={styles.quickAdjustGrid} aria-label="Adjust remaining time">
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(-5)
+                              }}
+                            >
+                              -5m
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(-1)
+                              }}
+                            >
+                              -1m
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(1)
+                              }}
+                            >
+                              +1m
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.tactileButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                handleActiveRemainingStep(5)
+                              }}
+                            >
+                              +5m
+                            </button>
+                          </div>
+                          <div className={styles.exactTimeGrid}>
+                            <label className={styles.numberField}>
+                              <span>Hours</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={activeRemainingHours}
+                                onChange={(event) => handleActiveRemainingHoursChange(event.target.value)}
+                                aria-label="Exact remaining hours"
+                              />
+                            </label>
+                            <label className={styles.numberField}>
+                              <span>Minutes</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={activeRemainingMinutes}
+                                onChange={(event) => handleActiveRemainingMinutesChange(event.target.value)}
+                                aria-label="Exact remaining minutes"
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className={styles.settingsSection}>
+                          <div className={styles.settingsSectionHeader}>
+                            <span>Chime interval</span>
+                            <span className={styles.settingsPill}>Active only</span>
+                          </div>
+                          <label className={styles.numberField}>
+                            <span>Minutes between chimes</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={activeIntervalMinutes ?? ""}
+                              onChange={(event) => handleActiveIntervalChange(event.target.value)}
+                              aria-label="Active chime interval minutes"
+                            />
+                          </label>
+                        </div>
+                      </>
+                    ) : (
+                      <div className={styles.settingsEmptyState}>
+                        {isComplete ? "Session complete. Active timer changes are disabled." : "Start or pause a timer to adjust it here."}
+                      </div>
+                    )}
+                  </div>
                 )}
+
+                <div className={styles.switchRow}>
+                  <StyledToggleControl
+                    label="Keep timer screen awake"
+                    checked={keepTimerScreenAwake}
+                    valueLabel={keepTimerScreenAwake ? "On" : "Off"}
+                    hapticsEnabled={hapticsEnabled}
+                    onCheckedChange={(value) => handleSettingsChange({ keepTimerScreenAwake: value })}
+                  />
+                </div>
 
               </TabsContent>
 
-              <TabsContent value="background" className={styles.settingsTabContent}>
-                <label className={styles.switchRow}>
-                  <span>Visual background</span>
-                  <input
-                    type="checkbox"
-                    checked={movingBackgroundEnabled}
-                    onChange={(event) => handleSettingsChange({ movingBackgroundEnabled: event.target.checked })}
-                  />
-                </label>
+              <TabsContent value="visual" className={styles.settingsTabContent}>
+                <StyledToggleControl
+                  label="Visual background"
+                  checked={movingBackgroundEnabled}
+                  valueLabel={movingBackgroundEnabled ? "On" : "Off"}
+                  hapticsEnabled={hapticsEnabled}
+                  onCheckedChange={(value) => handleSettingsChange({ movingBackgroundEnabled: value })}
+                />
 
-                {movingBackgroundEnabled && (
-                  <BackgroundSelector
-                    compact
-                    value={backgroundId}
-                    onChange={(nextBackgroundId) => handleSettingsChange({ backgroundId: nextBackgroundId })}
-                    featureKeys={featureKeys}
-                    category={isClockMode ? "clock" : "chimer"}
-                    description="Premium visual candidates are paused while we review and add them one at a time."
-                    renderSelectedControls={renderBackgroundControls}
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Selected background controls</span>
+                    <span className={styles.settingsPill}>Visual tuning</span>
+                  </div>
+                  {movingBackgroundEnabled ? (
+                    renderBackgroundControls(
+                      selectedBackgroundDefinition,
+                    )
+                  ) : (
+                    <div className={styles.settingsEmptyState}>Enable visual background to show visual controls.</div>
+                  )}
+                </div>
+
+                <div className={styles.settingsSection}>
+                  <GlobalColorPicker
+                    value={globalColors}
+                    title="Global Colors"
+                    description="Set a primary color, then choose a harmony to fill the related colors automatically."
+                    harmonyControl={(
+                      <HarmonyToggleGroup
+                        label="Color harmony"
+                        value={globalHarmony}
+                        onChange={handleGlobalHarmonyChange}
+                        hapticsEnabled={hapticsEnabled}
+                        description="Generate related palette families from your primary color."
+                        embedded
+                      />
+                    )}
+                    paletteName={globalPaletteName}
+                    onPaletteNameChange={handleGlobalPaletteNameChange}
+                    onChange={handleGlobalColorsChange}
+                    onSave={handleGlobalPaletteSave}
+                    saveButtonLabel="Save palette"
                   />
+                </div>
+
+                <div className={styles.settingsSection}>
+                  <div className={styles.settingsSectionHeader}>
+                    <span>Saved palettes</span>
+                    <span className={styles.settingsPill}>Reusable</span>
+                  </div>
+                  {globalPalettes.length === 0 ? (
+                    <div className={styles.settingsEmptyState}>Save a palette to reuse it on future sessions.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
+                      {globalPalettes.map((palette) => (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          className={`${styles.inlineButton} ${styles.tactileButton}`}
+                          onClick={() => {
+                            triggerHapticFeedback(hapticsEnabled)
+                            handleGlobalPaletteLoad(palette)
+                          }}
+                          aria-label={`Apply ${palette.name} palette`}
+                        >
+                          <div style={{ display: "grid", gap: "0.35rem", textAlign: "left" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                              <span style={{ fontWeight: 700 }}>{palette.name}</span>
+                              {palette.isDefault ? <span className={styles.settingsPill}>Default</span> : null}
+                            </div>
+                            <span style={{ color: "rgba(255, 255, 255, 0.72)", fontSize: "0.76rem" }}>
+                              {palette.harmony}
+                            </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                              {palette.generated.slice(0, 6).map((color) => (
+                                <span
+                                  key={`${palette.id}-${color}`}
+                                  aria-hidden="true"
+                                  style={{
+                                    width: "1rem",
+                                    height: "1rem",
+                                    borderRadius: "999px",
+                                    border: "1px solid rgba(255, 255, 255, 0.24)",
+                                    background: color,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="backgrounds" className={styles.settingsTabContent}>
+                <div className={styles.backgroundCategoryRow} role="tablist" aria-label="Background category filters">
+                  {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
+                    <button
+                      key={category.value}
+                      type="button"
+                      className={`${styles.backgroundCategoryButton} ${styles.tactileButton} ${backgroundCategoryFilter === category.value ? styles.backgroundCategoryButtonActive : ""}`}
+                      onClick={() => {
+                        triggerHapticFeedback(hapticsEnabled)
+                        handleBackgroundFilterChange(category.value)
+                      }}
+                      role="tab"
+                      aria-selected={backgroundCategoryFilter === category.value}
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+
+                {hasVisibleBackgrounds && activeBackgroundOption ? (
+                  <div
+                    className={`${styles.backgroundRadialCarousel} ${isVerticalBackgroundCarousel ? styles.backgroundRadialCarouselVertical : ""}`}
+                    role="group"
+                    aria-label="Background visual carousel"
+                    tabIndex={0}
+                    onKeyDown={handleBackgroundCarouselKeyDown}
+                  >
+                    <div className={styles.backgroundRadialStage}>
+                      {visibleBackgroundOptions.map((option, optionIndex) => {
+                        const totalOptions = visibleBackgroundOptions.length
+                        const offset = getCircularCarouselOffset(optionIndex, activeBackgroundCarouselIndex, totalOptions)
+                        const absOffset = Math.abs(offset)
+
+                        if (absOffset > BACKGROUND_RADIAL_VISIBLE_OFFSET) {
+                          return null
+                        }
+
+                        const canUse = userCanUseBackground(option, featureKeys)
+                        const isSaved = savedBackgroundIds.includes(option.id)
+                        const isSelected = movingBackgroundEnabled && option.id === backgroundId
+                        const isActive = optionIndex === activeBackgroundCarouselIndex
+                        const isPreviewLoaded =
+                          visibleBackgroundPreviewIds.has(option.id) || option.id === selectedBackgroundDefinition.id || isActive
+                        const angle = offset * BACKGROUND_RADIAL_CARD_SPREAD_DEGREES
+                        const radians = (angle * Math.PI) / 180
+                        const translateX = isVerticalBackgroundCarousel ? 0 : BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians)
+                        const translateY = isVerticalBackgroundCarousel ? BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians) : 0
+                        const rotateY = isVerticalBackgroundCarousel ? 0 : -angle
+                        const rotateX = isVerticalBackgroundCarousel ? angle * 0.72 : 0
+                        const scale = Math.max(0.5, 1 - absOffset * 0.16)
+                        const opacity = Math.min(
+                          canUse ? 1 : 0.58,
+                          absOffset > 2 ? 0.18 : Math.max(0.18, 1 - absOffset * 0.36),
+                        )
+                        const cardStyle = {
+                          opacity,
+                          transform: `translate(-50%, -50%) translate3d(${translateX}px, ${translateY}px, ${-absOffset * 28}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${scale})`,
+                          zIndex: 20 - absOffset,
+                        } as CSSProperties
+
+                        return (
+                          <div
+                            key={option.id}
+                            className={`${styles.backgroundRadialCard} ${isActive ? styles.backgroundRadialCardActive : ""} ${isSelected ? styles.backgroundCardSelected : ""} ${!canUse ? styles.backgroundCardLocked : ""}`}
+                            style={cardStyle}
+                            aria-current={isSelected ? "true" : undefined}
+                            data-background-id={option.id}
+                            role="group"
+                            aria-label={`${option.label} background`}
+                          >
+                            <button
+                              type="button"
+                              className={styles.backgroundRadialCardPreviewButton}
+                              onClick={() => {
+                                triggerHapticFeedback(hapticsEnabled)
+                                setActiveBackgroundCarouselIndex(optionIndex)
+                              }}
+                              aria-label={`Preview ${option.label} background`}
+                            >
+                              {renderBackgroundPreview(
+                                option,
+                                isPreviewLoaded,
+                                option.fallbackStyle ?? { background: "#0f172a" },
+                              )}
+                              <div className={styles.backgroundRadialCardVeil}>
+                                <span className={styles.backgroundRadialCardCategory}>
+                                  {getBackgroundVisualTags(option).slice(0, 2).join(" • ")}
+                                </span>
+                                <span className={styles.backgroundRadialCardTitle}>{option.label}</span>
+                                {isActive ? (
+                                  <span className={styles.backgroundRadialCardBadges}>
+                                    <span>{option.requiresSubscription ? "Premium" : "Free"}</span>
+                                    {isSelected ? <span>Selected</span> : null}
+                                    {isSaved ? <span>Saved</span> : null}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </button>
+
+                            {isActive ? (
+                              <div className={styles.backgroundRadialCardActions}>
+                                <button
+                                  type="button"
+                                  className={`${styles.backgroundRadialCardAction} ${isSelected ? styles.backgroundRadialCardActionSelected : ""}`}
+                                  onClick={() => {
+                                    triggerHapticFeedback(hapticsEnabled)
+                                    handleBackgroundSelection(option.id)
+                                  }}
+                                  disabled={!canUse}
+                                  aria-label={`${isSelected ? "Selected" : "Select"} ${option.label} background`}
+                                >
+                                  {isSelected ? "Selected" : "Select"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.backgroundRadialIconAction} ${isSaved ? styles.backgroundRadialIconActionActive : ""}`}
+                                  onClick={() => {
+                                    triggerHapticFeedback(hapticsEnabled)
+                                    handleBackgroundSavedToggle(option.id)
+                                  }}
+                                  aria-label={`${isSaved ? "Unsave" : "Save"} ${option.label}`}
+                                >
+                                  <Star className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className={styles.backgroundRadialNavRow}>
+                      <button
+                        type="button"
+                        className={`${styles.backgroundCarouselNav} ${styles.tactileButton}`}
+                        onClick={() => moveBackgroundCarousel(-1)}
+                        disabled={visibleBackgroundOptions.length <= 1}
+                        aria-label="Previous background"
+                      >
+                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.backgroundCarouselNav} ${styles.tactileButton}`}
+                        onClick={() => moveBackgroundCarousel(1)}
+                        disabled={visibleBackgroundOptions.length <= 1}
+                        aria-label="Next background"
+                      >
+                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className={styles.settingsEmptyState}>No backgrounds match this filter.</div>
                 )}
               </TabsContent>
             </Tabs>
@@ -15795,15 +17554,41 @@ export function RunningTimer({
 
         <div className={styles.bottomControls}>
           <div className={styles.bottomButtonRow}>
-            <button className={`${styles.fontButton} ${styles.decreaseFontButton}`} onClick={() => handleFontSizeChange("decrease")} disabled={!canDecreaseFontSize} aria-label="Decrease timer size" data-chimer-control="true">
+            <button
+              className={`${styles.fontButton} ${styles.decreaseFontButton}`}
+              onClick={() => {
+                triggerHapticFeedback(hapticsEnabled)
+                handleFontSizeChange("decrease")
+              }}
+              disabled={!canDecreaseFontSize}
+              aria-label="Decrease timer size"
+              data-chimer-control="true"
+            >
               <Minus className="h-5 w-5" />
             </button>
             {!isComplete && !isClockMode && (
-              <button className={`${styles.control} ${styles.pauseButton}`} onClick={handlePauseControl} aria-label={isPaused ? "Resume timer" : "Pause timer"} data-chimer-control="true">
+              <button
+                className={`${styles.control} ${styles.pauseButton}`}
+                onClick={() => {
+                  triggerHapticFeedback(hapticsEnabled)
+                  handlePauseControl()
+                }}
+                aria-label={isPaused ? "Resume timer" : "Pause timer"}
+                data-chimer-control="true"
+              >
                 {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </button>
             )}
-            <button className={`${styles.fontButton} ${styles.increaseFontButton}`} onClick={() => handleFontSizeChange("increase")} disabled={!canIncreaseFontSize} aria-label="Increase timer size" data-chimer-control="true">
+            <button
+              className={`${styles.fontButton} ${styles.increaseFontButton}`}
+              onClick={() => {
+                triggerHapticFeedback(hapticsEnabled)
+                handleFontSizeChange("increase")
+              }}
+              disabled={!canIncreaseFontSize}
+              aria-label="Increase timer size"
+              data-chimer-control="true"
+            >
               <Plus className="h-5 w-5" />
             </button>
           </div>

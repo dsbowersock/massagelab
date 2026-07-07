@@ -161,25 +161,36 @@
 
   body.chimer-running aside,
   body.chimer-alerting aside,
+  body.chimer-preview-capture aside,
   body.chimer-running [data-sidebar-container],
   body.chimer-alerting [data-sidebar-container],
+  body.chimer-preview-capture [data-sidebar-container],
   body.chimer-running [data-sidebar="sidebar"],
   body.chimer-alerting [data-sidebar="sidebar"],
+  body.chimer-preview-capture [data-sidebar="sidebar"],
   body.chimer-running [data-sidebar="rail"],
   body.chimer-alerting [data-sidebar="rail"],
+  body.chimer-preview-capture [data-sidebar="rail"],
   body.chimer-running .ml-portrait-sidebar-bar,
   body.chimer-alerting .ml-portrait-sidebar-bar,
+  body.chimer-preview-capture .ml-portrait-sidebar-bar,
   body.chimer-running .ml-route-wordmark,
   body.chimer-alerting .ml-route-wordmark,
+  body.chimer-preview-capture .ml-route-wordmark,
   body.chimer-running .ml-app-topbar,
   body.chimer-alerting .ml-app-topbar,
+  body.chimer-preview-capture .ml-app-topbar,
   body.chimer-running .ml-mobile-main-bar,
-  body.chimer-alerting .ml-mobile-main-bar {
-    display: none;
+  body.chimer-alerting .ml-mobile-main-bar,
+  body.chimer-preview-capture .ml-mobile-main-bar,
+  body.chimer-preview-capture .ml-music-player-toolbar,
+  body.chimer-preview-capture [data-testid="music-player-toolbar"] {
+    display: none !important;
   }
 
   body.chimer-running,
-  body.chimer-alerting {
+  body.chimer-alerting,
+  body.chimer-preview-capture {
     overflow: hidden;
   }
 
@@ -628,6 +639,9 @@
     transform: translate3d(-2%, -1%, 0) scale(1.05);
     animation: massagelab-background-drift 28s ease-in-out infinite alternate;
   }
+  [data-ml-ambient-motion="reduced"] .massagelab-background-fallback {
+    animation: none;
+  }
 }
 @keyframes massagelab-background-drift {
   0% {
@@ -642,7 +656,6 @@
     transform: translate3d(1%, -3%, 0) scale(1.08) rotate(-5deg);
   }
 }
-
 @keyframes ml-route-wordmark-settle {
   from {
     opacity: 0;
@@ -810,7 +823,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .massagelab-background-fallback {
+  body:not(.chimer-running):not(.chimer-alerting):not(.chimer-preview-capture) .massagelab-background-fallback {
     animation: none;
   }
 

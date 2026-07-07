@@ -342,26 +342,7 @@ export default function ReactBitsGridScanBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveGridScanOptions(reactBitsGridScan),
-    [
-      reactBitsGridScan?.sensitivity,
-      reactBitsGridScan?.lineThickness,
-      reactBitsGridScan?.linesColor,
-      reactBitsGridScan?.scanColor,
-      reactBitsGridScan?.scanOpacity,
-      reactBitsGridScan?.gridScale,
-      reactBitsGridScan?.lineStyle,
-      reactBitsGridScan?.lineJitter,
-      reactBitsGridScan?.scanDirection,
-      reactBitsGridScan?.noiseIntensity,
-      reactBitsGridScan?.bloomOpacity,
-      reactBitsGridScan?.scanGlow,
-      reactBitsGridScan?.scanSoftness,
-      reactBitsGridScan?.scanPhaseTaper,
-      reactBitsGridScan?.scanDuration,
-      reactBitsGridScan?.scanDelay,
-      reactBitsGridScan?.enablePointerInteraction,
-      reactBitsGridScan?.scanOnClick,
-    ],
+    [reactBitsGridScan],
   )
 
   useEffect(() => {

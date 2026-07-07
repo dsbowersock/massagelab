@@ -3260,6 +3260,28 @@ describe("Chimer entitlement-aware settings", () => {
     assert.equal(settings.hexGridOpacity, DEFAULT_CHIMER_SETTINGS.hexGridOpacity)
   })
 
+  it("preserves account-level clock and Lamp colors for signed-in Chimer accounts", () => {
+    const settings = sanitizeChimerSettingsForEntitlements({
+      primaryFontColor: "#000000",
+      secondaryFontColor: "#123456",
+      clockModeFontColor: "#654321",
+      clockFontFamily: "serif",
+      clockShadowEnabled: false,
+      movingBackgroundMainColor: "#ABCDEF",
+      movingBackgroundOrbColor: "#FEDCBA",
+      backgroundId: "aceternity-aurora",
+    }, [], { canUseAccountColorControls: true })
+
+    assert.equal(settings.primaryFontColor, DEFAULT_CHIMER_SETTINGS.primaryFontColor)
+    assert.equal(settings.secondaryFontColor, DEFAULT_CHIMER_SETTINGS.secondaryFontColor)
+    assert.equal(settings.clockFontFamily, DEFAULT_CHIMER_SETTINGS.clockFontFamily)
+    assert.equal(settings.clockShadowEnabled, DEFAULT_CHIMER_SETTINGS.clockShadowEnabled)
+    assert.equal(settings.clockModeFontColor, "#654321")
+    assert.equal(settings.movingBackgroundMainColor, "#ABCDEF")
+    assert.equal(settings.movingBackgroundOrbColor, "#FEDCBA")
+    assert.equal(settings.backgroundId, DEFAULT_CHIMER_SETTINGS.backgroundId)
+  })
+
   it("preserves premium backgrounds and custom colors for users with both features", () => {
     const settings = sanitizeChimerSettingsForEntitlements({
       primaryFontColor: "#000000",

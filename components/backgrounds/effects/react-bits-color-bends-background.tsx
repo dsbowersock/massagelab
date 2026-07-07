@@ -190,23 +190,7 @@ export default function ReactBitsColorBendsBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveColorBendsOptions(reactBitsColorBends),
-    [
-      reactBitsColorBends?.rotation,
-      reactBitsColorBends?.speed,
-      reactBitsColorBends?.colors,
-      reactBitsColorBends?.transparent,
-      reactBitsColorBends?.autoRotate,
-      reactBitsColorBends?.scale,
-      reactBitsColorBends?.frequency,
-      reactBitsColorBends?.warpStrength,
-      reactBitsColorBends?.mouseInfluence,
-      reactBitsColorBends?.parallax,
-      reactBitsColorBends?.noise,
-      reactBitsColorBends?.iterations,
-      reactBitsColorBends?.intensity,
-      reactBitsColorBends?.bandWidth,
-      reactBitsColorBends?.interactive,
-    ],
+    [reactBitsColorBends],
   )
   const colors = useMemo(() => {
     return options.colors.slice(0, MAX_COLORS).map(parseHexColorToRgb)

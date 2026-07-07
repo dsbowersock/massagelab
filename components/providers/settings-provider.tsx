@@ -17,6 +17,7 @@ interface Settings {
   sidebarTriggerPosition: SidebarTriggerPosition
   ambientMotionMode: AmbientMotionMode
   themeMode: ThemeMode
+  hapticFeedbackEnabled: boolean
 }
 
 interface SettingsContextType {

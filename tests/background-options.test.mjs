@@ -3716,7 +3716,11 @@ describe("premium background registry", () => {
     assert.match(effectSource, /uGradient/)
     assert.match(effectSource, /uRayCount/)
     assert.match(effectSource, /updateGradientTexture/)
-    assert.match(effectSource, /colorKey/)
+    assert.match(
+      effectSource,
+      /useMemo\(\s*\(\)\s*=>\s*resolvePrismaticBurstOptions\(reactBitsPrismaticBurst\),\s*\[reactBitsPrismaticBurst\],\s*\)/,
+    )
+    assert.doesNotMatch(effectSource, /colorKey/)
     assert.match(effectSource, /requestAnimationFrame/)
     assert.match(effectSource, /shouldAnimateAmbientBackground/)
     assert.match(effectSource, /ResizeObserver/)

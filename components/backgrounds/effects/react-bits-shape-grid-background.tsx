@@ -38,16 +38,7 @@ export default function ReactBitsShapeGridBackground({
   const cellOpacitiesRef = useRef<Map<string, number>>(new Map())
   const options = useMemo(
     () => resolveShapeGridOptions(reactBitsShapeGrid),
-    [
-      reactBitsShapeGrid?.direction,
-      reactBitsShapeGrid?.speed,
-      reactBitsShapeGrid?.borderColor,
-      reactBitsShapeGrid?.squareSize,
-      reactBitsShapeGrid?.hoverFillColor,
-      reactBitsShapeGrid?.shape,
-      reactBitsShapeGrid?.hoverTrailAmount,
-      reactBitsShapeGrid?.cursorInteraction,
-    ],
+    [reactBitsShapeGrid],
   )
 
   useEffect(() => {
@@ -60,6 +51,7 @@ export default function ReactBitsShapeGridBackground({
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
     const compactViewportQuery = window.matchMedia("(max-width: 360px), (max-height: 360px)")
+    const cellOpacities = cellOpacitiesRef.current
     const isHex = options.shape === "hexagon"
     const isTri = options.shape === "triangle"
     const hexHoriz = options.squareSize * 1.5
@@ -125,7 +117,7 @@ export default function ReactBitsShapeGridBackground({
     }
 
     const paintCellFill = (cellKey: string, drawPath: () => void) => {
-      const alpha = cellOpacitiesRef.current.get(cellKey)
+      const alpha = cellOpacities.get(cellKey)
       if (!alpha) {
         return
       }
@@ -205,7 +197,7 @@ export default function ReactBitsShapeGridBackground({
           for (let row = -2; row < rows; row += 1) {
             const x = col * options.squareSize + offsetX
             const y = row * options.squareSize + offsetY
-            const alpha = cellOpacitiesRef.current.get(`${col},${row}`)
+            const alpha = cellOpacities.get(`${col},${row}`)
             if (alpha) {
               context.globalAlpha = alpha
               context.fillStyle = options.hoverFillColor
@@ -235,18 +227,18 @@ export default function ReactBitsShapeGridBackground({
       }
 
       for (const key of targets.keys()) {
-        if (!cellOpacitiesRef.current.has(key)) {
-          cellOpacitiesRef.current.set(key, 0)
+        if (!cellOpacities.has(key)) {
+          cellOpacities.set(key, 0)
         }
       }
 
-      for (const [key, opacity] of cellOpacitiesRef.current) {
+      for (const [key, opacity] of cellOpacities) {
         const target = targets.get(key) ?? 0
         const next = opacity + (target - opacity) * 0.15
         if (next < 0.005) {
-          cellOpacitiesRef.current.delete(key)
+          cellOpacities.delete(key)
         } else {
-          cellOpacitiesRef.current.set(key, next)
+          cellOpacities.set(key, next)
         }
       }
     }
@@ -389,7 +381,7 @@ export default function ReactBitsShapeGridBackground({
       compactViewportQuery.removeEventListener("change", render)
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerleave", handlePointerLeave)
-      cellOpacitiesRef.current.clear()
+      cellOpacities.clear()
       trailCellsRef.current = []
       hoveredCellRef.current = null
       context.clearRect(0, 0, width, height)

@@ -276,25 +276,7 @@ export default function ReactBitsFaultyTerminalBackground({
   const timeOffsetRef = useRef(Math.random() * 100)
   const options = useMemo(
     () => resolveFaultyTerminalOptions(reactBitsFaultyTerminal),
-    [
-      reactBitsFaultyTerminal?.scale,
-      reactBitsFaultyTerminal?.gridMulX,
-      reactBitsFaultyTerminal?.gridMulY,
-      reactBitsFaultyTerminal?.digitSize,
-      reactBitsFaultyTerminal?.timeScale,
-      reactBitsFaultyTerminal?.scanlineIntensity,
-      reactBitsFaultyTerminal?.glitchAmount,
-      reactBitsFaultyTerminal?.flickerAmount,
-      reactBitsFaultyTerminal?.noiseAmp,
-      reactBitsFaultyTerminal?.chromaticAberration,
-      reactBitsFaultyTerminal?.dither,
-      reactBitsFaultyTerminal?.curvature,
-      reactBitsFaultyTerminal?.tint,
-      reactBitsFaultyTerminal?.mouseReact,
-      reactBitsFaultyTerminal?.mouseStrength,
-      reactBitsFaultyTerminal?.pageLoadAnimation,
-      reactBitsFaultyTerminal?.brightness,
-    ],
+    [reactBitsFaultyTerminal],
   )
 
   useEffect(() => {

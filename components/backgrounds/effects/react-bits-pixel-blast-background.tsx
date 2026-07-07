@@ -295,28 +295,7 @@ export default function ReactBitsPixelBlastBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolvePixelBlastOptions(reactBitsPixelBlast),
-    [
-      reactBitsPixelBlast?.variant,
-      reactBitsPixelBlast?.pixelSize,
-      reactBitsPixelBlast?.color,
-      reactBitsPixelBlast?.antialias,
-      reactBitsPixelBlast?.patternScale,
-      reactBitsPixelBlast?.patternDensity,
-      reactBitsPixelBlast?.liquid,
-      reactBitsPixelBlast?.liquidStrength,
-      reactBitsPixelBlast?.liquidRadius,
-      reactBitsPixelBlast?.pixelSizeJitter,
-      reactBitsPixelBlast?.enableRipples,
-      reactBitsPixelBlast?.rippleIntensityScale,
-      reactBitsPixelBlast?.rippleThickness,
-      reactBitsPixelBlast?.rippleSpeed,
-      reactBitsPixelBlast?.liquidWobbleSpeed,
-      reactBitsPixelBlast?.autoPauseOffscreen,
-      reactBitsPixelBlast?.speed,
-      reactBitsPixelBlast?.transparent,
-      reactBitsPixelBlast?.edgeFade,
-      reactBitsPixelBlast?.noiseAmount,
-    ],
+    [reactBitsPixelBlast],
   )
   const color = useMemo(() => parseHexColorToLinearRgb(options.color), [options.color])
 

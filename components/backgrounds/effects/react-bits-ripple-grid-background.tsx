@@ -166,20 +166,7 @@ export default function ReactBitsRippleGridBackground({
   const smoothInfluenceRef = useRef(0)
   const options = useMemo(
     () => resolveRippleGridOptions(reactBitsRippleGrid),
-    [
-      reactBitsRippleGrid?.enableRainbow,
-      reactBitsRippleGrid?.gridColor,
-      reactBitsRippleGrid?.rippleIntensity,
-      reactBitsRippleGrid?.gridSize,
-      reactBitsRippleGrid?.gridThickness,
-      reactBitsRippleGrid?.fadeDistance,
-      reactBitsRippleGrid?.vignetteStrength,
-      reactBitsRippleGrid?.glowIntensity,
-      reactBitsRippleGrid?.opacity,
-      reactBitsRippleGrid?.gridRotation,
-      reactBitsRippleGrid?.mouseInteraction,
-      reactBitsRippleGrid?.mouseInteractionRadius,
-    ],
+    [reactBitsRippleGrid],
   )
 
   useEffect(() => {

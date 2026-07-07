@@ -91,12 +91,7 @@ export default function ReactBitsIridescenceBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveIridescenceOptions(reactBitsIridescence),
-    [
-      reactBitsIridescence?.color,
-      reactBitsIridescence?.speed,
-      reactBitsIridescence?.amplitude,
-      reactBitsIridescence?.mouseReact,
-    ],
+    [reactBitsIridescence],
   )
   const color = useMemo(() => parseHexColorToRgb(options.color), [options.color])
 

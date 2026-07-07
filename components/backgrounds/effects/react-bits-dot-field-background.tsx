@@ -65,21 +65,7 @@ export default function ReactBitsDotFieldBackground({
   const engagementRef = useRef(0)
   const options = useMemo(
     () => resolveDotFieldOptions(reactBitsDotField),
-    [
-      reactBitsDotField?.dotRadius,
-      reactBitsDotField?.dotSpacing,
-      reactBitsDotField?.cursorRadius,
-      reactBitsDotField?.cursorForce,
-      reactBitsDotField?.bulgeOnly,
-      reactBitsDotField?.bulgeStrength,
-      reactBitsDotField?.glowRadius,
-      reactBitsDotField?.sparkle,
-      reactBitsDotField?.waveAmplitude,
-      reactBitsDotField?.gradientFrom,
-      reactBitsDotField?.gradientTo,
-      reactBitsDotField?.glowColor,
-      reactBitsDotField?.cursorInteraction,
-    ],
+    [reactBitsDotField],
   )
 
   useEffect(() => {

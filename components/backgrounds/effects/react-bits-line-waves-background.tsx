@@ -180,21 +180,7 @@ export default function ReactBitsLineWavesBackground({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const options = useMemo(
     () => resolveLineWavesOptions(reactBitsLineWaves),
-    [
-      reactBitsLineWaves?.speed,
-      reactBitsLineWaves?.innerLineCount,
-      reactBitsLineWaves?.outerLineCount,
-      reactBitsLineWaves?.warpIntensity,
-      reactBitsLineWaves?.rotation,
-      reactBitsLineWaves?.edgeFadeWidth,
-      reactBitsLineWaves?.colorCycleSpeed,
-      reactBitsLineWaves?.brightness,
-      reactBitsLineWaves?.color1,
-      reactBitsLineWaves?.color2,
-      reactBitsLineWaves?.color3,
-      reactBitsLineWaves?.enableMouseInteraction,
-      reactBitsLineWaves?.mouseInfluence,
-    ],
+    [reactBitsLineWaves],
   )
   const color1 = useMemo(() => parseHexColorToRgb(options.color1), [options.color1])
   const color2 = useMemo(() => parseHexColorToRgb(options.color2), [options.color2])

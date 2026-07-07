@@ -60,14 +60,7 @@ export default function ReactBitsGridMotionBackground({
   const currentOffsetsRef = useRef([0, 0, 0, 0])
   const options = useMemo(
     () => resolveGridMotionOptions(reactBitsGridMotion),
-    [
-      reactBitsGridMotion?.gradientColor,
-      reactBitsGridMotion?.tileColor,
-      reactBitsGridMotion?.textColor,
-      reactBitsGridMotion?.maxMoveAmount,
-      reactBitsGridMotion?.baseDuration,
-      reactBitsGridMotion?.cursorInteraction,
-    ],
+    [reactBitsGridMotion],
   )
 
   useEffect(() => {
