@@ -1,16 +1,15 @@
 "use client"
 
-import { cn } from "@/lib/utils"
 import { TactileButton, type TactileButtonProps } from "@/components/chimer-controls/TactileButton"
-import styles from "./chimer-controls.module.css"
 
 /**
- * Subtle glass/glow treatment for premium or secondary visual actions.
+ * Subtle glow Chimer compatibility wrapper backed by the shared glow variant.
  */
-export function GlowButton({ className, ...props }: TactileButtonProps) {
+export function GlowButton({ className, variant = "glow", ...props }: TactileButtonProps) {
   return (
     <TactileButton
-      className={cn(styles.glowButton, className)}
+      variant={variant}
+      className={className}
       {...props}
     />
   )

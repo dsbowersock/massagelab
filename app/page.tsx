@@ -24,6 +24,7 @@ import { FlipWords } from "@/components/home/flip-words"
 import { HomeToolRails } from "@/components/home/home-tool-rails"
 import { AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
+import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { homeToolCatalog, objectRecord, resolveOnboardingHomeToolKeys } from "@/lib/onboarding-preferences"
 import { createPublicPageMetadata } from "@/lib/seo"
 
@@ -106,6 +107,7 @@ export default async function Home() {
   const practiceHref = signedIn ? "/calendar" : "/register?callbackUrl=%2Fcalendar"
   const accountToolHref = signedIn ? "/account" : "/register"
   const membershipHref = signedIn ? "/account?tab=membership" : "/pricing"
+  const membershipButtonVariant = signedIn ? "ctaBlue" : "cta"
   const baseHomeTools = homeToolCatalog.map((tool) => ({
     ...tool,
     icon: homeToolIconByName[tool.icon as keyof typeof homeToolIconByName],
@@ -204,10 +206,16 @@ export default async function Home() {
             Start with public study and timing tools. Create an account when you want saved flashcard progress, remembered timer settings, and a more personal workspace.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="bg-primary hover:bg-brand-orange-glow">
-              <Link href={primaryAccountHref}>{signedIn ? "Open your account" : "Create a free account"}</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
+            {signedIn ? (
+              <Button asChild size="lg" variant="cta">
+                <Link href={primaryAccountHref}>Open your account</Link>
+              </Button>
+            ) : (
+              <MetalAttentionButton asChild size="lg">
+                <Link href={primaryAccountHref}>Create a free account</Link>
+              </MetalAttentionButton>
+            )}
+            <Button asChild size="lg" variant="secondary">
               <Link href="#available-tools">Explore tools</Link>
             </Button>
           </div>
@@ -238,7 +246,7 @@ export default async function Home() {
             <p className="text-sm font-medium text-primary">Useful before the pitch</p>
             <h2 id="home-proof-heading" className="text-2xl font-semibold sm:text-3xl">Focused tools for common massage searches</h2>
           </div>
-          <Button asChild variant="outline">
+          <Button asChild variant={membershipButtonVariant}>
             <Link href={membershipHref}>{signedIn ? "Review membership" : "See pricing"}</Link>
           </Button>
         </div>
@@ -253,7 +261,7 @@ export default async function Home() {
                 icon={<Icon className="h-5 w-5" aria-hidden="true" />}
                 badge={lane.badge}
               >
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="secondary" className="w-full">
                   <Link href={lane.href}>{lane.action}</Link>
                 </Button>
               </AppSurface>
@@ -272,17 +280,19 @@ export default async function Home() {
           {actionRouter.map((item) => {
             const Icon = item.icon
             return (
-              <Button key={item.title} asChild variant="outline" className="h-auto justify-start whitespace-normal border-border/80 bg-background/70 p-4 text-left hover:border-primary/60 hover:bg-accent">
-                <Link href={item.href}>
-                  <span className="flex min-w-0 items-start gap-3">
-                    <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-foreground">{item.title}</span>
-                      <span className="mt-1 block text-sm font-normal leading-5 text-muted-foreground">{item.description}</span>
-                    </span>
+              <Link
+                key={item.title}
+                href={item.href}
+                className="rounded-md border border-border/80 bg-background/70 p-3"
+              >
+                <Button asChild variant="secondary" className="w-full justify-center gap-2" tabIndex={-1}>
+                  <span>
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span>{item.title}</span>
                   </span>
-                </Link>
-              </Button>
+                </Button>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
+              </Link>
             )
           })}
         </div>
@@ -310,10 +320,16 @@ export default async function Home() {
           </div>
         </div>
         <div className="flex flex-wrap gap-3 md:justify-end">
-          <Button asChild className="bg-primary hover:bg-brand-orange-glow">
-            <Link href={primaryAccountHref}>{signedIn ? "Open account" : "Create a free account"}</Link>
-          </Button>
-          <Button asChild variant="outline">
+          {signedIn ? (
+            <Button asChild variant="cta">
+              <Link href={primaryAccountHref}>Open account</Link>
+            </Button>
+          ) : (
+            <MetalAttentionButton asChild>
+              <Link href={primaryAccountHref}>Create a free account</Link>
+            </MetalAttentionButton>
+          )}
+          <Button asChild variant={membershipButtonVariant}>
             <Link href={membershipHref}>{signedIn ? "View membership" : "View pricing"}</Link>
           </Button>
         </div>
@@ -343,7 +359,7 @@ export default async function Home() {
                 icon={<Icon className="h-5 w-5" aria-hidden="true" />}
                 badge={tool.status}
               >
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="secondary" className="w-full">
                   <Link href={href}>{action}</Link>
                 </Button>
               </AppSurface>
@@ -373,7 +389,7 @@ export default async function Home() {
           }
           icon={<HeartHandshake className="h-5 w-5" aria-hidden="true" />}
         >
-          <Button asChild variant="outline">
+          <Button asChild variant="ctaBlue">
             <Link href="/roadmap">Open roadmap</Link>
           </Button>
         </AppSurface>

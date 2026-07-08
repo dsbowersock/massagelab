@@ -120,7 +120,7 @@ export function HomeToolRails({ rails = publicHomeToolRails }: { rails?: HomeToo
                       <Badge variant="outline" className="shrink-0 border-primary/50 text-primary">{item.badge}</Badge>
                     </div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.description}</p>
-                    <Button asChild variant="outline" className="mt-auto">
+                    <Button asChild variant="secondary" className="mt-auto">
                       <Link href={item.href}>{item.action}</Link>
                     </Button>
                   </div>
