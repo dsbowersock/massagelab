@@ -97,9 +97,15 @@ export default function ButtonGalleryPage() {
                     <ArrowRight aria-hidden="true" />
                   </Button>
                 )}
-                <Button variant={item.variant} disabled>
-                  Disabled
-                </Button>
+                {item.variant === "attention" ? (
+                  <MetalAttentionButton disabled>
+                    Disabled
+                  </MetalAttentionButton>
+                ) : (
+                  <Button variant={item.variant} disabled>
+                    Disabled
+                  </Button>
+                )}
               </div>
             </AppSurface>
           ))}

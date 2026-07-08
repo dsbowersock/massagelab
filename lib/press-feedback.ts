@@ -122,10 +122,11 @@ export function wrapPressHandler<EventType extends PressFeedbackEvent>(
       return
     }
 
-    if (!playPressFeedbackForEvent(event, options)) {
+    if (event.defaultPrevented) {
       return
     }
 
+    playPressFeedback(options)
     handler?.(event)
   }
 }

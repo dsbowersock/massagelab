@@ -107,7 +107,7 @@ export default async function Home() {
   const practiceHref = signedIn ? "/calendar" : "/register?callbackUrl=%2Fcalendar"
   const accountToolHref = signedIn ? "/account" : "/register"
   const membershipHref = signedIn ? "/account?tab=membership" : "/pricing"
-  const membershipButtonVariant = signedIn ? "ctaBlue" : "cta"
+  const membershipButtonVariant = "ctaBlue"
   const baseHomeTools = homeToolCatalog.map((tool) => ({
     ...tool,
     icon: homeToolIconByName[tool.icon as keyof typeof homeToolIconByName],
