@@ -107,6 +107,7 @@ export default async function Home() {
   const practiceHref = signedIn ? "/calendar" : "/register?callbackUrl=%2Fcalendar"
   const accountToolHref = signedIn ? "/account" : "/register"
   const membershipHref = signedIn ? "/account?tab=membership" : "/pricing"
+  // Lower-priority than the primary account CTA to keep the button hierarchy clear.
   const membershipButtonVariant = "ctaBlue"
   const baseHomeTools = homeToolCatalog.map((tool) => ({
     ...tool,
@@ -285,6 +286,7 @@ export default async function Home() {
                 href={item.href}
                 className="rounded-md border border-border/80 bg-background/70 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
+                {/* The outer Link owns focus/navigation; the inner Button only supplies the physical face. */}
                 <Button asChild variant="secondary" className="w-full justify-center gap-2" tabIndex={-1}>
                   <span>
                     <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />

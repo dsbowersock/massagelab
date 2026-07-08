@@ -77,24 +77,20 @@ function usePrefersReducedMotion() {
 }
 
 function useResolvedAppMetalTheme(explicitTheme: MetalFxTheme | undefined) {
-  const [resolvedTheme, setResolvedTheme] = React.useState<Exclude<MetalFxTheme, "auto">>("dark")
+  return React.useSyncExternalStore(
+    (callback) => {
+      if (typeof document === "undefined" || explicitTheme) {
+        return () => {}
+      }
 
-  React.useEffect(() => {
-    if (explicitTheme) {
-      return
-    }
+      const observer = new MutationObserver(callback)
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
 
-    const root = document.documentElement
-    const syncTheme = () => setResolvedTheme(root.classList.contains("dark") ? "dark" : "light")
-    const observer = new MutationObserver(syncTheme)
-
-    syncTheme()
-    observer.observe(root, { attributes: true, attributeFilter: ["class"] })
-
-    return () => observer.disconnect()
-  }, [explicitTheme])
-
-  return explicitTheme ?? resolvedTheme
+      return () => observer.disconnect()
+    },
+    () => explicitTheme ?? (document.documentElement.classList.contains("dark") ? "dark" : "light"),
+    () => explicitTheme ?? "dark",
+  )
 }
 
 function randomDurationMs(minMs: number, maxMs: number) {
