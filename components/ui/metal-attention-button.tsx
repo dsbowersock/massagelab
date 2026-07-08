@@ -50,7 +50,7 @@ interface MetalAttentionOptions {
 }
 
 export interface MetalAttentionRingProps extends MetalAttentionOptions {
-  children: React.ReactNode
+  children: React.ReactElement
   className?: string
   style?: React.CSSProperties
 }
@@ -207,12 +207,13 @@ export function MetalAttentionRing({
   style,
 }: MetalAttentionRingProps) {
   const reducedMotion = usePrefersReducedMotion()
-  const suppressMetalMotion = reducedMotion && metalMode !== "always"
+  const suppressMetalMotion = reducedMotion
   const resolvedSettleDurationMs = metalSettleDurationMs ?? metalFadeOutDurationMs ?? 1800
   const resolvedTheme = useResolvedAppMetalTheme(metalTheme)
+  const onlyChild = React.Children.only(children)
   const motionState = useMetalAttentionMotionState({
     mode: metalMode,
-    pauseMaxDurationMs: metalPauseMaxDurationMs ?? metalPulseMaxIntervalMs ?? 20000,
+    pauseMaxDurationMs: metalPauseMaxDurationMs ?? metalPulseMaxIntervalMs ?? metalPulseIntervalMs ?? 20000,
     pauseMinDurationMs: metalPauseMinDurationMs ?? metalPulseMinIntervalMs ?? metalPulseIntervalMs ?? 5000,
     playMaxDurationMs: metalPlayMaxDurationMs ?? metalPulseDurationMs ?? 20000,
     playMinDurationMs: metalPlayMinDurationMs ?? metalPulseDurationMs ?? 4000,
@@ -235,7 +236,7 @@ export function MetalAttentionRing({
         data-ml-metal-full-width={metalFullWidth ? "true" : undefined}
         style={style}
       >
-        {children}
+        {onlyChild}
       </span>
     )
   }
@@ -261,7 +262,7 @@ export function MetalAttentionRing({
       theme={resolvedTheme}
       variant={metalVariant}
     >
-      {children}
+      {onlyChild}
     </MetalFx>
   )
 }

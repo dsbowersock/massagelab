@@ -18,7 +18,7 @@
     --button-blue-start: var(--ml-site-blue-glow);
     --button-blue-mid: var(--ml-site-blue);
     --button-blue-end: var(--ml-site-blue);
-    --button-danger-start: 0 70% 42%;
+    --button-danger-start: var(--destructive);
     --button-danger-mid: 0 62% 36%;
     --button-danger-end: 344 58% 38%;
     --button-danger-depth: 0 65% 24%;
@@ -130,6 +130,9 @@
     --accent-foreground: 0 0% 9%;
     --destructive: 0 74% 42%;
     --destructive-foreground: 0 0% 98%;
+    --button-danger-mid: 0 70% 38%;
+    --button-danger-end: 0 58% 36%;
+    --button-danger-depth: 0 66% 28%;
 
     --sidebar-background: 30 20% 98%;
     --sidebar-foreground: 0 0% 12%;
@@ -1300,8 +1303,11 @@
   }
 
   .ml-button-press-motion,
+  .ml-button-tactile,
   .ml-button-attention,
-  .ml-metal-attention-root {
+  .ml-metal-attention-root,
+  .ml-metal-attention-root-idle,
+  .ml-metal-attention-root * {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }

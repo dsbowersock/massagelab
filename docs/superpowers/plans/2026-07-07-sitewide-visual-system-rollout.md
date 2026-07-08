@@ -850,4 +850,4 @@ Notes:
 
 - `npm run lint` passed after the standard large Chimer file Babel deoptimization notes.
 - `git diff --check` passed with Windows line-ending conversion warnings only.
-- CodeRabbit review is the next close-out step after this batch is committed and pushed; only still-valid feedback should be applied before the next visual batch starts.
+- CodeRabbit review completed on 2026-07-08. Valid feedback was applied for reduced-motion handling, legacy metal-ring interval compatibility, single-child metal-ring enforcement, shared press-feedback cleanup, Chimer CTA ring-wrapper semantics, homepage card focus visibility, and reduced-motion/destructive button CSS coverage. The `.ml-button-tactile` and `.ml-metal-attention-root-idle` selector comments were verified against emitted classes and did not require code changes.

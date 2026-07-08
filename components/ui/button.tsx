@@ -112,6 +112,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       hapticsEnabled,
     }
 
+    // Press feedback intentionally fires on pointer/key down so tactile
+    // response feels immediate; keep business activation on click handlers.
     const handlePointerDown = feedbackEnabled
       ? wrapPressHandler<React.PointerEvent<HTMLButtonElement>>(onPointerDown, feedbackOptions, {
           invokeHandlerBeforeFeedback: true,

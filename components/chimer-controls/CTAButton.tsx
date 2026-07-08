@@ -1,8 +1,10 @@
 "use client"
 
 import { TactileButton, type TactileButtonProps } from "@/components/chimer-controls/TactileButton"
+import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 
 export interface CTAButtonProps extends TactileButtonProps {
+  /** Legacy Chimer affordance; wraps the selected variant instead of changing it. */
   withAttentionRing?: boolean
 }
 
@@ -12,14 +14,26 @@ export interface CTAButtonProps extends TactileButtonProps {
 export function CTAButton({
   className,
   withAttentionRing = false,
+  disabled,
   variant = "cta",
   ...props
 }: CTAButtonProps) {
-  return (
+  const button = (
     <TactileButton
-      variant={withAttentionRing ? "attention" : variant}
+      variant={variant}
       className={className}
+      disabled={disabled}
       {...props}
     />
+  )
+
+  if (!withAttentionRing) {
+    return button
+  }
+
+  return (
+    <MetalAttentionRing metalMode={disabled ? "off" : "cycle"}>
+      {button}
+    </MetalAttentionRing>
   )
 }

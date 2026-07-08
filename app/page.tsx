@@ -283,7 +283,7 @@ export default async function Home() {
               <Link
                 key={item.title}
                 href={item.href}
-                className="rounded-md border border-border/80 bg-background/70 p-3"
+                className="rounded-md border border-border/80 bg-background/70 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <Button asChild variant="secondary" className="w-full justify-center gap-2" tabIndex={-1}>
                   <span>

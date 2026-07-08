@@ -78,9 +78,9 @@ export function playPressFeedback(options: PressFeedbackOptions = {}): void {
 }
 
 /**
- * Applies press feedback for a concrete UI event and reports whether the event
- * should continue to its wrapped action. Canceled events, disabled controls,
- * non-activation keyboard events, and key repeats return false.
+ * Applies press feedback for a concrete UI event and reports whether feedback
+ * played. Canceled events, disabled controls, non-activation keyboard events,
+ * and key repeats return false.
  */
 export function playPressFeedbackForEvent(
   event: PressFeedbackEvent,
@@ -95,10 +95,9 @@ export function playPressFeedbackForEvent(
 }
 
 /**
- * Wraps activation-only handlers while centralizing haptic preference,
- * keyboard activation, and disabled-state handling. Use this only for events
- * whose action should run on pointer/touch/click or Enter/Space keydown;
- * non-activation keydown events are intentionally ignored.
+ * Wraps press handlers while centralizing haptic preference, keyboard
+ * activation, and disabled-state handling. Non-activation keyboard events still
+ * reach the wrapped handler, but they do not trigger haptics.
  */
 export function wrapPressHandler<EventType extends PressFeedbackEvent>(
   handler: ((event: EventType) => void) | undefined,
@@ -106,7 +105,12 @@ export function wrapPressHandler<EventType extends PressFeedbackEvent>(
   behavior: PressHandlerBehavior = {},
 ) {
   return (event: EventType) => {
-    if (shouldSkipFeedback(options) || !shouldHandlePressFeedbackEvent(event)) {
+    if (shouldSkipFeedback(options)) {
+      return
+    }
+
+    if (!shouldHandlePressFeedbackEvent(event)) {
+      handler?.(event)
       return
     }
 
@@ -118,11 +122,10 @@ export function wrapPressHandler<EventType extends PressFeedbackEvent>(
       return
     }
 
-    if (event.defaultPrevented) {
+    if (!playPressFeedbackForEvent(event, options)) {
       return
     }
 
-    playPressFeedback(options)
     handler?.(event)
   }
 }
