@@ -107,7 +107,7 @@ export default function RoadmapPage() {
           }
           contentClassName="flex flex-wrap gap-3"
         >
-              <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+              <Button asChild variant="cta">
                 <Link href="/register">Create an account</Link>
               </Button>
               <Button asChild variant="outline">
@@ -215,7 +215,7 @@ export default function RoadmapPage() {
                 Memberships and donations are separate from the local-first alpha tools. Notes, intake forms, journals, and ROM data remain under user control.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+                <Button asChild variant="cta">
                   <Link href="/pricing#donate">Donate with Stripe</Link>
                 </Button>
                 <Button asChild variant="outline">

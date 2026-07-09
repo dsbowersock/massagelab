@@ -57,7 +57,7 @@ export default function AboutDerrickPage() {
           ))}
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+          <Button asChild variant="secondary">
             <Link href="/about">About MassageLab</Link>
           </Button>
           <Button asChild variant="outline">

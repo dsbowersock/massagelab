@@ -38,7 +38,7 @@ export function ResetPasswordForm() {
             <Label htmlFor="password">New password</Label>
             <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
           </div>
-          <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting || !token}>
+          <Button type="submit" className="w-full" disabled={isSubmitting || !token}>
             Update password
           </Button>
         </form>

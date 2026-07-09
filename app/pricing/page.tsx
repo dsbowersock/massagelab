@@ -45,7 +45,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
           icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
           contentClassName="flex flex-wrap gap-3"
         >
-              <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+              <Button asChild variant="cta">
                 <Link href={signedIn ? "/account?tab=membership" : "/register"}>
                   {signedIn ? "Manage membership" : "Create account"}
                 </Link>
@@ -75,9 +75,13 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             {DONATION_OPTIONS.map((option) => (
               <form key={option.amountCents} action="/api/billing/donation" method="post">
                 <input type="hidden" name="amountCents" value={option.amountCents} />
-                <Button type="submit" variant="outline" className="h-full w-full flex-col gap-1 py-4">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="h-full w-full py-4 text-lg font-semibold"
+                  aria-label={`${option.label} ${option.description}`}
+                >
                   <span className="text-lg font-semibold">{option.label}</span>
-                  <span className="text-center text-xs font-normal text-muted-foreground">{option.description}</span>
                 </Button>
               </form>
             ))}

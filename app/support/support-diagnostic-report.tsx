@@ -155,7 +155,7 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
         />
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={status === "sending"} className="bg-primary hover:bg-brand-orange-glow">
+          <Button type="submit" disabled={status === "sending"}>
             <Send className="mr-2 h-4 w-4" aria-hidden="true" />
             {status === "sending" ? "Sending..." : "Send Diagnostic"}
           </Button>

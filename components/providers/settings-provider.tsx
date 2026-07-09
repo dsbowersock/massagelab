@@ -52,6 +52,10 @@ export function applyThemeClass(themeMode: ThemeMode) {
   root.style.colorScheme = resolvedThemeMode
 }
 
+export function applySidebarPositionAttribute(sidebarPosition: SidebarPosition) {
+  document.documentElement.dataset.sidebarPosition = sidebarPosition
+}
+
 export function SettingsProvider({
   children,
   syncEnabled = false,
@@ -78,6 +82,10 @@ export function SettingsProvider({
       mediaQuery.removeEventListener("change", handleSystemThemeChange)
     }
   }, [settings.themeMode])
+
+  useEffect(() => {
+    applySidebarPositionAttribute(settings.sidebarPosition)
+  }, [settings.sidebarPosition])
 
   useEffect(() => {
     let isMounted = true

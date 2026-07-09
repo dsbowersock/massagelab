@@ -233,7 +233,7 @@ function PlanAction({
   if (mode === "auth") {
     return (
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-        <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+        <Button asChild variant="ctaBlue">
           <Link href="/register">Create account</Link>
         </Button>
         <Button asChild variant="outline">
@@ -269,7 +269,7 @@ function PlanAction({
           .
         </span>
       </label>
-      <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={!price.isLookupAvailable}>
+      <Button type="submit" variant="cta" className="w-full" disabled={!price.isLookupAvailable}>
         Choose {plan.name}
       </Button>
     </form>

@@ -38,6 +38,11 @@
     --button-depth-bottom: 24 36% 22%;
     --button-orange-depth: 25 82% 30%;
     --button-blue-depth: 222 64% 28%;
+    --ml-button-light-gradient: linear-gradient(to bottom right, hsl(var(--foreground) / 0.24) 0%, hsl(var(--foreground) / 0.1) 34%, transparent 62%);
+    --ml-button-glow-light-gradient: linear-gradient(to bottom right, hsl(var(--button-orange-start) / 0.14), transparent 58%);
+    --ml-button-inset-shadow-x: -0.72px;
+    --ml-button-inset-highlight-x: 0.72px;
+    --ml-button-press-shadow-x: -2px;
   }
 
   :root,
@@ -142,6 +147,14 @@
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 24 14% 84%;
     --sidebar-ring: var(--brand-orange);
+  }
+
+  :root[data-sidebar-position="right"] {
+    --ml-button-light-gradient: linear-gradient(to bottom left, hsl(var(--foreground) / 0.24) 0%, hsl(var(--foreground) / 0.1) 34%, transparent 62%);
+    --ml-button-glow-light-gradient: linear-gradient(to bottom left, hsl(var(--button-orange-start) / 0.14), transparent 58%);
+    --ml-button-inset-shadow-x: 0.72px;
+    --ml-button-inset-highlight-x: -0.72px;
+    --ml-button-press-shadow-x: 2px;
   }
 
   .container {
@@ -257,8 +270,8 @@
     color: hsl(32 100% 96%);
     text-decoration: none;
     text-shadow:
-      0 -1px 0 hsl(var(--button-ink) / 0.54),
-      0 1px 0 hsl(var(--button-orange-start) / 0.22),
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
       0 0 1px hsl(var(--button-orange-start) / 0.18);
     transform: translateY(-1px);
   }
@@ -290,7 +303,7 @@
     inset: 1px 1px auto;
     height: 42%;
     border-radius: inherit;
-    background: linear-gradient(180deg, hsl(var(--foreground) / 0.1), transparent);
+    background: var(--ml-button-light-gradient);
     opacity: 0.72;
     pointer-events: none;
   }
@@ -308,8 +321,8 @@
     .ml-button-glow
   ) svg {
     filter:
-      drop-shadow(0 -1px 0 hsl(var(--button-ink) / 0.5))
-      drop-shadow(0 1px 0 hsl(var(--button-orange-start) / 0.18));
+      drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5))
+      drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.18));
   }
 
   .ml-button-press-motion:is(
@@ -317,26 +330,26 @@
     .ml-button-outline
   ) svg {
     filter:
-      drop-shadow(0 -1px 0 hsl(var(--button-ink) / 0.5))
-      drop-shadow(0 1px 0 hsl(var(--button-blue-start) / 0.18));
+      drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5))
+      drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-blue-start) / 0.18));
   }
 
   .ml-button-press-motion:is(.ml-button-cta, .ml-button-attention) svg {
     filter:
-      drop-shadow(0 -1px 0 hsl(var(--button-ink) / 0.54))
-      drop-shadow(0 1px 0 hsl(var(--button-cta-face-bright) / 0.18));
+      drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54))
+      drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-cta-face-bright) / 0.18));
   }
 
   .ml-button-press-motion.ml-button-destructive svg {
     filter:
-      drop-shadow(0 -1px 0 hsl(var(--button-ink) / 0.52))
-      drop-shadow(0 1px 0 hsl(var(--button-danger-start) / 0.2));
+      drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.52))
+      drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-danger-start) / 0.2));
   }
 
   .ml-button-press-motion.ml-button-glow svg {
     filter:
-      drop-shadow(0 -1px 0 hsl(var(--button-ink) / 0.56))
-      drop-shadow(0 1px 0 hsl(var(--brand-orange-glow) / 0.18));
+      drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.56))
+      drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--brand-orange-glow) / 0.18));
   }
 
   .ml-button-press-motion.ml-button-default,
@@ -351,7 +364,7 @@
     border-bottom-color: hsl(var(--button-orange-depth));
     border-bottom-width: 3px;
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.2) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-orange-start)) 0%, hsl(var(--button-orange-mid)) 82%, hsl(var(--button-walnut)) 100%);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.14),
@@ -366,7 +379,7 @@
     border-bottom-color: hsl(var(--button-orange-depth) / 0.78);
     border-bottom-width: 2px;
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.16) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-orange-start)) 0%, hsl(var(--button-orange-mid)) 78%, hsl(var(--button-orange-edge)) 100%);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.1),
@@ -381,7 +394,7 @@
     border-right-color: hsl(var(--button-orange-edge) / 0.54);
     border-bottom-color: hsl(var(--button-default-depth));
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.2) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-default-face)) 0%, hsl(var(--button-default-face)) 78%, hsl(var(--button-orange-edge)) 100%);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.14),
@@ -395,12 +408,12 @@
     border-right-color: hsl(var(--button-sunset-violet) / 0.62);
     border-bottom-color: hsl(var(--button-cta-face-depth));
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.22) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-cta-face-bright)) 0%, hsl(var(--button-cta-face)) 74%, hsl(var(--button-sunset-violet)) 100%);
     color: hsl(282 100% 96%);
     text-shadow:
-      0 -1px 0 hsl(var(--button-ink) / 0.56),
-      0 1px 0 hsl(var(--button-cta-face-bright) / 0.22),
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.56),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-cta-face-bright) / 0.22),
       0 0 1px hsl(var(--button-cta-face-bright) / 0.16);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.16),
@@ -414,15 +427,15 @@
     border-bottom-color: hsl(var(--button-blue-depth));
     border-bottom-width: 3px;
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.2) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-blue-start)) 0%, hsl(var(--button-blue-mid)) 55%, hsl(var(--button-sunset-violet)) 100%);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.14),
       0 1px 4px hsl(var(--ml-site-blue-glow) / 0.22);
     color: hsl(222 100% 96%);
     text-shadow:
-      0 -1px 0 hsl(var(--button-ink) / 0.5),
-      0 1px 0 hsl(var(--button-blue-start) / 0.22),
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-blue-start) / 0.22),
       0 0 1px hsl(var(--button-blue-start) / 0.18);
     transform: translateY(-1px);
   }
@@ -461,12 +474,12 @@
     border-right-color: hsl(var(--button-blue-end) / 0.6);
     border-bottom-color: hsl(var(--button-blue-depth));
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.2) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-blue-start)) 0%, hsl(var(--button-blue-mid)) 72%, hsl(var(--button-sunset-violet)) 100%);
     color: hsl(222 100% 96%);
     text-shadow:
-      0 -1px 0 hsl(var(--button-ink) / 0.5),
-      0 1px 0 hsl(var(--button-blue-start) / 0.22),
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-blue-start) / 0.22),
       0 0 1px hsl(var(--button-blue-start) / 0.18);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.14),
@@ -479,12 +492,12 @@
     border-right-color: hsl(var(--button-danger-end) / 0.46);
     border-bottom-color: hsl(var(--button-danger-depth));
     background:
-      linear-gradient(180deg, hsl(var(--foreground) / 0.2) 0%, transparent 44%),
+      var(--ml-button-light-gradient),
       linear-gradient(122deg, hsl(var(--button-danger-start)) 0%, hsl(var(--button-danger-mid)) 78%, hsl(var(--button-danger-end) / 0.84) 100%);
     color: hsl(0 100% 96%);
     text-shadow:
-      0 -1px 0 hsl(var(--button-ink) / 0.52),
-      0 1px 0 hsl(var(--button-danger-start) / 0.24),
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.52),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-danger-start) / 0.24),
       0 0 1px hsl(var(--button-danger-start) / 0.18);
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.14),
@@ -500,13 +513,13 @@
     border-bottom-width: 3px;
     border-bottom-color: hsl(var(--button-orange-depth) / 0.72);
     background:
-      linear-gradient(180deg, hsl(var(--button-orange-start) / 0.12), transparent 48%),
+      var(--ml-button-glow-light-gradient),
       linear-gradient(130deg, hsl(var(--brand-orange) / 0.08), hsl(var(--card) / 0.42)),
       hsl(var(--background) / 0.48);
     color: hsl(34 100% 94%);
     text-shadow:
-      0 -1px 0 hsl(var(--button-ink) / 0.58),
-      0 1px 0 hsl(var(--brand-orange-glow) / 0.2),
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.58),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--brand-orange-glow) / 0.2),
       0 0 1px hsl(var(--brand-orange-glow) / 0.18);
     box-shadow:
       inset 0 0 0 1px hsl(var(--brand-orange) / 0.22),
@@ -520,7 +533,7 @@
   }
 
   .ml-button-press-motion.ml-button-glow::before {
-    background: linear-gradient(180deg, hsl(var(--button-orange-start) / 0.12), transparent);
+    background: var(--ml-button-glow-light-gradient);
   }
 
   .metal-fx-root.ml-metal-attention-root,
@@ -615,7 +628,7 @@
   .ml-button-tactile:active:not(:disabled):not([aria-disabled="true"]) {
     border-bottom-width: 2px;
     box-shadow:
-      inset 0 3px 10px hsl(var(--background) / 0.42),
+      inset var(--ml-button-press-shadow-x) 3px 10px hsl(var(--background) / 0.42),
       inset 0 1px 0 hsl(var(--foreground) / 0.08),
       0 1px 6px hsl(var(--foreground) / 0.08);
     filter: brightness(0.98);
@@ -624,7 +637,7 @@
 
   .ml-button-glow:active:not(:disabled):not([aria-disabled="true"]) {
     box-shadow:
-      inset 0 3px 10px hsl(var(--background) / 0.36),
+      inset var(--ml-button-press-shadow-x) 3px 10px hsl(var(--background) / 0.36),
       0 0 16px hsl(var(--brand-orange) / 0.18);
     transform: translateY(0);
   }
