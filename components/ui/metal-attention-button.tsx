@@ -76,6 +76,12 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion
 }
 
+/**
+ * Resolves MetalFx's theme from the app-controlled document class.
+ * `explicitTheme` bypasses the external-store subscription, while the
+ * server snapshot intentionally falls back to "dark" until the client can
+ * observe `document.documentElement.classList` changes through MutationObserver.
+ */
 function useResolvedAppMetalTheme(explicitTheme: MetalFxTheme | undefined) {
   return React.useSyncExternalStore(
     (callback) => {
