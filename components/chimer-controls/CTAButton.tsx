@@ -1,29 +1,39 @@
 "use client"
 
-import { cn } from "@/lib/utils"
 import { TactileButton, type TactileButtonProps } from "@/components/chimer-controls/TactileButton"
-import styles from "./chimer-controls.module.css"
+import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 
 export interface CTAButtonProps extends TactileButtonProps {
+  /** Legacy Chimer affordance; wraps the selected variant instead of changing it. */
   withAttentionRing?: boolean
 }
 
 /**
- * High-attention button treatment used for important calls to action.
+ * High-attention Chimer compatibility wrapper backed by shared button variants.
  */
 export function CTAButton({
   className,
   withAttentionRing = false,
+  disabled,
+  variant = "cta",
   ...props
 }: CTAButtonProps) {
-  return (
+  const button = (
     <TactileButton
-      className={cn(
-        styles.ctaButton,
-        withAttentionRing && styles.ctaRing,
-        className,
-      )}
+      variant={variant}
+      className={className}
+      disabled={disabled}
       {...props}
     />
+  )
+
+  if (!withAttentionRing) {
+    return button
+  }
+
+  return (
+    <MetalAttentionRing metalMode={disabled ? "off" : "cycle"}>
+      {button}
+    </MetalAttentionRing>
   )
 }

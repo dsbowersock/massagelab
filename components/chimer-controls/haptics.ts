@@ -1,65 +1,30 @@
 "use client"
 
-import * as React from "react"
-import { shouldPlayHaptics, triggerHapticFeedback } from "@/lib/haptics"
+import type * as React from "react"
+
+import {
+  playPressFeedback,
+  wrapPressHandler,
+  type PressFeedbackOptions,
+} from "@/lib/press-feedback"
 
 export type ChimerPressEvent =
   | React.MouseEvent<HTMLElement>
   | React.TouchEvent<HTMLElement>
   | React.KeyboardEvent<HTMLElement>
+  | React.PointerEvent<HTMLElement>
 
-export type HapticPressOptions = {
-  /**
-   * Enables vibration feedback for supported devices.
-   */
-  hapticsEnabled?: boolean
-  /**
-   * Vibration duration in milliseconds.
-   */
-  hapticDurationMs?: number
-  /**
-   * Set true to disable the interaction handler.
-   */
-  disabled?: boolean
-}
+export type HapticPressOptions = PressFeedbackOptions
 
-function isActivationKey(event: ChimerPressEvent): event is React.KeyboardEvent<HTMLElement> {
-  return "key" in event && (event.key === "Enter" || event.key === " ")
-}
-
-function isKeyboardEvent(event: ChimerPressEvent): event is React.KeyboardEvent<HTMLElement> {
-  return "key" in event
-}
-
-function normalizeHapticDuration(duration: number | undefined) {
-  if (typeof duration !== "number" || Number.isNaN(duration)) {
-    return 15
-  }
-
-  return Math.max(8, Math.min(30, Math.round(duration)))
-}
+export { playPressFeedback }
 
 /**
- * Wrap an event handler with the same vibration behavior used by existing Chimer
- * interactions while preserving keyboard + mouse / touch activation.
+ * Compatibility wrapper for existing Chimer controls while the press-feedback
+ * behavior lives in the shared UI helper.
  */
 export function wrapChimerPressHandler<T extends ChimerPressEvent>(
   handler: (event: T) => void,
   options: HapticPressOptions = {},
 ) {
-  return (event: T) => {
-    if (options.disabled) {
-      return
-    }
-
-    if (isKeyboardEvent(event) && !isActivationKey(event)) {
-      return
-    }
-
-    if (shouldPlayHaptics(options.hapticsEnabled)) {
-      triggerHapticFeedback(options.hapticsEnabled, normalizeHapticDuration(options.hapticDurationMs))
-    }
-
-    handler(event)
-  }
+  return wrapPressHandler(handler, options)
 }
