@@ -3773,12 +3773,14 @@ export function RunningTimer({
   }
 
   const moveBackgroundCarousel = useCallback(
-    (direction: 1 | -1) => {
+    (direction: 1 | -1, shouldPlayHaptic = true) => {
       if (visibleBackgroundOptions.length <= 1) {
         return
       }
 
-      triggerHapticFeedback(hapticsEnabled)
+      if (shouldPlayHaptic) {
+        triggerHapticFeedback(hapticsEnabled)
+      }
       setActiveBackgroundCarouselIndex((currentIndex) => (
         currentIndex + direction + visibleBackgroundOptions.length
       ) % visibleBackgroundOptions.length)
@@ -17569,7 +17571,7 @@ export function RunningTimer({
                         variant="ctaBlue"
                         size="icon"
                         className={styles.backgroundCarouselNav}
-                        onClick={() => moveBackgroundCarousel(-1)}
+                        onClick={() => moveBackgroundCarousel(-1, false)}
                         disabled={visibleBackgroundOptions.length <= 1}
                         aria-label="Previous background"
                       >
@@ -17580,7 +17582,7 @@ export function RunningTimer({
                         variant="ctaBlue"
                         size="icon"
                         className={styles.backgroundCarouselNav}
-                        onClick={() => moveBackgroundCarousel(1)}
+                        onClick={() => moveBackgroundCarousel(1, false)}
                         disabled={visibleBackgroundOptions.length <= 1}
                         aria-label="Next background"
                       >

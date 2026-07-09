@@ -37,12 +37,13 @@ export function FlashcardDetailsCarousel() {
   }, [])
 
   useEffect(() => {
+    // Reset the autoplay delay after dot taps or swipe navigation.
     const intervalId = window.setInterval(() => {
       moveCarousel(1)
     }, FLASHCARD_DETAIL_INTERVAL_MS)
 
     return () => window.clearInterval(intervalId)
-  }, [moveCarousel])
+  }, [activeIndex, moveCarousel])
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse") {

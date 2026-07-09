@@ -4750,12 +4750,13 @@ export function SetTimer({
   }, [])
 
   useEffect(() => {
+    // Reset the autoplay delay after dot taps or swipe navigation.
     const interval = window.setInterval(() => {
       moveProofCarousel(1)
     }, 5500)
 
     return () => window.clearInterval(interval)
-  }, [moveProofCarousel])
+  }, [activeProofIndex, moveProofCarousel])
 
   const handleProofCarouselPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse") {
