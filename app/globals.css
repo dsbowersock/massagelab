@@ -32,6 +32,10 @@
     --button-cta-face: 281 100% 55%;
     --button-cta-face-bright: 286 100% 66%;
     --button-cta-face-depth: 281 76% 34%;
+    --button-calendar-leaf: 134 34% 38%;
+    --button-calendar-leaf-bright: 132 42% 47%;
+    --button-calendar-moss: 88 31% 36%;
+    --button-calendar-depth: 136 38% 22%;
     --button-charcoal: 24 6% 20%;
     --button-ink: 30 17% 7%;
     --button-depth-border: 24 18% 12%;
@@ -250,6 +254,7 @@
     .ml-button-mechanical-secondary,
     .ml-button-cta,
     .ml-button-cta-blue,
+    .ml-button-calendar,
     .ml-button-attention,
     .ml-button-destructive,
     .ml-button-outline,
@@ -281,6 +286,7 @@
   .ml-button-press-motion.ml-button-mechanical-secondary,
   .ml-button-press-motion.ml-button-cta,
   .ml-button-press-motion.ml-button-cta-blue,
+  .ml-button-press-motion.ml-button-calendar,
   .ml-button-press-motion.ml-button-attention,
   .ml-button-press-motion.ml-button-destructive,
   .ml-button-press-motion.ml-button-outline,
@@ -314,6 +320,7 @@
     .ml-button-mechanical-secondary,
     .ml-button-cta,
     .ml-button-cta-blue,
+    .ml-button-calendar,
     .ml-button-attention,
     .ml-button-destructive,
     .ml-button-outline,
@@ -327,6 +334,7 @@
 
   .ml-button-press-motion:is(
     .ml-button-cta-blue,
+    .ml-button-calendar,
     .ml-button-outline
   ) svg {
     filter:
@@ -338,6 +346,12 @@
     filter:
       drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54))
       drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-cta-face-bright) / 0.18));
+  }
+
+  .ml-button-press-motion.ml-button-calendar svg {
+    filter:
+      drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5))
+      drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-calendar-leaf-bright) / 0.18));
   }
 
   .ml-button-press-motion.ml-button-destructive svg {
@@ -486,6 +500,31 @@
       0 1px 4px hsl(var(--ml-site-blue-glow) / 0.22);
   }
 
+  .ml-button-press-motion.ml-button-calendar {
+    border-color: hsl(var(--button-calendar-leaf-bright) / 0.72);
+    border-top-color: hsl(var(--foreground) / 0.22);
+    border-right-color: hsl(var(--button-calendar-moss) / 0.58);
+    border-bottom-color: hsl(var(--button-calendar-depth));
+    background:
+      var(--ml-button-light-gradient),
+      linear-gradient(122deg, hsl(var(--button-calendar-leaf-bright)) 0%, hsl(var(--button-calendar-leaf)) 72%, hsl(var(--button-calendar-moss)) 100%);
+    color: hsl(96 58% 96%);
+    text-shadow:
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.52),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-calendar-leaf-bright) / 0.22),
+      0 0 1px hsl(var(--button-calendar-leaf-bright) / 0.18);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.14),
+      0 1px 4px hsl(var(--button-calendar-leaf-bright) / 0.2);
+  }
+
+  .ml-button-calendar .ml-calendar-control-label {
+    color: hsl(96 60% 96% / 0.78);
+    text-shadow:
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.34),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-calendar-leaf-bright) / 0.16);
+  }
+
   .ml-button-press-motion.ml-button-destructive {
     border-color: hsl(var(--button-danger-start) / 0.68);
     border-top-color: hsl(var(--foreground) / 0.2);
@@ -544,12 +583,15 @@
     opacity: 1 !important;
     overflow: visible;
     padding: 1px;
+    position: relative;
     visibility: visible !important;
     vertical-align: middle;
   }
 
   .ml-metal-attention-root .metal-fx-content {
     display: inline-flex;
+    position: relative;
+    z-index: 5;
   }
 
   .ml-metal-attention-root .metal-fx-canvas,
@@ -561,8 +603,68 @@
 
   .ml-metal-attention-root::before,
   .ml-metal-attention-root::after {
+    content: "";
+    border-radius: inherit;
     opacity: var(--ml-metal-attention-opacity, 0) !important;
+    pointer-events: none;
+    position: absolute;
     transition: opacity var(--ml-metal-attention-transition-ms, 1800ms) ease-out;
+  }
+
+  .ml-metal-attention-root::before {
+    animation: ml-metal-attention-ring-shift var(--ml-metal-attention-orbit-ms, 3600ms) linear infinite;
+    animation-play-state: paused;
+    background:
+      linear-gradient(
+        100deg,
+        transparent 0%,
+        transparent 34%,
+        hsl(var(--button-cta-face-bright) / 0.92) 45%,
+        hsl(var(--brand-orange-glow) / 0.88) 50%,
+        hsl(var(--ml-site-blue-glow) / 0.9) 55%,
+        transparent 66%,
+        transparent 100%
+      ),
+      conic-gradient(
+        from 230deg,
+        hsl(var(--button-cta-face-bright) / 0.72),
+        hsl(var(--brand-orange-glow) / 0.7),
+        hsl(var(--ml-site-blue-glow) / 0.72),
+        hsl(var(--button-cta-face-bright) / 0.72)
+      );
+    background-position: 130% 0, center;
+    background-repeat: no-repeat;
+    background-size: 260% 100%, 100% 100%;
+    inset: 0;
+    padding: var(--ml-metal-attention-ring-size, 1px);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    z-index: 4;
+  }
+
+  .ml-metal-attention-root[data-ml-metal-motion-state="playing"]::before {
+    animation-play-state: running;
+  }
+
+  .ml-metal-attention-root[data-ml-metal-motion-state="settling"]::before {
+    --ml-metal-attention-orbit-ms: 9000ms;
+    animation-play-state: running;
+  }
+
+  .ml-metal-attention-root::after {
+    border: var(--ml-metal-attention-ring-size, 1px) solid hsl(var(--button-cta-face-bright) / 0.24);
+    box-shadow:
+      0 0 14px hsl(var(--button-cta-face-bright) / 0.22),
+      0 0 20px hsl(var(--brand-orange-glow) / 0.16);
+    filter: blur(0.35px);
+    inset: -2px;
+    z-index: 2;
   }
 
   .ml-metal-attention-root[data-ml-metal-full-width="true"],
@@ -588,6 +690,12 @@
     box-shadow:
       inset 0 1px 0 hsl(var(--foreground) / 0.12),
       0 1px 6px hsl(var(--ml-site-blue-glow) / 0.18);
+  }
+
+  .ml-button-press-motion.ml-button-calendar:hover:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.14),
+      0 1px 7px hsl(var(--button-calendar-leaf-bright) / 0.2);
   }
 
   .ml-button-press-motion.ml-button-ghost:hover:not(:disabled):not([aria-disabled="true"]) {
@@ -647,6 +755,7 @@
     .ml-button-press-motion.ml-button-mechanical-secondary,
     .ml-button-press-motion.ml-button-cta,
     .ml-button-press-motion.ml-button-cta-blue,
+    .ml-button-press-motion.ml-button-calendar,
     .ml-button-press-motion.ml-button-attention,
     .ml-button-press-motion.ml-button-default,
     .ml-button-press-motion.ml-button-destructive,
@@ -662,6 +771,43 @@
     filter: none;
     opacity: 0.58;
     transform: none;
+  }
+
+  .ml-pricing-interval-trigger {
+    position: relative;
+    border: 1px solid hsl(var(--border) / 0.82);
+    border-radius: 0.62rem;
+    background: hsl(var(--background) / 0.54);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.08),
+      0 1px 2px hsl(var(--foreground) / 0.04);
+    color: hsl(var(--muted-foreground));
+    transition:
+      background-color 180ms linear,
+      border-color 180ms linear,
+      box-shadow 180ms linear,
+      color 180ms linear,
+      filter 180ms linear;
+  }
+
+  .ml-pricing-interval-trigger[data-state="active"] {
+    border: 2px solid hsl(var(--button-default-face) / 0.7);
+    border-top-color: hsl(var(--foreground) / 0.18);
+    border-right-color: hsl(var(--button-orange-edge) / 0.5);
+    background:
+      var(--ml-button-light-gradient),
+      linear-gradient(122deg, hsl(var(--button-default-face)) 0%, hsl(var(--button-default-face)) 76%, hsl(var(--button-orange-edge)) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.12),
+      0 1px 4px hsl(var(--button-default-face) / 0.18);
+    color: hsl(32 100% 96%);
+    text-shadow:
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.48),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-default-face) / 0.2);
+  }
+
+  .ml-pricing-interval-trigger[data-state="active"] span:last-child {
+    color: hsl(32 100% 92% / 0.82);
   }
 
   .ml-app-shell {
@@ -778,52 +924,21 @@
   }
 
   .ml-mobile-main-bar .ml-main-bar-button {
-    height: 3.1rem;
-    width: 2.62rem;
+    height: 2.625rem;
+    width: 2.625rem;
     min-width: 0;
     align-items: center;
     justify-content: center;
     flex-direction: column;
     gap: 0;
-    border: 1px solid hsl(var(--input));
-    border-radius: var(--radius);
-    background: hsl(var(--background));
-    box-shadow:
-      inset 0 -2.5px 0 hsl(var(--foreground) / 0.08),
-      0 1px 6px hsl(var(--background) / 0.28);
     padding: 0;
     font-size: 0.58rem;
     line-height: 0.95;
-    color: hsl(var(--foreground) / 0.84);
-  }
-
-  .ml-mobile-main-bar .ml-button-press-motion.ml-button-ghost.ml-main-bar-button {
-    background: hsl(var(--background));
-    box-shadow:
-      inset 0 -2.5px 0 hsl(var(--foreground) / 0.08),
-      0 1px 6px hsl(var(--background) / 0.28);
-  }
-
-  .ml-mobile-main-bar .ml-main-bar-button:hover,
-  .ml-mobile-main-bar .ml-main-bar-button:focus-visible {
-    background: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
-    box-shadow:
-      inset 0 -2.5px 0 hsl(var(--foreground) / 0.08),
-      0 2px 8px hsl(var(--background) / 0.32);
-  }
-
-  .ml-mobile-main-bar .ml-main-bar-button:active {
-    transform: translateY(1px);
-    box-shadow:
-      inset 0 1px 0 hsl(var(--background) / 0.45),
-      inset 0 -1px 0 hsl(var(--foreground) / 0.08),
-      0 0.12rem 0.32rem hsl(var(--background) / 0.28);
   }
 
   .ml-mobile-main-bar .ml-main-bar-button svg {
-    width: 1.5rem;
-    height: 1.5rem;
+    height: 1.35rem;
+    width: 1.35rem;
   }
 
   .ml-mobile-main-bar .ml-main-bar-button span:not(.sr-only) {
@@ -846,30 +961,37 @@
     justify-content: center;
     width: 2.625rem;
     height: 2.625rem;
-    border: 0.75px solid hsl(var(--primary-foreground) / 0.28);
-    outline: 1px solid hsl(var(--primary) / 0.58);
-    outline-offset: -2px;
-    background:
-      linear-gradient(145deg, hsl(var(--brand-orange-soft) / 0.94) 0%, hsl(var(--primary) / 0.98) 54%, hsl(21 88% 43% / 0.98) 100%);
-    box-shadow:
-      inset 0 1px 0 hsl(var(--primary-foreground) / 0.32),
-      inset 0 -2px 0 hsl(21 88% 31% / 0.44),
-      0 0.16rem 0.38rem hsl(var(--background) / 0.3);
-    color: hsl(var(--primary-foreground));
     padding: 0;
   }
 
-  .ml-mobile-main-bar .ml-main-bar-plus:hover,
-  .ml-mobile-main-bar .ml-main-bar-plus:focus-visible,
-  .ml-mobile-main-bar .ml-main-bar-plus[aria-expanded="true"] {
-    border-color: hsl(var(--primary-foreground) / 0.34);
-    outline-color: hsl(var(--primary) / 0.72);
-    background:
-      linear-gradient(145deg, hsl(var(--brand-orange-soft) / 1) 0%, hsl(var(--primary) / 1) 50%, hsl(21 88% 43% / 1) 100%);
+  .ml-mobile-main-bar .ml-main-bar-plus[aria-expanded="true"],
+  .ml-mobile-main-bar .ml-main-bar-plus-open {
+    border-bottom-width: 2px;
     box-shadow:
-      inset 0 1px 0 hsl(var(--primary-foreground) / 0.34),
-      inset 0 -2px 0 hsl(21 88% 31% / 0.5),
-      0 0.2rem 0.46rem hsl(var(--background) / 0.34);
+      inset var(--ml-button-press-shadow-x) 3px 10px hsl(var(--background) / 0.34),
+      inset 0 1px 0 hsl(var(--foreground) / 0.08),
+      0 1px 6px hsl(var(--foreground) / 0.08);
+    filter: brightness(0.99);
+    transform: translateY(0);
+  }
+
+  .ml-theme-switcher .ml-shell-theme-button {
+    height: 2rem;
+    width: 2rem;
+    border-radius: 0.72rem;
+  }
+
+  .ml-theme-switcher .ml-shell-theme-button svg {
+    height: 1rem;
+    width: 1rem;
+  }
+
+  .ml-theme-switcher .ml-shell-theme-button:not(.ml-shell-theme-button-active) {
+    opacity: 0.82;
+  }
+
+  .ml-theme-switcher .ml-shell-theme-button-active {
+    filter: brightness(1.12);
   }
 
   @media (max-width: 767px) {
@@ -1179,6 +1301,10 @@
   animation: ml-flashcard-carousel-previous 360ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.ml-info-carousel-slide {
+  animation: ml-info-carousel-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (min-width: 768px) {
   .ml-flashcard-carousel {
     --ml-flashcard-carousel-step: 50%;
@@ -1202,6 +1328,28 @@
 
   to {
     transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ml-info-carousel-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0.75rem, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ml-metal-attention-ring-shift {
+  from {
+    background-position: 130% 0, center;
+  }
+
+  to {
+    background-position: -130% 0, center;
   }
 }
 
@@ -1310,6 +1458,10 @@
   }
 
   .ml-flashcard-carousel-track[data-slide] {
+    animation: none;
+  }
+
+  .ml-info-carousel-slide {
     animation: none;
   }
 

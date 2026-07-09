@@ -1,4 +1,5 @@
 import { KeyboardEvent, MouseEvent, SyntheticEvent, TouchEvent } from "react";
+import { hasPressFeedbackHandled, markPressFeedbackHandled } from "@/lib/press-feedback";
 import { shouldPlayHaptics, triggerHapticFeedback } from "@/lib/haptics";
 
 export interface PressHandlerOptions {
@@ -53,7 +54,8 @@ export function withChimerPress(
       return;
     }
 
-    if (!skipHaptics && shouldPlayHaptics(hapticsEnabled)) {
+    if (!skipHaptics && !hasPressFeedbackHandled(event) && shouldPlayHaptics(hapticsEnabled)) {
+      markPressFeedbackHandled(event);
       triggerHapticFeedback(hapticsEnabled, hapticDurationMs);
     }
 

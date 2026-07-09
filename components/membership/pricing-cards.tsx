@@ -4,6 +4,7 @@ import { appCalloutClassName, appSurfaceClassName } from "@/components/ui/app-su
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { MetalAttentionButton } from "@/components/ui/metal-attention-button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getLegalDocumentByKey, legalDocumentAcceptanceId } from "@/lib/legal-documents"
 import { cn } from "@/lib/utils"
@@ -84,12 +85,12 @@ export function MembershipPricingCards({
       </div>
 
       <Tabs defaultValue={catalog.defaultInterval} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-md border border-border/80 bg-background/80 p-1 sm:w-[26rem]">
+        <TabsList className="ml-pricing-interval-tabs grid h-auto w-full grid-cols-2 gap-1 rounded-md border border-border/80 bg-background/80 p-1 sm:w-[26rem]">
           {catalog.intervals.map((interval) => (
             <TabsTrigger
               key={interval.id}
               value={interval.id}
-              className="flex h-auto flex-col items-center gap-0.5 whitespace-normal px-3 py-2 text-center"
+              className="ml-pricing-interval-trigger flex h-auto flex-col items-center gap-0.5 whitespace-normal px-3 py-2 text-center"
             >
               <span>{interval.label}</span>
               <span className="text-[0.68rem] font-normal text-muted-foreground">{interval.nudge}</span>
@@ -269,9 +270,9 @@ function PlanAction({
           .
         </span>
       </label>
-      <Button type="submit" variant="cta" className="w-full" disabled={!price.isLookupAvailable}>
+      <MetalAttentionButton type="submit" className="w-full" metalFullWidth disabled={!price.isLookupAvailable}>
         Choose {plan.name}
-      </Button>
+      </MetalAttentionButton>
     </form>
   )
 }

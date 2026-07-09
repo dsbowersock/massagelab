@@ -1,6 +1,14 @@
 "use client"
 
-import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { BellRing, Clock, MonitorSmartphone, Play, SlidersHorizontal } from "lucide-react"
 import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
 import type { BackgroundCategory, BackgroundDefinition, BackgroundId } from "@/components/backgrounds/backgroundRegistry"
@@ -8,6 +16,7 @@ import { PageHeading } from "@/components/ui/page-heading"
 import { useSettings } from "@/components/providers/settings-provider"
 import { withChimerPress } from "@/lib/chimer-press-handler"
 import { CTAButton } from "@/components/chimer-controls/CTAButton"
+import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { NumberField } from "@/components/chimer-controls/NumberField"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
@@ -35,6 +44,7 @@ const CHIMER_SETUP_STEPS = [
   "Choose background",
   "Start timer",
 ] as const
+const INFO_CAROUSEL_SWIPE_THRESHOLD_PX = 42
 
 type ChimerSetupPresetState = Pick<
   ChimerSettings,
@@ -4698,11 +4708,13 @@ export function SetTimer({
   const [selectedPresetId, setSelectedPresetId] = useState("")
   const [newPresetName, setNewPresetName] = useState("")
   const [skipIntervalCues, setSkipIntervalCues] = useState(false)
+  const [activeProofIndex, setActiveProofIndex] = useState(0)
   const { settings: appShellSettings } = useSettings()
   const [syncNoticeDismissed, setSyncNoticeDismissed] = useState(false)
   const [isSyncNoticeExiting, setIsSyncNoticeExiting] = useState(false)
   const syncNoticeDismissTimerRef = useRef<number | null>(null)
   const syncNoticeExitTimerRef = useRef<number | null>(null)
+  const proofSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const isTimerSet = totalDurationMs > 0
   const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
   const setupPresetState = useMemo(() => createChimerSetupPresetState(settings, skipIntervalCues), [settings, skipIntervalCues])
@@ -4733,6 +4745,55 @@ export function SetTimer({
     setLastSetupPreset(readLastChimerSetupPreset())
   }, [])
 
+  const moveProofCarousel = useCallback((direction: 1 | -1) => {
+    setActiveProofIndex((current) => (current + direction + timerProofs.length) % timerProofs.length)
+  }, [])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      moveProofCarousel(1)
+    }, 5500)
+
+    return () => window.clearInterval(interval)
+  }, [moveProofCarousel])
+
+  const handleProofCarouselPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse") {
+      return
+    }
+
+    proofSwipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    }
+  }, [])
+
+  const handleProofCarouselPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const swipeStart = proofSwipeStartRef.current
+    proofSwipeStartRef.current = null
+    if (!swipeStart) {
+      return
+    }
+
+    const deltaX = event.clientX - swipeStart.x
+    const deltaY = event.clientY - swipeStart.y
+    const isHorizontalSwipe =
+      Math.abs(deltaX) >= INFO_CAROUSEL_SWIPE_THRESHOLD_PX
+      && Math.abs(deltaX) > Math.abs(deltaY) * 1.35
+
+    if (!isHorizontalSwipe) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    moveProofCarousel(deltaX > 0 ? -1 : 1)
+  }, [moveProofCarousel])
+
+  const handleProofCarouselPointerCancel = useCallback(() => {
+    proofSwipeStartRef.current = null
+  }, [])
+
   const clearSyncNoticeTimers = useCallback(() => {
     if (syncNoticeDismissTimerRef.current) {
       window.clearTimeout(syncNoticeDismissTimerRef.current)
@@ -4760,6 +4821,11 @@ export function SetTimer({
     setIsSyncNoticeExiting(false)
     clearSyncNoticeTimers()
 
+    if (syncStatus === "synced") {
+      setSyncNoticeDismissed(true)
+      return clearSyncNoticeTimers
+    }
+
     const visibleDuration = syncStatus === "conflict" ? 12000 : 7500
     syncNoticeDismissTimerRef.current = window.setTimeout(() => {
       dismissSyncNotice()
@@ -4784,6 +4850,7 @@ export function SetTimer({
 
   const isFinalStep = activeStep === CHIMER_SETUP_STEPS.length - 1
   const canAdvanceStep = activeStep !== 0 || totalDurationMs > 0
+  const shouldShowSyncNotice = syncStatus !== "synced"
 
   const selectedPreset = savedPresets.find((entry) => entry.id === selectedPresetId) ?? null
 
@@ -16505,7 +16572,7 @@ export function SetTimer({
         <p className={styles.subtitle}>Massage session timer for treatment pacing, interval chimes, and full-screen clock visibility.</p>
       </div>
 
-      {!syncNoticeDismissed && (
+      {shouldShowSyncNotice && !syncNoticeDismissed && (
         <div
           className={`${styles.syncNotice} ${isSyncNoticeExiting ? styles.syncNoticeExiting : ""}`}
           data-app-bar-position={appShellSettings.appBarPosition}
@@ -16534,20 +16601,54 @@ export function SetTimer({
         </div>
       )}
 
-      <div className={styles.proofGrid} aria-label="Chimer massage session timer features">
-        {timerProofs.map((proof) => {
+      <div
+        className={styles.proofCarousel}
+        aria-label="Chimer massage session timer features"
+        onPointerDown={handleProofCarouselPointerDown}
+        onPointerUp={handleProofCarouselPointerUp}
+        onPointerCancel={handleProofCarouselPointerCancel}
+      >
+        {timerProofs.map((proof, proofIndex) => {
           const Icon = proof.icon
+          const active = proofIndex === activeProofIndex
+
           return (
-            <div key={proof.title} className={styles.proofCard}>
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              <div>
-                <p className={styles.proofTitle}>{proof.title}</p>
-                <p className={styles.proofDescription}>{proof.description}</p>
+            <div key={proof.title} className={styles.proofSlide} hidden={!active} aria-hidden={!active}>
+              <div className={styles.proofCard}>
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                <div>
+                  <p className={styles.proofTitle}>{proof.title}</p>
+                  <p className={styles.proofDescription}>{proof.description}</p>
+                </div>
               </div>
             </div>
           )
         })}
+        <div className={styles.proofDots} aria-label="Chimer feature slides">
+          {timerProofs.map((proof, proofIndex) => (
+            <button
+              key={proof.title}
+              type="button"
+              className={styles.proofDot}
+              data-active={proofIndex === activeProofIndex ? "true" : "false"}
+              aria-label={`Show ${proof.title}`}
+              aria-current={proofIndex === activeProofIndex}
+              onClick={() => setActiveProofIndex(proofIndex)}
+            />
+          ))}
+        </div>
       </div>
+
+      <CTAButton
+        type="button"
+        variant="cta"
+        className={styles.clockModeCtaButton}
+        pressFeedback={false}
+        onClick={withPress(onStartClock)}
+      >
+        <Clock className="h-5 w-5" />
+        Clock Mode
+      </CTAButton>
 
       <div className={styles.stepper}>
         <div className={styles.stepHeader}>
@@ -16567,6 +16668,16 @@ export function SetTimer({
               <span className={styles.stepName}>{stepName}</span>
             </button>
           ))}
+        </div>
+
+        <div className={styles.currentStepHeader} aria-live="polite">
+          <span className={styles.stepIndex}>{activeStep + 1}</span>
+          <span className={styles.currentStepText}>
+            <span className={styles.currentStepLabel}>
+              Step {activeStep + 1} of {CHIMER_SETUP_STEPS.length}
+            </span>
+            <span className={styles.currentStepName}>{CHIMER_SETUP_STEPS[activeStep]}</span>
+          </span>
         </div>
 
         <div className={styles.presetSelection}>
@@ -16867,27 +16978,24 @@ export function SetTimer({
             </button>
           )}
           {!isFinalStep && (
-            <button
-              type="button"
-              className={`${styles.button} ${styles.tactileButton}`}
-              onClick={withPress(nextStep)}
-              disabled={!canAdvanceStep}
+            <MetalAttentionRing
+              metalMode={canAdvanceStep ? "cycle" : "off"}
+              metalFullWidth
             >
-              Continue
-            </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.tactileButton}`}
+                onClick={withPress(nextStep)}
+                disabled={!canAdvanceStep}
+              >
+                Continue
+              </button>
+            </MetalAttentionRing>
           )}
         </div>
       </div>
 
       {error && <p className={styles.error}>{error}</p>}
-      <button
-        type="button"
-        className={`${styles.clockModeButton} ${styles.tactileButton}`}
-        onClick={withPress(onStartClock)}
-      >
-        <Clock className="h-5 w-5" />
-        Clock Mode
-      </button>
     </section>
   )
 }

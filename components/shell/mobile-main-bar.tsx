@@ -31,7 +31,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["home", {
       id: "home",
       node: (
-        <Button asChild variant="ghost" className="ml-main-bar-button" aria-label="Home">
+        <Button asChild variant="outline" size="icon" className="ml-main-bar-button" aria-label="Home">
           <Link href="/">
             <Home aria-hidden="true" />
             <span>Home</span>
@@ -42,7 +42,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["music", {
       id: "music",
       node: (
-        <Button asChild variant="ghost" className="ml-main-bar-button">
+        <Button asChild variant="outline" size="icon" className="ml-main-bar-button">
           <Link href="/music" aria-label="Open music">
             <Music2 aria-hidden="true" />
             <span>Music</span>
@@ -53,7 +53,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["clock", {
       id: "clock",
       node: (
-        <Button asChild variant="ghost" className="ml-main-bar-button">
+        <Button asChild variant="outline" size="icon" className="ml-main-bar-button">
           <Link href="/clock" aria-label="Open clock">
             <Clock aria-hidden="true" />
             <span>Clock</span>
@@ -67,9 +67,9 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
         <Button
           ref={quickCreateButtonRef}
           type="button"
-          variant="secondary"
+          variant="default"
           size="icon"
-          className={cn("ml-main-bar-plus rounded-full shadow-lg", quickActionsOpen && "bg-primary text-primary-foreground")}
+          className={cn("ml-main-bar-plus rounded-full", quickActionsOpen && "ml-main-bar-plus-open")}
           data-quick-action-trigger="true"
           aria-label="Open quick actions"
           aria-expanded={quickActionsOpen}
@@ -86,7 +86,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["calendar", {
       id: "calendar",
       node: (
-        <Button asChild variant="ghost" className="ml-main-bar-button">
+        <Button asChild variant="outline" size="icon" className="ml-main-bar-button">
           <Link href="/calendar" aria-label="Open calendar">
             <CalendarDays aria-hidden="true" />
             <span>Calendar</span>
@@ -97,7 +97,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["more", {
       id: "more",
       node: (
-        <Button type="button" variant="ghost" className="ml-main-bar-button" aria-label="Open navigation" onClick={toggleSidebar}>
+        <Button type="button" variant="outline" size="icon" className="ml-main-bar-button" aria-label="Open navigation" onClick={toggleSidebar}>
           <Menu aria-hidden="true" />
           <span>More</span>
         </Button>

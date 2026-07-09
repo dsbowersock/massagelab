@@ -247,9 +247,15 @@ export default async function Home() {
             <p className="text-sm font-medium text-primary">Useful before the pitch</p>
             <h2 id="home-proof-heading" className="text-2xl font-semibold sm:text-3xl">Focused tools for common massage searches</h2>
           </div>
-          <Button asChild variant={membershipButtonVariant}>
-            <Link href={membershipHref}>{signedIn ? "Review membership" : "See pricing"}</Link>
-          </Button>
+          {signedIn ? (
+            <MetalAttentionButton asChild variant={membershipButtonVariant}>
+              <Link href={membershipHref}>Review membership</Link>
+            </MetalAttentionButton>
+          ) : (
+            <Button asChild variant={membershipButtonVariant}>
+              <Link href={membershipHref}>See pricing</Link>
+            </Button>
+          )}
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {proofLanes.map((lane) => {
@@ -331,9 +337,15 @@ export default async function Home() {
               <Link href={primaryAccountHref}>Create a free account</Link>
             </MetalAttentionButton>
           )}
-          <Button asChild variant={membershipButtonVariant}>
-            <Link href={membershipHref}>{signedIn ? "View membership" : "View pricing"}</Link>
-          </Button>
+          {signedIn ? (
+            <MetalAttentionButton asChild variant={membershipButtonVariant}>
+              <Link href={membershipHref}>View membership</Link>
+            </MetalAttentionButton>
+          ) : (
+            <Button asChild variant={membershipButtonVariant}>
+              <Link href={membershipHref}>View pricing</Link>
+            </Button>
+          )}
         </div>
       </AppSurface>
 
