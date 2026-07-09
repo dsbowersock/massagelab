@@ -605,7 +605,7 @@ function CalendarToolbarControls({
 
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-      <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => onNavigate("prev")} aria-label="Previous range">
+      <Button type="button" variant="calendar" size="icon" className="h-10 w-10 shrink-0" onClick={() => onNavigate("prev")} aria-label="Previous range">
         <ChevronLeft data-icon="inline-start" />
       </Button>
       <DatePickerControl
@@ -614,10 +614,10 @@ function CalendarToolbarControls({
         onGotoDate={onGotoDate}
         className="min-w-0 flex-[1_1_13rem] justify-between"
       />
-      <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => onNavigate("next")} aria-label="Next range">
+      <Button type="button" variant="calendar" size="icon" className="h-10 w-10 shrink-0" onClick={() => onNavigate("next")} aria-label="Next range">
         <ChevronRight data-icon="inline-start" />
       </Button>
-      <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 px-3" onClick={() => onNavigate("today")}>Today</Button>
+      <Button type="button" variant="calendar" size="sm" className="h-10 shrink-0 px-3" onClick={() => onNavigate("today")}>Today</Button>
       <DropdownControl label="Range" value={rangeLabel}>
         {RANGE_LABELS.map(([value, label]) => (
           <DropdownMenuItem key={value} onClick={() => onRangeChange(value)}>
@@ -665,9 +665,9 @@ function DatePickerControl({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className={cn("h-10 gap-2 bg-background/70", className)}>
+        <Button type="button" variant="calendar" size="sm" className={cn("h-10 gap-2", className)}>
           <CalendarDays data-icon="inline-start" />
-          <span className="text-muted-foreground">Date</span>
+          <span className="ml-calendar-control-label">Date</span>
           <span className="max-w-40 truncate font-semibold">{viewTitle || "Today"}</span>
           <ChevronDown data-icon="inline-end" />
         </Button>
@@ -683,8 +683,8 @@ function DropdownControl({ label, value, children }: { label: string; value: str
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-2 bg-background/70">
-          <span className="text-muted-foreground">{label}</span>
+        <Button type="button" variant="calendar" size="sm" className="h-10 shrink-0 gap-2">
+          <span className="ml-calendar-control-label">{label}</span>
           <span className="font-semibold">{value}</span>
           <ChevronDown data-icon="inline-end" />
         </Button>
@@ -771,7 +771,7 @@ function CalendarDisplaySettings({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="icon" aria-label="Calendar settings">
+        <Button type="button" variant="calendar" size="icon" className="ml-auto h-10 w-10 shrink-0" aria-label="Calendar settings">
           <Settings2 data-icon="inline-start" />
         </Button>
       </PopoverTrigger>
@@ -802,7 +802,7 @@ function CalendarDisplaySettings({
                 <Input id="calendarDayEnd" type="time" value={endValue} onChange={(event) => updateEnd(event.currentTarget.value)} />
               </div>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => onDayBoundsChange(null, null)}>
+            <Button type="button" variant="calendar" size="sm" onClick={() => onDayBoundsChange(null, null)}>
               Use availability hours
             </Button>
           </div>

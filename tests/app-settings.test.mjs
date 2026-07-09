@@ -20,15 +20,15 @@ import {
 } from "../lib/sidebar-layout.js"
 
 describe("App settings helpers", () => {
-  it("opens compact theme choices without changing theme on the first phone tap", () => {
+  it("uses a single mobile theme toggle while keeping explicit desktop theme choices", () => {
     const source = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
 
-    assert.match(source, /function shouldOpenCompactPickerOnly/)
-    assert.match(source, /suppressCompactActivationRef/)
-    assert.match(source, /getComputedStyle\(inactiveOption\)\.display === "none"/)
+    assert.match(source, /ml-theme-toggle-button md:hidden/)
+    assert.match(source, /const nextToggledTheme: ThemeMode = resolvedTheme === "dark" \? "light" : "dark"/)
+    assert.match(source, /variant=\{resolvedTheme === "light" \? "default" : "outline"\}/)
+    assert.match(source, /className="hidden gap-1 md:flex"/)
     assert.match(source, /data-theme-selected/)
-    assert.match(source, /onValueChange=\{\(value\) => \{\s*if \(suppressCompactActivationRef\.current\)/)
-    assert.match(source, /event\.preventDefault\(\)/)
+    assert.doesNotMatch(source, /suppressCompactActivationRef/)
   })
 
   it("keeps the global theme control visible in the primary bar on narrow phones", () => {
@@ -171,15 +171,19 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /\.ml-main-bar-edge \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*justify-content: center/)
-    assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*border: 1px solid hsl\(var\(--input\)\)/)
-    assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*background: hsl\(var\(--background\)\)/)
-    assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*inset 0 -2\.5px 0/)
+    assert.match(mainBarSource, /variant="outline" size="icon" className="ml-main-bar-button"/)
+    assert.match(mainBarSource, /variant="default"[\s\S]*className=\{cn\("ml-main-bar-plus rounded-full"/)
+    assert.doesNotMatch(globalsSource, /\.ml-button-press-motion\.ml-button-ghost\.ml-main-bar-button/)
     assert.match(globalsSource, /\.ml-main-bar-button span:not\(\.sr-only\) \{[\s\S]*display: none/)
     assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-main-bar-plus \{[\s\S]*width: 2\.625rem/)
-    assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-main-bar-plus \{[\s\S]*outline-offset: -2px/)
+    assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-main-bar-plus-open \{[\s\S]*border-bottom-width: 2px/)
     assert.match(themeSwitcherSource, /data-theme-value=\{value\}/)
-    assert.match(themeSwitcherSource, /value === "dark"/)
-    assert.match(themeSwitcherSource, /--ml-site-blue/)
+    assert.match(themeSwitcherSource, /ml-theme-switcher/)
+    assert.match(themeSwitcherSource, /ml-theme-toggle-button md:hidden/)
+    assert.match(themeSwitcherSource, /resolvedTheme === "light" \? "default" : "outline"/)
+    assert.match(themeSwitcherSource, /className="hidden gap-1 md:flex"/)
+    assert.match(themeSwitcherSource, /value === "light" && "ml-button-default"/)
+    assert.match(themeSwitcherSource, /value === "dark" && "ml-button-outline"/)
   })
 
   it("uses a drawer only in narrow portrait phone layouts", () => {

@@ -227,6 +227,7 @@ export function MetalAttentionRing({
   const ringStyle = {
     ...style,
     "--ml-metal-attention-opacity": ringVisualStrength,
+    "--ml-metal-attention-ring-size": `${metalRingCssPx}px`,
     "--ml-metal-attention-transition-ms": `${resolvedSettleDurationMs}ms`,
   } as React.CSSProperties
 

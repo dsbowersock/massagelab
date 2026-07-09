@@ -133,7 +133,7 @@ const sidebarSectionTriggerClass = cn(
   "group-data-[collapsible=icon]:!px-0 group-data-[collapsible=icon]:!opacity-100 group-data-[collapsible=icon]:justify-center",
 )
 const primaryChildRouteListClass = cn(
-  "ml-4 mt-1 border-l border-sidebar-border/70 pl-2",
+  "ml-4 mt-1 w-[calc(100%_-_1rem)] border-l border-sidebar-border/70 pl-2",
   "group-data-[collapsible=icon]:hidden",
 )
 const primaryChildRouteButtonClass = cn(
@@ -464,7 +464,7 @@ function CalendarSidebarRoute({
         asChild
         isActive={isNavigationRouteActive(pathname, "/calendar")}
         tooltip={{ children: "Calendar", side: tooltipSide }}
-        className={cn("group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
+        className={cn("max-w-full group-has-[[data-sidebar=menu-action]]/menu-item:pr-9 md:group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
       >
         <Link href="/calendar" onClick={(event) => navigateFromSidebar(event, "/calendar")}>
           <CalendarDays />

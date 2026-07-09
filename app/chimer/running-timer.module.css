@@ -524,6 +524,10 @@
   padding: 0.05rem 0.15rem 0.12rem 0;
 }
 
+.backgroundSettingsTabContent {
+  touch-action: pan-y;
+}
+
 .settingsSection {
   display: grid;
   gap: 0.5rem;
@@ -726,6 +730,7 @@
   min-width: 0;
   padding: 0.05rem 0 0.2rem;
   outline: none;
+  touch-action: pan-y;
 }
 
 .backgroundRadialCarousel:focus-visible {
@@ -735,7 +740,7 @@
 
 .backgroundRadialStage {
   position: relative;
-  height: clamp(13.75rem, 38dvh, 16rem);
+  height: clamp(17.75rem, 45dvh, 21.5rem);
   overflow: hidden;
   border-radius: 0.9rem;
   perspective: 900px;
@@ -747,7 +752,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: clamp(8.6rem, 28vw, 10.75rem);
+  width: clamp(11.35rem, 38vw, 14rem);
   aspect-ratio: 5 / 7;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -934,30 +939,15 @@
   gap: 0.75rem;
 }
 
-.backgroundRadialCarouselVertical .backgroundRadialStage {
-  height: clamp(15rem, 46dvh, 18rem);
-}
-
-.backgroundRadialCarouselVertical .backgroundRadialCard {
-  width: clamp(8rem, 46vw, 10rem);
-}
-
 .backgroundCarouselNav {
   position: static;
-  width: 2.35rem;
-  height: 2.35rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 999px;
-  background: hsl(var(--background) / 0.9);
-  color: hsl(var(--foreground));
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.backgroundCarouselNav:hover:not(:disabled) {
-  filter: brightness(1.05);
-  transform: translateY(-1px);
 }
 
 .backgroundCarouselNav:disabled {
@@ -1624,6 +1614,10 @@
 
   .settingsTabContent {
     max-height: none;
+  }
+
+  .backgroundSettingsTabContent {
+    padding-top: clamp(1.75rem, 7dvh, 3.5rem);
   }
 
   .backgroundCategoryRow {

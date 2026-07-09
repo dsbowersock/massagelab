@@ -18,12 +18,15 @@ export interface PressFeedbackOptions {
   ariaDisabled?: boolean
   hapticsEnabled?: boolean
   hapticDurationMs?: number
+  hapticReleaseDurationMs?: number
 }
 
 interface PressHandlerBehavior {
   /** Lets generic Button handlers cancel feedback with preventDefault first. */
   invokeHandlerBeforeFeedback?: boolean
 }
+
+const handledPressFeedbackEvents = new WeakSet<object>()
 
 function isKeyboardEvent(event: PressFeedbackEvent): event is ReactKeyboardEvent<HTMLElement> {
   return "key" in event
@@ -33,15 +36,16 @@ function isActivationKey(event: ReactKeyboardEvent<HTMLElement>) {
   return event.key === "Enter" || event.key === " "
 }
 
-// A 15ms pulse reads as a tap; values below 8ms disappear on many devices,
+// A 10ms pulse reads like a compact toggle click; values below 8ms disappear on many devices,
 // while values above 30ms start to feel sluggish for press feedback.
-const defaultHapticDurationMs = 15
+const defaultHapticDurationMs = 10
+const defaultHapticReleaseDurationMs = 8
 const minHapticDurationMs = 8
 const maxHapticDurationMs = 30
 
-function normalizeDuration(duration: number | undefined) {
+function normalizeDuration(duration: number | undefined, fallback = defaultHapticDurationMs) {
   if (typeof duration !== "number" || Number.isNaN(duration)) {
-    return defaultHapticDurationMs
+    return fallback
   }
 
   return Math.max(minHapticDurationMs, Math.min(maxHapticDurationMs, Math.round(duration)))
@@ -49,6 +53,27 @@ function normalizeDuration(duration: number | undefined) {
 
 function shouldSkipFeedback(options: PressFeedbackOptions = {}) {
   return Boolean(options.disabled || options.ariaDisabled)
+}
+
+export function markPressFeedbackHandled(event: object): void {
+  handledPressFeedbackEvents.add(event)
+
+  if ("nativeEvent" in event && typeof event.nativeEvent === "object" && event.nativeEvent !== null) {
+    handledPressFeedbackEvents.add(event.nativeEvent)
+  }
+}
+
+export function hasPressFeedbackHandled(event: object): boolean {
+  if (handledPressFeedbackEvents.has(event)) {
+    return true
+  }
+
+  return Boolean(
+    "nativeEvent" in event
+      && typeof event.nativeEvent === "object"
+      && event.nativeEvent !== null
+      && handledPressFeedbackEvents.has(event.nativeEvent),
+  )
 }
 
 /**
@@ -78,6 +103,22 @@ export function playPressFeedback(options: PressFeedbackOptions = {}): void {
 }
 
 /**
+ * Plays the shorter release-side pulse for physical button feedback.
+ * Pointer handlers call this after a valid press completes, giving touch devices
+ * a click-clack feel without changing Chimer alert haptics.
+ */
+export function playPressReleaseFeedback(options: PressFeedbackOptions = {}): void {
+  if (shouldSkipFeedback(options)) {
+    return
+  }
+
+  triggerHapticFeedback(
+    options.hapticsEnabled,
+    normalizeDuration(options.hapticReleaseDurationMs, defaultHapticReleaseDurationMs),
+  )
+}
+
+/**
  * Applies press feedback for a concrete UI event and reports whether feedback
  * played. Canceled events, disabled controls, non-activation keyboard events,
  * and key repeats return false.
@@ -86,10 +127,16 @@ export function playPressFeedbackForEvent(
   event: PressFeedbackEvent,
   options: PressFeedbackOptions = {},
 ): boolean {
-  if (event.defaultPrevented || shouldSkipFeedback(options) || !shouldHandlePressFeedbackEvent(event)) {
+  if (
+    event.defaultPrevented
+    || shouldSkipFeedback(options)
+    || hasPressFeedbackHandled(event)
+    || !shouldHandlePressFeedbackEvent(event)
+  ) {
     return false
   }
 
+  markPressFeedbackHandled(event)
   playPressFeedback(options)
   return true
 }
@@ -115,6 +162,7 @@ export function wrapPressHandler<EventType extends PressFeedbackEvent>(
     }
 
     if (behavior.invokeHandlerBeforeFeedback) {
+      markPressFeedbackHandled(event)
       handler?.(event)
       if (!event.defaultPrevented) {
         playPressFeedback(options)
@@ -126,6 +174,7 @@ export function wrapPressHandler<EventType extends PressFeedbackEvent>(
       return
     }
 
+    markPressFeedbackHandled(event)
     playPressFeedback(options)
     handler?.(event)
   }

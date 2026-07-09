@@ -214,11 +214,11 @@ test("main bar exposes home music clock quick create theme calendar and more con
     const styles = button ? window.getComputedStyle(button) : null
     return {
       borderTopWidth: styles?.borderTopWidth ?? "",
-      backgroundColor: styles?.backgroundColor ?? "",
+      backgroundImage: styles?.backgroundImage ?? "",
     }
   })
-  expect(homeButtonStyle.borderTopWidth).toBe("1px")
-  expect(homeButtonStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
+  expect(homeButtonStyle.borderTopWidth).toBe("2px")
+  expect(homeButtonStyle.backgroundImage).toContain("gradient")
   const quickCreateStyle = await quickCreate.evaluate((element) => {
     const styles = window.getComputedStyle(element)
     return {
@@ -393,17 +393,18 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("mobile primary bar keeps lighting controls available and auto-collapses the theme picker", async ({ page }) => {
+test("mobile primary bar keeps lighting controls available with a compact theme toggle", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 319, height: 932 })
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
   const narrowThemePicker = page.getByRole("group", { name: /^Theme$/i })
-  const narrowLightTheme = narrowThemePicker.getByRole("radio", { name: /^Use light theme$/i })
+  const narrowThemeToggle = narrowThemePicker.getByRole("button", { name: /^Use (light|dark) theme$/i })
 
   await expect(narrowThemePicker).toBeVisible()
-  await expect(narrowLightTheme).toBeHidden()
+  await expect(narrowThemeToggle).toBeVisible()
+  await expect(narrowThemePicker.getByRole("radio")).toHaveCount(0)
   await expect(page.getByRole("link", { name: /^Open music$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toBeVisible()
   await expect(page.getByRole("link", { name: /^Open calendar$/i })).toBeVisible()
@@ -411,13 +412,17 @@ test("mobile primary bar keeps lighting controls available and auto-collapses th
   await page.setViewportSize({ width: 390, height: 932 })
 
   const themePicker = page.getByRole("group", { name: /^Theme$/i })
-  const lightTheme = themePicker.getByRole("radio", { name: /^Use light theme$/i })
+  const themeToggle = themePicker.getByRole("button", { name: /^Use (light|dark) theme$/i })
 
   await expect(themePicker).toBeVisible()
-  await expect(lightTheme).toBeHidden()
-  await themePicker.getByRole("radio", { name: /^Use dark theme$/i }).click()
-  await expect(lightTheme).toBeVisible()
-  await expect(lightTheme).toBeHidden({ timeout: 6_500 })
+  await expect(themeToggle).toBeVisible()
+  const initialThemeLabel = await themeToggle.getAttribute("aria-label")
+  expect(initialThemeLabel).toMatch(/^Use (light|dark) theme$/)
+  await themeToggle.click()
+  await expect(themeToggle).toHaveAttribute(
+    "aria-label",
+    initialThemeLabel === "Use light theme" ? "Use dark theme" : "Use light theme",
+  )
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -846,28 +851,24 @@ test("homepage uses the final logo artwork for light and dark themes", async ({ 
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("theme switcher collapses inactive choices after idle on tablet widths", async ({ page }) => {
+test("theme switcher uses the compact toggle below desktop widths", async ({ page }) => {
   await page.setViewportSize({ width: 757, height: 682 })
   const health = capturePageHealth(page)
 
   await page.goto("/", { waitUntil: "domcontentloaded" })
 
   const themeGroup = page.getByRole("group", { name: "Theme" })
-  const activeTheme = themeGroup.locator("[role='radio'][data-state='on']").first()
-  await expect(activeTheme).toBeVisible()
+  const themeToggle = themeGroup.getByRole("button", { name: /^Use (light|dark) theme$/i })
+  await expect(themeToggle).toBeVisible()
+  await expect(themeGroup.getByRole("radio")).toHaveCount(0)
 
-  await activeTheme.click()
-
-  await expect(themeGroup.getByRole("radio", { name: "Use system theme" })).toBeVisible()
-  await expect(themeGroup.getByRole("radio", { name: "Use light theme" })).toBeVisible()
-  await expect(themeGroup.getByRole("radio", { name: "Use dark theme" })).toBeVisible()
-
-  await expect
-    .poll(async () => themeGroup.locator("[role='radio']:visible").count(), {
-      message: "expected inactive theme choices to auto-collapse after five seconds of idle time",
-      timeout: 6_500,
-    })
-    .toBe(1)
+  const initialThemeLabel = await themeToggle.getAttribute("aria-label")
+  expect(initialThemeLabel).toMatch(/^Use (light|dark) theme$/)
+  await themeToggle.click()
+  await expect(themeToggle).toHaveAttribute(
+    "aria-label",
+    initialThemeLabel === "Use light theme" ? "Use dark theme" : "Use light theme",
+  )
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
@@ -1467,7 +1468,7 @@ test("flashcards setup explains empty prompt filters before study starts", async
   await expect(startButton).toBeDisabled()
   await expect(page.getByText("No eligible cards match these filters.")).toBeVisible()
   await expect(page.getByRole("button", { name: "Reset filters" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Save" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled()
 })
 
 test("signed-in flashcards fall back to temporary study when progress session fails", async ({ page }) => {

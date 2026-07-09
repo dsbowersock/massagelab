@@ -1,6 +1,6 @@
 "use client"
 
-import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, Settings, Star, X } from "lucide-react"
 import Image from "next/image"
 import { DEFAULT_BACKGROUND_ID } from "@/lib/background-options"
@@ -20,6 +20,7 @@ import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } f
 import { ColorPickerSwatch, GlobalColorPicker, type GlobalColorValues } from "@/components/chimer-controls/GlobalColorPicker"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DEFAULT_CHIMER_SETTINGS } from "@/lib/chimer-timer"
 import {
@@ -260,8 +261,9 @@ const DEFAULT_PRIMARY_FONT_COLOR = "#FFFFFF"
 const DEFAULT_SECONDARY_FONT_COLOR = "#FF7A1A"
 const DEFAULT_CLOCK_MODE_FONT_COLOR = "#FFFFFF"
 const BACKGROUND_RADIAL_CARD_SPREAD_DEGREES = 35
-const BACKGROUND_RADIAL_CARD_RADIUS_PX = 240
+const BACKGROUND_RADIAL_CARD_RADIUS_PX = 285
 const BACKGROUND_RADIAL_VISIBLE_OFFSET = 3
+const BACKGROUND_CAROUSEL_SWIPE_THRESHOLD_PX = 42
 
 const getCircularCarouselOffset = (index: number, activeIndex: number, total: number) => {
   if (total <= 0) {
@@ -3192,7 +3194,6 @@ export function RunningTimer({
   const [backgroundCategoryFilter, setBackgroundCategoryFilter] =
     useState<BackgroundVisualCategory>("all")
   const [savedBackgroundIds, setSavedBackgroundIds] = useState<BackgroundId[]>([])
-  const [isVerticalBackgroundCarousel, setIsVerticalBackgroundCarousel] = useState(false)
   const [activeBackgroundCarouselIndex, setActiveBackgroundCarouselIndex] = useState(0)
   const [globalColors, setGlobalColors] = useState<GlobalColorValues>(DEFAULT_CHIMER_GLOBAL_COLORS)
   const [globalHarmony, setGlobalHarmony] = useState<ChimerHarmonyValue>(DEFAULT_CHIMER_GLOBAL_HARMONY)
@@ -3217,6 +3218,7 @@ export function RunningTimer({
   const primaryDisplayRef = useRef<HTMLButtonElement | null>(null)
   const primaryContentRef = useRef<HTMLSpanElement | null>(null)
   const backgroundVideoRefMap = useRef<Map<BackgroundId, HTMLVideoElement | null>>(new Map())
+  const backgroundCarouselSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const isTimerPrimary = primaryDisplay === "timer"
   const isCurrentTimePrimary = isClockMode || !isTimerPrimary
   const resolvedShowTimerSeconds = showTimerSeconds !== false
@@ -3552,24 +3554,6 @@ export function RunningTimer({
   }, [])
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return
-    }
-
-    const mediaQuery = window.matchMedia("(orientation: portrait) and (max-width: 480px)")
-    const updateCarouselAxis = () => {
-      setIsVerticalBackgroundCarousel(mediaQuery.matches)
-    }
-
-    updateCarouselAxis()
-    mediaQuery.addEventListener?.("change", updateCarouselAxis)
-
-    return () => {
-      mediaQuery.removeEventListener?.("change", updateCarouselAxis)
-    }
-  }, [])
-
-  useEffect(() => {
     setActiveBackgroundCarouselIndex((currentIndex) => {
       if (visibleBackgroundOptions.length === 0) {
         return 0
@@ -3789,12 +3773,14 @@ export function RunningTimer({
   }
 
   const moveBackgroundCarousel = useCallback(
-    (direction: 1 | -1) => {
+    (direction: 1 | -1, shouldPlayHaptic = true) => {
       if (visibleBackgroundOptions.length <= 1) {
         return
       }
 
-      triggerHapticFeedback(hapticsEnabled)
+      if (shouldPlayHaptic) {
+        triggerHapticFeedback(hapticsEnabled)
+      }
       setActiveBackgroundCarouselIndex((currentIndex) => (
         currentIndex + direction + visibleBackgroundOptions.length
       ) % visibleBackgroundOptions.length)
@@ -3816,6 +3802,47 @@ export function RunningTimer({
     },
     [moveBackgroundCarousel],
   )
+
+  const handleBackgroundCarouselPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse") {
+      return
+    }
+
+    backgroundCarouselSwipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    }
+  }, [])
+
+  const handleBackgroundCarouselPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const swipeStart = backgroundCarouselSwipeStartRef.current
+      backgroundCarouselSwipeStartRef.current = null
+
+      if (!swipeStart) {
+        return
+      }
+
+      const deltaX = event.clientX - swipeStart.x
+      const deltaY = event.clientY - swipeStart.y
+      const isHorizontalSwipe =
+        Math.abs(deltaX) >= BACKGROUND_CAROUSEL_SWIPE_THRESHOLD_PX &&
+        Math.abs(deltaX) > Math.abs(deltaY) * 1.35
+
+      if (!isHorizontalSwipe) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      moveBackgroundCarousel(deltaX > 0 ? -1 : 1)
+    },
+    [moveBackgroundCarousel],
+  )
+
+  const handleBackgroundCarouselPointerCancel = useCallback(() => {
+    backgroundCarouselSwipeStartRef.current = null
+  }, [])
 
   const handleBackgroundSavedToggle = (nextBackgroundId: BackgroundId) => {
     setSavedBackgroundIds((current) => {
@@ -4020,7 +4047,7 @@ export function RunningTimer({
     isLoaded: boolean,
     fallbackStyle?: CSSProperties,
   ) => {
-    const media = getBackgroundPreviewMedia(option, isVerticalBackgroundCarousel ? "vertical" : "landscape")
+    const media = getBackgroundPreviewMedia(option, "landscape")
     const fallback = fallbackStyle ?? option.fallbackStyle ?? { background: "#0f172a" }
 
     if (!media || !isLoaded) {
@@ -17404,7 +17431,7 @@ export function RunningTimer({
                 </div>
               </TabsContent>
 
-              <TabsContent value="backgrounds" className={styles.settingsTabContent}>
+              <TabsContent value="backgrounds" className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
                 <div className={styles.backgroundCategoryRow} role="tablist" aria-label="Background visual filters">
                   {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
                     <button
@@ -17425,11 +17452,14 @@ export function RunningTimer({
 
                 {hasVisibleBackgrounds && activeBackgroundOption ? (
                   <div
-                    className={`${styles.backgroundRadialCarousel} ${isVerticalBackgroundCarousel ? styles.backgroundRadialCarouselVertical : ""}`}
+                    className={styles.backgroundRadialCarousel}
                     role="group"
                     aria-label="Background visual carousel"
                     tabIndex={0}
                     onKeyDown={handleBackgroundCarouselKeyDown}
+                    onPointerDown={handleBackgroundCarouselPointerDown}
+                    onPointerUp={handleBackgroundCarouselPointerUp}
+                    onPointerCancel={handleBackgroundCarouselPointerCancel}
                   >
                     <div className={styles.backgroundRadialStage}>
                       {visibleBackgroundOptions.map((option, optionIndex) => {
@@ -17449,10 +17479,10 @@ export function RunningTimer({
                           visibleBackgroundPreviewIds.has(option.id) || option.id === selectedBackgroundDefinition.id || isActive
                         const angle = offset * BACKGROUND_RADIAL_CARD_SPREAD_DEGREES
                         const radians = (angle * Math.PI) / 180
-                        const translateX = isVerticalBackgroundCarousel ? 0 : BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians)
-                        const translateY = isVerticalBackgroundCarousel ? BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians) : 0
-                        const rotateY = isVerticalBackgroundCarousel ? 0 : -angle
-                        const rotateX = isVerticalBackgroundCarousel ? angle * 0.72 : 0
+                        const translateX = BACKGROUND_RADIAL_CARD_RADIUS_PX * Math.sin(radians)
+                        const translateY = 0
+                        const rotateY = -angle
+                        const rotateX = 0
                         const scale = Math.max(0.5, 1 - absOffset * 0.16)
                         const opacity = Math.min(
                           canUse ? 1 : 0.58,
@@ -17536,24 +17566,28 @@ export function RunningTimer({
                     </div>
 
                     <div className={styles.backgroundRadialNavRow}>
-                      <button
+                      <Button
                         type="button"
-                        className={`${styles.backgroundCarouselNav} ${styles.tactileButton}`}
-                        onClick={() => moveBackgroundCarousel(-1)}
+                        variant="ctaBlue"
+                        size="icon"
+                        className={styles.backgroundCarouselNav}
+                        onClick={() => moveBackgroundCarousel(-1, false)}
                         disabled={visibleBackgroundOptions.length <= 1}
                         aria-label="Previous background"
                       >
                         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className={`${styles.backgroundCarouselNav} ${styles.tactileButton}`}
-                        onClick={() => moveBackgroundCarousel(1)}
+                        variant="ctaBlue"
+                        size="icon"
+                        className={styles.backgroundCarouselNav}
+                        onClick={() => moveBackgroundCarousel(1, false)}
                         disabled={visibleBackgroundOptions.length <= 1}
                         aria-label="Next background"
                       >
                         <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                      </button>
+                      </Button>
                     </div>
 
                   </div>

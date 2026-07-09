@@ -5,6 +5,9 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import {
+  markPressFeedbackHandled,
+  playPressFeedback,
+  playPressReleaseFeedback,
   wrapPressHandler,
   type PressFeedbackOptions,
 } from "@/lib/press-feedback"
@@ -21,6 +24,7 @@ const buttonVariants = cva(
         mechanicalSecondary: "ml-button-tactile ml-button-secondary",
         cta: "ml-button-tactile ml-button-cta",
         ctaBlue: "ml-button-tactile ml-button-cta-blue",
+        calendar: "ml-button-tactile ml-button-calendar",
         glow: "ml-button-tactile ml-button-glow",
         attention: "ml-button-tactile ml-button-attention",
         destructive: "ml-button-tactile ml-button-destructive",
@@ -51,12 +55,18 @@ const tactileVariants: ReadonlySet<ButtonVariant> = new Set([
   "mechanicalSecondary",
   "cta",
   "ctaBlue",
+  "calendar",
   "glow",
   "attention",
   "destructive",
   "outline",
   "secondary",
 ])
+
+const pressFeedbackMoveCancelPx = 10
+const touchPressFeedbackDelayMs = 45
+const releaseFeedbackAfterLatePressDelayMs = 24
+const pointerClickGuardDurationMs = 600
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -66,6 +76,8 @@ export interface ButtonProps
   hapticsEnabled?: boolean
   /** Overrides the default tap-sized haptic duration, in milliseconds. */
   hapticDurationMs?: number
+  /** Overrides the shorter release-side haptic duration, in milliseconds. */
+  hapticReleaseDurationMs?: number
   /** Explicitly enables or disables press feedback beyond variant defaults. */
   pressFeedback?: boolean
 }
@@ -96,8 +108,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     disabled,
     hapticsEnabled,
     hapticDurationMs,
+    hapticReleaseDurationMs,
+    onClick,
     onKeyDown,
     onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
     pressFeedback,
     "aria-disabled": ariaDisabled,
     ...props
@@ -105,25 +122,205 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button"
     const resolvedVariant = variant ?? "default"
     const feedbackEnabled = shouldUsePressFeedback(resolvedVariant, pressFeedback)
-    const feedbackOptions: PressFeedbackOptions = {
-      ariaDisabled: isAriaDisabled(ariaDisabled),
+    const resolvedAriaDisabled = isAriaDisabled(ariaDisabled)
+    const pointerFeedbackRef = React.useRef<{
+      pointerId: number
+      x: number
+      y: number
+      downPlayed: boolean
+      timerId: number | null
+    } | null>(null)
+    const pointerHandledClickRef = React.useRef(false)
+    const pointerClickGuardTimerRef = React.useRef<number | null>(null)
+    const releaseFeedbackTimerRef = React.useRef<number | null>(null)
+    const feedbackOptions = React.useMemo<PressFeedbackOptions>(() => ({
+      ariaDisabled: resolvedAriaDisabled,
       disabled,
       hapticDurationMs,
+      hapticReleaseDurationMs,
       hapticsEnabled,
+    }), [disabled, hapticDurationMs, hapticReleaseDurationMs, hapticsEnabled, resolvedAriaDisabled])
+
+    const clearPointerFeedbackTimer = React.useCallback(() => {
+      const pointerFeedback = pointerFeedbackRef.current
+      if (pointerFeedback?.timerId != null) {
+        window.clearTimeout(pointerFeedback.timerId)
+        pointerFeedback.timerId = null
+      }
+    }, [])
+
+    const clearPointerClickGuardTimer = React.useCallback(() => {
+      if (pointerClickGuardTimerRef.current != null) {
+        window.clearTimeout(pointerClickGuardTimerRef.current)
+        pointerClickGuardTimerRef.current = null
+      }
+    }, [])
+
+    const clearReleaseFeedbackTimer = React.useCallback(() => {
+      if (releaseFeedbackTimerRef.current != null) {
+        window.clearTimeout(releaseFeedbackTimerRef.current)
+        releaseFeedbackTimerRef.current = null
+      }
+    }, [])
+
+    React.useEffect(() => (
+      () => {
+        clearPointerFeedbackTimer()
+        clearPointerClickGuardTimer()
+        clearReleaseFeedbackTimer()
+      }
+    ), [clearPointerClickGuardTimer, clearPointerFeedbackTimer, clearReleaseFeedbackTimer])
+
+    const markPointerHandledClick = React.useCallback(() => {
+      pointerHandledClickRef.current = true
+      clearPointerClickGuardTimer()
+      pointerClickGuardTimerRef.current = window.setTimeout(() => {
+        pointerHandledClickRef.current = false
+        pointerClickGuardTimerRef.current = null
+      }, pointerClickGuardDurationMs)
+    }, [clearPointerClickGuardTimer])
+
+    const playReleaseFeedback = React.useCallback((delayMs = 0) => {
+      clearReleaseFeedbackTimer()
+      if (delayMs > 0) {
+        releaseFeedbackTimerRef.current = window.setTimeout(() => {
+          playPressReleaseFeedback(feedbackOptions)
+          releaseFeedbackTimerRef.current = null
+        }, delayMs)
+        return
+      }
+
+      playPressReleaseFeedback(feedbackOptions)
+    }, [clearReleaseFeedbackTimer, feedbackOptions])
+
+    const cancelPointerFeedback = React.useCallback(() => {
+      clearPointerFeedbackTimer()
+      pointerFeedbackRef.current = null
+    }, [clearPointerFeedbackTimer])
+
+    const playPointerDownFeedback = React.useCallback((pointerId: number) => {
+      const pointerFeedback = pointerFeedbackRef.current
+      if (!pointerFeedback || pointerFeedback.pointerId !== pointerId || pointerFeedback.downPlayed) {
+        return
+      }
+
+      pointerFeedback.downPlayed = true
+      pointerFeedback.timerId = null
+      playPressFeedback(feedbackOptions)
+    }, [feedbackOptions])
+
+    const shouldCancelPointerFeedback = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+      const pointerFeedback = pointerFeedbackRef.current
+      if (!pointerFeedback || pointerFeedback.pointerId !== event.pointerId) {
+        return false
+      }
+
+      return (
+        Math.abs(event.clientX - pointerFeedback.x) > pressFeedbackMoveCancelPx
+        || Math.abs(event.clientY - pointerFeedback.y) > pressFeedbackMoveCancelPx
+      )
+    }, [])
+
+    const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+      onPointerDown?.(event)
+      if (
+        !feedbackEnabled
+        || event.defaultPrevented
+        || feedbackOptions.disabled
+        || feedbackOptions.ariaDisabled
+        || event.isPrimary === false
+        || (event.pointerType === "mouse" && event.button !== 0)
+      ) {
+        return
+      }
+
+      const pointerFeedback: {
+        pointerId: number
+        x: number
+        y: number
+        downPlayed: boolean
+        timerId: number | null
+      } = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        downPlayed: false,
+        timerId: null,
+      }
+      pointerFeedbackRef.current = pointerFeedback
+
+      if (event.pointerType === "touch" || event.pointerType === "pen") {
+        pointerFeedback.timerId = window.setTimeout(() => {
+          playPointerDownFeedback(event.pointerId)
+        }, touchPressFeedbackDelayMs)
+        return
+      }
+
+      playPointerDownFeedback(event.pointerId)
     }
 
-    // Press feedback intentionally fires on pointer/key down so tactile
-    // response feels immediate; keep business activation on click handlers.
-    const handlePointerDown = feedbackEnabled
-      ? wrapPressHandler<React.PointerEvent<HTMLButtonElement>>(onPointerDown, feedbackOptions, {
-          invokeHandlerBeforeFeedback: true,
-        })
-      : onPointerDown
-    const handleKeyDown = feedbackEnabled
-      ? wrapPressHandler<React.KeyboardEvent<HTMLButtonElement>>(onKeyDown, feedbackOptions, {
-          invokeHandlerBeforeFeedback: true,
-        })
-      : onKeyDown
+    const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+      onPointerMove?.(event)
+      if (!feedbackEnabled || !shouldCancelPointerFeedback(event)) {
+        return
+      }
+
+      cancelPointerFeedback()
+    }
+
+    const handlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+      onPointerUp?.(event)
+      const pointerFeedback = pointerFeedbackRef.current
+      if (
+        !feedbackEnabled
+        || !pointerFeedback
+        || pointerFeedback.pointerId !== event.pointerId
+        || event.defaultPrevented
+      ) {
+        cancelPointerFeedback()
+        return
+      }
+
+      if (shouldCancelPointerFeedback(event)) {
+        cancelPointerFeedback()
+        return
+      }
+
+      clearPointerFeedbackTimer()
+      pointerFeedbackRef.current = null
+      markPointerHandledClick()
+
+      if (!pointerFeedback.downPlayed) {
+        playPressFeedback(feedbackOptions)
+        playReleaseFeedback(releaseFeedbackAfterLatePressDelayMs)
+        return
+      }
+
+      playReleaseFeedback()
+    }
+
+    const handlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
+      onPointerCancel?.(event)
+      cancelPointerFeedback()
+    }
+
+    // Keyboard/programmatic clicks still fall back to click-time feedback. Pointer clicks
+    // are guarded so touch devices get one physical press/release pair instead of duplicates.
+    const handleClick = feedbackEnabled
+      ? (event: React.MouseEvent<HTMLButtonElement>) => {
+          if (pointerHandledClickRef.current) {
+            pointerHandledClickRef.current = false
+            clearPointerClickGuardTimer()
+            markPressFeedbackHandled(event)
+            onClick?.(event)
+            return
+          }
+
+          wrapPressHandler<React.MouseEvent<HTMLButtonElement>>(onClick, feedbackOptions, {
+            invokeHandlerBeforeFeedback: true,
+          })(event)
+        }
+      : onClick
 
     return (
       <Comp
@@ -131,8 +328,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         aria-disabled={ariaDisabled}
-        onKeyDown={handleKeyDown}
+        onClick={handleClick}
+        onKeyDown={onKeyDown}
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         {...props}
       />
     )

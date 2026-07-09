@@ -77,7 +77,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                 <input type="hidden" name="amountCents" value={option.amountCents} />
                 <Button
                   type="submit"
-                  variant="outline"
+                  variant="glow"
                   className="h-full w-full py-4 text-lg font-semibold"
                   aria-label={`${option.label} ${option.description}`}
                 >

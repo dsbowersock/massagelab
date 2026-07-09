@@ -11,6 +11,7 @@ import {
   type ThemeMode,
   useSettings,
 } from "@/components/providers/settings-provider"
+import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 
@@ -36,21 +37,13 @@ const themes: Array<{
   { value: "dark", icon: MoonIcon, label: "Use dark theme", shortLabel: "Dark" },
 ]
 
-const compactThemeCollapseDelayMs = 5_000
-// Absorb follow-up events from the first compact tap so it only reveals hidden choices.
-const compactActivationSuppressionDelayMs = 500
-// Keep compact options temporarily expanded so touch and keyboard users can choose a theme without leaving the bar permanently wide.
-
 export function ThemeSwitcherMultiButton({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   const { settings, updateSettings } = useSettings()
   const [mounted, setMounted] = useState(false)
-  const [compactExpanded, setCompactExpanded] = useState(false)
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedThemeMode>("dark")
-  const collapseTimeoutRef = useRef<number | null>(null)
-  const suppressCompactActivationRef = useRef(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
 
@@ -75,70 +68,6 @@ export function ThemeSwitcherMultiButton({
       mediaQuery.removeEventListener("change", updateResolvedTheme)
     }
   }, [settings.themeMode])
-
-  useEffect(() => {
-    // A pending compact-collapse timer should not fire after this shared top-bar control unmounts.
-    return () => {
-      if (collapseTimeoutRef.current) {
-        window.clearTimeout(collapseTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  function clearCompactCollapseTimer() {
-    // Cancel stale collapse work before rescheduling or forcing a manual close.
-    if (!collapseTimeoutRef.current) return
-
-    window.clearTimeout(collapseTimeoutRef.current)
-    collapseTimeoutRef.current = null
-  }
-
-  function scheduleCompactCollapse() {
-    // Auto-close expanded compact options after a short idle window on narrow screens.
-    clearCompactCollapseTimer()
-    collapseTimeoutRef.current = window.setTimeout(() => {
-      setCompactExpanded(false)
-      collapseTimeoutRef.current = null
-    }, compactThemeCollapseDelayMs)
-  }
-
-  function expandCompactThemePicker() {
-    // Revealing hidden compact options also starts the idle countdown back to the single active icon.
-    setCompactExpanded(true)
-    scheduleCompactCollapse()
-  }
-
-  function collapseCompactThemePicker() {
-    // Manual collapse is used after selection or when focus leaves the whole switcher group.
-    clearCompactCollapseTimer()
-    setCompactExpanded(false)
-  }
-
-  function shouldOpenCompactPickerOnly(isSelected: boolean) {
-    if (!isSelected || compactExpanded) {
-      return false
-    }
-
-    const inactiveOption = rootRef.current?.querySelector<HTMLElement>("[data-theme-selected='false']")
-
-    return inactiveOption ? window.getComputedStyle(inactiveOption).display === "none" : false
-  }
-
-  function suppressCompactActivation() {
-    suppressCompactActivationRef.current = true
-    window.setTimeout(() => {
-      suppressCompactActivationRef.current = false
-    }, compactActivationSuppressionDelayMs)
-  }
-
-  function stopSuppressedCompactActivation(event: React.SyntheticEvent<HTMLElement>) {
-    if (!suppressCompactActivationRef.current) {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-  }
 
   function rememberTransitionOrigin(event: React.PointerEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -204,56 +133,47 @@ export function ThemeSwitcherMultiButton({
     })
   }
 
+  const nextToggledTheme: ThemeMode = resolvedTheme === "dark" ? "light" : "dark"
+  const MobileThemeIcon = resolvedTheme === "dark" ? MoonIcon : SunIcon
+
   return (
     <div
       ref={rootRef}
       role="group"
       aria-label="Theme"
-      onFocusCapture={expandCompactThemePicker}
-      onPointerMoveCapture={() => {
-        if (compactExpanded) {
-          scheduleCompactCollapse()
-        }
-      }}
-      onKeyDownCapture={() => {
-        if (compactExpanded) {
-          scheduleCompactCollapse()
-        }
-      }}
-      onBlurCapture={(event) => {
-        // Moving between theme buttons should keep the compact picker open.
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          collapseCompactThemePicker()
-        }
-      }}
       className={cn(
-        "group relative isolate inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.05),0_1px_8px_hsl(var(--background)/0.24)] backdrop-blur",
+        "ml-theme-switcher group relative isolate inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.05),0_1px_8px_hsl(var(--background)/0.24)] backdrop-blur",
         className,
       )}
       {...props}
     >
+      <Button
+        type="button"
+        variant={resolvedTheme === "light" ? "default" : "outline"}
+        size="icon"
+        aria-label={resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"}
+        aria-pressed={resolvedTheme === "dark"}
+        className="ml-shell-theme-button ml-theme-toggle-button md:hidden"
+        onPointerDown={rememberTransitionOrigin}
+        onClick={() => setTheme(nextToggledTheme)}
+      >
+        <MobileThemeIcon aria-hidden="true" data-icon="inline-start" />
+        <span className="sr-only">{resolvedTheme === "dark" ? "Dark" : "Light"}</span>
+      </Button>
       <ToggleGroup
         type="single"
         value={settings.themeMode}
         onValueChange={(value) => {
-          if (suppressCompactActivationRef.current) {
-            return
-          }
-
           if (value) {
             setTheme(value as ThemeMode)
-            collapseCompactThemePicker()
           }
         }}
         aria-label={`Theme: ${settings.themeMode === "system" ? `system (${resolvedTheme})` : settings.themeMode}`}
-        className="gap-1"
+        className="hidden gap-1 md:flex"
       >
         {themes.map(({ value, icon: Icon, label, shortLabel }) => {
           const isActive = mounted && settings.themeMode === value
           const isSelected = settings.themeMode === value
-          const activeToneClass = value === "dark"
-            ? "data-[state=on]:bg-[hsl(var(--ml-site-blue))] data-[state=on]:text-[hsl(var(--ml-site-blue-foreground))] data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--ml-site-blue-glow)/0.34)]"
-            : "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-[inset_0_-2px_0_hsl(var(--foreground)/0.14),0_1px_8px_hsl(var(--brand-orange-glow)/0.34)]"
 
           return (
             <ToggleGroupItem
@@ -265,28 +185,13 @@ export function ThemeSwitcherMultiButton({
               title={label}
               aria-pressed={isActive}
               data-state={isActive ? "on" : "off"}
-              onPointerDownCapture={(event) => {
-                rememberTransitionOrigin(event)
-                if (shouldOpenCompactPickerOnly(isSelected)) {
-                  // Opening hidden compact options changes button positions; cancel this tap so it cannot land on another theme.
-                  suppressCompactActivation()
-                  event.preventDefault()
-                  event.stopPropagation()
-                  expandCompactThemePicker()
-                  return
-                }
-                // Pointer users need the compact choices visible before the toggle group settles selection.
-                expandCompactThemePicker()
-              }}
-              onPointerUpCapture={stopSuppressedCompactActivation}
-              onClickCapture={(event) => {
-                stopSuppressedCompactActivation(event)
-                suppressCompactActivationRef.current = false
-              }}
+              onPointerDownCapture={rememberTransitionOrigin}
               className={cn(
-                "relative size-8 min-w-0 rounded-full p-0 text-muted-foreground transition-[background-color,color,box-shadow,transform] hover:bg-transparent hover:text-foreground active:translate-y-px",
-                activeToneClass,
-                !isSelected && !compactExpanded && "max-md:hidden",
+                "ml-shell-theme-button ml-button-press-motion ml-button-tactile relative size-8 min-w-0 rounded-full p-0",
+                value === "light" && "ml-button-default",
+                value === "dark" && "ml-button-outline",
+                value === "system" && "ml-button-secondary",
+                isActive && "ml-shell-theme-button-active",
                 !mounted && "pointer-events-none animate-pulse bg-muted/70",
               )}
             >
