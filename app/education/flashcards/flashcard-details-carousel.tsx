@@ -86,7 +86,6 @@ export function FlashcardDetailsCarousel() {
     <section className="mx-auto w-full max-w-7xl p-4 pt-4 sm:p-6 sm:pt-4 lg:p-8 lg:pt-4" aria-label="Flashcard details">
       <div
         className="overflow-hidden rounded-lg"
-        aria-live="polite"
         style={{ touchAction: "pan-y" }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
