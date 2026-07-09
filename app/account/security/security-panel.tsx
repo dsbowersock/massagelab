@@ -181,7 +181,7 @@ export function SecurityPanel({ twoFactorEnabled, hasPasswordCredential, googleL
 
           {!enabled && (
             <div className="space-y-4">
-              <Button type="button" className="bg-primary hover:bg-brand-orange-glow" onClick={startSetup}>
+              <Button type="button" onClick={startSetup}>
                 Start setup
               </Button>
               {qrCode && (

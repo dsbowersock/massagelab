@@ -285,7 +285,7 @@ npm run test
 
 ## Task 4: Replace One-Off Button Color Overrides in Low-Risk Surfaces
 
-- [ ] Migrate these patterns first:
+- [x] Migrate these patterns first:
 
 ```tsx
 <Button className="bg-primary hover:bg-brand-orange-glow">
@@ -293,7 +293,7 @@ npm run test
 <Button className="justify-self-start bg-primary hover:bg-brand-orange-glow">
 ```
 
-- [ ] Replace them with variants:
+- [x] Replace them with variants:
 
 ```tsx
 <Button variant="cta">
@@ -301,7 +301,7 @@ npm run test
 <Button variant="cta" className="justify-self-start">
 ```
 
-- [ ] First migration group:
+- [x] First migration group:
   - `app/login/login-form.tsx`
   - `app/register/register-form.tsx`
   - `app/reset-password/reset-password-form.tsx`
@@ -314,15 +314,22 @@ npm run test
   - `app/about/derrick/page.tsx`
   - `app/roadmap/page.tsx`
 
-- [ ] Second migration group:
+- [x] Second migration group:
   - `app/account/page.tsx`
   - `app/account/security/security-panel.tsx`
   - `app/account/account-settings-shell.tsx`
   - `app/account/app-settings-panel.tsx`
   - `app/account/preference-sync.tsx`
 
-- [ ] Keep icon-only shell/navigation buttons conservative.
+- [x] Keep icon-only shell/navigation buttons conservative.
   - Do not apply high-attention CTA variants to `components/shell/mobile-main-bar.tsx` or `components/shell/quick-action-speed-dial.tsx` unless specifically reviewing those surfaces.
+
+Batch note, 2026-07-09:
+
+- Removed the remaining low-risk `bg-primary hover:bg-brand-orange-glow` button overrides from the listed public, auth, support, pricing, membership, about, roadmap, account, and security surfaces.
+- Auth/save/setup/account primary actions now rely on the shared default molded button; public about links use the quieter secondary treatment; pricing, membership checkout, and roadmap acquisition/donation actions use shared CTA variants.
+- `app/account/account-settings-shell.tsx`, `app/account/app-settings-panel.tsx`, and `app/account/preference-sync.tsx` had no matching one-off orange button overrides in this batch, so their existing quiet/dense controls were left unchanged.
+- `/dev/buttons` now includes current rollout examples for the public/auth/account surfaces in this batch so visual review can compare the exact shared variant choices before page-by-page inspection.
 
 Expected result:
 

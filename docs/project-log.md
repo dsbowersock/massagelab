@@ -106,6 +106,13 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-07-09
+
+- Refreshed `main` after merging the sitewide visual-control foundation PR, then started `codex/sitewide-public-account-controls` for the next review-sized public/account/auth button migration batch.
+- Replaced remaining low-risk `bg-primary hover:bg-brand-orange-glow` button overrides in login, register, reset password, email verification, support, pricing, membership cards, about, roadmap, account profile/tools/sign-in prompts, and account security setup with the shared default, secondary, CTA, or CTA Blue variants. Icon-only shell/navigation controls, dense account setting controls, sliders, toggles, color pickers, and loaders remain out of scope for this batch.
+- Added `/dev/buttons` current-rollout examples for the exact public/auth/account button compositions in this batch, then validated with `git diff --check`, `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build`; lint kept the existing large Chimer file Babel deoptimization notes, and diff check reported Windows line-ending conversion warnings only.
+- Adjusted shared tactile button lighting so face highlights, inset text/icon shadows, and pressed-state inset shadows use an upper-left light source by default and flip horizontally when the saved sidebar position is right.
+
 ### 2026-07-08
 
 - Started `codex/sitewide-control-system-foundation` for the sitewide visual-control rollout. Added `docs/audits/2026-07-07-sitewide-visual-control-inventory.md` with the surface-by-surface decision map for mechanical primary, mechanical secondary, strategic attention, quiet utility, text/link, and route-owned controls; the notes include React Bits scrubber direction, Cult UI metal-ring CTA direction, and EinUI glass-glow direction as references rather than copied implementation.

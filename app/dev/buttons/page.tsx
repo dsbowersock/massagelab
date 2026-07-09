@@ -4,10 +4,13 @@ import {
   ArrowRight,
   BookOpen,
   Check,
+  CreditCard,
   HeartHandshake,
+  Save,
   Settings,
   Sparkles,
   Timer,
+  UserPlus,
 } from "lucide-react"
 
 import { CTAButton } from "@/components/chimer-controls/CTAButton"
@@ -62,6 +65,60 @@ const shortcutExamples = [
   },
 ]
 
+const rolloutExamples: Array<{
+  title: string
+  description: string
+  label: string
+  variant: ButtonVariant
+  className?: string
+  icon: typeof ArrowRight
+}> = [
+  {
+    title: "Auth submit",
+    description: "Login, register, reset password, and verify email primary form actions.",
+    label: "Continue",
+    variant: "default",
+    className: "w-full",
+    icon: ArrowRight,
+  },
+  {
+    title: "Account save",
+    description: "Account profile saves, setup starts, and support form submit actions.",
+    label: "Save profile",
+    variant: "default",
+    icon: Save,
+  },
+  {
+    title: "Pricing account CTA",
+    description: "Primary pricing-page account and membership-management actions.",
+    label: "Open your account",
+    variant: "cta",
+    icon: ArrowRight,
+  },
+  {
+    title: "Membership card CTA",
+    description: "Plan-card account creation before checkout is available.",
+    label: "Create account",
+    variant: "ctaBlue",
+    className: "w-full",
+    icon: UserPlus,
+  },
+  {
+    title: "About navigation",
+    description: "About and creator-page navigation that should stay quieter than signup CTAs.",
+    label: "Meet Derrick",
+    variant: "secondary",
+    icon: ArrowRight,
+  },
+  {
+    title: "Roadmap support",
+    description: "Donation and project-support actions that should read as high emphasis.",
+    label: "Donate with Stripe",
+    variant: "cta",
+    icon: CreditCard,
+  },
+]
+
 export default function ButtonGalleryPage() {
   if (process.env.NODE_ENV === "production") {
     notFound()
@@ -109,6 +166,28 @@ export default function ButtonGalleryPage() {
               </div>
             </AppSurface>
           ))}
+        </div>
+      </section>
+
+      <section className="space-y-4" aria-labelledby="rollout-examples-heading">
+        <div>
+          <h2 id="rollout-examples-heading" className="text-2xl font-semibold">Current rollout examples</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            These match the public, auth, pricing, membership, about, roadmap, support, and account surfaces touched in this batch.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {rolloutExamples.map((item) => {
+            const Icon = item.icon
+            return (
+              <AppSurface key={item.title} title={item.title} description={item.description}>
+                <Button variant={item.variant} className={item.className}>
+                  {item.label}
+                  <Icon aria-hidden="true" />
+                </Button>
+              </AppSurface>
+            )
+          })}
         </div>
       </section>
 

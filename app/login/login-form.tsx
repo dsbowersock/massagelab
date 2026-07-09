@@ -120,7 +120,7 @@ export function LoginForm({ googleEnabled }: LoginFormProps) {
               />
             </div>
           )}
-          <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting}>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             <Mail className="mr-2 h-4 w-4" />
             Sign in with email
           </Button>

@@ -127,7 +127,7 @@ export function RegisterForm({ googleEnabled, initialCallbackUrl }: RegisterForm
             )
           })}
         </div>
-        <Button type="submit" className="w-full bg-primary hover:bg-brand-orange-glow" disabled={isSubmitting}>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
           <Mail className="mr-2 h-4 w-4" />
           Create account with email
         </Button>

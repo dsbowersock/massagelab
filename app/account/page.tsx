@@ -439,7 +439,7 @@ async function ProfileTab({ userId, sessionUser }: { userId: string; sessionUser
                 <Input id="npi_number" name="npi_number" defaultValue={profile?.npiNumber ?? ""} />
               </div>
             </div>
-            <Button type="submit" className="bg-primary hover:bg-brand-orange-glow">
+            <Button type="submit">
               Save profile
             </Button>
           </form>
@@ -742,7 +742,7 @@ function ToolsTab({ sessionUser }: { sessionUser: AccountSessionUser }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+            <Button asChild>
               <Link href="/admin/anatomy">Open anatomy browser</Link>
             </Button>
             <Button asChild variant="outline">
@@ -805,7 +805,7 @@ function SignedOutAccountPrompt({
   return (
     <SettingsSurface title={title} description={description}>
       <div className="flex flex-wrap gap-3">
-        <Button asChild className="bg-primary hover:bg-brand-orange-glow">
+        <Button asChild>
           <Link href="/login">Sign in</Link>
         </Button>
         <Button asChild variant="outline">
