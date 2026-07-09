@@ -16632,7 +16632,7 @@ export function SetTimer({
               type="button"
               className={styles.proofDot}
               data-active={proofIndex === activeProofIndex ? "true" : "false"}
-              aria-label={`Show ${proof.title}`}
+              aria-label={`Chimer detail slide ${proofIndex + 1}`}
               aria-current={proofIndex === activeProofIndex}
               onClick={() => setActiveProofIndex(proofIndex)}
             />

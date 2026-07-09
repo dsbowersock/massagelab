@@ -105,7 +105,7 @@ export function FlashcardDetailsCarousel() {
             key={detail.title}
             type="button"
             aria-current={index === activeIndex}
-            aria-label={`Show ${detail.title}`}
+            aria-label={`Flashcard detail slide ${index + 1}`}
             className={cn(
               "h-2.5 w-2.5 rounded-full border border-primary/70 transition",
               index === activeIndex ? "bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.35)]" : "bg-muted/40"
