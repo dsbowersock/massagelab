@@ -380,9 +380,8 @@
 }
 
 .anatomime-round-slider {
-  width: 100%;
-  accent-color: hsl(var(--brand-orange));
-  cursor: pointer;
+  --ml-slider-fill: var(--button-orange-start);
+  --ml-slider-fill-shadow: var(--button-orange-depth);
 }
 
 .anatomime-round-slider:disabled {

@@ -1340,7 +1340,79 @@
 
 .rangeRow input[type="range"] {
   width: min(9rem, 42vw);
+  height: 1.45rem;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
   accent-color: hsl(var(--brand-orange));
+}
+
+.rangeRow input[type="range"]:focus-visible {
+  outline: 2px solid hsl(var(--brand-orange) / 0.46);
+  outline-offset: 3px;
+}
+
+.rangeRow input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rangeRow input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.64rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.05),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.rangeRow input[type="range"]::-webkit-slider-thumb {
+  width: 0.72rem;
+  height: 1.305rem;
+  margin-top: calc((0.64rem - 1.305rem) / 2);
+  appearance: none;
+  border: 0;
+  border-radius: 0.25rem;
+  background:
+    linear-gradient(90deg, hsl(0 0% 26%) 0 39%, hsl(0 0% 86%) 39% 57%, hsl(0 0% 28%) 57% 100%);
+  box-shadow:
+    inset 1px 0 0 hsl(var(--foreground) / 0.12),
+    inset -1px 0 0 hsl(var(--background) / 0.36),
+    0 6px 13px hsl(var(--background) / 0.48),
+    0 0 0 1px hsl(var(--foreground) / 0.1);
+}
+
+.rangeRow input[type="range"]::-moz-range-track {
+  height: 0.64rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.05),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.rangeRow input[type="range"]::-moz-range-progress {
+  height: 0.64rem;
+  border-radius: 0.45rem 0 0 0.45rem;
+  background: linear-gradient(90deg, hsl(var(--brand-orange) / 0.82), hsl(var(--brand-orange)));
+}
+
+.rangeRow input[type="range"]::-moz-range-thumb {
+  width: 0.72rem;
+  height: 1.305rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background:
+    linear-gradient(90deg, hsl(0 0% 26%) 0 39%, hsl(0 0% 86%) 39% 57%, hsl(0 0% 28%) 57% 100%);
+  box-shadow:
+    inset 1px 0 0 hsl(var(--foreground) / 0.12),
+    inset -1px 0 0 hsl(var(--background) / 0.36),
+    0 6px 13px hsl(var(--background) / 0.48),
+    0 0 0 1px hsl(var(--foreground) / 0.1);
 }
 
 .clockControlGrid {

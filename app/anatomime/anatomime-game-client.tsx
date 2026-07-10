@@ -726,7 +726,7 @@ export function AnatomimeGameClient({
                     value={roundLimit}
                     disabled={hardcoreMode}
                     onChange={(event) => setRoundLimit(normalizeRoundLimit(event.target.value))}
-                    className="anatomime-round-slider"
+                    className="anatomime-round-slider ml-native-compact-range"
                   />
                 </div>
               </div>

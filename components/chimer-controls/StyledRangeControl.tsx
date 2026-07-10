@@ -1,10 +1,7 @@
 "use client"
 
-import { useId } from "react"
-
+import { RangeControl } from "@/components/ui/range-control"
 import { triggerHapticFeedback } from "@/lib/haptics"
-import { cn } from "@/lib/utils"
-import styles from "./chimer-controls.module.css"
 
 export type StyledRangeValueFormatter = (value: number) => string
 
@@ -34,9 +31,9 @@ function formatRangeValue(value: number, unit?: string) {
 }
 
 /**
- * Control that keeps the visual track fill and label/value layout aligned while
- * remaining a native `<input type="range">` for broad keyboard and assistive
- * support.
+ * Chimer-facing compatibility wrapper around the shared labeled slider. It
+ * preserves Chimer's number-value API and optional haptic start feedback while
+ * letting the sitewide RangeControl own the visual treatment.
  */
 export function StyledRangeControl({
   label,
@@ -54,53 +51,22 @@ export function StyledRangeControl({
   hapticsEnabled,
   hapticDurationMs,
 }: StyledRangeControlProps) {
-  const controlId = useId()
   const safeValue = clampValue(value, min, max)
-  const rangePercent = ((safeValue - min) / (max - min)) * 100
-
   const labelText = displayValue ?? (valueFormatter ? valueFormatter(safeValue) : formatRangeValue(safeValue, unit))
 
   return (
-    <section
-      className={cn(styles.controlCard, styles.rangeControl, className)}
-      style={{
-        "--chimer-range-progress": `${rangePercent}%`,
-      } as React.CSSProperties}
-    >
-      <div className={styles.controlRow}>
-        <label htmlFor={`range-${controlId}`} className={styles.controlLabel}>
-          {label}
-        </label>
-        <span className={styles.controlValue} aria-live="polite">
-          {labelText}
-        </span>
-      </div>
-
-      <div className={styles.rangeTrackWrap}>
-        <input
-          id={`range-${controlId}`}
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          value={safeValue}
-          aria-valuemin={min}
-          aria-valuemax={max}
-          aria-valuenow={safeValue}
-          aria-label={`${label} slider`}
-          className={styles.rangeInput}
-          onChange={(event) => {
-            const nextValue = Number(event.currentTarget.value)
-            if (Number.isFinite(nextValue)) {
-              onChange(clampValue(nextValue, min, max))
-            }
-          }}
-          onMouseDown={() => triggerHapticFeedback(disabled ? false : hapticsEnabled, hapticDurationMs)}
-          onTouchStart={() => triggerHapticFeedback(disabled ? false : hapticsEnabled, hapticDurationMs)}
-        />
-      </div>
-      {description ? <p className={cn(styles.controlDescription, styles.rangeDescription)}>{description}</p> : null}
-    </section>
+    <RangeControl
+      label={label}
+      value={safeValue}
+      min={min}
+      max={max}
+      step={step}
+      disabled={disabled}
+      description={description}
+      displayValue={labelText}
+      className={className}
+      onPointerDownCapture={() => triggerHapticFeedback(disabled ? false : hapticsEnabled, hapticDurationMs)}
+      onValueChange={onChange}
+    />
   )
 }

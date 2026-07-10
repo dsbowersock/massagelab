@@ -695,7 +695,7 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
               title="MassageLab home"
               onClick={(event) => navigateFromSidebar(event, "/")}
               className={cn(
-                "ml-sidebar-brand-frame flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
+                "ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                 "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
               )}
@@ -705,7 +705,7 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
                 alt=""
                 width={500}
                 height={500}
-                className="hidden object-contain group-data-[collapsible=icon]:block"
+                className="hidden size-full scale-150 object-contain group-data-[collapsible=icon]:block"
                 data-testid="sidebar-brand-mark-trigger"
                 sizes="32px"
                 loading="eager"
@@ -715,9 +715,9 @@ function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" })
                 alt=""
                 width={1518}
                 height={593}
-                className="h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden"
+                className="h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden"
                 data-testid="sidebar-brand-wordmark-trigger"
-                sizes="180px"
+                sizes="220px"
                 loading="eager"
               />
               <span className="sr-only">MassageLab home</span>
@@ -766,13 +766,13 @@ export function AppSidebarClient({
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="lg" className="justify-center data-[state=open]:bg-sidebar-accent">
                 <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
-                  <span className="ml-sidebar-brand-frame hidden aspect-square size-8 items-center justify-center rounded-full border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
+                  <span className="ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark hidden aspect-square size-8 items-center justify-center rounded-full border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
                     <Image
                       src="/brand/massagelab-mark-final-20260622.png"
                       alt=""
                       width={500}
                       height={500}
-                      className="object-contain"
+                      className="size-full scale-150 object-contain"
                       data-testid="sidebar-brand-mark"
                       sizes="28px"
                       loading="eager"
@@ -783,9 +783,9 @@ export function AppSidebarClient({
                     alt="MassageLab"
                     width={1518}
                     height={593}
-                    className={cn("h-8 w-auto max-w-36 object-contain group-data-[collapsible=icon]:hidden")}
+                    className={cn("h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden")}
                     data-testid="sidebar-brand-wordmark"
-                    sizes="180px"
+                    sizes="220px"
                     loading="eager"
                   />
                 </Link>

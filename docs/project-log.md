@@ -106,6 +106,11 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## Change History
 
+### 2026-07-10
+
+- Advanced the sitewide visual-control rollout from buttons into sliders and app-shell controls. The shared Radix slider now uses the approved split-pill track and fader thumb, `RangeControl` owns the labeled/value slider form, `/dev/buttons` shows default, compact, hue, color-slider, and color-picker examples, and representative Chimer, Clock, Music, Anatomime, and local-first notes sliders now use the new treatment or a reviewed compact route-owned version.
+- Kept the accompanying app-shell polish branch-sized: the theme switcher is a single active-theme toggle across desktop, tablet, and mobile; the sidebar wordmark and collapsed logo use the existing MassageLab brand assets with larger fit rather than remade images; and the favicon/PWA icon assets remain unchanged.
+
 ### 2026-07-09
 
 - Refreshed `main` after merging the sitewide visual-control foundation PR, then started `codex/sitewide-public-account-controls` for the next review-sized public/account/auth button migration batch.
