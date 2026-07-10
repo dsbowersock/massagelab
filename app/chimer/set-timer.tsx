@@ -4688,6 +4688,10 @@ const timerProofs = [
 
 const NATIVE_RANGE_FILL_STYLE_PROPERTY = "--ml-native-range-fill"
 
+/**
+ * Computes a native range input's clamped fill percentage and writes it to the
+ * CSS variable used by the WebKit track fill layer.
+ */
 function syncNativeRangeFill(rangeInput: HTMLInputElement) {
   const min = Number(rangeInput.min || 0)
   const max = Number(rangeInput.max || 100)
@@ -4729,6 +4733,7 @@ export function SetTimer({
   const syncNoticeDismissTimerRef = useRef<number | null>(null)
   const syncNoticeExitTimerRef = useRef<number | null>(null)
   const containerRef = useRef<HTMLElement | null>(null)
+  const nativeRangeInputSyncedRef = useRef(false)
   const proofSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const isTimerSet = totalDurationMs > 0
   const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
@@ -4761,6 +4766,11 @@ export function SetTimer({
   }, [])
 
   useEffect(() => {
+    if (nativeRangeInputSyncedRef.current) {
+      nativeRangeInputSyncedRef.current = false
+      return
+    }
+
     const rangeInputs = containerRef.current?.querySelectorAll<HTMLInputElement>(
       `.${styles.rangeRow} input[type="range"]`,
     )
@@ -4773,6 +4783,7 @@ export function SetTimer({
 
     if (target instanceof HTMLInputElement && target.type === "range") {
       syncNativeRangeFill(target)
+      nativeRangeInputSyncedRef.current = true
     }
   }, [])
 
