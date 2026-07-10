@@ -152,8 +152,8 @@ export function ThemeSwitcherMultiButton({
         type="button"
         variant={resolvedTheme === "light" ? "default" : "outline"}
         size="icon"
-        aria-label={`Switch to ${nextThemeLabel} theme`}
-        title={`Switch to ${nextThemeLabel} theme`}
+        aria-label={`Use ${nextThemeLabel} theme`}
+        title={`Use ${nextThemeLabel} theme`}
         aria-pressed={mounted}
         data-state="on"
         onPointerDown={rememberTransitionOrigin}
