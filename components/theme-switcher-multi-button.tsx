@@ -154,7 +154,6 @@ export function ThemeSwitcherMultiButton({
         size="icon"
         aria-label={`Use ${nextThemeLabel} theme`}
         title={`Use ${nextThemeLabel} theme`}
-        aria-pressed={mounted}
         data-state="on"
         onPointerDown={rememberTransitionOrigin}
         onClick={() => setTheme(nextToggledTheme)}

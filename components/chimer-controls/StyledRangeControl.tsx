@@ -1,6 +1,7 @@
 "use client"
 
 import { RangeControl } from "@/components/ui/range-control"
+import { clampValue, formatRangeValue } from "@/components/ui/range-utils"
 import { triggerHapticFeedback } from "@/lib/haptics"
 
 export type StyledRangeValueFormatter = (value: number) => string
@@ -20,14 +21,6 @@ export interface StyledRangeControlProps {
   hapticsEnabled?: boolean
   hapticDurationMs?: number
   className?: string
-}
-
-function clampValue(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function formatRangeValue(value: number, unit?: string) {
-  return unit ? `${value}${unit}` : String(value)
 }
 
 /**
@@ -52,7 +45,7 @@ export function StyledRangeControl({
   hapticDurationMs,
 }: StyledRangeControlProps) {
   const safeValue = clampValue(value, min, max)
-  const labelText = displayValue ?? (valueFormatter ? valueFormatter(safeValue) : formatRangeValue(safeValue, unit))
+  const labelText = displayValue ?? formatRangeValue(safeValue, unit, valueFormatter)
 
   return (
     <RangeControl

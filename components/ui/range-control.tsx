@@ -3,9 +3,10 @@
 import * as React from "react"
 
 import { Slider } from "@/components/ui/slider"
+import { clampValue, formatRangeValue, type RangeValueFormatter } from "@/components/ui/range-utils"
 import { cn } from "@/lib/utils"
 
-export type RangeControlValueFormatter = (value: number) => string
+export type RangeControlValueFormatter = RangeValueFormatter
 
 export interface RangeControlProps
   extends Omit<React.ComponentPropsWithoutRef<typeof Slider>, "value" | "defaultValue" | "onValueChange"> {
@@ -17,18 +18,6 @@ export interface RangeControlProps
   displayValue?: string
   valueFormatter?: RangeControlValueFormatter
   unit?: string
-}
-
-function clampValue(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function formatRangeValue(value: number, unit?: string, formatter?: RangeControlValueFormatter) {
-  if (formatter) {
-    return formatter(value)
-  }
-
-  return unit ? `${value}${unit}` : String(value)
 }
 
 /**

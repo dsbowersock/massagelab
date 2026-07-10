@@ -1376,7 +1376,7 @@
   border: 0;
   border-radius: 0.25rem;
   background:
-    linear-gradient(90deg, hsl(0 0% 26%) 0 39%, hsl(0 0% 86%) 39% 57%, hsl(0 0% 28%) 57% 100%);
+    linear-gradient(90deg, hsl(0 0% 26%) 0 38%, hsl(0 0% 86%) 38% 58%, hsl(0 0% 28%) 58% 100%);
   box-shadow:
     inset 1px 0 0 hsl(var(--foreground) / 0.12),
     inset -1px 0 0 hsl(var(--background) / 0.36),
@@ -1407,7 +1407,7 @@
   border: 0;
   border-radius: 0.25rem;
   background:
-    linear-gradient(90deg, hsl(0 0% 26%) 0 39%, hsl(0 0% 86%) 39% 57%, hsl(0 0% 28%) 57% 100%);
+    linear-gradient(90deg, hsl(0 0% 26%) 0 38%, hsl(0 0% 86%) 38% 58%, hsl(0 0% 28%) 58% 100%);
   box-shadow:
     inset 1px 0 0 hsl(var(--foreground) / 0.12),
     inset -1px 0 0 hsl(var(--background) / 0.36),

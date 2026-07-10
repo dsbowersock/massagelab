@@ -437,6 +437,8 @@
 }
 
 .rangeRow input[type="range"] {
+  --ml-native-range-fill: 0%;
+
   width: min(9rem, 44vw);
   height: 1.45rem;
   appearance: none;
@@ -459,7 +461,9 @@
 .rangeRow input[type="range"]::-webkit-slider-runnable-track {
   height: 0.64rem;
   border-radius: 0.45rem;
-  background: rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(90deg, hsl(var(--brand-orange) / 0.82), hsl(var(--brand-orange))) 0 50% / var(--ml-native-range-fill) 100% no-repeat,
+    rgba(255, 255, 255, 0.1);
   box-shadow:
     inset 1px 1px 0 rgba(255, 255, 255, 0.05),
     inset -1px -1px 0 rgba(0, 0, 0, 0.36),
@@ -474,7 +478,7 @@
   border: 0;
   border-radius: 0.25rem;
   background:
-    linear-gradient(90deg, hsl(0 0% 26%) 0 39%, hsl(0 0% 86%) 39% 57%, hsl(0 0% 28%) 57% 100%);
+    linear-gradient(90deg, hsl(0 0% 26%) 0 38%, hsl(0 0% 86%) 38% 58%, hsl(0 0% 28%) 58% 100%);
   box-shadow:
     inset 1px 0 0 hsl(var(--foreground) / 0.12),
     inset -1px 0 0 hsl(var(--background) / 0.36),
@@ -505,7 +509,7 @@
   border: 0;
   border-radius: 0.25rem;
   background:
-    linear-gradient(90deg, hsl(0 0% 26%) 0 39%, hsl(0 0% 86%) 39% 57%, hsl(0 0% 28%) 57% 100%);
+    linear-gradient(90deg, hsl(0 0% 26%) 0 38%, hsl(0 0% 86%) 38% 58%, hsl(0 0% 28%) 58% 100%);
   box-shadow:
     inset 1px 0 0 hsl(var(--foreground) / 0.12),
     inset -1px 0 0 hsl(var(--background) / 0.36),

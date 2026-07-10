@@ -1,6 +1,7 @@
 "use client"
 
 import { RangeControl } from "@/components/ui/range-control"
+import { clampValue, formatRangeValue } from "@/components/ui/range-utils"
 import { cn } from "@/lib/utils"
 import styles from "./chimer-controls.module.css"
 
@@ -23,18 +24,6 @@ export interface ColorSliderProps {
   valueFormatter?: ColorSliderValueFormatter
 }
 
-function clampColorValue(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function formatColorValue(value: number, unit?: string, valueFormatter?: ColorSliderValueFormatter) {
-  if (valueFormatter) {
-    return valueFormatter(value)
-  }
-
-  return unit ? `${value}${unit}` : String(value)
-}
-
 /**
  * Single-channel color slider used by hue/sat/lightness/alpha-like controls.
  */
@@ -52,8 +41,8 @@ export function ColorSlider({
   className,
   valueFormatter,
 }: ColorSliderProps) {
-  const safeValue = clampColorValue(value, min, max)
-  const displayValue = formatColorValue(safeValue, unit, valueFormatter)
+  const safeValue = clampValue(value, min, max)
+  const displayValue = formatRangeValue(safeValue, unit, valueFormatter)
   const hueDegrees = max === min ? 0 : ((safeValue - min) / (max - min)) * 360
   const sliderStyle = channel === "hue"
     ? { "--ml-slider-hue-color": `hsl(${hueDegrees} 100% 50%)` }
@@ -74,7 +63,7 @@ export function ColorSlider({
       style={sliderStyle}
       onValueChange={(nextValue) => {
         if (Number.isFinite(nextValue)) {
-          onChange(clampColorValue(nextValue, min, max))
+          onChange(clampValue(nextValue, min, max))
         }
       }}
     />
