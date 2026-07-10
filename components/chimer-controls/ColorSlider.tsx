@@ -1,7 +1,7 @@
 "use client"
 
-import { useId } from "react"
-
+import { RangeControl } from "@/components/ui/range-control"
+import { clampValue, formatRangeValue } from "@/components/ui/range-utils"
 import { cn } from "@/lib/utils"
 import styles from "./chimer-controls.module.css"
 
@@ -24,18 +24,6 @@ export interface ColorSliderProps {
   valueFormatter?: ColorSliderValueFormatter
 }
 
-function clampColorValue(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function formatColorValue(value: number, unit?: string, valueFormatter?: ColorSliderValueFormatter) {
-  if (valueFormatter) {
-    return valueFormatter(value)
-  }
-
-  return unit ? `${value}${unit}` : String(value)
-}
-
 /**
  * Single-channel color slider used by hue/sat/lightness/alpha-like controls.
  */
@@ -53,43 +41,31 @@ export function ColorSlider({
   className,
   valueFormatter,
 }: ColorSliderProps) {
-  const sliderId = useId()
-  const inputId = `color-slider-${channel}-${sliderId}`
-  const descriptionId = description ? `${inputId}-description` : undefined
-  const safeValue = clampColorValue(value, min, max)
-  const percent = max === min ? 0 : ((safeValue - min) / (max - min)) * 100
-  const displayValue = formatColorValue(safeValue, unit, valueFormatter)
+  const safeValue = clampValue(value, min, max)
+  const displayValue = formatRangeValue(safeValue, unit, valueFormatter)
+  const hueDegrees = max === min ? 0 : ((safeValue - min) / (max - min)) * 360
+  const sliderStyle = channel === "hue"
+    ? { "--ml-slider-hue-color": `hsl(${hueDegrees} 100% 50%)` }
+    : undefined
 
   return (
-    <section className={cn(styles.controlCard, styles.colorSlider, className)}>
-      <div className={styles.controlRow}>
-        <label htmlFor={inputId} className={styles.controlLabel}>
-          {label}
-        </label>
-        <span className={styles.controlValue}>{displayValue}</span>
-      </div>
-      {description ? <p id={descriptionId} className={styles.controlDescription}>{description}</p> : null}
-      <input
-        id={inputId}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={safeValue}
-        disabled={disabled}
-        aria-label={label}
-        aria-describedby={descriptionId}
-        className={styles.rangeInput}
-        style={{
-          "--chimer-range-progress": `${percent}%`,
-        } as React.CSSProperties}
-        onChange={(event) => {
-          const nextValue = Number(event.currentTarget.value)
-          if (Number.isFinite(nextValue)) {
-            onChange(clampColorValue(nextValue, min, max))
-          }
-        }}
-      />
-    </section>
+    <RangeControl
+      label={label}
+      value={safeValue}
+      min={min}
+      max={max}
+      step={step}
+      disabled={disabled}
+      description={description}
+      displayValue={displayValue}
+      aria-label={label}
+      className={cn(styles.controlCard, styles.colorSlider, channel === "hue" && "ml-slider-hue", className)}
+      style={sliderStyle}
+      onValueChange={(nextValue) => {
+        if (Number.isFinite(nextValue)) {
+          onChange(clampValue(nextValue, min, max))
+        }
+      }}
+    />
   )
 }

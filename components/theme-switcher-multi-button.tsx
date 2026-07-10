@@ -3,7 +3,7 @@
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
-import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react"
+import { MoonIcon, SunIcon } from "lucide-react"
 import {
   applyThemeClass,
   resolveThemeMode,
@@ -12,7 +12,6 @@ import {
   useSettings,
 } from "@/components/providers/settings-provider"
 import { Button } from "@/components/ui/button"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 
 type ViewTransitionDocument = Document & {
@@ -27,14 +26,12 @@ type TransitionOrigin = {
 }
 
 const themes: Array<{
-  value: ThemeMode
+  value: Exclude<ThemeMode, "system">
   icon: typeof SunIcon
-  label: string
   shortLabel: string
 }> = [
-  { value: "system", icon: MonitorIcon, label: "Use system theme", shortLabel: "System" },
-  { value: "light", icon: SunIcon, label: "Use light theme", shortLabel: "Light" },
-  { value: "dark", icon: MoonIcon, label: "Use dark theme", shortLabel: "Dark" },
+  { value: "light", icon: SunIcon, shortLabel: "Light" },
+  { value: "dark", icon: MoonIcon, shortLabel: "Dark" },
 ]
 
 export function ThemeSwitcherMultiButton({
@@ -133,8 +130,10 @@ export function ThemeSwitcherMultiButton({
     })
   }
 
+  const currentTheme = themes.find((theme) => theme.value === resolvedTheme) ?? themes[1]
+  const CurrentThemeIcon = currentTheme.icon
   const nextToggledTheme: ThemeMode = resolvedTheme === "dark" ? "light" : "dark"
-  const MobileThemeIcon = resolvedTheme === "dark" ? MoonIcon : SunIcon
+  const nextThemeLabel = nextToggledTheme === "dark" ? "dark" : "light"
 
   return (
     <div
@@ -142,65 +141,33 @@ export function ThemeSwitcherMultiButton({
       role="group"
       aria-label="Theme"
       className={cn(
-        "ml-theme-switcher group relative isolate inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 shadow-[inset_0_-1px_0_hsl(var(--foreground)/0.05),0_1px_8px_hsl(var(--background)/0.24)] backdrop-blur",
+        "ml-theme-switcher group relative isolate inline-flex shrink-0 items-center",
         className,
       )}
       {...props}
     >
       <Button
+        data-theme-value={currentTheme.value}
+        data-theme-selected={mounted ? "true" : "false"}
         type="button"
         variant={resolvedTheme === "light" ? "default" : "outline"}
         size="icon"
-        aria-label={resolvedTheme === "dark" ? "Use light theme" : "Use dark theme"}
-        aria-pressed={resolvedTheme === "dark"}
-        className="ml-shell-theme-button ml-theme-toggle-button md:hidden"
+        aria-label={`Use ${nextThemeLabel} theme`}
+        title={`Use ${nextThemeLabel} theme`}
+        data-state="on"
         onPointerDown={rememberTransitionOrigin}
         onClick={() => setTheme(nextToggledTheme)}
+        className={cn(
+          "ml-shell-theme-button ml-theme-toggle-button ml-button-press-motion ml-button-tactile relative size-8 min-w-0 rounded-full p-0",
+          resolvedTheme === "light" && "ml-button-default",
+          resolvedTheme === "dark" && "ml-button-outline",
+          "ml-shell-theme-button-active",
+          !mounted && "pointer-events-none animate-pulse bg-muted/70",
+        )}
       >
-        <MobileThemeIcon aria-hidden="true" data-icon="inline-start" />
-        <span className="sr-only">{resolvedTheme === "dark" ? "Dark" : "Light"}</span>
+        <CurrentThemeIcon aria-hidden="true" data-icon="inline-start" />
+        <span className="sr-only">{currentTheme.shortLabel}</span>
       </Button>
-      <ToggleGroup
-        type="single"
-        value={settings.themeMode}
-        onValueChange={(value) => {
-          if (value) {
-            setTheme(value as ThemeMode)
-          }
-        }}
-        aria-label={`Theme: ${settings.themeMode === "system" ? `system (${resolvedTheme})` : settings.themeMode}`}
-        className="hidden gap-1 md:flex"
-      >
-        {themes.map(({ value, icon: Icon, label, shortLabel }) => {
-          const isActive = mounted && settings.themeMode === value
-          const isSelected = settings.themeMode === value
-
-          return (
-            <ToggleGroupItem
-              key={value}
-              value={value}
-              data-theme-value={value}
-              data-theme-selected={isSelected ? "true" : "false"}
-              aria-label={label}
-              title={label}
-              aria-pressed={isActive}
-              data-state={isActive ? "on" : "off"}
-              onPointerDownCapture={rememberTransitionOrigin}
-              className={cn(
-                "ml-shell-theme-button ml-button-press-motion ml-button-tactile relative size-8 min-w-0 rounded-full p-0",
-                value === "light" && "ml-button-default",
-                value === "dark" && "ml-button-outline",
-                value === "system" && "ml-button-secondary",
-                isActive && "ml-shell-theme-button-active",
-                !mounted && "pointer-events-none animate-pulse bg-muted/70",
-              )}
-            >
-              <Icon aria-hidden="true" data-icon="inline-start" />
-              <span className="sr-only">{shortLabel}</span>
-            </ToggleGroupItem>
-          )
-        })}
-      </ToggleGroup>
     </div>
   )
 }

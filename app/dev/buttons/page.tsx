@@ -19,6 +19,7 @@ import { TactileButton } from "@/components/chimer-controls/TactileButton"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { MetalAttentionButton, MetalAttentionRing } from "@/components/ui/metal-attention-button"
+import { SliderGallery } from "./slider-gallery"
 
 export const metadata = {
   title: "Button Gallery",
@@ -249,6 +250,8 @@ export default function ButtonGalleryPage() {
           </div>
         </AppSurface>
       </section>
+
+      <SliderGallery />
 
       <section className="space-y-4" aria-labelledby="shortcut-heading">
         <div>

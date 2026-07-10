@@ -105,6 +105,7 @@ export function MusicMiniPlayer({ placement = "bottom" }: { placement?: MusicMin
               <Volume2 aria-hidden="true" className="size-4 shrink-0" />
               <Slider
                 aria-label="Atmosphere volume"
+                className="ml-slider-fill-blue"
                 min={0}
                 max={1}
                 step={0.05}

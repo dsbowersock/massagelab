@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  type FormEvent as ReactFormEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -4685,6 +4686,23 @@ const timerProofs = [
   },
 ] as const
 
+const NATIVE_RANGE_FILL_STYLE_PROPERTY = "--ml-native-range-fill"
+
+/**
+ * Computes a native range input's clamped fill percentage and writes it to the
+ * CSS variable used by the WebKit track fill layer.
+ */
+function syncNativeRangeFill(rangeInput: HTMLInputElement) {
+  const min = Number(rangeInput.min || 0)
+  const max = Number(rangeInput.max || 100)
+  const value = Number(rangeInput.value)
+  const range = max - min
+  const percentage = range > 0 ? ((value - min) / range) * 100 : 0
+  const clampedPercentage = Math.min(100, Math.max(0, percentage))
+
+  rangeInput.style.setProperty(NATIVE_RANGE_FILL_STYLE_PROPERTY, `${clampedPercentage}%`)
+}
+
 export function SetTimer({
   settings,
   totalDurationMs,
@@ -4714,6 +4732,8 @@ export function SetTimer({
   const [isSyncNoticeExiting, setIsSyncNoticeExiting] = useState(false)
   const syncNoticeDismissTimerRef = useRef<number | null>(null)
   const syncNoticeExitTimerRef = useRef<number | null>(null)
+  const containerRef = useRef<HTMLElement | null>(null)
+  const nativeRangeInputSyncedRef = useRef(false)
   const proofSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const isTimerSet = totalDurationMs > 0
   const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
@@ -4743,6 +4763,28 @@ export function SetTimer({
   useEffect(() => {
     setSavedPresets(readChimerSetupPresets())
     setLastSetupPreset(readLastChimerSetupPreset())
+  }, [])
+
+  useEffect(() => {
+    if (nativeRangeInputSyncedRef.current) {
+      nativeRangeInputSyncedRef.current = false
+      return
+    }
+
+    const rangeInputs = containerRef.current?.querySelectorAll<HTMLInputElement>(
+      `.${styles.rangeRow} input[type="range"]`,
+    )
+
+    rangeInputs?.forEach(syncNativeRangeFill)
+  }, [settings])
+
+  const handleNativeRangeInput = useCallback((event: ReactFormEvent<HTMLElement>) => {
+    const target = event.target
+
+    if (target instanceof HTMLInputElement && target.type === "range") {
+      syncNativeRangeFill(target)
+      nativeRangeInputSyncedRef.current = true
+    }
   }, [])
 
   const moveProofCarousel = useCallback((direction: 1 | -1) => {
@@ -16567,7 +16609,12 @@ export function SetTimer({
   }
 
   return (
-    <section className={styles.container} aria-labelledby="chimer-heading">
+    <section
+      ref={containerRef}
+      className={styles.container}
+      aria-labelledby="chimer-heading"
+      onInput={handleNativeRangeInput}
+    >
       <div className={styles.header}>
         <PageHeading>Chimer</PageHeading>
         <p className={styles.subtitle}>Massage session timer for treatment pacing, interval chimes, and full-screen clock visibility.</p>

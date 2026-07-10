@@ -15,6 +15,7 @@ import {
 import { createPortal } from "react-dom"
 import { Pipette } from "lucide-react"
 
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 import styles from "./chimer-controls.module.css"
 
@@ -428,20 +429,20 @@ export function ColorPickerSwatch({
             >
               <Pipette aria-hidden="true" size={18} strokeWidth={2.4} />
             </button>
-            <input
-              type="range"
+            <Slider
               min={0}
               max={360}
               step={1}
-              value={Math.round(hsvColor.h)}
-              onChange={(event) => {
+              value={[Math.round(hsvColor.h)]}
+              onValueChange={([nextHue]) => {
                 commitColor(hsvToHex({
-                  h: Number(event.currentTarget.value),
+                  h: nextHue ?? hsvColor.h,
                   s: hsvColor.s,
                   v: hsvColor.v,
                 }))
               }}
-              className={styles.colorPickerHueSlider}
+              className="ml-slider-hue"
+              style={{ "--ml-slider-hue-color": hueColor } as CSSProperties}
               disabled={disabled}
               aria-label={`${label} hue`}
             />

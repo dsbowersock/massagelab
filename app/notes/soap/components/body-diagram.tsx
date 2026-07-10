@@ -205,7 +205,7 @@ export function BodyDiagram({ formData, setFormData }: SoapNoteSectionProps) {
                         max="10"
                         value={selection.intensity}
                         onChange={(event) => updateSelection(selection.id, { intensity: Number(event.target.value) })}
-                        className="w-full accent-brand-orange"
+                        className="ml-native-compact-range w-full"
                       />
                     </div>
                   </div>
