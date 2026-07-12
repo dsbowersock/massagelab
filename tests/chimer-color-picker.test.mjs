@@ -22,6 +22,9 @@ const serviceFormSource = await readFile(
   new URL("../app/calendar/services/service-form.tsx", import.meta.url),
   "utf8",
 )
+const SET_TIMER_VALUE_CALLBACK_PATTERN = /onValueChange: \(nextColor: string\) => void/
+const SET_TIMER_PICKER_WIRING_PATTERN =
+  /<ColorPickerInput value=\{value\} onValueChange=\{onValueChange\} label=\{pickerLabel\} \/>/
 
 test("global color updates notify the parent outside the React state updater", () => {
   assert.match(
@@ -46,8 +49,8 @@ test("shared color fields use explicit string values instead of synthetic native
   assert.match(pickerSource, /onValueChange: \(value: string\) => void/)
   assert.doesNotMatch(pickerSource, /ReactChangeEvent|ChangeEventHandler|target: input/)
   assert.equal((runningTimerSource.match(/<ColorPickerInput/g) ?? []).length, 216)
-  assert.match(setTimerSource, /onValueChange: \(nextColor: string\) => void/)
-  assert.match(setTimerSource, /<ColorPickerInput value=\{value\} onValueChange=\{onValueChange\} label=\{pickerLabel\} \/>/)
+  assert.match(setTimerSource, SET_TIMER_VALUE_CALLBACK_PATTERN)
+  assert.match(setTimerSource, SET_TIMER_PICKER_WIRING_PATTERN)
   assert.equal((setTimerSource.match(/<ColorField/g) ?? []).length, 211)
   assert.equal((setTimerSource.match(/<ColorPickerInput/g) ?? []).length, 1)
   assert.doesNotMatch(runningTimerSource, /type="color"/)
