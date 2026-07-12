@@ -235,6 +235,8 @@ export function ObjectiveEntryForm({ type, onSave, onCancel }: ObjectiveEntryFor
             id="pain"
             checked={formData.pain || false}
             onCheckedChange={(checked) => handleChange("pain", checked)}
+            size="compact"
+            tone="alert"
           />
           <Label htmlFor="pain">Pain during movement</Label>
         </div>

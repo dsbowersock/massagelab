@@ -55,6 +55,10 @@ export interface ColorPickerSwatchProps {
   buttonClassName?: string
 }
 
+export interface ColorPickerInputProps extends Omit<ColorPickerSwatchProps, "onChange"> {
+  onValueChange: (value: string) => void
+}
+
 const COLOR_FIELDS = [
   { key: "primary", label: "Primary color" },
   { key: "secondary", label: "Color 2" },
@@ -70,6 +74,9 @@ const COLOR_PICKER_POPOVER_MARGIN = 16
 const COLOR_PICKER_POPOVER_GAP = 10
 const COLOR_PICKER_POPOVER_MAX_WIDTH = 352
 const COLOR_PICKER_POPOVER_ESTIMATED_HEIGHT = 390
+
+/** Identifies portaled picker content that remains part of an open Chimer control panel. */
+export const CHIMER_CONTROL_PORTAL_SELECTOR = '[data-chimer-control-portal="true"]'
 
 type RgbColor = {
   red: number
@@ -361,9 +368,9 @@ export function ColorPickerSwatch({
   return (
     <div ref={containerRef} className={cn(styles.colorPickerShell, className)}>
       <button
+        id={fieldId}
         type="button"
         className={cn(styles.globalColorSwatchButton, buttonClassName)}
-        style={{ backgroundColor: normalizedColor }}
         onClick={() => {
           if (!isOpen) {
             updatePopoverPosition()
@@ -375,6 +382,11 @@ export function ColorPickerSwatch({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
       >
+        <span
+          className={styles.globalColorSwatchFace}
+          style={{ backgroundColor: normalizedColor } as CSSProperties}
+          aria-hidden="true"
+        />
         <span className={styles.globalColorSwatchValue}>{normalizedColor}</span>
       </button>
 
@@ -386,6 +398,7 @@ export function ColorPickerSwatch({
           role="dialog"
           aria-label={`${label} picker`}
           aria-modal="false"
+          data-chimer-control-portal="true"
         >
           <div
             ref={colorAreaRef}
@@ -453,7 +466,7 @@ export function ColorPickerSwatch({
               <option value="hex">HEX</option>
             </select>
             <input
-              id={fieldId}
+              id={`${fieldId}-hex`}
               type="text"
               className={styles.colorPickerHexInput}
               value={draftHex}
@@ -475,6 +488,21 @@ export function ColorPickerSwatch({
         document.body,
       ) : null}
     </div>
+  )
+}
+
+/** Gives controlled color fields the shared picker without emulating native input events. */
+export function ColorPickerInput({
+  onValueChange,
+  buttonClassName,
+  ...props
+}: ColorPickerInputProps) {
+  return (
+    <ColorPickerSwatch
+      {...props}
+      onChange={onValueChange}
+      buttonClassName={cn("ml-color-picker-input", buttonClassName)}
+    />
   )
 }
 
@@ -528,10 +556,12 @@ export function GlobalColorPicker({
 }: GlobalColorPickerProps) {
   const componentId = useId()
   const [draftColors, setDraftColors] = useState(value)
+  const draftColorsRef = useRef(value)
   const [draftName, setDraftName] = useState(paletteName ?? "")
   const isSaveDisabled = disabled || !onSave
 
   useEffect(() => {
+    draftColorsRef.current = value
     setDraftColors(value)
   }, [value])
 
@@ -542,17 +572,16 @@ export function GlobalColorPicker({
   }, [paletteName])
 
   function commitFieldColor(key: GlobalColorFieldName, colorValue: string) {
-    setDraftColors((current) => {
-      const normalizedColor = normalizeHex(colorValue, current[key])
-      const nextValues = {
-        ...current,
-        [key]: normalizedColor,
-      }
+    const current = draftColorsRef.current
+    const normalizedColor = normalizeHex(colorValue, current[key])
+    const nextValues = {
+      ...current,
+      [key]: normalizedColor,
+    }
 
-      onChange(nextValues)
-
-      return nextValues
-    })
+    draftColorsRef.current = nextValues
+    setDraftColors(nextValues)
+    onChange(nextValues)
   }
 
   return (

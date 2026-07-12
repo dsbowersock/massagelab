@@ -70,7 +70,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
 import { isNavigationRouteActive } from "@/lib/navigation"
 import { shouldExpandSidebarFromRail } from "@/lib/sidebar-layout"
@@ -264,7 +263,7 @@ function SidebarRoute({
         asChild
         isActive={isNavigationRouteActive(pathname, route.href)}
         tooltip={{ children: route.label, side: tooltipSide }}
-        className={cn(nested && primaryChildRouteButtonClass)}
+        className={cn("ml-sidebar-route", nested && primaryChildRouteButtonClass)}
       >
         <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
           <Icon />
@@ -464,7 +463,7 @@ function CalendarSidebarRoute({
         asChild
         isActive={isNavigationRouteActive(pathname, "/calendar")}
         tooltip={{ children: "Calendar", side: tooltipSide }}
-        className={cn("max-w-full group-has-[[data-sidebar=menu-action]]/menu-item:pr-9 md:group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
+        className={cn("ml-sidebar-route max-w-full group-has-[[data-sidebar=menu-action]]/menu-item:pr-9 md:group-has-[[data-sidebar=menu-action]]/menu-item:pr-[5.75rem]", nested && primaryChildRouteButtonClass)}
       >
         <Link href="/calendar" onClick={(event) => navigateFromSidebar(event, "/calendar")}>
           <CalendarDays />
@@ -538,7 +537,7 @@ function NavSecondary({
                   asChild
                   size="sm"
                   isActive={isNavigationRouteActive(pathname, route.href)}
-                  className={cn(compact && "h-8 px-2 text-xs")}
+                  className={cn("ml-sidebar-route", compact && "h-8 px-2 text-xs")}
                 >
                   <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
                     <Icon />
@@ -681,50 +680,44 @@ function AccountMenu({
   )
 }
 
-function SidebarLogoHomeLink({ tooltipSide }: { tooltipSide: "left" | "right" }) {
+function SidebarLogoHomeLink() {
   const { navigateFromSidebar } = useSidebarNavigation()
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              href="/"
-              aria-label="MassageLab home"
-              title="MassageLab home"
-              onClick={(event) => navigateFromSidebar(event, "/")}
-              className={cn(
-                "ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-                "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
-              )}
-            >
-              <Image
-                src="/brand/massagelab-mark-final-20260622.png"
-                alt=""
-                width={500}
-                height={500}
-                className="hidden size-full scale-150 object-contain group-data-[collapsible=icon]:block"
-                data-testid="sidebar-brand-mark-trigger"
-                sizes="32px"
-                loading="eager"
-              />
-              <Image
-                src="/brand/massagelab-wordmark-final-20260622.png"
-                alt=""
-                width={1518}
-                height={593}
-                className="h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden"
-                data-testid="sidebar-brand-wordmark-trigger"
-                sizes="220px"
-                loading="eager"
-              />
-              <span className="sr-only">MassageLab home</span>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side={tooltipSide}>MassageLab home</TooltipContent>
-        </Tooltip>
+        <Link
+          href="/"
+          aria-label="MassageLab home"
+          onClick={(event) => navigateFromSidebar(event, "/")}
+          className={cn(
+            "ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+            "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
+          )}
+        >
+          <Image
+            src="/brand/massagelab-mark-final-20260622.png"
+            alt=""
+            width={500}
+            height={500}
+            className="hidden size-full scale-150 object-contain group-data-[collapsible=icon]:block"
+            data-testid="sidebar-brand-mark-trigger"
+            sizes="32px"
+            loading="eager"
+          />
+          <Image
+            src="/brand/massagelab-wordmark-final-20260622.png"
+            alt=""
+            width={1518}
+            height={593}
+            className="h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden"
+            data-testid="sidebar-brand-wordmark-trigger"
+            sizes="220px"
+            loading="eager"
+          />
+          <span className="sr-only">MassageLab home</span>
+        </Link>
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -795,7 +788,7 @@ export function AppSidebarClient({
         </SidebarHeader>
       ) : (
         <SidebarHeader>
-          <SidebarLogoHomeLink tooltipSide={tooltipSide} />
+          <SidebarLogoHomeLink />
         </SidebarHeader>
       )}
       {isCompactLandscape ? (

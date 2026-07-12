@@ -441,7 +441,7 @@ export function CalendarOperatorTopBar({
           data-sidebar-control="true"
           onClick={toggleSidebar}
           aria-label={renderMode === "drawer" ? "Open navigation" : state === "expanded" ? "Dock navigation" : "Expand navigation"}
-          className="h-10 w-10 shrink-0"
+          className="ml-shell-compact-control shrink-0"
         >
           <SidebarToggleIcon aria-hidden="true" />
         </Button>

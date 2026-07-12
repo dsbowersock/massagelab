@@ -315,12 +315,6 @@
   padding: 0.55rem 0.75rem;
 }
 
-.anatomime-input {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(12, 12, 14, 0.82);
-  color: white;
-}
-
 .anatomime-round-panel {
   display: grid;
   gap: 1rem;
@@ -328,28 +322,6 @@
   border-radius: 0.5rem;
   background: rgba(12, 12, 14, 0.44);
   padding: 1rem;
-}
-
-.anatomime-hardcore-button {
-  min-height: 2.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  font-weight: 800;
-  padding: 0 1rem;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-hardcore-button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
-}
-
-.anatomime-hardcore-button[data-selected="true"] {
-  border-color: hsl(var(--brand-orange));
-  background: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
 }
 
 .anatomime-round-control {
@@ -382,6 +354,7 @@
 .anatomime-round-slider {
   --ml-slider-fill: var(--button-orange-start);
   --ml-slider-fill-shadow: var(--button-orange-depth);
+  --ml-slider-track-bg: 213 34% 18%;
 }
 
 .anatomime-round-slider:disabled {
@@ -392,31 +365,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   gap: 0.5rem;
-}
-
-.anatomime-choice-button,
-.anatomime-region-button,
-.anatomime-term-card,
-.anatomime-secondary-button,
-.anatomime-primary-button,
-.anatomime-danger-button,
-.anatomime-order-controls button {
-  min-height: 2.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  font-weight: 700;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-choice-button:hover,
-.anatomime-region-button:hover,
-.anatomime-term-card:hover,
-.anatomime-secondary-button:hover,
-.anatomime-order-controls button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
 }
 
 .anatomime-choice-button[data-selected="true"],
@@ -441,23 +389,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem;
-}
-
-.anatomime-mini-button {
-  min-height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 0.35rem 0.65rem;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-mini-button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
 }
 
 .anatomime-region-list {
@@ -498,28 +429,6 @@
 
 .anatomime-region-card .anatomime-region-button {
   min-height: 4rem;
-}
-
-.anatomime-icon-button {
-  display: inline-grid;
-  width: 2.75rem;
-  min-height: 2.75rem;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-icon-button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
-}
-
-.anatomime-icon-button[aria-expanded="true"] {
-  border-color: hsl(var(--brand-orange));
-  color: hsl(var(--brand-orange-soft));
 }
 
 .anatomime-empty-state {
@@ -611,27 +520,218 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  min-height: 2.75rem;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 0.68rem;
+  color: hsl(var(--button-label));
+  cursor: pointer;
+  font-weight: 700;
   padding: 0.8rem 1rem;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease,
+    transform 150ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
+.anatomime-input {
+  min-height: 3.15rem;
+  border: 1px solid hsl(var(--foreground) / 0.16);
+  border-top-color: hsl(var(--foreground) / 0.22);
+  border-bottom: 2px solid hsl(var(--background) / 0.58);
+  border-radius: 0.78rem;
+  background:
+    linear-gradient(180deg, hsl(var(--foreground) / 0.07), transparent 48%),
+    linear-gradient(90deg, hsl(var(--button-orange-start) / 0.1), hsl(var(--background) / 0.78) 42%, hsl(var(--button-blue-depth) / 0.1)),
+    hsl(var(--background) / 0.68);
+  box-shadow:
+    inset 2px 2px 5px hsl(var(--background) / 0.58),
+    inset -1px -1px 2px hsl(var(--foreground) / 0.06),
+    0 0.45rem 0.9rem hsl(var(--background) / 0.22);
+  color: hsl(var(--foreground));
+  font-weight: 700;
+}
+
+.anatomime-hardcore-button,
+.anatomime-choice-button,
+.anatomime-region-button,
+.anatomime-term-card,
+.anatomime-mini-button,
+.anatomime-icon-button,
+.anatomime-order-controls button {
+  min-height: 2.75rem;
+  border: 2px solid hsl(var(--foreground) / 0.1);
+  border-top-color: hsl(var(--foreground) / 0.16);
+  border-bottom: 3px solid hsl(var(--background) / 0.66);
+  border-radius: 0.68rem;
+  background:
+    linear-gradient(180deg, hsl(var(--foreground) / 0.06), transparent 54%),
+    linear-gradient(90deg, hsl(var(--button-blue-mid) / 0.08), hsl(var(--background) / 0.78) 46%, hsl(var(--background) / 0.88));
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.06),
+    inset 0 -1px 0 hsl(var(--button-ink) / 0.18),
+    0 2px 0 hsl(var(--background) / 0.56),
+    0 0.42rem 0.74rem hsl(var(--background) / 0.22);
+  color: hsl(215 22% 88%);
+  cursor: pointer;
+  font-weight: 700;
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.48),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--foreground) / 0.08);
+  transition: border-color 150ms ease, box-shadow 150ms ease, filter 150ms ease, transform 150ms ease;
+}
+
+.anatomime-hardcore-button {
+  font-weight: 800;
+  padding-inline: 1rem;
+}
+
+.anatomime-mini-button {
+  min-height: 2rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.65rem;
+}
+
+.anatomime-icon-button {
+  display: inline-grid;
+  width: 2.75rem;
+  place-items: center;
+}
+
+.anatomime-hardcore-button:hover,
+.anatomime-choice-button:hover,
+.anatomime-region-button:hover,
+.anatomime-term-card:hover,
+.anatomime-mini-button:hover,
+.anatomime-icon-button:hover,
+.anatomime-order-controls button:hover {
+  border-color: hsl(var(--foreground) / 0.15);
+  filter: none;
+}
+
+.anatomime-hardcore-button:active,
+.anatomime-choice-button:active,
+.anatomime-region-button:active,
+.anatomime-term-card:active,
+.anatomime-mini-button:active,
+.anatomime-icon-button:active,
+.anatomime-secondary-button:active,
+.anatomime-primary-button:active,
+.anatomime-danger-button:active,
+.anatomime-order-controls button:active {
+  border-bottom-width: 2px;
+  box-shadow:
+    inset var(--ml-button-press-shadow-x) 3px 10px hsl(var(--background) / 0.38),
+    inset var(--ml-button-press-highlight-x) -2px 4px hsl(var(--foreground) / 0.08),
+    0 1px 0 hsl(var(--background) / 0.46),
+    0 0.28rem 0.48rem hsl(var(--background) / 0.18);
+  transform: translateY(1px);
+}
+
+.anatomime-hardcore-button[data-selected="true"],
+.anatomime-choice-button[data-selected="true"],
+.anatomime-region-button[data-selected="true"],
+.anatomime-term-card[data-selected="true"],
+.anatomime-icon-button[aria-expanded="true"],
 .anatomime-primary-button {
-  border-color: hsl(var(--brand-orange));
-  background: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--button-orange-start) / 0.78);
+  border-top-color: hsl(var(--foreground) / 0.2);
+  border-right-color: hsl(var(--button-orange-depth) / 0.5);
+  border-bottom: 3px solid hsl(var(--button-orange-depth) / 0.72);
+  background:
+    var(--ml-button-light-gradient),
+    linear-gradient(
+      122deg,
+      hsl(var(--button-default-face)) 0%,
+      hsl(var(--button-secondary-face)) 68%,
+      hsl(var(--button-orange-depth)) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.16),
+    inset 0 -1px 0 hsl(var(--button-ink) / 0.18),
+    0 2px 0 hsl(var(--button-orange-depth) / 0.64),
+    0 8px 16px hsl(var(--button-orange-depth) / 0.2);
+  color: hsl(32 100% 96%);
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
+    0 0 1px hsl(var(--button-orange-start) / 0.18);
 }
 
-.anatomime-primary-button:hover {
-  background: hsl(var(--brand-orange-glow));
+.anatomime-secondary-button {
+  border-color: hsl(var(--button-blue-start) / 0.62);
+  border-top-color: hsl(var(--foreground) / 0.18);
+  border-right-color: hsl(var(--button-sunset-violet) / 0.4);
+  border-bottom: 3px solid hsl(var(--button-blue-depth) / 0.66);
+  border-radius: 0.68rem;
+  background:
+    var(--ml-button-light-gradient),
+    linear-gradient(
+      122deg,
+      hsl(var(--button-blue-start)) 0%,
+      hsl(var(--button-blue-mid)) 70%,
+      hsl(var(--button-sunset-violet)) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.14),
+    inset 0 -1px 0 hsl(var(--button-ink) / 0.18),
+    0 2px 0 hsl(var(--button-blue-depth) / 0.6),
+    0 7px 14px hsl(var(--button-blue-depth) / 0.18);
+  color: hsl(215 100% 96%);
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-blue-start) / 0.22);
 }
 
 .anatomime-danger-button {
-  border-color: #b91c1c;
-  background: #b91c1c;
-  color: white;
+  border-color: hsl(var(--button-danger-start) / 0.76);
+  border-top-color: hsl(var(--foreground) / 0.16);
+  border-right-color: hsl(var(--button-danger-end) / 0.42);
+  border-bottom: 3px solid hsl(var(--button-danger-end) / 0.72);
+  border-radius: 0.68rem;
+  background:
+    var(--ml-button-light-gradient),
+    linear-gradient(122deg, hsl(var(--button-danger-start)) 0 72%, hsl(var(--button-danger-end)) 100%);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.14),
+    inset 0 -1px 0 hsl(var(--button-ink) / 0.2),
+    0 2px 0 hsl(var(--button-danger-end) / 0.62),
+    0 7px 14px hsl(var(--button-danger-end) / 0.18);
+  color: hsl(0 0% 98%);
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.52),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-danger-start) / 0.2);
+}
+
+.anatomime-region-button > span,
+.anatomime-term-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.anatomime-primary-button:hover {
+  border-color: hsl(var(--button-orange-start) / 0.78);
+  border-top-color: hsl(var(--foreground) / 0.2);
+  border-right-color: hsl(var(--button-orange-depth) / 0.5);
+  filter: none;
+}
+
+.anatomime-secondary-button:hover {
+  border-color: hsl(var(--button-blue-start) / 0.62);
+  border-top-color: hsl(var(--foreground) / 0.18);
+  border-right-color: hsl(var(--button-sunset-violet) / 0.4);
+  filter: none;
 }
 
 .anatomime-danger-button:hover {
-  background: #991b1b;
+  border-color: hsl(var(--button-danger-start) / 0.76);
+  border-top-color: hsl(var(--foreground) / 0.16);
+  border-right-color: hsl(var(--button-danger-end) / 0.42);
+  filter: none;
 }
 
 .anatomime-play-panel {

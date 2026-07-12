@@ -4,6 +4,11 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-10
+
+- Replaced the remaining native Chimer and calendar service color inputs with the approved shared picker. Controlled surfaces now pass color strings through explicit `value` and `onValueChange` props, while form-owned fields submit a named hidden value; the migration does not synthesize native React change events.
+- Extended the route-owned visual-control treatment to the Clock background filter row and Clock font select field. The background filters now use the same inset tab-track language as the main Clock/Visual/Backgrounds tabs, select fields use the cutout route-owned control surface, and `/dev/buttons` includes both examples for review before broader dropdown/container rollout.
+
 ## Current Snapshot
 
 - Status: private alpha.
@@ -108,8 +113,14 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ### 2026-07-10
 
+- Refreshed `main` after merging the sitewide slider-control PR, then started `codex/sitewide-toggle-controls` as the next review-sized visual-control branch.
+- Added and visually approved the shared physical Switch and Toggle treatments, a density-aware labeled `ToggleControl`, a single-choice `SegmentedToggleGroup`, and live `/dev/buttons` examples. Chimer's existing `StyledToggleControl` delegates to the shared compact row, and representative account haptics, calendar display settings, and SOAP pain controls now use the approved shared treatment.
 - Advanced the sitewide visual-control rollout from buttons into sliders and app-shell controls. The shared Radix slider now uses the approved split-pill track and fader thumb, `RangeControl` owns the labeled/value slider form, `/dev/buttons` shows default, compact, hue, color-slider, and color-picker examples, and representative Chimer, Clock, Music, Anatomime, and local-first notes sliders now use the new treatment or a reviewed compact route-owned version.
 - Kept the accompanying app-shell polish branch-sized: the theme switcher is a single active-theme toggle across desktop, tablet, and mobile; the sidebar wordmark and collapsed logo use the existing MassageLab brand assets with larger fit rather than remade images; and the favicon/PWA icon assets remain unchanged.
+- Removed the collapsed brand-link tooltip that could cover the drawer toggle, matched the compact desktop/tablet drawer and theme controls to one 31px shell token while preserving larger phone touch targets, changed the default slider fill from muted copper to the secondary-button orange, and added exact current Chimer tabs, time-format, and drawer-navigation examples to `/dev/buttons` for the next route-owned control review.
+- Fixed segmented-control selection so tooltip state cannot hide the active option, then visually approved the `/dev/buttons` 9px inset tab and time-format tracks, molded active choices, and warm inset drawer-route indicator. Production Chimer/Clock settings tabs, the 12h/24h choice, and real drawer route rows now use those approved treatments while preserving their existing state and navigation behavior.
+- Added a shared 420ms `cubic-bezier(0.22, 1, 0.36, 1)` active-choice slide to segmented controls, Chimer/Clock settings tabs, and the time-format choice. The active molded face moves beneath stationary labels without spring overshoot; reduced-motion devices retain a short 120ms linear position cue instead of an imperceptible jump. `/dev/buttons` now mirrors these production controls rather than maintaining separate review-only styling.
+- Extended the route-owned control rollout to the Clock chrome controls and Anatomime setup surface. Clock fullscreen/settings/close/pause controls now use the same physical button language, Anatomime choices, route-owned inputs, and setup actions use cohesive physical/inset states, and `/dev/buttons` includes an Anatomime route-control sample for review.
 
 ### 2026-07-09
 

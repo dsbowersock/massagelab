@@ -668,10 +668,17 @@
   justify-items: center;
   gap: 0.4rem;
   min-width: 0;
-  padding: 0.45rem 0.25rem 0.55rem;
-  border: 1px solid hsl(var(--border) / 0.72);
+  padding: 0.58rem 0.34rem 0.68rem;
+  border: 1px solid hsl(var(--foreground) / 0.11);
   border-radius: 0.9rem;
-  background: hsl(var(--foreground) / 0.035);
+  background:
+    linear-gradient(180deg, hsl(var(--foreground) / 0.07), transparent 48%),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.035), transparent 62%),
+    hsl(var(--background) / 0.42);
+  box-shadow:
+    inset 1px 1px 0 hsl(var(--foreground) / 0.045),
+    inset -1px -1px 2px hsl(var(--background) / 0.52),
+    0 0.55rem 1rem rgba(0, 0, 0, 0.22);
 }
 
 .globalColorLabel {
@@ -689,28 +696,28 @@
   overflow: hidden;
   border: 0;
   border-radius: 0.82rem;
+  background: transparent;
   cursor: pointer;
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.2),
-    inset 0 -1px 0 hsl(var(--background) / 0.2),
-    0 0 0 1px hsl(var(--foreground) / 0.08),
-    0 10px 20px hsl(var(--foreground) / 0.14);
-  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    0 0 0 1px rgba(0, 0, 0, 0.28),
+    0 1px 0 rgba(0, 0, 0, 0.52),
+    0 0.34rem 0.62rem rgba(0, 0, 0, 0.32);
+  transition: box-shadow 150ms ease, filter 150ms ease;
 }
 
-.globalColorSwatchButton::after {
-  content: "";
-  display: none;
+.globalColorSwatchFace {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
   pointer-events: none;
 }
 
 .globalColorSwatchButton:hover:not(:disabled) {
-  transform: translateY(-1px);
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.22),
-    inset 0 -1px 0 hsl(var(--background) / 0.18),
-    0 0 0 2px hsl(var(--brand-orange) / 0.2),
-    0 12px 24px hsl(var(--foreground) / 0.15);
+    0 0 0 1px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(0, 0, 0, 0.56),
+    0 0.4rem 0.7rem rgba(0, 0, 0, 0.36);
 }
 
 .globalColorSwatchButton:focus-visible {

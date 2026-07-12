@@ -158,7 +158,7 @@ export function ThemeSwitcherMultiButton({
         onPointerDown={rememberTransitionOrigin}
         onClick={() => setTheme(nextToggledTheme)}
         className={cn(
-          "ml-shell-theme-button ml-theme-toggle-button ml-button-press-motion ml-button-tactile relative size-8 min-w-0 rounded-full p-0",
+          "ml-shell-compact-control ml-shell-theme-button ml-theme-toggle-button ml-button-press-motion ml-button-tactile relative min-w-0 rounded-full p-0",
           resolvedTheme === "light" && "ml-button-default",
           resolvedTheme === "dark" && "ml-button-outline",
           "ml-shell-theme-button-active",

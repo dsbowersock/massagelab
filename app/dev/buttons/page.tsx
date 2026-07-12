@@ -13,13 +13,17 @@ import {
   UserPlus,
 } from "lucide-react"
 
+import "@/app/anatomime/styles.css"
 import { CTAButton } from "@/components/chimer-controls/CTAButton"
 import { GlowButton } from "@/components/chimer-controls/GlowButton"
 import { TactileButton } from "@/components/chimer-controls/TactileButton"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { MetalAttentionButton, MetalAttentionRing } from "@/components/ui/metal-attention-button"
+import { MetalRingGallery } from "./metal-ring-gallery"
 import { SliderGallery } from "./slider-gallery"
+import { ToggleGallery } from "./toggle-gallery"
+import { RouteControlGallery } from "./route-control-gallery"
 
 export const metadata = {
   title: "Button Gallery",
@@ -198,20 +202,7 @@ export default function ButtonGalleryPage() {
           <p className="mt-1 text-sm text-muted-foreground">Use the standalone wrapper when a specific button needs extra attention.</p>
         </div>
         <AppSurface>
-          <div className="flex flex-wrap items-center gap-3">
-            <MetalAttentionRing>
-              <Button variant="default">
-                Default + ring
-                <Sparkles aria-hidden="true" />
-              </Button>
-            </MetalAttentionRing>
-            <MetalAttentionRing>
-              <Button variant="cta">
-                CTA + ring
-                <Sparkles aria-hidden="true" />
-              </Button>
-            </MetalAttentionRing>
-          </div>
+          <MetalRingGallery />
         </AppSurface>
       </section>
 
@@ -252,6 +243,10 @@ export default function ButtonGalleryPage() {
       </section>
 
       <SliderGallery />
+
+      <ToggleGallery />
+
+      <RouteControlGallery />
 
       <section className="space-y-4" aria-labelledby="shortcut-heading">
         <div>
