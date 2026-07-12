@@ -35,7 +35,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { ToggleControl } from "@/components/ui/toggle-control"
 import {
   deriveCalendarVisibleBounds,
   minuteToCalendarTime,
@@ -834,12 +834,13 @@ function SettingSwitch({
   onCheckedChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 bg-background/60 px-3 py-2 text-sm">
-      <span className="inline-flex items-center gap-2">
-        {Icon ? <Icon className="h-4 w-4 text-brand-orange" /> : null}
-        {label}
-      </span>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
-    </label>
+    <ToggleControl
+      label={label}
+      icon={Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : undefined}
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      density="dense"
+      tone="leaf"
+    />
   )
 }

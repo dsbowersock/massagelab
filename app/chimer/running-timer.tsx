@@ -17,7 +17,13 @@ import { triggerHapticFeedback } from "@/lib/haptics"
 import { Loader } from "@/components/chimer-controls/Loader"
 import { MovingBackground } from "@/components/moving-background"
 import { CHIMER_HARMONY_OPTIONS, HarmonyToggleGroup, type ChimerHarmonyValue } from "@/components/chimer-controls/HarmonyToggleGroup"
-import { ColorPickerSwatch, GlobalColorPicker, type GlobalColorValues } from "@/components/chimer-controls/GlobalColorPicker"
+import {
+  CHIMER_CONTROL_PORTAL_SELECTOR,
+  ColorPickerInput,
+  ColorPickerSwatch,
+  GlobalColorPicker,
+  type GlobalColorValues,
+} from "@/components/chimer-controls/GlobalColorPicker"
 import { StyledRangeControl } from "@/components/chimer-controls/StyledRangeControl"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { Button } from "@/components/ui/button"
@@ -3511,6 +3517,11 @@ export function RunningTimer({
         return
       }
 
+      // The color picker is portaled to document.body so it can escape panel clipping.
+      if (target instanceof Element && target.closest(CHIMER_CONTROL_PORTAL_SELECTOR)) {
+        return
+      }
+
       setIsSettingsOpen(false)
     }
 
@@ -4174,75 +4185,68 @@ export function RunningTimer({
 
       {option.id === "massage-lab-gradient-animation" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Base start</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationBackgroundStartColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationBackgroundStartColor: event.target.value })}
-              aria-label="Animated gradient background start color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationBackgroundStartColor: nextColor })}
+              label="Animated gradient background start color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Base end</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationBackgroundEndColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationBackgroundEndColor: event.target.value })}
-              aria-label="Animated gradient background end color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationBackgroundEndColor: nextColor })}
+              label="Animated gradient background end color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Glow 1</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationFirstColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationFirstColor: event.target.value })}
-              aria-label="Animated gradient first glow color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationFirstColor: nextColor })}
+              label="Animated gradient first glow color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Glow 2</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationSecondColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationSecondColor: event.target.value })}
-              aria-label="Animated gradient second glow color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationSecondColor: nextColor })}
+              label="Animated gradient second glow color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Glow 3</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationThirdColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationThirdColor: event.target.value })}
-              aria-label="Animated gradient third glow color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationThirdColor: nextColor })}
+              label="Animated gradient third glow color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Glow 4</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationFourthColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationFourthColor: event.target.value })}
-              aria-label="Animated gradient fourth glow color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationFourthColor: nextColor })}
+              label="Animated gradient fourth glow color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Glow 5</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={gradientAnimationFifthColor}
-              onChange={(event) => handleSettingsChange({ gradientAnimationFifthColor: event.target.value })}
-              aria-label="Animated gradient fifth glow color"
+              onValueChange={(nextColor) => handleSettingsChange({ gradientAnimationFifthColor: nextColor })}
+              label="Animated gradient fifth glow color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Speed</span>
@@ -4274,15 +4278,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-gradient" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Primary color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabGradientPrimaryColor}
-              onChange={(event) => handleSettingsChange({ massageLabGradientPrimaryColor: event.target.value })}
-              aria-label="MassageLab gradient primary color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabGradientPrimaryColor: nextColor })}
+              label="MassageLab gradient primary color"
             />
-          </label>
+          </div>
 
           <label className={styles.selectRow}>
             <span>Color harmony</span>
@@ -4318,25 +4321,23 @@ export function RunningTimer({
 
       {option.id === "massage-lab-hole" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Grid line color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabHoleStrokeColor}
-              onChange={(event) => handleSettingsChange({ massageLabHoleStrokeColor: event.target.value })}
-              aria-label="MassageLab Hole grid line color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabHoleStrokeColor: nextColor })}
+              label="MassageLab Hole grid line color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Particle color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabHoleParticleColor}
-              onChange={(event) => handleSettingsChange({ massageLabHoleParticleColor: event.target.value })}
-              aria-label="MassageLab Hole particle color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabHoleParticleColor: nextColor })}
+              label="MassageLab Hole particle color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Line count ({massageLabHoleLineCount})</span>
@@ -4368,15 +4369,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-light-speed" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Light color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabLightSpeedLightColor}
-              onChange={(event) => handleSettingsChange({ massageLabLightSpeedLightColor: event.target.value })}
-              aria-label="Light Speed light color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabLightSpeedLightColor: nextColor })}
+              label="Light Speed light color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Warp speed ({massageLabLightSpeedWarpSpeed.toFixed(2)}x)</span>
@@ -4447,15 +4447,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-stars" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Star color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabStarsColor}
-              onChange={(event) => handleSettingsChange({ massageLabStarsColor: event.target.value })}
-              aria-label="MassageLab Stars star color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabStarsColor: nextColor })}
+              label="MassageLab Stars star color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Speed ({massageLabStarsSpeed}s)</span>
@@ -4500,15 +4499,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-sparkles" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Sparkle color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={sparklesParticleColor}
-              onChange={(event) => handleSettingsChange({ sparklesParticleColor: event.target.value })}
-              aria-label="Sparkles particle color"
+              onValueChange={(nextColor) => handleSettingsChange({ sparklesParticleColor: nextColor })}
+              label="Sparkles particle color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Density</span>
@@ -4553,15 +4551,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-electric-mist" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Lightning color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabElectricMistColor}
-              onChange={(event) => handleSettingsChange({ massageLabElectricMistColor: event.target.value })}
-              aria-label="Electric Mist lightning color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabElectricMistColor: nextColor })}
+              label="Electric Mist lightning color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Animation speed ({Math.round(massageLabElectricMistSpeed)}%)</span>
@@ -4635,47 +4632,43 @@ export function RunningTimer({
 
           {massageLabAstralFlowPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1 (deep)</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabAstralFlowColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowColorOne: event.target.value })}
-                  aria-label="Astral Flow color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabAstralFlowColorOne: nextColor })}
+                  label="Astral Flow color 1"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 2 (mid)</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabAstralFlowColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowColorTwo: event.target.value })}
-                  aria-label="Astral Flow color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabAstralFlowColorTwo: nextColor })}
+                  label="Astral Flow color 2"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 3 (highlights)</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabAstralFlowColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowColorThree: event.target.value })}
-                  aria-label="Astral Flow color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabAstralFlowColorThree: nextColor })}
+                  label="Astral Flow color 3"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabAstralFlowPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabAstralFlowPrimaryColor: event.target.value })}
-                  aria-label="Astral Flow primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabAstralFlowPrimaryColor: nextColor })}
+                  label="Astral Flow primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -4757,47 +4750,43 @@ export function RunningTimer({
 
           {massageLabDeepSpaceNebulaPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Highlight</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDeepSpaceNebulaColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaColorOne: event.target.value })}
-                  aria-label="Deep Space Nebula highlight color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDeepSpaceNebulaColorOne: nextColor })}
+                  label="Deep Space Nebula highlight color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Nebula cloud</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDeepSpaceNebulaColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaColorTwo: event.target.value })}
-                  aria-label="Deep Space Nebula cloud color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDeepSpaceNebulaColorTwo: nextColor })}
+                  label="Deep Space Nebula cloud color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Deep space</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDeepSpaceNebulaColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaColorThree: event.target.value })}
-                  aria-label="Deep Space Nebula deep-space color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDeepSpaceNebulaColorThree: nextColor })}
+                  label="Deep Space Nebula deep-space color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Nebula color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDeepSpaceNebulaPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabDeepSpaceNebulaPrimaryColor: event.target.value })}
-                  aria-label="Deep Space Nebula primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDeepSpaceNebulaPrimaryColor: nextColor })}
+                  label="Deep Space Nebula primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -4837,15 +4826,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-grid-bloom" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Bloom color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabGridBloomColor}
-              onChange={(event) => handleSettingsChange({ massageLabGridBloomColor: event.target.value })}
-              aria-label="Grid Bloom bloom color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabGridBloomColor: nextColor })}
+              label="Grid Bloom bloom color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
@@ -4962,37 +4950,34 @@ export function RunningTimer({
 
           {massageLabChromeFlowPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Chrome color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabChromeFlowColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabChromeFlowColorOne: event.target.value })}
-                  aria-label="Liquid Chrome chrome color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabChromeFlowColorOne: nextColor })}
+                  label="Liquid Chrome chrome color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Shadow color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabChromeFlowColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabChromeFlowColorTwo: event.target.value })}
-                  aria-label="Liquid Chrome shadow color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabChromeFlowColorTwo: nextColor })}
+                  label="Liquid Chrome shadow color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary chrome</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabChromeFlowPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabChromeFlowPrimaryColor: event.target.value })}
-                  aria-label="Liquid Chrome primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabChromeFlowPrimaryColor: nextColor })}
+                  label="Liquid Chrome primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -5061,45 +5046,41 @@ export function RunningTimer({
             </select>
           </label>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLab3DGlobeBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLab3DGlobeBackgroundColor: event.target.value })}
-              aria-label="3D Globe background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeBackgroundColor: nextColor })}
+              label="3D Globe background color"
             />
-          </label>
+          </div>
 
           {isGraphicGlobe ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Map dots</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLab3DGlobeGraphicMapColor}
-                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeGraphicMapColor: event.target.value })}
-                  aria-label="3D Globe graphic map dot color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeGraphicMapColor: nextColor })}
+                  label="3D Globe graphic map dot color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Outer Glow</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLab3DGlobeGraphicGlowColor}
-                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeGraphicGlowColor: event.target.value })}
-                  aria-label="3D Globe graphic outer glow color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeGraphicGlowColor: nextColor })}
+                  label="3D Globe graphic outer glow color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Marker dots</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLab3DGlobeGraphicMarkerColor}
-                  onChange={(event) => handleSettingsChange({ massageLab3DGlobeGraphicMarkerColor: event.target.value })}
-                  aria-label="3D Globe graphic marker color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeGraphicMarkerColor: nextColor })}
+                  label="3D Globe graphic marker color"
                 />
-              </label>
+              </div>
               <label className={styles.rangeRow}>
                 <span>Dot density ({Math.round(massageLab3DGlobeGraphicMapSamples / 1000)}k)</span>
                 <input
@@ -5116,15 +5097,14 @@ export function RunningTimer({
               </label>
             </>
           ) : (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Globe tint</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLab3DGlobeGlobeColor}
-                onChange={(event) => handleSettingsChange({ massageLab3DGlobeGlobeColor: event.target.value })}
-                aria-label="3D Globe tint color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeGlobeColor: nextColor })}
+                label="3D Globe tint color"
               />
-            </label>
+            </div>
           )}
 
           {!followSun && (
@@ -5269,15 +5249,14 @@ export function RunningTimer({
 
               {massageLab3DGlobeShowAtmosphere && (
                 <>
-                  <label className={styles.colorRow}>
+                  <div className={styles.colorRow}>
                     <span>Atmosphere color</span>
-                    <input
-                      type="color"
+                    <ColorPickerInput
                       value={massageLab3DGlobeAtmosphereColor}
-                      onChange={(event) => handleSettingsChange({ massageLab3DGlobeAtmosphereColor: event.target.value })}
-                      aria-label="3D Globe atmosphere color"
+                      onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeAtmosphereColor: nextColor })}
+                      label="3D Globe atmosphere color"
                     />
-                  </label>
+                  </div>
                   <label className={styles.rangeRow}>
                     <span>Atmosphere ({massageLab3DGlobeAtmosphereIntensity.toFixed(1)})</span>
                     <input
@@ -5316,15 +5295,14 @@ export function RunningTimer({
               </label>
 
               {massageLab3DGlobeShowWireframe && (
-                <label className={styles.colorRow}>
+                <div className={styles.colorRow}>
                   <span>Wireframe color</span>
-                  <input
-                    type="color"
+                  <ColorPickerInput
                     value={massageLab3DGlobeWireframeColor}
-                    onChange={(event) => handleSettingsChange({ massageLab3DGlobeWireframeColor: event.target.value })}
-                    aria-label="3D Globe wireframe color"
+                    onValueChange={(nextColor) => handleSettingsChange({ massageLab3DGlobeWireframeColor: nextColor })}
+                    label="3D Globe wireframe color"
                   />
-                </label>
+                </div>
               )}
             </>
           )}
@@ -5422,35 +5400,32 @@ export function RunningTimer({
 
       {option.id === "massage-lab-retro-grid" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabRetroGridBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLabRetroGridBackgroundColor: event.target.value })}
-              aria-label="Retro Grid background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabRetroGridBackgroundColor: nextColor })}
+              label="Retro Grid background color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Light line color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabRetroGridLightLineColor}
-              onChange={(event) => handleSettingsChange({ massageLabRetroGridLightLineColor: event.target.value })}
-              aria-label="Retro Grid light line color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabRetroGridLightLineColor: nextColor })}
+              label="Retro Grid light line color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Dark line color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabRetroGridDarkLineColor}
-              onChange={(event) => handleSettingsChange({ massageLabRetroGridDarkLineColor: event.target.value })}
-              aria-label="Retro Grid dark line color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabRetroGridDarkLineColor: nextColor })}
+              label="Retro Grid dark line color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Angle ({massageLabRetroGridAngle.toFixed(0)} deg)</span>
@@ -5495,25 +5470,23 @@ export function RunningTimer({
 
       {option.id === "massage-lab-aerial-rays" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabAerialRaysBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLabAerialRaysBackgroundColor: event.target.value })}
-              aria-label="Light Rays background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabAerialRaysBackgroundColor: nextColor })}
+              label="Light Rays background color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Ray color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabAerialRaysColor}
-              onChange={(event) => handleSettingsChange({ massageLabAerialRaysColor: event.target.value })}
-              aria-label="Light Rays color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabAerialRaysColor: nextColor })}
+              label="Light Rays color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Ray count ({massageLabAerialRaysCount})</span>
@@ -5600,57 +5573,52 @@ export function RunningTimer({
 
           {massageLabWaveCurrentPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Background</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabWaveCurrentBackgroundColor}
-                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentBackgroundColor: event.target.value })}
-                  aria-label="Waves background color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabWaveCurrentBackgroundColor: nextColor })}
+                  label="Waves background color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary wave</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabWaveCurrentColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentColorOne: event.target.value })}
-                  aria-label="Waves primary wave color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabWaveCurrentColorOne: nextColor })}
+                  label="Waves primary wave color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Highlight</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabWaveCurrentColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentColorTwo: event.target.value })}
-                  aria-label="Waves highlight color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabWaveCurrentColorTwo: nextColor })}
+                  label="Waves highlight color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Valley</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabWaveCurrentColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentColorThree: event.target.value })}
-                  aria-label="Waves valley color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabWaveCurrentColorThree: nextColor })}
+                  label="Waves valley color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary wave</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabWaveCurrentPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabWaveCurrentPrimaryColor: event.target.value })}
-                  aria-label="Waves primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabWaveCurrentPrimaryColor: nextColor })}
+                  label="Waves primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -5734,45 +5702,41 @@ export function RunningTimer({
 
           {massageLabFerrofluidPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFerrofluidColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidColorOne: event.target.value })}
-                  aria-label="Ferrofluid first color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFerrofluidColorOne: nextColor })}
+                  label="Ferrofluid first color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFerrofluidColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidColorTwo: event.target.value })}
-                  aria-label="Ferrofluid second color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFerrofluidColorTwo: nextColor })}
+                  label="Ferrofluid second color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFerrofluidColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidColorThree: event.target.value })}
-                  aria-label="Ferrofluid third color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFerrofluidColorThree: nextColor })}
+                  label="Ferrofluid third color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFerrofluidPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabFerrofluidPrimaryColor: event.target.value })}
-                  aria-label="Ferrofluid primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFerrofluidPrimaryColor: nextColor })}
+                  label="Ferrofluid primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -5945,45 +5909,41 @@ export function RunningTimer({
 
           {massageLabLightfallPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightfallColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabLightfallColorOne: event.target.value })}
-                  aria-label="Lightfall first color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightfallColorOne: nextColor })}
+                  label="Lightfall first color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightfallColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabLightfallColorTwo: event.target.value })}
-                  aria-label="Lightfall second color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightfallColorTwo: nextColor })}
+                  label="Lightfall second color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightfallColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabLightfallColorThree: event.target.value })}
-                  aria-label="Lightfall third color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightfallColorThree: nextColor })}
+                  label="Lightfall third color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightfallPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLightfallPrimaryColor: event.target.value })}
-                  aria-label="Lightfall primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightfallPrimaryColor: nextColor })}
+                  label="Lightfall primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -6003,15 +5963,14 @@ export function RunningTimer({
             </>
           )}
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabLightfallBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLabLightfallBackgroundColor: event.target.value })}
-              aria-label="Lightfall background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabLightfallBackgroundColor: nextColor })}
+              label="Lightfall background color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Animation speed ({massageLabLightfallSpeed.toFixed(2)}x)</span>
@@ -6222,45 +6181,41 @@ export function RunningTimer({
 
           {massageLabLiquidEtherPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLiquidEtherColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherColorOne: event.target.value })}
-                  aria-label="Liquid Ether first color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLiquidEtherColorOne: nextColor })}
+                  label="Liquid Ether first color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLiquidEtherColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherColorTwo: event.target.value })}
-                  aria-label="Liquid Ether second color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLiquidEtherColorTwo: nextColor })}
+                  label="Liquid Ether second color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLiquidEtherColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherColorThree: event.target.value })}
-                  aria-label="Liquid Ether third color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLiquidEtherColorThree: nextColor })}
+                  label="Liquid Ether third color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLiquidEtherPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLiquidEtherPrimaryColor: event.target.value })}
-                  aria-label="Liquid Ether primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLiquidEtherPrimaryColor: nextColor })}
+                  label="Liquid Ether primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -6837,36 +6792,33 @@ export function RunningTimer({
 
           {massageLabLightPillarPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Top color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightPillarTopColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLightPillarTopColor: event.target.value })}
-                  aria-label="Light Pillar top color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightPillarTopColor: nextColor })}
+                  label="Light Pillar top color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Bottom color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightPillarBottomColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLightPillarBottomColor: event.target.value })}
-                  aria-label="Light Pillar bottom color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightPillarBottomColor: nextColor })}
+                  label="Light Pillar bottom color"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightPillarPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLightPillarPrimaryColor: event.target.value })}
-                  aria-label="Light Pillar primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightPillarPrimaryColor: nextColor })}
+                  label="Light Pillar primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7041,26 +6993,24 @@ export function RunningTimer({
           </label>
 
           {massageLabSilkPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Silk color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabSilkColor}
-                onChange={(event) => handleSettingsChange({ massageLabSilkColor: event.target.value })}
-                aria-label="Silk color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabSilkColor: nextColor })}
+                label="Silk color"
               />
-            </label>
+            </div>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSilkPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabSilkPrimaryColor: event.target.value })}
-                  aria-label="Silk primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSilkPrimaryColor: nextColor })}
+                  label="Silk primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7153,49 +7103,45 @@ export function RunningTimer({
 
           {massageLabFloatingLinesPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Gradient 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFloatingLinesColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabFloatingLinesColorOne: event.target.value })}
-                  aria-label="Floating Lines gradient color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFloatingLinesColorOne: nextColor })}
+                  label="Floating Lines gradient color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Gradient 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFloatingLinesColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabFloatingLinesColorTwo: event.target.value })}
-                  aria-label="Floating Lines gradient color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFloatingLinesColorTwo: nextColor })}
+                  label="Floating Lines gradient color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Gradient 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFloatingLinesColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabFloatingLinesColorThree: event.target.value })}
-                  aria-label="Floating Lines gradient color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFloatingLinesColorThree: nextColor })}
+                  label="Floating Lines gradient color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabFloatingLinesPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFloatingLinesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({
-                    massageLabFloatingLinesPrimaryColor: event.target.value,
+                  onValueChange={(nextColor) => handleSettingsChange({
+                    massageLabFloatingLinesPrimaryColor: nextColor,
                   })}
-                  aria-label="Floating Lines primary color"
+                  label="Floating Lines primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7583,38 +7529,35 @@ export function RunningTimer({
 
           {massageLabSideRaysPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Ray color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSideRaysColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabSideRaysColorOne: event.target.value })}
-                  aria-label="Side Rays color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSideRaysColorOne: nextColor })}
+                  label="Side Rays color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Ray color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSideRaysColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabSideRaysColorTwo: event.target.value })}
-                  aria-label="Side Rays color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSideRaysColorTwo: nextColor })}
+                  label="Side Rays color 2"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabSideRaysPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSideRaysPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabSideRaysPrimaryColor: event.target.value })}
-                  aria-label="Side Rays primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSideRaysPrimaryColor: nextColor })}
+                  label="Side Rays primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7774,28 +7717,26 @@ export function RunningTimer({
           </label>
 
           {massageLabLightRaysPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Ray color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabLightRaysColor}
-                onChange={(event) => handleSettingsChange({ massageLabLightRaysColor: event.target.value })}
-                aria-label="Light Rays color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabLightRaysColor: nextColor })}
+                label="Light Rays color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabLightRaysPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightRaysPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLightRaysPrimaryColor: event.target.value })}
-                  aria-label="Light Rays primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightRaysPrimaryColor: nextColor })}
+                  label="Light Rays primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7979,28 +7920,26 @@ export function RunningTimer({
           </label>
 
           {massageLabPixelBlastPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Pixel color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabPixelBlastColor}
-                onChange={(event) => handleSettingsChange({ massageLabPixelBlastColor: event.target.value })}
-                aria-label="MassageLab Pixel Blast color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabPixelBlastColor: nextColor })}
+                label="MassageLab Pixel Blast color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabPixelBlastPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPixelBlastPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabPixelBlastPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Pixel Blast primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPixelBlastPrimaryColor: nextColor })}
+                  label="MassageLab Pixel Blast primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8294,30 +8233,28 @@ export function RunningTimer({
                 ["Color 3", "massageLabColorBendsColorThree", massageLabColorBendsColorThree],
                 ["Color 4", "massageLabColorBendsColorFour", massageLabColorBendsColorFour],
               ].map(([label, key, value]) => (
-                <label key={key} className={styles.colorRow}>
+                <div key={key} className={styles.colorRow}>
                   <span>{label}</span>
-                  <input
-                    type="color"
+                  <ColorPickerInput
                     value={value}
-                    onChange={(event) => handleSettingsChange({ [key]: event.target.value })}
-                    aria-label={`MassageLab Color Bends ${label.toLowerCase()}`}
+                    onValueChange={(nextColor) => handleSettingsChange({ [key]: nextColor })}
+                    label={`MassageLab Color Bends ${label.toLowerCase()}`}
                   />
-                </label>
+                </div>
               ))}
             </>
           ) : null}
 
           {massageLabColorBendsPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabColorBendsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabColorBendsPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Color Bends primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabColorBendsPrimaryColor: nextColor })}
+                  label="MassageLab Color Bends primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8533,28 +8470,26 @@ export function RunningTimer({
           </label>
 
           {massageLabEvilEyePaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Eye color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabEvilEyeColor}
-                onChange={(event) => handleSettingsChange({ massageLabEvilEyeColor: event.target.value })}
-                aria-label="MassageLab Evil Eye eye color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabEvilEyeColor: nextColor })}
+                label="MassageLab Evil Eye eye color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabEvilEyePaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabEvilEyePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabEvilEyePrimaryColor: event.target.value })}
-                  aria-label="MassageLab Evil Eye primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabEvilEyePrimaryColor: nextColor })}
+                  label="MassageLab Evil Eye primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8574,15 +8509,14 @@ export function RunningTimer({
             </>
           ) : null}
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabEvilEyeBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLabEvilEyeBackgroundColor: event.target.value })}
-              aria-label="MassageLab Evil Eye background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabEvilEyeBackgroundColor: nextColor })}
+              label="MassageLab Evil Eye background color"
             />
-          </label>
+          </div>
 
           <label className={styles.selectRow}>
             <input
@@ -8719,47 +8653,43 @@ export function RunningTimer({
 
           {massageLabLineWavesPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLineWavesColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabLineWavesColorOne: event.target.value })}
-                  aria-label="MassageLab Line Waves color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLineWavesColorOne: nextColor })}
+                  label="MassageLab Line Waves color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLineWavesColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabLineWavesColorTwo: event.target.value })}
-                  aria-label="MassageLab Line Waves color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLineWavesColorTwo: nextColor })}
+                  label="MassageLab Line Waves color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLineWavesColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabLineWavesColorThree: event.target.value })}
-                  aria-label="MassageLab Line Waves color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLineWavesColorThree: nextColor })}
+                  label="MassageLab Line Waves color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabLineWavesPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLineWavesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLineWavesPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Line Waves primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLineWavesPrimaryColor: nextColor })}
+                  label="MassageLab Line Waves primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8934,28 +8864,26 @@ export function RunningTimer({
           </label>
 
           {massageLabRadarPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Radar color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabRadarColor}
-                onChange={(event) => handleSettingsChange({ massageLabRadarColor: event.target.value })}
-                aria-label="MassageLab Radar color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabRadarColor: nextColor })}
+                label="MassageLab Radar color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabRadarPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabRadarPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabRadarPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Radar primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabRadarPrimaryColor: nextColor })}
+                  label="MassageLab Radar primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8975,15 +8903,14 @@ export function RunningTimer({
             </>
           ) : null}
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabRadarBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLabRadarBackgroundColor: event.target.value })}
-              aria-label="MassageLab Radar background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabRadarBackgroundColor: nextColor })}
+              label="MassageLab Radar background color"
             />
-          </label>
+          </div>
 
           <label className={styles.selectRow}>
             <input
@@ -9174,38 +9101,35 @@ export function RunningTimer({
 
           {massageLabSoftAuroraPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Aurora color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSoftAuroraColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabSoftAuroraColorOne: event.target.value })}
-                  aria-label="MassageLab Soft Aurora color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSoftAuroraColorOne: nextColor })}
+                  label="MassageLab Soft Aurora color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Aurora color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSoftAuroraColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabSoftAuroraColorTwo: event.target.value })}
-                  aria-label="MassageLab Soft Aurora color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSoftAuroraColorTwo: nextColor })}
+                  label="MassageLab Soft Aurora color 2"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabSoftAuroraPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSoftAuroraPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabSoftAuroraPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Soft Aurora primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSoftAuroraPrimaryColor: nextColor })}
+                  label="MassageLab Soft Aurora primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -9406,28 +9330,26 @@ export function RunningTimer({
           </label>
 
           {massageLabPlasmaPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Plasma color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabPlasmaColor}
-                onChange={(event) => handleSettingsChange({ massageLabPlasmaColor: event.target.value })}
-                aria-label="MassageLab Plasma color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabPlasmaColor: nextColor })}
+                label="MassageLab Plasma color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabPlasmaPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPlasmaPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabPlasmaPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Plasma primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPlasmaPrimaryColor: nextColor })}
+                  label="MassageLab Plasma primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -9532,38 +9454,35 @@ export function RunningTimer({
 
           {massageLabPlasmaWavePaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Wave color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPlasmaWaveColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveColorOne: event.target.value })}
-                  aria-label="MassageLab Plasma Wave color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPlasmaWaveColorOne: nextColor })}
+                  label="MassageLab Plasma Wave color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Wave color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPlasmaWaveColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabPlasmaWaveColorTwo: event.target.value })}
-                  aria-label="MassageLab Plasma Wave color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPlasmaWaveColorTwo: nextColor })}
+                  label="MassageLab Plasma Wave color 2"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabPlasmaWavePaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPlasmaWavePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabPlasmaWavePrimaryColor: event.target.value })}
-                  aria-label="MassageLab Plasma Wave primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPlasmaWavePrimaryColor: nextColor })}
+                  label="MassageLab Plasma Wave primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -9722,47 +9641,43 @@ export function RunningTimer({
 
           {massageLabParticlesPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Particle color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabParticlesColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabParticlesColorOne: event.target.value })}
-                  aria-label="MassageLab Particles color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabParticlesColorOne: nextColor })}
+                  label="MassageLab Particles color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Particle color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabParticlesColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabParticlesColorTwo: event.target.value })}
-                  aria-label="MassageLab Particles color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabParticlesColorTwo: nextColor })}
+                  label="MassageLab Particles color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Particle color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabParticlesColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabParticlesColorThree: event.target.value })}
-                  aria-label="MassageLab Particles color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabParticlesColorThree: nextColor })}
+                  label="MassageLab Particles color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabParticlesPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabParticlesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabParticlesPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Particles primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabParticlesPrimaryColor: nextColor })}
+                  label="MassageLab Particles primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -9934,38 +9849,35 @@ export function RunningTimer({
 
           {massageLabGradientBlindsPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Gradient color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGradientBlindsColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabGradientBlindsColorOne: event.target.value })}
-                  aria-label="MassageLab Gradient Blinds color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGradientBlindsColorOne: nextColor })}
+                  label="MassageLab Gradient Blinds color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Gradient color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGradientBlindsColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabGradientBlindsColorTwo: event.target.value })}
-                  aria-label="MassageLab Gradient Blinds color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGradientBlindsColorTwo: nextColor })}
+                  label="MassageLab Gradient Blinds color 2"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabGradientBlindsPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGradientBlindsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGradientBlindsPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Gradient Blinds primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGradientBlindsPrimaryColor: nextColor })}
+                  label="MassageLab Gradient Blinds primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10198,47 +10110,43 @@ export function RunningTimer({
 
           {massageLabGrainientPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGrainientColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabGrainientColorOne: event.target.value })}
-                  aria-label="MassageLab Grainient color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGrainientColorOne: nextColor })}
+                  label="MassageLab Grainient color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGrainientColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabGrainientColorTwo: event.target.value })}
-                  aria-label="MassageLab Grainient color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGrainientColorTwo: nextColor })}
+                  label="MassageLab Grainient color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGrainientColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabGrainientColorThree: event.target.value })}
-                  aria-label="MassageLab Grainient color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGrainientColorThree: nextColor })}
+                  label="MassageLab Grainient color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabGrainientPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGrainientPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGrainientPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Grainient primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGrainientPrimaryColor: nextColor })}
+                  label="MassageLab Grainient primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10522,38 +10430,35 @@ export function RunningTimer({
 
           {massageLabGridScanPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Grid lines</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridScanLinesColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridScanLinesColor: event.target.value })}
-                  aria-label="MassageLab Grid Scan line color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridScanLinesColor: nextColor })}
+                  label="MassageLab Grid Scan line color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Scan color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridScanScanColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridScanScanColor: event.target.value })}
-                  aria-label="MassageLab Grid Scan scan color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridScanScanColor: nextColor })}
+                  label="MassageLab Grid Scan scan color"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabGridScanPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridScanPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridScanPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Grid Scan primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridScanPrimaryColor: nextColor })}
+                  label="MassageLab Grid Scan primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10799,28 +10704,26 @@ export function RunningTimer({
           </label>
 
           {massageLabBeamsPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Light color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabBeamsLightColor}
-                onChange={(event) => handleSettingsChange({ massageLabBeamsLightColor: event.target.value })}
-                aria-label="MassageLab Beams light color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabBeamsLightColor: nextColor })}
+                label="MassageLab Beams light color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabBeamsPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabBeamsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabBeamsPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Beams primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabBeamsPrimaryColor: nextColor })}
+                  label="MassageLab Beams primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10951,28 +10854,26 @@ export function RunningTimer({
           </label>
 
           {massageLabPixelSnowPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Snow color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabPixelSnowColor}
-                onChange={(event) => handleSettingsChange({ massageLabPixelSnowColor: event.target.value })}
-                aria-label="MassageLab Pixel Snow color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabPixelSnowColor: nextColor })}
+                label="MassageLab Pixel Snow color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabPixelSnowPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPixelSnowPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabPixelSnowPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Pixel Snow primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPixelSnowPrimaryColor: nextColor })}
+                  label="MassageLab Pixel Snow primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11172,28 +11073,26 @@ export function RunningTimer({
           ) : null}
 
           {massageLabLightningPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Lightning color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabLightningColor}
-                onChange={(event) => handleSettingsChange({ massageLabLightningColor: event.target.value })}
-                aria-label="MassageLab Lightning color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabLightningColor: nextColor })}
+                label="MassageLab Lightning color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabLightningPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLightningPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLightningPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Lightning primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLightningPrimaryColor: nextColor })}
+                  label="MassageLab Lightning primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11286,60 +11185,55 @@ export function RunningTimer({
 
           {massageLabPrismaticBurstPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPrismaticBurstColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstColorOne: event.target.value })}
-                  aria-label="MassageLab Prismatic Burst color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPrismaticBurstColorOne: nextColor })}
+                  label="MassageLab Prismatic Burst color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPrismaticBurstColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstColorTwo: event.target.value })}
-                  aria-label="MassageLab Prismatic Burst color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPrismaticBurstColorTwo: nextColor })}
+                  label="MassageLab Prismatic Burst color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPrismaticBurstColorThree}
-                  onChange={(event) => handleSettingsChange({
-                    massageLabPrismaticBurstColorThree: event.target.value,
+                  onValueChange={(nextColor) => handleSettingsChange({
+                    massageLabPrismaticBurstColorThree: nextColor,
                   })}
-                  aria-label="MassageLab Prismatic Burst color 3"
+                  label="MassageLab Prismatic Burst color 3"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 4</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPrismaticBurstColorFour}
-                  onChange={(event) => handleSettingsChange({ massageLabPrismaticBurstColorFour: event.target.value })}
-                  aria-label="MassageLab Prismatic Burst color 4"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPrismaticBurstColorFour: nextColor })}
+                  label="MassageLab Prismatic Burst color 4"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabPrismaticBurstPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPrismaticBurstPrimaryColor}
-                  onChange={(event) => handleSettingsChange({
-                    massageLabPrismaticBurstPrimaryColor: event.target.value,
+                  onValueChange={(nextColor) => handleSettingsChange({
+                    massageLabPrismaticBurstPrimaryColor: nextColor,
                   })}
-                  aria-label="MassageLab Prismatic Burst primary color"
+                  label="MassageLab Prismatic Burst primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11521,28 +11415,26 @@ export function RunningTimer({
           ) : null}
 
           {massageLabGalaxyPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Galaxy color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabGalaxyColor}
-                onChange={(event) => handleSettingsChange({ massageLabGalaxyColor: event.target.value })}
-                aria-label="MassageLab Galaxy color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabGalaxyColor: nextColor })}
+                label="MassageLab Galaxy color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabGalaxyPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGalaxyPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGalaxyPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Galaxy primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGalaxyPrimaryColor: nextColor })}
+                  label="MassageLab Galaxy primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11770,28 +11662,26 @@ export function RunningTimer({
           </label>
 
           {massageLabDitherPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Dither color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabDitherColor}
-                onChange={(event) => handleSettingsChange({ massageLabDitherColor: event.target.value })}
-                aria-label="MassageLab Dither color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabDitherColor: nextColor })}
+                label="MassageLab Dither color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabDitherPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDitherPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabDitherPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Dither primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDitherPrimaryColor: nextColor })}
+                  label="MassageLab Dither primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11920,28 +11810,26 @@ export function RunningTimer({
           </label>
 
           {massageLabFaultyTerminalPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Terminal tint</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabFaultyTerminalTint}
-                onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalTint: event.target.value })}
-                aria-label="MassageLab Faulty Terminal tint"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabFaultyTerminalTint: nextColor })}
+                label="MassageLab Faulty Terminal tint"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabFaultyTerminalPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabFaultyTerminalPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabFaultyTerminalPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Faulty Terminal primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabFaultyTerminalPrimaryColor: nextColor })}
+                  label="MassageLab Faulty Terminal primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12197,28 +12085,26 @@ export function RunningTimer({
           </label>
 
           {massageLabRippleGridPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Grid color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabRippleGridColor}
-                onChange={(event) => handleSettingsChange({ massageLabRippleGridColor: event.target.value })}
-                aria-label="MassageLab Ripple Grid color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabRippleGridColor: nextColor })}
+                label="MassageLab Ripple Grid color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabRippleGridPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabRippleGridPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabRippleGridPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Ripple Grid primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabRippleGridPrimaryColor: nextColor })}
+                  label="MassageLab Ripple Grid primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12393,47 +12279,43 @@ export function RunningTimer({
 
           {massageLabDotFieldPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Gradient start</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDotFieldGradientFromColor}
-                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGradientFromColor: event.target.value })}
-                  aria-label="MassageLab Dot Field gradient start color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDotFieldGradientFromColor: nextColor })}
+                  label="MassageLab Dot Field gradient start color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Gradient end</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDotFieldGradientToColor}
-                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGradientToColor: event.target.value })}
-                  aria-label="MassageLab Dot Field gradient end color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDotFieldGradientToColor: nextColor })}
+                  label="MassageLab Dot Field gradient end color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Glow color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDotFieldGlowColor}
-                  onChange={(event) => handleSettingsChange({ massageLabDotFieldGlowColor: event.target.value })}
-                  aria-label="MassageLab Dot Field glow color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDotFieldGlowColor: nextColor })}
+                  label="MassageLab Dot Field glow color"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabDotFieldPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabDotFieldPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabDotFieldPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Dot Field primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabDotFieldPrimaryColor: nextColor })}
+                  label="MassageLab Dot Field primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12628,23 +12510,23 @@ export function RunningTimer({
 
           {massageLabDotGridPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Base color</span>
-                <input type="color" value={massageLabDotGridBaseColor} onChange={(event) => handleSettingsChange({ massageLabDotGridBaseColor: event.target.value })} aria-label="MassageLab Dot Grid base color" />
-              </label>
-              <label className={styles.colorRow}>
+                <ColorPickerInput value={massageLabDotGridBaseColor} onValueChange={(nextColor) => handleSettingsChange({ massageLabDotGridBaseColor: nextColor })} label="MassageLab Dot Grid base color" />
+              </div>
+              <div className={styles.colorRow}>
                 <span>Active color</span>
-                <input type="color" value={massageLabDotGridActiveColor} onChange={(event) => handleSettingsChange({ massageLabDotGridActiveColor: event.target.value })} aria-label="MassageLab Dot Grid active color" />
-              </label>
+                <ColorPickerInput value={massageLabDotGridActiveColor} onValueChange={(nextColor) => handleSettingsChange({ massageLabDotGridActiveColor: nextColor })} label="MassageLab Dot Grid active color" />
+              </div>
             </>
           ) : null}
 
           {massageLabDotGridPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input type="color" value={massageLabDotGridPrimaryColor} onChange={(event) => handleSettingsChange({ massageLabDotGridPrimaryColor: event.target.value })} aria-label="MassageLab Dot Grid primary color" />
-              </label>
+                <ColorPickerInput value={massageLabDotGridPrimaryColor} onValueChange={(nextColor) => handleSettingsChange({ massageLabDotGridPrimaryColor: nextColor })} label="MassageLab Dot Grid primary color" />
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select value={massageLabDotGridHarmony} onChange={(event) => handleSettingsChange({ massageLabDotGridHarmony: event.target.value as ColorHarmony })} aria-label="MassageLab Dot Grid color harmony">
@@ -12696,28 +12578,26 @@ export function RunningTimer({
           </label>
 
           {massageLabThreadsPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Thread color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabThreadsColor}
-                onChange={(event) => handleSettingsChange({ massageLabThreadsColor: event.target.value })}
-                aria-label="MassageLab Threads color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabThreadsColor: nextColor })}
+                label="MassageLab Threads color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabThreadsPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabThreadsPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabThreadsPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Threads primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabThreadsPrimaryColor: nextColor })}
+                  label="MassageLab Threads primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12794,28 +12674,26 @@ export function RunningTimer({
           </label>
 
           {massageLabIridescencePaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Tint color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabIridescenceColor}
-                onChange={(event) => handleSettingsChange({ massageLabIridescenceColor: event.target.value })}
-                aria-label="MassageLab Iridescence tint color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabIridescenceColor: nextColor })}
+                label="MassageLab Iridescence tint color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabIridescencePaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabIridescencePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabIridescencePrimaryColor: event.target.value })}
-                  aria-label="MassageLab Iridescence primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabIridescencePrimaryColor: nextColor })}
+                  label="MassageLab Iridescence primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12893,28 +12771,26 @@ export function RunningTimer({
           </label>
 
           {massageLabWavesPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Line color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabWavesLineColor}
-                onChange={(event) => handleSettingsChange({ massageLabWavesLineColor: event.target.value })}
-                aria-label="MassageLab Waves line color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabWavesLineColor: nextColor })}
+                label="MassageLab Waves line color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabWavesPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabWavesPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabWavesPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Waves primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabWavesPrimaryColor: nextColor })}
+                  label="MassageLab Waves primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12947,15 +12823,14 @@ export function RunningTimer({
           </label>
 
           {!massageLabWavesTransparentBackground ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Background color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabWavesBackgroundColor}
-                onChange={(event) => handleSettingsChange({ massageLabWavesBackgroundColor: event.target.value })}
-                aria-label="MassageLab Waves background color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabWavesBackgroundColor: nextColor })}
+                label="MassageLab Waves background color"
               />
-            </label>
+            </div>
           ) : null}
 
           <label className={styles.switchRow}>
@@ -13108,47 +12983,43 @@ export function RunningTimer({
 
           {massageLabGridDistortionPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Texture color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridDistortionColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionColorOne: event.target.value })}
-                  aria-label="MassageLab Grid Distortion texture color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridDistortionColorOne: nextColor })}
+                  label="MassageLab Grid Distortion texture color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Texture color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridDistortionColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionColorTwo: event.target.value })}
-                  aria-label="MassageLab Grid Distortion texture color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridDistortionColorTwo: nextColor })}
+                  label="MassageLab Grid Distortion texture color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Texture color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridDistortionColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionColorThree: event.target.value })}
-                  aria-label="MassageLab Grid Distortion texture color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridDistortionColorThree: nextColor })}
+                  label="MassageLab Grid Distortion texture color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabGridDistortionPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridDistortionPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridDistortionPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Grid Distortion primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridDistortionPrimaryColor: nextColor })}
+                  label="MassageLab Grid Distortion primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13267,28 +13138,26 @@ export function RunningTimer({
           ) : null}
 
           {massageLabOrbPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Orb color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabOrbColor}
-                onChange={(event) => handleSettingsChange({ massageLabOrbColor: event.target.value })}
-                aria-label="MassageLab Orb color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabOrbColor: nextColor })}
+                label="MassageLab Orb color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabOrbPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabOrbPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabOrbPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Orb primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabOrbPrimaryColor: nextColor })}
+                  label="MassageLab Orb primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13306,15 +13175,14 @@ export function RunningTimer({
             </>
           ) : null}
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={massageLabOrbBackgroundColor}
-              onChange={(event) => handleSettingsChange({ massageLabOrbBackgroundColor: event.target.value })}
-              aria-label="MassageLab Orb background color"
+              onValueChange={(nextColor) => handleSettingsChange({ massageLabOrbBackgroundColor: nextColor })}
+              label="MassageLab Orb background color"
             />
-          </label>
+          </div>
 
           <label className={styles.switchRow}>
             <span>Cursor interaction</span>
@@ -13380,47 +13248,43 @@ export function RunningTimer({
 
           {massageLabLetterGlitchPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLetterGlitchColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchColorOne: event.target.value })}
-                  aria-label="MassageLab Letter Glitch color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLetterGlitchColorOne: nextColor })}
+                  label="MassageLab Letter Glitch color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLetterGlitchColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchColorTwo: event.target.value })}
-                  aria-label="MassageLab Letter Glitch color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLetterGlitchColorTwo: nextColor })}
+                  label="MassageLab Letter Glitch color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLetterGlitchColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchColorThree: event.target.value })}
-                  aria-label="MassageLab Letter Glitch color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLetterGlitchColorThree: nextColor })}
+                  label="MassageLab Letter Glitch color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabLetterGlitchPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLetterGlitchPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLetterGlitchPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Letter Glitch primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLetterGlitchPrimaryColor: nextColor })}
+                  label="MassageLab Letter Glitch primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13504,47 +13368,43 @@ export function RunningTimer({
 
           {massageLabGridMotionPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Gradient</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridMotionGradientColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridMotionGradientColor: event.target.value })}
-                  aria-label="MassageLab Grid Motion gradient color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridMotionGradientColor: nextColor })}
+                  label="MassageLab Grid Motion gradient color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Tile</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridMotionTileColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridMotionTileColor: event.target.value })}
-                  aria-label="MassageLab Grid Motion tile color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridMotionTileColor: nextColor })}
+                  label="MassageLab Grid Motion tile color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Text</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridMotionTextColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridMotionTextColor: event.target.value })}
-                  aria-label="MassageLab Grid Motion text color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridMotionTextColor: nextColor })}
+                  label="MassageLab Grid Motion text color"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabGridMotionPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabGridMotionPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabGridMotionPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Grid Motion primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabGridMotionPrimaryColor: nextColor })}
+                  label="MassageLab Grid Motion primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13621,38 +13481,35 @@ export function RunningTimer({
 
           {massageLabShapeGridPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Border</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabShapeGridBorderColor}
-                  onChange={(event) => handleSettingsChange({ massageLabShapeGridBorderColor: event.target.value })}
-                  aria-label="MassageLab Shape Grid border color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabShapeGridBorderColor: nextColor })}
+                  label="MassageLab Shape Grid border color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Hover fill</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabShapeGridHoverFillColor}
-                  onChange={(event) => handleSettingsChange({ massageLabShapeGridHoverFillColor: event.target.value })}
-                  aria-label="MassageLab Shape Grid hover fill color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabShapeGridHoverFillColor: nextColor })}
+                  label="MassageLab Shape Grid hover fill color"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabShapeGridPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabShapeGridPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabShapeGridPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Shape Grid primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabShapeGridPrimaryColor: nextColor })}
+                  label="MassageLab Shape Grid primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13774,28 +13631,26 @@ export function RunningTimer({
           </label>
 
           {massageLabLiquidChromePaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Base color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabLiquidChromeBaseColor}
-                onChange={(event) => handleSettingsChange({ massageLabLiquidChromeBaseColor: event.target.value })}
-                aria-label="MassageLab Liquid Chrome base color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabLiquidChromeBaseColor: nextColor })}
+                label="MassageLab Liquid Chrome base color"
               />
-            </label>
+            </div>
           ) : null}
 
           {massageLabLiquidChromePaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabLiquidChromePrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabLiquidChromePrimaryColor: event.target.value })}
-                  aria-label="MassageLab Liquid Chrome primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabLiquidChromePrimaryColor: nextColor })}
+                  label="MassageLab Liquid Chrome primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13898,47 +13753,43 @@ export function RunningTimer({
 
           {massageLabBalatroPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabBalatroColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabBalatroColorOne: event.target.value })}
-                  aria-label="MassageLab Balatro color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabBalatroColorOne: nextColor })}
+                  label="MassageLab Balatro color 1"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabBalatroColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabBalatroColorTwo: event.target.value })}
-                  aria-label="MassageLab Balatro color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabBalatroColorTwo: nextColor })}
+                  label="MassageLab Balatro color 2"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabBalatroColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabBalatroColorThree: event.target.value })}
-                  aria-label="MassageLab Balatro color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabBalatroColorThree: nextColor })}
+                  label="MassageLab Balatro color 3"
                 />
-              </label>
+              </div>
             </>
           ) : null}
 
           {massageLabBalatroPaletteMode === "harmony" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabBalatroPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabBalatroPrimaryColor: event.target.value })}
-                  aria-label="MassageLab Balatro primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabBalatroPrimaryColor: nextColor })}
+                  label="MassageLab Balatro primary color"
                 />
-              </label>
+              </div>
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14087,33 +13938,30 @@ export function RunningTimer({
 
           {massageLabPhotonBeamPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Background</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPhotonBeamColorBg}
-                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorBg: event.target.value })}
-                  aria-label="Photon Beam background color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPhotonBeamColorBg: nextColor })}
+                  label="Photon Beam background color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Beam lines</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPhotonBeamColorLine}
-                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorLine: event.target.value })}
-                  aria-label="Photon Beam line color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPhotonBeamColorLine: nextColor })}
+                  label="Photon Beam line color"
                 />
-              </label>
-              <label className={styles.colorRow}>
+              </div>
+              <div className={styles.colorRow}>
                 <span>Signal 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPhotonBeamColorSignal}
-                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorSignal: event.target.value })}
-                  aria-label="Photon Beam signal color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPhotonBeamColorSignal: nextColor })}
+                  label="Photon Beam signal color"
                 />
-              </label>
+              </div>
               <label className={styles.switchRow}>
                 <span>Signal 2</span>
                 <input
@@ -14124,15 +13972,14 @@ export function RunningTimer({
                 />
               </label>
               {massageLabPhotonBeamUseColor2 && (
-                <label className={styles.colorRow}>
+                <div className={styles.colorRow}>
                   <span>Signal 2 color</span>
-                  <input
-                    type="color"
+                  <ColorPickerInput
                     value={massageLabPhotonBeamColorSignal2}
-                    onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorSignal2: event.target.value })}
-                    aria-label="Photon Beam second signal color"
+                    onValueChange={(nextColor) => handleSettingsChange({ massageLabPhotonBeamColorSignal2: nextColor })}
+                    label="Photon Beam second signal color"
                   />
-                </label>
+                </div>
               )}
               <label className={styles.switchRow}>
                 <span>Signal 3</span>
@@ -14144,28 +13991,26 @@ export function RunningTimer({
                 />
               </label>
               {massageLabPhotonBeamUseColor3 && (
-                <label className={styles.colorRow}>
+                <div className={styles.colorRow}>
                   <span>Signal 3 color</span>
-                  <input
-                    type="color"
+                  <ColorPickerInput
                     value={massageLabPhotonBeamColorSignal3}
-                    onChange={(event) => handleSettingsChange({ massageLabPhotonBeamColorSignal3: event.target.value })}
-                    aria-label="Photon Beam third signal color"
+                    onValueChange={(nextColor) => handleSettingsChange({ massageLabPhotonBeamColorSignal3: nextColor })}
+                    label="Photon Beam third signal color"
                   />
-                </label>
+                </div>
               )}
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabPhotonBeamPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabPhotonBeamPrimaryColor: event.target.value })}
-                  aria-label="Photon Beam primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabPhotonBeamPrimaryColor: nextColor })}
+                  label="Photon Beam primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -14389,26 +14234,24 @@ export function RunningTimer({
           </label>
 
           {massageLabMatrixRainPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Character color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabMatrixRainColor}
-                onChange={(event) => handleSettingsChange({ massageLabMatrixRainColor: event.target.value })}
-                aria-label="Matrix Rain character color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabMatrixRainColor: nextColor })}
+                label="Matrix Rain character color"
               />
-            </label>
+            </div>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabMatrixRainPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabMatrixRainPrimaryColor: event.target.value })}
-                  aria-label="Matrix Rain primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabMatrixRainPrimaryColor: nextColor })}
+                  label="Matrix Rain primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -14476,26 +14319,24 @@ export function RunningTimer({
           </label>
 
           {massageLabNovatrixPaletteMode === "custom" ? (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Animation color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={massageLabNovatrixColor}
-                onChange={(event) => handleSettingsChange({ massageLabNovatrixColor: event.target.value })}
-                aria-label="Novatrix animation color"
+                onValueChange={(nextColor) => handleSettingsChange({ massageLabNovatrixColor: nextColor })}
+                label="Novatrix animation color"
               />
-            </label>
+            </div>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabNovatrixPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabNovatrixPrimaryColor: event.target.value })}
-                  aria-label="Novatrix primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabNovatrixPrimaryColor: nextColor })}
+                  label="Novatrix primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -14566,47 +14407,43 @@ export function RunningTimer({
 
           {massageLabSynthesisPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSynthesisColorOne}
-                  onChange={(event) => handleSettingsChange({ massageLabSynthesisColorOne: event.target.value })}
-                  aria-label="Synthesis color 1"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSynthesisColorOne: nextColor })}
+                  label="Synthesis color 1"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSynthesisColorTwo}
-                  onChange={(event) => handleSettingsChange({ massageLabSynthesisColorTwo: event.target.value })}
-                  aria-label="Synthesis color 2"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSynthesisColorTwo: nextColor })}
+                  label="Synthesis color 2"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSynthesisColorThree}
-                  onChange={(event) => handleSettingsChange({ massageLabSynthesisColorThree: event.target.value })}
-                  aria-label="Synthesis color 3"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSynthesisColorThree: nextColor })}
+                  label="Synthesis color 3"
                 />
-              </label>
+              </div>
             </>
           ) : (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Primary color</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={massageLabSynthesisPrimaryColor}
-                  onChange={(event) => handleSettingsChange({ massageLabSynthesisPrimaryColor: event.target.value })}
-                  aria-label="Synthesis primary color"
+                  onValueChange={(nextColor) => handleSettingsChange({ massageLabSynthesisPrimaryColor: nextColor })}
+                  label="Synthesis primary color"
                 />
-              </label>
+              </div>
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -14726,35 +14563,32 @@ export function RunningTimer({
 
       {option.id === "massage-lab-shooting-stars" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Stars</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={shootingStarsStarColor}
-              onChange={(event) => handleSettingsChange({ shootingStarsStarColor: event.target.value })}
-              aria-label="Shooting stars background star color"
+              onValueChange={(nextColor) => handleSettingsChange({ shootingStarsStarColor: nextColor })}
+              label="Shooting stars background star color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Trail</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={shootingStarsTrailColor}
-              onChange={(event) => handleSettingsChange({ shootingStarsTrailColor: event.target.value })}
-              aria-label="Shooting stars trail color"
+              onValueChange={(nextColor) => handleSettingsChange({ shootingStarsTrailColor: nextColor })}
+              label="Shooting stars trail color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Shooting star</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={shootingStarsShootingStarColor}
-              onChange={(event) => handleSettingsChange({ shootingStarsShootingStarColor: event.target.value })}
-              aria-label="Shooting star color"
+              onValueChange={(nextColor) => handleSettingsChange({ shootingStarsShootingStarColor: nextColor })}
+              label="Shooting star color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Star density</span>
@@ -14821,35 +14655,32 @@ export function RunningTimer({
 
       {option.id === "massage-lab-reveal-dots" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={canvasRevealDotsBackgroundColor}
-              onChange={(event) => handleSettingsChange({ canvasRevealDotsBackgroundColor: event.target.value })}
-              aria-label="Reveal dots background color"
+              onValueChange={(nextColor) => handleSettingsChange({ canvasRevealDotsBackgroundColor: nextColor })}
+              label="Reveal dots background color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Dot color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={canvasRevealDotsDotColor}
-              onChange={(event) => handleSettingsChange({ canvasRevealDotsDotColor: event.target.value })}
-              aria-label="Reveal dots dot color"
+              onValueChange={(nextColor) => handleSettingsChange({ canvasRevealDotsDotColor: nextColor })}
+              label="Reveal dots dot color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Accent</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={canvasRevealDotsAccentColor}
-              onChange={(event) => handleSettingsChange({ canvasRevealDotsAccentColor: event.target.value })}
-              aria-label="Reveal dots accent color"
+              onValueChange={(nextColor) => handleSettingsChange({ canvasRevealDotsAccentColor: nextColor })}
+              label="Reveal dots accent color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Dot size</span>
@@ -14916,15 +14747,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-spotlight" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Spotlight color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={spotlightColor}
-              onChange={(event) => handleSettingsChange({ spotlightColor: event.target.value })}
-              aria-label="Spotlight color"
+              onValueChange={(nextColor) => handleSettingsChange({ spotlightColor: nextColor })}
+              label="Spotlight color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Intensity</span>
@@ -15021,25 +14851,23 @@ export function RunningTimer({
 
       {option.id === "massage-lab-lamp-effect" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={lampBackgroundColor}
-              onChange={(event) => handleSettingsChange({ lampBackgroundColor: event.target.value })}
-              aria-label="Lamp background color"
+              onValueChange={(nextColor) => handleSettingsChange({ lampBackgroundColor: nextColor })}
+              label="Lamp background color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Beam color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={lampColor}
-              onChange={(event) => handleSettingsChange({ lampColor: event.target.value })}
-              aria-label="Lamp beam color"
+              onValueChange={(nextColor) => handleSettingsChange({ lampColor: nextColor })}
+              label="Lamp beam color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Glow intensity</span>
@@ -15110,15 +14938,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-vortex" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={vortexBackgroundColor}
-              onChange={(event) => handleSettingsChange({ vortexBackgroundColor: event.target.value })}
-              aria-label="Vortex field color"
+              onValueChange={(nextColor) => handleSettingsChange({ vortexBackgroundColor: nextColor })}
+              label="Vortex field color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Hue</span>
@@ -15215,65 +15042,59 @@ export function RunningTimer({
 
       {option.id === "massage-lab-wavy-background" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={wavyBackgroundFill}
-              onChange={(event) => handleSettingsChange({ wavyBackgroundFill: event.target.value })}
-              aria-label="Wave flow fill color"
+              onValueChange={(nextColor) => handleSettingsChange({ wavyBackgroundFill: nextColor })}
+              label="Wave flow fill color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Wave 1</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={wavyColorOne}
-              onChange={(event) => handleSettingsChange({ wavyColorOne: event.target.value })}
-              aria-label="Wavy first wave color"
+              onValueChange={(nextColor) => handleSettingsChange({ wavyColorOne: nextColor })}
+              label="Wavy first wave color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Wave 2</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={wavyColorTwo}
-              onChange={(event) => handleSettingsChange({ wavyColorTwo: event.target.value })}
-              aria-label="Wavy second wave color"
+              onValueChange={(nextColor) => handleSettingsChange({ wavyColorTwo: nextColor })}
+              label="Wavy second wave color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Wave 3</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={wavyColorThree}
-              onChange={(event) => handleSettingsChange({ wavyColorThree: event.target.value })}
-              aria-label="Wavy third wave color"
+              onValueChange={(nextColor) => handleSettingsChange({ wavyColorThree: nextColor })}
+              label="Wavy third wave color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Wave 4</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={wavyColorFour}
-              onChange={(event) => handleSettingsChange({ wavyColorFour: event.target.value })}
-              aria-label="Wavy fourth wave color"
+              onValueChange={(nextColor) => handleSettingsChange({ wavyColorFour: nextColor })}
+              label="Wavy fourth wave color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Wave 5</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={wavyColorFive}
-              onChange={(event) => handleSettingsChange({ wavyColorFive: event.target.value })}
-              aria-label="Wavy fifth wave color"
+              onValueChange={(nextColor) => handleSettingsChange({ wavyColorFive: nextColor })}
+              label="Wavy fifth wave color"
             />
-          </label>
+          </div>
 
           <label className={styles.rangeRow}>
             <span>Wave width</span>
@@ -15330,15 +15151,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-aurora-bars" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={auroraBarsBackgroundColor}
-              onChange={(event) => handleSettingsChange({ auroraBarsBackgroundColor: event.target.value })}
-              aria-label="Aurora bars background color"
+              onValueChange={(nextColor) => handleSettingsChange({ auroraBarsBackgroundColor: nextColor })}
+              label="Aurora bars background color"
             />
-          </label>
+          </div>
 
           <label className={styles.selectRow}>
             <span>Palette</span>
@@ -15356,66 +15176,60 @@ export function RunningTimer({
 
           {auroraBarsPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Bar color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={auroraBarsColorOne}
-                  onChange={(event) => handleSettingsChange({ auroraBarsColorOne: event.target.value })}
-                  aria-label="Aurora bars first color"
+                  onValueChange={(nextColor) => handleSettingsChange({ auroraBarsColorOne: nextColor })}
+                  label="Aurora bars first color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Bar color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={auroraBarsColorTwo}
-                  onChange={(event) => handleSettingsChange({ auroraBarsColorTwo: event.target.value })}
-                  aria-label="Aurora bars second color"
+                  onValueChange={(nextColor) => handleSettingsChange({ auroraBarsColorTwo: nextColor })}
+                  label="Aurora bars second color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Bar color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={auroraBarsColorThree}
-                  onChange={(event) => handleSettingsChange({ auroraBarsColorThree: event.target.value })}
-                  aria-label="Aurora bars third color"
+                  onValueChange={(nextColor) => handleSettingsChange({ auroraBarsColorThree: nextColor })}
+                  label="Aurora bars third color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Bar color 4</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={auroraBarsColorFour}
-                  onChange={(event) => handleSettingsChange({ auroraBarsColorFour: event.target.value })}
-                  aria-label="Aurora bars fourth color"
+                  onValueChange={(nextColor) => handleSettingsChange({ auroraBarsColorFour: nextColor })}
+                  label="Aurora bars fourth color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Bar color 5</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={auroraBarsColorFive}
-                  onChange={(event) => handleSettingsChange({ auroraBarsColorFive: event.target.value })}
-                  aria-label="Aurora bars fifth color"
+                  onValueChange={(nextColor) => handleSettingsChange({ auroraBarsColorFive: nextColor })}
+                  label="Aurora bars fifth color"
                 />
-              </label>
+              </div>
             </>
           ) : (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Primary color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={auroraBarsPrimaryColor}
-                onChange={(event) => handleSettingsChange({ auroraBarsPrimaryColor: event.target.value })}
-                aria-label="Aurora bars primary color"
+                onValueChange={(nextColor) => handleSettingsChange({ auroraBarsPrimaryColor: nextColor })}
+                label="Aurora bars primary color"
               />
-            </label>
+            </div>
           )}
 
           <label className={styles.rangeRow}>
@@ -15500,45 +15314,41 @@ export function RunningTimer({
 
       {option.id === "massage-lab-pixel-liquid" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Background color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={pixelLiquidBackgroundColor}
-              onChange={(event) => handleSettingsChange({ pixelLiquidBackgroundColor: event.target.value })}
-              aria-label="Pixel liquid background color"
+              onValueChange={(nextColor) => handleSettingsChange({ pixelLiquidBackgroundColor: nextColor })}
+              label="Pixel liquid background color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Base color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={pixelLiquidBaseColor}
-              onChange={(event) => handleSettingsChange({ pixelLiquidBaseColor: event.target.value })}
-              aria-label="Pixel liquid base color"
+              onValueChange={(nextColor) => handleSettingsChange({ pixelLiquidBaseColor: nextColor })}
+              label="Pixel liquid base color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Accent color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={pixelLiquidAccentColor}
-              onChange={(event) => handleSettingsChange({ pixelLiquidAccentColor: event.target.value })}
-              aria-label="Pixel liquid accent color"
+              onValueChange={(nextColor) => handleSettingsChange({ pixelLiquidAccentColor: nextColor })}
+              label="Pixel liquid accent color"
             />
-          </label>
+          </div>
 
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Highlight color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={pixelLiquidHighlightColor}
-              onChange={(event) => handleSettingsChange({ pixelLiquidHighlightColor: event.target.value })}
-              aria-label="Pixel liquid highlight color"
+              onValueChange={(nextColor) => handleSettingsChange({ pixelLiquidHighlightColor: nextColor })}
+              label="Pixel liquid highlight color"
             />
-          </label>
+          </div>
 
           <label className={styles.selectRow}>
             <span>Detail</span>
@@ -15601,66 +15411,60 @@ export function RunningTimer({
 
           {tileGridPaletteMode === "custom" ? (
             <>
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 1</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={tileGridColorOne}
-                  onChange={(event) => handleSettingsChange({ tileGridColorOne: event.target.value })}
-                  aria-label="Tile grid first color"
+                  onValueChange={(nextColor) => handleSettingsChange({ tileGridColorOne: nextColor })}
+                  label="Tile grid first color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 2</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={tileGridColorTwo}
-                  onChange={(event) => handleSettingsChange({ tileGridColorTwo: event.target.value })}
-                  aria-label="Tile grid second color"
+                  onValueChange={(nextColor) => handleSettingsChange({ tileGridColorTwo: nextColor })}
+                  label="Tile grid second color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 3</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={tileGridColorThree}
-                  onChange={(event) => handleSettingsChange({ tileGridColorThree: event.target.value })}
-                  aria-label="Tile grid third color"
+                  onValueChange={(nextColor) => handleSettingsChange({ tileGridColorThree: nextColor })}
+                  label="Tile grid third color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 4</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={tileGridColorFour}
-                  onChange={(event) => handleSettingsChange({ tileGridColorFour: event.target.value })}
-                  aria-label="Tile grid fourth color"
+                  onValueChange={(nextColor) => handleSettingsChange({ tileGridColorFour: nextColor })}
+                  label="Tile grid fourth color"
                 />
-              </label>
+              </div>
 
-              <label className={styles.colorRow}>
+              <div className={styles.colorRow}>
                 <span>Color 5</span>
-                <input
-                  type="color"
+                <ColorPickerInput
                   value={tileGridColorFive}
-                  onChange={(event) => handleSettingsChange({ tileGridColorFive: event.target.value })}
-                  aria-label="Tile grid fifth color"
+                  onValueChange={(nextColor) => handleSettingsChange({ tileGridColorFive: nextColor })}
+                  label="Tile grid fifth color"
                 />
-              </label>
+              </div>
             </>
           ) : (
-            <label className={styles.colorRow}>
+            <div className={styles.colorRow}>
               <span>Primary color</span>
-              <input
-                type="color"
+              <ColorPickerInput
                 value={tileGridPrimaryColor}
-                onChange={(event) => handleSettingsChange({ tileGridPrimaryColor: event.target.value })}
-                aria-label="Tile grid primary color"
+                onValueChange={(nextColor) => handleSettingsChange({ tileGridPrimaryColor: nextColor })}
+                label="Tile grid primary color"
               />
-            </label>
+            </div>
           )}
 
           <label className={styles.rangeRow}>
@@ -15727,15 +15531,14 @@ export function RunningTimer({
 
       {option.id === "massage-lab-hex-grid" && (
         <>
-          <label className={styles.colorRow}>
+          <div className={styles.colorRow}>
             <span>Primary color</span>
-            <input
-              type="color"
+            <ColorPickerInput
               value={hexGridPrimaryColor}
-              onChange={(event) => handleSettingsChange({ hexGridPrimaryColor: event.target.value })}
-              aria-label="Hex grid primary color"
+              onValueChange={(nextColor) => handleSettingsChange({ hexGridPrimaryColor: nextColor })}
+              label="Hex grid primary color"
             />
-          </label>
+          </div>
 
           <label className={styles.selectRow}>
             <span>Color harmony</span>
@@ -16941,10 +16744,10 @@ export function RunningTimer({
             onInput={handleSettingsPanelActivity}
           >
             <Tabs value={settingsTab} onValueChange={handleSettingsTabChange} className={styles.settingsTabs}>
-              <TabsList className={styles.settingsTabList}>
-                <TabsTrigger value="clock" className={styles.settingsTabTrigger}>Clock</TabsTrigger>
-                <TabsTrigger value="visual" className={styles.settingsTabTrigger}>Visual</TabsTrigger>
-                <TabsTrigger value="backgrounds" className={styles.settingsTabTrigger}>Backgrounds</TabsTrigger>
+              <TabsList data-active-tab={settingsTab} className={`${styles.settingsTabList} ml-chimer-tabs`}>
+                <TabsTrigger value="clock" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Clock</TabsTrigger>
+                <TabsTrigger value="visual" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Visual</TabsTrigger>
+                <TabsTrigger value="backgrounds" className={`${styles.settingsTabTrigger} ml-chimer-tab`}>Backgrounds</TabsTrigger>
               </TabsList>
 
               <TabsContent value="clock" className={styles.settingsTabContent}>
@@ -17016,10 +16819,14 @@ export function RunningTimer({
 
                     <div className={styles.clockCompactField}>
                       <span>Time format</span>
-                      <div className={styles.formatToggle} aria-label="Time format">
+                      <div
+                        className={`${styles.formatToggle} ml-time-format-choice`}
+                        aria-label="Time format"
+                        data-active-format={timeFormat}
+                      >
                         <button
                           type="button"
-                          className={`${styles.formatOption} ${styles.tactileButton} ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
+                          className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "12h" ? styles.formatOptionActive : ""}`}
                           aria-pressed={timeFormat === "12h"}
                           onClick={() => {
                             triggerHapticFeedback(hapticsEnabled)
@@ -17030,7 +16837,7 @@ export function RunningTimer({
                         </button>
                         <button
                           type="button"
-                          className={`${styles.formatOption} ${styles.tactileButton} ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
+                          className={`${styles.formatOption} ${styles.tactileButton} ml-time-format-option ${timeFormat === "24h" ? styles.formatOptionActive : ""}`}
                           aria-pressed={timeFormat === "24h"}
                           onClick={() => {
                             triggerHapticFeedback(hapticsEnabled)
@@ -17045,26 +16852,24 @@ export function RunningTimer({
 
                   {!isClockMode ? (
                     <div className={styles.clockControlGrid}>
-                      <label className={styles.colorRow} title={customColorDisabledHint}>
+                      <div className={styles.colorRow} title={customColorDisabledHint}>
                         <span>Timer color</span>
-                        <input
-                          type="color"
+                        <ColorPickerInput
                           value={primaryFontColor}
                           disabled={!canUseCustomColors}
-                          onChange={(event) => handleSettingsChange({ primaryFontColor: event.target.value })}
-                          aria-label="Timer color"
+                          onValueChange={(nextColor) => handleSettingsChange({ primaryFontColor: nextColor })}
+                          label="Timer color"
                         />
-                      </label>
-                      <label className={styles.colorRow} title={customColorDisabledHint}>
+                      </div>
+                      <div className={styles.colorRow} title={customColorDisabledHint}>
                         <span>Secondary color</span>
-                        <input
-                          type="color"
+                        <ColorPickerInput
                           value={secondaryFontColor}
                           disabled={!canUseCustomColors}
-                          onChange={(event) => handleSettingsChange({ secondaryFontColor: event.target.value })}
-                          aria-label="Secondary display color"
+                          onValueChange={(nextColor) => handleSettingsChange({ secondaryFontColor: nextColor })}
+                          label="Secondary display color"
                         />
-                      </label>
+                      </div>
                     </div>
                   ) : null}
 
@@ -17080,15 +16885,14 @@ export function RunningTimer({
                     {clockStrokeEnabled ? (
                       <div className={styles.controlGroupBody}>
                         <div className={styles.clockControlGrid}>
-                          <label className={styles.colorRow}>
+                          <div className={styles.colorRow}>
                             <span>Stroke color</span>
-                            <input
-                              type="color"
+                            <ColorPickerInput
                               value={clockStrokeColor}
-                              onChange={(event) => handleSettingsChange({ clockStrokeColor: event.target.value })}
-                              aria-label="Clock stroke color"
+                              onValueChange={(nextColor) => handleSettingsChange({ clockStrokeColor: nextColor })}
+                              label="Clock stroke color"
                             />
-                          </label>
+                          </div>
                           <StyledRangeControl
                             label="Stroke width"
                             value={clockStrokeWidth}
@@ -17117,16 +16921,15 @@ export function RunningTimer({
                     {clockShadowEnabled ? (
                       <div className={styles.controlGroupBody}>
                         <div className={styles.clockControlGrid}>
-                          <label className={styles.colorRow}>
+                          <div className={styles.colorRow}>
                             <span>Shadow color</span>
-                            <input
-                              type="color"
+                            <ColorPickerInput
                               value={clockShadowColor}
                               disabled={!canUseCustomColors}
-                              onChange={(event) => handleSettingsChange({ clockShadowColor: event.target.value })}
-                              aria-label="Clock shadow color"
+                              onValueChange={(nextColor) => handleSettingsChange({ clockShadowColor: nextColor })}
+                              label="Clock shadow color"
                             />
-                          </label>
+                          </div>
                           <StyledRangeControl
                             label="Shadow strength"
                             value={clockShadowStrength}
@@ -17189,16 +16992,15 @@ export function RunningTimer({
                     {clockGlowEnabled ? (
                       <div className={styles.controlGroupBody}>
                         <div className={styles.clockControlGrid}>
-                          <label className={styles.colorRow}>
+                          <div className={styles.colorRow}>
                             <span>Glow color</span>
-                            <input
-                              type="color"
+                            <ColorPickerInput
                               value={clockGlowColor}
                               disabled={!canUseCustomColors}
-                              onChange={(event) => handleSettingsChange({ clockGlowColor: event.target.value })}
-                              aria-label="Clock outer glow color"
+                              onValueChange={(nextColor) => handleSettingsChange({ clockGlowColor: nextColor })}
+                              label="Clock outer glow color"
                             />
-                          </label>
+                          </div>
                           <StyledRangeControl
                             label="Glow strength"
                             value={clockGlowStrength}

@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { createServiceAction, updateServiceAction } from "@/app/calendar/actions"
+import { ColorPickerFormInput } from "@/components/chimer-controls"
 import { appInsetClassName, appSurfaceClassName } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -96,7 +97,12 @@ export function ServiceForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="color">Calendar color</Label>
-            <Input id="color" name="color" type="color" defaultValue={service?.color ?? "#f97316"} />
+            <ColorPickerFormInput
+              id="color"
+              name="color"
+              label="Calendar color"
+              defaultValue={service?.color ?? "#f97316"}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="resourceNames">Required resources</Label>

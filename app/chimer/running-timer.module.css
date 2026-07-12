@@ -381,13 +381,27 @@
   height: 3.5rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid hsl(var(--foreground) / 0.2);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
+  background:
+    linear-gradient(145deg, hsl(var(--button-blue-start) / 0.22), hsl(var(--button-sunset-violet) / 0.1)),
+    hsl(var(--background) / 0.28);
+  color: hsl(215 100% 96%);
   cursor: pointer;
   padding: 0;
-  transition: background-color 150ms ease, transform 150ms ease;
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.18),
+    inset 0 -1px 0 hsl(var(--button-blue-depth) / 0.16),
+    0 0.85rem 1.8rem hsl(var(--button-blue-depth) / 0.16);
+  text-shadow: none;
+  transform: none;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 900ms ease, transform 150ms ease;
+  backdrop-filter: blur(16px) saturate(135%);
+}
+
+.control svg,
+.fontButton svg {
+  filter: drop-shadow(0 0 0.3rem hsl(var(--button-blue-start) / 0.16));
 }
 
 .chrome {
@@ -397,7 +411,7 @@
 .chrome > .control,
 .bottomButtonRow .control,
 .bottomButtonRow .fontButton {
-  transition: background-color 150ms ease, opacity 900ms ease, transform 150ms ease;
+  transition: box-shadow 150ms ease, filter 150ms ease, opacity 900ms ease, transform 150ms ease;
 }
 
 .settingsPanel,
@@ -407,7 +421,31 @@
 
 .control:hover,
 .fontButton:hover {
-  background-color: hsl(var(--brand-orange));
+  border-color: hsl(var(--button-blue-start) / 0.38);
+  background:
+    linear-gradient(145deg, hsl(var(--button-blue-start) / 0.28), hsl(var(--button-sunset-violet) / 0.13)),
+    hsl(var(--background) / 0.32);
+  filter: none;
+}
+
+.control:active,
+.fontButton:active {
+  box-shadow:
+    inset 0 0.25rem 0.75rem hsl(var(--background) / 0.32),
+    inset 0 1px 0 hsl(var(--foreground) / 0.1),
+    0 0.55rem 1.2rem hsl(var(--button-blue-depth) / 0.14);
+  transform: scale(0.985);
+}
+
+.settingsButton[aria-expanded="true"] {
+  border-color: hsl(var(--button-orange-start) / 0.42);
+  background:
+    linear-gradient(145deg, hsl(var(--button-orange-start) / 0.34), hsl(var(--button-orange-depth) / 0.16)),
+    hsl(var(--background) / 0.3);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.18),
+    inset 0 -1px 0 hsl(var(--button-orange-depth) / 0.18),
+    0 0.85rem 1.8rem hsl(var(--button-orange-depth) / 0.18);
 }
 
 .control:disabled,
@@ -418,7 +456,7 @@
 
 .control:disabled:hover,
 .fontButton:disabled:hover {
-  background: rgba(255, 255, 255, 0.08);
+  filter: none;
 }
 
 .chromeFaded > .control,
@@ -491,28 +529,45 @@
 
 .settingsTabList {
   display: grid;
+  position: relative;
+  isolation: isolate;
   width: 100%;
+  min-height: 2.75rem;
   height: auto;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0.25rem;
-  padding: 0.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.72);
+  padding: 0.28rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.5625rem;
+  background: hsl(var(--background) / 0.68);
+  color: hsl(var(--muted-foreground));
+  box-shadow:
+    inset 1.5px 1.5px 0 hsl(var(--background) / 0.32),
+    inset -1.5px -1.5px 0 hsl(var(--foreground) / 0.05),
+    inset 0 0 0 1px hsl(var(--background) / 0.12);
 }
 
 .settingsTabTrigger {
-  min-height: 2.15rem;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.72);
+  position: relative;
+  z-index: 1;
+  min-height: 2.2rem;
+  border: 1px solid transparent;
+  border-radius: 0.5625rem;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  box-shadow: none;
   letter-spacing: 0;
 }
 
 .settingsTabTrigger[data-state="active"] {
-  background: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
+  border-color: transparent;
+  background: transparent;
+  color: hsl(32 100% 96%);
   box-shadow: none;
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
+    0 0 1px hsl(var(--button-orange-start) / 0.18);
 }
 
 .settingsTabContent {
@@ -704,19 +759,26 @@
 .backgroundCategoryRow {
   position: relative;
   z-index: 2;
-  display: flex;
+  display: grid;
+  grid-auto-columns: minmax(4.9rem, max-content);
+  grid-auto-flow: column;
   align-items: center;
-  gap: 0.38rem;
+  gap: 0.22rem;
   overflow-x: auto;
-  min-height: 2.75rem;
-  padding: 0.3rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.75rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 56%),
-    rgba(13, 13, 13, 0.94);
+  min-height: 2.7rem;
+  padding: 0.24rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.5625rem;
+  background: hsl(var(--background) / 0.68);
+  box-shadow:
+    inset 1.5px 1.5px 0 hsl(var(--background) / 0.32),
+    inset -1.5px -1.5px 0 hsl(var(--foreground) / 0.05),
+    inset 0 0 0 1px hsl(var(--background) / 0.12);
   scrollbar-width: none;
   backdrop-filter: blur(14px);
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x;
+  scroll-snap-type: x proximity;
 }
 
 .backgroundCategoryRow::-webkit-scrollbar {
@@ -955,27 +1017,53 @@
 }
 
 .backgroundCategoryButton {
-  min-height: 2rem;
-  flex: 0 0 auto;
-  border: 2px solid #15120f;
-  border-bottom-width: 4px;
-  border-radius: 0.7rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, transparent 46%),
-    linear-gradient(135deg, #996c4d 0%, #665447 48%, #33302e 100%);
-  color: white;
+  position: relative;
+  z-index: 1;
+  min-height: 2.15rem;
+  min-width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.5625rem;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.25rem 0.7rem;
+  padding: 0.25rem 0.75rem;
+  text-shadow: none;
+  scroll-snap-align: start;
+}
+
+.backgroundCategoryButton:hover {
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--muted-foreground));
+  filter: none;
+  transform: none;
 }
 
 .backgroundCategoryButtonActive {
-  border-color: #15120f;
+  border-color: transparent;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, transparent 44%),
-    linear-gradient(135deg, #ff5119 0%, #ff7a1a 48%, #cc793d 100%);
-  color: white;
+    var(--ml-button-light-gradient),
+    linear-gradient(122deg, hsl(var(--button-secondary-face)) 0 82%, hsl(var(--button-orange-depth)) 100%);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.2),
+    inset 0 -2px 0 hsl(var(--button-orange-depth) / 0.56),
+    0 2px 0 hsl(var(--button-orange-depth) / 0.62),
+    0 5px 10px hsl(var(--button-orange-depth) / 0.16);
+  color: hsl(32 100% 96%);
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
+    0 0 1px hsl(var(--button-orange-start) / 0.18);
+}
+
+.backgroundCategoryButtonActive:hover {
+  background:
+    var(--ml-button-light-gradient),
+    linear-gradient(122deg, hsl(var(--button-secondary-face)) 0 82%, hsl(var(--button-orange-depth)) 100%);
+  color: hsl(32 100% 96%);
 }
 
 .backgroundCardGrid {
@@ -1177,49 +1265,56 @@
 
 .formatToggle {
   display: grid;
+  position: relative;
+  isolation: isolate;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 7rem;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  width: 7.5rem;
+  gap: 0.22rem;
+  overflow: visible;
+  padding: 0.24rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.5625rem;
+  background: hsl(var(--background) / 0.68);
+  box-shadow:
+    inset 1.5px 1.5px 0 hsl(var(--background) / 0.32),
+    inset -1.5px -1.5px 0 hsl(var(--foreground) / 0.05),
+    inset 0 0 0 1px hsl(var(--background) / 0.12);
 }
 
 .formatOption {
-  min-height: 2rem;
+  position: relative;
+  z-index: 1;
+  min-height: 2.15rem;
   border: 0;
+  border-radius: 0.45rem;
   background: transparent;
-  color: rgba(255, 255, 255, 0.74);
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 700;
 }
 
-.formatOption:hover,
+.formatOption:hover {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  filter: none;
+  transform: none;
+}
+
 .formatOptionActive {
-  background: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
+  background: transparent;
+  color: hsl(32 100% 96%);
+  box-shadow: none;
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
+    0 0 1px hsl(var(--button-orange-start) / 0.18);
 }
 
 .switchRow input[type="checkbox"] {
   width: 1.25rem;
   height: 1.25rem;
   accent-color: hsl(var(--brand-orange));
-}
-
-.colorRow input[type="color"] {
-  width: 3.15rem;
-  height: 2.15rem;
-  padding: 0.18rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 0.65rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
-    rgba(17, 17, 17, 0.86);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 8px 18px rgba(0, 0, 0, 0.22);
-  cursor: pointer;
 }
 
 .colorSwatchPicker {
@@ -1234,37 +1329,39 @@
   border: 0;
   border-radius: 0.82rem;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.16),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 10px 20px rgba(0, 0, 0, 0.22);
-}
-
-.colorSwatchPicker .colorSwatchButton::after {
-  display: none;
+    0 0 0 1px rgba(0, 0, 0, 0.28),
+    0 1px 0 rgba(0, 0, 0, 0.52),
+    0 0.34rem 0.62rem rgba(0, 0, 0, 0.32);
 }
 
 .colorSwatchPicker .colorSwatchButton:hover:not(:disabled) {
-  transform: translateY(-1px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
-    0 0 0 2px hsl(var(--brand-orange) / 0.16),
-    0 12px 24px rgba(0, 0, 0, 0.25);
+    0 0 0 1px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(0, 0, 0, 0.56),
+    0 0.4rem 0.7rem rgba(0, 0, 0, 0.36);
 }
 
 .colorRow {
-  padding: 0.52rem 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.75rem;
+  min-height: 4rem;
+  padding: 0.64rem 0.72rem 0.64rem 0.88rem;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 0.95rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.065), transparent 58%),
-    rgba(255, 255, 255, 0.045);
+    linear-gradient(180deg, hsl(var(--foreground) / 0.065), transparent 44%, hsl(var(--background) / 0.22)),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.035), transparent 62%),
+    hsl(var(--background) / 0.62);
+  box-shadow:
+    inset 1px 1px 0 hsl(var(--foreground) / 0.055),
+    inset -1px -1px 2px hsl(var(--background) / 0.62),
+    0 0.5rem 0.9rem hsl(var(--background) / 0.24);
 }
 
 .colorRow:focus-within {
-  border-color: hsl(var(--brand-orange) / 0.58);
-  box-shadow: 0 0 0 2px hsl(var(--brand-orange) / 0.18);
+  border-color: hsl(var(--button-secondary-face) / 0.34);
+  box-shadow:
+    inset 1px 1px 0 hsl(var(--foreground) / 0.06),
+    inset -1px -1px 2px hsl(var(--background) / 0.58),
+    0 0.5rem 0.95rem hsl(var(--background) / 0.28);
 }
 
 .clockCompactRow {
@@ -1276,14 +1373,18 @@
 
 .clockCompactField {
   display: grid;
-  gap: 0.34rem;
+  gap: 0.4rem;
   min-width: 0;
-  padding: 0.52rem 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.75rem;
+  padding: 0.58rem 0.62rem 0.62rem;
+  border: 1px solid hsl(var(--foreground) / 0.11);
+  border-radius: 0.86rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.065), transparent 58%),
-    rgba(255, 255, 255, 0.045);
+    linear-gradient(180deg, hsl(var(--foreground) / 0.06), transparent 48%, hsl(var(--background) / 0.2)),
+    hsl(var(--background) / 0.48);
+  box-shadow:
+    inset 1px 1px 0 hsl(var(--foreground) / 0.045),
+    inset -1px -1px 2px hsl(var(--background) / 0.56),
+    0 0.42rem 0.72rem hsl(var(--background) / 0.2);
   color: rgba(255, 255, 255, 0.88);
 }
 
@@ -1296,29 +1397,41 @@
   white-space: nowrap;
 }
 
-.clockCompactField select,
-.clockCompactField input[type="color"] {
+.clockCompactField select {
+  appearance: none;
   width: 100%;
   min-width: 0;
-  min-height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0.5rem;
+  min-height: 2.48rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-bottom: 2px solid hsl(var(--background) / 0.54);
+  border-radius: 0.58rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
-    rgba(17, 17, 17, 0.86);
-  color: #fff;
+    linear-gradient(45deg, transparent 50%, hsl(var(--foreground) / 0.78) 50%) calc(100% - 0.9rem) 50% / 0.38rem 0.38rem no-repeat,
+    linear-gradient(135deg, hsl(var(--foreground) / 0.78) 50%, transparent 50%) calc(100% - 0.64rem) 50% / 0.38rem 0.38rem no-repeat,
+    linear-gradient(180deg, hsl(var(--foreground) / 0.07), transparent 52%),
+    linear-gradient(90deg, hsl(var(--button-secondary-face) / 0.16), hsl(var(--background) / 0.76) 40%, hsl(var(--background) / 0.86));
+  box-shadow:
+    inset 2px 2px 4px hsl(var(--background) / 0.5),
+    inset -1px -1px 2px hsl(var(--foreground) / 0.055),
+    0 0.24rem 0.46rem hsl(var(--background) / 0.3);
+  color: hsl(var(--foreground));
   font-size: 0.86rem;
   font-weight: 800;
-}
-
-.clockCompactField input[type="color"] {
-  padding: 0.18rem;
-  cursor: pointer;
+  padding: 0.34rem 1.55rem 0.34rem 0.74rem;
+  text-shadow: 0 1px 1px hsl(var(--background) / 0.55);
 }
 
 .clockCompactField:focus-within {
-  border-color: hsl(var(--brand-orange) / 0.58);
-  box-shadow: 0 0 0 2px hsl(var(--brand-orange) / 0.18);
+  border-color: hsl(var(--button-secondary-face) / 0.32);
+  box-shadow:
+    inset 1px 1px 0 hsl(var(--foreground) / 0.055),
+    inset -1px -1px 2px hsl(var(--background) / 0.54),
+    0 0.42rem 0.78rem hsl(var(--background) / 0.24);
+}
+
+.clockCompactField select:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.48);
+  outline-offset: 3px;
 }
 
 .clockCompactField .formatToggle {
@@ -1557,11 +1670,22 @@
 }
 
 .pauseButton {
-  background-color: hsl(var(--brand-orange));
+  border-color: hsl(var(--button-orange-start) / 0.42);
+  background:
+    linear-gradient(145deg, hsl(var(--button-orange-start) / 0.34), hsl(var(--button-orange-depth) / 0.16)),
+    hsl(var(--background) / 0.3);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.18),
+    inset 0 -1px 0 hsl(var(--button-orange-depth) / 0.18),
+    0 0.85rem 1.8rem hsl(var(--button-orange-depth) / 0.18);
 }
 
 .pauseButton:hover {
-  background-color: hsl(var(--brand-orange-glow));
+  border-color: hsl(var(--button-orange-start) / 0.42);
+  background:
+    linear-gradient(145deg, hsl(var(--button-orange-start) / 0.34), hsl(var(--button-orange-depth) / 0.16)),
+    hsl(var(--background) / 0.3);
+  filter: none;
 }
 
 .alerting .primaryDisplay,
@@ -1572,9 +1696,15 @@
 
 .alerting .control,
 .alerting .fontButton {
-  border-color: rgba(0, 0, 0, 0.18);
-  background: rgba(0, 0, 0, 0.1);
-  color: #050505;
+  border-color: hsl(var(--button-orange-start) / 0.42);
+  background:
+    linear-gradient(145deg, hsl(var(--button-orange-start) / 0.34), hsl(var(--button-orange-depth) / 0.16)),
+    hsl(var(--background) / 0.3);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--foreground) / 0.18),
+    inset 0 -1px 0 hsl(var(--button-orange-depth) / 0.18),
+    0 0.85rem 1.8rem hsl(var(--button-orange-depth) / 0.18);
+  color: hsl(32 100% 96%);
 }
 
 .status {
@@ -1715,7 +1845,19 @@
   }
 
   .clockCompactField {
-    padding: 0.46rem 0.5rem;
+    padding: 0.48rem 0.5rem 0.52rem;
+    border-radius: 0.78rem;
+  }
+
+  .clockCompactField select {
+    min-height: 2.32rem;
+    padding-left: 0.62rem;
+  }
+
+  .clockCompactField .clockColorSwatchButton {
+    width: 2.35rem;
+    height: 2.35rem;
+    min-height: 2.35rem;
   }
 
   .durationRow {

@@ -11,16 +11,16 @@ import type { GlobalColorValues } from "@/components/chimer-controls/GlobalColor
 
 const sliderColorTreatments = [
   {
-    name: "Default copper",
+    name: "Default orange",
     className: "",
     value: 58,
-    description: "Default treatment for general physical settings.",
+    description: "Secondary-button orange for general physical settings.",
   },
   {
-    name: "Orange",
+    name: "Bright orange",
     className: "ml-slider-fill-orange",
     value: 48,
-    description: "Warmer action-adjacent controls.",
+    description: "Higher-emphasis action-adjacent controls.",
   },
   {
     name: "Blue",

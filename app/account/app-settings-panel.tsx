@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ToggleControl } from "@/components/ui/toggle-control"
 
 const sidebarButtonPositions = [
   {
@@ -240,24 +241,12 @@ export function AccountAppSettingsPanel() {
         description="Enable subtle haptic feedback for button presses where supported."
         icon={<Waves data-icon="inline-start" aria-hidden="true" />}
       >
-        <label
-          htmlFor="haptic-feedback-enabled"
-          className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border/80 bg-background/80 p-3 text-sm"
-        >
-          <span className="space-y-1">
-            <span className="block font-medium">Haptic feedback</span>
-            <span className="block text-xs leading-5 text-muted-foreground">
-              Enable subtle vibration on key UI taps, if supported by the device.
-            </span>
-          </span>
-          <input
-            id="haptic-feedback-enabled"
-            type="checkbox"
-            checked={settings.hapticFeedbackEnabled}
-            onChange={(event) => updateSettings({ hapticFeedbackEnabled: event.target.checked })}
-            className="h-4 w-4"
-          />
-        </label>
+        <ToggleControl
+          label="Haptic feedback"
+          description="Enable subtle vibration on key UI taps, if supported by the device."
+          checked={settings.hapticFeedbackEnabled}
+          onCheckedChange={(checked) => updateSettings({ hapticFeedbackEnabled: checked })}
+        />
       </SettingsSurface>
     </div>
   )
