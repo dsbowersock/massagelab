@@ -47,7 +47,7 @@ const CHIMER_SETUP_STEPS = [
   "Start timer",
 ] as const
 const INFO_CAROUSEL_SWIPE_THRESHOLD_PX = 42
-const SYNC_NOTICE_EXIT_DURATION_MS = 460
+const SYNC_NOTICE_EXIT_DURATION_MS = 420
 
 type ChimerSetupPresetState = Pick<
   ChimerSettings,
@@ -4712,6 +4712,7 @@ type ColorFieldProps = {
   pickerLabel: string
 }
 
+/** Keeps Chimer background color controls on the shared picker contract. */
 function ColorField({ label, value, onValueChange, pickerLabel }: ColorFieldProps) {
   return (
     <div className={styles.colorRow}>
@@ -6810,14 +6811,14 @@ export function SetTimer({
             label="Background"
             value={settings.massageLabAerialRaysBackgroundColor}
             onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysBackgroundColor: nextColor })}
-            pickerLabel="Light Rays background color"
+            pickerLabel="Aerial Rays background color"
           />
 
           <ColorField
             label="Ray color"
             value={settings.massageLabAerialRaysColor}
             onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysColor: nextColor })}
-            pickerLabel="Light Rays color"
+            pickerLabel="Aerial Rays color"
           />
 
           <label className={styles.rangeRow}>
@@ -6829,7 +6830,7 @@ export function SetTimer({
               step="1"
               value={settings.massageLabAerialRaysCount}
               onChange={(event) => onSettingsChange({ massageLabAerialRaysCount: Number(event.target.value) })}
-              aria-label="Light Rays count"
+              aria-label="Aerial Rays count"
             />
           </label>
 
@@ -6842,7 +6843,7 @@ export function SetTimer({
               step="1"
               value={settings.massageLabAerialRaysBlur}
               onChange={(event) => onSettingsChange({ massageLabAerialRaysBlur: Number(event.target.value) })}
-              aria-label="Light Rays blur"
+              aria-label="Aerial Rays blur"
             />
           </label>
 
@@ -6855,7 +6856,7 @@ export function SetTimer({
               step="0.5"
               value={settings.massageLabAerialRaysSpeed}
               onChange={(event) => onSettingsChange({ massageLabAerialRaysSpeed: Number(event.target.value) })}
-              aria-label="Light Rays speed"
+              aria-label="Aerial Rays speed"
             />
           </label>
 
@@ -6868,7 +6869,7 @@ export function SetTimer({
               step="1"
               value={settings.massageLabAerialRaysLength}
               onChange={(event) => onSettingsChange({ massageLabAerialRaysLength: Number(event.target.value) })}
-              aria-label="Light Rays length"
+              aria-label="Aerial Rays length"
             />
           </label>
 
@@ -6881,7 +6882,7 @@ export function SetTimer({
               step="0.01"
               value={settings.massageLabAerialRaysOpacity}
               onChange={(event) => onSettingsChange({ massageLabAerialRaysOpacity: Number(event.target.value) })}
-              aria-label="Light Rays opacity"
+              aria-label="Aerial Rays opacity"
             />
           </label>
         </div>
