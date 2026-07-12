@@ -4705,6 +4705,22 @@ function syncNativeRangeFill(rangeInput: HTMLInputElement) {
   rangeInput.style.setProperty(NATIVE_RANGE_FILL_STYLE_PROPERTY, `${clampedPercentage}%`)
 }
 
+type ColorFieldProps = {
+  label: string
+  value: string
+  onValueChange: (nextColor: string) => void
+  pickerLabel: string
+}
+
+function ColorField({ label, value, onValueChange, pickerLabel }: ColorFieldProps) {
+  return (
+    <div className={styles.colorRow}>
+      <span>{label}</span>
+      <ColorPickerInput value={value} onValueChange={onValueChange} label={pickerLabel} />
+    </div>
+  )
+}
+
 export function SetTimer({
   settings,
   totalDurationMs,
@@ -4983,62 +4999,48 @@ export function SetTimer({
     if (option.id === "massage-lab-gradient-animation") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Base start</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationBackgroundStartColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationBackgroundStartColor: nextColor })}
-              label="Animated gradient background start color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Base end</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationBackgroundEndColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationBackgroundEndColor: nextColor })}
-              label="Animated gradient background end color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Glow 1</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationFirstColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFirstColor: nextColor })}
-              label="Animated gradient first glow color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Glow 2</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationSecondColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationSecondColor: nextColor })}
-              label="Animated gradient second glow color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Glow 3</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationThirdColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationThirdColor: nextColor })}
-              label="Animated gradient third glow color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Glow 4</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationFourthColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFourthColor: nextColor })}
-              label="Animated gradient fourth glow color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Glow 5</span>
-            <ColorPickerInput
-              value={settings.gradientAnimationFifthColor}
-              onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFifthColor: nextColor })}
-              label="Animated gradient fifth glow color"
-            />
-          </div>
+          <ColorField
+            label="Base start"
+            value={settings.gradientAnimationBackgroundStartColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationBackgroundStartColor: nextColor })}
+            pickerLabel="Animated gradient background start color"
+          />
+          <ColorField
+            label="Base end"
+            value={settings.gradientAnimationBackgroundEndColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationBackgroundEndColor: nextColor })}
+            pickerLabel="Animated gradient background end color"
+          />
+          <ColorField
+            label="Glow 1"
+            value={settings.gradientAnimationFirstColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFirstColor: nextColor })}
+            pickerLabel="Animated gradient first glow color"
+          />
+          <ColorField
+            label="Glow 2"
+            value={settings.gradientAnimationSecondColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationSecondColor: nextColor })}
+            pickerLabel="Animated gradient second glow color"
+          />
+          <ColorField
+            label="Glow 3"
+            value={settings.gradientAnimationThirdColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationThirdColor: nextColor })}
+            pickerLabel="Animated gradient third glow color"
+          />
+          <ColorField
+            label="Glow 4"
+            value={settings.gradientAnimationFourthColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFourthColor: nextColor })}
+            pickerLabel="Animated gradient fourth glow color"
+          />
+          <ColorField
+            label="Glow 5"
+            value={settings.gradientAnimationFifthColor}
+            onValueChange={(nextColor) => onSettingsChange({ gradientAnimationFifthColor: nextColor })}
+            pickerLabel="Animated gradient fifth glow color"
+          />
           <label className={styles.rangeRow}>
             <span>Speed</span>
             <input
@@ -5070,14 +5072,12 @@ export function SetTimer({
     if (option.id === "massage-lab-gradient") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Primary color</span>
-            <ColorPickerInput
-              value={settings.massageLabGradientPrimaryColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabGradientPrimaryColor: nextColor })}
-              label="MassageLab gradient primary color"
-            />
-          </div>
+          <ColorField
+            label="Primary color"
+            value={settings.massageLabGradientPrimaryColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabGradientPrimaryColor: nextColor })}
+            pickerLabel="MassageLab gradient primary color"
+          />
           <label className={styles.selectRow}>
             <span>Color harmony</span>
             <select
@@ -5113,22 +5113,18 @@ export function SetTimer({
     if (option.id === "massage-lab-hole") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Grid line color</span>
-            <ColorPickerInput
-              value={settings.massageLabHoleStrokeColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabHoleStrokeColor: nextColor })}
-              label="MassageLab Hole grid line color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Particle color</span>
-            <ColorPickerInput
-              value={settings.massageLabHoleParticleColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabHoleParticleColor: nextColor })}
-              label="MassageLab Hole particle color"
-            />
-          </div>
+          <ColorField
+            label="Grid line color"
+            value={settings.massageLabHoleStrokeColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabHoleStrokeColor: nextColor })}
+            pickerLabel="MassageLab Hole grid line color"
+          />
+          <ColorField
+            label="Particle color"
+            value={settings.massageLabHoleParticleColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabHoleParticleColor: nextColor })}
+            pickerLabel="MassageLab Hole particle color"
+          />
           <label className={styles.rangeRow}>
             <span>Line count ({settings.massageLabHoleLineCount})</span>
             <input
@@ -5160,14 +5156,12 @@ export function SetTimer({
     if (option.id === "massage-lab-stars") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Star color</span>
-            <ColorPickerInput
-              value={settings.massageLabStarsColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabStarsColor: nextColor })}
-              label="MassageLab Stars star color"
-            />
-          </div>
+          <ColorField
+            label="Star color"
+            value={settings.massageLabStarsColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabStarsColor: nextColor })}
+            pickerLabel="MassageLab Stars star color"
+          />
           <label className={styles.rangeRow}>
             <span>Speed ({settings.massageLabStarsSpeed}s)</span>
             <input
@@ -5211,14 +5205,12 @@ export function SetTimer({
     if (option.id === "massage-lab-sparkles") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Sparkle color</span>
-            <ColorPickerInput
-              value={settings.sparklesParticleColor}
-              onValueChange={(nextColor) => onSettingsChange({ sparklesParticleColor: nextColor })}
-              label="Sparkles particle color"
-            />
-          </div>
+          <ColorField
+            label="Sparkle color"
+            value={settings.sparklesParticleColor}
+            onValueChange={(nextColor) => onSettingsChange({ sparklesParticleColor: nextColor })}
+            pickerLabel="Sparkles particle color"
+          />
           <label className={styles.rangeRow}>
             <span>Density</span>
             <input
@@ -5281,30 +5273,24 @@ export function SetTimer({
     if (option.id === "massage-lab-shooting-stars") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Stars</span>
-            <ColorPickerInput
-              value={settings.shootingStarsStarColor}
-              onValueChange={(nextColor) => onSettingsChange({ shootingStarsStarColor: nextColor })}
-              label="Shooting stars background star color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Trail</span>
-            <ColorPickerInput
-              value={settings.shootingStarsTrailColor}
-              onValueChange={(nextColor) => onSettingsChange({ shootingStarsTrailColor: nextColor })}
-              label="Shooting stars trail color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Shooting star</span>
-            <ColorPickerInput
-              value={settings.shootingStarsShootingStarColor}
-              onValueChange={(nextColor) => onSettingsChange({ shootingStarsShootingStarColor: nextColor })}
-              label="Shooting star color"
-            />
-          </div>
+          <ColorField
+            label="Stars"
+            value={settings.shootingStarsStarColor}
+            onValueChange={(nextColor) => onSettingsChange({ shootingStarsStarColor: nextColor })}
+            pickerLabel="Shooting stars background star color"
+          />
+          <ColorField
+            label="Trail"
+            value={settings.shootingStarsTrailColor}
+            onValueChange={(nextColor) => onSettingsChange({ shootingStarsTrailColor: nextColor })}
+            pickerLabel="Shooting stars trail color"
+          />
+          <ColorField
+            label="Shooting star"
+            value={settings.shootingStarsShootingStarColor}
+            onValueChange={(nextColor) => onSettingsChange({ shootingStarsShootingStarColor: nextColor })}
+            pickerLabel="Shooting star color"
+          />
           <label className={styles.rangeRow}>
             <span>Star density</span>
             <input
@@ -5368,54 +5354,42 @@ export function SetTimer({
     if (option.id === "massage-lab-wavy-background") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.wavyBackgroundFill}
-              onValueChange={(nextColor) => onSettingsChange({ wavyBackgroundFill: nextColor })}
-              label="Wave flow fill color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Wave 1</span>
-            <ColorPickerInput
-              value={settings.wavyColorOne}
-              onValueChange={(nextColor) => onSettingsChange({ wavyColorOne: nextColor })}
-              label="Wavy first wave color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Wave 2</span>
-            <ColorPickerInput
-              value={settings.wavyColorTwo}
-              onValueChange={(nextColor) => onSettingsChange({ wavyColorTwo: nextColor })}
-              label="Wavy second wave color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Wave 3</span>
-            <ColorPickerInput
-              value={settings.wavyColorThree}
-              onValueChange={(nextColor) => onSettingsChange({ wavyColorThree: nextColor })}
-              label="Wavy third wave color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Wave 4</span>
-            <ColorPickerInput
-              value={settings.wavyColorFour}
-              onValueChange={(nextColor) => onSettingsChange({ wavyColorFour: nextColor })}
-              label="Wavy fourth wave color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Wave 5</span>
-            <ColorPickerInput
-              value={settings.wavyColorFive}
-              onValueChange={(nextColor) => onSettingsChange({ wavyColorFive: nextColor })}
-              label="Wavy fifth wave color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.wavyBackgroundFill}
+            onValueChange={(nextColor) => onSettingsChange({ wavyBackgroundFill: nextColor })}
+            pickerLabel="Wave flow fill color"
+          />
+          <ColorField
+            label="Wave 1"
+            value={settings.wavyColorOne}
+            onValueChange={(nextColor) => onSettingsChange({ wavyColorOne: nextColor })}
+            pickerLabel="Wavy first wave color"
+          />
+          <ColorField
+            label="Wave 2"
+            value={settings.wavyColorTwo}
+            onValueChange={(nextColor) => onSettingsChange({ wavyColorTwo: nextColor })}
+            pickerLabel="Wavy second wave color"
+          />
+          <ColorField
+            label="Wave 3"
+            value={settings.wavyColorThree}
+            onValueChange={(nextColor) => onSettingsChange({ wavyColorThree: nextColor })}
+            pickerLabel="Wavy third wave color"
+          />
+          <ColorField
+            label="Wave 4"
+            value={settings.wavyColorFour}
+            onValueChange={(nextColor) => onSettingsChange({ wavyColorFour: nextColor })}
+            pickerLabel="Wavy fourth wave color"
+          />
+          <ColorField
+            label="Wave 5"
+            value={settings.wavyColorFive}
+            onValueChange={(nextColor) => onSettingsChange({ wavyColorFive: nextColor })}
+            pickerLabel="Wavy fifth wave color"
+          />
           <label className={styles.rangeRow}>
             <span>Wave width</span>
             <input
@@ -5472,14 +5446,12 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.auroraBarsBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ auroraBarsBackgroundColor: nextColor })}
-              label="Aurora bars background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.auroraBarsBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ auroraBarsBackgroundColor: nextColor })}
+            pickerLabel="Aurora bars background color"
+          />
           <label className={styles.selectRow}>
             <span>Palette</span>
             <select
@@ -5495,56 +5467,44 @@ export function SetTimer({
           </label>
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Bar color 1</span>
-                <ColorPickerInput
-                  value={settings.auroraBarsColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorOne: nextColor })}
-                  label="Aurora bars first color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Bar color 2</span>
-                <ColorPickerInput
-                  value={settings.auroraBarsColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorTwo: nextColor })}
-                  label="Aurora bars second color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Bar color 3</span>
-                <ColorPickerInput
-                  value={settings.auroraBarsColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorThree: nextColor })}
-                  label="Aurora bars third color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Bar color 4</span>
-                <ColorPickerInput
-                  value={settings.auroraBarsColorFour}
-                  onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorFour: nextColor })}
-                  label="Aurora bars fourth color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Bar color 5</span>
-                <ColorPickerInput
-                  value={settings.auroraBarsColorFive}
-                  onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorFive: nextColor })}
-                  label="Aurora bars fifth color"
-                />
-              </div>
+              <ColorField
+                label="Bar color 1"
+                value={settings.auroraBarsColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorOne: nextColor })}
+                pickerLabel="Aurora bars first color"
+              />
+              <ColorField
+                label="Bar color 2"
+                value={settings.auroraBarsColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorTwo: nextColor })}
+                pickerLabel="Aurora bars second color"
+              />
+              <ColorField
+                label="Bar color 3"
+                value={settings.auroraBarsColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorThree: nextColor })}
+                pickerLabel="Aurora bars third color"
+              />
+              <ColorField
+                label="Bar color 4"
+                value={settings.auroraBarsColorFour}
+                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorFour: nextColor })}
+                pickerLabel="Aurora bars fourth color"
+              />
+              <ColorField
+                label="Bar color 5"
+                value={settings.auroraBarsColorFive}
+                onValueChange={(nextColor) => onSettingsChange({ auroraBarsColorFive: nextColor })}
+                pickerLabel="Aurora bars fifth color"
+              />
             </>
           ) : (
-            <div className={styles.colorRow}>
-              <span>Primary color</span>
-              <ColorPickerInput
-                value={settings.auroraBarsPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ auroraBarsPrimaryColor: nextColor })}
-                label="Aurora bars primary color"
-              />
-            </div>
+            <ColorField
+              label="Primary color"
+              value={settings.auroraBarsPrimaryColor}
+              onValueChange={(nextColor) => onSettingsChange({ auroraBarsPrimaryColor: nextColor })}
+              pickerLabel="Aurora bars primary color"
+            />
           )}
           <label className={styles.rangeRow}>
             <span>Bars ({settings.auroraBarsBarCount})</span>
@@ -5625,38 +5585,30 @@ export function SetTimer({
     if (option.id === "massage-lab-pixel-liquid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background color</span>
-            <ColorPickerInput
-              value={settings.pixelLiquidBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ pixelLiquidBackgroundColor: nextColor })}
-              label="Pixel liquid background color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Base color</span>
-            <ColorPickerInput
-              value={settings.pixelLiquidBaseColor}
-              onValueChange={(nextColor) => onSettingsChange({ pixelLiquidBaseColor: nextColor })}
-              label="Pixel liquid base color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Accent color</span>
-            <ColorPickerInput
-              value={settings.pixelLiquidAccentColor}
-              onValueChange={(nextColor) => onSettingsChange({ pixelLiquidAccentColor: nextColor })}
-              label="Pixel liquid accent color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Highlight color</span>
-            <ColorPickerInput
-              value={settings.pixelLiquidHighlightColor}
-              onValueChange={(nextColor) => onSettingsChange({ pixelLiquidHighlightColor: nextColor })}
-              label="Pixel liquid highlight color"
-            />
-          </div>
+          <ColorField
+            label="Background color"
+            value={settings.pixelLiquidBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidBackgroundColor: nextColor })}
+            pickerLabel="Pixel liquid background color"
+          />
+          <ColorField
+            label="Base color"
+            value={settings.pixelLiquidBaseColor}
+            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidBaseColor: nextColor })}
+            pickerLabel="Pixel liquid base color"
+          />
+          <ColorField
+            label="Accent color"
+            value={settings.pixelLiquidAccentColor}
+            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidAccentColor: nextColor })}
+            pickerLabel="Pixel liquid accent color"
+          />
+          <ColorField
+            label="Highlight color"
+            value={settings.pixelLiquidHighlightColor}
+            onValueChange={(nextColor) => onSettingsChange({ pixelLiquidHighlightColor: nextColor })}
+            pickerLabel="Pixel liquid highlight color"
+          />
           <label className={styles.selectRow}>
             <span>Detail</span>
             <select
@@ -5719,56 +5671,44 @@ export function SetTimer({
           </label>
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.tileGridColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ tileGridColorOne: nextColor })}
-                  label="Tile grid first color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.tileGridColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ tileGridColorTwo: nextColor })}
-                  label="Tile grid second color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.tileGridColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ tileGridColorThree: nextColor })}
-                  label="Tile grid third color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 4</span>
-                <ColorPickerInput
-                  value={settings.tileGridColorFour}
-                  onValueChange={(nextColor) => onSettingsChange({ tileGridColorFour: nextColor })}
-                  label="Tile grid fourth color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 5</span>
-                <ColorPickerInput
-                  value={settings.tileGridColorFive}
-                  onValueChange={(nextColor) => onSettingsChange({ tileGridColorFive: nextColor })}
-                  label="Tile grid fifth color"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.tileGridColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ tileGridColorOne: nextColor })}
+                pickerLabel="Tile grid first color"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.tileGridColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ tileGridColorTwo: nextColor })}
+                pickerLabel="Tile grid second color"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.tileGridColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ tileGridColorThree: nextColor })}
+                pickerLabel="Tile grid third color"
+              />
+              <ColorField
+                label="Color 4"
+                value={settings.tileGridColorFour}
+                onValueChange={(nextColor) => onSettingsChange({ tileGridColorFour: nextColor })}
+                pickerLabel="Tile grid fourth color"
+              />
+              <ColorField
+                label="Color 5"
+                value={settings.tileGridColorFive}
+                onValueChange={(nextColor) => onSettingsChange({ tileGridColorFive: nextColor })}
+                pickerLabel="Tile grid fifth color"
+              />
             </>
           ) : (
-            <div className={styles.colorRow}>
-              <span>Primary color</span>
-              <ColorPickerInput
-                value={settings.tileGridPrimaryColor}
-                onValueChange={(nextColor) => onSettingsChange({ tileGridPrimaryColor: nextColor })}
-                label="Tile grid primary color"
-              />
-            </div>
+            <ColorField
+              label="Primary color"
+              value={settings.tileGridPrimaryColor}
+              onValueChange={(nextColor) => onSettingsChange({ tileGridPrimaryColor: nextColor })}
+              pickerLabel="Tile grid primary color"
+            />
           )}
           <label className={styles.rangeRow}>
             <span>Tile size ({settings.tileGridTileSize}px)</span>
@@ -5832,14 +5772,12 @@ export function SetTimer({
     if (option.id === "massage-lab-hex-grid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Primary color</span>
-            <ColorPickerInput
-              value={settings.hexGridPrimaryColor}
-              onValueChange={(nextColor) => onSettingsChange({ hexGridPrimaryColor: nextColor })}
-              label="Hex grid primary color"
-            />
-          </div>
+          <ColorField
+            label="Primary color"
+            value={settings.hexGridPrimaryColor}
+            onValueChange={(nextColor) => onSettingsChange({ hexGridPrimaryColor: nextColor })}
+            pickerLabel="Hex grid primary color"
+          />
           <label className={styles.selectRow}>
             <span>Color harmony</span>
             <select
@@ -5918,14 +5856,12 @@ export function SetTimer({
     if (option.id === "massage-lab-light-speed") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Light color</span>
-            <ColorPickerInput
-              value={settings.massageLabLightSpeedLightColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabLightSpeedLightColor: nextColor })}
-              label="Light Speed light color"
-            />
-          </div>
+          <ColorField
+            label="Light color"
+            value={settings.massageLabLightSpeedLightColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabLightSpeedLightColor: nextColor })}
+            pickerLabel="Light Speed light color"
+          />
           <label className={styles.rangeRow}>
             <span>Warp speed ({settings.massageLabLightSpeedWarpSpeed.toFixed(2)}x)</span>
             <input
@@ -5993,14 +5929,12 @@ export function SetTimer({
     if (option.id === "massage-lab-electric-mist") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Lightning color</span>
-            <ColorPickerInput
-              value={settings.massageLabElectricMistColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabElectricMistColor: nextColor })}
-              label="Electric Mist lightning color"
-            />
-          </div>
+          <ColorField
+            label="Lightning color"
+            value={settings.massageLabElectricMistColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabElectricMistColor: nextColor })}
+            pickerLabel="Electric Mist lightning color"
+          />
           <label className={styles.rangeRow}>
             <span>Animation speed ({Math.round(settings.massageLabElectricMistSpeed)}%)</span>
             <input
@@ -6074,41 +6008,33 @@ export function SetTimer({
           </label>
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1 (deep)</span>
-                <ColorPickerInput
-                  value={settings.massageLabAstralFlowColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorOne: nextColor })}
-                  label="Astral Flow color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2 (mid)</span>
-                <ColorPickerInput
-                  value={settings.massageLabAstralFlowColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorTwo: nextColor })}
-                  label="Astral Flow color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3 (highlights)</span>
-                <ColorPickerInput
-                  value={settings.massageLabAstralFlowColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorThree: nextColor })}
-                  label="Astral Flow color 3"
-                />
-              </div>
+              <ColorField
+                label="Color 1 (deep)"
+                value={settings.massageLabAstralFlowColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorOne: nextColor })}
+                pickerLabel="Astral Flow color 1"
+              />
+              <ColorField
+                label="Color 2 (mid)"
+                value={settings.massageLabAstralFlowColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorTwo: nextColor })}
+                pickerLabel="Astral Flow color 2"
+              />
+              <ColorField
+                label="Color 3 (highlights)"
+                value={settings.massageLabAstralFlowColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowColorThree: nextColor })}
+                pickerLabel="Astral Flow color 3"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabAstralFlowPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowPrimaryColor: nextColor })}
-                  label="Astral Flow primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabAstralFlowPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabAstralFlowPrimaryColor: nextColor })}
+                pickerLabel="Astral Flow primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -6191,41 +6117,33 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Highlight</span>
-                <ColorPickerInput
-                  value={settings.massageLabDeepSpaceNebulaColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorOne: nextColor })}
-                  label="Deep Space Nebula highlight color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Nebula cloud</span>
-                <ColorPickerInput
-                  value={settings.massageLabDeepSpaceNebulaColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorTwo: nextColor })}
-                  label="Deep Space Nebula cloud color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Deep space</span>
-                <ColorPickerInput
-                  value={settings.massageLabDeepSpaceNebulaColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorThree: nextColor })}
-                  label="Deep Space Nebula deep-space color"
-                />
-              </div>
+              <ColorField
+                label="Highlight"
+                value={settings.massageLabDeepSpaceNebulaColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorOne: nextColor })}
+                pickerLabel="Deep Space Nebula highlight color"
+              />
+              <ColorField
+                label="Nebula cloud"
+                value={settings.massageLabDeepSpaceNebulaColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorTwo: nextColor })}
+                pickerLabel="Deep Space Nebula cloud color"
+              />
+              <ColorField
+                label="Deep space"
+                value={settings.massageLabDeepSpaceNebulaColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaColorThree: nextColor })}
+                pickerLabel="Deep Space Nebula deep-space color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Nebula color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDeepSpaceNebulaPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaPrimaryColor: nextColor })}
-                  label="Deep Space Nebula primary color"
-                />
-              </div>
+              <ColorField
+                label="Nebula color"
+                value={settings.massageLabDeepSpaceNebulaPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDeepSpaceNebulaPrimaryColor: nextColor })}
+                pickerLabel="Deep Space Nebula primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -6268,14 +6186,12 @@ export function SetTimer({
 
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Bloom color</span>
-            <ColorPickerInput
-              value={settings.massageLabGridBloomColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabGridBloomColor: nextColor })}
-              label="Grid Bloom bloom color"
-            />
-          </div>
+          <ColorField
+            label="Bloom color"
+            value={settings.massageLabGridBloomColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabGridBloomColor: nextColor })}
+            pickerLabel="Grid Bloom bloom color"
+          />
           <label className={styles.rangeRow}>
             <span>Animation speed ({gridBloomDisplaySpeed}%)</span>
             <input
@@ -6391,33 +6307,27 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Chrome color</span>
-                <ColorPickerInput
-                  value={settings.massageLabChromeFlowColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowColorOne: nextColor })}
-                  label="Liquid Chrome chrome color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Shadow color</span>
-                <ColorPickerInput
-                  value={settings.massageLabChromeFlowColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowColorTwo: nextColor })}
-                  label="Liquid Chrome shadow color"
-                />
-              </div>
+              <ColorField
+                label="Chrome color"
+                value={settings.massageLabChromeFlowColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowColorOne: nextColor })}
+                pickerLabel="Liquid Chrome chrome color"
+              />
+              <ColorField
+                label="Shadow color"
+                value={settings.massageLabChromeFlowColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowColorTwo: nextColor })}
+                pickerLabel="Liquid Chrome shadow color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary chrome</span>
-                <ColorPickerInput
-                  value={settings.massageLabChromeFlowPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowPrimaryColor: nextColor })}
-                  label="Liquid Chrome primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary chrome"
+                value={settings.massageLabChromeFlowPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabChromeFlowPrimaryColor: nextColor })}
+                pickerLabel="Liquid Chrome primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -6473,32 +6383,26 @@ export function SetTimer({
     if (option.id === "massage-lab-retro-grid") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLabRetroGridBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridBackgroundColor: nextColor })}
-              label="Retro Grid background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLabRetroGridBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridBackgroundColor: nextColor })}
+            pickerLabel="Retro Grid background color"
+          />
 
-          <div className={styles.colorRow}>
-            <span>Light line color</span>
-            <ColorPickerInput
-              value={settings.massageLabRetroGridLightLineColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridLightLineColor: nextColor })}
-              label="Retro Grid light line color"
-            />
-          </div>
+          <ColorField
+            label="Light line color"
+            value={settings.massageLabRetroGridLightLineColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridLightLineColor: nextColor })}
+            pickerLabel="Retro Grid light line color"
+          />
 
-          <div className={styles.colorRow}>
-            <span>Dark line color</span>
-            <ColorPickerInput
-              value={settings.massageLabRetroGridDarkLineColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridDarkLineColor: nextColor })}
-              label="Retro Grid dark line color"
-            />
-          </div>
+          <ColorField
+            label="Dark line color"
+            value={settings.massageLabRetroGridDarkLineColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabRetroGridDarkLineColor: nextColor })}
+            pickerLabel="Retro Grid dark line color"
+          />
 
           <label className={styles.rangeRow}>
             <span>Angle ({settings.massageLabRetroGridAngle.toFixed(0)} deg)</span>
@@ -6563,41 +6467,33 @@ export function SetTimer({
             </select>
           </label>
 
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLab3DGlobeBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeBackgroundColor: nextColor })}
-              label="3D Globe background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLab3DGlobeBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeBackgroundColor: nextColor })}
+            pickerLabel="3D Globe background color"
+          />
 
           {isGraphicGlobe ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Map dots</span>
-                <ColorPickerInput
-                  value={settings.massageLab3DGlobeGraphicMapColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicMapColor: nextColor })}
-                  label="3D Globe graphic map dot color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Outer Glow</span>
-                <ColorPickerInput
-                  value={settings.massageLab3DGlobeGraphicGlowColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicGlowColor: nextColor })}
-                  label="3D Globe graphic outer glow color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Marker dots</span>
-                <ColorPickerInput
-                  value={settings.massageLab3DGlobeGraphicMarkerColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicMarkerColor: nextColor })}
-                  label="3D Globe graphic marker color"
-                />
-              </div>
+              <ColorField
+                label="Map dots"
+                value={settings.massageLab3DGlobeGraphicMapColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicMapColor: nextColor })}
+                pickerLabel="3D Globe graphic map dot color"
+              />
+              <ColorField
+                label="Outer Glow"
+                value={settings.massageLab3DGlobeGraphicGlowColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicGlowColor: nextColor })}
+                pickerLabel="3D Globe graphic outer glow color"
+              />
+              <ColorField
+                label="Marker dots"
+                value={settings.massageLab3DGlobeGraphicMarkerColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGraphicMarkerColor: nextColor })}
+                pickerLabel="3D Globe graphic marker color"
+              />
               <label className={styles.rangeRow}>
                 <span>Dot density ({Math.round(settings.massageLab3DGlobeGraphicMapSamples / 1000)}k)</span>
                 <input
@@ -6614,14 +6510,12 @@ export function SetTimer({
               </label>
             </>
           ) : (
-            <div className={styles.colorRow}>
-              <span>Globe tint</span>
-              <ColorPickerInput
-                value={settings.massageLab3DGlobeGlobeColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGlobeColor: nextColor })}
-                label="3D Globe tint color"
-              />
-            </div>
+            <ColorField
+              label="Globe tint"
+              value={settings.massageLab3DGlobeGlobeColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeGlobeColor: nextColor })}
+              pickerLabel="3D Globe tint color"
+            />
           )}
 
           {!followSun && (
@@ -6766,14 +6660,12 @@ export function SetTimer({
 
               {settings.massageLab3DGlobeShowAtmosphere && (
                 <>
-                  <div className={styles.colorRow}>
-                    <span>Atmosphere color</span>
-                    <ColorPickerInput
-                      value={settings.massageLab3DGlobeAtmosphereColor}
-                      onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeAtmosphereColor: nextColor })}
-                      label="3D Globe atmosphere color"
-                    />
-                  </div>
+                  <ColorField
+                    label="Atmosphere color"
+                    value={settings.massageLab3DGlobeAtmosphereColor}
+                    onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeAtmosphereColor: nextColor })}
+                    pickerLabel="3D Globe atmosphere color"
+                  />
                   <label className={styles.rangeRow}>
                     <span>Atmosphere ({settings.massageLab3DGlobeAtmosphereIntensity.toFixed(1)})</span>
                     <input
@@ -6812,14 +6704,12 @@ export function SetTimer({
               </label>
 
               {settings.massageLab3DGlobeShowWireframe && (
-                <div className={styles.colorRow}>
-                  <span>Wireframe color</span>
-                  <ColorPickerInput
-                    value={settings.massageLab3DGlobeWireframeColor}
-                    onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeWireframeColor: nextColor })}
-                    label="3D Globe wireframe color"
-                  />
-                </div>
+                <ColorField
+                  label="Wireframe color"
+                  value={settings.massageLab3DGlobeWireframeColor}
+                  onValueChange={(nextColor) => onSettingsChange({ massageLab3DGlobeWireframeColor: nextColor })}
+                  pickerLabel="3D Globe wireframe color"
+                />
               )}
             </>
           )}
@@ -6916,23 +6806,19 @@ export function SetTimer({
     if (option.id === "massage-lab-aerial-rays") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLabAerialRaysBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysBackgroundColor: nextColor })}
-              label="Light Rays background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLabAerialRaysBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysBackgroundColor: nextColor })}
+            pickerLabel="Light Rays background color"
+          />
 
-          <div className={styles.colorRow}>
-            <span>Ray color</span>
-            <ColorPickerInput
-              value={settings.massageLabAerialRaysColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysColor: nextColor })}
-              label="Light Rays color"
-            />
-          </div>
+          <ColorField
+            label="Ray color"
+            value={settings.massageLabAerialRaysColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabAerialRaysColor: nextColor })}
+            pickerLabel="Light Rays color"
+          />
 
           <label className={styles.rangeRow}>
             <span>Ray count ({settings.massageLabAerialRaysCount})</span>
@@ -7025,49 +6911,39 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Background</span>
-                <ColorPickerInput
-                  value={settings.massageLabWaveCurrentBackgroundColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentBackgroundColor: nextColor })}
-                  label="Waves background color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Primary wave</span>
-                <ColorPickerInput
-                  value={settings.massageLabWaveCurrentColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorOne: nextColor })}
-                  label="Waves primary wave color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Highlight</span>
-                <ColorPickerInput
-                  value={settings.massageLabWaveCurrentColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorTwo: nextColor })}
-                  label="Waves highlight color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Valley</span>
-                <ColorPickerInput
-                  value={settings.massageLabWaveCurrentColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorThree: nextColor })}
-                  label="Waves valley color"
-                />
-              </div>
+              <ColorField
+                label="Background"
+                value={settings.massageLabWaveCurrentBackgroundColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentBackgroundColor: nextColor })}
+                pickerLabel="Waves background color"
+              />
+              <ColorField
+                label="Primary wave"
+                value={settings.massageLabWaveCurrentColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorOne: nextColor })}
+                pickerLabel="Waves primary wave color"
+              />
+              <ColorField
+                label="Highlight"
+                value={settings.massageLabWaveCurrentColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorTwo: nextColor })}
+                pickerLabel="Waves highlight color"
+              />
+              <ColorField
+                label="Valley"
+                value={settings.massageLabWaveCurrentColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentColorThree: nextColor })}
+                pickerLabel="Waves valley color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary wave</span>
-                <ColorPickerInput
-                  value={settings.massageLabWaveCurrentPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentPrimaryColor: nextColor })}
-                  label="Waves primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary wave"
+                value={settings.massageLabWaveCurrentPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabWaveCurrentPrimaryColor: nextColor })}
+                pickerLabel="Waves primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7154,41 +7030,33 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabFerrofluidColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorOne: nextColor })}
-                  label="Ferrofluid first color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabFerrofluidColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorTwo: nextColor })}
-                  label="Ferrofluid second color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabFerrofluidColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorThree: nextColor })}
-                  label="Ferrofluid third color"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabFerrofluidColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorOne: nextColor })}
+                pickerLabel="Ferrofluid first color"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabFerrofluidColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorTwo: nextColor })}
+                pickerLabel="Ferrofluid second color"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabFerrofluidColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidColorThree: nextColor })}
+                pickerLabel="Ferrofluid third color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabFerrofluidPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidPrimaryColor: nextColor })}
-                  label="Ferrofluid primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabFerrofluidPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFerrofluidPrimaryColor: nextColor })}
+                pickerLabel="Ferrofluid primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7365,41 +7233,33 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightfallColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorOne: nextColor })}
-                  label="Lightfall first color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightfallColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorTwo: nextColor })}
-                  label="Lightfall second color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightfallColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorThree: nextColor })}
-                  label="Lightfall third color"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabLightfallColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorOne: nextColor })}
+                pickerLabel="Lightfall first color"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabLightfallColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorTwo: nextColor })}
+                pickerLabel="Lightfall second color"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabLightfallColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallColorThree: nextColor })}
+                pickerLabel="Lightfall third color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightfallPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallPrimaryColor: nextColor })}
-                  label="Lightfall primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLightfallPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallPrimaryColor: nextColor })}
+                pickerLabel="Lightfall primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -7419,14 +7279,12 @@ export function SetTimer({
             </>
           )}
 
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLabLightfallBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallBackgroundColor: nextColor })}
-              label="Lightfall background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLabLightfallBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabLightfallBackgroundColor: nextColor })}
+            pickerLabel="Lightfall background color"
+          />
 
           <label className={styles.rangeRow}>
             <span>Animation speed ({settings.massageLabLightfallSpeed.toFixed(2)}x)</span>
@@ -7641,41 +7499,33 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabLiquidEtherColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorOne: nextColor })}
-                  label="Liquid Ether first color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabLiquidEtherColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorTwo: nextColor })}
-                  label="Liquid Ether second color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabLiquidEtherColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorThree: nextColor })}
-                  label="Liquid Ether third color"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabLiquidEtherColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorOne: nextColor })}
+                pickerLabel="Liquid Ether first color"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabLiquidEtherColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorTwo: nextColor })}
+                pickerLabel="Liquid Ether second color"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabLiquidEtherColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherColorThree: nextColor })}
+                pickerLabel="Liquid Ether third color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLiquidEtherPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherPrimaryColor: nextColor })}
-                  label="Liquid Ether primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLiquidEtherPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidEtherPrimaryColor: nextColor })}
+                pickerLabel="Liquid Ether primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8256,33 +8106,27 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Top color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightPillarTopColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarTopColor: nextColor })}
-                  label="Light Pillar top color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Bottom color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightPillarBottomColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarBottomColor: nextColor })}
-                  label="Light Pillar bottom color"
-                />
-              </div>
+              <ColorField
+                label="Top color"
+                value={settings.massageLabLightPillarTopColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarTopColor: nextColor })}
+                pickerLabel="Light Pillar top color"
+              />
+              <ColorField
+                label="Bottom color"
+                value={settings.massageLabLightPillarBottomColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarBottomColor: nextColor })}
+                pickerLabel="Light Pillar bottom color"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightPillarPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarPrimaryColor: nextColor })}
-                  label="Light Pillar primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLightPillarPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightPillarPrimaryColor: nextColor })}
+                pickerLabel="Light Pillar primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8457,24 +8301,20 @@ export function SetTimer({
           </label>
 
           {useCustomColor ? (
-            <div className={styles.colorRow}>
-              <span>Silk color</span>
-              <ColorPickerInput
-                value={settings.massageLabSilkColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabSilkColor: nextColor })}
-                label="Silk color"
-              />
-            </div>
+            <ColorField
+              label="Silk color"
+              value={settings.massageLabSilkColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabSilkColor: nextColor })}
+              pickerLabel="Silk color"
+            />
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabSilkPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSilkPrimaryColor: nextColor })}
-                  label="Silk primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabSilkPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSilkPrimaryColor: nextColor })}
+                pickerLabel="Silk primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8572,43 +8412,35 @@ export function SetTimer({
 
           {useCustomGradient && (
             <>
-              <div className={styles.colorRow}>
-                <span>Gradient 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabFloatingLinesColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorOne: nextColor })}
-                  label="Floating Lines gradient color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Gradient 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabFloatingLinesColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorTwo: nextColor })}
-                  label="Floating Lines gradient color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Gradient 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabFloatingLinesColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorThree: nextColor })}
-                  label="Floating Lines gradient color 3"
-                />
-              </div>
+              <ColorField
+                label="Gradient 1"
+                value={settings.massageLabFloatingLinesColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorOne: nextColor })}
+                pickerLabel="Floating Lines gradient color 1"
+              />
+              <ColorField
+                label="Gradient 2"
+                value={settings.massageLabFloatingLinesColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorTwo: nextColor })}
+                pickerLabel="Floating Lines gradient color 2"
+              />
+              <ColorField
+                label="Gradient 3"
+                value={settings.massageLabFloatingLinesColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesColorThree: nextColor })}
+                pickerLabel="Floating Lines gradient color 3"
+              />
             </>
           )}
 
           {useHarmonyGradient && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabFloatingLinesPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesPrimaryColor: nextColor })}
-                  label="Floating Lines primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabFloatingLinesPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFloatingLinesPrimaryColor: nextColor })}
+                pickerLabel="Floating Lines primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -8847,35 +8679,29 @@ export function SetTimer({
 
           {useCustomRays && (
             <>
-              <div className={styles.colorRow}>
-                <span>Ray color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabSideRaysColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysColorOne: nextColor })}
-                  label="Side Rays color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Ray color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabSideRaysColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysColorTwo: nextColor })}
-                  label="Side Rays color 2"
-                />
-              </div>
+              <ColorField
+                label="Ray color 1"
+                value={settings.massageLabSideRaysColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysColorOne: nextColor })}
+                pickerLabel="Side Rays color 1"
+              />
+              <ColorField
+                label="Ray color 2"
+                value={settings.massageLabSideRaysColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysColorTwo: nextColor })}
+                pickerLabel="Side Rays color 2"
+              />
             </>
           )}
 
           {useHarmonyRays && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabSideRaysPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysPrimaryColor: nextColor })}
-                  label="Side Rays primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabSideRaysPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSideRaysPrimaryColor: nextColor })}
+                pickerLabel="Side Rays primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -9040,26 +8866,22 @@ export function SetTimer({
           </label>
 
           {useCustomRayColor && (
-            <div className={styles.colorRow}>
-              <span>Ray color</span>
-              <ColorPickerInput
-                value={settings.massageLabLightRaysColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightRaysColor: nextColor })}
-                label="Light Rays color"
-              />
-            </div>
+            <ColorField
+              label="Ray color"
+              value={settings.massageLabLightRaysColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabLightRaysColor: nextColor })}
+              pickerLabel="Light Rays color"
+            />
           )}
 
           {useHarmonyRayColor && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightRaysPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightRaysPrimaryColor: nextColor })}
-                  label="Light Rays primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLightRaysPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightRaysPrimaryColor: nextColor })}
+                pickerLabel="Light Rays primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -9248,26 +9070,22 @@ export function SetTimer({
           </label>
 
           {useCustomPixelColor && (
-            <div className={styles.colorRow}>
-              <span>Pixel color</span>
-              <ColorPickerInput
-                value={settings.massageLabPixelBlastColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPixelBlastColor: nextColor })}
-                label="MassageLab Pixel Blast color"
-              />
-            </div>
+            <ColorField
+              label="Pixel color"
+              value={settings.massageLabPixelBlastColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabPixelBlastColor: nextColor })}
+              pickerLabel="MassageLab Pixel Blast color"
+            />
           )}
 
           {useHarmonyPixelColor && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabPixelBlastPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPixelBlastPrimaryColor: nextColor })}
-                  label="MassageLab Pixel Blast primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabPixelBlastPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPixelBlastPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Pixel Blast primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -9558,28 +9376,25 @@ export function SetTimer({
                 ["Color 3", "massageLabColorBendsColorThree"],
                 ["Color 4", "massageLabColorBendsColorFour"],
               ].map(([label, key]) => (
-                <div key={key} className={styles.colorRow}>
-                  <span>{label}</span>
-                  <ColorPickerInput
-                    value={settings[key as keyof ChimerSettings] as string}
-                    onValueChange={(nextColor) => onSettingsChange({ [key]: nextColor })}
-                    label={`MassageLab Color Bends ${label.toLowerCase()}`}
-                  />
-                </div>
+                <ColorField
+                  key={key}
+                  label={label}
+                  value={settings[key as keyof ChimerSettings] as string}
+                  onValueChange={(nextColor) => onSettingsChange({ [key]: nextColor })}
+                  pickerLabel={`MassageLab Color Bends ${label.toLowerCase()}`}
+                />
               ))}
             </>
           )}
 
           {useHarmonyBendColors && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabColorBendsPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabColorBendsPrimaryColor: nextColor })}
-                  label="MassageLab Color Bends primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabColorBendsPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabColorBendsPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Color Bends primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -9800,26 +9615,22 @@ export function SetTimer({
           </label>
 
           {useCustomEyeColor && (
-            <div className={styles.colorRow}>
-              <span>Eye color</span>
-              <ColorPickerInput
-                value={settings.massageLabEvilEyeColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyeColor: nextColor })}
-                label="MassageLab Evil Eye eye color"
-              />
-            </div>
+            <ColorField
+              label="Eye color"
+              value={settings.massageLabEvilEyeColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyeColor: nextColor })}
+              pickerLabel="MassageLab Evil Eye eye color"
+            />
           )}
 
           {useHarmonyEyeColor && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabEvilEyePrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyePrimaryColor: nextColor })}
-                  label="MassageLab Evil Eye primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabEvilEyePrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyePrimaryColor: nextColor })}
+                pickerLabel="MassageLab Evil Eye primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -9839,14 +9650,12 @@ export function SetTimer({
             </>
           )}
 
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLabEvilEyeBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyeBackgroundColor: nextColor })}
-              label="MassageLab Evil Eye background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLabEvilEyeBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabEvilEyeBackgroundColor: nextColor })}
+            pickerLabel="MassageLab Evil Eye background color"
+          />
 
           <label className={styles.selectRow}>
             <input
@@ -9988,43 +9797,35 @@ export function SetTimer({
 
           {useCustomColors && (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabLineWavesColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorOne: nextColor })}
-                  label="MassageLab Line Waves color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabLineWavesColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorTwo: nextColor })}
-                  label="MassageLab Line Waves color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabLineWavesColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorThree: nextColor })}
-                  label="MassageLab Line Waves color 3"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabLineWavesColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorOne: nextColor })}
+                pickerLabel="MassageLab Line Waves color 1"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabLineWavesColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorTwo: nextColor })}
+                pickerLabel="MassageLab Line Waves color 2"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabLineWavesColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesColorThree: nextColor })}
+                pickerLabel="MassageLab Line Waves color 3"
+              />
             </>
           )}
 
           {useHarmonyColors && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLineWavesPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesPrimaryColor: nextColor })}
-                  label="MassageLab Line Waves primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLineWavesPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLineWavesPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Line Waves primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -10198,26 +9999,22 @@ export function SetTimer({
           </label>
 
           {useCustomColor && (
-            <div className={styles.colorRow}>
-              <span>Radar color</span>
-              <ColorPickerInput
-                value={settings.massageLabRadarColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabRadarColor: nextColor })}
-                label="MassageLab Radar color"
-              />
-            </div>
+            <ColorField
+              label="Radar color"
+              value={settings.massageLabRadarColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabRadarColor: nextColor })}
+              pickerLabel="MassageLab Radar color"
+            />
           )}
 
           {useHarmonyColor && (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabRadarPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabRadarPrimaryColor: nextColor })}
-                  label="MassageLab Radar primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabRadarPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabRadarPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Radar primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -10237,14 +10034,12 @@ export function SetTimer({
             </>
           )}
 
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLabRadarBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabRadarBackgroundColor: nextColor })}
-              label="MassageLab Radar background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLabRadarBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabRadarBackgroundColor: nextColor })}
+            pickerLabel="MassageLab Radar background color"
+          />
 
           <label className={styles.selectRow}>
             <input
@@ -10440,35 +10235,29 @@ export function SetTimer({
 
           {useCustomColor ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Aurora color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabSoftAuroraColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraColorOne: nextColor })}
-                  label="MassageLab Soft Aurora color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Aurora color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabSoftAuroraColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraColorTwo: nextColor })}
-                  label="MassageLab Soft Aurora color 2"
-                />
-              </div>
+              <ColorField
+                label="Aurora color 1"
+                value={settings.massageLabSoftAuroraColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraColorOne: nextColor })}
+                pickerLabel="MassageLab Soft Aurora color 1"
+              />
+              <ColorField
+                label="Aurora color 2"
+                value={settings.massageLabSoftAuroraColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraColorTwo: nextColor })}
+                pickerLabel="MassageLab Soft Aurora color 2"
+              />
             </>
           ) : null}
 
           {useHarmonyColor ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabSoftAuroraPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraPrimaryColor: nextColor })}
-                  label="MassageLab Soft Aurora primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabSoftAuroraPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSoftAuroraPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Soft Aurora primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10674,26 +10463,22 @@ export function SetTimer({
           </label>
 
           {useCustomColor ? (
-            <div className={styles.colorRow}>
-              <span>Plasma color</span>
-              <ColorPickerInput
-                value={settings.massageLabPlasmaColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaColor: nextColor })}
-                label="MassageLab Plasma color"
-              />
-            </div>
+            <ColorField
+              label="Plasma color"
+              value={settings.massageLabPlasmaColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaColor: nextColor })}
+              pickerLabel="MassageLab Plasma color"
+            />
           ) : null}
 
           {useHarmonyColor ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabPlasmaPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaPrimaryColor: nextColor })}
-                  label="MassageLab Plasma primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabPlasmaPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Plasma primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10803,35 +10588,29 @@ export function SetTimer({
 
           {useCustomColor ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Wave color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabPlasmaWaveColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWaveColorOne: nextColor })}
-                  label="MassageLab Plasma Wave color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Wave color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabPlasmaWaveColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWaveColorTwo: nextColor })}
-                  label="MassageLab Plasma Wave color 2"
-                />
-              </div>
+              <ColorField
+                label="Wave color 1"
+                value={settings.massageLabPlasmaWaveColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWaveColorOne: nextColor })}
+                pickerLabel="MassageLab Plasma Wave color 1"
+              />
+              <ColorField
+                label="Wave color 2"
+                value={settings.massageLabPlasmaWaveColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWaveColorTwo: nextColor })}
+                pickerLabel="MassageLab Plasma Wave color 2"
+              />
             </>
           ) : null}
 
           {useHarmonyColor ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabPlasmaWavePrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWavePrimaryColor: nextColor })}
-                  label="MassageLab Plasma Wave primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabPlasmaWavePrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPlasmaWavePrimaryColor: nextColor })}
+                pickerLabel="MassageLab Plasma Wave primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -10995,43 +10774,35 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Particle color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabParticlesColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorOne: nextColor })}
-                  label="MassageLab Particles color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Particle color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabParticlesColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorTwo: nextColor })}
-                  label="MassageLab Particles color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Particle color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabParticlesColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorThree: nextColor })}
-                  label="MassageLab Particles color 3"
-                />
-              </div>
+              <ColorField
+                label="Particle color 1"
+                value={settings.massageLabParticlesColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorOne: nextColor })}
+                pickerLabel="MassageLab Particles color 1"
+              />
+              <ColorField
+                label="Particle color 2"
+                value={settings.massageLabParticlesColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorTwo: nextColor })}
+                pickerLabel="MassageLab Particles color 2"
+              />
+              <ColorField
+                label="Particle color 3"
+                value={settings.massageLabParticlesColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesColorThree: nextColor })}
+                pickerLabel="MassageLab Particles color 3"
+              />
             </>
           ) : null}
 
           {useHarmonyPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabParticlesPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesPrimaryColor: nextColor })}
-                  label="MassageLab Particles primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabParticlesPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabParticlesPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Particles primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11208,35 +10979,29 @@ export function SetTimer({
 
           {useCustomGradient ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Gradient color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabGradientBlindsColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsColorOne: nextColor })}
-                  label="MassageLab Gradient Blinds color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Gradient color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabGradientBlindsColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsColorTwo: nextColor })}
-                  label="MassageLab Gradient Blinds color 2"
-                />
-              </div>
+              <ColorField
+                label="Gradient color 1"
+                value={settings.massageLabGradientBlindsColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsColorOne: nextColor })}
+                pickerLabel="MassageLab Gradient Blinds color 1"
+              />
+              <ColorField
+                label="Gradient color 2"
+                value={settings.massageLabGradientBlindsColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsColorTwo: nextColor })}
+                pickerLabel="MassageLab Gradient Blinds color 2"
+              />
             </>
           ) : null}
 
           {useHarmonyGradient ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGradientBlindsPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsPrimaryColor: nextColor })}
-                  label="MassageLab Gradient Blinds primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabGradientBlindsPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGradientBlindsPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Gradient Blinds primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11462,43 +11227,35 @@ export function SetTimer({
 
           {useCustomGrainient ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabGrainientColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorOne: nextColor })}
-                  label="MassageLab Grainient color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabGrainientColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorTwo: nextColor })}
-                  label="MassageLab Grainient color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabGrainientColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorThree: nextColor })}
-                  label="MassageLab Grainient color 3"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabGrainientColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorOne: nextColor })}
+                pickerLabel="MassageLab Grainient color 1"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabGrainientColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorTwo: nextColor })}
+                pickerLabel="MassageLab Grainient color 2"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabGrainientColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientColorThree: nextColor })}
+                pickerLabel="MassageLab Grainient color 3"
+              />
             </>
           ) : null}
 
           {useHarmonyGrainient ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGrainientPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientPrimaryColor: nextColor })}
-                  label="MassageLab Grainient primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabGrainientPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGrainientPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Grainient primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -11787,35 +11544,29 @@ export function SetTimer({
 
           {useCustomGridScan ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Grid lines</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridScanLinesColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanLinesColor: nextColor })}
-                  label="MassageLab Grid Scan line color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Scan color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridScanScanColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanScanColor: nextColor })}
-                  label="MassageLab Grid Scan scan color"
-                />
-              </div>
+              <ColorField
+                label="Grid lines"
+                value={settings.massageLabGridScanLinesColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanLinesColor: nextColor })}
+                pickerLabel="MassageLab Grid Scan line color"
+              />
+              <ColorField
+                label="Scan color"
+                value={settings.massageLabGridScanScanColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanScanColor: nextColor })}
+                pickerLabel="MassageLab Grid Scan scan color"
+              />
             </>
           ) : null}
 
           {useHarmonyGridScan ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridScanPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanPrimaryColor: nextColor })}
-                  label="MassageLab Grid Scan primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabGridScanPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridScanPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Grid Scan primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12066,26 +11817,22 @@ export function SetTimer({
           </label>
 
           {useCustomBeams ? (
-            <div className={styles.colorRow}>
-              <span>Light color</span>
-              <ColorPickerInput
-                value={settings.massageLabBeamsLightColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabBeamsLightColor: nextColor })}
-                label="MassageLab Beams light color"
-              />
-            </div>
+            <ColorField
+              label="Light color"
+              value={settings.massageLabBeamsLightColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabBeamsLightColor: nextColor })}
+              pickerLabel="MassageLab Beams light color"
+            />
           ) : null}
 
           {useHarmonyBeams ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabBeamsPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabBeamsPrimaryColor: nextColor })}
-                  label="MassageLab Beams primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabBeamsPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabBeamsPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Beams primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12221,26 +11968,22 @@ export function SetTimer({
           </label>
 
           {useCustomPixelSnow ? (
-            <div className={styles.colorRow}>
-              <span>Snow color</span>
-              <ColorPickerInput
-                value={settings.massageLabPixelSnowColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabPixelSnowColor: nextColor })}
-                label="MassageLab Pixel Snow color"
-              />
-            </div>
+            <ColorField
+              label="Snow color"
+              value={settings.massageLabPixelSnowColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabPixelSnowColor: nextColor })}
+              pickerLabel="MassageLab Pixel Snow color"
+            />
           ) : null}
 
           {useHarmonyPixelSnow ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabPixelSnowPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPixelSnowPrimaryColor: nextColor })}
-                  label="MassageLab Pixel Snow primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabPixelSnowPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPixelSnowPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Pixel Snow primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12446,26 +12189,22 @@ export function SetTimer({
           ) : null}
 
           {useCustomLightning ? (
-            <div className={styles.colorRow}>
-              <span>Lightning color</span>
-              <ColorPickerInput
-                value={settings.massageLabLightningColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLightningColor: nextColor })}
-                label="MassageLab Lightning color"
-              />
-            </div>
+            <ColorField
+              label="Lightning color"
+              value={settings.massageLabLightningColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabLightningColor: nextColor })}
+              pickerLabel="MassageLab Lightning color"
+            />
           ) : null}
 
           {useHarmonyLightning ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLightningPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLightningPrimaryColor: nextColor })}
-                  label="MassageLab Lightning primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLightningPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLightningPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Lightning primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12563,51 +12302,41 @@ export function SetTimer({
 
           {useCustomPrismatic ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabPrismaticBurstColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorOne: nextColor })}
-                  label="MassageLab Prismatic Burst color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabPrismaticBurstColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorTwo: nextColor })}
-                  label="MassageLab Prismatic Burst color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabPrismaticBurstColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorThree: nextColor })}
-                  label="MassageLab Prismatic Burst color 3"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 4</span>
-                <ColorPickerInput
-                  value={settings.massageLabPrismaticBurstColorFour}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorFour: nextColor })}
-                  label="MassageLab Prismatic Burst color 4"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabPrismaticBurstColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorOne: nextColor })}
+                pickerLabel="MassageLab Prismatic Burst color 1"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabPrismaticBurstColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorTwo: nextColor })}
+                pickerLabel="MassageLab Prismatic Burst color 2"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabPrismaticBurstColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorThree: nextColor })}
+                pickerLabel="MassageLab Prismatic Burst color 3"
+              />
+              <ColorField
+                label="Color 4"
+                value={settings.massageLabPrismaticBurstColorFour}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstColorFour: nextColor })}
+                pickerLabel="MassageLab Prismatic Burst color 4"
+              />
             </>
           ) : null}
 
           {useHarmonyPrismatic ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabPrismaticBurstPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstPrimaryColor: nextColor })}
-                  label="MassageLab Prismatic Burst primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabPrismaticBurstPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPrismaticBurstPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Prismatic Burst primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -12791,26 +12520,22 @@ export function SetTimer({
           ) : null}
 
           {useCustomGalaxy ? (
-            <div className={styles.colorRow}>
-              <span>Galaxy color</span>
-              <ColorPickerInput
-                value={settings.massageLabGalaxyColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabGalaxyColor: nextColor })}
-                label="MassageLab Galaxy color"
-              />
-            </div>
+            <ColorField
+              label="Galaxy color"
+              value={settings.massageLabGalaxyColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabGalaxyColor: nextColor })}
+              pickerLabel="MassageLab Galaxy color"
+            />
           ) : null}
 
           {useHarmonyGalaxy ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGalaxyPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGalaxyPrimaryColor: nextColor })}
-                  label="MassageLab Galaxy primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabGalaxyPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGalaxyPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Galaxy primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13043,26 +12768,22 @@ export function SetTimer({
           </label>
 
           {useCustomDither ? (
-            <div className={styles.colorRow}>
-              <span>Dither color</span>
-              <ColorPickerInput
-                value={settings.massageLabDitherColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabDitherColor: nextColor })}
-                label="MassageLab Dither color"
-              />
-            </div>
+            <ColorField
+              label="Dither color"
+              value={settings.massageLabDitherColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabDitherColor: nextColor })}
+              pickerLabel="MassageLab Dither color"
+            />
           ) : null}
 
           {useHarmonyDither ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDitherPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDitherPrimaryColor: nextColor })}
-                  label="MassageLab Dither primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabDitherPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDitherPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Dither primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13196,26 +12917,22 @@ export function SetTimer({
           </label>
 
           {useCustomFaultyTerminal ? (
-            <div className={styles.colorRow}>
-              <span>Terminal tint</span>
-              <ColorPickerInput
-                value={settings.massageLabFaultyTerminalTint}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabFaultyTerminalTint: nextColor })}
-                label="MassageLab Faulty Terminal tint"
-              />
-            </div>
+            <ColorField
+              label="Terminal tint"
+              value={settings.massageLabFaultyTerminalTint}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabFaultyTerminalTint: nextColor })}
+              pickerLabel="MassageLab Faulty Terminal tint"
+            />
           ) : null}
 
           {useHarmonyFaultyTerminal ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabFaultyTerminalPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabFaultyTerminalPrimaryColor: nextColor })}
-                  label="MassageLab Faulty Terminal primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabFaultyTerminalPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabFaultyTerminalPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Faulty Terminal primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13474,26 +13191,22 @@ export function SetTimer({
           </label>
 
           {useCustomRippleGrid ? (
-            <div className={styles.colorRow}>
-              <span>Grid color</span>
-              <ColorPickerInput
-                value={settings.massageLabRippleGridColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabRippleGridColor: nextColor })}
-                label="MassageLab Ripple Grid color"
-              />
-            </div>
+            <ColorField
+              label="Grid color"
+              value={settings.massageLabRippleGridColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabRippleGridColor: nextColor })}
+              pickerLabel="MassageLab Ripple Grid color"
+            />
           ) : null}
 
           {useHarmonyRippleGrid ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabRippleGridPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabRippleGridPrimaryColor: nextColor })}
-                  label="MassageLab Ripple Grid primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabRippleGridPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabRippleGridPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Ripple Grid primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13673,43 +13386,35 @@ export function SetTimer({
 
           {useCustomDotField ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Gradient start</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotFieldGradientFromColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGradientFromColor: nextColor })}
-                  label="MassageLab Dot Field gradient start color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Gradient end</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotFieldGradientToColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGradientToColor: nextColor })}
-                  label="MassageLab Dot Field gradient end color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Glow color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotFieldGlowColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGlowColor: nextColor })}
-                  label="MassageLab Dot Field glow color"
-                />
-              </div>
+              <ColorField
+                label="Gradient start"
+                value={settings.massageLabDotFieldGradientFromColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGradientFromColor: nextColor })}
+                pickerLabel="MassageLab Dot Field gradient start color"
+              />
+              <ColorField
+                label="Gradient end"
+                value={settings.massageLabDotFieldGradientToColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGradientToColor: nextColor })}
+                pickerLabel="MassageLab Dot Field gradient end color"
+              />
+              <ColorField
+                label="Glow color"
+                value={settings.massageLabDotFieldGlowColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldGlowColor: nextColor })}
+                pickerLabel="MassageLab Dot Field glow color"
+              />
             </>
           ) : null}
 
           {useHarmonyDotField ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotFieldPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldPrimaryColor: nextColor })}
-                  label="MassageLab Dot Field primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabDotFieldPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotFieldPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Dot Field primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -13906,35 +13611,29 @@ export function SetTimer({
 
           {settings.massageLabDotGridPaletteMode === "custom" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Base color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotGridBaseColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridBaseColor: nextColor })}
-                  label="MassageLab Dot Grid base color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Active color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotGridActiveColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridActiveColor: nextColor })}
-                  label="MassageLab Dot Grid active color"
-                />
-              </div>
+              <ColorField
+                label="Base color"
+                value={settings.massageLabDotGridBaseColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridBaseColor: nextColor })}
+                pickerLabel="MassageLab Dot Grid base color"
+              />
+              <ColorField
+                label="Active color"
+                value={settings.massageLabDotGridActiveColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridActiveColor: nextColor })}
+                pickerLabel="MassageLab Dot Grid active color"
+              />
             </>
           ) : null}
 
           {settings.massageLabDotGridPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabDotGridPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridPrimaryColor: nextColor })}
-                  label="MassageLab Dot Grid primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabDotGridPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabDotGridPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Dot Grid primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14032,26 +13731,22 @@ export function SetTimer({
           </label>
 
           {settings.massageLabThreadsPaletteMode === "custom" ? (
-            <div className={styles.colorRow}>
-              <span>Thread color</span>
-              <ColorPickerInput
-                value={settings.massageLabThreadsColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabThreadsColor: nextColor })}
-                label="MassageLab Threads color"
-              />
-            </div>
+            <ColorField
+              label="Thread color"
+              value={settings.massageLabThreadsColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabThreadsColor: nextColor })}
+              pickerLabel="MassageLab Threads color"
+            />
           ) : null}
 
           {settings.massageLabThreadsPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabThreadsPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabThreadsPrimaryColor: nextColor })}
-                  label="MassageLab Threads primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabThreadsPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabThreadsPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Threads primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14130,26 +13825,22 @@ export function SetTimer({
           </label>
 
           {settings.massageLabIridescencePaletteMode === "custom" ? (
-            <div className={styles.colorRow}>
-              <span>Tint color</span>
-              <ColorPickerInput
-                value={settings.massageLabIridescenceColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabIridescenceColor: nextColor })}
-                label="MassageLab Iridescence tint color"
-              />
-            </div>
+            <ColorField
+              label="Tint color"
+              value={settings.massageLabIridescenceColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabIridescenceColor: nextColor })}
+              pickerLabel="MassageLab Iridescence tint color"
+            />
           ) : null}
 
           {settings.massageLabIridescencePaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabIridescencePrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabIridescencePrimaryColor: nextColor })}
-                  label="MassageLab Iridescence primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabIridescencePrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabIridescencePrimaryColor: nextColor })}
+                pickerLabel="MassageLab Iridescence primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14229,26 +13920,22 @@ export function SetTimer({
           </label>
 
           {settings.massageLabWavesPaletteMode === "custom" ? (
-            <div className={styles.colorRow}>
-              <span>Line color</span>
-              <ColorPickerInput
-                value={settings.massageLabWavesLineColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWavesLineColor: nextColor })}
-                label="MassageLab Waves line color"
-              />
-            </div>
+            <ColorField
+              label="Line color"
+              value={settings.massageLabWavesLineColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabWavesLineColor: nextColor })}
+              pickerLabel="MassageLab Waves line color"
+            />
           ) : null}
 
           {settings.massageLabWavesPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabWavesPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabWavesPrimaryColor: nextColor })}
-                  label="MassageLab Waves primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabWavesPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabWavesPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Waves primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14281,14 +13968,12 @@ export function SetTimer({
           </label>
 
           {!settings.massageLabWavesTransparentBackground ? (
-            <div className={styles.colorRow}>
-              <span>Background color</span>
-              <ColorPickerInput
-                value={settings.massageLabWavesBackgroundColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabWavesBackgroundColor: nextColor })}
-                label="MassageLab Waves background color"
-              />
-            </div>
+            <ColorField
+              label="Background color"
+              value={settings.massageLabWavesBackgroundColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabWavesBackgroundColor: nextColor })}
+              pickerLabel="MassageLab Waves background color"
+            />
           ) : null}
 
           <label className={styles.switchRow}>
@@ -14443,43 +14128,35 @@ export function SetTimer({
 
           {settings.massageLabGridDistortionPaletteMode === "custom" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Texture color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridDistortionColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorOne: nextColor })}
-                  label="MassageLab Grid Distortion texture color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Texture color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridDistortionColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorTwo: nextColor })}
-                  label="MassageLab Grid Distortion texture color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Texture color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridDistortionColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorThree: nextColor })}
-                  label="MassageLab Grid Distortion texture color 3"
-                />
-              </div>
+              <ColorField
+                label="Texture color 1"
+                value={settings.massageLabGridDistortionColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorOne: nextColor })}
+                pickerLabel="MassageLab Grid Distortion texture color 1"
+              />
+              <ColorField
+                label="Texture color 2"
+                value={settings.massageLabGridDistortionColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorTwo: nextColor })}
+                pickerLabel="MassageLab Grid Distortion texture color 2"
+              />
+              <ColorField
+                label="Texture color 3"
+                value={settings.massageLabGridDistortionColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionColorThree: nextColor })}
+                pickerLabel="MassageLab Grid Distortion texture color 3"
+              />
             </>
           ) : null}
 
           {settings.massageLabGridDistortionPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridDistortionPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionPrimaryColor: nextColor })}
-                  label="MassageLab Grid Distortion primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabGridDistortionPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridDistortionPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Grid Distortion primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14600,26 +14277,22 @@ export function SetTimer({
           ) : null}
 
           {settings.massageLabOrbPaletteMode === "custom" ? (
-            <div className={styles.colorRow}>
-              <span>Orb color</span>
-              <ColorPickerInput
-                value={settings.massageLabOrbColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabOrbColor: nextColor })}
-                label="MassageLab Orb color"
-              />
-            </div>
+            <ColorField
+              label="Orb color"
+              value={settings.massageLabOrbColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabOrbColor: nextColor })}
+              pickerLabel="MassageLab Orb color"
+            />
           ) : null}
 
           {settings.massageLabOrbPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabOrbPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabOrbPrimaryColor: nextColor })}
-                  label="MassageLab Orb primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabOrbPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabOrbPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Orb primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14637,14 +14310,12 @@ export function SetTimer({
             </>
           ) : null}
 
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.massageLabOrbBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ massageLabOrbBackgroundColor: nextColor })}
-              label="MassageLab Orb background color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.massageLabOrbBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ massageLabOrbBackgroundColor: nextColor })}
+            pickerLabel="MassageLab Orb background color"
+          />
 
           <label className={styles.switchRow}>
             <span>Cursor interaction</span>
@@ -14712,43 +14383,35 @@ export function SetTimer({
 
           {settings.massageLabLetterGlitchPaletteMode === "custom" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabLetterGlitchColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorOne: nextColor })}
-                  label="MassageLab Letter Glitch color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabLetterGlitchColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorTwo: nextColor })}
-                  label="MassageLab Letter Glitch color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabLetterGlitchColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorThree: nextColor })}
-                  label="MassageLab Letter Glitch color 3"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabLetterGlitchColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorOne: nextColor })}
+                pickerLabel="MassageLab Letter Glitch color 1"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabLetterGlitchColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorTwo: nextColor })}
+                pickerLabel="MassageLab Letter Glitch color 2"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabLetterGlitchColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchColorThree: nextColor })}
+                pickerLabel="MassageLab Letter Glitch color 3"
+              />
             </>
           ) : null}
 
           {settings.massageLabLetterGlitchPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLetterGlitchPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchPrimaryColor: nextColor })}
-                  label="MassageLab Letter Glitch primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLetterGlitchPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLetterGlitchPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Letter Glitch primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14834,43 +14497,35 @@ export function SetTimer({
 
           {settings.massageLabGridMotionPaletteMode === "custom" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Gradient</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridMotionGradientColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionGradientColor: nextColor })}
-                  label="MassageLab Grid Motion gradient color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Tile</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridMotionTileColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionTileColor: nextColor })}
-                  label="MassageLab Grid Motion tile color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Text</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridMotionTextColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionTextColor: nextColor })}
-                  label="MassageLab Grid Motion text color"
-                />
-              </div>
+              <ColorField
+                label="Gradient"
+                value={settings.massageLabGridMotionGradientColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionGradientColor: nextColor })}
+                pickerLabel="MassageLab Grid Motion gradient color"
+              />
+              <ColorField
+                label="Tile"
+                value={settings.massageLabGridMotionTileColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionTileColor: nextColor })}
+                pickerLabel="MassageLab Grid Motion tile color"
+              />
+              <ColorField
+                label="Text"
+                value={settings.massageLabGridMotionTextColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionTextColor: nextColor })}
+                pickerLabel="MassageLab Grid Motion text color"
+              />
             </>
           ) : null}
 
           {settings.massageLabGridMotionPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabGridMotionPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionPrimaryColor: nextColor })}
-                  label="MassageLab Grid Motion primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabGridMotionPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabGridMotionPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Grid Motion primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -14949,35 +14604,29 @@ export function SetTimer({
 
           {settings.massageLabShapeGridPaletteMode === "custom" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Border</span>
-                <ColorPickerInput
-                  value={settings.massageLabShapeGridBorderColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridBorderColor: nextColor })}
-                  label="MassageLab Shape Grid border color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Hover fill</span>
-                <ColorPickerInput
-                  value={settings.massageLabShapeGridHoverFillColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridHoverFillColor: nextColor })}
-                  label="MassageLab Shape Grid hover fill color"
-                />
-              </div>
+              <ColorField
+                label="Border"
+                value={settings.massageLabShapeGridBorderColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridBorderColor: nextColor })}
+                pickerLabel="MassageLab Shape Grid border color"
+              />
+              <ColorField
+                label="Hover fill"
+                value={settings.massageLabShapeGridHoverFillColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridHoverFillColor: nextColor })}
+                pickerLabel="MassageLab Shape Grid hover fill color"
+              />
             </>
           ) : null}
 
           {settings.massageLabShapeGridPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabShapeGridPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridPrimaryColor: nextColor })}
-                  label="MassageLab Shape Grid primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabShapeGridPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabShapeGridPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Shape Grid primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -15101,26 +14750,22 @@ export function SetTimer({
           </label>
 
           {settings.massageLabLiquidChromePaletteMode === "custom" ? (
-            <div className={styles.colorRow}>
-              <span>Base color</span>
-              <ColorPickerInput
-                value={settings.massageLabLiquidChromeBaseColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidChromeBaseColor: nextColor })}
-                label="MassageLab Liquid Chrome base color"
-              />
-            </div>
+            <ColorField
+              label="Base color"
+              value={settings.massageLabLiquidChromeBaseColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidChromeBaseColor: nextColor })}
+              pickerLabel="MassageLab Liquid Chrome base color"
+            />
           ) : null}
 
           {settings.massageLabLiquidChromePaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabLiquidChromePrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidChromePrimaryColor: nextColor })}
-                  label="MassageLab Liquid Chrome primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabLiquidChromePrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabLiquidChromePrimaryColor: nextColor })}
+                pickerLabel="MassageLab Liquid Chrome primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -15225,43 +14870,35 @@ export function SetTimer({
 
           {settings.massageLabBalatroPaletteMode === "custom" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabBalatroColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorOne: nextColor })}
-                  label="MassageLab Balatro color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabBalatroColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorTwo: nextColor })}
-                  label="MassageLab Balatro color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabBalatroColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorThree: nextColor })}
-                  label="MassageLab Balatro color 3"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabBalatroColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorOne: nextColor })}
+                pickerLabel="MassageLab Balatro color 1"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabBalatroColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorTwo: nextColor })}
+                pickerLabel="MassageLab Balatro color 2"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabBalatroColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroColorThree: nextColor })}
+                pickerLabel="MassageLab Balatro color 3"
+              />
             </>
           ) : null}
 
           {settings.massageLabBalatroPaletteMode === "harmony" ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabBalatroPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroPrimaryColor: nextColor })}
-                  label="MassageLab Balatro primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabBalatroPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabBalatroPrimaryColor: nextColor })}
+                pickerLabel="MassageLab Balatro primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Harmony</span>
                 <select
@@ -15415,30 +15052,24 @@ export function SetTimer({
 
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Background</span>
-                <ColorPickerInput
-                  value={settings.massageLabPhotonBeamColorBg}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorBg: nextColor })}
-                  label="Photon Beam background color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Beam lines</span>
-                <ColorPickerInput
-                  value={settings.massageLabPhotonBeamColorLine}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorLine: nextColor })}
-                  label="Photon Beam line color"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Signal 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabPhotonBeamColorSignal}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal: nextColor })}
-                  label="Photon Beam signal color"
-                />
-              </div>
+              <ColorField
+                label="Background"
+                value={settings.massageLabPhotonBeamColorBg}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorBg: nextColor })}
+                pickerLabel="Photon Beam background color"
+              />
+              <ColorField
+                label="Beam lines"
+                value={settings.massageLabPhotonBeamColorLine}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorLine: nextColor })}
+                pickerLabel="Photon Beam line color"
+              />
+              <ColorField
+                label="Signal 1"
+                value={settings.massageLabPhotonBeamColorSignal}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal: nextColor })}
+                pickerLabel="Photon Beam signal color"
+              />
               <label className={styles.switchRow}>
                 <span>Signal 2</span>
                 <input
@@ -15449,14 +15080,12 @@ export function SetTimer({
                 />
               </label>
               {settings.massageLabPhotonBeamUseColor2 && (
-                <div className={styles.colorRow}>
-                  <span>Signal 2 color</span>
-                  <ColorPickerInput
-                    value={settings.massageLabPhotonBeamColorSignal2}
-                    onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal2: nextColor })}
-                    label="Photon Beam second signal color"
-                  />
-                </div>
+                <ColorField
+                  label="Signal 2 color"
+                  value={settings.massageLabPhotonBeamColorSignal2}
+                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal2: nextColor })}
+                  pickerLabel="Photon Beam second signal color"
+                />
               )}
               <label className={styles.switchRow}>
                 <span>Signal 3</span>
@@ -15468,26 +15097,22 @@ export function SetTimer({
                 />
               </label>
               {settings.massageLabPhotonBeamUseColor3 && (
-                <div className={styles.colorRow}>
-                  <span>Signal 3 color</span>
-                  <ColorPickerInput
-                    value={settings.massageLabPhotonBeamColorSignal3}
-                    onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal3: nextColor })}
-                    label="Photon Beam third signal color"
-                  />
-                </div>
+                <ColorField
+                  label="Signal 3 color"
+                  value={settings.massageLabPhotonBeamColorSignal3}
+                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamColorSignal3: nextColor })}
+                  pickerLabel="Photon Beam third signal color"
+                />
               )}
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabPhotonBeamPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamPrimaryColor: nextColor })}
-                  label="Photon Beam primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabPhotonBeamPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabPhotonBeamPrimaryColor: nextColor })}
+                pickerLabel="Photon Beam primary color"
+              />
 
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
@@ -15716,24 +15341,20 @@ export function SetTimer({
           </label>
 
           {useCustomPalette ? (
-            <div className={styles.colorRow}>
-              <span>Character color</span>
-              <ColorPickerInput
-                value={settings.massageLabMatrixRainColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabMatrixRainColor: nextColor })}
-                label="Matrix Rain character color"
-              />
-            </div>
+            <ColorField
+              label="Character color"
+              value={settings.massageLabMatrixRainColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabMatrixRainColor: nextColor })}
+              pickerLabel="Matrix Rain character color"
+            />
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabMatrixRainPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabMatrixRainPrimaryColor: nextColor })}
-                  label="Matrix Rain primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabMatrixRainPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabMatrixRainPrimaryColor: nextColor })}
+                pickerLabel="Matrix Rain primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -15806,24 +15427,20 @@ export function SetTimer({
           </label>
 
           {useCustomPalette ? (
-            <div className={styles.colorRow}>
-              <span>Animation color</span>
-              <ColorPickerInput
-                value={settings.massageLabNovatrixColor}
-                onValueChange={(nextColor) => onSettingsChange({ massageLabNovatrixColor: nextColor })}
-                label="Novatrix animation color"
-              />
-            </div>
+            <ColorField
+              label="Animation color"
+              value={settings.massageLabNovatrixColor}
+              onValueChange={(nextColor) => onSettingsChange({ massageLabNovatrixColor: nextColor })}
+              pickerLabel="Novatrix animation color"
+            />
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabNovatrixPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabNovatrixPrimaryColor: nextColor })}
-                  label="Novatrix primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabNovatrixPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabNovatrixPrimaryColor: nextColor })}
+                pickerLabel="Novatrix primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -15897,41 +15514,33 @@ export function SetTimer({
           </label>
           {useCustomPalette ? (
             <>
-              <div className={styles.colorRow}>
-                <span>Color 1</span>
-                <ColorPickerInput
-                  value={settings.massageLabSynthesisColorOne}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorOne: nextColor })}
-                  label="Synthesis color 1"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 2</span>
-                <ColorPickerInput
-                  value={settings.massageLabSynthesisColorTwo}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorTwo: nextColor })}
-                  label="Synthesis color 2"
-                />
-              </div>
-              <div className={styles.colorRow}>
-                <span>Color 3</span>
-                <ColorPickerInput
-                  value={settings.massageLabSynthesisColorThree}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorThree: nextColor })}
-                  label="Synthesis color 3"
-                />
-              </div>
+              <ColorField
+                label="Color 1"
+                value={settings.massageLabSynthesisColorOne}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorOne: nextColor })}
+                pickerLabel="Synthesis color 1"
+              />
+              <ColorField
+                label="Color 2"
+                value={settings.massageLabSynthesisColorTwo}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorTwo: nextColor })}
+                pickerLabel="Synthesis color 2"
+              />
+              <ColorField
+                label="Color 3"
+                value={settings.massageLabSynthesisColorThree}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisColorThree: nextColor })}
+                pickerLabel="Synthesis color 3"
+              />
             </>
           ) : (
             <>
-              <div className={styles.colorRow}>
-                <span>Primary color</span>
-                <ColorPickerInput
-                  value={settings.massageLabSynthesisPrimaryColor}
-                  onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisPrimaryColor: nextColor })}
-                  label="Synthesis primary color"
-                />
-              </div>
+              <ColorField
+                label="Primary color"
+                value={settings.massageLabSynthesisPrimaryColor}
+                onValueChange={(nextColor) => onSettingsChange({ massageLabSynthesisPrimaryColor: nextColor })}
+                pickerLabel="Synthesis primary color"
+              />
               <label className={styles.selectRow}>
                 <span>Color harmony</span>
                 <select
@@ -16031,30 +15640,24 @@ export function SetTimer({
     if (option.id === "massage-lab-reveal-dots") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.canvasRevealDotsBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsBackgroundColor: nextColor })}
-              label="Reveal dots background color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Dot color</span>
-            <ColorPickerInput
-              value={settings.canvasRevealDotsDotColor}
-              onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsDotColor: nextColor })}
-              label="Reveal dots dot color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Accent</span>
-            <ColorPickerInput
-              value={settings.canvasRevealDotsAccentColor}
-              onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsAccentColor: nextColor })}
-              label="Reveal dots accent color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.canvasRevealDotsBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsBackgroundColor: nextColor })}
+            pickerLabel="Reveal dots background color"
+          />
+          <ColorField
+            label="Dot color"
+            value={settings.canvasRevealDotsDotColor}
+            onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsDotColor: nextColor })}
+            pickerLabel="Reveal dots dot color"
+          />
+          <ColorField
+            label="Accent"
+            value={settings.canvasRevealDotsAccentColor}
+            onValueChange={(nextColor) => onSettingsChange({ canvasRevealDotsAccentColor: nextColor })}
+            pickerLabel="Reveal dots accent color"
+          />
           <label className={styles.rangeRow}>
             <span>Dot size</span>
             <input
@@ -16118,14 +15721,12 @@ export function SetTimer({
     if (option.id === "massage-lab-spotlight") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Spotlight color</span>
-            <ColorPickerInput
-              value={settings.spotlightColor}
-              onValueChange={(nextColor) => onSettingsChange({ spotlightColor: nextColor })}
-              label="Spotlight color"
-            />
-          </div>
+          <ColorField
+            label="Spotlight color"
+            value={settings.spotlightColor}
+            onValueChange={(nextColor) => onSettingsChange({ spotlightColor: nextColor })}
+            pickerLabel="Spotlight color"
+          />
           <label className={styles.rangeRow}>
             <span>Intensity</span>
             <input
@@ -16217,22 +15818,18 @@ export function SetTimer({
     if (option.id === "massage-lab-lamp-effect") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.lampBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ lampBackgroundColor: nextColor })}
-              label="Lamp background color"
-            />
-          </div>
-          <div className={styles.colorRow}>
-            <span>Beam color</span>
-            <ColorPickerInput
-              value={settings.lampColor}
-              onValueChange={(nextColor) => onSettingsChange({ lampColor: nextColor })}
-              label="Lamp beam color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.lampBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ lampBackgroundColor: nextColor })}
+            pickerLabel="Lamp background color"
+          />
+          <ColorField
+            label="Beam color"
+            value={settings.lampColor}
+            onValueChange={(nextColor) => onSettingsChange({ lampColor: nextColor })}
+            pickerLabel="Lamp beam color"
+          />
           <label className={styles.rangeRow}>
             <span>Glow intensity</span>
             <input
@@ -16300,14 +15897,12 @@ export function SetTimer({
     if (option.id === "massage-lab-vortex") {
       return (
         <div className={styles.backgroundCardControls}>
-          <div className={styles.colorRow}>
-            <span>Background</span>
-            <ColorPickerInput
-              value={settings.vortexBackgroundColor}
-              onValueChange={(nextColor) => onSettingsChange({ vortexBackgroundColor: nextColor })}
-              label="Vortex field color"
-            />
-          </div>
+          <ColorField
+            label="Background"
+            value={settings.vortexBackgroundColor}
+            onValueChange={(nextColor) => onSettingsChange({ vortexBackgroundColor: nextColor })}
+            pickerLabel="Vortex field color"
+          />
           <label className={styles.rangeRow}>
             <span>Hue</span>
             <input

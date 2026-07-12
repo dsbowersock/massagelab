@@ -17234,7 +17234,7 @@ export function RunningTimer({
               </TabsContent>
 
               <TabsContent value="backgrounds" className={`${styles.settingsTabContent} ${styles.backgroundSettingsTabContent}`}>
-                <div className={styles.backgroundCategoryRow} role="tablist" aria-label="Background visual filters">
+                <div className={styles.backgroundCategoryRow} role="group" aria-label="Background visual filters">
                   {BACKGROUND_VISUAL_CATEGORIES.map((category) => (
                     <button
                       key={category.value}
@@ -17244,8 +17244,7 @@ export function RunningTimer({
                         triggerHapticFeedback(hapticsEnabled)
                         handleBackgroundFilterChange(category.value)
                       }}
-                      role="tab"
-                      aria-selected={backgroundCategoryFilter === category.value}
+                      aria-pressed={backgroundCategoryFilter === category.value}
                     >
                       {category.label}
                     </button>

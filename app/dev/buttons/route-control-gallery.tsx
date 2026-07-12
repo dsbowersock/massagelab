@@ -91,8 +91,8 @@ export function RouteControlGallery() {
           </div>
         </AppSurface>
 
-        <AppSurface title="Background filter tabs" description="The Clock background picker uses this scrollable tab treatment.">
-          <div className={runningStyles.backgroundCategoryRow} role="tablist" aria-label="Background visual filters example">
+        <AppSurface title="Background filters" description="The Clock background picker uses this scrollable filter treatment.">
+          <div className={runningStyles.backgroundCategoryRow} role="group" aria-label="Background visual filters example">
             {backgroundFilterOptions.map((option) => (
               <button
                 key={option.value}
@@ -102,8 +102,7 @@ export function RouteControlGallery() {
                   runningStyles.tactileButton,
                   backgroundFilter === option.value && runningStyles.backgroundCategoryButtonActive,
                 )}
-                role="tab"
-                aria-selected={backgroundFilter === option.value}
+                aria-pressed={backgroundFilter === option.value}
                 onClick={() => setBackgroundFilter(option.value)}
               >
                 {option.label}

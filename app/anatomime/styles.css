@@ -315,12 +315,6 @@
   padding: 0.55rem 0.75rem;
 }
 
-.anatomime-input {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(12, 12, 14, 0.82);
-  color: white;
-}
-
 .anatomime-round-panel {
   display: grid;
   gap: 1rem;
@@ -328,28 +322,6 @@
   border-radius: 0.5rem;
   background: rgba(12, 12, 14, 0.44);
   padding: 1rem;
-}
-
-.anatomime-hardcore-button {
-  min-height: 2.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  font-weight: 800;
-  padding: 0 1rem;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-hardcore-button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
-}
-
-.anatomime-hardcore-button[data-selected="true"] {
-  border-color: hsl(var(--brand-orange));
-  background: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
 }
 
 .anatomime-round-control {
@@ -395,31 +367,6 @@
   gap: 0.5rem;
 }
 
-.anatomime-choice-button,
-.anatomime-region-button,
-.anatomime-term-card,
-.anatomime-secondary-button,
-.anatomime-primary-button,
-.anatomime-danger-button,
-.anatomime-order-controls button {
-  min-height: 2.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  font-weight: 700;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-choice-button:hover,
-.anatomime-region-button:hover,
-.anatomime-term-card:hover,
-.anatomime-secondary-button:hover,
-.anatomime-order-controls button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
-}
-
 .anatomime-choice-button[data-selected="true"],
 .anatomime-region-button[data-selected="true"],
 .anatomime-term-card[data-selected="true"] {
@@ -442,23 +389,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem;
-}
-
-.anatomime-mini-button {
-  min-height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 0.35rem 0.65rem;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-mini-button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
 }
 
 .anatomime-region-list {
@@ -499,28 +429,6 @@
 
 .anatomime-region-card .anatomime-region-button {
   min-height: 4rem;
-}
-
-.anatomime-icon-button {
-  display: inline-grid;
-  width: 2.75rem;
-  min-height: 2.75rem;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.5rem;
-  background: rgba(12, 12, 14, 0.86);
-  color: #f7f7f7;
-  cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
-}
-
-.anatomime-icon-button:hover {
-  border-color: hsl(var(--brand-orange) / 0.75);
-}
-
-.anatomime-icon-button[aria-expanded="true"] {
-  border-color: hsl(var(--brand-orange));
-  color: hsl(var(--brand-orange-soft));
 }
 
 .anatomime-empty-state {
@@ -612,27 +520,20 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  min-height: 2.75rem;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 0.68rem;
+  color: hsl(var(--button-label));
+  cursor: pointer;
+  font-weight: 700;
   padding: 0.8rem 1rem;
-}
-
-.anatomime-primary-button {
-  border-color: hsl(var(--brand-orange));
-  background: hsl(var(--brand-orange));
-  color: hsl(var(--primary-foreground));
-}
-
-.anatomime-primary-button:hover {
-  background: hsl(var(--brand-orange-glow));
-}
-
-.anatomime-danger-button {
-  border-color: #b91c1c;
-  background: #b91c1c;
-  color: white;
-}
-
-.anatomime-danger-button:hover {
-  background: #991b1b;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease,
+    transform 150ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .anatomime-input {
@@ -660,6 +561,7 @@
 .anatomime-mini-button,
 .anatomime-icon-button,
 .anatomime-order-controls button {
+  min-height: 2.75rem;
   border: 2px solid hsl(var(--foreground) / 0.1);
   border-top-color: hsl(var(--foreground) / 0.16);
   border-bottom: 3px solid hsl(var(--background) / 0.66);
@@ -673,10 +575,30 @@
     0 2px 0 hsl(var(--background) / 0.56),
     0 0.42rem 0.74rem hsl(var(--background) / 0.22);
   color: hsl(215 22% 88%);
+  cursor: pointer;
+  font-weight: 700;
   text-shadow:
     var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.48),
     var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--foreground) / 0.08);
   transition: border-color 150ms ease, box-shadow 150ms ease, filter 150ms ease, transform 150ms ease;
+}
+
+.anatomime-hardcore-button {
+  font-weight: 800;
+  padding-inline: 1rem;
+}
+
+.anatomime-mini-button {
+  min-height: 2rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.65rem;
+}
+
+.anatomime-icon-button {
+  display: inline-grid;
+  width: 2.75rem;
+  place-items: center;
 }
 
 .anatomime-hardcore-button:hover,
@@ -685,7 +607,6 @@
 .anatomime-term-card:hover,
 .anatomime-mini-button:hover,
 .anatomime-icon-button:hover,
-.anatomime-secondary-button:hover,
 .anatomime-order-controls button:hover {
   border-color: hsl(var(--foreground) / 0.15);
   filter: none;
