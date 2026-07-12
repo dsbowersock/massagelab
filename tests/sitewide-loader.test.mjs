@@ -28,6 +28,27 @@ const [
   readFile(new URL("../components/providers/music-loading-progress.tsx", import.meta.url), "utf8"),
 ])
 
+const loaderElementStatePattern =
+  /const \[loaderElement, setLoaderElement\] = React\.useState<HTMLDivElement \| null>\(null\)/
+const contextualColorPatternSourcePattern =
+  /const contextualColorPattern = \/\(\?:currentColor\|var\\\(\)\/i/
+const usesContextualColorPattern =
+  /const usesContextualColor = contextualColorPattern\.test\(`\$\{color\} \$\{colorBack\}`\)/
+const contextualHexColorPattern =
+  /hexToRgba\(canResolveColors \? color : "transparent", contextElement\)/
+const loaderRefCallbackPattern = /ref=\{setLoaderElement\}/
+const loaderAncestorObserverPattern = /while \(elementToObserve\)/
+const shaderFallbackPattern = /setUseFallback\(true\)/
+const shaderPremultipliedBlendPattern =
+  /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/
+const shaderBufferCleanupPattern = /gl\.deleteBuffer\(positionBuffer\)/
+const shaderContextLossPattern = /webglcontextlost/
+const shaderStaticFramePattern = /const currentSpeed = currentSpeedRef\.current/
+const shaderStaticFrameStopPattern =
+  /currentSpeed > 0 \? requestAnimationFrame\(render\) : null/
+const shaderMountRafDependenciesPattern =
+  /\[fragmentShader, uniforms, width, height, speed, prefersReducedMotion, useFallback\]/
+
 describe("Sitewide loader", () => {
   it("provides the labeled shared shader sphere/dither loader", () => {
     assert.match(loaderSource, /const randomLoaderShapes = \["sphere", "swirl", "ripple"\] as const/)
@@ -38,11 +59,12 @@ describe("Sitewide loader", () => {
     assert.doesNotMatch(loaderSource, /shape = "sphere"/)
     assert.match(loaderSource, /variant = "dither"/)
     assert.match(loaderSource, /color = "#ea580c"/)
-    assert.match(loaderSource, /const \[loaderElement, setLoaderElement\] = React\.useState<HTMLDivElement \| null>\(null\)/)
-    assert.match(loaderSource, /const contextualColorPattern = \/\(\?:currentColor\|var\\\(\)\/i/)
-    assert.match(loaderSource, /const usesContextualColor = contextualColorPattern\.test\(`\$\{color\} \$\{colorBack\}`\)/)
-    assert.match(loaderSource, /hexToRgba\(canResolveColors \? color : "transparent", contextElement\)/)
-    assert.match(loaderSource, /ref=\{setLoaderElement\}/)
+    assert.match(loaderSource, loaderElementStatePattern)
+    assert.match(loaderSource, contextualColorPatternSourcePattern)
+    assert.match(loaderSource, usesContextualColorPattern)
+    assert.match(loaderSource, contextualHexColorPattern)
+    assert.match(loaderSource, loaderRefCallbackPattern)
+    assert.match(loaderSource, loaderAncestorObserverPattern)
     assert.match(loaderSource, /const isAriaHidden = ariaHidden === true \|\| ariaHidden === "true"/)
     assert.match(loaderSource, /role=\{isAriaHidden \? role : role \?\? "status"\}/)
     assert.match(loaderSource, /aria-live=\{isAriaHidden \? ariaLive : ariaLive \?\? "polite"\}/)
@@ -52,11 +74,13 @@ describe("Sitewide loader", () => {
     assert.match(shaderMountSource, /webgl2/)
     assert.match(shaderMountSource, /prefers-reduced-motion: reduce/)
     assert.match(shaderMountSource, /currentSpeedRef\.current = prefersReducedMotion \? 0 : speed/)
-    assert.match(shaderMountSource, /setUseFallback\(true\)/)
-    assert.match(shaderMountSource, /gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\)/)
-    assert.match(shaderMountSource, /gl\.deleteBuffer\(positionBuffer\)/)
-    assert.match(shaderMountSource, /currentSpeedRef\.current === 0/)
-    assert.match(shaderMountSource, /\[fragmentShader, uniforms, width, height, speed, prefersReducedMotion, useFallback\]/)
+    assert.match(shaderMountSource, shaderFallbackPattern)
+    assert.match(shaderMountSource, shaderPremultipliedBlendPattern)
+    assert.match(shaderMountSource, shaderBufferCleanupPattern)
+    assert.match(shaderMountSource, shaderContextLossPattern)
+    assert.match(shaderMountSource, shaderStaticFramePattern)
+    assert.match(shaderMountSource, shaderStaticFrameStopPattern)
+    assert.match(shaderMountSource, shaderMountRafDependenciesPattern)
     assert.match(ditherShaderSource, /4x4 Bayer dithering matrix/)
     assert.match(ditherShaderSource, /uniform float u_pxSize/)
     assert.doesNotMatch(globalsSource, /\.ml-loader-sphere/)

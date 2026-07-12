@@ -174,10 +174,21 @@ export function ShaderMount({
     glRef.current = gl
     setUseFallback(false)
 
+    const handleContextLost = (event: Event) => {
+      event.preventDefault()
+      setUseFallback(true)
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    }
+    canvas.addEventListener("webglcontextlost", handleContextLost)
+
     // Create program
     const program = createProgram(gl, vertexShaderSource, fragmentShader)
     if (!program) {
       setUseFallback(true)
+      canvas.removeEventListener("webglcontextlost", handleContextLost)
       return
     }
 
@@ -187,6 +198,7 @@ export function ShaderMount({
     const positionBuffer = gl.createBuffer()
     if (!positionBuffer) {
       setUseFallback(true)
+      canvas.removeEventListener("webglcontextlost", handleContextLost)
       gl.deleteProgram(program)
       return
     }
@@ -221,6 +233,7 @@ export function ShaderMount({
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
       }
+      canvas.removeEventListener("webglcontextlost", handleContextLost)
       gl.deleteBuffer(positionBuffer)
       gl.deleteProgram(program)
       if (glRef.current === gl) glRef.current = null
@@ -252,14 +265,12 @@ export function ShaderMount({
     let accumulatedTime = 0
 
     const render = (currentTime: number) => {
-      if (currentSpeedRef.current === 0) {
-        rafRef.current = null
-        return
+      const currentSpeed = currentSpeedRef.current
+      if (currentSpeed > 0) {
+        const deltaTime = currentTime - lastTime
+        lastTime = currentTime
+        accumulatedTime += deltaTime * currentSpeed * 0.001
       }
-
-      const deltaTime = currentTime - lastTime
-      lastTime = currentTime
-      accumulatedTime += deltaTime * currentSpeedRef.current * 0.001
 
       gl.clearColor(0, 0, 0, 0)
       gl.clear(gl.COLOR_BUFFER_BIT)
@@ -300,12 +311,11 @@ export function ShaderMount({
 
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
-      rafRef.current = requestAnimationFrame(render)
+      rafRef.current =
+        currentSpeed > 0 ? requestAnimationFrame(render) : null
     }
 
-    if (currentSpeedRef.current > 0) {
-      rafRef.current = requestAnimationFrame(render)
-    }
+    rafRef.current = requestAnimationFrame(render)
 
     return () => {
       if (rafRef.current) {

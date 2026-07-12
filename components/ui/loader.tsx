@@ -160,16 +160,26 @@ function Loader({
 
     const attributeFilter = ["class", "style", "data-theme"]
     const observer = new MutationObserver(bumpColorResolutionEpoch)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter,
-    })
-    if (document.body) {
-      observer.observe(document.body, {
+    const observedElements = new Set<Element>()
+    const observeElement = (element: Element | null) => {
+      if (!element || observedElements.has(element)) {
+        return
+      }
+
+      observer.observe(element, {
         attributes: true,
         attributeFilter,
       })
+      observedElements.add(element)
     }
+
+    let elementToObserve: Element | null = loaderElement
+    while (elementToObserve) {
+      observeElement(elementToObserve)
+      elementToObserve = elementToObserve.parentElement
+    }
+    observeElement(document.documentElement)
+    observeElement(document.body)
 
     const media = window.matchMedia("(prefers-color-scheme: dark)")
     if (typeof media.addEventListener === "function") {
@@ -186,7 +196,7 @@ function Loader({
         media.removeListener(bumpColorResolutionEpoch)
       }
     }
-  }, [color, colorBack, usesContextualColor])
+  }, [color, colorBack, loaderElement, usesContextualColor])
 
   const colorUniforms = React.useMemo(
     () => resolveColorUniforms(color, colorBack, colorResolutionEpoch, loaderElement),
