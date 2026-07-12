@@ -1,12 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Cloud, RefreshCcw } from "lucide-react"
+import { Cloud } from "lucide-react"
 import {
   LOCAL_PREFERENCE_KEYS,
   buildUserPreferencePayload,
 } from "@/lib/account-preferences"
 import { Button } from "@/components/ui/button"
+import { Loader } from "@/components/ui/loader"
 
 type PreferenceSyncProps = {
   hasCloudPreferences: boolean
@@ -91,7 +92,11 @@ export function PreferenceSync({ hasCloudPreferences }: PreferenceSyncProps) {
           </p>
         </div>
         <Button type="button" variant="outline" onClick={syncLocalPreferences} disabled={isSyncing}>
-          {isSyncing ? <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> : <Cloud className="mr-2 h-4 w-4" />}
+          {isSyncing ? (
+            <Loader aria-hidden="true" label="Syncing preferences" size={18} color="currentColor" />
+          ) : (
+            <Cloud aria-hidden="true" />
+          )}
           Sync local preferences
         </Button>
       </div>

@@ -20,6 +20,7 @@ import { TactileButton } from "@/components/chimer-controls/TactileButton"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { MetalAttentionButton, MetalAttentionRing } from "@/components/ui/metal-attention-button"
+import { LoaderGallery } from "./loader-gallery"
 import { MetalRingGallery } from "./metal-ring-gallery"
 import { SliderGallery } from "./slider-gallery"
 import { ToggleGallery } from "./toggle-gallery"
@@ -247,6 +248,8 @@ export default function ButtonGalleryPage() {
       <ToggleGallery />
 
       <RouteControlGallery />
+
+      <LoaderGallery />
 
       <section className="space-y-4" aria-labelledby="shortcut-heading">
         <div>

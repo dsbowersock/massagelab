@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Loader } from "@/components/ui/loader"
 import { TabsContent } from "@/components/ui/tabs"
 
 type AccountPageProps = {
@@ -234,7 +235,9 @@ function AccountTabLoading({ tabId }: { tabId: string }) {
     <TabsContent value={tabId} className="space-y-5">
       <TabPanelIntro tabId={tabId} />
       <SettingsSurface title="Loading account section" description="Preparing this account section.">
-        <div className="h-2" />
+        <div className="flex min-h-20 items-center justify-center">
+          <Loader label="Loading account section" />
+        </div>
       </SettingsSurface>
     </TabsContent>
   )

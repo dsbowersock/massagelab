@@ -592,22 +592,32 @@ npm run lint
 
 ## Task 9: Promote Loader and Loading States
 
-- [ ] Create `components/ui/loader.tsx` from `components/chimer-controls/Loader.tsx`.
+- [x] Create `components/ui/loader.tsx` from `components/chimer-controls/Loader.tsx`.
   - Preserve the orange dithered sphere default.
   - Support `shape="sphere"`, `variant="dither"`, `color`, `speed`, `size`, and accessible labels.
   - Respect reduced motion with a static or slower state.
 
-- [ ] Update `components/chimer-controls/Loader.tsx` to re-export or wrap the shared loader.
+- [x] Update `components/chimer-controls/Loader.tsx` to re-export or wrap the shared loader.
 
-- [ ] Use the orange dithered loader sitewide any time a true loader is needed.
+- [x] Use the orange dithered loader sitewide any time a true loader is needed.
   - Keep skeletons or inline progress where they are more informative than a spinner.
   - Use the loader for indeterminate waits, generation/prep states, async saves, uploads/imports, and visual/background loading.
 
-- [ ] Replace obvious low-risk loading states:
-  - Chimer background preview loading.
-  - Palette generation.
+- [x] Replace obvious low-risk loading states:
+  - Chimer background preview loading preserved through the shared compatibility re-export.
+  - Palette generation reviewed; it remains synchronous, so no loader was added.
   - Account/settings async save states.
   - Support form sending state if it does not disrupt layout.
+
+Batch note, 2026-07-12:
+
+- Added `components/ui/loader.tsx` from the published `ds.asanshay.com` shadcn registry loader as the canonical labeled shader-based dithered sphere loader.
+- Replaced the earlier CSS approximation with the source shader-based sphere/dither renderer while preserving MassageLab orange defaults, accessible labels, and reduced-motion handling.
+- Updated omitted `shape` props to randomly select sphere, swirl, or ripple per loader instance while preserving explicit shapes for fixed comparison examples.
+- Kept `components/chimer-controls/Loader.tsx` as a compatibility re-export so existing Chimer preview loading stays on the same implementation.
+- Added `/dev/buttons` loader examples for size, color, sphere/swirl/ripple comparison, and inline decorative action states.
+- Migrated low-risk indeterminate waits in the account Suspense fallback, account preference sync action, and support diagnostic send action.
+- Left determinate music preparation on `Progress` and left palette generation without a loader because the current path has no async wait state.
 
 Expected result:
 
@@ -778,22 +788,22 @@ Manual visual checklist:
 
 Keep documentation proportional. The goal is to prevent future one-off styles and preserve the decision map, not to create a heavy design-system manual before the components prove themselves.
 
-- [ ] Update `docs/project-state.md`.
+- [x] Update `docs/project-state.md`.
   - Add the currently completed rollout batch.
   - Mention which shared primitives are canonical.
   - List route-owned exceptions.
 
-- [ ] Update `docs/project-log.md`.
+- [x] Update `docs/project-log.md`.
   - Add dated entries per PR batch.
   - Include validation commands and any known non-failing warnings.
 
-- [ ] Add or update `docs/wiki/visual-system.md`.
+- [x] Add or update `docs/wiki/visual-system.md`.
   - Document button variants and when to use them.
   - Document range, toggle, switch, number field, color picker, and loader usage.
   - Document haptic feedback behavior and opt-out.
   - Document reduced-motion expectations.
 
-- [ ] Link the wiki page from `docs/wiki/index.md`.
+- [x] Link the wiki page from `docs/wiki/index.md`.
 
 Expected result:
 
@@ -859,3 +869,30 @@ Notes:
 - `git diff --check` passed with Windows line-ending conversion warnings only.
 - CodeRabbit review completed on 2026-07-08. Valid feedback was applied for reduced-motion handling, legacy metal-ring interval compatibility, single-child metal-ring enforcement, shared press-feedback cleanup, Chimer CTA ring-wrapper semantics, homepage card focus visibility, and reduced-motion/destructive button CSS coverage. The `.ml-button-tactile` and `.ml-metal-attention-root-idle` selector comments were verified against emitted classes and did not require code changes.
 - A follow-up CodeRabbit pass after those fixes applied the remaining valid local items: the Attention disabled gallery example now uses the same wrapper as the enabled state, the signed-out membership CTA uses the lower-priority `ctaBlue` treatment beside the primary account CTA, and the press-feedback default path avoids redundant helper checks. The disabled `asChild` handler concern was already covered by `wrapPressHandler` returning before invoking handlers when `disabled` or `aria-disabled` is set; private Button helper tests and CTA extraction were left out of this visual batch to avoid broadening scope.
+
+---
+
+## 2026-07-12 Main Refresh And Next-Chat Handoff
+
+Current state after the merged `codex/sitewide-toggle-controls` PR:
+
+- `main` has been refreshed from `origin/main`.
+- New chats should still start by reading `docs/project-state.md`, `docs/project-log.md`, and `docs/wiki/index.md`; those files remain the current source of truth over this historical rollout checklist.
+- `/dev/buttons` is the live review surface for approved shared controls and route-owned proposals before production rollout.
+- The checkbox tasks above are retained as the original staged rollout plan. Use this handoff section as the current-status override when a task checkbox has not yet been reconciled.
+
+Merged visual-control foundations:
+
+- Shared buttons, press feedback, and Chimer compatibility wrappers are in place. Haptic feedback should remain click-like on press and release, avoid scroll-pass triggers, and respect the user opt-out setting.
+- The metal effect is split into a reusable static ring primitive, a random play/pause attention wrapper, and a button convenience component. Keep the normal and attention versions available, keep reflection-target passthrough available, and avoid coupling ring appearance to later button CSS changes.
+- Shared sliders use the split-pill/fader-thumb treatment. Use the compact no-label form when name and value are not needed, and the split label/value form when users need the value. Context-specific left-pill color is the intended differentiation; do not introduce the older roomy range control in new work.
+- Shared switch, toggle, toggle-row, and segmented-control treatments are approved, including the physical switch shape, selected-state movement animation, and route-appropriate colors.
+- Shared color pickers are approved through `GlobalColorPicker`, `ColorPickerFormInput`, `ColorSlider`, and `NumberField` patterns. All site color inputs should use the shared picker; dark and light swatches should retain the same silhouette and shadow system.
+- Route-owned review examples now cover Clock tabs, time-format choices, select fields, side-drawer navigation, and Anatomime controls. Production rollout has started, but route-owned exceptions should stay explicit until promoted to shared components.
+
+Next-chat starting sequence:
+
+1. Start from refreshed `main` and create a new `codex/...` branch before further implementation.
+2. Re-check `/dev/buttons` first, then compare only the production surfaces being touched in the next batch.
+3. Continue with remaining route-owned tabs, dropdown/select fields, containers, drawer/navigation treatments, loaders, and any unmigrated Anatomime, Clock, or Chimer controls.
+4. Keep each PR batch narrow, validate with targeted checks, then use the usual GitHub/CodeRabbit review loop before the next visual-inspection batch.

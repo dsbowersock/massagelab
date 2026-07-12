@@ -4,6 +4,15 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-12
+
+- Continued the July 7 sitewide visual-system rollout on `codex/sitewide-loader-controls`, including the July 12 handoff note already appended to the rollout plan.
+- Promoted the Chimer loader through the `ds.asanshay.com` shadcn registry implementation into `components/ui/loader.tsx`, using the shader-based sphere/dither renderer with MassageLab orange defaults, kept `components/chimer-controls/Loader.tsx` as a compatibility re-export, and added `/dev/buttons` sphere, swirl, and ripple comparison examples.
+- Updated the shared loader default so omitted `shape` randomly selects sphere, swirl, or ripple per loader instance, while explicit `shape` props still render deterministic comparison examples or route-owned choices.
+- Migrated low-risk true indeterminate waits to the shared loader: the account tab fallback, account preference sync state, and support diagnostic send state. Music preparation keeps its determinate progress bar, and palette generation remains unchanged because it is currently synchronous.
+- Added `docs/wiki/visual-system.md` and linked it from the wiki index so future visual-control work starts from the shared button, slider, toggle, color-control, loader, haptic, and reduced-motion guidance.
+- Validation passed with `node --test tests/sitewide-loader.test.mjs`, `npm run typecheck`, `npm run test`, and `git diff --check`. In-app browser rendering of local URLs was blocked by the environment's enterprise policy, so no browser screenshot review was available for this loader batch.
+
 ## 2026-07-10
 
 - Replaced the remaining native Chimer and calendar service color inputs with the approved shared picker. Controlled surfaces now pass color strings through explicit `value` and `onValueChange` props, while form-owned fields submit a named hidden value; the migration does not synthesize native React change events.

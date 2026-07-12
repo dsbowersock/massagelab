@@ -5,6 +5,7 @@ import { Bug, Clipboard, MailCheck, Send } from "lucide-react"
 import { AppNotice, AppSurface } from "@/components/ui/app-surface"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Loader } from "@/components/ui/loader"
 import {
   Select,
   SelectContent,
@@ -156,7 +157,11 @@ export function SupportDiagnosticReport({ linkedEventId = "" }: SupportDiagnosti
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={status === "sending"}>
-            <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+            {status === "sending" ? (
+              <Loader aria-hidden="true" label="Sending diagnostic" size={18} color="currentColor" />
+            ) : (
+              <Send aria-hidden="true" />
+            )}
             {status === "sending" ? "Sending..." : "Send Diagnostic"}
           </Button>
 
