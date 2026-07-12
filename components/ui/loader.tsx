@@ -55,6 +55,7 @@ interface LoaderProps extends React.HTMLAttributes<HTMLDivElement> {
   label?: string
 }
 
+/** Pick one canonical loader shape for callers that want visual variety by default. */
 function pickRandomLoaderShape(): LoaderShape {
   const crypto = globalThis.crypto
   if (typeof crypto?.getRandomValues === "function") {
@@ -70,6 +71,7 @@ function pickRandomLoaderShape(): LoaderShape {
   return randomLoaderShapes[randomIndex] ?? "sphere"
 }
 
+/** Resolve named size presets and custom numeric sizes to bounded canvas pixels. */
 function resolveSize(size: LoaderProps["size"]) {
   if (typeof size === "number" && Number.isFinite(size) && size > 0) {
     const resolvedSize = Math.max(14, Math.min(140, Math.round(size)))
@@ -82,19 +84,27 @@ function resolveSize(size: LoaderProps["size"]) {
   return sizeConfig[sizePreset]
 }
 
+/** Build shader color uniforms from CSS colors in the mounted loader context. */
 function resolveColorUniforms(
   color: string,
   colorBack: string,
-  cssVariableEpoch: number
+  colorResolutionEpoch: number,
+  contextElement: HTMLElement | null
 ) {
-  const canResolveColors = Number.isFinite(cssVariableEpoch)
+  const canResolveColors = Number.isFinite(colorResolutionEpoch)
 
   return {
-    u_colorFront: hexToRgba(canResolveColors ? color : "transparent"),
-    u_colorBack: hexToRgba(canResolveColors ? colorBack : "transparent"),
+    u_colorFront: hexToRgba(canResolveColors ? color : "transparent", contextElement),
+    u_colorBack: hexToRgba(canResolveColors ? colorBack : "transparent", contextElement),
   }
 }
 
+/**
+ * Shared indeterminate loader using MassageLab's dithered shader shapes.
+ *
+ * Omit `shape` for a per-instance random sphere/swirl/ripple choice; pass a
+ * shape explicitly for deterministic comparison galleries or route-owned UI.
+ */
 function Loader({
   shape,
   variant = "dither",
@@ -113,6 +123,7 @@ function Loader({
   "aria-hidden": ariaHidden,
   ...props
 }: LoaderProps) {
+  const [loaderElement, setLoaderElement] = React.useState<HTMLDivElement | null>(null)
   const sizeDefaults = resolveSize(size)
   const resolvedWidth = width ?? sizeDefaults.width
   const resolvedHeight = height ?? sizeDefaults.height
@@ -123,24 +134,31 @@ function Loader({
   const fragmentShader = shaderMap[variant]
   const shapeValue = shapeMap[resolvedShape]
   const scale = variant === "blur" ? 0.52 : 0.6
-  const usesCssVariables = color.includes("var(") || colorBack.includes("var(")
-  const [cssVariableEpoch, setCssVariableEpoch] = React.useState(0)
+  const usesContextualColor = /(?:currentColor|var\()/i.test(`${color} ${colorBack}`)
+  const [colorResolutionEpoch, setColorResolutionEpoch] = React.useState(0)
   const isAriaHidden = ariaHidden === true || ariaHidden === "true"
 
   React.useEffect(() => {
-    if (!usesCssVariables || typeof document === "undefined") {
+    if (typeof document === "undefined") {
       return
     }
 
-    const bumpCssVariableEpoch = () => {
-      setCssVariableEpoch((value) => value + 1)
+    const bumpColorResolutionEpoch = () => {
+      setColorResolutionEpoch((value) => value + 1)
     }
 
-    // Resolve once after mount, then re-resolve on theme/token changes.
-    bumpCssVariableEpoch()
+    // Resolve once after mount so browser-only names and contextual colors see
+    // the mounted loader element instead of a body-level fallback probe.
+    bumpColorResolutionEpoch()
+
+    if (!usesContextualColor) {
+      return
+    }
+
+    // Contextual colors can change when themes or tokens change.
 
     const attributeFilter = ["class", "style", "data-theme"]
-    const observer = new MutationObserver(bumpCssVariableEpoch)
+    const observer = new MutationObserver(bumpColorResolutionEpoch)
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter,
@@ -154,24 +172,24 @@ function Loader({
 
     const media = window.matchMedia("(prefers-color-scheme: dark)")
     if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", bumpCssVariableEpoch)
+      media.addEventListener("change", bumpColorResolutionEpoch)
     } else {
-      media.addListener(bumpCssVariableEpoch)
+      media.addListener(bumpColorResolutionEpoch)
     }
 
     return () => {
       observer.disconnect()
       if (typeof media.removeEventListener === "function") {
-        media.removeEventListener("change", bumpCssVariableEpoch)
+        media.removeEventListener("change", bumpColorResolutionEpoch)
       } else {
-        media.removeListener(bumpCssVariableEpoch)
+        media.removeListener(bumpColorResolutionEpoch)
       }
     }
-  }, [usesCssVariables])
+  }, [color, colorBack, usesContextualColor])
 
   const colorUniforms = React.useMemo(
-    () => resolveColorUniforms(color, colorBack, cssVariableEpoch),
-    [color, colorBack, cssVariableEpoch]
+    () => resolveColorUniforms(color, colorBack, colorResolutionEpoch, loaderElement),
+    [color, colorBack, colorResolutionEpoch, loaderElement]
   )
 
   const uniforms = React.useMemo(
@@ -187,6 +205,7 @@ function Loader({
   return (
     <div
       {...props}
+      ref={setLoaderElement}
       role={isAriaHidden ? role : role ?? "status"}
       aria-live={isAriaHidden ? ariaLive : ariaLive ?? "polite"}
       aria-atomic={isAriaHidden ? ariaAtomic : ariaAtomic ?? true}

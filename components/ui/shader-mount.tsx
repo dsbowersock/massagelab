@@ -4,9 +4,11 @@ import * as React from "react"
 
 import { vertexShaderSource } from "./shaders"
 
+type ShaderUniformValue = number | number[]
+
 interface ShaderMountProps {
   fragmentShader: string
-  uniforms: Record<string, number | number[]>
+  uniforms: Record<string, ShaderUniformValue>
   speed?: number
   width: number
   height: number
@@ -14,6 +16,26 @@ interface ShaderMountProps {
   style?: React.CSSProperties
 }
 
+/** Clamp shader color channels and fallback opacity into CSS rgba bounds. */
+function clampUnit(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
+/** Convert shader RGBA uniforms back into CSS for the non-WebGL fallback mark. */
+function uniformColorToCss(value: ShaderUniformValue | undefined) {
+  if (!Array.isArray(value) || value.length < 3) {
+    return "rgba(234, 88, 12, 1)"
+  }
+
+  const red = Math.round(clampUnit(value[0] ?? 0) * 255)
+  const green = Math.round(clampUnit(value[1] ?? 0) * 255)
+  const blue = Math.round(clampUnit(value[2] ?? 0) * 255)
+  const alpha = clampUnit(value[3] ?? 1)
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+/** Compile a WebGL shader and report source-level failures without throwing. */
 function createShader(
   gl: WebGL2RenderingContext,
   type: number,
@@ -37,6 +59,7 @@ function createShader(
   return shader
 }
 
+/** Link the loader vertex and fragment shaders into a disposable WebGL program. */
 function createProgram(
   gl: WebGL2RenderingContext,
   vertexSource: string,
@@ -69,6 +92,7 @@ function createProgram(
   return program
 }
 
+/** Track the user's reduced-motion preference so animation work can pause. */
 function usePrefersReducedMotion() {
   const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false)
 
@@ -93,6 +117,10 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion
 }
 
+/**
+ * Mount a compact shader canvas and fall back to a static CSS mark when WebGL2
+ * is unavailable, while keeping the loader's accessible wrapper in Loader.
+ */
 export function ShaderMount({
   fragmentShader,
   uniforms,
@@ -110,7 +138,16 @@ export function ShaderMount({
   >({})
   const rafRef = React.useRef<number | null>(null)
   const currentSpeedRef = React.useRef<number>(speed)
+  const [useFallback, setUseFallback] = React.useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const fallbackColor = React.useMemo(
+    () => uniformColorToCss(uniforms.u_colorFront),
+    [uniforms]
+  )
+  const fallbackBackColor = React.useMemo(
+    () => uniformColorToCss(uniforms.u_colorBack),
+    [uniforms]
+  )
 
   // Update speed ref when prop changes
   React.useEffect(() => {
@@ -130,19 +167,30 @@ export function ShaderMount({
 
     if (!gl) {
       console.error("WebGL2 not supported")
+      setUseFallback(true)
       return
     }
 
     glRef.current = gl
+    setUseFallback(false)
 
     // Create program
     const program = createProgram(gl, vertexShaderSource, fragmentShader)
-    if (!program) return
+    if (!program) {
+      setUseFallback(true)
+      return
+    }
 
     programRef.current = program
 
     // Setup position attribute
     const positionBuffer = gl.createBuffer()
+    if (!positionBuffer) {
+      setUseFallback(true)
+      gl.deleteProgram(program)
+      return
+    }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
     const positions = [-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
@@ -166,15 +214,17 @@ export function ShaderMount({
 
     // Enable blending for transparency
     gl.enable(gl.BLEND)
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 
     return () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
       }
-      if (gl && program) {
-        gl.deleteProgram(program)
-      }
+      gl.deleteBuffer(positionBuffer)
+      gl.deleteProgram(program)
+      if (glRef.current === gl) glRef.current = null
+      if (programRef.current === program) programRef.current = null
     }
   }, [fragmentShader, uniforms])
 
@@ -184,7 +234,7 @@ export function ShaderMount({
     const program = programRef.current
     const locations = uniformLocationsRef.current
 
-    if (!gl || !program) return
+    if (!gl || !program || useFallback) return
 
     const pixelRatio = Math.min(window.devicePixelRatio, 2)
     const canvasWidth = width * pixelRatio
@@ -202,6 +252,11 @@ export function ShaderMount({
     let accumulatedTime = 0
 
     const render = (currentTime: number) => {
+      if (currentSpeedRef.current === 0) {
+        rafRef.current = null
+        return
+      }
+
       const deltaTime = currentTime - lastTime
       lastTime = currentTime
       accumulatedTime += deltaTime * currentSpeedRef.current * 0.001
@@ -248,24 +303,51 @@ export function ShaderMount({
       rafRef.current = requestAnimationFrame(render)
     }
 
-    rafRef.current = requestAnimationFrame(render)
+    if (currentSpeedRef.current > 0) {
+      rafRef.current = requestAnimationFrame(render)
+    }
 
     return () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
       }
     }
-  }, [uniforms, width, height])
+  }, [fragmentShader, uniforms, width, height, speed, prefersReducedMotion, useFallback])
 
   return (
-    <canvas
-      ref={canvasRef}
+    <span
+      aria-hidden="true"
       className={className}
       style={{
+        position: "relative",
+        display: "block",
         width,
         height,
         ...style,
       }}
-    />
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: useFallback ? "none" : "block",
+          width: "100%",
+          height: "100%",
+        }}
+      />
+      {useFallback ? (
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "9999px",
+            backgroundColor: fallbackBackColor,
+            backgroundImage: `radial-gradient(circle at center, ${fallbackColor} 1.5px, transparent 2px)`,
+            backgroundSize: "6px 6px",
+            opacity: 0.95,
+          }}
+        />
+      ) : null}
+    </span>
   )
 }

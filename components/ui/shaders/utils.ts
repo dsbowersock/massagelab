@@ -54,10 +54,12 @@ float getShape(vec2 uv, float time) {
 }
 `;
 
+/** Transparent color used when a CSS color cannot safely resolve for WebGL. */
 function createTransparentRgba(): [number, number, number, number] {
   return [0, 0, 0, 0];
 }
 
+/** Parse six-digit hex colors into normalized shader channels. */
 function parseHexColor(color: string): [number, number, number, number] | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color.trim());
   if (!result) {
@@ -72,6 +74,7 @@ function parseHexColor(color: string): [number, number, number, number] | null {
   ];
 }
 
+/** Parse rgb()/rgba() CSS colors into normalized shader channels. */
 function parseRgbColor(color: string): [number, number, number, number] | null {
   const rgbResult =
     /^rgba?\(\s*([\d.]+)(?:\s*,\s*|\s+)([\d.]+)(?:\s*,\s*|\s+)([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/i.exec(
@@ -90,7 +93,11 @@ function parseRgbColor(color: string): [number, number, number, number] | null {
   ];
 }
 
-function resolveBrowserColor(color: string): string | null {
+/** Resolve browser-native CSS colors under the loader's inheritance context. */
+function resolveBrowserColor(
+  color: string,
+  contextElement?: HTMLElement | null
+): string | null {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return null;
   }
@@ -107,15 +114,28 @@ function resolveBrowserColor(color: string): string | null {
   probe.style.visibility = "hidden";
   probe.style.pointerEvents = "none";
 
-  document.body.appendChild(probe);
+  const host = contextElement?.isConnected ? contextElement : document.body;
+  if (!host) {
+    return null;
+  }
+
+  host.appendChild(probe);
   const resolvedColor = window.getComputedStyle(probe).color;
   probe.remove();
 
   return resolvedColor || null;
 }
 
-// Helper to convert CSS color values to RGBA array
-export function hexToRgba(color: string): [number, number, number, number] {
+/**
+ * Convert a CSS color into a shader-ready RGBA tuple.
+ *
+ * Contextual values such as `currentColor` and ancestor-scoped CSS variables
+ * must resolve under the mounted loader element, not under `document.body`.
+ */
+export function hexToRgba(
+  color: string,
+  contextElement?: HTMLElement | null
+): [number, number, number, number] {
   const normalizedColor = color.trim();
 
   if (!normalizedColor || normalizedColor === "transparent") {
@@ -132,7 +152,7 @@ export function hexToRgba(color: string): [number, number, number, number] {
     return fromRgb;
   }
 
-  const resolvedColor = resolveBrowserColor(normalizedColor);
+  const resolvedColor = resolveBrowserColor(normalizedColor, contextElement);
   if (resolvedColor) {
     const resolvedFromHex = parseHexColor(resolvedColor);
     if (resolvedFromHex) {
