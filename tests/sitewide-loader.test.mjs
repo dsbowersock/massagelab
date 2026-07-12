@@ -39,6 +39,8 @@ describe("Sitewide loader", () => {
     assert.match(loaderSource, /variant = "dither"/)
     assert.match(loaderSource, /color = "#ea580c"/)
     assert.match(loaderSource, /const \[loaderElement, setLoaderElement\] = React\.useState<HTMLDivElement \| null>\(null\)/)
+    assert.match(loaderSource, /const contextualColorPattern = \/\(\?:currentColor\|var\\\(\)\/i/)
+    assert.match(loaderSource, /const usesContextualColor = contextualColorPattern\.test\(`\$\{color\} \$\{colorBack\}`\)/)
     assert.match(loaderSource, /hexToRgba\(canResolveColors \? color : "transparent", contextElement\)/)
     assert.match(loaderSource, /ref=\{setLoaderElement\}/)
     assert.match(loaderSource, /const isAriaHidden = ariaHidden === true \|\| ariaHidden === "true"/)

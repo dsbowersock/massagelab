@@ -15,6 +15,7 @@ type LoaderShape = "sphere" | "swirl" | "ripple"
 type LoaderStyle = "plain" | "blur" | "dither"
 
 const randomLoaderShapes = ["sphere", "swirl", "ripple"] as const
+const contextualColorPattern = /(?:currentColor|var\()/i
 
 const sizeConfig = {
   sm: { width: 48, height: 48 },
@@ -134,7 +135,7 @@ function Loader({
   const fragmentShader = shaderMap[variant]
   const shapeValue = shapeMap[resolvedShape]
   const scale = variant === "blur" ? 0.52 : 0.6
-  const usesContextualColor = /(?:currentColor|var\()/i.test(`${color} ${colorBack}`)
+  const usesContextualColor = contextualColorPattern.test(`${color} ${colorBack}`)
   const [colorResolutionEpoch, setColorResolutionEpoch] = React.useState(0)
   const isAriaHidden = ariaHidden === true || ariaHidden === "true"
 
