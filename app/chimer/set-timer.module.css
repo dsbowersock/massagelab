@@ -1047,6 +1047,17 @@
     0 1px 6px hsl(180 54% 56% / 0.18);
 }
 
+.setupActionButton {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom-width: 4px;
+}
+
+.setupActionButton.tactileButton {
+  transform: translateY(-2px);
+}
+
 .setupInlineButton.tactileButton {
   transform: translateY(-2px);
 }

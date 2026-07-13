@@ -21,6 +21,8 @@ Use `components/ui/button.tsx` for button-like actions.
 
 Tactile variants use the shared press-feedback path in `lib/press-feedback.ts`. Feedback respects disabled and `aria-disabled` states and the user's haptic opt-out. Use `pressFeedback={false}` only when a route-owned control already handles its own physical feedback.
 
+Keep shared button sizing and geometry as the default across tools. Route-owned buttons should change color, variant, or opt-in effects such as glow/attention rings before changing height, lip depth, radius, padding, or motion. If a tool needs different geometry, review that exception in `/dev/buttons` first and record why the shared `Button` size variants do not fit.
+
 ## Range And Slider Controls
 
 Use `components/ui/slider.tsx` for Radix slider semantics and `components/ui/range-control.tsx` when a label and visible value should travel with the slider.
