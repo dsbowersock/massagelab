@@ -896,10 +896,3 @@ Next-chat starting sequence:
 2. Re-check `/dev/buttons` first, then compare only the production surfaces being touched in the next batch.
 3. Continue with remaining route-owned tabs, dropdown/select fields, containers, drawer/navigation treatments, loaders, and any unmigrated Anatomime, Clock, or Chimer controls.
 4. Keep each PR batch narrow, validate with targeted checks, then use the usual GitHub/CodeRabbit review loop before the next visual-inspection batch.
-
-## 2026-07-13 Route-Owned Select Batch
-
-- After the loader PR merged, refreshed `main` to `789a8401` and created `codex/sitewide-route-owned-controls`.
-- Scope for this branch: Chimer setup and running native select fields only.
-- Intent: make remaining route-owned Chimer dropdowns visually match the approved inset/cutout Clock font select treatment while preserving native select semantics and existing timer/background settings data flow.
-- Out of scope: Chimer component decomposition, background settings prop-drilling, Anatomime gameplay controls, calendar/admin dense workspaces, and new shared select abstractions.
