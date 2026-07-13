@@ -890,6 +890,13 @@ Merged visual-control foundations:
 - Shared color pickers are approved through `GlobalColorPicker`, `ColorPickerFormInput`, `ColorSlider`, and `NumberField` patterns. All site color inputs should use the shared picker; dark and light swatches should retain the same silhouette and shadow system.
 - Route-owned review examples now cover Clock tabs, time-format choices, select fields, side-drawer navigation, and Anatomime controls. Production rollout has started, but route-owned exceptions should stay explicit until promoted to shared components.
 - User review after the Chimer select-field rollback confirms Chimer page buttons and route-owned controls are done/protected. Do not include Chimer control restyling in future visual-control batches unless the user explicitly reopens that surface.
+- `/dev/buttons` now includes a review-only Chimer setup button example using the requested `#4AAAAA` face color. This is a review proposal only and does not change production Chimer.
+
+Current completion audit:
+
+- Done: audit, shared button primitive, press feedback/haptics, Chimer compatibility wrappers, homepage/public/auth/account button migrations, sliders/ranges, toggles/switches/segmented controls, shared color pickers, number/color-slider helpers, loader, docs/wiki, and approved route-owned examples for Clock, drawer navigation, and Anatomime.
+- Protected: Chimer page controls/buttons are already approved and should not be reworked without a new explicit request.
+- Still optional from the original plan: user-selected non-Chimer route-owned cleanup for dense or product-specific surfaces such as wellness/business/education/notes/public booking/music/admin/calendar/Anatomime, only when a shared primitive can be swapped without reducing usability.
 
 Next-chat starting sequence:
 

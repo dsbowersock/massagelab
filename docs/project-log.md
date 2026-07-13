@@ -7,6 +7,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 ## 2026-07-12
 
 - Reverted the unpushed `codex/sitewide-route-owned-controls` Chimer select-field restyle after user review found it regressed the approved Chimer page controls. Chimer page buttons and route-owned controls are now treated as done/protected; future visual-system batches should not include Chimer control restyling unless explicitly requested.
+- Added a review-only Chimer setup button example to `/dev/buttons` using the requested `#4AAAAA` face color, without changing production Chimer controls.
 
 - Continued the July 7 sitewide visual-system rollout on `codex/sitewide-loader-controls`, including the July 12 handoff note already appended to the rollout plan.
 - Promoted the Chimer loader through the `ds.asanshay.com` shadcn registry implementation into `components/ui/loader.tsx`, using the shader-based sphere/dither renderer with MassageLab orange defaults, kept `components/chimer-controls/Loader.tsx` as a compatibility re-export, and added `/dev/buttons` sphere, swirl, and ripple comparison examples.

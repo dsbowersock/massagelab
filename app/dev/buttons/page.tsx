@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
@@ -125,6 +126,14 @@ const rolloutExamples: Array<{
   },
 ]
 
+const chimerSetupButtonStyle = {
+  "--button-default-face": "180 39.34% 47.84%",
+  "--button-default-depth": "184 52% 26%",
+  "--button-orange-edge": "180 46% 62%",
+  "--button-orange-start": "180 39.34% 47.84%",
+  "--brand-orange-glow": "180 54% 56%",
+} as CSSProperties
+
 export default function ButtonGalleryPage() {
   if (process.env.NODE_ENV === "production") {
     notFound()
@@ -215,6 +224,7 @@ export default function ButtonGalleryPage() {
         <AppSurface>
           <div className="flex flex-wrap items-center gap-3">
             <TactileButton>Chimer tactile</TactileButton>
+            <TactileButton style={chimerSetupButtonStyle}>Chimer setup</TactileButton>
             <CTAButton>Chimer CTA</CTAButton>
             <GlowButton>Chimer glow</GlowButton>
           </div>
