@@ -78,7 +78,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                 <Button
                   type="submit"
                   variant="glow"
-                  className="h-full w-full py-4 text-lg font-semibold"
+                  className="ml-button-glow-neon-flicker h-full w-full py-4 text-lg font-semibold"
                   aria-label={`${option.label} ${option.description}`}
                 >
                   <span className="text-lg font-semibold">{option.label}</span>

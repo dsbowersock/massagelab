@@ -16414,7 +16414,7 @@ export function SetTimer({
           )}
           {!isFinalStep && (
             <MetalAttentionRing
-              metalMode={canAdvanceStep ? "cycle" : "off"}
+              metalMode={canAdvanceStep ? "always" : "off"}
               metalFullWidth
             >
               <button

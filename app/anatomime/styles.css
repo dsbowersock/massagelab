@@ -602,7 +602,10 @@
 }
 
 .anatomime-region-button svg,
-.anatomime-term-card svg {
+.anatomime-term-card svg,
+.anatomime-primary-button svg,
+.anatomime-secondary-button svg,
+.anatomime-danger-button svg {
   filter:
     drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5))
     drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--foreground) / 0.2));

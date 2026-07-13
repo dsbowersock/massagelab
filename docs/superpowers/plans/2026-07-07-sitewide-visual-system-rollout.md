@@ -891,6 +891,7 @@ Merged visual-control foundations:
 - Route-owned review examples now cover Clock tabs, time-format choices, select fields, side-drawer navigation, Anatomime controls, and the approved Chimer setup selection/action button treatment. Production rollout has started, but route-owned exceptions should stay explicit until promoted to shared components.
 - User review after the Chimer select-field rollback confirms Chimer page buttons and route-owned controls are done/protected except for the explicitly reopened setup-button surface. Do not include broader Chimer control restyling in future visual-control batches unless the user explicitly reopens that surface.
 - `/dev/buttons` includes the Chimer setup button example using the requested `#4AAAAA` face color, and that treatment is now applied to Chimer setup selection/action buttons only; step navigation such as Continue/Back keeps its prior treatment.
+- Follow-up review kept Chimer Continue on its prior button face while forcing the enabled metal attention ring to remain visible, promoted the new Glow flicker treatment to the pricing donation buttons, and extended Anatomime icon inset treatment to primary/secondary/danger action icons.
 
 Current completion audit:
 

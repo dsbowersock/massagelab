@@ -6,6 +6,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## 2026-07-13
 
+- Followed up the route-owned visual review: Chimer Continue now keeps its metal attention ring visible whenever the step can advance, one-time pricing donation buttons use the new Glow flicker treatment, and Anatomime primary/secondary/danger action icons now receive the same inset icon treatment as route cards.
 - Continued the route-owned visual-control review from `/dev/buttons`: added a second Glow review variant whose orange outer ring/glow uses an irregular neon flicker while the existing Glow button remains unchanged; removed vertical gradient layers from the Clock/select field and Anatomime team-name input surfaces; strengthened Anatomime route-card/icon inset treatment; lightened selected Anatomime card detail text; and applied the user-approved `#4AAAAA` setup treatment to Chimer setup selection/action buttons while leaving step navigation such as Continue on its prior style.
 
 ## 2026-07-12
