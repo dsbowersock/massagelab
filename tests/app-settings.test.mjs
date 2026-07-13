@@ -88,6 +88,8 @@ describe("App settings helpers", () => {
   it("shares the approved route-control styling with production Chimer and drawer routes", () => {
     const gallerySource = readFileSync(new URL("../app/dev/buttons/route-control-gallery.tsx", import.meta.url), "utf8")
     const chimerSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
+    const chimerRunningStyles = readFileSync(new URL("../app/chimer/running-timer.module.css", import.meta.url), "utf8")
+    const chimerSetupStyles = readFileSync(new URL("../app/chimer/set-timer.module.css", import.meta.url), "utf8")
     const sidebarSource = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
 
@@ -98,6 +100,11 @@ describe("App settings helpers", () => {
     assert.match(gallerySource, /data-active-format=\{timeFormat\}/)
     assert.match(chimerSource, /data-active-tab=\{settingsTab\}[\s\S]*ml-chimer-tabs/)
     assert.match(chimerSource, /ml-time-format-choice[\s\S]*data-active-format=\{timeFormat\}/)
+    assert.match(chimerRunningStyles, /\.clockCompactField select \{[\s\S]*appearance: none;[\s\S]*linear-gradient\(45deg/)
+    assert.match(chimerRunningStyles, /\.selectRow select \{[\s\S]*appearance: none;[\s\S]*linear-gradient\(45deg/)
+    assert.match(chimerRunningStyles, /\.selectRow select:focus-visible \{[\s\S]*outline: 2px solid hsl\(var\(--ring\) \/ 0\.48\)/)
+    assert.match(chimerSetupStyles, /\.selectRow select \{[\s\S]*appearance: none;[\s\S]*linear-gradient\(45deg/)
+    assert.match(chimerSetupStyles, /\.selectRow select:focus-visible \{[\s\S]*outline: 2px solid hsl\(var\(--ring\) \/ 0\.48\)/)
     assert.match(sidebarSource, /ml-sidebar-route/)
     assert.match(globalsSource, /\.ml-chimer-tabs\.ml-chimer-tabs \{[\s\S]*border-radius: 0\.5625rem/)
     assert.match(globalsSource, /\.ml-chimer-tabs \.ml-chimer-tab\[data-state="active"\]/)

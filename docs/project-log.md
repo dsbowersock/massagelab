@@ -6,6 +6,8 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## 2026-07-12
 
+- After the loader PR merged, refreshed `main` to `789a8401` and opened `codex/sitewide-route-owned-controls` for the next narrow sitewide visual-system batch. This batch is scoped to route-owned Chimer setup/running select fields so native dropdowns use the same inset/cutout treatment already approved for the Clock font control, without changing timer settings, background option behavior, or storage flows.
+
 - Continued the July 7 sitewide visual-system rollout on `codex/sitewide-loader-controls`, including the July 12 handoff note already appended to the rollout plan.
 - Promoted the Chimer loader through the `ds.asanshay.com` shadcn registry implementation into `components/ui/loader.tsx`, using the shader-based sphere/dither renderer with MassageLab orange defaults, kept `components/chimer-controls/Loader.tsx` as a compatibility re-export, and added `/dev/buttons` sphere, swirl, and ripple comparison examples.
 - Updated the shared loader default so omitted `shape` randomly selects sphere, swirl, or ripple per loader instance, while explicit `shape` props still render deterministic comparison examples or route-owned choices.
