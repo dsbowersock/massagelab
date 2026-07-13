@@ -5,7 +5,7 @@ import * as React from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { triggerHapticFeedback } from "@/lib/haptics"
+import { triggerHapticFeedback, type HapticPattern } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
 export interface SegmentedToggleOption {
@@ -18,12 +18,17 @@ export interface SegmentedToggleOption {
 export interface SegmentedToggleGroupProps {
   label: string
   value: string
+  /**
+   * Keep this array memoized when activeRing or reflectSiblingOptions is enabled
+   * so option refs and ring/reflection targets remain stable across renders.
+   */
   options: readonly SegmentedToggleOption[]
   onValueChange: (value: string) => void
   disabled?: boolean
   iconOnly?: boolean
   size?: "sm" | "default" | "lg"
   hapticsEnabled?: boolean
+  hapticDurationMs?: HapticPattern
   activeTone?: "default" | "attention"
   activeRing?: boolean
   reflectSiblingOptions?: boolean
@@ -43,6 +48,7 @@ export function SegmentedToggleGroup({
   iconOnly,
   size = "default",
   hapticsEnabled,
+  hapticDurationMs,
   activeTone = "default",
   activeRing,
   reflectSiblingOptions,
@@ -60,7 +66,7 @@ export function SegmentedToggleGroup({
       return
     }
 
-    triggerHapticFeedback(hapticsEnabled, [10, 22, 8])
+    triggerHapticFeedback(hapticsEnabled, hapticDurationMs ?? [10, 22, 8])
     onValueChange(nextValue)
   }
 

@@ -234,7 +234,7 @@ function PlanAction({
   if (mode === "auth") {
     return (
       <MetalAttentionButton asChild variant="attention" className="w-full" metalFullWidth>
-        <Link href="/register?callbackUrl=%2Fpricing">Get Started</Link>
+        <Link href="/login?callbackUrl=%2Fpricing">Get Started</Link>
       </MetalAttentionButton>
     )
   }

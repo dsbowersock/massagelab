@@ -571,6 +571,7 @@ export default function ChimerPage() {
     if (
       accountSyncStatus === "conflict"
       && accountSettings
+      // Local divergence during a conflict marks this setup edited and suppresses the sync notice.
       && !areChimerSettingsEqual(nextSanitizedSettings, accountSettings)
     ) {
       setHasEditedLocalConflictSettings(true)

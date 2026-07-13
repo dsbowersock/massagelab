@@ -127,6 +127,7 @@ const rolloutExamples: Array<{
   },
 ]
 
+// Teal HSL tokens mirror the approved Chimer setup-button color treatment.
 const chimerSetupButtonStyle = {
   "--button-default-face": "180 39.34% 47.84%",
   "--button-default-depth": "184 52% 26%",
