@@ -86,7 +86,7 @@ export function SegmentedToggleGroup({
               value={option.value}
               disabled={option.disabled}
               aria-label={option.label}
-              data-selected={isSelected}
+              data-selected={option.value === value}
               className={cn(iconOnly && "px-3")}
             >
               {option.icon}
