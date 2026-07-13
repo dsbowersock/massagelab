@@ -930,67 +930,6 @@
   text-transform: lowercase;
 }
 
-.loaderWrapper {
-  position: relative;
-  width: var(--ml-loader-size, 2.75rem);
-  height: var(--ml-loader-size, 2.75rem);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: hsl(var(--brand-orange));
-}
-
-.loaderSphere {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 20% 24%, hsl(var(--ml-loader-color) / 0.78), hsl(var(--ml-loader-color) / 0.1) 38%, hsl(var(--ml-loader-color) / 0) 70%),
-    radial-gradient(circle at 80% 35%, hsl(var(--ml-loader-color) / 0.56), hsl(var(--ml-loader-color) / 0) 56%),
-    radial-gradient(circle at 36% 72%, hsl(var(--ml-loader-color) / 0.48), hsl(var(--ml-loader-color) / 0) 65%),
-    radial-gradient(circle at 80% 74%, hsl(var(--ml-loader-color) / 0.72), hsl(var(--ml-loader-color) / 0) 55%),
-    conic-gradient(from 190deg at 50% 40%, hsl(var(--ml-loader-color) / 0.85), hsl(var(--ml-loader-color) / 0.25), hsl(var(--ml-loader-color) / 0.9), hsl(var(--ml-loader-color) / 0.35), hsl(var(--ml-loader-color) / 0.85));
-  box-shadow:
-    inset 0 0 18px hsl(var(--ml-loader-color) / 0.55),
-    0 0 20px hsl(var(--ml-loader-color) / 0.32);
-  overflow: hidden;
-  animation: loader-orbit var(--ml-loader-speed, 1s) linear infinite;
-}
-
-.loaderSphere::before,
-.loaderSphere::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-repeat: repeat;
-  mix-blend-mode: screen;
-  opacity: 0.2;
-}
-
-.loaderSphere::before {
-  background-image:
-    repeating-linear-gradient(45deg, hsl(var(--ml-loader-color) / 0.55) 0 2px, transparent 2px 4px),
-    repeating-linear-gradient(-45deg, hsl(var(--ml-loader-color) / 0.5) 0 1.5px, transparent 1.5px 4px);
-  animation: loader-dither var(--ml-loader-speed, 1s) linear infinite reverse;
-}
-
-.loaderSphere::after {
-  background-image: radial-gradient(circle at 50% 50%, hsl(var(--ml-loader-color) / 0.35) 4%, transparent 24%);
-  animation: loader-shimmer calc(var(--ml-loader-speed, 1s) * 1.6) linear infinite;
-  opacity: 0.4;
-}
-
-.loaderText {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -1001,28 +940,6 @@
   white-space: nowrap;
   clip-path: inset(50%);
   overflow: hidden;
-}
-
-@keyframes loader-orbit {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes loader-dither {
-  to {
-    transform: translate3d(3px, 1px, 0);
-  }
-}
-
-@keyframes loader-shimmer {
-  from {
-    transform: translateX(-30px);
-  }
-
-  to {
-    transform: translateX(30px);
-  }
 }
 
 @keyframes cta-pulse {
@@ -1091,10 +1008,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loaderWrapper,
-  .loaderSphere,
-  .loaderSphere::before,
-  .loaderSphere::after,
   .rangeInput,
   .rangeInput::-webkit-slider-thumb,
   .rangeInput::-moz-range-thumb,
@@ -1110,9 +1023,6 @@
     transform: none !important;
   }
 
-  .loaderSphere,
-  .loaderSphere::before,
-  .loaderSphere::after,
   .ctaRing,
   .tactileButton:hover,
   .tactileButton:active,
