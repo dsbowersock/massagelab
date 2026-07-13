@@ -16134,7 +16134,7 @@ export function SetTimer({
           <div className={styles.presetSelectRow}>
             <button
               type="button"
-              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              className={`${styles.secondaryButton} ${styles.tactileButton} ${styles.setupButton}`}
               onClick={withPress(applySelectedPreset)}
               disabled={!selectedPreset}
             >
@@ -16142,7 +16142,7 @@ export function SetTimer({
             </button>
             <button
               type="button"
-              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              className={`${styles.secondaryButton} ${styles.tactileButton} ${styles.setupButton}`}
               onClick={withPress(loadLastSetup)}
               disabled={!lastSetupPreset}
             >
@@ -16191,7 +16191,7 @@ export function SetTimer({
                   <button
                     key={minutes}
                     type="button"
-                    className={`${styles.inlineButton} ${styles.tactileButton}`}
+                    className={`${styles.inlineButton} ${styles.tactileButton} ${styles.setupButton}`}
                     onClick={withPress(() => setQuickDuration(minutes))}
                   >
                     {minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`}
@@ -16364,7 +16364,7 @@ export function SetTimer({
                 </label>
                 <button
                   type="button"
-                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  className={`${styles.secondaryButton} ${styles.tactileButton} ${styles.setupButton}`}
                   onClick={withPress(saveCurrentPreset)}
                   disabled={!isTimerSet}
                 >
@@ -16374,7 +16374,7 @@ export function SetTimer({
               <div className={styles.actions}>
                 <button
                   type="button"
-                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  className={`${styles.secondaryButton} ${styles.tactileButton} ${styles.setupButton}`}
                   onClick={withPress(onTestAlert)}
                 >
                   Test Alert
@@ -16382,7 +16382,7 @@ export function SetTimer({
                 <CTAButton
                   type="button"
                   withAttentionRing
-                  className={styles.button}
+                  className={`${styles.button} ${styles.setupButton}`}
                   onClick={withPress(() => handleStartTimer(false))}
                   disabled={!isTimerSet}
                 >
@@ -16391,7 +16391,7 @@ export function SetTimer({
                 </CTAButton>
                 <button
                   type="button"
-                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  className={`${styles.secondaryButton} ${styles.tactileButton} ${styles.setupButton}`}
                   onClick={withPress(() => handleStartTimer(true))}
                   disabled={!isTimerSet}
                 >

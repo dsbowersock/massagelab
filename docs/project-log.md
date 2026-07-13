@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-13
+
+- Continued the route-owned visual-control review from `/dev/buttons`: added a second Glow review variant whose orange outer ring/glow uses an irregular neon flicker while the existing Glow button remains unchanged; removed vertical gradient layers from the Clock/select field and Anatomime team-name input surfaces; strengthened Anatomime route-card/icon inset treatment; lightened selected Anatomime card detail text; and applied the user-approved `#4AAAAA` setup treatment to Chimer setup selection/action buttons while leaving step navigation such as Continue on its prior style.
+
 ## 2026-07-12
 
 - Reverted the unpushed `codex/sitewide-route-owned-controls` Chimer select-field restyle after user review found it regressed the approved Chimer page controls. Chimer page buttons and route-owned controls are now treated as done/protected; future visual-system batches should not include Chimer control restyling unless explicitly requested.

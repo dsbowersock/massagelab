@@ -543,7 +543,6 @@
   border-bottom: 2px solid hsl(var(--background) / 0.58);
   border-radius: 0.78rem;
   background:
-    linear-gradient(180deg, hsl(var(--foreground) / 0.07), transparent 48%),
     linear-gradient(90deg, hsl(var(--button-orange-start) / 0.1), hsl(var(--background) / 0.78) 42%, hsl(var(--button-blue-depth) / 0.1)),
     hsl(var(--background) / 0.68);
   box-shadow:
@@ -552,6 +551,7 @@
     0 0.45rem 0.9rem hsl(var(--background) / 0.22);
   color: hsl(var(--foreground));
   font-weight: 700;
+  padding-inline: 1rem;
 }
 
 .anatomime-hardcore-button,
@@ -567,11 +567,11 @@
   border-bottom: 3px solid hsl(var(--background) / 0.66);
   border-radius: 0.68rem;
   background:
-    linear-gradient(180deg, hsl(var(--foreground) / 0.06), transparent 54%),
     linear-gradient(90deg, hsl(var(--button-blue-mid) / 0.08), hsl(var(--background) / 0.78) 46%, hsl(var(--background) / 0.88));
   box-shadow:
-    inset 0 1px 0 hsl(var(--foreground) / 0.06),
-    inset 0 -1px 0 hsl(var(--button-ink) / 0.18),
+    inset var(--ml-button-inset-shadow-x) 1.5px 4px hsl(var(--background) / 0.42),
+    inset var(--ml-button-inset-highlight-x) -1px 2px hsl(var(--foreground) / 0.08),
+    inset 0 -1px 0 hsl(var(--button-ink) / 0.2),
     0 2px 0 hsl(var(--background) / 0.56),
     0 0.42rem 0.74rem hsl(var(--background) / 0.22);
   color: hsl(215 22% 88%);
@@ -599,6 +599,13 @@
   display: inline-grid;
   width: 2.75rem;
   place-items: center;
+}
+
+.anatomime-region-button svg,
+.anatomime-term-card svg {
+  filter:
+    drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.5))
+    drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--foreground) / 0.2));
 }
 
 .anatomime-hardcore-button:hover,
@@ -659,6 +666,14 @@
     var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.54),
     var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.22),
     0 0 1px hsl(var(--button-orange-start) / 0.18);
+}
+
+.anatomime-region-button[data-selected="true"] small,
+.anatomime-term-card[data-selected="true"] small {
+  color: hsl(32 100% 92% / 0.86);
+  text-shadow:
+    var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.36),
+    var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-orange-start) / 0.18);
 }
 
 .anatomime-secondary-button {

@@ -169,6 +169,11 @@ export default function ButtonGalleryPage() {
                     <ArrowRight aria-hidden="true" />
                   </Button>
                 )}
+                {item.variant === "glow" ? (
+                  <Button variant="glow" className="ml-button-glow-neon-flicker">
+                    Glow flicker
+                  </Button>
+                ) : null}
                 {item.variant === "attention" ? (
                   <MetalAttentionButton disabled>
                     Disabled

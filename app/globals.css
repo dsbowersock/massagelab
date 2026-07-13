@@ -578,6 +578,93 @@
     background: var(--ml-button-glow-light-gradient);
   }
 
+  .ml-button-press-motion.ml-button-glow-neon-flicker::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow:
+      0 0 0.32rem hsl(var(--brand-orange-glow) / 0.52),
+      0 0 0.95rem hsl(var(--brand-orange) / 0.34),
+      0 0 1.5rem hsl(var(--brand-orange-glow) / 0.18);
+    opacity: 0.96;
+    pointer-events: none;
+    animation: ml-neon-flicker 4.8s infinite;
+  }
+
+  @keyframes ml-neon-flicker {
+    0%,
+    8%,
+    12%,
+    19%,
+    25%,
+    33%,
+    37.6%,
+    38.8%,
+    46%,
+    57%,
+    63%,
+    76%,
+    84%,
+    100% {
+      opacity: 0.96;
+      filter: brightness(1);
+    }
+
+    9% {
+      opacity: 0.82;
+    }
+
+    13.5% {
+      opacity: 0.9;
+    }
+
+    22% {
+      opacity: 0.74;
+    }
+
+    34.2% {
+      opacity: 0.86;
+    }
+
+    38% {
+      opacity: 0.5;
+      filter: brightness(0.65);
+    }
+
+    38.35% {
+      opacity: 1;
+      filter: brightness(1.12);
+    }
+
+    48.5% {
+      opacity: 0.78;
+    }
+
+    58.4% {
+      opacity: 0.88;
+    }
+
+    64.2% {
+      opacity: 0.7;
+    }
+
+    77.3% {
+      opacity: 0.84;
+    }
+
+    86% {
+      opacity: 0.9;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ml-button-press-motion.ml-button-glow-neon-flicker::after {
+      animation: none;
+      opacity: 0.88;
+    }
+  }
+
   .metal-fx-root.ml-metal-attention-root,
   .ml-metal-attention-root-idle {
     /* Keep this wrapper thin so the visible ring comes from the upstream MetalFx renderer. */
