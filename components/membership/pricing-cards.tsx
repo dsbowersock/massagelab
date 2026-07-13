@@ -270,7 +270,13 @@ function PlanAction({
           .
         </span>
       </label>
-      <MetalAttentionButton type="submit" className="w-full" metalFullWidth disabled={!price.isLookupAvailable}>
+      <MetalAttentionButton
+        type="submit"
+        variant="attention"
+        className="w-full"
+        metalFullWidth
+        disabled={!price.isLookupAvailable}
+      >
         Choose {plan.name}
       </MetalAttentionButton>
     </form>

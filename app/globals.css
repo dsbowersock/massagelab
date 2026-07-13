@@ -590,6 +590,7 @@
     opacity: 0.96;
     pointer-events: none;
     animation: ml-neon-flicker 4.8s infinite;
+    animation-delay: var(--ml-neon-flicker-delay, 0s);
   }
 
   @keyframes ml-neon-flicker {

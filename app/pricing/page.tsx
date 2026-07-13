@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import Link from "next/link"
 import { HeartHandshake, ShieldCheck, Sparkles } from "lucide-react"
 import { getCurrentSession } from "@/auth"
@@ -72,13 +73,16 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             Donations are one-time Stripe payments. They do not create a membership, unlock paid features, or replace the subscription options above.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {DONATION_OPTIONS.map((option) => (
+            {DONATION_OPTIONS.map((option, index) => (
               <form key={option.amountCents} action="/api/billing/donation" method="post">
                 <input type="hidden" name="amountCents" value={option.amountCents} />
                 <Button
                   type="submit"
                   variant="glow"
                   className="ml-button-glow-neon-flicker h-full w-full py-4 text-lg font-semibold"
+                  style={{
+                    "--ml-neon-flicker-delay": `${index * 0.65}s`,
+                  } as CSSProperties}
                   aria-label={`${option.label} ${option.description}`}
                 >
                   <span className="text-lg font-semibold">{option.label}</span>
