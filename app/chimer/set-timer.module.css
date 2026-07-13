@@ -602,10 +602,10 @@
 }
 
 .setupInlineButton {
-  min-height: 2.75rem;
-  padding: 0.55rem 0.8rem;
+  min-height: 2.35rem;
+  padding: 0.38rem 0.72rem;
   border: 2px solid transparent;
-  border-bottom-width: 5px;
+  border-bottom-width: 4px;
   border-radius: 0.7rem;
   color: #fff;
   cursor: pointer;
@@ -1045,6 +1045,10 @@
   box-shadow:
     inset var(--ml-button-press-shadow-x) 3px 10px hsl(184 52% 18% / 0.38),
     0 1px 6px hsl(180 54% 56% / 0.18);
+}
+
+.setupInlineButton.tactileButton {
+  transform: translateY(-2px);
 }
 
 .attentionNavButton {

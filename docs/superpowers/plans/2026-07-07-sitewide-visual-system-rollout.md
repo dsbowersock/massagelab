@@ -895,6 +895,7 @@ Merged visual-control foundations:
 - Follow-up review clarified that sibling reflection is opt-in through `metalReflectionTargets`, offset one-time donation Glow flicker timing per button, made membership checkout actions explicitly use the attention variant, removed the remaining vertical Clock control-group gradients, and split `/dev/buttons` into review tabs with a Clock container sample.
 - Follow-up review promoted the pricing account/Get Started entry points to the Attention treatment, added the embedded Harmony picker to `/dev/buttons`, removed the vertical gradient from Chimer global color swatch cards, suppressed Chimer conflict sync notices after local edits diverge from saved account settings, neutralized Chimer setup hover lift while keeping enabled Continue on the always-on metal ring, and fixed shared sidebar/content shrink behavior so route content resizes beside an open drawer.
 - Follow-up review moved the embedded Harmony picker onto the shared segmented-control treatment with the Attention purple selected state, always-on metal ring, and sibling reflection targets; Chimer setup action and duration buttons keep the same face on hover; and Continue keeps the always-on metal ring without adding a separate lower-lip button face.
+- Follow-up review reduced the Chimer setup quick-duration buttons to a shorter compact profile while preserving the approved setup face, smaller lip, no-hover treatment, and tactile press behavior.
 
 Current completion audit:
 
