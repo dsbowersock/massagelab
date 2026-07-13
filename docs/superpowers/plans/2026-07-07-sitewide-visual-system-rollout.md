@@ -893,6 +893,7 @@ Merged visual-control foundations:
 - `/dev/buttons` includes the Chimer setup button example using the requested `#4AAAAA` face color, and that treatment is now applied to Chimer setup selection/action buttons only; step navigation such as Continue/Back keeps its prior treatment.
 - Follow-up review kept Chimer Continue on its prior button face while forcing the enabled metal attention ring to remain visible, promoted the new Glow flicker treatment to the pricing donation buttons, and extended Anatomime icon inset treatment to primary/secondary/danger action icons.
 - Follow-up review clarified that sibling reflection is opt-in through `metalReflectionTargets`, offset one-time donation Glow flicker timing per button, made membership checkout actions explicitly use the attention variant, removed the remaining vertical Clock control-group gradients, and split `/dev/buttons` into review tabs with a Clock container sample.
+- Follow-up review promoted the pricing account/Get Started entry points to the Attention treatment, added the embedded Harmony picker to `/dev/buttons`, removed the vertical gradient from Chimer global color swatch cards, suppressed Chimer conflict sync notices after local edits diverge from saved account settings, neutralized Chimer setup hover lift while keeping enabled Continue on the always-on metal ring, and fixed shared sidebar/content shrink behavior so route content resizes beside an open drawer.
 
 Current completion audit:
 

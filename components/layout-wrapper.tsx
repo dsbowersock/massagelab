@@ -64,13 +64,13 @@ export function LayoutWrapper({
       {!appBarIsBottom && appBar}
       <div
         className={cn(
-          "ml-app-scroll relative z-10 min-h-0 w-full flex-1 overscroll-contain",
+          "ml-app-scroll relative z-10 min-h-0 min-w-0 w-full flex-1 overscroll-contain",
           isCalendarWorkspaceRoute ? "overflow-hidden" : "overflow-y-auto",
         )}
       >
         <div
           className={cn(
-            "ml-app-content mx-auto w-full",
+            "ml-app-content mx-auto min-w-0 w-full",
             isCalendarOperatorRoute || isPublicBookingRoute ? "max-w-none" : "max-w-screen-2xl",
             isCalendarWorkspaceRoute && "h-full min-h-0 pb-0",
           )}

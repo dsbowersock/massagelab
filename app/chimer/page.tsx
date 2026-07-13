@@ -107,6 +107,7 @@ export default function ChimerPage() {
   const [canSync, setCanSync] = useState(false)
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>("checking")
   const [accountSettings, setAccountSettings] = useState<ChimerSettings | null>(null)
+  const [hasEditedLocalConflictSettings, setHasEditedLocalConflictSettings] = useState(false)
   const [isResolvingSync, setIsResolvingSync] = useState(false)
   const [featureKeys, setFeatureKeys] = useState<string[]>([])
   const canUseCustomColors = featureKeys.includes(FEATURE_KEYS.chimerCustomColors)
@@ -222,11 +223,13 @@ export default function ChimerPage() {
             setSettings(nextSettings)
             window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(nextSettings))
             setCanSync(true)
+            setHasEditedLocalConflictSettings(false)
             setAccountSyncStatus("synced")
             return
           }
 
           setAccountSettings(nextSettings)
+          setHasEditedLocalConflictSettings(false)
           setCanSync(false)
           setAccountSyncStatus("conflict")
           return
@@ -557,11 +560,21 @@ export default function ChimerPage() {
 
   const updateSettings = (nextSettings: Partial<ChimerSettings>) => {
     setError(null)
-    setSettings((current) => sanitizeChimerSettingsForEntitlements(
-      { ...current, ...nextSettings },
+    const nextSanitizedSettings = sanitizeChimerSettingsForEntitlements(
+      { ...settingsRef.current, ...nextSettings },
       featureKeysRef.current,
       { canUseAccountColorControls },
-    ) as ChimerSettings)
+    ) as ChimerSettings
+
+    setSettings(nextSanitizedSettings)
+
+    if (
+      accountSyncStatus === "conflict"
+      && accountSettings
+      && !areChimerSettingsEqual(nextSanitizedSettings, accountSettings)
+    ) {
+      setHasEditedLocalConflictSettings(true)
+    }
   }
 
   const openTimeModal = (unit: "hours" | "minutes") => {
@@ -654,6 +667,7 @@ export default function ChimerPage() {
 
       setAccountSettings(null)
       setCanSync(true)
+      setHasEditedLocalConflictSettings(false)
       setAccountSyncStatus("synced")
     } catch {
       setError("Could not sync this device's Chimer settings. Try again after signing in.")
@@ -672,6 +686,7 @@ export default function ChimerPage() {
     window.localStorage.setItem(CHIMER_STORAGE_KEY, JSON.stringify(accountSettings))
     setAccountSettings(null)
     setCanSync(true)
+    setHasEditedLocalConflictSettings(false)
     setAccountSyncStatus("synced")
   }
 
@@ -849,6 +864,7 @@ export default function ChimerPage() {
             totalDurationMs={totalDurationMs}
             error={error}
             syncStatus={accountSyncStatus}
+            suppressSyncNotice={hasEditedLocalConflictSettings}
             isResolvingSync={isResolvingSync}
             featureKeys={featureKeys}
             backgroundCategory={backgroundCategory}

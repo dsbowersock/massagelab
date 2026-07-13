@@ -233,14 +233,9 @@ function PlanAction({
 }) {
   if (mode === "auth") {
     return (
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-        <Button asChild variant="ctaBlue">
-          <Link href="/register">Create account</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/login">Sign in</Link>
-        </Button>
-      </div>
+      <MetalAttentionButton asChild variant="attention" className="w-full" metalFullWidth>
+        <Link href="/register?callbackUrl=%2Fpricing">Get Started</Link>
+      </MetalAttentionButton>
     )
   }
 

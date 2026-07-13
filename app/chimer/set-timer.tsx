@@ -4643,6 +4643,7 @@ interface SetTimerProps {
   totalDurationMs: number
   error: string | null
   syncStatus: AccountSyncStatus
+  suppressSyncNotice?: boolean
   isResolvingSync: boolean
   featureKeys: string[]
   backgroundCategory: BackgroundCategory
@@ -4727,6 +4728,7 @@ export function SetTimer({
   totalDurationMs,
   error,
   syncStatus,
+  suppressSyncNotice = false,
   isResolvingSync,
   featureKeys,
   backgroundCategory,
@@ -4912,7 +4914,7 @@ export function SetTimer({
 
   const isFinalStep = activeStep === CHIMER_SETUP_STEPS.length - 1
   const canAdvanceStep = activeStep !== 0 || totalDurationMs > 0
-  const shouldShowSyncNotice = syncStatus !== "synced"
+  const shouldShowSyncNotice = syncStatus !== "synced" && !(syncStatus === "conflict" && suppressSyncNotice)
 
   const selectedPreset = savedPresets.find((entry) => entry.id === selectedPresetId) ?? null
 
