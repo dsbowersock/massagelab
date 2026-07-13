@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { triggerHapticFeedback } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
@@ -23,6 +24,9 @@ export interface SegmentedToggleGroupProps {
   iconOnly?: boolean
   size?: "sm" | "default" | "lg"
   hapticsEnabled?: boolean
+  activeTone?: "default" | "attention"
+  activeRing?: boolean
+  reflectSiblingOptions?: boolean
   className?: string
 }
 
@@ -39,9 +43,13 @@ export function SegmentedToggleGroup({
   iconOnly,
   size = "default",
   hapticsEnabled,
+  activeTone = "default",
+  activeRing,
+  reflectSiblingOptions,
   className,
 }: SegmentedToggleGroupProps) {
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value))
+  const optionRefs = React.useMemo(() => options.map(() => React.createRef<HTMLButtonElement>()), [options])
   const segmentStyle = {
     "--ml-segment-count": options.length,
     "--ml-segment-offset": `${selectedIndex * 100}%`,
@@ -66,26 +74,50 @@ export function SegmentedToggleGroup({
         size={size}
         aria-label={label}
         data-icon-only={iconOnly || undefined}
+        data-active-tone={activeTone === "attention" ? "attention" : undefined}
         style={segmentStyle}
         className={cn("ml-segmented-toggle-group", className)}
       >
-        {options.map((option) => (
-          <Tooltip key={option.value}>
+        {options.map((option, optionIndex) => {
+          const isSelected = option.value === value
+          const toggleItem = (
+            <ToggleGroupItem
+              ref={optionRefs[optionIndex]}
+              value={option.value}
+              disabled={option.disabled}
+              aria-label={option.label}
+              data-selected={isSelected}
+              className={cn(iconOnly && "px-3")}
+            >
+              {option.icon}
+              <span className={cn(iconOnly && "sr-only")}>{option.label}</span>
+            </ToggleGroupItem>
+          )
+          const tooltipTrigger = (
             <TooltipTrigger asChild>
-              <ToggleGroupItem
-                value={option.value}
-                disabled={option.disabled}
-                aria-label={option.label}
-                data-selected={option.value === value}
-                className={cn(iconOnly && "px-3")}
-              >
-                {option.icon}
-                <span className={cn(iconOnly && "sr-only")}>{option.label}</span>
-              </ToggleGroupItem>
+              {toggleItem}
             </TooltipTrigger>
-            {iconOnly ? <TooltipContent>{option.label}</TooltipContent> : null}
-          </Tooltip>
-        ))}
+          )
+          const optionTrigger = activeRing && isSelected ? (
+            <MetalAttentionRing
+              className="ml-segmented-active-ring"
+              metalMode="always"
+              metalFullWidth
+              metalReflectionTargets={reflectSiblingOptions ? optionRefs.filter((_, refIndex) => refIndex !== optionIndex) : undefined}
+              metalRingCssPx={2}
+              metalStrength={0.78}
+            >
+              {tooltipTrigger}
+            </MetalAttentionRing>
+          ) : tooltipTrigger
+
+          return (
+            <Tooltip key={option.value}>
+              {optionTrigger}
+              {iconOnly ? <TooltipContent>{option.label}</TooltipContent> : null}
+            </Tooltip>
+          )
+        })}
       </ToggleGroup>
     </TooltipProvider>
   )

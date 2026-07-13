@@ -1599,6 +1599,18 @@
     grid-template-columns: repeat(var(--ml-segment-count), minmax(3.5rem, 1fr));
   }
 
+  .ml-segmented-toggle-group[data-active-tone="attention"]::before {
+    background:
+      var(--ml-button-light-gradient),
+      linear-gradient(122deg, hsl(var(--button-cta-face-bright)) 0%, hsl(var(--button-cta-face)) 74%, hsl(var(--button-sunset-violet)) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.16),
+      inset 0 -2px 0 hsl(var(--button-cta-face-depth) / 0.58),
+      0 2px 0 hsl(var(--button-cta-face-depth) / 0.7),
+      0 4px 10px hsl(var(--button-cta-face) / 0.24);
+    opacity: 0;
+  }
+
   .ml-segmented-toggle-group::before {
     position: absolute;
     z-index: 0;
@@ -1626,9 +1638,38 @@
     width: 100%;
   }
 
+  .ml-segmented-toggle-group .ml-segmented-active-ring,
+  .ml-segmented-toggle-group .ml-segmented-active-ring .metal-fx-content {
+    justify-self: stretch;
+    width: 100% !important;
+  }
+
+  .ml-segmented-toggle-group .ml-segmented-active-ring {
+    z-index: 2;
+  }
+
   .ml-segmented-toggle-group .ml-toggle-group-item[data-selected="true"] {
     background: transparent;
     box-shadow: none;
+  }
+
+  .ml-segmented-toggle-group[data-active-tone="attention"] .ml-toggle-group-item[data-selected="true"] {
+    border-color: hsl(var(--button-cta-face-bright) / 0.72);
+    border-top-color: hsl(var(--foreground) / 0.24);
+    border-right-color: hsl(var(--button-sunset-violet) / 0.62);
+    background:
+      var(--ml-button-light-gradient),
+      linear-gradient(122deg, hsl(var(--button-cta-face-bright)) 0%, hsl(var(--button-cta-face)) 74%, hsl(var(--button-sunset-violet)) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.16),
+      inset 0 -2px 0 hsl(var(--button-cta-face-depth) / 0.58),
+      0 2px 0 hsl(var(--button-cta-face-depth) / 0.7),
+      0 4px 10px hsl(var(--button-cta-face) / 0.24);
+    color: hsl(282 100% 96%);
+    text-shadow:
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.56),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(var(--button-cta-face-bright) / 0.22),
+      0 0 1px hsl(var(--button-cta-face-bright) / 0.16);
   }
 
   .ml-segmented-toggle-group::-webkit-scrollbar {

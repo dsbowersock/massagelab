@@ -524,13 +524,9 @@
 }
 
 .harmonyList {
-  display: flex;
-  align-items: stretch;
-  gap: 0.42rem;
+  width: 100%;
   overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: none;
-  padding: 1.55rem 0.1rem 0.35rem;
+  padding-block: 0.08rem;
   scroll-snap-type: x proximity;
 }
 
