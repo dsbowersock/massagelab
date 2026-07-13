@@ -148,15 +148,13 @@ function Loader({
       setColorResolutionEpoch((value) => value + 1)
     }
 
-    // Resolve once after mount so browser-only names and contextual colors see
-    // the mounted loader element instead of a body-level fallback probe.
-    bumpColorResolutionEpoch()
-
     if (!usesContextualColor) {
       return
     }
 
-    // Contextual colors can change when themes or tokens change.
+    // Resolve once after mount so browser-only names and contextual colors see
+    // the mounted loader element instead of a body-level fallback probe.
+    bumpColorResolutionEpoch()
 
     const attributeFilter = ["class", "style", "data-theme"]
     const observer = new MutationObserver(bumpColorResolutionEpoch)
@@ -173,13 +171,11 @@ function Loader({
       observedElements.add(element)
     }
 
-    let elementToObserve: Element | null = loaderElement
-    while (elementToObserve) {
-      observeElement(elementToObserve)
-      elementToObserve = elementToObserve.parentElement
-    }
+    // App-level theme tokens live on the document roots. The loader element is
+    // included for route-owned local overrides without observing every ancestor.
     observeElement(document.documentElement)
     observeElement(document.body)
+    observeElement(loaderElement)
 
     const media = window.matchMedia("(prefers-color-scheme: dark)")
     if (typeof media.addEventListener === "function") {

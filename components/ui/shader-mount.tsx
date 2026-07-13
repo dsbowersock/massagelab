@@ -5,6 +5,7 @@ import * as React from "react"
 import { vertexShaderSource } from "./shaders"
 
 type ShaderUniformValue = number | number[]
+const uniformKeyDelimiter = "\u001f"
 
 interface ShaderMountProps {
   fragmentShader: string
@@ -33,6 +34,11 @@ function uniformColorToCss(value: ShaderUniformValue | undefined) {
   const alpha = clampUnit(value[3] ?? 1)
 
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+/** Build a stable dependency key from uniform names without tracking values. */
+function createUniformKeySignature(uniforms: Record<string, ShaderUniformValue>) {
+  return Object.keys(uniforms).sort().join(uniformKeyDelimiter)
 }
 
 /** Compile a WebGL shader and report source-level failures without throwing. */
@@ -138,8 +144,13 @@ export function ShaderMount({
   >({})
   const rafRef = React.useRef<number | null>(null)
   const currentSpeedRef = React.useRef<number>(speed)
+  const uniformsRef = React.useRef(uniforms)
   const [useFallback, setUseFallback] = React.useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const uniformKeySignature = React.useMemo(
+    () => createUniformKeySignature(uniforms),
+    [uniforms]
+  )
   const fallbackColor = React.useMemo(
     () => uniformColorToCss(uniforms.u_colorFront),
     [uniforms]
@@ -148,6 +159,10 @@ export function ShaderMount({
     () => uniformColorToCss(uniforms.u_colorBack),
     [uniforms]
   )
+
+  React.useEffect(() => {
+    uniformsRef.current = uniforms
+  }, [uniforms])
 
   // Update speed ref when prop changes
   React.useEffect(() => {
@@ -218,7 +233,11 @@ export function ShaderMount({
       u_pixelRatio: gl.getUniformLocation(program, "u_pixelRatio"),
     }
 
-    Object.keys(uniforms).forEach((key) => {
+    const uniformKeys = uniformKeySignature
+      ? uniformKeySignature.split(uniformKeyDelimiter)
+      : []
+
+    uniformKeys.forEach((key) => {
       locations[key] = gl.getUniformLocation(program, key)
     })
 
@@ -239,7 +258,7 @@ export function ShaderMount({
       if (glRef.current === gl) glRef.current = null
       if (programRef.current === program) programRef.current = null
     }
-  }, [fragmentShader, uniforms])
+  }, [fragmentShader, uniformKeySignature])
 
   // Render loop
   React.useEffect(() => {
@@ -288,7 +307,7 @@ export function ShaderMount({
       }
 
       // Set custom uniforms
-      Object.entries(uniforms).forEach(([key, value]) => {
+      Object.entries(uniformsRef.current).forEach(([key, value]) => {
         const location = locations[key]
         if (!location) return
 
@@ -323,7 +342,7 @@ export function ShaderMount({
         rafRef.current = null
       }
     }
-  }, [fragmentShader, uniforms, width, height, speed, prefersReducedMotion, useFallback])
+  }, [fragmentShader, uniformKeySignature, width, height, speed, prefersReducedMotion, useFallback])
 
   return (
     <span

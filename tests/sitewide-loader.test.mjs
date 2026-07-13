@@ -37,6 +37,11 @@ const usesContextualColorPattern =
 const contextualHexColorPattern =
   /hexToRgba\(canResolveColors \? color : "transparent", contextElement\)/
 const loaderRefCallbackPattern = /ref=\{setLoaderElement\}/
+const loaderContextualGuardPattern =
+  /if \(!usesContextualColor\) \{\s+return\s+\}[\s\S]*bumpColorResolutionEpoch\(\)/
+const loaderDocumentRootObserverPattern = /observeElement\(document\.documentElement\)/
+const loaderBodyObserverPattern = /observeElement\(document\.body\)/
+const loaderElementObserverPattern = /observeElement\(loaderElement\)/
 const loaderAncestorObserverPattern = /while \(elementToObserve\)/
 const shaderFallbackPattern = /setUseFallback\(true\)/
 const shaderPremultipliedBlendPattern =
@@ -46,7 +51,17 @@ const shaderContextLossPattern = /webglcontextlost/
 const shaderStaticFramePattern = /const currentSpeed = currentSpeedRef\.current/
 const shaderStaticFrameStopPattern =
   /currentSpeed > 0 \? requestAnimationFrame\(render\) : null/
+const shaderUniformRefPattern = /const uniformsRef = React\.useRef\(uniforms\)/
+const shaderUniformKeySignaturePattern =
+  /const uniformKeySignature = React\.useMemo\(\s*\(\) => createUniformKeySignature\(uniforms\),\s*\[uniforms\]\s*\)/
+const shaderUniformLocationSignaturePattern =
+  /uniformKeySignature\s*\?\s*uniformKeySignature\.split\(uniformKeyDelimiter\)/
+const shaderRenderUniformRefPattern = /Object\.entries\(uniformsRef\.current\)\.forEach/
+const shaderInitDependenciesPattern = /\[fragmentShader, uniformKeySignature\]/
 const shaderMountRafDependenciesPattern =
+  /\[fragmentShader, uniformKeySignature, width, height, speed, prefersReducedMotion, useFallback\]/
+const shaderOldInitDependenciesPattern = /\[fragmentShader, uniforms\]/
+const shaderOldRafDependenciesPattern =
   /\[fragmentShader, uniforms, width, height, speed, prefersReducedMotion, useFallback\]/
 
 describe("Sitewide loader", () => {
@@ -64,7 +79,11 @@ describe("Sitewide loader", () => {
     assert.match(loaderSource, usesContextualColorPattern)
     assert.match(loaderSource, contextualHexColorPattern)
     assert.match(loaderSource, loaderRefCallbackPattern)
-    assert.match(loaderSource, loaderAncestorObserverPattern)
+    assert.match(loaderSource, loaderContextualGuardPattern)
+    assert.match(loaderSource, loaderDocumentRootObserverPattern)
+    assert.match(loaderSource, loaderBodyObserverPattern)
+    assert.match(loaderSource, loaderElementObserverPattern)
+    assert.doesNotMatch(loaderSource, loaderAncestorObserverPattern)
     assert.match(loaderSource, /const isAriaHidden = ariaHidden === true \|\| ariaHidden === "true"/)
     assert.match(loaderSource, /role=\{isAriaHidden \? role : role \?\? "status"\}/)
     assert.match(loaderSource, /aria-live=\{isAriaHidden \? ariaLive : ariaLive \?\? "polite"\}/)
@@ -80,7 +99,14 @@ describe("Sitewide loader", () => {
     assert.match(shaderMountSource, shaderContextLossPattern)
     assert.match(shaderMountSource, shaderStaticFramePattern)
     assert.match(shaderMountSource, shaderStaticFrameStopPattern)
+    assert.match(shaderMountSource, shaderUniformRefPattern)
+    assert.match(shaderMountSource, shaderUniformKeySignaturePattern)
+    assert.match(shaderMountSource, shaderUniformLocationSignaturePattern)
+    assert.match(shaderMountSource, shaderRenderUniformRefPattern)
+    assert.match(shaderMountSource, shaderInitDependenciesPattern)
     assert.match(shaderMountSource, shaderMountRafDependenciesPattern)
+    assert.doesNotMatch(shaderMountSource, shaderOldInitDependenciesPattern)
+    assert.doesNotMatch(shaderMountSource, shaderOldRafDependenciesPattern)
     assert.match(ditherShaderSource, /4x4 Bayer dithering matrix/)
     assert.match(ditherShaderSource, /uniform float u_pxSize/)
     assert.doesNotMatch(globalsSource, /\.ml-loader-sphere/)
