@@ -889,10 +889,11 @@ Merged visual-control foundations:
 - Shared switch, toggle, toggle-row, and segmented-control treatments are approved, including the physical switch shape, selected-state movement animation, and route-appropriate colors.
 - Shared color pickers are approved through `GlobalColorPicker`, `ColorPickerFormInput`, `ColorSlider`, and `NumberField` patterns. All site color inputs should use the shared picker; dark and light swatches should retain the same silhouette and shadow system.
 - Route-owned review examples now cover Clock tabs, time-format choices, select fields, side-drawer navigation, and Anatomime controls. Production rollout has started, but route-owned exceptions should stay explicit until promoted to shared components.
+- User review after the Chimer select-field rollback confirms Chimer page buttons and route-owned controls are done/protected. Do not include Chimer control restyling in future visual-control batches unless the user explicitly reopens that surface.
 
 Next-chat starting sequence:
 
 1. Start from refreshed `main` and create a new `codex/...` branch before further implementation.
 2. Re-check `/dev/buttons` first, then compare only the production surfaces being touched in the next batch.
-3. Continue with remaining route-owned tabs, dropdown/select fields, containers, drawer/navigation treatments, loaders, and any unmigrated Anatomime, Clock, or Chimer controls.
+3. Continue only with explicitly chosen non-Chimer route-owned tabs, dropdown/select fields, containers, drawer/navigation treatments, loaders, or unmigrated Anatomime/Clock controls. Check the user's current to-do priority before starting another visual-control batch.
 4. Keep each PR batch narrow, validate with targeted checks, then use the usual GitHub/CodeRabbit review loop before the next visual-inspection batch.
