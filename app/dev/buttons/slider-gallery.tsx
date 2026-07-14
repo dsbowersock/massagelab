@@ -4,9 +4,10 @@ import * as React from "react"
 import { Palette, SlidersHorizontal, Volume2 } from "lucide-react"
 
 import { AppSurface } from "@/components/ui/app-surface"
-import { ColorPickerSwatch, ColorSlider, GlobalColorPicker } from "@/components/chimer-controls"
+import { ColorPickerSwatch, ColorSlider, GlobalColorPicker, HarmonyToggleGroup } from "@/components/chimer-controls"
 import { RangeControl } from "@/components/ui/range-control"
 import { Slider } from "@/components/ui/slider"
+import type { ChimerHarmonyValue } from "@/components/chimer-controls"
 import type { GlobalColorValues } from "@/components/chimer-controls/GlobalColorPicker"
 
 const sliderColorTreatments = [
@@ -55,6 +56,7 @@ export function SliderGallery() {
   const [hue, setHue] = React.useState(24)
   const [colorSliderHue, setColorSliderHue] = React.useState(237)
   const [swatchColor, setSwatchColor] = React.useState("#ff7a1a")
+  const [harmony, setHarmony] = React.useState<ChimerHarmonyValue>("analogous")
   const [pickerColors, setPickerColors] = React.useState<GlobalColorValues>({
     primary: "#ff7a1a",
     secondary: "#b66a38",
@@ -205,9 +207,18 @@ export function SliderGallery() {
 
             <GlobalColorPicker
               title="Color picker"
-              description="This is the full shared picker surface, including swatches and the updated hue slider inside the popover."
+              description="This is the full shared picker surface, including the Harmony picker, swatches, and the updated hue slider inside the popover."
               value={pickerColors}
               onChange={setPickerColors}
+              harmonyControl={(
+                <HarmonyToggleGroup
+                  label="Color harmony"
+                  value={harmony}
+                  onChange={setHarmony}
+                  description="Generate related palette families from your primary color."
+                  embedded
+                />
+              )}
             />
           </div>
         </AppSurface>

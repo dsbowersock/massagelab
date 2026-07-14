@@ -4,7 +4,9 @@ import * as React from "react"
 import { BookOpen, ChevronDown, GraduationCap, Layers3, ShieldCheck, UsersRound } from "lucide-react"
 
 import runningStyles from "@/app/chimer/running-timer.module.css"
+import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { AppSurface } from "@/components/ui/app-surface"
+import { RangeControl } from "@/components/ui/range-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +31,8 @@ export function RouteControlGallery() {
   const [timeFormat, setTimeFormat] = React.useState<"12h" | "24h">("12h")
   const [backgroundFilter, setBackgroundFilter] = React.useState<(typeof backgroundFilterOptions)[number]["value"]>("all")
   const [clockFont, setClockFont] = React.useState("digital")
+  const [clockStrokeEnabled, setClockStrokeEnabled] = React.useState(true)
+  const [clockStrokeWidth, setClockStrokeWidth] = React.useState(1.25)
   const [drawerExpanded, setDrawerExpanded] = React.useState(true)
 
   return (
@@ -120,6 +124,39 @@ export function RouteControlGallery() {
               <option value="sans">Sans Serif</option>
             </select>
           </label>
+        </AppSurface>
+
+        <AppSurface title="Clock container surfaces" description="Grouped Clock controls use flat inset containers without a top-to-bottom surface gradient.">
+          <div className={runningStyles.controlGroup}>
+            <StyledToggleControl
+              label="Clock stroke"
+              checked={clockStrokeEnabled}
+              valueLabel={clockStrokeEnabled ? "On" : "Off"}
+              className={runningStyles.controlGroupToggle}
+              onCheckedChange={setClockStrokeEnabled}
+            />
+            {clockStrokeEnabled ? (
+              <div className={runningStyles.controlGroupBody}>
+                <div className={runningStyles.clockControlGrid}>
+                  <div className={runningStyles.colorRow}>
+                    <span>Stroke color</span>
+                    <span className="rounded-md border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-foreground">
+                      #FFFFFF
+                    </span>
+                  </div>
+                  <RangeControl
+                    label="Stroke width"
+                    value={clockStrokeWidth}
+                    min={0}
+                    max={3}
+                    step={0.25}
+                    displayValue={`${clockStrokeWidth.toFixed(2)}px`}
+                    onValueChange={setClockStrokeWidth}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
         </AppSurface>
 
         <AppSurface

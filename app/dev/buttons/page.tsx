@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
@@ -20,6 +21,7 @@ import { TactileButton } from "@/components/chimer-controls/TactileButton"
 import { AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { MetalAttentionButton, MetalAttentionRing } from "@/components/ui/metal-attention-button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoaderGallery } from "./loader-gallery"
 import { MetalRingGallery } from "./metal-ring-gallery"
 import { SliderGallery } from "./slider-gallery"
@@ -125,6 +127,15 @@ const rolloutExamples: Array<{
   },
 ]
 
+// Teal HSL tokens mirror the approved Chimer setup-button color treatment.
+const chimerSetupButtonStyle = {
+  "--button-default-face": "180 39.34% 47.84%",
+  "--button-default-depth": "184 52% 26%",
+  "--button-orange-edge": "180 46% 62%",
+  "--button-orange-start": "180 39.34% 47.84%",
+  "--brand-orange-glow": "180 54% 56%",
+} as CSSProperties
+
 export default function ButtonGalleryPage() {
   if (process.env.NODE_ENV === "production") {
     notFound()
@@ -140,176 +151,204 @@ export default function ButtonGalleryPage() {
         </p>
       </header>
 
-      <section className="space-y-4" aria-labelledby="shared-button-heading">
-        <div>
-          <h2 id="shared-button-heading" className="text-2xl font-semibold">Shared variants</h2>
-          <p className="mt-1 text-sm text-muted-foreground">These are the variants available through `components/ui/button`.</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {sharedVariants.map((item) => (
-            <AppSurface key={item.variant} title={item.label} description={item.note}>
+      <Tabs defaultValue="shared" className="space-y-6">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-1 rounded-lg border border-border/80 bg-card/80 p-1">
+          <TabsTrigger value="shared">Shared buttons</TabsTrigger>
+          <TabsTrigger value="attention">Attention</TabsTrigger>
+          <TabsTrigger value="controls">Controls</TabsTrigger>
+          <TabsTrigger value="route-owned">Route-owned</TabsTrigger>
+          <TabsTrigger value="loaders">Loaders</TabsTrigger>
+          <TabsTrigger value="patterns">Patterns</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="shared" className="mt-0 space-y-8">
+          <section className="space-y-4" aria-labelledby="shared-button-heading">
+            <div>
+              <h2 id="shared-button-heading" className="text-2xl font-semibold">Shared variants</h2>
+              <p className="mt-1 text-sm text-muted-foreground">These are the variants available through `components/ui/button`.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {sharedVariants.map((item) => (
+                <AppSurface key={item.variant} title={item.label} description={item.note}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {item.variant === "attention" ? (
+                      <MetalAttentionButton>
+                        {item.label}
+                        <Sparkles aria-hidden="true" />
+                      </MetalAttentionButton>
+                    ) : (
+                      <Button variant={item.variant}>
+                        {item.label}
+                        <ArrowRight aria-hidden="true" />
+                      </Button>
+                    )}
+                    {item.variant === "glow" ? (
+                      <Button variant="glow" className="ml-button-glow-neon-flicker">
+                        Glow flicker
+                      </Button>
+                    ) : null}
+                    {item.variant === "attention" ? (
+                      <MetalAttentionButton disabled>
+                        Disabled
+                      </MetalAttentionButton>
+                    ) : (
+                      <Button variant={item.variant} disabled>
+                        Disabled
+                      </Button>
+                    )}
+                  </div>
+                </AppSurface>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-4" aria-labelledby="rollout-examples-heading">
+            <div>
+              <h2 id="rollout-examples-heading" className="text-2xl font-semibold">Current rollout examples</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                These match the public, auth, pricing, membership, about, roadmap, support, and account surfaces touched in this batch.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {rolloutExamples.map((item) => {
+                const Icon = item.icon
+                return (
+                  <AppSurface key={item.title} title={item.title} description={item.description}>
+                    <Button variant={item.variant} className={item.className}>
+                      {item.label}
+                      <Icon aria-hidden="true" />
+                    </Button>
+                  </AppSurface>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-4" aria-labelledby="sizes-heading">
+            <div>
+              <h2 id="sizes-heading" className="text-2xl font-semibold">Sizes and icon use</h2>
+              <p className="mt-1 text-sm text-muted-foreground">This shows how the physical variants behave at common button sizes.</p>
+            </div>
+            <AppSurface>
               <div className="flex flex-wrap items-center gap-3">
-                {item.variant === "attention" ? (
-                  <MetalAttentionButton>
-                    {item.label}
-                    <Sparkles aria-hidden="true" />
-                  </MetalAttentionButton>
-                ) : (
-                  <Button variant={item.variant}>
-                    {item.label}
-                    <ArrowRight aria-hidden="true" />
-                  </Button>
-                )}
-                {item.variant === "attention" ? (
-                  <MetalAttentionButton disabled>
-                    Disabled
-                  </MetalAttentionButton>
-                ) : (
-                  <Button variant={item.variant} disabled>
-                    Disabled
-                  </Button>
-                )}
+                <Button variant="secondary" size="sm">
+                  Small
+                </Button>
+                <Button variant="secondary">Default</Button>
+                <Button variant="cta" size="lg">
+                  Large CTA
+                  <ArrowRight aria-hidden="true" />
+                </Button>
+                <Button variant="outline" size="icon" aria-label="Settings example">
+                  <Settings aria-hidden="true" />
+                </Button>
               </div>
             </AppSurface>
-          ))}
-        </div>
-      </section>
+          </section>
 
-      <section className="space-y-4" aria-labelledby="rollout-examples-heading">
-        <div>
-          <h2 id="rollout-examples-heading" className="text-2xl font-semibold">Current rollout examples</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            These match the public, auth, pricing, membership, about, roadmap, support, and account surfaces touched in this batch.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rolloutExamples.map((item) => {
-            const Icon = item.icon
-            return (
-              <AppSurface key={item.title} title={item.title} description={item.description}>
-                <Button variant={item.variant} className={item.className}>
-                  {item.label}
-                  <Icon aria-hidden="true" />
+          <section className="space-y-4" aria-labelledby="states-heading">
+            <div>
+              <h2 id="states-heading" className="text-2xl font-semibold">State examples</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Hover, press, focus, and disabled states are easiest to compare here.</p>
+            </div>
+            <AppSurface>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="secondary">
+                  <Check aria-hidden="true" />
+                  Secondary
                 </Button>
-              </AppSurface>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-4" aria-labelledby="metal-ring-heading">
-        <div>
-          <h2 id="metal-ring-heading" className="text-2xl font-semibold">Metal ring component</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Use the standalone wrapper when a specific button needs extra attention.</p>
-        </div>
-        <AppSurface>
-          <MetalRingGallery />
-        </AppSurface>
-      </section>
-
-      <section className="space-y-4" aria-labelledby="chimer-wrapper-heading">
-        <div>
-          <h2 id="chimer-wrapper-heading" className="text-2xl font-semibold">Chimer wrappers</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Compatibility wrappers now render the same shared button variants used sitewide.</p>
-        </div>
-        <AppSurface>
-          <div className="flex flex-wrap items-center gap-3">
-            <TactileButton>Chimer tactile</TactileButton>
-            <CTAButton>Chimer CTA</CTAButton>
-            <GlowButton>Chimer glow</GlowButton>
-          </div>
-        </AppSurface>
-      </section>
-
-      <section className="space-y-4" aria-labelledby="sizes-heading">
-        <div>
-          <h2 id="sizes-heading" className="text-2xl font-semibold">Sizes and icon use</h2>
-          <p className="mt-1 text-sm text-muted-foreground">This shows how the physical variants behave at common button sizes.</p>
-        </div>
-        <AppSurface>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="secondary" size="sm">
-              Small
-            </Button>
-            <Button variant="secondary">Default</Button>
-            <Button variant="cta" size="lg">
-              Large CTA
-              <ArrowRight aria-hidden="true" />
-            </Button>
-            <Button variant="outline" size="icon" aria-label="Settings example">
-              <Settings aria-hidden="true" />
-            </Button>
-          </div>
-        </AppSurface>
-      </section>
-
-      <SliderGallery />
-
-      <ToggleGallery />
-
-      <RouteControlGallery />
-
-      <LoaderGallery />
-
-      <section className="space-y-4" aria-labelledby="shortcut-heading">
-        <div>
-          <h2 id="shortcut-heading" className="text-2xl font-semibold">Homepage shortcut pattern</h2>
-          <p className="mt-1 text-sm text-muted-foreground">This is the revised dense-text pattern from the homepage annotation.</p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {shortcutExamples.map((item) => {
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.title}
-                href="/dev/buttons"
-                className="rounded-md border border-border/80 bg-background/70 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <Button asChild variant="secondary" className="w-full justify-center gap-2" tabIndex={-1}>
-                  <span>
-                    <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <span>{item.title}</span>
-                  </span>
+                <Button variant="cta">
+                  CTA
+                  <ArrowRight aria-hidden="true" />
                 </Button>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
+                <MetalAttentionButton>
+                  Attention
+                  <Sparkles aria-hidden="true" />
+                </MetalAttentionButton>
+                <MetalAttentionRing>
+                  <Button variant="default">
+                    Ring wrapper
+                    <Sparkles aria-hidden="true" />
+                  </Button>
+                </MetalAttentionRing>
+                <Button variant="glow">
+                  Glow
+                  <Sparkles aria-hidden="true" />
+                </Button>
+              </div>
+            </AppSurface>
+          </section>
+        </TabsContent>
 
-      <section className="space-y-4" aria-labelledby="states-heading">
-        <div>
-          <h2 id="states-heading" className="text-2xl font-semibold">State examples</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Hover, press, focus, and disabled states are easiest to compare here.</p>
-        </div>
-        <AppSurface>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="secondary">
-              <Check aria-hidden="true" />
-              Secondary
-            </Button>
-            <Button variant="cta">
-              CTA
-              <ArrowRight aria-hidden="true" />
-            </Button>
-            <MetalAttentionButton>
-              Attention
-              <Sparkles aria-hidden="true" />
-            </MetalAttentionButton>
-            <MetalAttentionRing>
-              <Button variant="default">
-                Ring wrapper
-                <Sparkles aria-hidden="true" />
-              </Button>
-            </MetalAttentionRing>
-            <Button variant="glow">
-              Glow
-              <Sparkles aria-hidden="true" />
-            </Button>
-          </div>
-        </AppSurface>
-      </section>
+        <TabsContent value="attention" className="mt-0 space-y-8">
+          <section className="space-y-4" aria-labelledby="metal-ring-heading">
+            <div>
+              <h2 id="metal-ring-heading" className="text-2xl font-semibold">Metal ring component</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Use the standalone wrapper when a specific button needs extra attention.</p>
+            </div>
+            <AppSurface>
+              <MetalRingGallery />
+            </AppSurface>
+          </section>
+
+          <section className="space-y-4" aria-labelledby="chimer-wrapper-heading">
+            <div>
+              <h2 id="chimer-wrapper-heading" className="text-2xl font-semibold">Chimer wrappers</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Compatibility wrappers now render the same shared button variants used sitewide.</p>
+            </div>
+            <AppSurface>
+              <div className="flex flex-wrap items-center gap-3">
+                <TactileButton>Chimer tactile</TactileButton>
+                <TactileButton style={chimerSetupButtonStyle}>Chimer setup</TactileButton>
+                <CTAButton>Chimer CTA</CTAButton>
+                <GlowButton>Chimer glow</GlowButton>
+              </div>
+            </AppSurface>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="controls" className="mt-0 space-y-8">
+          <SliderGallery />
+          <ToggleGallery />
+        </TabsContent>
+
+        <TabsContent value="route-owned" className="mt-0 space-y-8">
+          <RouteControlGallery />
+        </TabsContent>
+
+        <TabsContent value="loaders" className="mt-0 space-y-8">
+          <LoaderGallery />
+        </TabsContent>
+
+        <TabsContent value="patterns" className="mt-0 space-y-8">
+          <section className="space-y-4" aria-labelledby="shortcut-heading">
+            <div>
+              <h2 id="shortcut-heading" className="text-2xl font-semibold">Homepage shortcut pattern</h2>
+              <p className="mt-1 text-sm text-muted-foreground">This is the revised dense-text pattern from the homepage annotation.</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {shortcutExamples.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.title}
+                    href="/dev/buttons"
+                    className="rounded-md border border-border/80 bg-background/70 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <Button asChild variant="secondary" className="w-full justify-center gap-2" tabIndex={-1}>
+                      <span>
+                        <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                        <span>{item.title}</span>
+                      </span>
+                    </Button>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        </TabsContent>
+      </Tabs>
     </AppPageShell>
   )
 }

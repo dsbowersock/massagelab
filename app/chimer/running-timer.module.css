@@ -1347,7 +1347,6 @@
   border: 1px solid hsl(var(--foreground) / 0.12);
   border-radius: 0.95rem;
   background:
-    linear-gradient(180deg, hsl(var(--foreground) / 0.065), transparent 44%, hsl(var(--background) / 0.22)),
     linear-gradient(90deg, hsl(var(--foreground) / 0.035), transparent 62%),
     hsl(var(--background) / 0.62);
   box-shadow:
@@ -1378,9 +1377,7 @@
   padding: 0.58rem 0.62rem 0.62rem;
   border: 1px solid hsl(var(--foreground) / 0.11);
   border-radius: 0.86rem;
-  background:
-    linear-gradient(180deg, hsl(var(--foreground) / 0.06), transparent 48%, hsl(var(--background) / 0.2)),
-    hsl(var(--background) / 0.48);
+  background: hsl(var(--background) / 0.48);
   box-shadow:
     inset 1px 1px 0 hsl(var(--foreground) / 0.045),
     inset -1px -1px 2px hsl(var(--background) / 0.56),
@@ -1408,7 +1405,6 @@
   background:
     linear-gradient(45deg, transparent 50%, hsl(var(--foreground) / 0.78) 50%) calc(100% - 0.9rem) 50% / 0.38rem 0.38rem no-repeat,
     linear-gradient(135deg, hsl(var(--foreground) / 0.78) 50%, transparent 50%) calc(100% - 0.64rem) 50% / 0.38rem 0.38rem no-repeat,
-    linear-gradient(180deg, hsl(var(--foreground) / 0.07), transparent 52%),
     linear-gradient(90deg, hsl(var(--button-secondary-face) / 0.16), hsl(var(--background) / 0.76) 40%, hsl(var(--background) / 0.86));
   box-shadow:
     inset 2px 2px 4px hsl(var(--background) / 0.5),
@@ -1539,9 +1535,7 @@
   overflow: hidden;
   border: 1px solid hsl(var(--brand-orange) / 0.18);
   border-radius: 0.9rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 58%),
-    rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .controlGroupToggle {

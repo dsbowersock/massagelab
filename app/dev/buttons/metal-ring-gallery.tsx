@@ -47,7 +47,7 @@ export function MetalRingGallery() {
         <div>
           <h3 className="text-sm font-semibold">Sibling reflection</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Reflection target passthrough for nearby emphasis surfaces.
+            Siblings are opt-in: pass refs through `metalReflectionTargets` when nearby surfaces should reflect.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

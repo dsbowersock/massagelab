@@ -3,8 +3,7 @@
 import { useMemo } from "react"
 import Image from "next/image"
 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { triggerHapticFeedback } from "@/lib/haptics"
+import { SegmentedToggleGroup } from "@/components/ui/segmented-toggle-group"
 import { cn } from "@/lib/utils"
 import { type HapticPressOptions } from "@/components/chimer-controls/haptics"
 import styles from "./chimer-controls.module.css"
@@ -64,6 +63,20 @@ export function HarmonyToggleGroup({
   hapticDurationMs,
 }: HarmonyToggleGroupProps) {
   const activeOptions = useMemo(() => options ?? CHIMER_HARMONY_OPTIONS, [options])
+  const segmentedOptions = useMemo(() => activeOptions.map((option) => ({
+    value: option.value,
+    label: option.label,
+    icon: (
+      <Image
+        src={iconPath(option.icon)}
+        alt=""
+        width={16}
+        height={16}
+        className={styles.harmonyIcon}
+        aria-hidden="true"
+      />
+    ),
+  })), [activeOptions])
 
   function handleValueChange(nextValue: string) {
     if (disabled || !nextValue || nextValue === value) {
@@ -71,42 +84,26 @@ export function HarmonyToggleGroup({
     }
 
     onChange(nextValue as ChimerHarmonyValue)
-    triggerHapticFeedback(hapticsEnabled, hapticDurationMs ?? 15)
   }
 
   return (
     <section className={cn(!embedded && styles.controlCard, styles.harmonySection, className)}>
       <p className={styles.harmonyHeader}>{label}</p>
       {description ? <p className={styles.controlDescription}>{description}</p> : null}
-      <ToggleGroup
-        type="single"
+      <SegmentedToggleGroup
+        label={`${label} options`}
         value={value}
         onValueChange={handleValueChange}
-        aria-label={`${label} options`}
-        className={styles.harmonyList}
         disabled={disabled}
-      >
-        {activeOptions.map((option) => (
-          <ToggleGroupItem
-            key={option.value}
-            value={option.value}
-            className={cn(styles.harmonyItem)}
-            aria-label={option.label}
-          >
-            <Image
-              src={iconPath(option.icon)}
-              alt=""
-              width={16}
-              height={16}
-              className={styles.harmonyIcon}
-              aria-hidden="true"
-            />
-            <span className={styles.harmonyTooltip} aria-hidden="true">
-              {option.label}
-            </span>
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+        iconOnly
+        activeTone="attention"
+        activeRing
+        reflectSiblingOptions
+        hapticsEnabled={hapticsEnabled}
+        hapticDurationMs={hapticDurationMs}
+        className={styles.harmonyList}
+        options={segmentedOptions}
+      />
     </section>
   )
 }

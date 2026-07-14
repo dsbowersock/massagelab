@@ -4643,6 +4643,7 @@ interface SetTimerProps {
   totalDurationMs: number
   error: string | null
   syncStatus: AccountSyncStatus
+  suppressSyncNotice?: boolean
   isResolvingSync: boolean
   featureKeys: string[]
   backgroundCategory: BackgroundCategory
@@ -4727,6 +4728,7 @@ export function SetTimer({
   totalDurationMs,
   error,
   syncStatus,
+  suppressSyncNotice = false,
   isResolvingSync,
   featureKeys,
   backgroundCategory,
@@ -4912,7 +4914,7 @@ export function SetTimer({
 
   const isFinalStep = activeStep === CHIMER_SETUP_STEPS.length - 1
   const canAdvanceStep = activeStep !== 0 || totalDurationMs > 0
-  const shouldShowSyncNotice = syncStatus !== "synced"
+  const shouldShowSyncNotice = syncStatus !== "synced" && !(syncStatus === "conflict" && suppressSyncNotice)
 
   const selectedPreset = savedPresets.find((entry) => entry.id === selectedPresetId) ?? null
 
@@ -16134,7 +16136,7 @@ export function SetTimer({
           <div className={styles.presetSelectRow}>
             <button
               type="button"
-              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
               onClick={withPress(applySelectedPreset)}
               disabled={!selectedPreset}
             >
@@ -16142,7 +16144,7 @@ export function SetTimer({
             </button>
             <button
               type="button"
-              className={`${styles.secondaryButton} ${styles.tactileButton}`}
+              className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
               onClick={withPress(loadLastSetup)}
               disabled={!lastSetupPreset}
             >
@@ -16191,7 +16193,7 @@ export function SetTimer({
                   <button
                     key={minutes}
                     type="button"
-                    className={`${styles.inlineButton} ${styles.tactileButton}`}
+                    className={`${styles.setupInlineButton} ${styles.tactileButton} ${styles.setupButton}`}
                     onClick={withPress(() => setQuickDuration(minutes))}
                   >
                     {minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`}
@@ -16364,7 +16366,7 @@ export function SetTimer({
                 </label>
                 <button
                   type="button"
-                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
                   onClick={withPress(saveCurrentPreset)}
                   disabled={!isTimerSet}
                 >
@@ -16374,7 +16376,7 @@ export function SetTimer({
               <div className={styles.actions}>
                 <button
                   type="button"
-                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
                   onClick={withPress(onTestAlert)}
                 >
                   Test Alert
@@ -16382,7 +16384,7 @@ export function SetTimer({
                 <CTAButton
                   type="button"
                   withAttentionRing
-                  className={styles.button}
+                  className={`${styles.setupActionButton} ${styles.setupButton}`}
                   onClick={withPress(() => handleStartTimer(false))}
                   disabled={!isTimerSet}
                 >
@@ -16391,7 +16393,7 @@ export function SetTimer({
                 </CTAButton>
                 <button
                   type="button"
-                  className={`${styles.secondaryButton} ${styles.tactileButton}`}
+                  className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
                   onClick={withPress(() => handleStartTimer(true))}
                   disabled={!isTimerSet}
                 >
@@ -16414,12 +16416,13 @@ export function SetTimer({
           )}
           {!isFinalStep && (
             <MetalAttentionRing
-              metalMode={canAdvanceStep ? "cycle" : "off"}
+              metalMode={canAdvanceStep ? "always" : "off"}
               metalFullWidth
+              metalStrength={0.72}
             >
               <button
                 type="button"
-                className={`${styles.button} ${styles.tactileButton}`}
+                className={`${styles.button} ${styles.tactileButton} ${styles.attentionNavButton}`}
                 onClick={withPress(nextStep)}
                 disabled={!canAdvanceStep}
               >
