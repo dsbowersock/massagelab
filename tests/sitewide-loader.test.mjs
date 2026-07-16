@@ -121,7 +121,7 @@ describe("Sitewide loader", () => {
 
   it("shows the approved loader in the dev gallery and true indeterminate waits", () => {
     assert.match(gallerySource, /Indeterminate loader/)
-    assert.match(gallerySource, /Keep skeletons and progress bars when they explain more/)
+    assert.match(gallerySource, /Omit the shape to choose Sphere, Swirl, or Ripple randomly/)
     assert.match(gallerySource, /size: 26/)
     assert.match(gallerySource, /sphereComparisonSize: 42/)
     assert.match(gallerySource, /sphereComparisonSize: 76/)

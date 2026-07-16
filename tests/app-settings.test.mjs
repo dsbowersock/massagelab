@@ -25,7 +25,7 @@ describe("App settings helpers", () => {
 
     assert.match(source, /ml-theme-toggle-button/)
     assert.match(source, /const nextToggledTheme: ThemeMode = resolvedTheme === "dark" \? "light" : "dark"/)
-    assert.match(source, /variant=\{resolvedTheme === "light" \? "default" : "outline"\}/)
+    assert.match(source, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(source, /data-theme-selected/)
     assert.doesNotMatch(source, /role="radiogroup"/)
     assert.doesNotMatch(source, /suppressCompactActivationRef/)
@@ -232,6 +232,8 @@ describe("App settings helpers", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
     const themeSwitcherSource = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
+    const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
+    const settingsProviderSource = readFileSync(new URL("../components/providers/settings-provider.tsx", import.meta.url), "utf8")
 
     assert.match(globalsSource, /--ml-site-blue:\s*225 73% 57%/)
     assert.match(mainBarSource, /pb-\[var\(--ml-safe-bottom\)\]/)
@@ -240,8 +242,18 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /\.ml-main-bar-edge \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*justify-content: center/)
-    assert.match(mainBarSource, /variant="outline" size="icon" className="ml-main-bar-button"/)
+    assert.equal((mainBarSource.match(/variant="ctaBlue"/g) ?? []).length, 4)
     assert.match(mainBarSource, /variant="default"[\s\S]*className=\{cn\("ml-main-bar-plus rounded-full"/)
+    assert.equal((topBarSource.match(/variant="ctaBlue"/g) ?? []).length, 3)
+    assert.match(topBarSource, /const quickActionControl = \([\s\S]*?variant="default"[\s\S]*?aria-label="Open quick actions"/)
+    assert.match(
+      topBarSource,
+      /sidebarIsRight \? <ThemeSwitcherMultiButton \/> : null[\s\S]*?\{calendarControl\}[\s\S]*?!sidebarIsRight \? <ThemeSwitcherMultiButton \/> : null/,
+    )
+    assert.match(mainBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
+    assert.match(topBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
+    assert.match(settingsProviderSource, /export function useResolvedTheme\(\): ResolvedThemeMode/)
+    assert.match(settingsProviderSource, /mediaQuery\.addEventListener\("change", updateSystemTheme\)/)
     assert.doesNotMatch(globalsSource, /\.ml-button-press-motion\.ml-button-ghost\.ml-main-bar-button/)
     assert.match(globalsSource, /\.ml-main-bar-button span:not\(\.sr-only\) \{[\s\S]*display: none/)
     assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-main-bar-plus \{[\s\S]*width: 2\.625rem/)
@@ -249,10 +261,10 @@ describe("App settings helpers", () => {
     assert.match(themeSwitcherSource, /data-theme-value=\{currentTheme\.value\}/)
     assert.match(themeSwitcherSource, /ml-theme-switcher/)
     assert.match(themeSwitcherSource, /ml-theme-toggle-button/)
-    assert.match(themeSwitcherSource, /resolvedTheme === "light" \? "default" : "outline"/)
+    assert.match(themeSwitcherSource, /resolvedTheme === "dark" \? "glow" : "default"/)
     assert.doesNotMatch(themeSwitcherSource, /className="hidden gap-1 md:flex"/)
     assert.match(themeSwitcherSource, /resolvedTheme === "light" && "ml-button-default"/)
-    assert.match(themeSwitcherSource, /resolvedTheme === "dark" && "ml-button-outline"/)
+    assert.match(themeSwitcherSource, /resolvedTheme === "dark" && "ml-button-glow"/)
   })
 
   it("uses a drawer only in narrow portrait phone layouts", () => {

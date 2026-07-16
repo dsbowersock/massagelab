@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const defaultBrowserQaPort = 3010
-const defaultBrowserQaBaseUrl = "http://127.0.0.1:3010"
+const defaultBrowserQaBaseUrl = "http://localhost:3010"
 
 function parseBrowserQaPort(value: string | undefined) {
   if (!value) {
@@ -19,7 +19,7 @@ function parseBooleanEnv(value: string | undefined) {
 
 const browserQaPort = parseBrowserQaPort(process.env.PLAYWRIGHT_PORT)
 const browserQaBaseUrl = process.env.PLAYWRIGHT_BASE_URL
-  ?? (browserQaPort === defaultBrowserQaPort ? defaultBrowserQaBaseUrl : `http://127.0.0.1:${browserQaPort}`)
+  ?? (browserQaPort === defaultBrowserQaPort ? defaultBrowserQaBaseUrl : `http://localhost:${browserQaPort}`)
 const skipWebServer = parseBooleanEnv(process.env.PLAYWRIGHT_SKIP_WEB_SERVER)
 
 export default defineConfig({

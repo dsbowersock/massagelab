@@ -26,6 +26,8 @@ export interface SegmentedToggleGroupProps {
   onValueChange: (value: string) => void
   disabled?: boolean
   iconOnly?: boolean
+  /** Compresses equal-width segments so the complete group remains visible. */
+  fit?: boolean
   size?: "sm" | "default" | "lg"
   hapticsEnabled?: boolean
   hapticDurationMs?: HapticPattern
@@ -46,6 +48,7 @@ export function SegmentedToggleGroup({
   onValueChange,
   disabled,
   iconOnly,
+  fit,
   size = "default",
   hapticsEnabled,
   hapticDurationMs,
@@ -80,6 +83,7 @@ export function SegmentedToggleGroup({
         size={size}
         aria-label={label}
         data-icon-only={iconOnly || undefined}
+        data-fit={fit || undefined}
         data-active-tone={activeTone === "attention" ? "attention" : undefined}
         style={segmentStyle}
         className={cn("ml-segmented-toggle-group", className)}
@@ -93,7 +97,7 @@ export function SegmentedToggleGroup({
               disabled={option.disabled}
               aria-label={option.label}
               data-selected={option.value === value}
-              className={cn(iconOnly && "px-3")}
+              className={cn(iconOnly && (fit ? "px-1.5" : "px-3"))}
             >
               {option.icon}
               <span className={cn(iconOnly && "sr-only")}>{option.label}</span>

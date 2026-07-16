@@ -32,7 +32,7 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.equal(packageData.scripts["test:browser:build"], "npm run build && npm run test:browser")
 
   assert.match(config, /webServer/)
-  assert.match(config, /127\.0\.0\.1:3010/)
+  assert.match(config, /localhost:3010/)
   assert.match(config, /Desktop Chrome/)
   assert.match(config, /Pixel 7/)
   assert.match(config, /function parseBrowserQaPort/)

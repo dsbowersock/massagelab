@@ -184,3 +184,28 @@ export function useSettings() {
   return context
 }
 
+/**
+ * Resolves explicit and system theme settings for controls whose visual variant
+ * must stay synchronized with the active document theme.
+ */
+export function useResolvedTheme(): ResolvedThemeMode {
+  const { settings } = useSettings()
+  const [systemTheme, setSystemTheme] = useState<ResolvedThemeMode>("dark")
+
+  useEffect(() => {
+    if (settings.themeMode !== "system") {
+      return
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const updateSystemTheme = () => setSystemTheme(mediaQuery.matches ? "dark" : "light")
+
+    updateSystemTheme()
+    mediaQuery.addEventListener("change", updateSystemTheme)
+
+    return () => mediaQuery.removeEventListener("change", updateSystemTheme)
+  }, [settings.themeMode])
+
+  return settings.themeMode === "system" ? systemTheme : settings.themeMode
+}
+

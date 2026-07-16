@@ -1028,3 +1028,50 @@
     filter: none !important;
   }
 }
+
+/* Harmony choices are individual shared buttons that wrap instead of forming one track. */
+.harmonyList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.55rem;
+  overflow: visible;
+  padding-block: 0.16rem;
+  scroll-snap-type: none;
+}
+
+.harmonyIcon {
+  width: clamp(1.75rem, 7vw, 2.15rem);
+  height: auto;
+  flex-shrink: 0;
+  filter:
+    drop-shadow(var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.62))
+    drop-shadow(var(--ml-button-inset-highlight-x) 0.72px 0 hsl(0 0% 100% / 0.34));
+}
+
+.globalColorGrid {
+  grid-template-columns: repeat(6, minmax(2.5rem, 1fr));
+  gap: 0.4rem;
+}
+
+.globalColorField {
+  gap: 0.32rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.globalColorLabel {
+  width: 100%;
+  overflow: hidden;
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.globalColorSwatchButton {
+  width: clamp(2.5rem, 10vw, 3.25rem);
+  height: clamp(2.5rem, 10vw, 3.25rem);
+}

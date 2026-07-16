@@ -1,9 +1,11 @@
 "use client"
 
-import { useMemo } from "react"
+import * as React from "react"
 import Image from "next/image"
 
-import { SegmentedToggleGroup } from "@/components/ui/segmented-toggle-group"
+import { Button } from "@/components/ui/button"
+import { MetalAttentionRing } from "@/components/ui/metal-attention-button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { type HapticPressOptions } from "@/components/chimer-controls/haptics"
 import styles from "./chimer-controls.module.css"
@@ -48,7 +50,9 @@ function iconPath(iconName: string) {
 }
 
 /**
- * Horizontal segmented harmony selector used by global palette tooling.
+ * Responsive shared-button harmony selector used by global palette tooling.
+ * Each choice remains independently focusable while aria-pressed exposes the
+ * single selected palette family without presenting the choices as one track.
  */
 export function HarmonyToggleGroup({
   label,
@@ -62,48 +66,71 @@ export function HarmonyToggleGroup({
   hapticsEnabled,
   hapticDurationMs,
 }: HarmonyToggleGroupProps) {
-  const activeOptions = useMemo(() => options ?? CHIMER_HARMONY_OPTIONS, [options])
-  const segmentedOptions = useMemo(() => activeOptions.map((option) => ({
-    value: option.value,
-    label: option.label,
-    icon: (
-      <Image
-        src={iconPath(option.icon)}
-        alt=""
-        width={16}
-        height={16}
-        className={styles.harmonyIcon}
-        aria-hidden="true"
-      />
-    ),
-  })), [activeOptions])
+  const activeOptions = React.useMemo(() => options ?? CHIMER_HARMONY_OPTIONS, [options])
+  const optionRefs = React.useMemo(
+    () => activeOptions.map(() => React.createRef<HTMLButtonElement>()),
+    [activeOptions],
+  )
 
-  function handleValueChange(nextValue: string) {
-    if (disabled || !nextValue || nextValue === value) {
+  function handleValueChange(nextValue: ChimerHarmonyValue) {
+    if (disabled || nextValue === value) {
       return
     }
 
-    onChange(nextValue as ChimerHarmonyValue)
+    onChange(nextValue)
   }
 
   return (
     <section className={cn(!embedded && styles.controlCard, styles.harmonySection, className)}>
       <p className={styles.harmonyHeader}>{label}</p>
       {description ? <p className={styles.controlDescription}>{description}</p> : null}
-      <SegmentedToggleGroup
-        label={`${label} options`}
-        value={value}
-        onValueChange={handleValueChange}
-        disabled={disabled}
-        iconOnly
-        activeTone="attention"
-        activeRing
-        reflectSiblingOptions
-        hapticsEnabled={hapticsEnabled}
-        hapticDurationMs={hapticDurationMs}
-        className={styles.harmonyList}
-        options={segmentedOptions}
-      />
+      <TooltipProvider delayDuration={250}>
+        <div className={styles.harmonyList} role="group" aria-label={label + " options"}>
+          {activeOptions.map((option, index) => {
+            const isSelected = option.value === value
+            const button = (
+              <Button
+                ref={optionRefs[index]}
+                type="button"
+                variant={isSelected ? "attention" : "ctaBlue"}
+                size="icon"
+                aria-label={option.label}
+                aria-pressed={isSelected}
+                disabled={disabled}
+                hapticsEnabled={hapticsEnabled}
+                hapticDurationMs={hapticDurationMs}
+                onClick={() => handleValueChange(option.value)}
+              >
+                <Image
+                  src={iconPath(option.icon)}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className={styles.harmonyIcon}
+                  aria-hidden="true"
+                />
+              </Button>
+            )
+            const trigger = <TooltipTrigger asChild>{button}</TooltipTrigger>
+
+            return (
+              <Tooltip key={option.value}>
+                {isSelected ? (
+                  <MetalAttentionRing
+                    metalMode="always"
+                    metalRingCssPx={2}
+                    metalStrength={0.78}
+                    metalReflectionTargets={optionRefs.filter((_, refIndex) => refIndex !== index)}
+                  >
+                    {trigger}
+                  </MetalAttentionRing>
+                ) : trigger}
+                <TooltipContent>{option.label}</TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </div>
+      </TooltipProvider>
     </section>
   )
 }

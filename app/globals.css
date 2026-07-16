@@ -22,6 +22,7 @@
     --button-danger-mid: 0 62% 36%;
     --button-danger-end: 344 58% 38%;
     --button-danger-depth: 0 65% 24%;
+    --button-alert-edge: 350 88% 68%;
     --button-copper: 24 56% 50%;
     --button-orange-edge: 31 100% 58%;
     --button-walnut: 24 33% 42%;
@@ -29,9 +30,13 @@
     --button-default-face: 15 100% 55%;
     --button-default-depth: 15 82% 34%;
     --button-secondary-face: 25 82% 47%;
+    --button-action-secondary-face: 204 100% 55%;
+    --button-action-secondary-edge: 204 100% 70%;
+    --button-action-secondary-depth: 204 82% 31%;
     --button-cta-face: 281 100% 55%;
     --button-cta-face-bright: 286 100% 66%;
     --button-cta-face-depth: 281 76% 34%;
+    --button-cta-corner: var(--button-blue-mid);
     --button-calendar-leaf: 134 34% 38%;
     --button-calendar-leaf-bright: 132 42% 47%;
     --button-calendar-moss: 88 31% 36%;
@@ -45,8 +50,14 @@
     --ml-shell-compact-control-size: 1.9375rem;
     --ml-choice-slide-duration: 420ms;
     --ml-choice-slide-easing: cubic-bezier(0.22, 1, 0.36, 1);
-    --ml-button-light-gradient: linear-gradient(to bottom right, hsl(var(--foreground) / 0.24) 0%, hsl(var(--foreground) / 0.1) 34%, transparent 62%);
-    --ml-button-glow-light-gradient: linear-gradient(to bottom right, hsl(var(--button-orange-start) / 0.14), transparent 58%);
+    --ml-switch-thumb-face: 0 0% 98%;
+    --ml-switch-thumb-depth: 220 8% 78%;
+    --ml-switch-thumb-border: 220 8% 58%;
+    --ml-button-top-highlight: 0 0% 100%;
+    --ml-glow-sheen-position: 15%;
+
+    --ml-button-light-gradient: linear-gradient(to bottom right, hsl(0 0% 100% / 0.24) 0%, hsl(0 0% 100% / 0.1) 34%, transparent 62%);
+    --ml-button-glow-light-gradient: linear-gradient(to bottom right, hsl(0 0% 100% / 0.12), transparent 58%);
     --ml-button-inset-shadow-x: -0.72px;
     --ml-button-inset-highlight-x: 0.72px;
     --ml-button-press-shadow-x: -2px;
@@ -157,8 +168,9 @@
   }
 
   :root[data-sidebar-position="right"] {
-    --ml-button-light-gradient: linear-gradient(to bottom left, hsl(var(--foreground) / 0.24) 0%, hsl(var(--foreground) / 0.1) 34%, transparent 62%);
-    --ml-button-glow-light-gradient: linear-gradient(to bottom left, hsl(var(--button-orange-start) / 0.14), transparent 58%);
+    --ml-button-light-gradient: linear-gradient(to bottom left, hsl(0 0% 100% / 0.24) 0%, hsl(0 0% 100% / 0.1) 34%, transparent 62%);
+    --ml-button-glow-light-gradient: linear-gradient(to bottom left, hsl(0 0% 100% / 0.12), transparent 58%);
+    --ml-glow-sheen-position: 85%;
     --ml-button-inset-shadow-x: 0.72px;
     --ml-button-inset-highlight-x: -0.72px;
     --ml-button-press-shadow-x: 2px;
@@ -267,7 +279,7 @@
     isolation: isolate;
     border-radius: 0.78rem;
     border: 2px solid hsl(var(--button-orange-start) / 0.68);
-    border-top-color: hsl(var(--foreground) / 0.22);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.22);
     border-right-color: hsl(var(--button-sunset-violet) / 0.42);
     border-bottom-width: 3px;
     border-bottom-color: hsl(var(--button-orange-depth));
@@ -376,7 +388,7 @@
   .ml-button-press-motion.ml-button-attention,
   .ml-button-press-motion.ml-button-secondary {
     border-color: hsl(var(--button-orange-start) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.22);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.22);
     border-right-color: hsl(var(--button-walnut) / 0.58);
     border-bottom-color: hsl(var(--button-orange-depth));
     border-bottom-width: 3px;
@@ -391,7 +403,7 @@
 
   .ml-button-press-motion.ml-button-secondary {
     border-color: hsl(var(--button-orange-start) / 0.68);
-    border-top-color: hsl(var(--foreground) / 0.18);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.18);
     border-right-color: hsl(var(--button-orange-edge) / 0.56);
     border-bottom-color: hsl(var(--button-orange-depth) / 0.78);
     border-bottom-width: 2px;
@@ -407,7 +419,7 @@
 
   .ml-button-press-motion.ml-button-default {
     border-color: hsl(var(--button-default-face) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.22);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.22);
     border-right-color: hsl(var(--button-orange-edge) / 0.54);
     border-bottom-color: hsl(var(--button-default-depth));
     background:
@@ -421,12 +433,12 @@
   .ml-button-press-motion.ml-button-cta,
   .ml-button-press-motion.ml-button-attention {
     border-color: hsl(var(--button-cta-face-bright) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.24);
-    border-right-color: hsl(var(--button-sunset-violet) / 0.62);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.24);
+    border-right-color: hsl(var(--button-cta-corner) / 0.62);
     border-bottom-color: hsl(var(--button-cta-face-depth));
     background:
       var(--ml-button-light-gradient),
-      linear-gradient(122deg, hsl(var(--button-cta-face-bright)) 0%, hsl(var(--button-cta-face)) 74%, hsl(var(--button-sunset-violet)) 100%);
+      linear-gradient(122deg, hsl(var(--button-cta-face-bright)) 0%, hsl(var(--button-cta-face)) 72%, hsl(var(--button-cta-corner)) 100%);
     color: hsl(282 100% 96%);
     text-shadow:
       var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.56),
@@ -439,7 +451,7 @@
 
   .ml-button-press-motion.ml-button-outline {
     border-color: hsl(var(--button-blue-start) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.2);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.2);
     border-right-color: hsl(var(--button-sunset-violet) / 0.48);
     border-bottom-color: hsl(var(--button-blue-depth));
     border-bottom-width: 3px;
@@ -487,7 +499,7 @@
 
   .ml-button-press-motion.ml-button-cta-blue {
     border-color: hsl(var(--button-blue-start) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.22);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.22);
     border-right-color: hsl(var(--button-blue-end) / 0.6);
     border-bottom-color: hsl(var(--button-blue-depth));
     background:
@@ -505,7 +517,7 @@
 
   .ml-button-press-motion.ml-button-calendar {
     border-color: hsl(var(--button-calendar-leaf-bright) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.22);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.22);
     border-right-color: hsl(var(--button-calendar-moss) / 0.58);
     border-bottom-color: hsl(var(--button-calendar-depth));
     background:
@@ -530,7 +542,7 @@
 
   .ml-button-press-motion.ml-button-destructive {
     border-color: hsl(var(--button-danger-start) / 0.68);
-    border-top-color: hsl(var(--foreground) / 0.2);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.2);
     border-right-color: hsl(var(--button-danger-end) / 0.46);
     border-bottom-color: hsl(var(--button-danger-depth));
     background:
@@ -546,6 +558,7 @@
       0 1px 4px hsl(var(--destructive) / 0.22);
   }
 
+  /* Preserve the approved dark Glow; light-only glass adjustments live below. */
   .ml-button-press-motion.ml-button-glow {
     position: relative;
     border-radius: 0.78rem;
@@ -666,13 +679,16 @@
     }
   }
 
-  .metal-fx-root.ml-metal-attention-root,
+  .metal-fx-root.ml-metal-attention-root[data-theme],
   .ml-metal-attention-root-idle {
     /* Keep this wrapper thin so the visible ring comes from the upstream MetalFx renderer. */
-    background: transparent;
+    background: transparent !important;
     border-radius: calc(0.78rem + 1px);
     box-sizing: border-box;
     display: inline-flex;
+    align-self: flex-start;
+    height: fit-content !important;
+    min-height: 0;
     justify-self: start;
     max-width: 100%;
     opacity: 1 !important;
@@ -686,10 +702,28 @@
 
   .ml-metal-attention-root .metal-fx-content {
     display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    height: fit-content;
     max-width: 100%;
     position: relative;
     width: fit-content;
     z-index: 5;
+  }
+
+  .ml-metal-attention-root:has(> .metal-fx-content > .ml-button-tactile) {
+    transform: translateY(-1px);
+    transition: transform 200ms linear, opacity 150ms ease-out !important;
+  }
+
+  .ml-metal-attention-root:has(
+    > .metal-fx-content > .ml-button-tactile:is(:active, :disabled, [aria-disabled="true"])
+  ) {
+    transform: translateY(0);
+  }
+
+  .ml-metal-attention-root > .metal-fx-content > .ml-button-tactile {
+    transform: none !important;
   }
 
   .ml-metal-attention-root .metal-fx-canvas,
@@ -810,6 +844,30 @@
     filter: none;
     opacity: 0.58;
     transform: none;
+  }
+
+
+  /* Semantic tones preserve the shared Button geometry while routes choose intent. */
+  .ml-button-tone-setup {
+    --button-default-face: 180 39.34% 47.84%;
+    --button-default-depth: 184 52% 26%;
+    --button-orange-edge: 180 46% 62%;
+    --button-orange-start: 180 39.34% 47.84%;
+    --brand-orange-glow: 180 54% 56%;
+  }
+
+  .ml-button-tone-anatomime {
+    --button-default-face: 15 100% 55%;
+    --button-default-depth: 15 82% 34%;
+    --button-orange-edge: 31 100% 58%;
+  }
+
+  .ml-button-tone-pricing {
+    --button-default-face: 15 100% 55%;
+    --button-default-depth: 15 82% 34%;
+    --button-orange-edge: 31 100% 58%;
+    --brand-orange: 25.2 100% 55.1%;
+    --brand-orange-glow: 27.6 100% 58.2%;
   }
 
   .ml-slider {
@@ -1220,7 +1278,7 @@
 
   .ml-switch[data-tone="alert"] {
     --ml-switch-checked-face: var(--button-sunset-rose);
-    --ml-switch-checked-edge: var(--button-danger-mid);
+    --ml-switch-checked-edge: var(--button-alert-edge);
     --ml-switch-checked-depth: var(--button-danger-depth);
   }
 
@@ -1272,10 +1330,10 @@
   }
 
   .ml-switch[data-tone="alert"][data-state="checked"] {
-    border-color: hsl(var(--button-danger-mid) / 0.66);
+    border-color: hsl(var(--button-alert-edge) / 0.74);
     background:
       var(--ml-button-light-gradient),
-      linear-gradient(122deg, hsl(var(--button-sunset-rose)) 0 76%, hsl(var(--button-danger-mid)) 100%);
+      linear-gradient(122deg, hsl(var(--button-sunset-rose)) 0 76%, hsl(var(--button-alert-edge)) 100%);
     box-shadow:
       inset 1.5px 1.5px 3px hsl(var(--button-danger-depth) / 0.44),
       inset -1px -1px 2px hsl(var(--foreground) / 0.1),
@@ -1323,7 +1381,7 @@
 
   .ml-toggle-tone-alert {
     --ml-toggle-face: var(--button-sunset-rose);
-    --ml-toggle-edge: var(--button-danger-mid);
+    --ml-toggle-edge: var(--button-alert-edge);
     --ml-toggle-depth: var(--button-danger-depth);
     --ml-toggle-content: 0 100% 96%;
     --ml-toggle-highlight: var(--button-danger-start);
@@ -1655,7 +1713,7 @@
 
   .ml-segmented-toggle-group[data-active-tone="attention"] .ml-toggle-group-item[data-selected="true"] {
     border-color: hsl(var(--button-cta-face-bright) / 0.72);
-    border-top-color: hsl(var(--foreground) / 0.24);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.24);
     border-right-color: hsl(var(--button-sunset-violet) / 0.62);
     background:
       var(--ml-button-light-gradient),
@@ -1771,7 +1829,7 @@
 
   .ml-pricing-interval-trigger[data-state="active"] {
     border: 2px solid hsl(var(--button-default-face) / 0.7);
-    border-top-color: hsl(var(--foreground) / 0.18);
+    border-top-color: hsl(var(--ml-button-top-highlight) / 0.18);
     border-right-color: hsl(var(--button-orange-edge) / 0.5);
     background:
       var(--ml-button-light-gradient),
@@ -2210,6 +2268,231 @@
     color: hsl(var(--foreground));
     font-weight: 600;
   }
+  /* Visual-review revisions: stable materials and stronger shared state feedback. */
+  .ml-button-press-motion.ml-button-secondary {
+    border-color: hsl(var(--button-action-secondary-edge) / 0.76);
+    border-top-color: hsl(0 0% 100% / 0.34);
+    border-right-color: hsl(var(--button-action-secondary-edge) / 0.62);
+    border-bottom-color: hsl(var(--button-action-secondary-depth));
+    background:
+      var(--ml-button-light-gradient),
+      linear-gradient(122deg, hsl(var(--button-action-secondary-face)) 0 78%, hsl(var(--button-action-secondary-edge)) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.16),
+      0 1px 4px hsl(var(--button-action-secondary-depth) / 0.24);
+    color: hsl(204 100% 96%);
+  }
+
+  .ml-button-press-motion.ml-button-outline {
+    --ml-button-outline-accent: var(--button-blue-start);
+    --ml-button-outline-depth: var(--button-blue-depth);
+    border: 2px solid hsl(var(--ml-button-outline-accent) / 0.76);
+    background: transparent;
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--ml-button-outline-accent) / 0.08),
+      0 2px 6px hsl(var(--ml-button-outline-depth) / 0.14);
+    color: hsl(var(--ml-button-outline-accent));
+    text-shadow: none !important;
+    transform: none;
+  }
+
+  .ml-button-press-motion.ml-button-outline.ml-button-tone-setup {
+    --ml-button-outline-accent: 180 39.34% 42%;
+    --ml-button-outline-depth: 184 52% 26%;
+  }
+
+  .ml-button-press-motion.ml-button-outline.ml-button-tone-anatomime {
+    --ml-button-outline-accent: var(--button-default-face);
+    --ml-button-outline-depth: var(--button-default-depth);
+  }
+
+  .ml-button-press-motion.ml-button-outline.ml-button-tone-pricing {
+    --ml-button-outline-accent: var(--brand-orange);
+    --ml-button-outline-depth: var(--button-orange-depth);
+  }
+
+  .ml-button-press-motion.ml-button-outline::before {
+    content: none;
+  }
+
+  .ml-button-press-motion.ml-button-outline svg {
+    filter: none !important;
+  }
+
+  .ml-button-press-motion.ml-button-outline:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: hsl(var(--ml-button-outline-accent) / 0.96);
+    background: hsl(var(--ml-button-outline-accent) / 0.08);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--ml-button-outline-accent) / 0.12),
+      0 2px 8px hsl(var(--ml-button-outline-depth) / 0.2);
+  }
+
+  .ml-button-press-motion.ml-button-outline:active:not(:disabled):not([aria-disabled="true"]) {
+    background: hsl(var(--ml-button-outline-accent) / 0.14);
+    box-shadow:
+      inset var(--ml-button-press-shadow-x) 2px 6px hsl(var(--ml-button-outline-depth) / 0.18),
+      inset 0 0 0 1px hsl(var(--ml-button-outline-accent) / 0.16),
+      0 1px 2px hsl(var(--ml-button-outline-depth) / 0.1);
+    filter: brightness(0.98);
+    transform: translateY(1px);
+  }
+
+
+  .ml-button-press-motion.ml-button-glow {
+    background:
+      var(--ml-button-glow-light-gradient),
+      linear-gradient(130deg, hsl(var(--brand-orange) / 0.12), hsl(0 0% 15% / 0.92)),
+      hsl(0 0% 10%);
+    color: hsl(34 100% 94%);
+  }
+
+  .ml-switch {
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .ml-switch-thumb {
+    border-color: hsl(var(--ml-switch-thumb-border) / 0.74);
+    background: linear-gradient(145deg, hsl(var(--ml-switch-thumb-face)), hsl(var(--ml-switch-thumb-depth)));
+    box-shadow:
+      2px 3px 6px hsl(0 0% 0% / 0.28),
+      inset 1px 1px 1px hsl(0 0% 100% / 0.8),
+      inset -1px -1px 1px hsl(220 8% 34% / 0.22);
+  }
+
+  .light .ml-button-press-motion.ml-button-glow {
+    border-color: hsl(var(--brand-orange) / 0.44);
+    border-top-color: hsl(var(--button-orange-start) / 0.58);
+    border-right-color: hsl(var(--brand-orange) / 0.44);
+    border-bottom-width: 3px;
+    border-bottom-color: hsl(var(--button-orange-depth) / 0.72);
+    background:
+      radial-gradient(120% 85% at var(--ml-glow-sheen-position) 8%, hsl(0 0% 100% / 0.36) 0%, hsl(0 0% 100% / 0.12) 38%, transparent 70%),
+      radial-gradient(110% 80% at 85% 100%, hsl(var(--button-orange-edge) / 0.3) 0%, transparent 62%),
+      linear-gradient(180deg, hsl(0 0% 100% / 0.14) 0%, transparent 72%),
+      linear-gradient(122deg, hsl(var(--button-default-face) / 0.78) 0%, hsl(var(--brand-orange) / 0.72) 72%, hsl(var(--button-orange-edge) / 0.8) 100%),
+      hsl(var(--button-default-face) / 0.68);
+    background-repeat: no-repeat;
+    background-size: 200% 200%, 180% 180%, 100% 100%, 100% 100%, 100% 100%;
+    color: hsl(34 100% 94%);
+    text-shadow:
+      var(--ml-button-inset-shadow-x) -0.72px 0 hsl(var(--button-ink) / 0.58),
+      var(--ml-button-inset-highlight-x) 0.72px 0 hsl(0 0% 100% / 0.44),
+      0 0 1px hsl(var(--brand-orange-glow) / 0.18);
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--brand-orange) / 0.22),
+      inset 0 1px 0 hsl(0 0% 100% / 0.42),
+      inset 0 -12px 24px -10px hsl(0 0% 100% / 0.22),
+      inset 1px 0 0 hsl(0 0% 100% / 0.16),
+      inset -1px 0 0 hsl(0 0% 100% / 0.12),
+      0 0 0 1px hsl(var(--brand-orange-glow) / 0.22),
+      0 0 10px hsl(var(--brand-orange-glow) / 0.62),
+      0 0 36px hsl(var(--brand-orange) / 0.64),
+      0 14px 32px hsl(var(--button-orange-depth) / 0.22);
+    -webkit-backdrop-filter: blur(12px) saturate(1.8) brightness(1.05);
+    backdrop-filter: blur(12px) saturate(1.8) brightness(1.05);
+  }
+
+  .light .ml-button-glow:hover:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--brand-orange) / 0.3),
+      inset 0 1px 0 hsl(0 0% 100% / 0.5),
+      inset 0 -12px 24px -10px hsl(0 0% 100% / 0.26),
+      inset 1px 0 0 hsl(0 0% 100% / 0.18),
+      inset -1px 0 0 hsl(0 0% 100% / 0.14),
+      0 0 0 1px hsl(var(--brand-orange-glow) / 0.28),
+      0 0 12px hsl(var(--brand-orange-glow) / 0.72),
+      0 0 44px hsl(var(--brand-orange) / 0.74),
+      0 14px 34px hsl(var(--button-orange-depth) / 0.24);
+    filter: brightness(1.04) saturate(1.06);
+  }
+
+  .light .ml-button-glow:active:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow:
+      inset var(--ml-button-press-shadow-x) 3px 10px hsl(var(--button-orange-depth) / 0.24),
+      inset 0 1px 0 hsl(0 0% 100% / 0.2),
+      0 0 16px hsl(var(--brand-orange) / 0.22);
+  }
+
+
+  .ml-switch:active:not(:disabled) {
+    transform: none;
+  }
+
+  .ml-switch:active:not(:disabled) .ml-switch-thumb {
+    transform: scale(0.94);
+  }
+
+  .ml-switch[data-state="checked"]:active:not(:disabled) .ml-switch-thumb {
+    transform: translateX(var(--ml-switch-travel)) scale(0.94);
+  }
+
+  .ml-segmented-toggle-group .ml-toggle-group-item:focus-visible {
+    z-index: 4;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -3px;
+    box-shadow: inset 0 0 0 1px hsl(var(--background));
+  }
+
+  .ml-segmented-toggle-group .ml-toggle-group-item:hover:not(:disabled):not([data-selected="true"]) {
+    border-color: hsl(var(--button-blue-start) / 0.42);
+    background: hsl(var(--button-blue-mid) / 0.13);
+    box-shadow: inset 0 0 0 1px hsl(var(--button-blue-start) / 0.1);
+    color: hsl(var(--foreground));
+  }
+
+  .ml-segmented-toggle-group .ml-toggle-group-item:active:not(:disabled):not([data-selected="true"]) {
+    background: hsl(var(--button-blue-mid) / 0.2);
+    box-shadow:
+      inset 2px 2px 5px hsl(var(--button-blue-depth) / 0.28),
+      inset 0 0 0 1px hsl(var(--button-blue-start) / 0.18);
+    transform: translateY(1px);
+  }
+
+  .ml-segmented-toggle-group[data-fit="true"] {
+    grid-template-columns: repeat(var(--ml-segment-count), minmax(2.1rem, 1fr));
+    overflow: visible;
+  }
+
+  .ml-select-control {
+    --ml-select-accent: var(--button-secondary-face);
+    border: 1px solid hsl(var(--ml-select-accent) / 0.34);
+    border-bottom: 2px solid hsl(var(--background) / 0.54);
+    border-radius: 0.58rem;
+    background:
+      linear-gradient(90deg, hsl(var(--ml-select-accent) / 0.16), hsl(var(--background) / 0.76) 40%, hsl(var(--background) / 0.86));
+    box-shadow:
+      inset 2px 2px 4px hsl(var(--background) / 0.5),
+      inset -1px -1px 2px hsl(var(--foreground) / 0.055),
+      0 0.24rem 0.46rem hsl(var(--background) / 0.3);
+    color: hsl(var(--foreground));
+    font-weight: 800;
+    text-shadow: 0 1px 1px hsl(var(--background) / 0.55);
+  }
+
+  .ml-select-control[data-tone="setup"] {
+    --ml-select-accent: 180 39.34% 47.84%;
+  }
+
+  .ml-select-control[data-tone="anatomime"] {
+    --ml-select-accent: var(--button-default-face);
+  }
+
+  .ml-select-control[data-tone="attention"] {
+    --ml-select-accent: var(--button-cta-face);
+  }
+
+  .ml-select-control[data-status="error"],
+  .ml-select-control[aria-invalid="true"] {
+    --ml-select-accent: var(--destructive);
+  }
+
+  .ml-select-control:focus-visible,
+  .ml-select-control[data-state="open"] {
+    border-color: hsl(var(--ml-select-accent) / 0.72);
+    outline: 2px solid hsl(var(--ml-select-accent) / 0.42);
+    outline-offset: 2px;
+  }
+
 }
 
 /* Remove this class

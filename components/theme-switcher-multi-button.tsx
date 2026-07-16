@@ -7,8 +7,8 @@ import { MoonIcon, SunIcon } from "lucide-react"
 import {
   applyThemeClass,
   resolveThemeMode,
-  type ResolvedThemeMode,
   type ThemeMode,
+  useResolvedTheme,
   useSettings,
 } from "@/components/providers/settings-provider"
 import { Button } from "@/components/ui/button"
@@ -40,31 +40,13 @@ export function ThemeSwitcherMultiButton({
 }: React.HTMLAttributes<HTMLDivElement>) {
   const { settings, updateSettings } = useSettings()
   const [mounted, setMounted] = useState(false)
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedThemeMode>("dark")
+  const resolvedTheme = useResolvedTheme()
   const rootRef = useRef<HTMLDivElement | null>(null)
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    const updateResolvedTheme = () => setResolvedTheme(resolveThemeMode(settings.themeMode))
-
-    updateResolvedTheme()
-
-    if (settings.themeMode !== "system") {
-      return
-    }
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-
-    mediaQuery.addEventListener("change", updateResolvedTheme)
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateResolvedTheme)
-    }
-  }, [settings.themeMode])
 
   function rememberTransitionOrigin(event: React.PointerEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -99,7 +81,6 @@ export function ThemeSwitcherMultiButton({
     const updateTheme = () => {
       updateSettings({ themeMode })
       applyThemeClass(themeMode)
-      setResolvedTheme(nextResolvedTheme)
     }
 
     if (
@@ -150,7 +131,7 @@ export function ThemeSwitcherMultiButton({
         data-theme-value={currentTheme.value}
         data-theme-selected={mounted ? "true" : "false"}
         type="button"
-        variant={resolvedTheme === "light" ? "default" : "outline"}
+        variant={resolvedTheme === "dark" ? "glow" : "default"}
         size="icon"
         aria-label={`Use ${nextThemeLabel} theme`}
         title={`Use ${nextThemeLabel} theme`}
@@ -160,7 +141,7 @@ export function ThemeSwitcherMultiButton({
         className={cn(
           "ml-shell-compact-control ml-shell-theme-button ml-theme-toggle-button ml-button-press-motion ml-button-tactile relative min-w-0 rounded-full p-0",
           resolvedTheme === "light" && "ml-button-default",
-          resolvedTheme === "dark" && "ml-button-outline",
+          resolvedTheme === "dark" && "ml-button-glow",
           "ml-shell-theme-button-active",
           !mounted && "pointer-events-none animate-pulse bg-muted/70",
         )}

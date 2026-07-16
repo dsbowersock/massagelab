@@ -72,13 +72,13 @@ export function SliderGallery() {
       <div>
         <h2 id="range-heading" className="text-2xl font-semibold">Range and slider controls</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          These are the default slider forms, their color treatments, and the route-owned controls that still need separate review.
+          These are the default slider forms, shared color treatments, and specialized family variants used by dense or color-specific workflows.
         </p>
       </div>
       <div className="grid gap-4">
         <AppSurface title="Default sliders" description="Use the raw slider when nearby UI already supplies the name or value; use RangeControl when the control must show both.">
           <div className="grid gap-5">
-            <label className="grid gap-2 text-sm font-medium text-muted-foreground">
+            <div className="grid gap-2 text-sm font-medium text-muted-foreground">
               <span>Unlabeled slider</span>
               <span className="flex items-center gap-3">
                 <Volume2 aria-hidden="true" className="size-5 shrink-0 text-brand-orange" />
@@ -91,7 +91,7 @@ export function SliderGallery() {
                   onValueChange={([nextValue]) => setVolume(nextValue ?? volume)}
                 />
               </span>
-            </label>
+            </div>
             <RangeControl
               label="Sweep speed"
               value={labeledValue}
@@ -120,20 +120,20 @@ export function SliderGallery() {
           </div>
         </AppSurface>
 
-        <AppSurface title="Route-owned controls" description="These stay separate for now because their behavior, density, or color semantics are specific to the route that owns them.">
+        <AppSurface title="Specialized family variants" description="Dense and hue-specific layouts keep shared slider mechanics while adapting presentation to their workflow.">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="grid gap-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <SlidersHorizontal aria-hidden="true" className="size-4 text-brand-orange" />
                 Chimer dense background row
               </div>
-              <label className="grid gap-2 rounded-md border border-border/60 bg-background/30 p-3 md:grid-cols-[minmax(0,12rem)_minmax(10rem,1fr)] md:items-center">
+              <div className="grid gap-2 rounded-md border border-border/60 bg-background/30 p-3 md:grid-cols-[minmax(0,12rem)_minmax(10rem,1fr)] md:items-center">
                 <span className="flex min-w-0 items-baseline justify-between gap-3 text-sm font-semibold text-foreground md:block">
                   <span>Background speed</span>
                   <span className="shrink-0 font-mono text-xs text-muted-foreground md:ml-2">({routeRangeValue}%)</span>
                 </span>
                 <Slider
-                  aria-label="Route-owned Chimer background speed"
+                  aria-label="Chimer background speed"
                   className="ml-slider-compact ml-slider-fill-orange"
                   value={[routeRangeValue]}
                   min={0}
@@ -141,7 +141,7 @@ export function SliderGallery() {
                   step={1}
                   onValueChange={([nextValue]) => setRouteRangeValue(nextValue ?? routeRangeValue)}
                 />
-              </label>
+              </div>
             </div>
 
             <div className="grid gap-2">
@@ -149,13 +149,13 @@ export function SliderGallery() {
                 <Palette aria-hidden="true" className="size-4 text-brand-orange" />
                 Color picker hue slider
               </div>
-              <label className="grid gap-2 rounded-md border border-border/60 bg-background/30 p-3">
+              <div className="grid gap-2 rounded-md border border-border/60 bg-background/30 p-3">
                 <span className="flex min-w-0 items-baseline justify-between gap-3 text-sm font-semibold text-foreground">
                   <span>Hue</span>
                   <span className="shrink-0 font-mono text-xs text-muted-foreground">{hue}°</span>
                 </span>
                 <Slider
-                  aria-label="Route-owned color picker hue"
+                  aria-label="Color picker hue"
                   className="ml-slider-hue"
                   value={[hue]}
                   min={0}
@@ -164,12 +164,12 @@ export function SliderGallery() {
                   style={{ "--ml-slider-hue-color": `hsl(${hue} 100% 50%)` }}
                   onValueChange={([nextValue]) => setHue(nextValue ?? hue)}
                 />
-              </label>
+              </div>
             </div>
           </div>
         </AppSurface>
 
-        <AppSurface title="Color control examples" description="Live examples of the shared color slider wrapper and the reusable color picker used by route-owned visual controls.">
+        <AppSurface title="Color control examples" description="Live examples of the shared color slider wrapper and reusable picker used by route-specific visual workflows.">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(18rem,1.15fr)]">
             <div className="grid gap-4">
               <div className="grid gap-2">
