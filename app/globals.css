@@ -589,6 +589,12 @@
 
   .ml-button-press-motion.ml-button-glow::before {
     background: var(--ml-button-glow-light-gradient);
+    z-index: 0;
+  }
+
+  .ml-button-press-motion.ml-button-glow > * {
+    position: relative;
+    z-index: 1;
   }
 
   .ml-button-press-motion.ml-button-glow-neon-flicker::after {
@@ -596,6 +602,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
+    z-index: 0;
     box-shadow:
       0 0 0.32rem hsl(var(--brand-orange-glow) / 0.52),
       0 0 0.95rem hsl(var(--brand-orange) / 0.34),

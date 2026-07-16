@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-16
+
+- Completed the S6 in-app Browser visual pass across Chimer, Anatomime, `/anatomime/join`, and pricing at desktop and 390x844 phone widths in light and dark themes. Shared action layouts had no horizontal overflow or console warnings. Pricing's nested donation labels needed an explicit foreground stacking context above the Glow sheen/flicker pseudo-elements; the shared fix preserves the approved dark Glow face and keeps Wellness deferred.
+
 ## 2026-07-15
 
 - Started S6 on `codex/sitewide-control-system-rollout-actions` from approved review commit `38146ec`: migrated Chimer setup/navigation actions, ordinary Anatomime primary/secondary/destructive actions, and pricing donation flicker onto shared Button variants, tones, effects, press mechanics, focus, disabled behavior, and haptics. The frozen manifest excludes Chimer quick-duration/choice controls, Anatomime cards/choices, and the deferred Wellness anatomical map.
