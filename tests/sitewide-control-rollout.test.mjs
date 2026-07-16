@@ -32,7 +32,9 @@ test("theme switching keeps a directional reveal without displacing Glow childre
   assert.match(globals, /@keyframes ml-theme-toggle-fallback-reveal/)
   assert.match(glowChildRule, /z-index:\s*1/)
   assert.doesNotMatch(glowChildRule, /position:/)
-  assert.doesNotMatch(themeKeyframes, /blur\(/)
+  assert.match(themeKeyframes, /brightness\(1\.65\) saturate\(1\.25\) blur\(14px\)/)
+  assert.match(themeKeyframes, /brightness\(0\.72\) saturate\(0\.92\) blur\(12px\)/)
+  assert.match(themeKeyframes, /brightness\(0\.78\) blur\(0\)/)
 })
 
 test("Wellness anatomical map remains outside the production rollout", async () => {

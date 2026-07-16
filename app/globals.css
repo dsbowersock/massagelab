@@ -2691,32 +2691,32 @@ html[data-theme-transition-fallback="toggle-light"]::before {
 @keyframes ml-theme-toggle-light-on {
   from {
     clip-path: circle(0 at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(1.28) saturate(1.12);
+    filter: brightness(1.65) saturate(1.25) blur(14px);
   }
 
   55% {
-    filter: brightness(1.1) saturate(1.06);
+    filter: brightness(1.2) saturate(1.12) blur(4px);
   }
 
   to {
     clip-path: circle(150vmax at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(1) saturate(1);
+    filter: brightness(1) saturate(1) blur(0);
   }
 }
 
 @keyframes ml-theme-toggle-light-off {
   from {
     clip-path: circle(0 at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(0.84) saturate(0.94);
+    filter: brightness(0.72) saturate(0.92) blur(12px);
   }
 
   60% {
-    filter: brightness(0.92) saturate(0.97);
+    filter: brightness(0.86) saturate(0.96) blur(4px);
   }
 
   to {
     clip-path: circle(150vmax at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(1) saturate(1);
+    filter: brightness(1) saturate(1) blur(0);
   }
 }
 
@@ -2726,7 +2726,7 @@ html[data-theme-transition-fallback="toggle-light"]::before {
   }
 
   to {
-    filter: brightness(0.84);
+    filter: brightness(0.78) blur(0);
   }
 }
 
