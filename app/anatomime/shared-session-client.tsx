@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
+import { AnatomimeActionButton } from "./anatomime-action-button"
 import type { AnatomimeRoomSummary } from "./shared-session-types"
 import "./styles.css"
 
@@ -551,10 +552,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
               <Label htmlFor="anatomime-code">Code</Label>
               <Input id="anatomime-code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className="anatomime-input" />
             </div>
-            <button type="button" className="anatomime-primary-button" onClick={() => setLookupCode(code.trim().toUpperCase())}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={() => setLookupCode(code.trim().toUpperCase())}>
               <LogIn className="h-4 w-4" />
               Find Game
-            </button>
+            </AnatomimeActionButton>
           </section>
         ) : null}
 
@@ -572,10 +573,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                   <strong>Rejoin needed on this device</strong>
                   <p>Your saved player pass no longer matches this room. Rejoin with your name below, or clear the saved pass first.</p>
                 </div>
-                <button type="button" className="anatomime-secondary-button" onClick={clearStoredPlayer}>
+                <AnatomimeActionButton type="button" intent="secondary" onClick={clearStoredPlayer}>
                   <RotateCcw className="h-4 w-4" />
                   Clear Saved Player
-                </button>
+                </AnatomimeActionButton>
               </div>
             ) : null}
             <div className="anatomime-grid-2">
@@ -600,10 +601,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                 </div>
               </div>
             </div>
-            <button type="button" className="anatomime-primary-button" onClick={joinGame}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={joinGame}>
               <Users className="h-4 w-4" />
               Join Team
-            </button>
+            </AnatomimeActionButton>
           </section>
         ) : null}
 
@@ -666,10 +667,10 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                       }}
                       className="anatomime-input"
                     />
-                    <button type="button" className="anatomime-primary-button" onClick={() => submitGuess()}>
+                    <AnatomimeActionButton type="button" intent="primary" onClick={() => submitGuess()}>
                       <Send className="h-4 w-4" />
                       Submit Guess
-                    </button>
+                    </AnatomimeActionButton>
                     <p className="anatomime-review-meta">{Math.max(0, 5 - attempt.typedAttempts)} typed guesses left.</p>
                   </div>
                 ) : null}
@@ -721,9 +722,9 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
             ) : null}
 
             {joined && session.hostCanBeChallenged && !session.hostElection ? (
-              <button type="button" className="anatomime-secondary-button" onClick={requestHostVote}>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={requestHostVote}>
                 Request Host Vote
-              </button>
+              </AnatomimeActionButton>
             ) : null}
 
             {joined && session.hostElection ? (
@@ -749,13 +750,13 @@ export function AnatomimeSharedSessionClient({ initialCode = "" }: { initialCode
                   ))}
                 </div>
                 <div className="anatomime-actions">
-                  <button type="button" className="anatomime-primary-button" onClick={() => submitHostVote("vote")} disabled={visibleRankedPlayerIds.length === 0}>
+                  <AnatomimeActionButton type="button" intent="primary" onClick={() => submitHostVote("vote")} disabled={visibleRankedPlayerIds.length === 0}>
                     Submit Vote
-                  </button>
+                  </AnatomimeActionButton>
                   {new Date(session.hostElection.closesAt).getTime() <= now ? (
-                    <button type="button" className="anatomime-secondary-button" onClick={() => submitHostVote("resolve")}>
+                    <AnatomimeActionButton type="button" intent="secondary" onClick={() => submitHostVote("resolve")}>
                       Resolve Vote
-                    </button>
+                    </AnatomimeActionButton>
                   ) : null}
                 </div>
               </div>

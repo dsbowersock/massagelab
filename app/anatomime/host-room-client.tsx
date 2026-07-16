@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CheckCircle2, Copy, LogIn, Play, QrCode, RefreshCw, RotateCcw, SkipForward, Timer, UserCog, X } from "lucide-react"
+import { AnatomimeActionButton } from "./anatomime-action-button"
 import type { AnatomimePlayerSummary, AnatomimeRoomSummary } from "./shared-session-types"
 
 type HostCredentials = { playerId: string; token: string }
@@ -235,22 +236,24 @@ export function HostRoomClient({
       </div>
 
       <div className="anatomime-actions">
-        <Link className="anatomime-secondary-button" href={joinPath}>
-          <LogIn className="h-4 w-4" />
-          Join Shared Game
-        </Link>
-        <button type="button" className="anatomime-secondary-button" onClick={() => copyText(session.code, "Join code copied.")}>
+        <AnatomimeActionButton asChild intent="secondary">
+          <Link href={joinPath}>
+            <LogIn className="h-4 w-4" />
+            Join Shared Game
+          </Link>
+        </AnatomimeActionButton>
+        <AnatomimeActionButton type="button" intent="secondary" onClick={() => copyText(session.code, "Join code copied.")}>
           <Copy className="h-4 w-4" />
           Copy Code
-        </button>
-        <button type="button" className="anatomime-secondary-button" onClick={() => copyText(joinUrl || `${window.location.origin}${joinPath}`, "Join link copied.")}>
+        </AnatomimeActionButton>
+        <AnatomimeActionButton type="button" intent="secondary" onClick={() => copyText(joinUrl || `${window.location.origin}${joinPath}`, "Join link copied.")}>
           <Copy className="h-4 w-4" />
           Copy Join Link
-        </button>
-        <button type="button" className="anatomime-secondary-button" onClick={() => refreshSession().catch((error) => setMessage(error.message))}>
+        </AnatomimeActionButton>
+        <AnatomimeActionButton type="button" intent="secondary" onClick={() => refreshSession().catch((error) => setMessage(error.message))}>
           <RefreshCw className="h-4 w-4" />
           Refresh
-        </button>
+        </AnatomimeActionButton>
       </div>
 
       {message ? <div className="anatomime-message" role="status">{message}</div> : null}
@@ -282,15 +285,14 @@ export function HostRoomClient({
             ))}
           </div>
           <div className="anatomime-actions">
-            <button
-              type="button"
-              className="anatomime-primary-button"
+            <AnatomimeActionButton
+              type="button" intent="primary"
               onClick={() => performAction("start", `/api/anatomime/sessions/${session.code}/start`)}
               disabled={busyAction === "start"}
             >
               <Play className="h-4 w-4" />
               {busyAction === "start" ? "Starting..." : "Start Shared Game"}
-            </button>
+            </AnatomimeActionButton>
           </div>
         </>
       ) : null}
@@ -324,15 +326,14 @@ export function HostRoomClient({
 
       {session.status === "PLAYING" && session.phase === "ACTIVE_TERM" && session.config.answerMode === "host-judged" ? (
         <div className="anatomime-actions">
-          <button
-            type="button"
-            className="anatomime-primary-button"
+          <AnatomimeActionButton
+            type="button" intent="primary"
             onClick={() => performAction("got-it", `/api/anatomime/sessions/${session.code}/host-judged`)}
             disabled={busyAction === "got-it"}
           >
             <CheckCircle2 className="h-4 w-4" />
             Got It
-          </button>
+          </AnatomimeActionButton>
         </div>
       ) : null}
 
@@ -353,15 +354,14 @@ export function HostRoomClient({
             ))}
           </div>
           <div className="anatomime-actions">
-            <button
-              type="button"
-              className="anatomime-primary-button"
+            <AnatomimeActionButton
+              type="button" intent="primary"
               onClick={() => performAction("next-team", `/api/anatomime/sessions/${session.code}/next-team`)}
               disabled={busyAction === "next-team"}
             >
               <SkipForward className="h-4 w-4" />
               Next Team
-            </button>
+            </AnatomimeActionButton>
           </div>
         </div>
       ) : null}
@@ -387,19 +387,18 @@ export function HostRoomClient({
           </div>
           <div className="anatomime-actions">
             {session.status === "GAME_COMPLETE" ? (
-              <button
-                type="button"
-                className="anatomime-primary-button"
+              <AnatomimeActionButton
+                type="button" intent="primary"
                 onClick={() => performAction("next-game", `/api/anatomime/sessions/${session.code}/next-game`)}
                 disabled={busyAction === "next-game"}
               >
                 <RotateCcw className="h-4 w-4" />
                 Start New Game
-              </button>
+              </AnatomimeActionButton>
             ) : (
-              <button type="button" className="anatomime-secondary-button" onClick={onResetLocalGame}>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={onResetLocalGame}>
                 Back to Setup
-              </button>
+              </AnatomimeActionButton>
             )}
           </div>
         </div>
@@ -410,16 +409,15 @@ export function HostRoomClient({
           <h3>Transfer host</h3>
           <div className="anatomime-selection-toolbar">
             {hostTransferTargets.map((player) => (
-              <button
+              <AnatomimeActionButton
                 key={player.id}
-                type="button"
-                className="anatomime-secondary-button"
+                type="button" intent="secondary"
                 onClick={() => performAction("transfer", `/api/anatomime/sessions/${session.code}/host/transfer`, { playerId: player.id })}
                 disabled={busyAction === "transfer"}
               >
                 <UserCog className="h-4 w-4" />
                 {playerLabel(player)}
-              </button>
+              </AnatomimeActionButton>
             ))}
           </div>
         </div>
@@ -427,15 +425,14 @@ export function HostRoomClient({
 
       {session.status !== "REVIEW" && session.status !== "EXPIRED" ? (
         <div className="anatomime-actions">
-          <button
-            type="button"
-            className="anatomime-danger-button"
+          <AnatomimeActionButton
+            type="button" intent="danger"
             onClick={() => performAction("end", `/api/anatomime/sessions/${session.code}/end`)}
             disabled={busyAction === "end"}
           >
             <X className="h-4 w-4" />
             End Session
-          </button>
+          </AnatomimeActionButton>
         </div>
       ) : null}
     </section>

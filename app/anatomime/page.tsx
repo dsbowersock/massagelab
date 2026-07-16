@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
+import { AnatomimeActionButton } from "./anatomime-action-button"
 import "./styles.css"
 
 const AnatomimeGameClient = dynamic(
@@ -232,14 +233,16 @@ export default function AnatomimePage() {
           </div>
 
           <div className="anatomime-actions">
-            <button type="button" className="anatomime-primary-button" onClick={startGameSetup}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={startGameSetup}>
               <Play className="h-4 w-4" />
               Choose Anatomy Terms
-            </button>
-            <Link className="anatomime-secondary-button" href="/anatomime/join">
-              <LogIn className="h-4 w-4" />
-              Join Shared Game
-            </Link>
+            </AnatomimeActionButton>
+            <AnatomimeActionButton asChild intent="secondary">
+              <Link href="/anatomime/join">
+                <LogIn className="h-4 w-4" />
+                Join Shared Game
+              </Link>
+            </AnatomimeActionButton>
           </div>
         </section>
 

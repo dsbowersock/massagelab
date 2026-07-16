@@ -13,6 +13,7 @@ import {
 import { BellRing, Clock, MonitorSmartphone, Play, SlidersHorizontal } from "lucide-react"
 import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
 import type { BackgroundCategory, BackgroundDefinition, BackgroundId } from "@/components/backgrounds/backgroundRegistry"
+import { Button } from "@/components/ui/button"
 import { PageHeading } from "@/components/ui/page-heading"
 import { useSettings } from "@/components/providers/settings-provider"
 import { withChimerPress } from "@/lib/chimer-press-handler"
@@ -16134,22 +16135,24 @@ export function SetTimer({
             </select>
           </label>
           <div className={styles.presetSelectRow}>
-            <button
+            <Button
               type="button"
-              className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
-              onClick={withPress(applySelectedPreset)}
+              tone="setup"
+              className="w-full"
+              onClick={applySelectedPreset}
               disabled={!selectedPreset}
             >
               Apply selected
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
-              onClick={withPress(loadLastSetup)}
+              tone="setup"
+              className="w-full"
+              onClick={loadLastSetup}
               disabled={!lastSetupPreset}
             >
               Use last setup
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -16364,41 +16367,46 @@ export function SetTimer({
                     placeholder="Preset name (optional)"
                   />
                 </label>
-                <button
+                <Button
                   type="button"
-                  className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
-                  onClick={withPress(saveCurrentPreset)}
+                  tone="setup"
+                  className="w-full"
+                  onClick={saveCurrentPreset}
                   disabled={!isTimerSet}
                 >
                   Save as preset
-                </button>
+                </Button>
               </div>
               <div className={styles.actions}>
-                <button
+                <Button
                   type="button"
-                  className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
-                  onClick={withPress(onTestAlert)}
+                  tone="setup"
+                  className="w-full"
+                  onClick={onTestAlert}
                 >
                   Test Alert
-                </button>
+                </Button>
                 <CTAButton
                   type="button"
                   withAttentionRing
-                  className={`${styles.setupActionButton} ${styles.setupButton}`}
-                  onClick={withPress(() => handleStartTimer(false))}
+                  variant="default"
+                  tone="setup"
+                  className="w-full"
+                  onClick={() => handleStartTimer(false)}
                   disabled={!isTimerSet}
                 >
                   <Play className="h-5 w-5" />
                   Start Chimer
                 </CTAButton>
-                <button
+                <Button
                   type="button"
-                  className={`${styles.setupActionButton} ${styles.tactileButton} ${styles.setupButton}`}
-                  onClick={withPress(() => handleStartTimer(true))}
+                  tone="setup"
+                  className="w-full"
+                  onClick={() => handleStartTimer(true)}
                   disabled={!isTimerSet}
                 >
                   Start without animated background
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -16406,13 +16414,14 @@ export function SetTimer({
 
         <div className={styles.stepNavActions}>
           {activeStep > 0 && (
-            <button
+            <Button
               type="button"
-              className={`${styles.secondaryButton} ${styles.tactileButton}`}
-              onClick={withPress(previousStep)}
+              variant="secondary"
+              className="w-full"
+              onClick={previousStep}
             >
               Back
-            </button>
+            </Button>
           )}
           {!isFinalStep && (
             <MetalAttentionRing
@@ -16420,14 +16429,14 @@ export function SetTimer({
               metalFullWidth
               metalStrength={0.72}
             >
-              <button
+              <Button
                 type="button"
-                className={`${styles.button} ${styles.tactileButton} ${styles.attentionNavButton}`}
-                onClick={withPress(nextStep)}
+                className="w-full"
+                onClick={nextStep}
                 disabled={!canAdvanceStep}
               >
                 Continue
-              </button>
+              </Button>
             </MetalAttentionRing>
           )}
         </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PageHeading } from "@/components/ui/page-heading"
 import { MovingBackground } from "@/components/moving-background"
+import { AnatomimeActionButton } from "./anatomime-action-button"
 import {
   type AnatomyStudyBodySystem,
   type AnatomyStudyCategory,
@@ -733,14 +734,16 @@ export function AnatomimeGameClient({
             </div>
 
             <div className="anatomime-actions">
-              <button type="button" className="anatomime-primary-button" onClick={startGameSetup}>
+              <AnatomimeActionButton type="button" intent="primary" onClick={startGameSetup}>
                 <Play className="h-4 w-4" />
                 Choose Anatomy Terms
-              </button>
-              <Link className="anatomime-secondary-button" href="/anatomime/join">
-                <LogIn className="h-4 w-4" />
-                Join Shared Game
-              </Link>
+              </AnatomimeActionButton>
+              <AnatomimeActionButton asChild intent="secondary">
+                <Link href="/anatomime/join">
+                  <LogIn className="h-4 w-4" />
+                  Join Shared Game
+                </Link>
+              </AnatomimeActionButton>
             </div>
           </section>
         ) : null}
@@ -847,21 +850,19 @@ export function AnatomimeGameClient({
               </div>
               <div className="anatomime-selection-toolbar">
                 {selectedSetupTermIds.length > 0 ? (
-                  <button
-                    type="button"
-                    className="anatomime-secondary-button"
+                  <AnatomimeActionButton
+                    type="button" intent="secondary"
                     onClick={() => setSelectedSetupTermIds([])}
                   >
                     Clear Terms
-                  </button>
+                  </AnatomimeActionButton>
                 ) : null}
-                <button
-                  type="button"
-                  className="anatomime-secondary-button"
+                <AnatomimeActionButton
+                  type="button" intent="secondary"
                   onClick={() => setSelectedRegions(allRegionsSelected ? [] : defaultRegions)}
                 >
                   {allRegionsSelected ? "Clear Regions" : "Select Regions"}
-                </button>
+                </AnatomimeActionButton>
               </div>
             </div>
 
@@ -929,16 +930,16 @@ export function AnatomimeGameClient({
             </div>
 
             <div className="anatomime-actions">
-              <button type="button" className="anatomime-secondary-button" onClick={() => setGamePhase("onboarding")}>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={() => setGamePhase("onboarding")}>
                 Back
-              </button>
-              <button type="button" className="anatomime-primary-button" onClick={continueToSetup}>
+              </AnatomimeActionButton>
+              <AnatomimeActionButton type="button" intent="primary" onClick={continueToSetup}>
                 Continue
-              </button>
-              <button type="button" className="anatomime-secondary-button" onClick={createSharedGame} disabled={creatingSharedGame}>
+              </AnatomimeActionButton>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={createSharedGame} disabled={creatingSharedGame}>
                 <Users className="h-4 w-4" />
                 {creatingSharedGame ? "Creating..." : "Create Shared Game"}
-              </button>
+              </AnatomimeActionButton>
             </div>
             {message ? (
               <div className="anatomime-message" role="status">
@@ -955,10 +956,10 @@ export function AnatomimeGameClient({
                 <h2>{currentTeamName}&apos;s terms</h2>
                 <p>{roundLabel}. Select the {termCount} terms in presentation order.</p>
               </div>
-              <button type="button" className="anatomime-secondary-button" onClick={reshuffleCurrentTurn} disabled={reshuffleUsed}>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={reshuffleCurrentTurn} disabled={reshuffleUsed}>
                 <RotateCcw className="h-4 w-4" />
                 {reshuffleUsed ? "Reshuffle Used" : "Reshuffle"}
-              </button>
+              </AnatomimeActionButton>
             </div>
 
             <div className="anatomime-setup-grid">
@@ -1010,18 +1011,17 @@ export function AnatomimeGameClient({
             </div>
 
             <div className="anatomime-actions">
-              <button type="button" className="anatomime-secondary-button" onClick={() => setGamePhase("selection")}>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={() => setGamePhase("selection")}>
                 Back
-              </button>
-              <button
-                type="button"
-                className="anatomime-primary-button"
+              </AnatomimeActionButton>
+              <AnatomimeActionButton
+                type="button" intent="primary"
                 onClick={startTurn}
                 disabled={selectedTermIds.length !== termCount}
               >
                 <Play className="h-4 w-4" />
                 Start Turn
-              </button>
+              </AnatomimeActionButton>
             </div>
           </section>
         ) : null}
@@ -1067,18 +1067,18 @@ export function AnatomimeGameClient({
             </div>
 
             <div className="anatomime-actions">
-              <button type="button" className="anatomime-primary-button" onClick={handleCorrectAnswer}>
+              <AnatomimeActionButton type="button" intent="primary" onClick={handleCorrectAnswer}>
                 <CheckCircle2 className="h-4 w-4" />
                 Got It
-              </button>
-              <button type="button" className="anatomime-secondary-button" onClick={() => completeTurn()}>
+              </AnatomimeActionButton>
+              <AnatomimeActionButton type="button" intent="secondary" onClick={() => completeTurn()}>
                 <SkipForward className="h-4 w-4" />
                 Next Team
-              </button>
+              </AnatomimeActionButton>
               {showManualEndGame ? (
-                <button type="button" className="anatomime-danger-button" onClick={() => setGamePhase("end")}>
+                <AnatomimeActionButton type="button" intent="danger" onClick={() => setGamePhase("end")}>
                   End Game
-                </button>
+                </AnatomimeActionButton>
               ) : null}
             </div>
           </section>
@@ -1117,13 +1117,12 @@ export function AnatomimeGameClient({
 
             <div className="anatomime-actions">
               {!isFinalScheduledTurn && showManualEndGame ? (
-                <button type="button" className="anatomime-danger-button" onClick={() => setGamePhase("end")}>
+                <AnatomimeActionButton type="button" intent="danger" onClick={() => setGamePhase("end")}>
                   End Game
-                </button>
+                </AnatomimeActionButton>
               ) : null}
-              <button
-                type="button"
-                className="anatomime-primary-button"
+              <AnatomimeActionButton
+                type="button" intent="primary"
                 onClick={isFinalScheduledTurn ? () => setGamePhase("end") : continueToNextTeam}
               >
                 {isFinalScheduledTurn
@@ -1131,7 +1130,7 @@ export function AnatomimeGameClient({
                   : currentTeam === teamCount - 1
                     ? "Start Next Round"
                     : `${teamNames[getNextTeamIndex(currentTeam, teamCount)]}'s Turn`}
-              </button>
+              </AnatomimeActionButton>
             </div>
           </section>
         ) : null}
@@ -1169,9 +1168,9 @@ export function AnatomimeGameClient({
                 </div>
               </div>
             ) : null}
-            <button type="button" className="anatomime-primary-button" onClick={startNewGame}>
+            <AnatomimeActionButton type="button" intent="primary" onClick={startNewGame}>
               Play Again
-            </button>
+            </AnatomimeActionButton>
           </section>
         ) : null}
 

@@ -15,6 +15,8 @@ Use `/dev/buttons` as the development-only visual approval gate for the complete
 
 Review real hover, pressed, focus-visible, disabled, selected, compact, light/dark, reduced-motion, desktop, and phone behavior before approving a new contract or production migration.
 
+The Wellness anatomical map remains a deferred review-only specimen. Do not treat its current artwork or region geometry as approved production UI, and do not include it in S6-S9 rollout batches until a separate anatomy-focused review reopens it.
+
 ## Shared Contract Rule
 
 Build one shared authority per control family. Route code chooses intent rather than reconstructing mechanics.
@@ -55,6 +57,8 @@ Outline buttons keep the shared focus, disabled, press, and geometry contracts, 
 Use `components/ui/accelerating-step-button.tsx` for compact stepper actions that need immediate single steps, a larger quick double press, and accelerated one-step repetition while held. The Chimer duration specimen uses one-minute single/held steps and five-minute double presses.
 
 Tactile variants use `lib/press-feedback.ts`. Feedback respects disabled and `aria-disabled` states and the user's haptic opt-out.
+
+Production rollout status: S6 ordinary actions use shared Button directly or through thin semantic aliases. Chimer setup actions select the `setup` tone, Continue keeps the shared default face inside its always-on ring, Anatomime maps primary/secondary/destructive intent to shared default/outline/destructive variants with the `anatomime` tone, and pricing donations compose `tone="pricing"` with `effect="glowFlicker"`. Route classes may control only layout participation such as width or flex basis.
 
 ## Tabs, Segmented Controls, Toggles, And Switches
 
