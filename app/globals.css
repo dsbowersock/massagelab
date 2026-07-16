@@ -593,7 +593,6 @@
   }
 
   .ml-button-press-motion.ml-button-glow > * {
-    position: relative;
     z-index: 1;
   }
 
@@ -2636,6 +2635,33 @@
   }
 }
 
+/*
+ * Browsers without the View Transition API still reveal the new theme from
+ * the toggle's measured center instead of dropping to an unrelated crossfade.
+ */
+html[data-theme-transition-fallback="toggle-light"]::before {
+  content: "";
+  position: fixed;
+  left: var(--ml-theme-transition-x, 100%);
+  top: var(--ml-theme-transition-y, 0);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 0 0 150vmax var(--ml-theme-transition-fallback-color, Canvas);
+  pointer-events: none;
+  z-index: 2147483646;
+  transform: translate(-50%, -50%);
+  animation: ml-theme-toggle-fallback-reveal 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes ml-theme-toggle-fallback-reveal {
+  to {
+    width: 300vmax;
+    height: 300vmax;
+  }
+}
+
 @supports (view-transition-name: root) {
   html[data-theme-transition="toggle-light"]::view-transition-old(root),
   html[data-theme-transition="toggle-light"]::view-transition-new(root) {
@@ -2665,32 +2691,32 @@
 @keyframes ml-theme-toggle-light-on {
   from {
     clip-path: circle(0 at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(1.65) saturate(1.25) blur(14px);
+    filter: brightness(1.28) saturate(1.12);
   }
 
   55% {
-    filter: brightness(1.2) saturate(1.12) blur(4px);
+    filter: brightness(1.1) saturate(1.06);
   }
 
   to {
     clip-path: circle(150vmax at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(1) saturate(1) blur(0);
+    filter: brightness(1) saturate(1);
   }
 }
 
 @keyframes ml-theme-toggle-light-off {
   from {
     clip-path: circle(0 at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(0.72) saturate(0.92) blur(12px);
+    filter: brightness(0.84) saturate(0.94);
   }
 
   60% {
-    filter: brightness(0.86) saturate(0.96) blur(4px);
+    filter: brightness(0.92) saturate(0.97);
   }
 
   to {
     clip-path: circle(150vmax at var(--ml-theme-transition-x, 100%) var(--ml-theme-transition-y, 0));
-    filter: brightness(1) saturate(1) blur(0);
+    filter: brightness(1) saturate(1);
   }
 }
 
@@ -2700,7 +2726,7 @@
   }
 
   to {
-    filter: brightness(0.78) blur(0);
+    filter: brightness(0.84);
   }
 }
 

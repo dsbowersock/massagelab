@@ -6,7 +6,7 @@ Existing plans, audits, roadmaps, and checklists remain source evidence. Keep th
 
 ## 2026-07-16
 
-- Completed the S6 in-app Browser visual pass across Chimer, Anatomime, `/anatomime/join`, and pricing at desktop and 390x844 phone widths in light and dark themes. Shared action layouts had no horizontal overflow or console warnings. Pricing's nested donation labels needed an explicit foreground stacking context above the Glow sheen/flicker pseudo-elements; the shared fix preserves the approved dark Glow face and keeps Wellness deferred.
+- Completed the S6 in-app Browser visual pass across Chimer, Anatomime, `/anatomime/join`, and pricing at desktop and 390x844 phone widths in light and dark themes. Shared action layouts had no horizontal overflow or console warnings. Pricing's nested donation labels now sit above the Glow sheen/flicker pseudo-elements without forcing positioned theme-toggle children out of place. Follow-up Browser sampling confirmed the centered sun/moon and a clean page-wide light-on/light-off circle from the toggle after removing snapshot blur; an equivalent measured-origin fallback covers browsers without the View Transition API. The approved dark Glow face and deferred Wellness holdback remain unchanged.
 
 ## 2026-07-15
 

@@ -17,6 +17,24 @@ test("S6 ordinary action routes delegate to the shared Button family", async () 
   assert.match(anatomimeAlias, /<Button[\s\S]*tone="anatomime"/)
 })
 
+test("theme switching keeps a directional reveal without displacing Glow children", async () => {
+  const [themeSwitcher, globals] = await Promise.all([
+    read("components/theme-switcher-multi-button.tsx"),
+    read("app/globals.css"),
+  ])
+  const glowChildRule = globals.match(/\.ml-button-press-motion\.ml-button-glow > \* \{([^}]*)\}/)?.[1] ?? ""
+  const themeKeyframes = globals.slice(
+    globals.indexOf("@keyframes ml-theme-toggle-light-on"),
+    globals.indexOf("@media (max-width: 639px)"),
+  )
+
+  assert.match(themeSwitcher, /data-theme-transition-fallback/)
+  assert.match(globals, /@keyframes ml-theme-toggle-fallback-reveal/)
+  assert.match(glowChildRule, /z-index:\s*1/)
+  assert.doesNotMatch(glowChildRule, /position:/)
+  assert.doesNotMatch(themeKeyframes, /blur\(/)
+})
+
 test("Wellness anatomical map remains outside the production rollout", async () => {
   const plan = await read("docs/superpowers/plans/2026-07-15-sitewide-control-system-rollout-actions.md")
 

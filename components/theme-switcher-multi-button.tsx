@@ -43,10 +43,27 @@ export function ThemeSwitcherMultiButton({
   const resolvedTheme = useResolvedTheme()
   const rootRef = useRef<HTMLDivElement | null>(null)
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
+  const fallbackTransitionTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     setMounted(true)
+
+    return () => {
+      if (fallbackTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(fallbackTransitionTimeoutRef.current)
+      }
+    }
   }, [])
+
+  function cleanupTransitionState() {
+    document.documentElement.removeAttribute("data-theme-transition")
+    document.documentElement.removeAttribute("data-theme-transition-fallback")
+    document.documentElement.removeAttribute("data-theme-resolved-target")
+    document.documentElement.style.removeProperty("--ml-theme-transition-x")
+    document.documentElement.style.removeProperty("--ml-theme-transition-y")
+    document.documentElement.style.removeProperty("--ml-theme-transition-fallback-color")
+    transitionOriginRef.current = null
+  }
 
   function rememberTransitionOrigin(event: React.PointerEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -83,31 +100,50 @@ export function ThemeSwitcherMultiButton({
       applyThemeClass(themeMode)
     }
 
-    if (
-      typeof transitionDocument.startViewTransition !== "function"
-      || window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       updateTheme()
       return
     }
 
     const origin = getTransitionOrigin()
+    const root = document.documentElement
 
-    document.documentElement.style.setProperty("--ml-theme-transition-x", `${origin.x}px`)
-    document.documentElement.style.setProperty("--ml-theme-transition-y", `${origin.y}px`)
-    document.documentElement.setAttribute("data-theme-transition", "toggle-light")
-    document.documentElement.setAttribute("data-theme-resolved-target", nextResolvedTheme)
+    root.style.setProperty("--ml-theme-transition-x", `${origin.x}px`)
+    root.style.setProperty("--ml-theme-transition-y", `${origin.y}px`)
+    root.setAttribute("data-theme-resolved-target", nextResolvedTheme)
+
+    if (typeof transitionDocument.startViewTransition !== "function") {
+      const currentBackground = window
+        .getComputedStyle(root)
+        .getPropertyValue("--background")
+        .trim()
+
+      root.style.setProperty(
+        "--ml-theme-transition-fallback-color",
+        currentBackground ? `hsl(${currentBackground})` : "Canvas",
+      )
+      root.setAttribute("data-theme-transition-fallback", "toggle-light")
+      flushSync(updateTheme)
+
+      if (fallbackTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(fallbackTransitionTimeoutRef.current)
+      }
+
+      fallbackTransitionTimeoutRef.current = window.setTimeout(() => {
+        fallbackTransitionTimeoutRef.current = null
+        cleanupTransitionState()
+      }, 680)
+      return
+    }
+
+    root.setAttribute("data-theme-transition", "toggle-light")
 
     const transition = transitionDocument.startViewTransition(() => {
       flushSync(updateTheme)
     })
 
     void transition.finished.finally(() => {
-      document.documentElement.removeAttribute("data-theme-transition")
-      document.documentElement.removeAttribute("data-theme-resolved-target")
-      document.documentElement.style.removeProperty("--ml-theme-transition-x")
-      document.documentElement.style.removeProperty("--ml-theme-transition-y")
-      transitionOriginRef.current = null
+      cleanupTransitionState()
     })
   }
 
