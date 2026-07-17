@@ -366,7 +366,7 @@ test("Chimer keeps the mobile main bar and opens quick actions above the plus bu
   await expect(page.locator("body")).not.toHaveClass(/chimer-running/)
   await expect(mainBar).toBeVisible()
 
-  await page.getByRole("button", { name: /^1m$/i }).click()
+  await page.getByRole("button", { name: /^Increase minutes$/i }).click()
   await page.getByRole("button", { name: /^Continue$/i }).click()
   await page.getByRole("button", { name: /^Continue$/i }).click()
   await page.getByRole("button", { name: /^Continue$/i }).click()

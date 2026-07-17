@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test"
 
 test.describe("control-system review lab", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/dev/buttons")
+    const response = await page.goto("/dev/buttons")
+    test.skip(response?.status() === 404, "The control-system review lab is development-only.")
     await expect(page.getByRole("heading", { name: "Control system review", level: 1 })).toBeVisible()
     await page.waitForLoadState("networkidle")
     await expect(page.locator('[data-review-lab-ready="true"]')).toBeAttached()
