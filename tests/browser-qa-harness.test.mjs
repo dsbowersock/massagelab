@@ -68,5 +68,6 @@ test("browser QA harness is wired for public smoke, PWA, and local-first checks"
   assert.match(ciWorkflow, /AUTH_SECRET/)
   assert.match(ciWorkflow, /NEXTAUTH_SECRET/)
   assert.match(ciWorkflow, /npx playwright install --with-deps chromium/)
+  assert.match(ciWorkflow, /^permissions:\r?\n  contents: read$/m)
   assertWorkflowStepBefore(ciWorkflow, "npm run prisma:generate", "npm run typecheck")
 })

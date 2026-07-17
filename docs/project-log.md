@@ -4,6 +4,10 @@ This is the canonical chronological planning and progress log for MassageLab. Us
 
 Existing plans, audits, roadmaps, and checklists remain source evidence. Keep them for context, but mirror meaningful progress, plan changes, and priority changes in [project-state.md](project-state.md) and here.
 
+## 2026-07-17
+
+- Restricted the CI workflow token to explicit read-only repository access and added a workflow-contract regression assertion, resolving CodeQL's `actions/missing-workflow-permissions` finding without introducing a duplicate CodeQL workflow alongside GitHub's healthy default setup.
+
 ## 2026-07-16
 
 - Restored the shared animated site backdrop to the idle Chimer setup route while leaving active Clock/Chimer visual backgrounds route-owned, and moved the compact CTA Blue Clock Mode discovery action into the Session duration header. In-app Browser desktop review and a 390x844 Playwright fallback confirmed the open layout and phone wrapping without restoring the removed outer setup container.
