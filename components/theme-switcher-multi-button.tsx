@@ -36,6 +36,10 @@ const themes: Array<{
   { value: "dark", icon: MoonIcon, shortLabel: "Dark" },
 ]
 
+// Multiple shell layouts can mount theme controls concurrently, so only the
+// instance that started the newest transition may clear document-level state.
+let activeThemeTransitionOwner: symbol | null = null
+
 export function ThemeSwitcherMultiButton({
   className,
   ...props
@@ -47,14 +51,18 @@ export function ThemeSwitcherMultiButton({
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
   const fallbackTransitionTimeoutRef = useRef<number | null>(null)
   const activeTransitionRef = useRef<ThemeViewTransition | null>(null)
+  const transitionOwnerRef = useRef(Symbol("theme-switcher-transition-owner"))
 
   const cleanupTransitionState = useCallback(() => {
+    if (activeThemeTransitionOwner !== transitionOwnerRef.current) return
+
     document.documentElement.removeAttribute("data-theme-transition")
     document.documentElement.removeAttribute("data-theme-transition-fallback")
     document.documentElement.removeAttribute("data-theme-resolved-target")
     document.documentElement.style.removeProperty("--ml-theme-transition-x")
     document.documentElement.style.removeProperty("--ml-theme-transition-y")
     document.documentElement.style.removeProperty("--ml-theme-transition-fallback-color")
+    activeThemeTransitionOwner = null
     transitionOriginRef.current = null
   }, [])
 
@@ -62,12 +70,22 @@ export function ThemeSwitcherMultiButton({
     setMounted(true)
 
     return () => {
+      let managesTransition = false
+
       if (fallbackTransitionTimeoutRef.current !== null) {
         window.clearTimeout(fallbackTransitionTimeoutRef.current)
         fallbackTransitionTimeoutRef.current = null
+        managesTransition = true
       }
-      activeTransitionRef.current = null
-      cleanupTransitionState()
+
+      if (activeTransitionRef.current !== null) {
+        activeTransitionRef.current = null
+        managesTransition = true
+      }
+
+      if (managesTransition) {
+        cleanupTransitionState()
+      }
     }
   }, [cleanupTransitionState])
 
@@ -114,6 +132,7 @@ export function ThemeSwitcherMultiButton({
     const origin = getTransitionOrigin()
     const root = document.documentElement
 
+    activeThemeTransitionOwner = transitionOwnerRef.current
     root.style.setProperty("--ml-theme-transition-x", `${origin.x}px`)
     root.style.setProperty("--ml-theme-transition-y", `${origin.y}px`)
     root.setAttribute("data-theme-resolved-target", nextResolvedTheme)
