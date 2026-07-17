@@ -65,7 +65,7 @@ export function PlanOutlineClient() {
               <div className="h-full rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
             </div>
           </AppInset>
-          <Button type="button" variant="outline" onClick={resetOutline}>
+          <Button type="button" variant="secondary" onClick={resetOutline}>
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
             Reset outline
           </Button>

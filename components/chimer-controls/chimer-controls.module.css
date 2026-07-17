@@ -1040,6 +1040,15 @@
   scroll-snap-type: none;
 }
 
+.harmonyPreviewButton {
+  background: var(--ml-harmony-preview) !important;
+}
+
+.harmonyPreviewButton:disabled {
+  opacity: 0.72;
+  filter: saturate(0.78);
+}
+
 .harmonyIcon {
   width: clamp(1.75rem, 7vw, 2.15rem);
   height: auto;
@@ -1050,7 +1059,7 @@
 }
 
 .globalColorGrid {
-  grid-template-columns: repeat(6, minmax(2.5rem, 1fr));
+  grid-template-columns: repeat(5, minmax(2.5rem, 1fr));
   gap: 0.4rem;
 }
 

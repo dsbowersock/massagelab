@@ -21,8 +21,64 @@ interface BackgroundHostProps extends BackgroundEffectProps {
   selectedId?: BackgroundId | string | null
   featureKeys?: string[]
   category?: BackgroundCategory
+  /** Applies one resolved palette across every color-capable background effect. */
+  palette?: readonly string[]
   style?: CSSProperties
   testId?: string
+}
+
+const COLOR_OPTION_PATTERN = /(color|gradient|tint)/i
+const NON_COLOR_OPTION_PATTERN = /(balance|frequency|number|speed)/i
+
+/**
+ * Recolors heterogeneous background option objects without coupling the global
+ * picker to every individual effect implementation. Non-color settings retain
+ * their route-owned values, while color strings and color arrays consume the
+ * resolved palette in declaration order.
+ */
+export function applyPaletteToBackgroundEffects(
+  effectProps: BackgroundEffectProps,
+  palette: readonly string[] | undefined,
+): BackgroundEffectProps {
+  const resolvedPalette = palette?.filter((value) => value.trim().length > 0) ?? []
+  if (resolvedPalette.length === 0) {
+    return effectProps
+  }
+
+  let paletteIndex = 0
+  const nextColor = () => {
+    const color = resolvedPalette[paletteIndex % resolvedPalette.length]
+    paletteIndex += 1
+    return color
+  }
+
+  const applyPalette = (value: unknown, key: string): unknown => {
+    if (Array.isArray(value)) {
+      if (!COLOR_OPTION_PATTERN.test(key) || NON_COLOR_OPTION_PATTERN.test(key)) {
+        return value
+      }
+      return value.map((entry) => (typeof entry === "string" ? nextColor() : entry))
+    }
+
+    if (typeof value === "string") {
+      return COLOR_OPTION_PATTERN.test(key) && !NON_COLOR_OPTION_PATTERN.test(key)
+        ? nextColor()
+        : value
+    }
+
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([entryKey, entryValue]) => [
+          entryKey,
+          applyPalette(entryValue, entryKey),
+        ]),
+      )
+    }
+
+    return value
+  }
+
+  return applyPalette(effectProps, "") as BackgroundEffectProps
 }
 
 function usePrefersReducedMotion() {
@@ -44,6 +100,7 @@ export function BackgroundHost({
   selectedId,
   featureKeys = EMPTY_FEATURE_KEYS,
   category,
+  palette,
   className,
   mainColor,
   orbColor,
@@ -134,6 +191,85 @@ export function BackgroundHost({
   })
   const [BackgroundComponent, setBackgroundComponent] = useState<ComponentType<BackgroundEffectProps> | null>(null)
   const shouldLoadEffect = Boolean(entry.component && (!reduceMotion || entry.motionIntensity === "static"))
+  const effectProps = applyPaletteToBackgroundEffects({
+    mainColor,
+    orbColor,
+    sparkles,
+    gradientAnimation,
+    massageLabGradient,
+    massageLabHole,
+    massageLabStars,
+    massageLabLightSpeed,
+    massageLabElectricMist,
+    massageLabAstralFlow,
+    massageLabDeepSpaceNebula,
+    massageLabGridBloom,
+    massageLabChromeFlow,
+    massageLabWaveCurrent,
+    massageLabSynthesis,
+    massageLabFerrofluid,
+    massageLabLightfall,
+    massageLabLiquidEther,
+    massageLabPrism,
+    massageLabDarkVeil,
+    massageLabLightPillar,
+    massageLabSilk,
+    massageLabFloatingLines,
+    massageLabSideRays,
+    massageLabLightRays,
+    massageLabPixelBlast,
+    massageLabColorBends,
+    massageLabEvilEye,
+    massageLabLineWaves,
+    massageLabRadar,
+    massageLabSoftAurora,
+    massageLabPlasma,
+    massageLabPlasmaWave,
+    massageLabParticles,
+    massageLabGradientBlinds,
+    massageLabGrainient,
+    massageLabGridScan,
+    massageLabBeams,
+    massageLabPixelSnow,
+    massageLabLightning,
+    massageLabPrismaticBurst,
+    massageLabGalaxy,
+    massageLabDither,
+    massageLabFaultyTerminal,
+    massageLabRippleGrid,
+    massageLabDotField,
+    massageLabDotGrid,
+    massageLabThreads,
+    massageLabIridescence,
+    massageLabWaves,
+    massageLabGridDistortion,
+    massageLabOrb,
+    massageLabLetterGlitch,
+    massageLabGridMotion,
+    massageLabShapeGrid,
+    massageLabLiquidChrome,
+    massageLabBalatro,
+    massageLabNovatrix,
+    massageLabMatrixRain,
+    massageLabPhotonBeam,
+    massageLab3DGlobe,
+    massageLabRetroGrid,
+    massageLabAerialRays,
+    backgroundLines,
+    shootingStars,
+    canvasRevealDots,
+    spotlight,
+    lamp,
+    vortex,
+    wavy,
+    pixelLiquid,
+    tileGrid,
+    hexGrid,
+    auroraBars,
+  }, palette)
+  const paletteFallbackStyle = palette?.length
+    ? { background: `linear-gradient(135deg, ${palette.join(", ")})` }
+    : undefined
 
   useEffect(() => {
     let mounted = true
@@ -171,7 +307,10 @@ export function BackgroundHost({
       data-testid={testId}
       style={style}
     >
-      <div className={cn(styles.fallback, entry.fallbackClassName)} style={entry.fallbackStyle} />
+      <div
+        className={cn(styles.fallback, entry.fallbackClassName)}
+        style={{ ...entry.fallbackStyle, ...paletteFallbackStyle }}
+      />
       {BackgroundComponent ? (
         <BackgroundComponent
           mainColor={mainColor}
@@ -248,6 +387,7 @@ export function BackgroundHost({
           tileGrid={tileGrid}
           hexGrid={hexGrid}
           auroraBars={auroraBars}
+          {...effectProps}
         />
       ) : null}
     </div>

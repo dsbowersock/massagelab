@@ -5488,12 +5488,12 @@ describe("premium background registry", () => {
     }
   })
 
-  it("keeps selected visual backgrounds off the Chimer setup page", () => {
+  it("keeps selected visual backgrounds off setup while restoring the shared site backdrop", () => {
     const pageSource = readFileSync(new URL("../app/chimer/page.tsx", import.meta.url), "utf8")
     const runningSource = readFileSync(new URL("../app/chimer/running-timer.tsx", import.meta.url), "utf8")
 
     assert.doesNotMatch(pageSource, /<BackgroundHost/)
-    assert.doesNotMatch(pageSource, /<MovingBackground/)
+    assert.match(pageSource, /!isTimerActive[\s\S]*<MovingBackground[\s\S]*chimer-setup-moving-background/)
     assert.doesNotMatch(pageSource, /chimer-setup-background/)
     assert.match(runningSource, /<BackgroundHost/)
     assert.match(runningSource, /<MovingBackground/)

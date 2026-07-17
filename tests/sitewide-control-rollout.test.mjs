@@ -17,6 +17,45 @@ test("S6 ordinary action routes delegate to the shared Button family", async () 
   assert.match(anatomimeAlias, /<Button[\s\S]*tone="anatomime"/)
 })
 
+test("Chimer and Flashcards use the approved shared interaction hierarchy", async () => {
+  const [chimer, chimerPage, globals, flashcardPage, flashcardBuilder, flashcardRunner] = await Promise.all([
+    read("app/chimer/set-timer.tsx"),
+    read("app/chimer/page.tsx"),
+    read("app/globals.css"),
+    read("app/education/flashcards/page.tsx"),
+    read("app/education/flashcards/flashcard-setup-builder.tsx"),
+    read("app/education/flashcards/flashcard-runner.tsx"),
+  ])
+
+  assert.doesNotMatch(chimer, /QUICK_TIME_PRESETS_MINUTES|quickPresetGrid/)
+  assert.match(chimer, /<AcceleratingStepButton[\s\S]*step=\{1\}[\s\S]*doubleStep=\{5\}/)
+  assert.match(chimer, /CHIMER_SETUP_STEP_SHORT_NAMES/)
+  assert.doesNotMatch(chimer, /timerProofs|proofCarousel/)
+  assert.match(chimer, /<details className=\{styles\.presetRecall\}>/)
+  assert.match(chimer, /variant="ctaBlue"[\s\S]*size="compact"[\s\S]*Clock Mode/)
+  assert.match(chimer, /<div className=\{styles\.durationHeader\}>[\s\S]*Clock Mode/)
+  assert.match(chimerPage, /<MovingBackground[\s\S]*testId="chimer-setup-moving-background"/)
+  assert.match(globals, /\.metal-fx-root\.ml-metal-attention-root\[data-ml-metal-full-width="true"\]/)
+  assert.match(flashcardPage, /variant="secondary"[\s\S]*Browse starter decks/)
+  assert.match(flashcardBuilder, /variant="secondary"[\s\S]*Select exact items/)
+  assert.match(flashcardRunner, /variant="secondary"[\s\S]*Previous/)
+  assert.match(await read("app/education/flashcards/flashcards-client.tsx"), /variant="ctaBlue"[\s\S]*Previous community decks/)
+})
+
+test("Business Planner ordinary actions avoid the outline-only treatment", async () => {
+  const sources = await Promise.all([
+    read("app/tools/business-planner/break-even/break-even-planner-client.tsx"),
+    read("app/tools/business-planner/add-on-profit/add-on-profit-client.tsx"),
+    read("app/tools/business-planner/launch-checklist/launch-checklist-client.tsx"),
+    read("app/tools/business-planner/plan-outline/plan-outline-client.tsx"),
+    read("app/tools/business-planner/service-menu/service-menu-client.tsx"),
+  ])
+
+  for (const source of sources) {
+    assert.doesNotMatch(source, /variant="outline"/)
+  }
+})
+
 test("theme switching keeps a directional reveal without displacing Glow children", async () => {
   const [themeSwitcher, globals] = await Promise.all([
     read("components/theme-switcher-multi-button.tsx"),

@@ -3,18 +3,17 @@
 import {
   type FormEvent as ReactFormEvent,
   type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react"
-import { BellRing, Clock, MonitorSmartphone, Play, SlidersHorizontal } from "lucide-react"
+import { Clock, Minus, Play, Plus } from "lucide-react"
 import { BackgroundSelector } from "@/components/backgrounds/BackgroundSelector"
 import type { BackgroundCategory, BackgroundDefinition, BackgroundId } from "@/components/backgrounds/backgroundRegistry"
 import { Button } from "@/components/ui/button"
-import { PageHeading } from "@/components/ui/page-heading"
+import { AcceleratingStepButton } from "@/components/ui/accelerating-step-button"
 import { useSettings } from "@/components/providers/settings-provider"
 import { withChimerPress } from "@/lib/chimer-press-handler"
 import { CTAButton } from "@/components/chimer-controls/CTAButton"
@@ -39,7 +38,6 @@ export {
 const CHIMER_SETUP_PRESETS_STORAGE_KEY = "chimer-setup-presets-v1"
 const CHIMER_LAST_SETUP_STORAGE_KEY = "chimer-last-setup-v1"
 const MAX_CHIMER_SETUP_PRESETS = 12
-const QUICK_TIME_PRESETS_MINUTES = [1, 5, 10, 15, 20, 30, 45, 60] as const
 const CHIMER_SETUP_STEPS = [
   "Enter time",
   "Choose interval",
@@ -47,7 +45,13 @@ const CHIMER_SETUP_STEPS = [
   "Choose background",
   "Start timer",
 ] as const
-const INFO_CAROUSEL_SWIPE_THRESHOLD_PX = 42
+const CHIMER_SETUP_STEP_SHORT_NAMES = [
+  "Time",
+  "Interval",
+  "Alerts",
+  "Visual",
+  "Start",
+] as const
 const SYNC_NOTICE_EXIT_DURATION_MS = 420
 
 type ChimerSetupPresetState = Pick<
@@ -4672,24 +4676,6 @@ const ALERT_TYPE_OPTIONS: Array<{ value: ChimerSettings["alertType"]; label: str
 const SOUND_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["chime", "both", "chime-haptic", "all"])
 const HAPTIC_ALERT_TYPES = new Set<ChimerSettings["alertType"]>(["haptic", "chime-haptic", "flash-haptic", "all"])
 
-const timerProofs = [
-  {
-    title: "Treatment-room intervals",
-    description: "Set a massage session length and choose preset, custom, or body-area alert pacing.",
-    icon: BellRing,
-  },
-  {
-    title: "Full-screen clock mode",
-    description: "Switch from a session timer to a simple clock when visibility matters more than alerts.",
-    icon: MonitorSmartphone,
-  },
-  {
-    title: "Device-first settings",
-    description: "Use Chimer locally, then sign in when you want favorite timer settings to sync.",
-    icon: SlidersHorizontal,
-  },
-] as const
-
 const NATIVE_RANGE_FILL_STYLE_PROPERTY = "--ml-native-range-fill"
 
 /**
@@ -4748,7 +4734,6 @@ export function SetTimer({
   const [selectedPresetId, setSelectedPresetId] = useState("")
   const [newPresetName, setNewPresetName] = useState("")
   const [skipIntervalCues, setSkipIntervalCues] = useState(false)
-  const [activeProofIndex, setActiveProofIndex] = useState(0)
   const { settings: appShellSettings } = useSettings()
   const [syncNoticeDismissed, setSyncNoticeDismissed] = useState(false)
   const [isSyncNoticeExiting, setIsSyncNoticeExiting] = useState(false)
@@ -4756,7 +4741,6 @@ export function SetTimer({
   const syncNoticeExitTimerRef = useRef<number | null>(null)
   const containerRef = useRef<HTMLElement | null>(null)
   const nativeRangeInputSyncedRef = useRef(false)
-  const proofSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const isTimerSet = totalDurationMs > 0
   const withPress = (handler: () => void) => withChimerPress(handler, { hapticsEnabled })
   const setupPresetState = useMemo(() => createChimerSetupPresetState(settings, skipIntervalCues), [settings, skipIntervalCues])
@@ -4807,56 +4791,6 @@ export function SetTimer({
       syncNativeRangeFill(target)
       nativeRangeInputSyncedRef.current = true
     }
-  }, [])
-
-  const moveProofCarousel = useCallback((direction: 1 | -1) => {
-    setActiveProofIndex((current) => (current + direction + timerProofs.length) % timerProofs.length)
-  }, [])
-
-  useEffect(() => {
-    // Reset the autoplay delay after dot taps or swipe navigation.
-    const interval = window.setInterval(() => {
-      moveProofCarousel(1)
-    }, 5500)
-
-    return () => window.clearInterval(interval)
-  }, [activeProofIndex, moveProofCarousel])
-
-  const handleProofCarouselPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse") {
-      return
-    }
-
-    proofSwipeStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-    }
-  }, [])
-
-  const handleProofCarouselPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const swipeStart = proofSwipeStartRef.current
-    proofSwipeStartRef.current = null
-    if (!swipeStart) {
-      return
-    }
-
-    const deltaX = event.clientX - swipeStart.x
-    const deltaY = event.clientY - swipeStart.y
-    const isHorizontalSwipe =
-      Math.abs(deltaX) >= INFO_CAROUSEL_SWIPE_THRESHOLD_PX
-      && Math.abs(deltaX) > Math.abs(deltaY) * 1.35
-
-    if (!isHorizontalSwipe) {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-    moveProofCarousel(deltaX > 0 ? -1 : 1)
-  }, [moveProofCarousel])
-
-  const handleProofCarouselPointerCancel = useCallback(() => {
-    proofSwipeStartRef.current = null
   }, [])
 
   const clearSyncNoticeTimers = useCallback(() => {
@@ -4981,12 +4915,21 @@ export function SetTimer({
     })
   }
 
-  const setQuickDuration = (totalMinutes: number) => {
-    const safeMinutes = Math.max(1, Math.min(240, totalMinutes))
-    const nextHours = Math.floor(safeMinutes / 60)
-    const nextMinutes = safeMinutes % 60
-    onSettingsChange({ hours: nextHours, minutes: nextMinutes })
-  }
+  const durationSettingsRef = useRef({ hours: settings.hours, minutes: settings.minutes })
+
+  useEffect(() => {
+    durationSettingsRef.current = { hours: settings.hours, minutes: settings.minutes }
+  }, [settings.hours, settings.minutes])
+
+  /** Keeps accelerated hold updates monotonic even while parent settings rerender. */
+  const stepDurationPart = useCallback((unit: "hours" | "minutes", amount: number) => {
+    const maximum = unit === "hours" ? 23 : 59
+    const current = durationSettingsRef.current
+    const nextValue = Math.min(maximum, Math.max(0, current[unit] + amount))
+
+    durationSettingsRef.current = { ...current, [unit]: nextValue }
+    onSettingsChange({ [unit]: nextValue })
+  }, [onSettingsChange])
 
   const stepIntervalMode = skipIntervalCues ? "none" : settings.intervalType
   const selectedAlertUsesSound = SOUND_ALERT_TYPES.has(settings.alertType)
@@ -16002,14 +15945,9 @@ export function SetTimer({
     <section
       ref={containerRef}
       className={styles.container}
-      aria-labelledby="chimer-heading"
+      aria-label="Chimer setup"
       onInput={handleNativeRangeInput}
     >
-      <div className={styles.header}>
-        <PageHeading>Chimer</PageHeading>
-        <p className={styles.subtitle}>Massage session timer for treatment pacing, interval chimes, and full-screen clock visibility.</p>
-      </div>
-
       {shouldShowSyncNotice && !syncNoticeDismissed && (
         <div
           className={`${styles.syncNotice} ${isSyncNoticeExiting ? styles.syncNoticeExiting : ""}`}
@@ -16039,54 +15977,6 @@ export function SetTimer({
         </div>
       )}
 
-      <div
-        className={styles.proofCarousel}
-        aria-label="Chimer massage session timer features"
-        onPointerDown={handleProofCarouselPointerDown}
-        onPointerUp={handleProofCarouselPointerUp}
-        onPointerCancel={handleProofCarouselPointerCancel}
-      >
-        {timerProofs.map((proof, proofIndex) => {
-          const Icon = proof.icon
-          const active = proofIndex === activeProofIndex
-
-          return (
-            <div key={proof.title} className={styles.proofSlide} hidden={!active} aria-hidden={!active}>
-              <div className={styles.proofCard}>
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                <div>
-                  <p className={styles.proofTitle}>{proof.title}</p>
-                  <p className={styles.proofDescription}>{proof.description}</p>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-        <div className={styles.proofDots} aria-label="Chimer feature slides">
-          {timerProofs.map((proof, proofIndex) => (
-            <button
-              key={proof.title}
-              type="button"
-              className={styles.proofDot}
-              data-active={proofIndex === activeProofIndex ? "true" : "false"}
-              aria-label={`Chimer detail slide ${proofIndex + 1}`}
-              aria-current={proofIndex === activeProofIndex}
-              onClick={() => setActiveProofIndex(proofIndex)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <CTAButton
-        type="button"
-        variant="cta"
-        className={styles.clockModeCtaButton}
-        pressFeedback={false}
-        onClick={withPress(onStartClock)}
-      >
-        <Clock className="h-5 w-5" />
-        Clock Mode
-      </CTAButton>
 
       <div className={styles.stepper}>
         <div className={styles.stepHeader}>
@@ -16103,7 +15993,7 @@ export function SetTimer({
               onClick={withPress(() => setActiveStep(stepIndex))}
             >
               <span className={styles.stepIndex}>{stepIndex + 1}</span>
-              <span className={styles.stepName}>{stepName}</span>
+              <span className={styles.stepName}>{CHIMER_SETUP_STEP_SHORT_NAMES[stepIndex]}</span>
             </button>
           ))}
         </div>
@@ -16118,49 +16008,65 @@ export function SetTimer({
           </span>
         </div>
 
-        <div className={styles.presetSelection}>
-          <label className={styles.formGroup} htmlFor="chimer-setup-presets">
-            <span>Saved setups</span>
-            <select
-              id="chimer-setup-presets"
-              value={selectedPresetId}
-              onChange={(event) => setSelectedPresetId(event.target.value)}
-            >
-              <option value="">Select a saved setup</option>
-              {savedPresets.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className={styles.presetSelectRow}>
-            <Button
-              type="button"
-              tone="setup"
-              className="w-full"
-              onClick={applySelectedPreset}
-              disabled={!selectedPreset}
-            >
-              Apply selected
-            </Button>
-            <Button
-              type="button"
-              tone="setup"
-              className="w-full"
-              onClick={loadLastSetup}
-              disabled={!lastSetupPreset}
-            >
-              Use last setup
-            </Button>
+        <details className={styles.presetRecall}>
+          <summary className={styles.presetDisclosureSummary}>Saved setups</summary>
+          <div className={styles.presetControls}>
+            <label className={`${styles.formGroup} ${styles.presetSelectField}`} htmlFor="chimer-setup-presets">
+              <span className="sr-only">Saved setup</span>
+              <select
+                id="chimer-setup-presets"
+                value={selectedPresetId}
+                onChange={(event) => setSelectedPresetId(event.target.value)}
+              >
+                <option value="">Select a saved setup</option>
+                {savedPresets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className={styles.presetSelectRow}>
+              <Button
+                type="button"
+                tone="setup"
+                size="compact"
+                onClick={applySelectedPreset}
+                disabled={!selectedPreset}
+              >
+                Apply
+              </Button>
+              <Button
+                type="button"
+                tone="setup"
+                size="compact"
+                onClick={loadLastSetup}
+                disabled={!lastSetupPreset}
+              >
+                Use last
+              </Button>
+            </div>
           </div>
-        </div>
+        </details>
 
         <div className={styles.stepContent}>
           {activeStep === 0 && (
             <div>
               <div className={styles.formGroup}>
-                <span>Session duration</span>
+                <div className={styles.durationHeader}>
+                  <span>Session duration</span>
+                  <CTAButton
+                    type="button"
+                    variant="ctaBlue"
+                    size="compact"
+                    className={styles.clockModeCtaButton}
+                    pressFeedback={false}
+                    onClick={withPress(onStartClock)}
+                  >
+                    <Clock aria-hidden="true" />
+                    Clock Mode
+                  </CTAButton>
+                </div>
                 <div
                   className={styles.clock}
                   role="group"
@@ -16188,20 +16094,60 @@ export function SetTimer({
                   </button>
                 </div>
               </div>
-              <p className={styles.presetSummary}>
-                {`Total length: ${formatDurationMinutes(settings.hours, settings.minutes)}`}
+              <p className={styles.durationHint}>
+                Select the timer digits directly, or fine-tune the duration below.
               </p>
-              <div className={styles.quickPresetGrid}>
-                {QUICK_TIME_PRESETS_MINUTES.map((minutes) => (
-                  <button
-                    key={minutes}
+              <div className={styles.durationStepperGrid}>
+                <div className={styles.durationStepperGroup}>
+                  <span>Hours</span>
+                  <div className={styles.durationStepperActions}>
+                    <Button
                     type="button"
-                    className={`${styles.setupInlineButton} ${styles.tactileButton} ${styles.setupButton}`}
-                    onClick={withPress(() => setQuickDuration(minutes))}
-                  >
-                    {minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`}
-                  </button>
-                ))}
+                      size="compact"
+                      tone="setup"
+                      aria-label="Decrease hours"
+                      onClick={() => stepDurationPart("hours", -1)}
+                    >
+                      <Minus aria-hidden="true" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="compact"
+                      tone="setup"
+                      aria-label="Increase hours"
+                      onClick={() => stepDurationPart("hours", 1)}
+                    >
+                      <Plus aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+                <div className={styles.durationStepperGroup}>
+                  <span>Minutes</span>
+                  <div className={styles.durationStepperActions}>
+                    <AcceleratingStepButton
+                      type="button"
+                      size="compact"
+                      tone="setup"
+                      step={-1}
+                      doubleStep={-5}
+                      aria-label="Decrease minutes"
+                      onStep={(amount) => stepDurationPart("minutes", amount)}
+                    >
+                      <Minus aria-hidden="true" />
+                    </AcceleratingStepButton>
+                    <AcceleratingStepButton
+                      type="button"
+                      size="compact"
+                      tone="setup"
+                      step={1}
+                      doubleStep={5}
+                      aria-label="Increase minutes"
+                      onStep={(amount) => stepDurationPart("minutes", amount)}
+                    >
+                      <Plus aria-hidden="true" />
+                    </AcceleratingStepButton>
+                  </div>
+                </div>
               </div>
             </div>
           )}

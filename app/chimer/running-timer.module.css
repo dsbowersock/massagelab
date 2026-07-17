@@ -534,7 +534,7 @@
   width: 100%;
   min-height: 2.75rem;
   height: auto;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.25rem;
   padding: 0.28rem;
   border: 1px solid hsl(var(--foreground) / 0.1);
@@ -589,6 +589,11 @@
   padding-top: 0.05rem;
 }
 
+.globalColorModeControls {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .settingsSectionHeader {
   display: flex;
   align-items: center;
@@ -602,8 +607,8 @@
 .settingsPill {
   flex: 0 0 auto;
   border-radius: 999px;
-  background: hsl(var(--brand-orange) / 0.18);
-  color: hsl(var(--brand-orange-soft));
+  background: hsl(var(--button-orange-edge) / 0.18);
+  color: hsl(var(--button-orange-edge));
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;

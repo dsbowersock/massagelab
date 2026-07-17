@@ -42,6 +42,8 @@ export interface GlobalColorPickerProps {
   saveButtonLabel?: string
   className?: string
   disabled?: boolean
+  /** Limits direct editing while still showing the complete resolved palette. */
+  editableFields?: readonly GlobalColorFieldName[]
 }
 
 export interface ColorPickerSwatchProps {
@@ -65,7 +67,6 @@ const COLOR_FIELDS = [
   { key: "accent", label: "Color 3" },
   { key: "ctaStart", label: "Color 4" },
   { key: "ctaEnd", label: "Color 5" },
-  { key: "background", label: "Color 6" },
 ] as const
 
 const DEFAULT_PALETTE_NAME = "Saved palette"
@@ -553,6 +554,7 @@ export function GlobalColorPicker({
   saveButtonLabel = "Save palette",
   className,
   disabled,
+  editableFields,
 }: GlobalColorPickerProps) {
   const componentId = useId()
   const [draftColors, setDraftColors] = useState(value)
@@ -601,7 +603,7 @@ export function GlobalColorPicker({
             label={field.label}
             value={draftColors[field.key]}
             fallback={value[field.key]}
-            disabled={disabled}
+            disabled={disabled || (editableFields ? !editableFields.includes(field.key) : false)}
             onChange={(nextColor) => commitFieldColor(field.key, nextColor)}
           />
         ))}

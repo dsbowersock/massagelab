@@ -149,11 +149,11 @@ export function ServiceMenuClient() {
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={addService}>
+              <Button type="button" variant="secondary" onClick={addService}>
                 <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                 Add service
               </Button>
-              <Button type="button" variant="outline" onClick={resetWorksheet}>
+              <Button type="button" variant="secondary" onClick={resetWorksheet}>
                 <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
                 Reset worksheet
               </Button>

@@ -54,6 +54,10 @@ Current Glow review correction: the light-theme face uses translucent orange lay
 
 Outline buttons keep the shared focus, disabled, press, and geometry contracts, but their content remains flat: do not apply tactile inset text shadows or icon filters. Light-mode Glow may use a stronger orange halo for contrast against bright surfaces without changing the protected dark-mode face or halo. Metal attention wrappers must fit the emphasized child rather than inherit grid-row height. Quick-create uses shared Default in both shell bars, and the theme control belongs at the outer edge opposite the configured sidebar.
 
+Use Outline only when the visible border communicates a deliberately quiet physical action, such as an alternate authentication provider, retry/back utility, or low-priority roadmap link. Ordinary secondary actions—including Flashcard setup, browse, deck, previous/next, and review actions—use the filled shared Secondary face so changing Outline's material does not silently erase hierarchy.
+
+Business Planner add-row and reset-worksheet actions are ordinary secondary physical actions. They use the filled Secondary family rather than Outline; destructive row deletion remains destructive or icon utility according to context.
+
 Use `components/ui/accelerating-step-button.tsx` for compact stepper actions that need immediate single steps, a larger quick double press, and accelerated one-step repetition while held. The Chimer duration specimen uses one-minute single/held steps and five-minute double presses.
 
 Tactile variants use `lib/press-feedback.ts`. Feedback respects disabled and `aria-disabled` states and the user's haptic opt-out.
@@ -92,10 +96,12 @@ Use the shared Chimer color-control exports until a thinner `components/ui/color
 
 - `ColorPickerInput` for controlled color values.
 - `ColorPickerSwatch` for standalone swatch editing.
-- `GlobalColorPicker` for multi-color palettes and the Harmony picker. Harmony icon choices use responsive individual CTA Blue buttons rather than a segmented track; the selected family uses the shared Attention face and fitted metal ring. Palette swatches share one six-color row without individual card containers.
+- `GlobalColorPicker` for multi-color palettes and the Harmony picker. Harmony icon choices use responsive individual buttons rather than a segmented track. Each button previews the palette its family derives from the current primary color; the selected family still uses the shared fitted metal ring. Palette swatches share one five-color row without individual card containers.
 - `ColorPickerFormInput` when a native form needs a named hidden value.
 
 Color controls pass explicit strings through `value` and `onValueChange` or `onChange`. Do not synthesize native input events.
+
+Clock/Chimer Global Colors has two explicit modes. Custom unlocks the five visible creative swatches. Harmony unlocks only Primary and derives the other four visible swatches from the selected family; derived controls remain visible but disabled. The harmony-family buttons remain visible in Custom mode but disabled, retaining their primary-derived palette previews so the user can compare the result before switching modes. `background` and `foreground` remain persisted semantic neutral/stroke channels rather than editable creative swatches. The resolved five-color creative palette is authoritative at `BackgroundHost` for every color-capable selected background, including reduced-motion fallbacks, while non-color settings such as speed, density, geometry, and interaction remain background-specific. Persist only valid six-digit hex channels.
 
 ## Selectable Cards
 
@@ -132,6 +138,7 @@ Do not add hover-only lift or haptics. Press, release, keyboard activation, and 
 Route ownership is structural, not a license to duplicate normal-control styling.
 
 - Chimer immersive layout, specialized picker internals, dense calendar placement, gameplay objects, and local-first clinical form layout may remain route-owned where their structure is genuinely specialized.
+- Chimer setup may use an open route layout without a route-wide card when its step content already supplies the necessary grouping. The idle setup keeps the shared animated site backdrop, while active Clock/Chimer visual backgrounds remain route-owned. Shared controls still own their individual geometry and mechanics.
 - Booking choices use `SelectableCard`; dense admin controls use shared field/select/toggle/button families.
 - Drawer rows remain in the sidebar family while they have no non-shell consumer.
 - Flashcard informational-carousel pagination dots remain unchanged.

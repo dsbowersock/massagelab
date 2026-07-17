@@ -745,7 +745,7 @@
     display: none;
   }
 
-  .ml-metal-attention-root[data-ml-metal-full-width="true"],
+  .metal-fx-root.ml-metal-attention-root[data-ml-metal-full-width="true"],
   .ml-metal-attention-root[data-ml-metal-full-width="true"] .metal-fx-content,
   .ml-metal-attention-root[data-ml-metal-full-width="true"] .ml-metal-attention-button {
     justify-self: stretch;

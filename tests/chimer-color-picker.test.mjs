@@ -10,6 +10,14 @@ const runningTimerSource = await readFile(
   new URL("../app/chimer/running-timer.tsx", import.meta.url),
   "utf8",
 )
+const backgroundHostSource = await readFile(
+  new URL("../components/backgrounds/BackgroundHost.tsx", import.meta.url),
+  "utf8",
+)
+const harmonySource = await readFile(
+  new URL("../components/chimer-controls/HarmonyToggleGroup.tsx", import.meta.url),
+  "utf8",
+)
 const setTimerSource = await readFile(
   new URL("../app/chimer/set-timer.tsx", import.meta.url),
   "utf8",
@@ -63,4 +71,19 @@ test("calendar forms submit the shared picker value without restoring a native c
   assert.match(formPickerSource, /onValueChange=\{setValue\}/)
   assert.match(serviceFormSource, /<ColorPickerFormInput/)
   assert.doesNotMatch(serviceFormSource, /type="color"/)
+})
+
+test("global palette mode locks derived colors and serializes valid hex channels", () => {
+  assert.match(pickerSource, /editableFields\?: readonly GlobalColorFieldName\[\]/)
+  assert.match(runningTimerSource, /onCheckedChange=\{handleGlobalCustomColorToggle\}/)
+  assert.match(runningTimerSource, /editableFields=\{globalHarmony === "custom" \? undefined : \["primary"\]\}/)
+  assert.match(runningTimerSource, /toString\(16\)\.padStart\(2, "0"\)/)
+  assert.doesNotMatch(runningTimerSource, /toString\(16\)\.slice\(-2\)/)
+  assert.match(runningTimerSource, /palette=\{getPaletteColorsFromGlobalValues\(globalColors\)\}/)
+  assert.match(backgroundHostSource, /function applyPaletteToBackgroundEffects/)
+  assert.match(backgroundHostSource, /<BackgroundComponent[\s\S]*\{\.\.\.effectProps\}/)
+  assert.doesNotMatch(pickerSource, /\{ key: "background", label: "Color 6" \}/)
+  assert.match(runningTimerSource, /previewColors=\{harmonyPreviewColors\}/)
+  assert.match(runningTimerSource, /disabled=\{globalHarmony === "custom"\}/)
+  assert.match(harmonySource, /--ml-harmony-preview/)
 })

@@ -37,7 +37,7 @@ export default async function EducationFlashcardsPage() {
               Build a sourced anatomy deck, practice immediately in the browser, and save mastery progress when you are signed in.
             </p>
           </div>
-          <Button asChild variant="outline" className="w-full lg:w-auto">
+          <Button asChild variant="secondary" className="w-full lg:w-auto">
             <Link href="/education/flashcards/decks">Browse starter decks</Link>
           </Button>
         </div>

@@ -37,6 +37,7 @@ export interface HarmonyToggleGroupProps {
   value: ChimerHarmonyValue
   onChange: (value: ChimerHarmonyValue) => void
   options?: readonly ChimerHarmonyOption[]
+  previewColors?: Partial<Record<ChimerHarmonyValue, readonly string[]>>
   disabled?: boolean
   description?: string
   embedded?: boolean
@@ -59,6 +60,7 @@ export function HarmonyToggleGroup({
   value,
   onChange,
   options,
+  previewColors,
   disabled,
   description,
   embedded,
@@ -88,12 +90,18 @@ export function HarmonyToggleGroup({
         <div className={styles.harmonyList} role="group" aria-label={label + " options"}>
           {activeOptions.map((option, index) => {
             const isSelected = option.value === value
+            const optionPreview = previewColors?.[option.value]
+            const previewStyle = optionPreview?.length
+              ? { "--ml-harmony-preview": `linear-gradient(135deg, ${optionPreview.join(", ")})` } as React.CSSProperties
+              : undefined
             const button = (
               <Button
                 ref={optionRefs[index]}
                 type="button"
                 variant={isSelected ? "attention" : "ctaBlue"}
                 size="icon"
+                className={cn(optionPreview?.length && styles.harmonyPreviewButton)}
+                style={previewStyle}
                 aria-label={option.label}
                 aria-pressed={isSelected}
                 disabled={disabled}

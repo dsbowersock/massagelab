@@ -134,11 +134,11 @@ export function AddOnProfitClient() {
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={addProduct}>
+            <Button type="button" variant="secondary" onClick={addProduct}>
               <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
               Add row
             </Button>
-            <Button type="button" variant="outline" onClick={resetWorksheet}>
+            <Button type="button" variant="secondary" onClick={resetWorksheet}>
               <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
               Reset worksheet
             </Button>

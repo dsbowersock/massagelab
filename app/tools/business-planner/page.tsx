@@ -9,7 +9,7 @@ import {
   PackagePlus,
   type LucideIcon,
 } from "lucide-react"
-import { AppActionLink, AppInset, AppPageShell, AppSurface, appCalloutClassName } from "@/components/ui/app-surface"
+import { AppActionLink, AppPageShell, AppSurface } from "@/components/ui/app-surface"
 import { BUSINESS_PLAN_TOOL_ROUTES } from "@/lib/business-plan-template-tools"
 import { createPublicPageMetadata } from "@/lib/seo"
 
@@ -27,28 +27,6 @@ const toolIcons = {
 export default function BusinessPlannerHubPage() {
   return (
     <AppPageShell width="wide" contentClassName="gap-6">
-      <AppSurface
-        title="Business Planner"
-        description="Massage business planning tools for students, therapists, educators, and small practice owners."
-        icon={<BriefcaseBusiness className="h-5 w-5" aria-hidden="true" />}
-        badge="Public tools"
-        className={appCalloutClassName}
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <AppInset className="p-3">
-            <p className="text-xs uppercase tracking-normal text-muted-foreground">Live tools</p>
-            <p className="mt-1 text-lg font-semibold">{BUSINESS_PLAN_TOOL_ROUTES.length}</p>
-          </AppInset>
-          <AppInset className="p-3">
-            <p className="text-xs uppercase tracking-normal text-muted-foreground">Saved Work</p>
-            <p className="mt-1 text-lg font-semibold">Browser worksheets</p>
-          </AppInset>
-          <AppInset className="p-3">
-            <p className="text-xs uppercase tracking-normal text-muted-foreground">Boundary</p>
-            <p className="mt-1 text-lg font-semibold">Business data only</p>
-          </AppInset>
-        </div>
-      </AppSurface>
 
       <section aria-labelledby="business-tools-heading" className="space-y-3">
         <div>
