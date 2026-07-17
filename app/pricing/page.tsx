@@ -80,7 +80,10 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                 <Button
                   type="submit"
                   variant="glow"
-                  className="ml-button-glow-neon-flicker h-full w-full py-4 text-lg font-semibold"
+                  tone="pricing"
+                  effect="glowFlicker"
+                  size="lg"
+                  className="h-full w-full"
                   style={{
                     "--ml-neon-flicker-delay": `${index * 0.65}s`,
                   } as CSSProperties}

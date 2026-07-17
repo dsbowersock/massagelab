@@ -36,6 +36,9 @@ const loaderExamples = [
     color: "hsl(var(--button-cta-face))",
   },
 ]
+const buttonLoaderSize = 18
+const buttonLoaderShapes = ["sphere", "swirl", "ripple"] as const
+
 
 export function LoaderGallery() {
   return (
@@ -45,7 +48,7 @@ export function LoaderGallery() {
           Indeterminate loader
         </h2>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Use the dithered sphere for waits with no meaningful completion value. Keep skeletons and progress bars when they explain more.
+          Omit the shape to choose Sphere, Swirl, or Ripple randomly for each default wait. Fixed shapes remain available when a context needs consistency.
         </p>
       </div>
 
@@ -75,6 +78,36 @@ export function LoaderGallery() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="grid gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Button-sized shapes
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {buttonLoaderShapes.map((shape) => (
+                  <Button
+                    key={shape}
+                    aria-busy="true"
+                    disabled
+                    size="compact"
+                    className="disabled:opacity-100"
+                  >
+                    <Loader
+                      aria-hidden="true"
+                      label={shape + " button loader"}
+                      shape={shape}
+                      variant="dither"
+                      size={buttonLoaderSize}
+                      color="currentColor"
+                    />
+                    {shape.charAt(0).toUpperCase() + shape.slice(1)}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Each fixed shape has a mini treatment; omit shape in real loading buttons to randomize it.
+              </p>
             </div>
 
             <div>
@@ -146,7 +179,6 @@ export function LoaderGallery() {
               <Loader
                 aria-hidden="true"
                 label="Saving"
-                shape="sphere"
                 variant="dither"
                 size={18}
                 color="currentColor"

@@ -33,8 +33,19 @@ const buttonVariants = cva(
         ghost: "ml-button-ghost",
         link: "ml-button-link",
       },
+      tone: {
+        default: "",
+        setup: "ml-button-tone-setup",
+        anatomime: "ml-button-tone-anatomime",
+        pricing: "ml-button-tone-pricing",
+      },
+      effect: {
+        none: "",
+        glowFlicker: "ml-button-glow-neon-flicker",
+      },
       size: {
         default: "h-10 px-4 py-2",
+        compact: "h-8 rounded-md px-3 text-xs",
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
         icon: "h-10 w-10",
@@ -42,6 +53,8 @@ const buttonVariants = cva(
     },
     defaultVariants: {
       variant: "default",
+      tone: "default",
+      effect: "none",
       size: "default",
     },
   }
@@ -103,6 +116,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({
     className,
     variant,
+    tone,
+    effect,
     size,
     asChild = false,
     disabled,
@@ -324,7 +339,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     return (
       <Comp
-        className={cn(buttonVariants({ variant: resolvedVariant, size, className }))}
+        className={cn(buttonVariants({ variant: resolvedVariant, tone, effect, size, className }))}
         ref={ref}
         disabled={disabled}
         aria-disabled={ariaDisabled}

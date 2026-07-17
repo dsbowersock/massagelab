@@ -15,7 +15,7 @@ import {
   Settings2,
 } from "lucide-react"
 import { useCalendarOperatorToolbarSlot } from "@/components/calendar/calendar-operator-toolbar-context"
-import { useSettings } from "@/components/providers/settings-provider"
+import { useResolvedTheme, useSettings } from "@/components/providers/settings-provider"
 import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { useSidebarCalendarContext } from "@/components/sidebar/sidebar-calendar-provider"
 import { ThemeSwitcherMultiButton } from "@/components/theme-switcher-multi-button"
@@ -229,7 +229,7 @@ function CalendarDrawerButton({
         <TooltipTrigger asChild>
           <Button
             type="button"
-            variant={hasActionableRequests ? "secondary" : "outline"}
+            variant="ctaBlue"
             size="icon"
             className="relative h-10 w-10 shrink-0"
             aria-label="Open calendar"
@@ -349,6 +349,7 @@ export function CalendarOperatorTopBar({
 }) {
   const pathname = usePathname() ?? "/"
   const { settings } = useSettings()
+  const resolvedTheme = useResolvedTheme()
   const { renderMode, state, toggleSidebar } = useSidebar()
   const headerRef = useRef<HTMLElement | null>(null)
   const primaryRowRef = useRef<HTMLDivElement | null>(null)
@@ -436,7 +437,7 @@ export function CalendarOperatorTopBar({
       <TooltipTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant={resolvedTheme === "dark" ? "glow" : "default"}
           size="icon"
           data-sidebar-control="true"
           onClick={toggleSidebar}
@@ -458,7 +459,7 @@ export function CalendarOperatorTopBar({
       <TooltipTrigger asChild>
         <Button
           asChild
-          variant={pathname === "/music" ? "secondary" : "outline"}
+          variant="ctaBlue"
           size="icon"
           className="h-10 w-10 shrink-0"
         >
@@ -475,7 +476,7 @@ export function CalendarOperatorTopBar({
       <TooltipTrigger asChild>
         <Button
           asChild
-          variant={pathname === "/clock" ? "secondary" : "outline"}
+          variant="ctaBlue"
           size="icon"
           className="h-10 w-10 shrink-0"
         >
@@ -493,7 +494,7 @@ export function CalendarOperatorTopBar({
         <Button
           ref={quickActionButtonRef}
           type="button"
-          variant="secondary"
+          variant="default"
           size="icon"
           className="h-10 w-10 shrink-0"
           data-quick-action-trigger="true"
@@ -509,11 +510,12 @@ export function CalendarOperatorTopBar({
   )
   const oppositeControls = (
     <div className="flex shrink-0 items-center gap-1 min-[361px]:gap-2">
-      <ThemeSwitcherMultiButton />
+      {sidebarIsRight ? <ThemeSwitcherMultiButton /> : null}
       {quickActionControl}
       {musicControl}
       {clockControl}
       {calendarControl}
+      {!sidebarIsRight ? <ThemeSwitcherMultiButton /> : null}
     </div>
   )
 

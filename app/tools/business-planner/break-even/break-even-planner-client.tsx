@@ -164,7 +164,7 @@ export function BreakEvenPlannerClient() {
                 onChange={(value) => updateTopLevel("taxSetAsideRate", value)}
               />
             </div>
-            <Button type="button" variant="outline" className="w-fit" onClick={resetWorksheet}>
+            <Button type="button" variant="secondary" className="w-fit" onClick={resetWorksheet}>
               <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
               Reset worksheet
             </Button>
@@ -269,7 +269,7 @@ function MoneySection({
           </div>
         ))}
       </div>
-      <Button type="button" variant="outline" className="w-fit" onClick={() => onAdd(section)}>
+      <Button type="button" variant="secondary" className="w-fit" onClick={() => onAdd(section)}>
         <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
         Add row
       </Button>

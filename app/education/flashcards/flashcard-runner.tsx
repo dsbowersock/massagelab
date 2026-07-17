@@ -279,7 +279,7 @@ export function FlashcardRunner({
   return (
     <div ref={runnerTopRef} className="-m-4">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 rounded-none border border-border/80 bg-background/70 px-2 py-1 sm:flex sm:justify-between">
-        <Button type="button" variant="outline" size="sm" onClick={onResetStudy} className="h-8 shrink-0 rounded-lg px-2 text-xs leading-none [&_svg]:size-3.5">
+        <Button type="button" variant="secondary" size="sm" onClick={onResetStudy} className="h-8 shrink-0 rounded-lg px-2 text-xs leading-none [&_svg]:size-3.5">
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
           Setup
         </Button>
@@ -320,10 +320,10 @@ export function FlashcardRunner({
               <span className="break-words">Admin image review</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => onFlagMedia("bad_match")} disabled={isFlaggingMedia}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => onFlagMedia("bad_match")} disabled={isFlaggingMedia}>
                 Bad match
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => onFlagMedia("bad_view")} disabled={isFlaggingMedia}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => onFlagMedia("bad_view")} disabled={isFlaggingMedia}>
                 Bad view
               </Button>
               <Button asChild variant="link" size="sm" className="h-9 px-1">
@@ -337,7 +337,7 @@ export function FlashcardRunner({
 
         {!isReviewMode ? (
           <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-2 rounded-lg border-0 bg-background/70 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center">
-            <Button type="button" variant="outline" onClick={onPreviousPrompt} disabled={currentIndex === 0} className="order-2 w-full sm:order-none sm:w-auto">
+            <Button type="button" variant="secondary" onClick={onPreviousPrompt} disabled={currentIndex === 0} className="order-2 w-full sm:order-none sm:w-auto">
               <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
               Previous
             </Button>
@@ -360,11 +360,11 @@ export function FlashcardRunner({
               {currentResult ? "Checked" : "Check Answer"}
             </Button>
             {currentIndex >= deckLength - 1 ? (
-              <Button type="button" variant="outline" onClick={onCompleteStudy} className="order-3 w-full sm:order-none sm:w-auto">
+              <Button type="button" onClick={onCompleteStudy} className="order-3 w-full sm:order-none sm:w-auto">
                 Save Results
               </Button>
             ) : (
-              <Button type="button" variant="outline" onClick={onNextPrompt} className="order-3 w-full sm:order-none sm:w-auto">
+              <Button type="button" onClick={onNextPrompt} className="order-3 w-full sm:order-none sm:w-auto">
                 Next
                 <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
               </Button>
@@ -379,7 +379,7 @@ export function FlashcardRunner({
           )}>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={onPreviousPrompt}
               disabled={currentIndex === 0}
               aria-label="Previous card"
@@ -402,7 +402,7 @@ export function FlashcardRunner({
               </Button>
               {isCurrentCardFlipped && !currentResult ? (
                 <>
-                  <Button type="button" variant="outline" onClick={() => onCheckAnswer(false)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Missed</Button>
+                  <Button type="button" variant="secondary" onClick={() => onCheckAnswer(false)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Missed</Button>
                   <Button type="button" onClick={() => onCheckAnswer(true)} className="min-w-0 px-2 text-xs min-[360px]:text-sm">Correct</Button>
                 </>
               ) : null}
@@ -411,7 +411,7 @@ export function FlashcardRunner({
               ) : null}
             </div>
             {currentIndex >= deckLength - 1 ? (
-              <Button type="button" variant="outline" onClick={onCompleteStudy} aria-label="Finish practice" className={cn(
+              <Button type="button" onClick={onCompleteStudy} aria-label="Finish practice" className={cn(
                 "w-full min-w-0 px-2 text-xs min-[420px]:px-3 min-[420px]:text-sm min-[560px]:w-auto",
                 showReviewMarkingActions && "order-2 min-[560px]:order-none",
               )}>
@@ -419,7 +419,7 @@ export function FlashcardRunner({
                 <span className="hidden min-[420px]:inline">Finish Practice</span>
               </Button>
             ) : (
-              <Button type="button" variant="outline" onClick={onNextPrompt} aria-label="Next card" className={cn(
+              <Button type="button" onClick={onNextPrompt} aria-label="Next card" className={cn(
                 "w-full min-w-0 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm min-[560px]:w-auto",
                 showReviewMarkingActions && "order-2 min-[560px]:order-none",
               )}>

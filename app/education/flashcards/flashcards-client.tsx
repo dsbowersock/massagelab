@@ -894,7 +894,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 <p className="text-sm text-muted-foreground">Choose the anatomy, prompt types, and review style before seeing cards.</p>
               </div>
             </div>
-            <Button type="button" variant="outline" className="mt-4 h-auto min-h-10 w-full min-w-0 whitespace-normal text-center sm:w-auto" onClick={() => showSetupSection("custom")}>
+            <Button type="button" variant="secondary" className="mt-4 h-auto min-h-10 w-full min-w-0 whitespace-normal text-center sm:w-auto" onClick={() => showSetupSection("custom")}>
               <Layers3 className="mr-2 h-4 w-4" aria-hidden="true" />
               Configure Custom Deck
             </Button>
@@ -944,7 +944,7 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                           <Play className="mr-2 h-4 w-4" aria-hidden="true" />
                           {isStartingDeck ? "Starting..." : "Study"}
                         </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => viewDeckSetup(deck)} className="min-w-0 whitespace-normal">
+                        <Button type="button" size="sm" variant="secondary" onClick={() => viewDeckSetup(deck)} className="min-w-0 whitespace-normal">
                           View
                         </Button>
                       </div>
@@ -953,32 +953,34 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 ))}
                 </div>
               </div>
-              <div className="pointer-events-none absolute left-2 right-2 top-40 z-10 flex items-center justify-between md:-left-5 md:-right-5 md:top-1/2 md:-translate-y-1/2">
+              {sortedCommunityDecks.length > 2 ? (
+                <div className="pointer-events-none absolute left-2 right-2 top-24 z-20 flex items-center justify-between md:-left-5 md:-right-5 md:top-1/2 md:-translate-y-1/2">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ctaBlue"
                   size="icon"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => moveCommunityCarousel(-1)}
                   disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
                   aria-label="Previous community decks"
-                  className="pointer-events-auto h-10 w-10 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+                  className="pointer-events-auto h-10 w-10 rounded-full opacity-100 shadow-lg transition md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
                 >
                   <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ctaBlue"
                   size="icon"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => moveCommunityCarousel(1)}
                   disabled={sortedCommunityDecks.length <= 2 || Boolean(communitySlide)}
                   aria-label="Next community decks"
-                  className="pointer-events-auto h-10 w-10 rounded-full bg-background/90 opacity-100 shadow-lg transition hover:bg-background md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
+                  className="pointer-events-auto h-10 w-10 rounded-full opacity-100 shadow-lg transition md:opacity-0 md:group-hover/community-carousel:opacity-100 md:group-focus-within/community-carousel:opacity-100"
                 >
                   <ChevronRight className="h-5 w-5" aria-hidden="true" />
                 </Button>
-              </div>
+                </div>
+              ) : null}
               <span className="sr-only">{carouselPositionLabel}</span>
             </div>
           ) : (

@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
+import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
@@ -12,16 +13,55 @@ const SelectGroup = SelectPrimitive.Group
 
 const SelectValue = SelectPrimitive.Value
 
+const selectTriggerVariants = cva(
+  "ml-select-control flex w-full items-center justify-between text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+  {
+    variants: {
+      density: {
+        default: "h-10 px-3 py-2",
+        compact: "h-9 px-2.5 py-1.5",
+        dense: "h-8 px-2 py-1 text-xs",
+      },
+      surface: {
+        default: "",
+        inset: "",
+        cutout: "",
+      },
+      tone: {
+        default: "",
+        setup: "border-[#4AAAAA]/55 focus:ring-[#4AAAAA]",
+        anatomime: "border-orange-500/45 focus:ring-orange-500",
+        attention: "border-fuchsia-500/45 focus:ring-fuchsia-500",
+      },
+      status: {
+        default: "",
+        error: "border-destructive focus:ring-destructive",
+      },
+    },
+    defaultVariants: {
+      density: "default",
+      surface: "default",
+      tone: "default",
+      status: "default",
+    },
+  },
+)
+
+export interface SelectTriggerProps
+  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
+    VariantProps<typeof selectTriggerVariants> {}
+
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+  SelectTriggerProps
+>(({ className, children, density, surface, tone, status, "aria-invalid": ariaInvalid, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
-    className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-      className
-    )}
+    className={cn(selectTriggerVariants({ density, surface, tone, status, className }))}
+    aria-invalid={status === "error" ? true : ariaInvalid}
+    data-surface={surface ?? "default"}
+    data-tone={tone ?? "default"}
+    data-status={status ?? "default"}
     {...props}
   >
     {children}

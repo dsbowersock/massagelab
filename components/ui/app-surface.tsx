@@ -19,6 +19,17 @@ export const appPageWidthClassNames = {
 export const appSurfaceClassName =
   "border-border/80 bg-card/95 shadow-xl shadow-black/25 ring-1 ring-white/[0.03] backdrop-blur"
 
+
+export type AppSurfaceVariant = "card" | "inset" | "route" | "dialog" | "popover" | "flat"
+
+const appSurfaceVariantClassNames: Record<AppSurfaceVariant, string> = {
+  card: "",
+  inset: "bg-background/80 shadow-inner shadow-black/15 backdrop-blur-none",
+  route: "border-primary/25 bg-card/90",
+  dialog: "border-border bg-popover shadow-2xl",
+  popover: "border-border/90 bg-popover/95 shadow-xl",
+  flat: "bg-card shadow-none backdrop-blur-none",
+}
 export const appInsetClassName =
   "rounded-md border border-border/80 bg-background/85 shadow-inner shadow-black/10"
 
@@ -71,6 +82,7 @@ export function AppSurface({
   children,
   className,
   headerClassName,
+  variant = "card",
   contentClassName,
 }: {
   id?: string
@@ -81,12 +93,13 @@ export function AppSurface({
   children?: React.ReactNode
   className?: string
   headerClassName?: string
+  variant?: AppSurfaceVariant
   contentClassName?: string
 }) {
   const hasHeader = title || description || icon || badge
 
   return (
-    <Card id={id} className={cn(appSurfaceClassName, className)}>
+    <Card id={id} className={cn(appSurfaceClassName, appSurfaceVariantClassNames[variant], className)}>
       {hasHeader ? (
         <CardHeader className={cn("flex flex-col gap-1 space-y-0", headerClassName)}>
           {title || icon || badge ? (

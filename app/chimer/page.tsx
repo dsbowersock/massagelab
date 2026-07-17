@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { MovingBackground } from "@/components/moving-background"
 import { useSettings } from "@/components/providers/settings-provider"
 import {
   clampActiveTimerMs,
@@ -853,7 +854,19 @@ export default function ChimerPage() {
   const backgroundCategory = startsInClockMode ? "clock" : "chimer"
 
   return (
-    <div className="relative min-h-full bg-background p-4 sm:p-6 lg:p-8">
+    <div className="relative min-h-full px-4 py-[7px]">
+      {!isTimerActive && (
+        <>
+          <MovingBackground
+            className="pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen"
+            testId="chimer-setup-moving-background"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-[1] bg-background/80"
+          />
+        </>
+      )}
       <div className="relative z-10 mx-auto max-w-5xl">
         {!isTimerActive ? (
           <SetTimer

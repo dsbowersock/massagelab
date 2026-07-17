@@ -285,43 +285,20 @@ function NavPrimary({
   primaryGroups: NavigationGroup[]
   tooltipSide: "left" | "right"
 }) {
-  const activeGroupIds = React.useMemo(() => {
+  const activeGroupId = React.useMemo(() => {
     return primaryGroups
       .filter((group) => group.id !== "home")
-      .filter((group) => group.routes.some((route) => isNavigationRouteActive(pathname, route.href)))
-      .map((group) => group.id)
+      .find((group) => group.routes.some((route) => isNavigationRouteActive(pathname, route.href)))?.id ?? null
   }, [pathname, primaryGroups])
-  const activeGroupKey = activeGroupIds.join("|")
-  const [openGroupIds, setOpenGroupIds] = React.useState<Set<string>>(() => new Set(activeGroupIds))
+  // Primary navigation is a single-open accordion so stale route lists do not remain expanded.
+  const [openGroupId, setOpenGroupId] = React.useState<string | null>(activeGroupId)
 
   React.useEffect(() => {
-    if (activeGroupIds.length === 0) {
-      return
-    }
-
-    setOpenGroupIds((current) => {
-      const next = new Set(current)
-
-      for (const groupId of activeGroupIds) {
-        next.add(groupId)
-      }
-
-      return next
-    })
-  }, [activeGroupKey, activeGroupIds])
+    setOpenGroupId(activeGroupId)
+  }, [activeGroupId, pathname])
 
   const setGroupOpen = React.useCallback((groupId: string, isOpen: boolean) => {
-    setOpenGroupIds((current) => {
-      const next = new Set(current)
-
-      if (isOpen) {
-        next.add(groupId)
-      } else {
-        next.delete(groupId)
-      }
-
-      return next
-    })
+    setOpenGroupId((current) => (isOpen ? groupId : current === groupId ? null : current))
   }, [])
 
   const expandGroup = React.useCallback((groupId: string) => {
@@ -349,7 +326,7 @@ function NavPrimary({
           )
         }
 
-        const groupIsOpen = openGroupIds.has(group.id)
+        const groupIsOpen = openGroupId === group.id
 
         return (
           <Collapsible

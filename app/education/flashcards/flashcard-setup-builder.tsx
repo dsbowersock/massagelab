@@ -413,7 +413,7 @@ export function FlashcardSetupBuilder({
                 onDeckSizeChange(Number.isFinite(nextCount) ? Math.max(1, Math.trunc(nextCount)) : 1)
               }}
             />
-            <Button type="button" variant="outline" onClick={() => onDeckSizeChange(Math.max(1, eligiblePromptCount))} disabled={eligiblePromptCount === 0}>
+            <Button type="button" variant="secondary" onClick={() => onDeckSizeChange(Math.max(1, eligiblePromptCount))} disabled={eligiblePromptCount === 0}>
               All
             </Button>
           </div>
@@ -480,7 +480,7 @@ export function FlashcardSetupBuilder({
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     className="mt-3 w-full"
                     aria-expanded={isExpanded}
                     onClick={() => onExpandedPromptTypeChange(isExpanded ? null : type.id)}
@@ -501,11 +501,11 @@ export function FlashcardSetupBuilder({
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="sm" variant="outline" onClick={onActivateExactPromptSelection} disabled={promptSummaries.length === 0}>
+                        <Button type="button" size="sm" variant="secondary" onClick={onActivateExactPromptSelection} disabled={promptSummaries.length === 0}>
                           Select exact items
                         </Button>
                         {exactPromptSelectionActive ? (
-                          <Button type="button" size="sm" variant="outline" onClick={onClearExactPromptSelection}>
+                          <Button type="button" size="sm" variant="secondary" onClick={onClearExactPromptSelection}>
                             Use all eligible
                           </Button>
                         ) : null}
@@ -596,7 +596,7 @@ export function FlashcardSetupBuilder({
           </select>
         </div>
         <div className="flex items-end">
-          <Button type="button" variant="outline" onClick={onSaveDeck} disabled={!canStartOrSaveDeck} className="w-full md:w-auto">
+          <Button type="button" variant="secondary" onClick={onSaveDeck} disabled={!canStartOrSaveDeck} className="w-full md:w-auto">
             <Save className="mr-2 h-4 w-4" aria-hidden="true" />
             Save
           </Button>

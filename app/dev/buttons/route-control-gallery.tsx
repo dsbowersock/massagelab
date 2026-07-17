@@ -6,6 +6,10 @@ import { BookOpen, ChevronDown, GraduationCap, Layers3, ShieldCheck, UsersRound 
 import runningStyles from "@/app/chimer/running-timer.module.css"
 import { StyledToggleControl } from "@/components/chimer-controls/StyledToggleControl"
 import { AppSurface } from "@/components/ui/app-surface"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { SegmentedToggleGroup } from "@/components/ui/segmented-toggle-group"
+import { SelectableCard } from "@/components/ui/selectable-card"
 import { RangeControl } from "@/components/ui/range-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
@@ -25,6 +29,12 @@ const backgroundFilterOptions = [
   { value: "image", label: "Image" },
 ] as const
 
+const teamCountOptions = [
+  { value: "2", label: "2 teams" },
+  { value: "3", label: "3 teams" },
+  { value: "4", label: "4 teams" },
+] as const
+
 /** Mirrors the approved production choice and route-navigation treatments. */
 export function RouteControlGallery() {
   const [activeTab, setActiveTab] = React.useState<keyof typeof routeTabCopy>("clock")
@@ -35,6 +45,8 @@ export function RouteControlGallery() {
   const [clockStrokeWidth, setClockStrokeWidth] = React.useState(1.25)
   const [drawerExpanded, setDrawerExpanded] = React.useState(true)
 
+  const [teamCount, setTeamCount] = React.useState("2")
+  const [anatomimeSource, setAnatomimeSource] = React.useState<"massage" | "reviewed">("massage")
   return (
     <section className="space-y-4" aria-labelledby="route-control-heading">
       <div>
@@ -115,10 +127,10 @@ export function RouteControlGallery() {
           </div>
         </AppSurface>
 
-        <AppSurface title="Select field" description="Dropdowns use the same inset control surface as other route-owned choices.">
+        <AppSurface title="Select field" description="Dropdowns use the same inset control surface as other route-specific choices.">
           <label className={cn(runningStyles.clockCompactField, "max-w-sm")}>
-            <span>Clock font</span>
-            <select value={clockFont} onChange={(event) => setClockFont(event.target.value)}>
+            <span className="!text-foreground">Clock font</span>
+            <select name="review-clock-font" value={clockFont} onChange={(event) => setClockFont(event.target.value)}>
               <option value="digital">Digital</option>
               <option value="mono">Mono</option>
               <option value="sans">Sans Serif</option>
@@ -139,7 +151,7 @@ export function RouteControlGallery() {
               <div className={runningStyles.controlGroupBody}>
                 <div className={runningStyles.clockControlGrid}>
                   <div className={runningStyles.colorRow}>
-                    <span>Stroke color</span>
+                    <span className="!text-foreground">Stroke color</span>
                     <span className="rounded-md border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-foreground">
                       #FFFFFF
                     </span>
@@ -161,57 +173,56 @@ export function RouteControlGallery() {
 
         <AppSurface
           title="Anatomime route controls"
-          description="Game setup keeps these route-owned inputs, choices, and action controls."
+          description="Game setup keeps its purpose-specific grouping while every ordinary control comes from a shared family."
           className="lg:col-span-2"
         >
-          <div className="grid gap-4">
-            <label className="grid max-w-md gap-2 text-sm font-semibold text-foreground">
-              Team name
-              <input className="anatomime-input" value="Team 1" readOnly aria-label="Anatomime team name example" />
-            </label>
+          <div className="grid gap-5">
+            <Input
+              aria-label="Anatomime team name example"
+              name="review-anatomime-team"
+              tone="anatomime"
+              surface="cutout"
+              value="Team 1"
+              readOnly
+            />
 
-            <div className="grid gap-3 sm:grid-cols-3" aria-label="Anatomime team count examples">
-              {[2, 3, 4].map((teamCount) => (
-                <button
-                  key={teamCount}
-                  type="button"
-                  className="anatomime-choice-button"
-                  data-selected={teamCount === 2 ? "true" : undefined}
-                  aria-pressed={teamCount === 2}
-                >
-                  {teamCount}
-                </button>
-              ))}
+            <div className="grid gap-2">
+              <p className="text-sm font-semibold text-foreground">Team count</p>
+              <SegmentedToggleGroup
+                label="Anatomime team count examples"
+                value={teamCount}
+                options={teamCountOptions}
+                onValueChange={setTeamCount}
+              />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <button type="button" className="anatomime-region-button" data-selected="true" aria-pressed="true">
-                <GraduationCap className="size-5 shrink-0" aria-hidden="true" />
-                <span>
-                  Massage anatomy
-                  <small>Foundational classroom prompt set.</small>
-                </span>
-              </button>
-              <button type="button" className="anatomime-term-card">
-                <ShieldCheck className="size-5 shrink-0" aria-hidden="true" />
-                <span>
-                  Reviewed study adapter
-                  <small>Uses the same source set as flashcards.</small>
-                </span>
-              </button>
+              <SelectableCard
+                title="Massage anatomy"
+                description="Foundational classroom prompt set."
+                icon={<GraduationCap className="size-5" />}
+                tone="anatomime"
+                iconInset
+                selected={anatomimeSource === "massage"}
+                onClick={() => setAnatomimeSource("massage")}
+              />
+              <SelectableCard
+                title="Reviewed study adapter"
+                description="Uses the same source set as flashcards."
+                icon={<ShieldCheck className="size-5" />}
+                tone="quiet"
+                selected={anatomimeSource === "reviewed"}
+                onClick={() => setAnatomimeSource("reviewed")}
+              />
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button type="button" className="anatomime-primary-button">
-                <UsersRound className="size-4" aria-hidden="true" />
+              <Button tone="anatomime">
+                <UsersRound aria-hidden="true" />
                 Start game
-              </button>
-              <button type="button" className="anatomime-secondary-button">
-                Preview round
-              </button>
-              <button type="button" className="anatomime-danger-button">
-                Reset
-              </button>
+              </Button>
+              <Button variant="outline" tone="anatomime">Preview round</Button>
+              <Button variant="destructive">Reset</Button>
             </div>
           </div>
         </AppSurface>

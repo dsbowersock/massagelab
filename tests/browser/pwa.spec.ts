@@ -70,14 +70,14 @@ test("service worker keeps selected public tools reloadable offline and excludes
   await page.goto("/chimer", { waitUntil: "networkidle" })
   await waitForControlledServiceWorker(page)
   await page.reload({ waitUntil: "networkidle" })
-  await expect(page.getByRole("heading", { name: /Chimer/i })).toBeVisible()
+  await expect(page.getByRole("group", { name: /Session duration/i })).toBeVisible()
   await waitForOfflineRouteCache(page, "/chimer")
 
   await context.setOffline(true)
 
   try {
     await page.reload({ waitUntil: "domcontentloaded" })
-    await expect(page.getByRole("heading", { name: /Chimer/i })).toBeVisible()
+    await expect(page.getByRole("group", { name: /Session duration/i })).toBeVisible()
     await expect(page.getByText(/MassageLab is offline/i)).toHaveCount(0)
 
     await page.goto("/calendar", { waitUntil: "domcontentloaded" })

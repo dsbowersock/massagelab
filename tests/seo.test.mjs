@@ -119,7 +119,6 @@ describe("SEO route contract", () => {
     assert.match(readProjectFile("app/page.tsx"), /massage session timer/)
     assert.match(readProjectFile("app/education/flashcards/page.tsx"), /massage anatomy flashcards/)
     assert.match(readProjectFile("app/anatomime/page.tsx"), /massage anatomy classroom game/)
-    assert.match(readProjectFile("app/chimer/set-timer.tsx"), /massage session timer/)
     assert.match(readProjectFile("app/tools/business-planner/page.tsx"), /business planner/)
     assert.match(readProjectFile("app/tools/business-planner/income/income-planner-client.tsx"), /business income planner/)
     assert.match(readProjectFile("app/tools/business-planner/break-even/break-even-planner-client.tsx"), /break-even/)

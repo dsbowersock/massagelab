@@ -299,6 +299,9 @@ const DEFAULT_CHIMER_GLOBAL_COLORS: GlobalColorValues = {
   ctaEnd: "#ea580c",
 }
 const DEFAULT_CHIMER_GLOBAL_HARMONY = "custom" as ChimerHarmonyValue
+const GLOBAL_HARMONY_OPTIONS = CHIMER_HARMONY_OPTIONS.filter(
+  (option) => option.value !== "custom",
+)
 const CHIMER_GLOBAL_PALETTE_DEFAULT_NAME = "Saved palette"
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
@@ -521,7 +524,7 @@ function hslToRgbChannel(channel: number, hue: number, saturation: number, light
 }
 
 function hslToHex(hue: number, saturation: number, lightness: number) {
-  const toByte = (value: number) => `00${Math.max(0, Math.min(255, value)).toString(16).slice(-2)}`
+  const toByte = (value: number) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")
   const red = hslToRgbChannel(0, hue, saturation, lightness)
   const green = hslToRgbChannel(1, hue, saturation, lightness)
   const blue = hslToRgbChannel(2, hue, saturation, lightness)
@@ -641,8 +644,6 @@ function getPaletteColorsFromGlobalValues(values: GlobalColorValues) {
     values.accent,
     values.ctaStart,
     values.ctaEnd,
-    values.background,
-    values.foreground,
   ]
 }
 
@@ -3205,6 +3206,12 @@ export function RunningTimer({
   const [globalHarmony, setGlobalHarmony] = useState<ChimerHarmonyValue>(DEFAULT_CHIMER_GLOBAL_HARMONY)
   const [globalPalettes, setGlobalPalettes] = useState<ChimerSavedPalette[]>([])
   const [globalPaletteName, setGlobalPaletteName] = useState(CHIMER_GLOBAL_PALETTE_DEFAULT_NAME)
+  const harmonyPreviewColors = useMemo(() => Object.fromEntries(
+    GLOBAL_HARMONY_OPTIONS.map((option) => [
+      option.value,
+      getPaletteColorsFromGlobalValues(getHarmonyColorsFromPrimary(globalColors.primary, option.value)),
+    ]),
+  ), [globalColors.primary])
   const [visibleBackgroundPreviewIds, setVisibleBackgroundPreviewIds] = useState<Set<BackgroundId>>(new Set())
   const [controlState, setControlState] = useState<"visible" | "faded" | "hidden">("visible")
   const pressHaptic = useCallback(
@@ -3241,9 +3248,9 @@ export function RunningTimer({
     globalPaletteAccent,
     globalPaletteCtaStart,
     globalPaletteCtaEnd,
-    globalPaletteBackground,
-    globalPaletteForeground,
   ] = getPaletteColorsFromGlobalValues(globalColors)
+  const globalPaletteBackground = globalColors.background
+  const globalPaletteForeground = globalColors.foreground
   const resolvedClockStrokeColor = resolvePaletteDrivenColor({
     value: clockStrokeColor,
     defaultValue: DEFAULT_CHIMER_SETTINGS.clockStrokeColor,
@@ -3270,20 +3277,17 @@ export function RunningTimer({
     glowColor: resolvedClockGlowColor,
     glowStrength: clockGlowStrength,
   })
-  const resolvedMovingBackgroundMainColor = useOriginalLampBackground
-    ? normalizeHexColor(movingBackgroundMainColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor)
-    : resolvePaletteDrivenColor({
-      value: movingBackgroundMainColor,
-      defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor,
-      globalValue: globalPalettePrimary,
-    })
-  const resolvedMovingBackgroundOrbColor = useOriginalLampBackground
-    ? normalizeHexColor(movingBackgroundOrbColor, DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor)
-    : resolvePaletteDrivenColor({
-      value: movingBackgroundOrbColor,
-      defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor,
-      globalValue: globalPaletteSecondary,
-    })
+  // Global colors provide Lamp defaults without making its specialized controls inert.
+  const resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor({
+    value: movingBackgroundMainColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedMovingBackgroundOrbColor = resolvePaletteDrivenColor({
+    value: movingBackgroundOrbColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor,
+    globalValue: globalPaletteSecondary,
+  })
   const resolvedSparklesParticleColor = resolvePaletteDrivenColor({
     value: sparklesParticleColor,
     defaultValue: DEFAULT_CHIMER_SETTINGS.sparklesParticleColor,
@@ -3898,6 +3902,11 @@ export function RunningTimer({
     setGlobalColors(nextColors)
     setGlobalHarmony(nextHarmony)
     saveGlobalColorState(nextColors, nextHarmony)
+  }
+
+  /** Switches between direct palette editing and primary-color harmony generation. */
+  const handleGlobalCustomColorToggle = (customColorsEnabled: boolean) => {
+    handleGlobalHarmonyChange(customColorsEnabled ? "custom" : "analogous")
   }
 
   const handleGlobalPaletteNameChange = (nextName: string) => {
@@ -15766,6 +15775,7 @@ export function RunningTimer({
           selectedId={backgroundId}
           featureKeys={featureKeys}
           category={backgroundCategory}
+          palette={getPaletteColorsFromGlobalValues(globalColors)}
           mainColor={resolvedMovingBackgroundMainColor}
           orbColor={resolvedMovingBackgroundOrbColor}
           sparkles={{
@@ -17163,17 +17173,32 @@ export function RunningTimer({
                   <GlobalColorPicker
                     value={globalColors}
                     title="Global Colors"
-                    description="Set a primary color, then choose a harmony to fill the related colors automatically."
+                    description={globalHarmony === "custom"
+                      ? "Choose each palette color used by compatible backgrounds."
+                      : "Choose a primary color and harmony; the remaining background colors update automatically."}
                     harmonyControl={(
-                      <HarmonyToggleGroup
-                        label="Color harmony"
-                        value={globalHarmony}
-                        onChange={handleGlobalHarmonyChange}
-                        hapticsEnabled={hapticsEnabled}
-                        description="Generate related palette families from your primary color."
-                        embedded
-                      />
+                      <div className={styles.globalColorModeControls}>
+                        <StyledToggleControl
+                          label="Choose each color"
+                          checked={globalHarmony === "custom"}
+                          valueLabel={globalHarmony === "custom" ? "Custom" : "Harmony"}
+                          hapticsEnabled={hapticsEnabled}
+                          onCheckedChange={handleGlobalCustomColorToggle}
+                        />
+                        <HarmonyToggleGroup
+                          label="Color harmony"
+                          value={globalHarmony}
+                          onChange={handleGlobalHarmonyChange}
+                          options={GLOBAL_HARMONY_OPTIONS}
+                          previewColors={harmonyPreviewColors}
+                          disabled={globalHarmony === "custom"}
+                          hapticsEnabled={hapticsEnabled}
+                          description="Generate related palette families from your primary color."
+                          embedded
+                        />
+                      </div>
                     )}
+                    editableFields={globalHarmony === "custom" ? undefined : ["primary"]}
                     paletteName={globalPaletteName}
                     onPaletteNameChange={handleGlobalPaletteNameChange}
                     onChange={handleGlobalColorsChange}

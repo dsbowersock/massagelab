@@ -7,7 +7,7 @@ import { ThemeSwitcherMultiButton } from "@/components/theme-switcher-multi-butt
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useSidebar } from "@/components/ui/sidebar"
-import { useSettings } from "@/components/providers/settings-provider"
+import { useResolvedTheme, useSettings } from "@/components/providers/settings-provider"
 import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { resolveMainBarItemOrder } from "@/lib/app-shell"
 import { cn } from "@/lib/utils"
@@ -20,6 +20,7 @@ type MainBarRenderItem = {
 
 export function MobileMainBar({ user }: { user: SidebarUser }) {
   const { settings } = useSettings()
+  const resolvedTheme = useResolvedTheme()
   const { toggleSidebar } = useSidebar()
   const [quickActionsOpen, setQuickActionsOpen] = React.useState(false)
   const quickCreateButtonRef = React.useRef<HTMLButtonElement | null>(null)
@@ -31,7 +32,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["home", {
       id: "home",
       node: (
-        <Button asChild variant="outline" size="icon" className="ml-main-bar-button" aria-label="Home">
+        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button" aria-label="Home">
           <Link href="/">
             <Home aria-hidden="true" />
             <span>Home</span>
@@ -42,7 +43,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["music", {
       id: "music",
       node: (
-        <Button asChild variant="outline" size="icon" className="ml-main-bar-button">
+        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button">
           <Link href="/music" aria-label="Open music">
             <Music2 aria-hidden="true" />
             <span>Music</span>
@@ -53,7 +54,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["clock", {
       id: "clock",
       node: (
-        <Button asChild variant="outline" size="icon" className="ml-main-bar-button">
+        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button">
           <Link href="/clock" aria-label="Open clock">
             <Clock aria-hidden="true" />
             <span>Clock</span>
@@ -86,7 +87,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["calendar", {
       id: "calendar",
       node: (
-        <Button asChild variant="outline" size="icon" className="ml-main-bar-button">
+        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button">
           <Link href="/calendar" aria-label="Open calendar">
             <CalendarDays aria-hidden="true" />
             <span>Calendar</span>
@@ -97,7 +98,14 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["more", {
       id: "more",
       node: (
-        <Button type="button" variant="outline" size="icon" className="ml-main-bar-button" aria-label="Open navigation" onClick={toggleSidebar}>
+        <Button
+          type="button"
+          variant={resolvedTheme === "dark" ? "glow" : "default"}
+          size="icon"
+          className="ml-main-bar-button rounded-full"
+          aria-label="Open navigation"
+          onClick={toggleSidebar}
+        >
           <Menu aria-hidden="true" />
           <span>More</span>
         </Button>
