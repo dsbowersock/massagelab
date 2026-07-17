@@ -104,6 +104,7 @@ test("review fixes preserve live route controls and interaction cleanup", async 
   assert.match(stepper, /disabledRef\.current[\s\S]*onPointerCancel=\{\(\) => finishPointerPress\(false\)\}/)
   assert.match(themeSwitcher, /cleanupTransitionState\(\)[\s\S]*\[cleanupTransitionState\]/)
   assert.match(themeSwitcher, /activeTransitionRef\.current === transition/)
+  assert.match(themeSwitcher, /transition\.finished[\s\S]*\.catch\(\(\) => undefined\)[\s\S]*\.finally/)
   assert.match(themeSwitcher, /activeThemeTransitionOwner !== transitionOwnerRef\.current/)
   assert.match(themeSwitcher, /let managesTransition = false[\s\S]*if \(managesTransition\)/)
   assert.match(sidebar, /\[activeGroupId, pathname\]/)

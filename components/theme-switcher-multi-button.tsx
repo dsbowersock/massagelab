@@ -168,12 +168,14 @@ export function ThemeSwitcherMultiButton({
     })
     activeTransitionRef.current = transition
 
-    void transition.finished.finally(() => {
-      if (activeTransitionRef.current === transition) {
-        activeTransitionRef.current = null
-        cleanupTransitionState()
-      }
-    })
+    void transition.finished
+      .catch(() => undefined)
+      .finally(() => {
+        if (activeTransitionRef.current === transition) {
+          activeTransitionRef.current = null
+          cleanupTransitionState()
+        }
+      })
   }
 
   const currentTheme = themes.find((theme) => theme.value === resolvedTheme) ?? themes[1]
