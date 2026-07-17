@@ -15,9 +15,11 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 type ViewTransitionDocument = Document & {
-  startViewTransition?: (callback: () => void) => {
-    finished: Promise<void>
-  }
+  startViewTransition?: (callback: () => void) => ThemeViewTransition
+}
+
+type ThemeViewTransition = {
+  finished: Promise<void>
 }
 
 type TransitionOrigin = {
@@ -44,6 +46,7 @@ export function ThemeSwitcherMultiButton({
   const rootRef = useRef<HTMLDivElement | null>(null)
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
   const fallbackTransitionTimeoutRef = useRef<number | null>(null)
+  const activeTransitionRef = useRef<ThemeViewTransition | null>(null)
 
   const cleanupTransitionState = useCallback(() => {
     document.documentElement.removeAttribute("data-theme-transition")
@@ -63,6 +66,7 @@ export function ThemeSwitcherMultiButton({
         window.clearTimeout(fallbackTransitionTimeoutRef.current)
         fallbackTransitionTimeoutRef.current = null
       }
+      activeTransitionRef.current = null
       cleanupTransitionState()
     }
   }, [cleanupTransitionState])
@@ -143,9 +147,13 @@ export function ThemeSwitcherMultiButton({
     const transition = transitionDocument.startViewTransition(() => {
       flushSync(updateTheme)
     })
+    activeTransitionRef.current = transition
 
     void transition.finished.finally(() => {
-      cleanupTransitionState()
+      if (activeTransitionRef.current === transition) {
+        activeTransitionRef.current = null
+        cleanupTransitionState()
+      }
     })
   }
 

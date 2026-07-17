@@ -953,7 +953,8 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 ))}
                 </div>
               </div>
-              <div className="pointer-events-none absolute left-2 right-2 top-24 z-20 flex items-center justify-between md:-left-5 md:-right-5 md:top-1/2 md:-translate-y-1/2">
+              {sortedCommunityDecks.length > 2 ? (
+                <div className="pointer-events-none absolute left-2 right-2 top-24 z-20 flex items-center justify-between md:-left-5 md:-right-5 md:top-1/2 md:-translate-y-1/2">
                 <Button
                   type="button"
                   variant="ctaBlue"
@@ -978,7 +979,8 @@ export function FlashcardsClient({ categories, regions, initialDecks, initialPro
                 >
                   <ChevronRight className="h-5 w-5" aria-hidden="true" />
                 </Button>
-              </div>
+                </div>
+              ) : null}
               <span className="sr-only">{carouselPositionLabel}</span>
             </div>
           ) : (

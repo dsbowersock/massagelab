@@ -31,7 +31,7 @@ export default function BusinessPlannerHubPage() {
       <section aria-labelledby="business-tools-heading" className="space-y-3">
         <div>
           <p className="text-sm font-medium text-primary">From the student template</p>
-          <h2 id="business-tools-heading" className="text-2xl font-semibold">Business planner tools</h2>
+          <h1 id="business-tools-heading" className="text-2xl font-semibold">Business planner tools</h1>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {BUSINESS_PLAN_TOOL_ROUTES.map((tool) => {
