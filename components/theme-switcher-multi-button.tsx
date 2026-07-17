@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import { MoonIcon, SunIcon } from "lucide-react"
 import {
@@ -45,17 +45,7 @@ export function ThemeSwitcherMultiButton({
   const transitionOriginRef = useRef<TransitionOrigin | null>(null)
   const fallbackTransitionTimeoutRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    setMounted(true)
-
-    return () => {
-      if (fallbackTransitionTimeoutRef.current !== null) {
-        window.clearTimeout(fallbackTransitionTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  function cleanupTransitionState() {
+  const cleanupTransitionState = useCallback(() => {
     document.documentElement.removeAttribute("data-theme-transition")
     document.documentElement.removeAttribute("data-theme-transition-fallback")
     document.documentElement.removeAttribute("data-theme-resolved-target")
@@ -63,7 +53,19 @@ export function ThemeSwitcherMultiButton({
     document.documentElement.style.removeProperty("--ml-theme-transition-y")
     document.documentElement.style.removeProperty("--ml-theme-transition-fallback-color")
     transitionOriginRef.current = null
-  }
+  }, [])
+
+  useEffect(() => {
+    setMounted(true)
+
+    return () => {
+      if (fallbackTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(fallbackTransitionTimeoutRef.current)
+        fallbackTransitionTimeoutRef.current = null
+      }
+      cleanupTransitionState()
+    }
+  }, [cleanupTransitionState])
 
   function rememberTransitionOrigin(event: React.PointerEvent<HTMLElement>) {
     const rect = event.currentTarget.getBoundingClientRect()

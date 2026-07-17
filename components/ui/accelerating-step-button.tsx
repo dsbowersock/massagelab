@@ -41,6 +41,7 @@ export function AcceleratingStepButton({
   const repeatedRef = React.useRef(false)
   const suppressClickRef = React.useRef(false)
   const lastActivationAtRef = React.useRef(0)
+  const disabledRef = React.useRef(Boolean(disabled))
 
   const clearRepeatTimer = React.useCallback(() => {
     if (repeatTimerRef.current !== null) {
@@ -58,11 +59,24 @@ export function AcceleratingStepButton({
         : repeatSlowMs
 
     repeatTimerRef.current = window.setTimeout(() => {
+      if (disabledRef.current) {
+        clearRepeatTimer()
+        return
+      }
       repeatedRef.current = true
       onStep(step)
       repeat()
     }, interval)
-  }, [onStep, step])
+  }, [clearRepeatTimer, onStep, step])
+  React.useEffect(() => {
+    disabledRef.current = Boolean(disabled)
+    if (disabled) {
+      clearRepeatTimer()
+      repeatedRef.current = false
+      suppressClickRef.current = false
+      lastActivationAtRef.current = 0
+    }
+  }, [clearRepeatTimer, disabled])
 
   React.useEffect(() => clearRepeatTimer, [clearRepeatTimer])
 
@@ -81,21 +95,30 @@ export function AcceleratingStepButton({
     pressStartedAtRef.current = performance.now()
     event.currentTarget.setPointerCapture?.(event.pointerId)
     repeatTimerRef.current = window.setTimeout(() => {
+      if (disabledRef.current) {
+        clearRepeatTimer()
+        return
+      }
       repeatedRef.current = true
       onStep(step)
       scheduleRepeat()
     }, repeatDelayMs)
   }
 
-  function finishPointerPress() {
+  function finishPointerPress(suppressFollowUpClick: boolean) {
     clearRepeatTimer()
     if (repeatedRef.current) {
-      suppressClickRef.current = true
+      suppressClickRef.current = suppressFollowUpClick
       lastActivationAtRef.current = 0
     }
+    repeatedRef.current = false
   }
 
   function handleClick() {
+    if (disabledRef.current) {
+      return
+    }
+
     if (suppressClickRef.current) {
       suppressClickRef.current = false
       return
@@ -121,8 +144,8 @@ export function AcceleratingStepButton({
       disabled={disabled}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
-      onPointerUp={finishPointerPress}
-      onPointerCancel={finishPointerPress}
+      onPointerUp={() => finishPointerPress(true)}
+      onPointerCancel={() => finishPointerPress(false)}
     />
   )
 }

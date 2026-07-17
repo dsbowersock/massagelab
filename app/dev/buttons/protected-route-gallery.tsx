@@ -35,7 +35,7 @@ export function ProtectedRouteGallery() {
         <div>
           <h2 id="protected-heading" className="text-2xl font-semibold">Protected route proofs</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            These specimens prove approved visuals can move onto shared families without authorizing production-route migration yet.
+            These specimens verify approved route visuals remain reproducible through shared families while preserving route-specific intent.
           </p>
         </div>
 

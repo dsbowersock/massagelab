@@ -81,3 +81,24 @@ test("Wellness anatomical map remains outside the production rollout", async () 
 
   assert.match(plan, /Wellness anatomical map[\s\S]*excluded from S6 through S9/)
 })
+test("review fixes preserve live route controls and interaction cleanup", async () => {
+  const [runningTimer, backgroundHost, controlCss, stepper, themeSwitcher, sidebar, reviewLab] = await Promise.all([
+    read("app/chimer/running-timer.tsx"),
+    read("components/backgrounds/BackgroundHost.tsx"),
+    read("components/chimer-controls/chimer-controls.module.css"),
+    read("components/ui/accelerating-step-button.tsx"),
+    read("components/theme-switcher-multi-button.tsx"),
+    read("components/sidebar/app-sidebar-client.tsx"),
+    read("app/dev/buttons/page.tsx"),
+  ])
+
+  assert.match(runningTimer, /resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor/)
+  assert.match(runningTimer, /value: movingBackgroundOrbColor,[\s\S]*globalValue: globalPaletteSecondary/)
+  assert.match(backgroundHost, /const effectProps = useMemo\(\(\) => applyPaletteToBackgroundEffects/)
+  assert.equal((controlCss.match(/^\.harmonyList \{/gm) ?? []).length, 1)
+  assert.equal((controlCss.match(/^\.globalColorGrid \{/gm) ?? []).length, 1)
+  assert.match(stepper, /disabledRef\.current[\s\S]*onPointerCancel=\{\(\) => finishPointerPress\(false\)\}/)
+  assert.match(themeSwitcher, /cleanupTransitionState\(\)[\s\S]*\[cleanupTransitionState\]/)
+  assert.match(sidebar, /\[activeGroupId, pathname\]/)
+  assert.match(reviewLab, /Current rollout validation/)
+})

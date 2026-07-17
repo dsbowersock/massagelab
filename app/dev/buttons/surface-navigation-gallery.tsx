@@ -93,7 +93,7 @@ export function SurfaceNavigationGallery() {
 
           <AppSurface title="Bottom navigation" description="Phone controls preserve larger touch targets and active/inactive distinction." className="lg:col-span-2">
             <nav className="mx-auto flex w-full max-w-md items-center justify-around gap-2 rounded-2xl border border-border/80 bg-background/90 p-2" aria-label="Bottom navigation review">
-              <Button variant="ctaBlue" size="icon" aria-label="Home active"><Home aria-hidden="true" /></Button>
+              <Button variant="ctaBlue" size="icon" aria-label="Home active" aria-current="page"><Home aria-hidden="true" /></Button>
               <Button variant="ctaBlue" size="icon" aria-label="Music inactive"><Music2 aria-hidden="true" /></Button>
               <Button variant="ctaBlue" size="icon" aria-label="Clock inactive"><Clock3 aria-hidden="true" /></Button>
               <Button variant="ctaBlue" size="icon" aria-label="Calendar inactive"><CalendarDays aria-hidden="true" /></Button>

@@ -295,7 +295,7 @@ function NavPrimary({
 
   React.useEffect(() => {
     setOpenGroupId(activeGroupId)
-  }, [activeGroupId])
+  }, [activeGroupId, pathname])
 
   const setGroupOpen = React.useCallback((groupId: string, isOpen: boolean) => {
     setOpenGroupId((current) => (isOpen ? groupId : current === groupId ? null : current))

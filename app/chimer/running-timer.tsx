@@ -3277,9 +3277,17 @@ export function RunningTimer({
     glowColor: resolvedClockGlowColor,
     glowStrength: clockGlowStrength,
   })
-  // The global picker is authoritative for both the protected Lamp path and hosted effects.
-  const resolvedMovingBackgroundMainColor = globalPalettePrimary
-  const resolvedMovingBackgroundOrbColor = globalPaletteSecondary
+  // Global colors provide Lamp defaults without making its specialized controls inert.
+  const resolvedMovingBackgroundMainColor = resolvePaletteDrivenColor({
+    value: movingBackgroundMainColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundMainColor,
+    globalValue: globalPalettePrimary,
+  })
+  const resolvedMovingBackgroundOrbColor = resolvePaletteDrivenColor({
+    value: movingBackgroundOrbColor,
+    defaultValue: DEFAULT_CHIMER_SETTINGS.movingBackgroundOrbColor,
+    globalValue: globalPaletteSecondary,
+  })
   const resolvedSparklesParticleColor = resolvePaletteDrivenColor({
     value: sparklesParticleColor,
     defaultValue: DEFAULT_CHIMER_SETTINGS.sparklesParticleColor,

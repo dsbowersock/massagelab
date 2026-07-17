@@ -39,14 +39,14 @@ export default function ControlSystemReviewPage() {
         <p className="text-sm font-medium text-primary">Local development · visual approval gate</p>
         <h1 className="text-3xl font-semibold sm:text-4xl">Control system review</h1>
         <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
-          Review every reusable control and surface family before production-route migration. Routes choose intent, tone, density, effect, and selected behavior; shared authorities own geometry and interaction mechanics.
+          Review every reusable control and surface family against the current production rollout. Routes choose intent, tone, density, effect, and selected behavior; shared authorities own geometry and interaction mechanics.
         </p>
       </header>
 
       <Notice
         tone="info"
-        title="Review milestone S1–S5"
-        description="This lab changes shared contracts and review specimens only. Protected production visuals remain unchanged until this matrix is approved."
+        title="Current rollout validation"
+        description="This lab validates shared contracts, representative states, and protected route proofs used by the approved production rollout. Wellness anatomy remains deferred."
       />
 
       <AppSurface title="How to review" description="Exercise real browser states instead of relying only on static examples." variant="inset">
