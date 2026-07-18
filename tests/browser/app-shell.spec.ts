@@ -329,6 +329,42 @@ test("mobile top placement reserves the top edge and leaves the active music pla
   await page.getByRole("button", { name: "Stop" }).last().click()
 })
 
+test("mobile bottom placement adds the main bar when idle and the audio toolbar only while active", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== mobileProject, "Mobile stacking is covered in mobile Chromium.")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => localStorage.setItem("massage-lab-settings", JSON.stringify({
+    appBarPosition: "bottom", sidebarPosition: "left", sidebarTriggerPosition: "bottom", themeMode: "dark",
+  })))
+  await gotoShell(page, "/music")
+
+  const bar = page.getByRole("navigation", { name: "MassageLab main navigation" })
+  const barBox = await bar.boundingBox()
+  expect((barBox?.y ?? 0) + (barBox?.height ?? 0)).toBeGreaterThanOrEqual(843)
+
+  const idleSpacing = await resolvedShellSpacing(page)
+  const idleExpectedStack = idleSpacing.safeBottom + idleSpacing.mainBar
+  const idleExpected = idleExpectedStack + idleSpacing.pageEdgeGap + idleSpacing.scrollEndBuffer
+  expect(idleSpacing.bottomStack).toBeCloseTo(idleExpectedStack)
+  expect(idleSpacing.pageBottom).toBeCloseTo(idleExpected)
+
+  await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
+  const player = page.getByTestId("music-player-toolbar")
+  await expect(player).toBeVisible()
+  await expect(player).toHaveAttribute("data-placement", "bottom")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-active/)
+  const activeSpacing = await resolvedShellSpacing(page)
+  const activeExpected = activeSpacing.bottomStack
+    + activeSpacing.pageEdgeGap
+    + activeSpacing.scrollEndBuffer
+    + activeSpacing.audioToolbar
+  expect(activeSpacing.bottomStack).toBeCloseTo(activeSpacing.safeBottom + activeSpacing.mainBar)
+  expect(activeSpacing.pageBottom).toBeCloseTo(activeExpected)
+  expect(activeSpacing.pageBottom - idleSpacing.pageBottom).toBeCloseTo(activeSpacing.audioToolbar)
+  const playerBox = await player.boundingBox()
+  expect((playerBox?.y ?? 0) + (playerBox?.height ?? 0)).toBeLessThanOrEqual((barBox?.y ?? 0) + 1)
+  await page.getByRole("button", { name: "Stop" }).last().click()
+})
+
 test("running alerting and preview capture clear computed shell offsets while bars are hidden", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("massage-lab-settings", JSON.stringify({
     appBarPosition: "bottom", sidebarPosition: "left", sidebarTriggerPosition: "bottom", themeMode: "dark",

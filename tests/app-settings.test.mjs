@@ -275,6 +275,12 @@ describe("App settings helpers", () => {
 
   it("derives mobile bottom-safe spacing from the resolved bottom stack", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const topPlacementRule = globalsSource.match(
+      /html\[data-app-bar-position="top"\] \.ml-app-shell\[data-main-bar-visible="true"\] \{[\s\S]*?\n    \}/,
+    )?.[0] ?? ""
+    const bottomPlacementRule = globalsSource.match(
+      /html\[data-app-bar-position="bottom"\] \.ml-app-shell\[data-main-bar-visible="true"\] \{[\s\S]*?\n    \}/,
+    )?.[0] ?? ""
     const visibleBarRule = globalsSource.match(
       /\n    \.ml-app-shell\[data-main-bar-visible="true"\] \{[\s\S]*?\n    \}/,
     )?.[0] ?? ""
@@ -282,6 +288,10 @@ describe("App settings helpers", () => {
       /body\.ml-music-player-active\.ml-music-player-bottom \.ml-app-shell(?:\[data-main-bar-visible="true"\])? \{[\s\S]*?\n\s*\}/g,
     )].map((match) => match[0])
 
+    assert.match(topPlacementRule, /--ml-bottom-stack-height:\s*var\(--ml-safe-bottom\)/)
+    assert.match(bottomPlacementRule, /--ml-bottom-stack-height:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-main-bar-height\)\)/)
+    assert.doesNotMatch(topPlacementRule, /--ml-page-bottom-safe/)
+    assert.doesNotMatch(bottomPlacementRule, /--ml-page-bottom-safe/)
     assert.match(visibleBarRule, /--ml-page-bottom-safe:\s*calc\(var\(--ml-bottom-stack-height\)/)
     assert.doesNotMatch(visibleBarRule, /--ml-main-bar-height/)
     assert.ok(activeMusicRules.length >= 1)

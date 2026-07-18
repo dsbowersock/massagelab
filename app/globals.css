@@ -2027,7 +2027,6 @@
 
     html[data-app-bar-position="bottom"] .ml-app-shell[data-main-bar-visible="true"] {
       --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
-      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
     }
   }
 
