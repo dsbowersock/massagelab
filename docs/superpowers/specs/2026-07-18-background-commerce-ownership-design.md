@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-18
 
-**Status:** Design sections approved; written specification awaiting final review
+**Status:** Reviewed and approved for implementation planning
 
 **Track:** 1 of 6, split into Tracks 1A and 1B
 
@@ -10,7 +10,7 @@
 
 ## Summary
 
-Give every email-verified MassageLab account two non-expiring premium-background credits exactly once. A credit permanently unlocks one premium background and cannot be swapped. Verified users may also purchase any number of distinct premium backgrounds for a tax-exclusive `$1 USD` each through one persistent, account-backed cart. Purchased and redeemed backgrounds remain owned after a subscription ends.
+Give every email-verified MassageLab account two non-expiring premium-background credits exactly once. A credit permanently unlocks one premium background and cannot be swapped. Verified users may also purchase multiple distinct premium backgrounds for a tax-exclusive `$1 USD` each through one persistent, account-backed cart. Purchased and redeemed backgrounds remain owned after a subscription ends.
 
 Active subscribers continue to use every premium background through the existing `premium_backgrounds` feature entitlement. Subscription access and permanent ownership remain separate: subscribers may use an unowned premium background immediately and may optionally choose **Keep permanently** to redeem a credit or add it to their cart.
 
@@ -821,4 +821,3 @@ Also run the Track 1 browser suite, Stripe readiness/reconciliation checks, migr
 - Track 4 receives permanent ownership from the canonical resolver and does not create another store.
 - No client, Stripe redirect, stale cache, or duplicate external event can create free or duplicate ownership.
 - Production purchasing remains disabled until legal, tax, Stripe, webhook, catalog, reconciliation, and QA readiness pass.
-
