@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
@@ -67,7 +66,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -687,49 +685,6 @@ function AccountMenu({
   )
 }
 
-function SidebarLogoHomeLink() {
-  const { navigateFromSidebar } = useSidebarNavigation()
-
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <Link
-          href="/"
-          aria-label="MassageLab home"
-          onClick={(event) => navigateFromSidebar(event, "/")}
-          className={cn(
-            "ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark flex h-10 w-full items-center justify-center rounded-full border p-1 text-sidebar-accent-foreground shadow-sm transition-[background-color,box-shadow,filter,transform] hover:brightness-105",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-            "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0",
-          )}
-        >
-          <Image
-            src="/brand/massagelab-mark-final-20260622.png"
-            alt=""
-            width={500}
-            height={500}
-            className="hidden size-full scale-150 object-contain group-data-[collapsible=icon]:block"
-            data-testid="sidebar-brand-mark-trigger"
-            sizes="32px"
-            loading="eager"
-          />
-          <Image
-            src="/brand/massagelab-wordmark-final-20260622.png"
-            alt=""
-            width={1518}
-            height={593}
-            className="h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden"
-            data-testid="sidebar-brand-wordmark-trigger"
-            sizes="220px"
-            loading="eager"
-          />
-          <span className="sr-only">MassageLab home</span>
-        </Link>
-      </SidebarMenuItem>
-    </SidebarMenu>
-  )
-}
-
 export function AppSidebarClient({
   navigation,
   user,
@@ -741,7 +696,6 @@ export function AppSidebarClient({
   const { settings } = useSettings()
   const { renderMode, setOpen } = useSidebar()
   const tooltipSide = settings.sidebarPosition === "right" ? "left" : "right"
-  const { navigateFromSidebar } = useSidebarNavigation()
   const isDrawer = renderMode === "drawer"
   const isCompactLandscape = renderMode === "compact-rail"
   const previousPathnameRef = React.useRef(pathname)
@@ -759,45 +713,7 @@ export function AppSidebarClient({
   }, [pathname, renderMode, setOpen])
 
   return (
-    <Sidebar side={settings.sidebarPosition} collapsible="icon">
-      {isDrawer ? (
-        <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild size="lg" className="justify-center data-[state=open]:bg-sidebar-accent">
-                <Link href="/" aria-label="MassageLab home" onClick={(event) => navigateFromSidebar(event, "/")}>
-                  <span className="ml-sidebar-brand-frame ml-sidebar-brand-collapsed-mark hidden aspect-square size-8 items-center justify-center rounded-full border text-sidebar-accent-foreground group-data-[collapsible=icon]:flex">
-                    <Image
-                      src="/brand/massagelab-mark-final-20260622.png"
-                      alt=""
-                      width={500}
-                      height={500}
-                      className="size-full scale-150 object-contain"
-                      data-testid="sidebar-brand-mark"
-                      sizes="28px"
-                      loading="eager"
-                    />
-                  </span>
-                  <Image
-                    src="/brand/massagelab-wordmark-final-20260622.png"
-                    alt="MassageLab"
-                    width={1518}
-                    height={593}
-                    className={cn("h-11 w-auto max-w-60 scale-125 object-contain group-data-[collapsible=icon]:hidden")}
-                    data-testid="sidebar-brand-wordmark"
-                    sizes="220px"
-                    loading="eager"
-                  />
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
-      ) : (
-        <SidebarHeader>
-          <SidebarLogoHomeLink />
-        </SidebarHeader>
-      )}
+    <Sidebar side={settings.sidebarPosition} collapsible="icon" className="ml-app-sidebar-frame">
       {isCompactLandscape ? (
         <>
           <SidebarContent

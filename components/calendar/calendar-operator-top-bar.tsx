@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sheet"
 import { QuickActionSpeedDial } from "@/components/shell/quick-action-speed-dial"
 import { AppToolLink } from "@/components/shell/app-tool-link"
+import { AppBarBrandLink } from "@/components/shell/app-bar-brand-link"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { isNavigationRouteActive } from "@/lib/navigation"
@@ -434,6 +435,26 @@ export function CalendarOperatorTopBar({
     return () => window.cancelAnimationFrame(animationFrame)
   }, [updateToolbarPlacement, pathname, toolbarSlot])
 
+  useEffect(() => {
+    const header = headerRef.current
+    if (!header) return
+
+    const root = document.documentElement
+    // The fixed bar can gain a second toolbar row, so publish its measured height instead of assuming one row.
+    const publishHeight = () => {
+      root.style.setProperty("--ml-desktop-app-bar-height", `${Math.ceil(header.getBoundingClientRect().height)}px`)
+    }
+
+    publishHeight()
+    const observer = new ResizeObserver(publishHeight)
+    observer.observe(header)
+
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty("--ml-desktop-app-bar-height")
+    }
+  }, [])
+
   const sidebarControl = (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -502,9 +523,16 @@ export function CalendarOperatorTopBar({
       {!sidebarIsRight ? <ThemeSwitcherMultiButton /> : null}
     </div>
   )
+  const drawerBrandCluster = (
+    <div className="ml-app-bar-drawer-brand flex min-w-0 items-center gap-2">
+      {sidebarIsRight ? <AppBarBrandLink /> : sidebarControl}
+      {sidebarIsRight ? sidebarControl : <AppBarBrandLink />}
+    </div>
+  )
 
-  const leadingControl = sidebarIsRight ? oppositeControls : sidebarControl
-  const trailingControl = sidebarIsRight ? sidebarControl : oppositeControls
+  // Keep the configured drawer control outermost; the shared brand is immediately medial.
+  const leadingControl = sidebarIsRight ? oppositeControls : drawerBrandCluster
+  const trailingControl = sidebarIsRight ? drawerBrandCluster : oppositeControls
 
   const secondaryToolbar = controlsOverflowing && hasToolbarSlot ? (
     <div
@@ -531,8 +559,8 @@ export function CalendarOperatorTopBar({
       <header
         ref={headerRef}
         className={cn(
-          "ml-app-topbar relative z-30 hidden bg-background/95 shadow-sm backdrop-blur md:block",
-          appBarIsBottom ? "border-t border-border/70" : "border-b border-border/70",
+          "ml-app-topbar fixed inset-x-0 z-[10020] hidden w-screen bg-background/95 shadow-sm backdrop-blur md:block",
+          appBarIsBottom ? "bottom-0 border-t border-border/70" : "top-0 border-b border-border/70",
         )}
       >
         <div ref={primaryRowRef} className="flex min-h-14 items-center gap-2 px-3 sm:px-4">

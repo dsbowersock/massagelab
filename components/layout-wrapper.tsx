@@ -39,9 +39,7 @@ export function LayoutWrapper({
   // Chimer and Clock setup still need bottom controls; active states hide them by body class.
   const routeShowsMobileMainBar = !routeOwnsBackground
     || isChimerRoute
-  const appBarIsBottom = settings.appBarPosition === "bottom"
   const musicPlayerPlacement = getMusicPlayerPlacement(settings)
-  const appBar = <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
 
   const shell = (
     <div
@@ -61,7 +59,7 @@ export function LayoutWrapper({
           />
         </>
       )}
-      {!appBarIsBottom && appBar}
+      <CalendarOperatorTopBar user={user} calendarActions={navigation.calendarSidebarActions} />
       <div
         className={cn(
           "ml-app-scroll relative z-10 min-h-0 min-w-0 w-full flex-1 overscroll-contain",
@@ -78,7 +76,6 @@ export function LayoutWrapper({
           {children}
         </div>
       </div>
-      {appBarIsBottom && appBar}
       {routeShowsMobileMainBar && <MobileMainBar user={user} />}
       <MusicMiniPlayer placement={musicPlayerPlacement} />
     </div>

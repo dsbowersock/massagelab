@@ -56,6 +56,10 @@ export function applySidebarPositionAttribute(sidebarPosition: SidebarPosition) 
   document.documentElement.dataset.sidebarPosition = sidebarPosition
 }
 
+export function applyAppBarPositionAttribute(appBarPosition: AppBarPosition) {
+  document.documentElement.dataset.appBarPosition = appBarPosition
+}
+
 export function SettingsProvider({
   children,
   syncEnabled = false,
@@ -86,6 +90,10 @@ export function SettingsProvider({
   useEffect(() => {
     applySidebarPositionAttribute(settings.sidebarPosition)
   }, [settings.sidebarPosition])
+
+  useEffect(() => {
+    applyAppBarPositionAttribute(settings.appBarPosition)
+  }, [settings.appBarPosition])
 
   useEffect(() => {
     let isMounted = true

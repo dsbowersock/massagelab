@@ -9,9 +9,8 @@ import {
   resolveSidebarButtonSettings,
 } from "../lib/app-settings.js"
 import {
-  mainBarItemIds,
-  resolveMainBarItemOrder,
   getMusicPlayerPlacement,
+  resolveMainBarLayout,
 } from "../lib/app-shell.js"
 import {
   getSidebarRenderMode,
@@ -77,12 +76,23 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-theme-switcher \.ml-shell-theme-button \{[\s\S]*height: 2\.625rem;[\s\S]*width: 2\.625rem/)
   })
 
-  it("keeps the collapsed brand link accessible without covering the drawer control", () => {
-    const sidebarSource = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+  it("keeps one responsive app-bar brand link beside the drawer control", () => {
+    const brand = readFileSync(new URL("../components/shell/app-bar-brand-link.tsx", import.meta.url), "utf8")
+    const sidebar = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
 
-    assert.match(sidebarSource, /function SidebarLogoHomeLink\(\)/)
-    assert.match(sidebarSource, /aria-label="MassageLab home"/)
-    assert.doesNotMatch(sidebarSource, /TooltipContent[\s\S]*MassageLab home/)
+    assert.match(brand, /aria-label="MassageLab home"/)
+    assert.match(brand, /massagelab-wordmark-final-20260622\.png/)
+    assert.match(brand, /massagelab-mark-final-20260622\.png/)
+    assert.doesNotMatch(sidebar, /function SidebarLogoHomeLink/)
+  })
+
+  it("offsets the fixed desktop sidebar frame from the configured app-bar edge", () => {
+    const sidebar = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+
+    assert.match(sidebar, /<Sidebar[\s\S]*className="ml-app-sidebar-frame"/)
+    assert.match(globalsSource, /html\[data-app-bar-position="top"\][\s\S]*> \.ml-app-sidebar-frame \{[\s\S]*bottom: auto/)
+    assert.match(globalsSource, /html\[data-app-bar-position="bottom"\][\s\S]*> \.ml-app-sidebar-frame \{[\s\S]*top: auto/)
   })
 
   it("uses the approved shared toggle treatment on representative route settings", () => {
@@ -205,26 +215,17 @@ describe("App settings helpers", () => {
     })
   })
 
-  it("orders the main bar so More follows the selected drawer side", () => {
-    assert.deepEqual(mainBarItemIds, ["more", "music", "clock", "quick-create", "calendar", "home", "theme"])
-    assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "left" }), [
-      "more",
-      "music",
-      "clock",
-      "quick-create",
-      "calendar",
-      "home",
-      "theme",
-    ])
-    assert.deepEqual(resolveMainBarItemOrder({ sidebarPosition: "right" }), [
-      "theme",
-      "home",
-      "calendar",
-      "quick-create",
-      "clock",
-      "music",
-      "more",
-    ])
+  it("keeps the drawer and brand at the configured edge before mirroring tools", () => {
+    assert.deepEqual(resolveMainBarLayout({ sidebarPosition: "left" }), {
+      drawerEdge: "left",
+      edgeItemIds: ["more", "brand"],
+      toolItemIds: ["music", "clock", "quick-create", "calendar", "theme"],
+    })
+    assert.deepEqual(resolveMainBarLayout({ sidebarPosition: "right" }), {
+      drawerEdge: "right",
+      edgeItemIds: ["brand", "more"],
+      toolItemIds: ["theme", "calendar", "quick-create", "clock", "music"],
+    })
   })
 
   it("renders the mobile main bar and quick-action speed dial from the layout shell", () => {
@@ -234,7 +235,7 @@ describe("App settings helpers", () => {
     const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
 
     assert.match(layoutSource, /<MobileMainBar\b/)
-    assert.match(mainBarSource, /resolveMainBarItemOrder/)
+    assert.match(mainBarSource, /resolveMainBarLayout/)
     assert.match(mainBarSource, /aria-label="MassageLab main navigation"/)
     assert.match(mainBarSource, /QuickActionSpeedDial/)
     assert.match(speedDialSource, /aria-label="Quick create actions"/)
@@ -266,13 +267,13 @@ describe("App settings helpers", () => {
     assert.match(mainBarSource, /pb-\[var\(--ml-safe-bottom\)\]/)
     assert.match(mainBarSource, /pt-0/)
     assert.match(globalsSource, /\.ml-main-bar-layout \{[\s\S]*align-items: center/)
-    assert.match(globalsSource, /\.ml-main-bar-edge \{[\s\S]*align-items: center/)
+    assert.match(globalsSource, /\.ml-main-bar-drawer-brand \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*justify-content: center/)
     assert.equal((mainBarSource.match(/<AppToolLink\b/g) ?? []).length, 3)
     assert.equal((topBarSource.match(/<AppToolLink\b/g) ?? []).length, 2)
     assert.match(toolLinkSource, /variant="ctaBlue"/)
-    assert.equal((mainBarSource.match(/variant="ctaBlue"/g) ?? []).length, 1)
+    assert.equal((mainBarSource.match(/variant="ctaBlue"/g) ?? []).length, 0)
     assert.match(mainBarSource, /variant="default"[\s\S]*className=\{cn\("ml-main-bar-plus rounded-full"/)
     assert.equal((topBarSource.match(/variant="ctaBlue"/g) ?? []).length, 1)
     assert.match(topBarSource, /const quickActionControl = \([\s\S]*?variant="default"[\s\S]*?aria-label="Open quick actions"/)
@@ -283,6 +284,8 @@ describe("App settings helpers", () => {
     assert.match(mainBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(topBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(settingsProviderSource, /export function useResolvedTheme\(\): ResolvedThemeMode/)
+    assert.match(settingsProviderSource, /applyAppBarPositionAttribute\(settings\.appBarPosition\)/)
+    assert.match(settingsProviderSource, /document\.documentElement\.dataset\.appBarPosition = appBarPosition/)
     assert.match(settingsProviderSource, /mediaQuery\.addEventListener\("change", updateSystemTheme\)/)
     assert.doesNotMatch(globalsSource, /\.ml-button-press-motion\.ml-button-ghost\.ml-main-bar-button/)
     assert.match(globalsSource, /\.ml-main-bar-button span:not\(\.sr-only\) \{[\s\S]*display: none/)

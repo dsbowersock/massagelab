@@ -1,16 +1,16 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
-import { CalendarDays, Clock, Home, Menu, Music2, Plus } from "lucide-react"
+import { CalendarDays, Clock, Menu, Music2, Plus } from "lucide-react"
 import { ThemeSwitcherMultiButton } from "@/components/theme-switcher-multi-button"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useResolvedTheme, useSettings } from "@/components/providers/settings-provider"
 import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
-import { resolveMainBarItemOrder } from "@/lib/app-shell"
+import { resolveMainBarLayout } from "@/lib/app-shell"
 import { cn } from "@/lib/utils"
+import { AppBarBrandLink } from "./app-bar-brand-link"
 import { AppToolLink } from "./app-tool-link"
 import { QuickActionSpeedDial } from "./quick-action-speed-dial"
 
@@ -25,22 +25,37 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
   const { toggleSidebar } = useSidebar()
   const [quickActionsOpen, setQuickActionsOpen] = React.useState(false)
   const quickCreateButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  const order = resolveMainBarItemOrder(settings)
-  const edgeStartItemId = order[0]
-  const edgeEndItemId = order[order.length - 1]
-  const clusterItemIds = order.slice(1, -1)
+  const layout = resolveMainBarLayout(settings)
+  const quickCreateControl = (
+    <Button
+      ref={quickCreateButtonRef}
+      type="button"
+      variant="default"
+      size="icon"
+      className={cn("ml-main-bar-plus rounded-full", quickActionsOpen && "ml-main-bar-plus-open")}
+      data-quick-action-trigger="true"
+      aria-label="Open quick actions"
+      aria-expanded={quickActionsOpen}
+      onClick={() => setQuickActionsOpen((current) => !current)}
+    >
+      <Plus aria-hidden="true" />
+    </Button>
+  )
+  const drawerControl = (
+    <Button
+      type="button"
+      variant={resolvedTheme === "dark" ? "glow" : "default"}
+      size="icon"
+      className="ml-main-bar-button rounded-full"
+      aria-label="Open navigation"
+      onClick={toggleSidebar}
+    >
+      <Menu aria-hidden="true" />
+      <span>More</span>
+    </Button>
+  )
   const itemById = new Map<string, MainBarRenderItem>([
-    ["home", {
-      id: "home",
-      node: (
-        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button" aria-label="Home">
-          <Link href="/">
-            <Home aria-hidden="true" />
-            <span>Home</span>
-          </Link>
-        </Button>
-      ),
-    }],
+    ["brand", { id: "brand", node: <AppBarBrandLink /> }],
     ["music", {
       id: "music",
       node: (
@@ -65,24 +80,7 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
         />
       ),
     }],
-    ["quick-create", {
-      id: "quick-create",
-      node: (
-        <Button
-          ref={quickCreateButtonRef}
-          type="button"
-          variant="default"
-          size="icon"
-          className={cn("ml-main-bar-plus rounded-full", quickActionsOpen && "ml-main-bar-plus-open")}
-          data-quick-action-trigger="true"
-          aria-label="Open quick actions"
-          aria-expanded={quickActionsOpen}
-          onClick={() => setQuickActionsOpen((current) => !current)}
-        >
-          <Plus aria-hidden="true" />
-        </Button>
-      ),
-    }],
+    ["quick-create", { id: "quick-create", node: quickCreateControl }],
     ["theme", {
       id: "theme",
       node: <ThemeSwitcherMultiButton />,
@@ -99,23 +97,13 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
         />
       ),
     }],
-    ["more", {
-      id: "more",
-      node: (
-        <Button
-          type="button"
-          variant={resolvedTheme === "dark" ? "glow" : "default"}
-          size="icon"
-          className="ml-main-bar-button rounded-full"
-          aria-label="Open navigation"
-          onClick={toggleSidebar}
-        >
-          <Menu aria-hidden="true" />
-          <span>More</span>
-        </Button>
-      ),
-    }],
+    ["more", { id: "more", node: drawerControl }],
   ])
+  const edgeCluster = (
+    <div className="ml-main-bar-drawer-brand" data-drawer-edge={layout.drawerEdge}>
+      {layout.edgeItemIds.map((id) => <React.Fragment key={id}>{itemById.get(id)?.node}</React.Fragment>)}
+    </div>
+  )
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -129,21 +117,20 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
       <nav
         aria-label="MassageLab main navigation"
         data-sidebar-position={settings.sidebarPosition}
-        className="ml-mobile-main-bar fixed inset-x-0 bottom-0 z-[10025] border-t border-border/80 bg-background/95 px-1.5 pb-[var(--ml-safe-bottom)] pt-0 shadow-2xl shadow-black/35 backdrop-blur md:hidden"
+        data-app-bar-position={settings.appBarPosition}
+        className={cn(
+          "ml-mobile-main-bar fixed inset-x-0 z-[10025] bg-background/95 px-1.5 shadow-2xl shadow-black/35 backdrop-blur md:hidden",
+          settings.appBarPosition === "top"
+            ? "top-0 border-b border-border/80 pb-0 pt-[var(--ml-safe-top)]"
+            : "bottom-0 border-t border-border/80 pb-[var(--ml-safe-bottom)] pt-0",
+        )}
       >
-        <div className="ml-main-bar-layout">
-          <div className="ml-main-bar-edge ml-main-bar-edge-start">
-            {edgeStartItemId ? itemById.get(edgeStartItemId)?.node : null}
+        <div className="ml-main-bar-layout" data-drawer-edge={layout.drawerEdge}>
+          {layout.drawerEdge === "left" ? edgeCluster : null}
+          <div className="ml-main-bar-tools">
+            {layout.toolItemIds.map((id) => <React.Fragment key={id}>{itemById.get(id)?.node}</React.Fragment>)}
           </div>
-          <div className="ml-main-bar-cluster">
-            {clusterItemIds.map((itemId) => {
-              const item = itemById.get(itemId)
-              return item ? <div key={item.id} className="flex justify-center">{item.node}</div> : null
-            })}
-          </div>
-          <div className="ml-main-bar-edge ml-main-bar-edge-end">
-            {edgeEndItemId ? itemById.get(edgeEndItemId)?.node : null}
-          </div>
+          {layout.drawerEdge === "right" ? edgeCluster : null}
         </div>
       </nav>
     </TooltipProvider>

@@ -182,7 +182,7 @@ test("core public tool surfaces keep shell spacing and visible primary content",
   expect(health.forbiddenRequests, "anonymous account sync requests").toEqual([])
 })
 
-test("main bar exposes home music clock quick create theme calendar and more controls", async ({ page }) => {
+test("main bar exposes brand music clock quick create theme calendar and more controls", async ({ page }) => {
   const health = capturePageHealth(page)
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -200,7 +200,7 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await page.goto("/music", { waitUntil: "domcontentloaded" })
 
   await expect(page.getByRole("navigation", { name: /^MassageLab main navigation$/i })).toBeVisible()
-  await expect(page.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/")
+  await expect(page.getByRole("link", { name: "MassageLab home" })).toHaveAttribute("href", "/")
   await expect(page.getByRole("link", { name: /^Open music$/i })).toHaveAttribute("href", "/music")
   await expect(page.getByRole("link", { name: /^Open clock$/i })).toHaveAttribute("href", "/clock")
   const quickCreate = page.getByRole("button", { name: /^Open quick actions$/i })
@@ -210,16 +210,6 @@ test("main bar exposes home music clock quick create theme calendar and more con
   expect(quickCreateBox?.width ?? 0).toBeLessThanOrEqual(43)
   expect(quickCreateBox?.height ?? 0).toBeGreaterThanOrEqual(42)
   expect(quickCreateBox?.height ?? 0).toBeLessThanOrEqual(43)
-  const homeButtonStyle = await page.getByRole("link", { name: /^Home$/i }).evaluate((element) => {
-    const button = element.closest(".ml-main-bar-button")
-    const styles = button ? window.getComputedStyle(button) : null
-    return {
-      borderTopWidth: styles?.borderTopWidth ?? "",
-      backgroundImage: styles?.backgroundImage ?? "",
-    }
-  })
-  expect(homeButtonStyle.borderTopWidth).toBe("2px")
-  expect(homeButtonStyle.backgroundImage).toContain("gradient")
   const quickCreateStyle = await quickCreate.evaluate((element) => {
     const styles = window.getComputedStyle(element)
     return {
@@ -234,8 +224,8 @@ test("main bar exposes home music clock quick create theme calendar and more con
   await expect(page.getByRole("button", { name: /^Open navigation$/i })).toBeVisible()
 
   const mainBar = page.getByRole("navigation", { name: /^MassageLab main navigation$/i })
-  await expect(mainBar.locator(".ml-main-bar-edge-start .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
-  await expect(mainBar.locator(".ml-main-bar-edge-end").getByRole("group", { name: /^Theme$/i })).toBeVisible()
+  await expect(mainBar.locator(".ml-main-bar-drawer-brand .ml-main-bar-button")).toHaveAccessibleName("Open navigation")
+  await expect(mainBar.locator(".ml-main-bar-tools").getByRole("group", { name: /^Theme$/i })).toBeVisible()
 
   expect(health.pageErrors, "uncaught page errors").toEqual([])
   expect(health.consoleErrors, "browser console errors").toEqual([])
