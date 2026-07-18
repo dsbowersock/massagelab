@@ -33,4 +33,12 @@ describe("PWA install capability", () => {
       maxTouchPoints: 5,
     }), false)
   })
+
+  it("rejects unknown iOS browsers that merely include the Safari token", () => {
+    assert.equal(isIosSafariNavigator({
+      userAgent: "Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Mobile/15E148 AcmeBrowser/1.0 Safari/604.1",
+      platform: "iPhone",
+      maxTouchPoints: 5,
+    }), false)
+  })
 })
