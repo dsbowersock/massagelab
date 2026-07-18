@@ -5,6 +5,7 @@ import { AppSidebarClient } from "@/components/sidebar/app-sidebar-client"
 import { SidebarCalendarProvider } from "@/components/sidebar/sidebar-calendar-provider"
 import { SettingsProvider } from "@/components/providers/settings-provider"
 import { ServiceWorkerProvider } from "@/components/providers/service-worker-provider"
+import { PwaInstallProvider } from "@/components/providers/pwa-install-provider"
 import { TherapistSettingsProvider } from "@/components/providers/therapist-settings-provider"
 import { MusicProvider } from "@/components/providers/music-provider"
 import { LayoutWrapper } from "@/components/layout-wrapper"
@@ -56,22 +57,24 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(seoJsonLd) }}
         />
         <ServiceWorkerProvider />
-        <SettingsProvider syncEnabled={canSyncAccountSettings}>
-          <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
-            <MusicProvider>
-              <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
-                <SidebarCalendarProvider enabled={Boolean(user)}>
-                  <AppSidebarClient user={user} navigation={navigation} />
-                  <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
-                    <main className="relative h-full min-w-0 overflow-hidden">
-                      <LayoutWrapper user={user} navigation={navigation}>{children}</LayoutWrapper>
-                    </main>
-                  </SidebarInset>
-                </SidebarCalendarProvider>
-              </SidebarProvider>
-            </MusicProvider>
-          </TherapistSettingsProvider>
-        </SettingsProvider>
+        <PwaInstallProvider>
+          <SettingsProvider syncEnabled={canSyncAccountSettings}>
+            <TherapistSettingsProvider syncEnabled={canSyncAccountSettings}>
+              <MusicProvider>
+                <SidebarProvider className="h-[100dvh] min-h-0 overflow-hidden bg-background">
+                  <SidebarCalendarProvider enabled={Boolean(user)}>
+                    <AppSidebarClient user={user} navigation={navigation} />
+                    <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
+                      <main className="relative h-full min-w-0 overflow-hidden">
+                        <LayoutWrapper user={user} navigation={navigation}>{children}</LayoutWrapper>
+                      </main>
+                    </SidebarInset>
+                  </SidebarCalendarProvider>
+                </SidebarProvider>
+              </MusicProvider>
+            </TherapistSettingsProvider>
+          </SettingsProvider>
+        </PwaInstallProvider>
       </body>
     </html>
   )
