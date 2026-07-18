@@ -30,6 +30,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { QuickActionSpeedDial } from "@/components/shell/quick-action-speed-dial"
+import { AppToolLink } from "@/components/shell/app-tool-link"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { isNavigationRouteActive } from "@/lib/navigation"
@@ -231,7 +232,8 @@ function CalendarDrawerButton({
             type="button"
             variant="ctaBlue"
             size="icon"
-            className="relative h-10 w-10 shrink-0"
+            data-active={isNavigationRouteActive(pathname, "/calendar")}
+            className="ml-calendar-drawer-trigger relative h-10 w-10 shrink-0"
             aria-label="Open calendar"
             aria-expanded={open}
             aria-haspopup="dialog"
@@ -457,16 +459,7 @@ export function CalendarOperatorTopBar({
   const musicControl = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          asChild
-          variant="ctaBlue"
-          size="icon"
-          className="h-10 w-10 shrink-0"
-        >
-          <Link href="/music" aria-label="Open music">
-            <Music2 data-icon="inline-start" />
-          </Link>
-        </Button>
+        <AppToolLink href="/music" label="Open music" icon={Music2} className="h-10 w-10 shrink-0" />
       </TooltipTrigger>
       <TooltipContent>Music</TooltipContent>
     </Tooltip>
@@ -474,16 +467,7 @@ export function CalendarOperatorTopBar({
   const clockControl = (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          asChild
-          variant="ctaBlue"
-          size="icon"
-          className="h-10 w-10 shrink-0"
-        >
-          <Link href="/clock" aria-label="Open clock">
-            <Clock data-icon="inline-start" />
-          </Link>
-        </Button>
+        <AppToolLink href="/clock" label="Open clock" icon={Clock} className="h-10 w-10 shrink-0" />
       </TooltipTrigger>
       <TooltipContent>Clock</TooltipContent>
     </Tooltip>

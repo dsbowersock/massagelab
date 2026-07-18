@@ -11,6 +11,7 @@ import { useResolvedTheme, useSettings } from "@/components/providers/settings-p
 import type { SidebarUser } from "@/components/sidebar/app-sidebar-client"
 import { resolveMainBarItemOrder } from "@/lib/app-shell"
 import { cn } from "@/lib/utils"
+import { AppToolLink } from "./app-tool-link"
 import { QuickActionSpeedDial } from "./quick-action-speed-dial"
 
 type MainBarRenderItem = {
@@ -43,23 +44,25 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["music", {
       id: "music",
       node: (
-        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button">
-          <Link href="/music" aria-label="Open music">
-            <Music2 aria-hidden="true" />
-            <span>Music</span>
-          </Link>
-        </Button>
+        <AppToolLink
+          href="/music"
+          label="Open music"
+          icon={Music2}
+          showLabel
+          className="ml-main-bar-button"
+        />
       ),
     }],
     ["clock", {
       id: "clock",
       node: (
-        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button">
-          <Link href="/clock" aria-label="Open clock">
-            <Clock aria-hidden="true" />
-            <span>Clock</span>
-          </Link>
-        </Button>
+        <AppToolLink
+          href="/clock"
+          label="Open clock"
+          icon={Clock}
+          showLabel
+          className="ml-main-bar-button"
+        />
       ),
     }],
     ["quick-create", {
@@ -87,12 +90,13 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
     ["calendar", {
       id: "calendar",
       node: (
-        <Button asChild variant="ctaBlue" size="icon" className="ml-main-bar-button">
-          <Link href="/calendar" aria-label="Open calendar">
-            <CalendarDays aria-hidden="true" />
-            <span>Calendar</span>
-          </Link>
-        </Button>
+        <AppToolLink
+          href="/calendar"
+          label="Open calendar"
+          icon={CalendarDays}
+          showLabel
+          className="ml-main-bar-button"
+        />
       ),
     }],
     ["more", {

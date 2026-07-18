@@ -39,6 +39,16 @@ describe("App settings helpers", () => {
     assert.doesNotMatch(topBarSource, /ThemeSwitcherMultiButton className="max-\[360px\]:hidden"/)
   })
 
+  it("shares semantic active tool links across desktop and mobile bars", () => {
+    const toolLink = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
+    const topBar = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
+    const mobileBar = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
+    assert.match(toolLink, /isNavigationRouteActive/)
+    assert.match(toolLink, /aria-current=\{active \? "page" : undefined\}/)
+    assert.match(topBar, /ml-calendar-drawer-trigger/)
+    assert.match(mobileBar, /AppToolLink/)
+  })
+
   it("keeps compact top-bar drawer and theme controls the same size", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const themeSwitcherSource = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
@@ -231,6 +241,7 @@ describe("App settings helpers", () => {
   it("keeps the mobile main bar controls styled as physical buttons", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
+    const toolLinkSource = readFileSync(new URL("../components/shell/app-tool-link.tsx", import.meta.url), "utf8")
     const themeSwitcherSource = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
     const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
     const settingsProviderSource = readFileSync(new URL("../components/providers/settings-provider.tsx", import.meta.url), "utf8")
@@ -242,9 +253,12 @@ describe("App settings helpers", () => {
     assert.match(globalsSource, /\.ml-main-bar-edge \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*align-items: center/)
     assert.match(globalsSource, /\.ml-main-bar-button \{[\s\S]*justify-content: center/)
-    assert.equal((mainBarSource.match(/variant="ctaBlue"/g) ?? []).length, 4)
+    assert.equal((mainBarSource.match(/<AppToolLink\b/g) ?? []).length, 3)
+    assert.equal((topBarSource.match(/<AppToolLink\b/g) ?? []).length, 2)
+    assert.match(toolLinkSource, /variant="ctaBlue"/)
+    assert.equal((mainBarSource.match(/variant="ctaBlue"/g) ?? []).length, 1)
     assert.match(mainBarSource, /variant="default"[\s\S]*className=\{cn\("ml-main-bar-plus rounded-full"/)
-    assert.equal((topBarSource.match(/variant="ctaBlue"/g) ?? []).length, 3)
+    assert.equal((topBarSource.match(/variant="ctaBlue"/g) ?? []).length, 1)
     assert.match(topBarSource, /const quickActionControl = \([\s\S]*?variant="default"[\s\S]*?aria-label="Open quick actions"/)
     assert.match(
       topBarSource,

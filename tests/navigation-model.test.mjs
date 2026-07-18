@@ -90,6 +90,15 @@ describe("Navigation IA model", () => {
     assert.equal(isNavigationRouteActive("/chimer", "/"), false)
   })
 
+  it("matches only the approved global tool route families", () => {
+    assert.equal(isNavigationRouteActive("/music", "/music"), true)
+    assert.equal(isNavigationRouteActive("/music/stations", "/music"), true)
+    assert.equal(isNavigationRouteActive("/clock", "/clock"), true)
+    assert.equal(isNavigationRouteActive("/clock/presentation", "/clock"), true)
+    assert.equal(isNavigationRouteActive("/chimer", "/clock"), false)
+    assert.equal(isNavigationRouteActive("/calendar/requests", "/calendar"), true)
+  })
+
   it("retains hidden home and news groups as model-only placeholders", () => {
     const modelOnlyGroupIds = navigationGroups
       .filter((group) => group.routes.length === 0 || group.routes.every((route) => route.visibleInSidebar === false))
