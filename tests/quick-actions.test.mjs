@@ -10,38 +10,15 @@ import {
 } from "../lib/quick-actions.js"
 
 describe("Quick action model", () => {
-  it("exposes the approved anonymous quick-action groups without membership clutter", () => {
+  it("exposes only the approved anonymous quick actions", () => {
     const groups = resolveAnonymousQuickActionGroups()
 
-    assert.deepEqual(groups.map((group) => group.id), ["available_now", "sign_in_to_save"])
-    assert.deepEqual(groups[0].actions.map((action) => action.id), [
-      "start_chimer",
-      "start_flashcards",
-      "play_anatomime",
-      "wellness_quick_log",
-      "body_sensation_check_in",
-      "start_breathing",
-      "start_public_music",
-    ])
-    assert.deepEqual(groups[1].actions.map((action) => action.id), [
-      "create_calendar_item",
-      "save_wellness_history",
-      "customize_home_shortcuts",
-      "customize_quick_actions",
-    ])
-    assert.equal(groups.some((group) => /membership/i.test(group.label)), false)
-  })
-
-  it("routes anonymous save-gated actions through login with callback destinations", () => {
-    const groups = resolveAnonymousQuickActionGroups()
-    const signInToSave = groups.find((group) => group.id === "sign_in_to_save")
-
-    assert.ok(signInToSave)
-    assert.deepEqual(signInToSave.actions.map((action) => [action.id, action.href]), [
-      ["create_calendar_item", "/login?callbackUrl=%2Fcalendar%2Fnew"],
-      ["save_wellness_history", "/login?callbackUrl=%2Fwellness"],
-      ["customize_home_shortcuts", "/login?callbackUrl=%2Fonboarding"],
-      ["customize_quick_actions", "/login?callbackUrl=%2Faccount%3Ftab%3Dapp-settings"],
+    assert.deepEqual(groups.map((group) => group.id), ["quick_actions"])
+    assert.deepEqual(groups[0].actions.map(({ id, label, href }) => ({ id, label, href })), [
+      { id: "login", label: "Log In", href: "/login" },
+      { id: "create_account", label: "Create Account", href: "/register" },
+      { id: "wellness_quick_log", label: "Quick Log", href: "/wellness#quick-log" },
+      { id: "start_breathing", label: "Breathing Guide", href: "/wellness/breathing" },
     ])
   })
 
@@ -106,10 +83,14 @@ describe("Quick action model", () => {
     assert.deepEqual(resolveQuickActionKeys({ signedIn: true, onboarding }), ["start_public_music", "start_chimer"])
   })
 
-  it("caps the visible quick-action defaults", () => {
-    assert.equal(resolveQuickActionKeys({
+  it("never mixes authentication actions into signed-in defaults", () => {
+    const ids = resolveQuickActionKeys({
       signedIn: true,
       onboarding: { primaryRole: "therapist", useCases: ["manage_practice", "run_sessions"] },
-    }).length <= QUICK_ACTION_MAX_VISIBLE, true)
+    })
+
+    assert.equal(ids.includes("login"), false)
+    assert.equal(ids.includes("create_account"), false)
+    assert.equal(ids.length <= QUICK_ACTION_MAX_VISIBLE, true)
   })
 })
