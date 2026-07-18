@@ -16,8 +16,10 @@ import {
   CalendarOff,
   ChevronsUpDown,
   ChevronRight,
+  CircleHelp,
   Clock,
   ClipboardList,
+  Download,
   FileText,
   Home,
   Info,
@@ -29,6 +31,7 @@ import {
   LogOut,
   LucideIcon,
   Map,
+  MessageSquareText,
   MoreHorizontal,
   Plus,
   Radio,
@@ -42,6 +45,8 @@ import {
   Wind,
   Wrench,
 } from "lucide-react"
+import { InstallMassageLabDialog } from "@/components/pwa/install-massagelab-dialog"
+import { usePwaInstall } from "@/components/providers/pwa-install-provider"
 import { useSettings } from "@/components/providers/settings-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -95,8 +100,10 @@ const routeIcons = {
   CalendarCog,
   CalendarDays,
   CalendarOff,
+  CircleHelp,
   Clock,
   ClipboardList,
+  Download,
   FileText,
   Home,
   Info,
@@ -105,6 +112,7 @@ const routeIcons = {
   LifeBuoy,
   ListChecks,
   Map,
+  MessageSquareText,
   Plus,
   Radio,
   Settings,
@@ -542,14 +550,25 @@ function AccountMenu({
   user: SidebarUser
 }) {
   const { isMobile } = useSidebar()
+  const { status, requestInstall } = usePwaInstall()
   const { settings } = useSettings()
   const { closeMobileSidebar, navigateFromSidebar } = useSidebarNavigation()
+  const [installInstructionsOpen, setInstallInstructionsOpen] = React.useState(false)
   const name = user?.name || "Guest"
   const email = user?.email || "Sign in to sync"
   const fallback = initials(name, email)
   const menuSide = isMobile ? "bottom" : settings.sidebarPosition === "right" ? "left" : "right"
   const isAccountRouteActive = accountRoutes.some((route) => isNavigationRouteActive(pathname, route.href))
-  const supportRoute = accountRoutes.find((route) => route.id === "user-support")
+  const installAvailable = status === "prompt" || status === "instructions"
+  const authRoutes = accountRoutes.filter((route) => ["account", "settings", "account-security"].includes(route.id))
+  // Help & FAQ, Send Feedback, and Legal remain common actions regardless of authentication.
+  const publicRoutes = accountRoutes.filter((route) => ["help-faq", "send-feedback", "legal"].includes(route.id))
+
+  async function handleInstall() {
+    const result = await requestInstall()
+    closeMobileSidebar()
+    if (result === "instructions") setInstallInstructionsOpen(true)
+  }
 
   return (
     <SidebarMenu>
@@ -557,6 +576,7 @@ function AccountMenu({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
+              data-testid="account-menu-trigger"
               isActive={isAccountRouteActive}
               size="lg"
               className={cn(
@@ -598,7 +618,7 @@ function AccountMenu({
             {user ? (
               <>
                 <DropdownMenuGroup>
-                  {accountRoutes.map((route) => {
+                  {authRoutes.map((route) => {
                     const Icon = routeIcons[route.icon] ?? UserRound
 
                     return (
@@ -634,24 +654,35 @@ function AccountMenu({
                     Create Account
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/account" onClick={(event) => navigateFromSidebar(event, "/account")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                {supportRoute && (
-                  <DropdownMenuItem asChild>
-                    <Link href={supportRoute.href} onClick={(event) => navigateFromSidebar(event, supportRoute.href)}>
-                      <LifeBuoy className="mr-2 h-4 w-4" />
-                      {supportRoute.label}
-                    </Link>
-                  </DropdownMenuItem>
-                )}
               </DropdownMenuGroup>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {installAvailable ? (
+                <DropdownMenuItem onSelect={() => void handleInstall()}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Install MassageLab
+                </DropdownMenuItem>
+              ) : null}
+              {publicRoutes.map((route) => {
+                const Icon = routeIcons[route.icon] ?? CircleHelp
+
+                return (
+                  <DropdownMenuItem key={route.id} asChild>
+                    <Link href={route.href} onClick={(event) => navigateFromSidebar(event, route.href)}>
+                      <Icon className="mr-2 h-4 w-4" />
+                      {route.label}
+                    </Link>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        <InstallMassageLabDialog
+          open={installInstructionsOpen}
+          onOpenChange={setInstallInstructionsOpen}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   )

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { describe, it } from "node:test"
 import { isIosSafariNavigator, resolvePwaInstallStatus } from "../lib/pwa-install.js"
 
@@ -40,5 +41,13 @@ describe("PWA install capability", () => {
       platform: "iPhone",
       maxTouchPoints: 5,
     }), false)
+  })
+
+  it("keeps install conditional and help or feedback public", () => {
+    const sidebar = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+    assert.match(sidebar, /status === "prompt" \|\| status === "instructions"/)
+    assert.match(sidebar, /Install MassageLab/)
+    assert.match(sidebar, /Help & FAQ/)
+    assert.match(sidebar, /Send Feedback/)
   })
 })

@@ -54,11 +54,19 @@ describe("Navigation IA model", () => {
       "/account",
       "/account?tab=app-settings",
       "/account?tab=security",
+      "/help",
       "/support",
       "/legal",
     ])
     assert.equal(new Set(accountMenuRoutes.map((route) => route.href)).size, accountMenuRoutes.length)
-    assert.deepEqual(accountMenuRoutes.map((route) => route.label), ["Account", "Settings", "Security", "User Support", "Legal"])
+    assert.deepEqual(accountMenuRoutes.map((route) => route.label), [
+      "Account",
+      "Settings",
+      "Security",
+      "Help & FAQ",
+      "Send Feedback",
+      "Legal",
+    ])
 
     const primaryHrefs = primaryNavigationGroups.flatMap((group) => group.routes.map((route) => route.href))
     assert.equal(primaryHrefs.includes("/support"), false)
@@ -166,7 +174,7 @@ describe("Navigation IA model", () => {
       "/about",
       "/about/derrick",
     ])
-    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), ["/support", "/legal"])
+    assert.deepEqual(navigation.accountMenuRoutes.map((route) => route.href), ["/help", "/support", "/legal"])
     assert.deepEqual(navigation.calendarSidebarActions.map((route) => route.href), [])
     assert.deepEqual(navigation.calendarMenuActions.map((route) => route.href), [])
   })
@@ -211,6 +219,7 @@ describe("Navigation IA model", () => {
       "/account",
       "/account?tab=app-settings",
       "/account?tab=security",
+      "/help",
       "/support",
       "/legal",
     ])
