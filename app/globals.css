@@ -2124,12 +2124,7 @@
 
   @media (max-width: 767px) {
     .ml-app-shell[data-main-bar-visible="true"] {
-      --ml-bottom-stack-height: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
-      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height));
-    }
-
-    body.ml-music-player-active.ml-music-player-bottom .ml-app-shell[data-main-bar-visible="true"] {
-      --ml-page-bottom-safe: calc(var(--ml-safe-bottom) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer) + var(--ml-main-bar-height) + var(--ml-audio-toolbar-height));
+      --ml-page-bottom-safe: calc(var(--ml-bottom-stack-height) + var(--ml-page-edge-gap) + var(--ml-scroll-end-buffer));
     }
   }
 

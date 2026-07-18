@@ -273,6 +273,24 @@ describe("App settings helpers", () => {
     assert.doesNotMatch(immersiveReset[0], /!important/)
   })
 
+  it("derives mobile bottom-safe spacing from the resolved bottom stack", () => {
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const visibleBarRule = globalsSource.match(
+      /\n    \.ml-app-shell\[data-main-bar-visible="true"\] \{[\s\S]*?\n    \}/,
+    )?.[0] ?? ""
+    const activeMusicRules = [...globalsSource.matchAll(
+      /body\.ml-music-player-active\.ml-music-player-bottom \.ml-app-shell(?:\[data-main-bar-visible="true"\])? \{[\s\S]*?\n\s*\}/g,
+    )].map((match) => match[0])
+
+    assert.match(visibleBarRule, /--ml-page-bottom-safe:\s*calc\(var\(--ml-bottom-stack-height\)/)
+    assert.doesNotMatch(visibleBarRule, /--ml-main-bar-height/)
+    assert.ok(activeMusicRules.length >= 1)
+    for (const rule of activeMusicRules) {
+      assert.match(rule, /--ml-page-bottom-safe:\s*calc\(var\(--ml-bottom-stack-height\)/)
+      assert.doesNotMatch(rule, /--ml-main-bar-height/)
+    }
+  })
+
   it("keeps the mobile main bar controls styled as physical buttons", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")

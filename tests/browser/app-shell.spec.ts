@@ -55,6 +55,29 @@ async function expectImmersiveOffsetsCleared(page: Page, bodyClass: string) {
   await page.evaluate((className) => document.body.classList.remove(className), bodyClass)
 }
 
+async function resolvedShellSpacing(page: Page) {
+  return page.locator(".ml-app-shell").evaluate((shell) => {
+    const measure = (variable: string) => {
+      const probe = document.createElement("div")
+      probe.style.cssText = `position:absolute;visibility:hidden;height:var(${variable});`
+      shell.appendChild(probe)
+      const value = Number.parseFloat(getComputedStyle(probe).height)
+      probe.remove()
+      return value
+    }
+
+    return {
+      audioToolbar: measure("--ml-audio-toolbar-height"),
+      bottomStack: measure("--ml-bottom-stack-height"),
+      mainBar: measure("--ml-main-bar-height"),
+      pageBottom: measure("--ml-page-bottom-safe"),
+      pageEdgeGap: measure("--ml-page-edge-gap"),
+      safeBottom: measure("--ml-safe-bottom"),
+      scrollEndBuffer: measure("--ml-scroll-end-buffer"),
+    }
+  })
+}
+
 function drawerControl(cluster: Locator) {
   return cluster.locator("button").first()
 }
@@ -281,10 +304,25 @@ test("mobile top placement reserves the top edge and leaves the active music pla
   const barBox = await bar.boundingBox()
   expect(barBox?.y).toBeLessThanOrEqual(1)
 
+  const idleSpacing = await resolvedShellSpacing(page)
+  const idleExpected = idleSpacing.bottomStack + idleSpacing.pageEdgeGap + idleSpacing.scrollEndBuffer
+  expect(idleSpacing.bottomStack).toBeCloseTo(idleSpacing.safeBottom)
+  expect(idleSpacing.pageBottom).toBeCloseTo(idleExpected)
+  expect(idleSpacing.pageBottom).not.toBeCloseTo(idleExpected + idleSpacing.mainBar)
+
   await page.getByRole("button", { name: /^Play MassageLab Proof Drone$/i }).click()
   const player = page.getByTestId("music-player-toolbar")
   await expect(player).toBeVisible()
   await expect(player).toHaveAttribute("data-placement", "bottom")
+  await expect(page.locator("body")).toHaveClass(/ml-music-player-active/)
+  const activeSpacing = await resolvedShellSpacing(page)
+  const activeExpected = activeSpacing.bottomStack
+    + activeSpacing.pageEdgeGap
+    + activeSpacing.scrollEndBuffer
+    + activeSpacing.audioToolbar
+  expect(activeSpacing.bottomStack).toBeCloseTo(activeSpacing.safeBottom)
+  expect(activeSpacing.pageBottom).toBeCloseTo(activeExpected)
+  expect(activeSpacing.pageBottom).not.toBeCloseTo(activeExpected + activeSpacing.mainBar)
   const playerBox = await player.boundingBox()
   expect((playerBox?.y ?? 0) + (playerBox?.height ?? 0)).toBeGreaterThan(700)
   expect(playerBox?.y ?? 0).toBeGreaterThan((barBox?.y ?? 0) + (barBox?.height ?? 0))
