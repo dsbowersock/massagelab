@@ -64,16 +64,23 @@ describe("App settings helpers", () => {
     assert.doesNotMatch(activeRule, /box-shadow|--ml-button-shadow/)
   })
 
-  it("keeps compact top-bar drawer and theme controls the same size", () => {
+  it("keeps the main-bar drawer and actions at 42px with a compact 32px theme toggle", () => {
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
     const themeSwitcherSource = readFileSync(new URL("../components/theme-switcher-multi-button.tsx", import.meta.url), "utf8")
     const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
 
-    assert.match(globalsSource, /--ml-shell-compact-control-size:\s*1\.9375rem/)
+    assert.match(globalsSource, /--ml-shell-compact-control-size:\s*2rem/)
+    assert.match(globalsSource, /--ml-shell-main-bar-control-size:\s*2\.625rem/)
     assert.match(globalsSource, /\.ml-app-topbar \.ml-shell-compact-control \{[\s\S]*height: var\(--ml-shell-compact-control-size\);[\s\S]*width: var\(--ml-shell-compact-control-size\)/)
+    assert.match(globalsSource, /\.ml-shell-main-bar-control \{[\s\S]*height: var\(--ml-shell-main-bar-control-size\);[\s\S]*width: var\(--ml-shell-main-bar-control-size\)/)
+    assert.match(globalsSource, /\.ml-app-topbar \.ml-shell-main-bar-control \{[\s\S]*height: var\(--ml-shell-main-bar-control-size\);[\s\S]*width: var\(--ml-shell-main-bar-control-size\)/)
     assert.match(themeSwitcherSource, /ml-shell-compact-control ml-shell-theme-button/)
-    assert.match(topBarSource, /className="ml-shell-compact-control shrink-0"/)
-    assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-theme-switcher \.ml-shell-theme-button \{[\s\S]*height: 2\.625rem;[\s\S]*width: 2\.625rem/)
+    assert.match(topBarSource, /className="ml-shell-main-bar-control shrink-0"/)
+    assert.match(topBarSource, /<Menu aria-hidden="true" data-icon="menu" \/>/)
+    assert.match(topBarSource, /const sidebarOpen = renderMode === "drawer" \? openMobile : state === "expanded"/)
+    assert.match(topBarSource, /aria-label=\{sidebarOpen \? "Close navigation" : "Open navigation"\}/)
+    assert.match(topBarSource, /aria-expanded=\{sidebarOpen\}/)
+    assert.match(globalsSource, /\.ml-mobile-main-bar \.ml-theme-switcher \.ml-shell-theme-button \{[\s\S]*height: var\(--ml-shell-compact-control-size\);[\s\S]*width: var\(--ml-shell-compact-control-size\)/)
   })
 
   it("keeps one responsive app-bar brand link beside the drawer control", () => {
@@ -88,11 +95,16 @@ describe("App settings helpers", () => {
 
   it("offsets the fixed desktop sidebar frame from the configured app-bar edge", () => {
     const sidebar = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+    const topBar = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
     const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
 
     assert.match(sidebar, /<Sidebar[\s\S]*className="ml-app-sidebar-frame"/)
+    assert.match(globalsSource, /\.ml-app-sidebar-spacer \{[\s\S]*pointer-events:\s*none/)
     assert.match(globalsSource, /html\[data-app-bar-position="top"\][\s\S]*> \.ml-app-sidebar-frame \{[\s\S]*bottom: auto/)
     assert.match(globalsSource, /html\[data-app-bar-position="bottom"\][\s\S]*> \.ml-app-sidebar-frame \{[\s\S]*top: auto/)
+    assert.match(topBar, /data-drawer-edge=\{sidebarIsRight \? "right" : "left"\}/)
+    assert.match(globalsSource, /\.ml-app-topbar \.ml-app-bar-drawer-brand\[data-drawer-edge="left"\] \{[\s\S]*translateX\(-0\.6875rem\)/)
+    assert.match(globalsSource, /\.ml-app-topbar \.ml-app-bar-drawer-brand\[data-drawer-edge="right"\] \{[\s\S]*translateX\(0\.6875rem\)/)
   })
 
   it("uses the approved shared toggle treatment on representative route settings", () => {
@@ -215,17 +227,25 @@ describe("App settings helpers", () => {
     })
   })
 
-  it("keeps the drawer and brand at the configured edge before mirroring tools", () => {
-    assert.deepEqual(resolveMainBarLayout({ sidebarPosition: "left" }), {
+  it("keeps the drawer and brand at the configured edge without reordering shared tools", () => {
+    const appShellSource = readFileSync(new URL("../lib/app-shell.js", import.meta.url), "utf8")
+    const topBarSource = readFileSync(new URL("../components/calendar/calendar-operator-top-bar.tsx", import.meta.url), "utf8")
+    const leftLayout = resolveMainBarLayout({ sidebarPosition: "left" })
+    const rightLayout = resolveMainBarLayout({ sidebarPosition: "right" })
+
+    assert.deepEqual(leftLayout, {
       drawerEdge: "left",
       edgeItemIds: ["more", "brand"],
-      toolItemIds: ["music", "clock", "quick-create", "calendar", "theme"],
+      toolItemIds: ["quick-create", "music", "clock", "calendar", "theme"],
     })
-    assert.deepEqual(resolveMainBarLayout({ sidebarPosition: "right" }), {
+    assert.deepEqual(rightLayout, {
       drawerEdge: "right",
       edgeItemIds: ["brand", "more"],
-      toolItemIds: ["theme", "calendar", "quick-create", "clock", "music"],
+      toolItemIds: leftLayout.toolItemIds,
     })
+    assert.match(appShellSource, /export const MAIN_BAR_TOOL_ITEM_IDS/)
+    assert.match(appShellSource, /toolItemIds: \[\.\.\.MAIN_BAR_TOOL_ITEM_IDS\]/)
+    assert.match(topBarSource, /MAIN_BAR_TOOL_ITEM_IDS\.map/)
   })
 
   it("renders the mobile main bar and quick-action speed dial from the layout shell", () => {
@@ -336,7 +356,30 @@ describe("App settings helpers", () => {
     )
     assert.match(wideMobileRules, /bottom:\s*calc\(var\(--ml-safe-bottom\) \+ var\(--ml-main-bar-height\)\)/)
     assert.match(wideMobileRules, /height:\s*calc\(100svh - var\(--ml-safe-bottom\) - var\(--ml-main-bar-height\)\)/)
-    assert.match(wideMobileRules, /\[data-sidebar-container="true"\] > :first-child \{[\s\S]*pointer-events:\s*none/)
+    assert.match(wideMobileRules, /\.ml-app-sidebar-spacer \{[\s\S]*width:\s*var\(--sidebar-width-icon\)/)
+    assert.match(wideMobileRules, /\.ml-app-sidebar-spacer \{[\s\S]*pointer-events:\s*none/)
+  })
+
+  it("keeps the wide-mobile drawer control and overlay on one sidebar state contract", () => {
+    const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    const mainBarSource = readFileSync(new URL("../components/shell/mobile-main-bar.tsx", import.meta.url), "utf8")
+    const sidebarSource = readFileSync(new URL("../components/ui/sidebar.tsx", import.meta.url), "utf8")
+
+    assert.match(mainBarSource, /const \{ isMobile, openMobile, state, toggleSidebar \} = useSidebar\(\)/)
+    assert.match(mainBarSource, /const sidebarOpen = isMobile \? openMobile : state === "expanded"/)
+    assert.match(mainBarSource, /data-sidebar-control="true"/)
+    assert.match(mainBarSource, /aria-expanded=\{sidebarOpen\}/)
+    assert.match(mainBarSource, /aria-label=\{sidebarOpen \? "Close navigation" : "Open navigation"\}/)
+    assert.match(sidebarSource, /"ml-app-sidebar-spacer duration-200/)
+    assert.match(sidebarSource, /data-testid="wide-mobile-sidebar-backdrop"/)
+    assert.match(sidebarSource, /aria-hidden="true"/)
+    assert.match(sidebarSource, /onClick=\{\(\) => setOpen\(false\)\}/)
+    assert.match(sidebarSource, /event\.key !== "Escape"/)
+    assert.match(sidebarSource, /state !== "expanded" \|\| renderMode === "drawer"/)
+    assert.match(globalsSource, /\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*display:\s*none/)
+    assert.match(globalsSource, /@media \(min-width: 601px\) and \(max-width: 767px\) \{[\s\S]*\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*position:\s*fixed/)
+    assert.match(globalsSource, /\.ml-wide-mobile-sidebar-backdrop \{[\s\S]*backdrop-filter:\s*blur\(/)
+    assert.match(globalsSource, /\.ml-app-sidebar-frame \{[\s\S]*z-index:\s*10015/)
   })
 
   it("keeps the mobile main bar controls styled as physical buttons", () => {
@@ -377,10 +420,8 @@ describe("App settings helpers", () => {
     assert.match(mainBarSource, /variant="default"[\s\S]*className=\{cn\("ml-main-bar-plus rounded-full"/)
     assert.equal((topBarSource.match(/variant="ctaBlue"/g) ?? []).length, 1)
     assert.match(topBarSource, /const quickActionControl = \([\s\S]*?variant="default"[\s\S]*?aria-label="Open quick actions"/)
-    assert.match(
-      topBarSource,
-      /sidebarIsRight \? <ThemeSwitcherMultiButton \/> : null[\s\S]*?\{calendarControl\}[\s\S]*?!sidebarIsRight \? <ThemeSwitcherMultiButton \/> : null/,
-    )
+    assert.match(topBarSource, /className="ml-main-bar-tools flex/)
+    assert.match(topBarSource, /MAIN_BAR_TOOL_ITEM_IDS\.map/)
     assert.match(mainBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(topBarSource, /variant=\{resolvedTheme === "dark" \? "glow" : "default"\}/)
     assert.match(settingsProviderSource, /export function useResolvedTheme\(\): ResolvedThemeMode/)

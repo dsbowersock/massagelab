@@ -47,7 +47,8 @@
     --button-depth-bottom: 24 36% 22%;
     --button-orange-depth: 25 82% 30%;
     --button-blue-depth: 222 64% 28%;
-    --ml-shell-compact-control-size: 1.9375rem;
+    --ml-shell-compact-control-size: 2rem;
+    --ml-shell-main-bar-control-size: 2.625rem;
     --ml-choice-slide-duration: 420ms;
     --ml-choice-slide-easing: cubic-bezier(0.22, 1, 0.36, 1);
     --ml-switch-thumb-face: 0 0% 98%;
@@ -2003,6 +2004,10 @@
     justify-content: flex-start;
   }
 
+  .ml-wide-mobile-sidebar-backdrop {
+    display: none;
+  }
+
   @container ml-main-bar-brand (max-width: 11.75rem) {
     .ml-app-bar-brand-wordmark {
       display: none;
@@ -2134,8 +2139,8 @@
   }
 
   .ml-mobile-main-bar .ml-theme-switcher .ml-shell-theme-button {
-    height: 2.625rem;
-    width: 2.625rem;
+    height: var(--ml-shell-compact-control-size);
+    width: var(--ml-shell-compact-control-size);
   }
 
   @media (max-width: 767px) {
@@ -2144,9 +2149,60 @@
     }
   }
 
+  .ml-shell-main-bar-control {
+    height: var(--ml-shell-main-bar-control-size);
+    width: var(--ml-shell-main-bar-control-size);
+    min-width: var(--ml-shell-main-bar-control-size);
+  }
+
+  .ml-app-sidebar-spacer {
+    pointer-events: none;
+  }
+
+  .ml-app-topbar .ml-shell-main-bar-control {
+    height: var(--ml-shell-main-bar-control-size);
+    width: var(--ml-shell-main-bar-control-size);
+  }
+
+  @media (min-width: 768px) {
+    /* Center the 42px drawer control in the 52px rail despite the primary row's 16px padding. */
+    .ml-app-topbar .ml-app-bar-drawer-brand[data-drawer-edge="left"] {
+      transform: translateX(-0.6875rem);
+    }
+
+    .ml-app-topbar .ml-app-bar-drawer-brand[data-drawer-edge="right"] {
+      transform: translateX(0.6875rem);
+    }
+  }
+
   @media (min-width: 601px) and (max-width: 767px) {
-    [data-sidebar-container="true"] > :first-child {
+    [data-sidebar-container="true"] > .ml-app-sidebar-spacer {
+      width: var(--sidebar-width-icon);
       pointer-events: none;
+    }
+
+    .ml-wide-mobile-sidebar-backdrop {
+      display: block;
+      position: fixed;
+      inset-inline: 0;
+      z-index: 10010;
+      background: hsl(var(--background) / 0.48);
+      -webkit-backdrop-filter: blur(7px);
+      backdrop-filter: blur(7px);
+    }
+
+    [data-sidebar-container="true"] > .ml-app-sidebar-frame {
+      z-index: 10015;
+    }
+
+    html[data-app-bar-position="top"] .ml-wide-mobile-sidebar-backdrop {
+      top: calc(var(--ml-safe-top) + var(--ml-main-bar-height));
+      bottom: 0;
+    }
+
+    html[data-app-bar-position="bottom"] .ml-wide-mobile-sidebar-backdrop {
+      top: 0;
+      bottom: calc(var(--ml-safe-bottom) + var(--ml-main-bar-height));
     }
 
     html[data-app-bar-position="top"] [data-sidebar-container="true"] > .ml-app-sidebar-frame {

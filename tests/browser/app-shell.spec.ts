@@ -87,6 +87,82 @@ type WideMobileShellCase = {
   drawerEdge: "left" | "right"
 }
 
+const MAIN_BAR_TOOL_LABELS = [
+  "Open quick actions",
+  "Open music",
+  "Open clock",
+  "Open calendar",
+  "Use light theme",
+] as const
+
+async function expectStableMainBarControls(page: Page, exerciseDrawer = true) {
+  const usesMobileBar = (page.viewportSize()?.width ?? 0) < 768
+  const bar = usesMobileBar
+    ? page.locator(".ml-mobile-main-bar")
+    : page.locator(".ml-app-topbar")
+  const drawer = drawerControl(bar.locator(usesMobileBar ? ".ml-main-bar-drawer-brand" : ".ml-app-bar-drawer-brand"))
+  const tools = bar.locator(".ml-main-bar-tools")
+  const controls = tools.locator('a[aria-label], button[aria-label]')
+
+  await expect(bar).toBeVisible()
+  await expect(drawer.locator('svg[data-icon="menu"]')).toHaveCount(1)
+  await expect(drawer).toHaveAttribute("aria-label", "Open navigation")
+  await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  await expect(controls).toHaveCount(MAIN_BAR_TOOL_LABELS.length)
+  expect(await controls.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+    .toEqual(MAIN_BAR_TOOL_LABELS)
+
+  const drawerBox = await drawer.boundingBox()
+  expect(drawerBox, "drawer control box").not.toBeNull()
+  expect(drawerBox?.width).toBeCloseTo(42, 0)
+  expect(drawerBox?.height).toBeCloseTo(42, 0)
+  expect(Math.abs((drawerBox?.width ?? 0) - (drawerBox?.height ?? 0))).toBeLessThanOrEqual(1)
+
+  for (const [index, control] of (await controls.all()).entries()) {
+    const box = await control.boundingBox()
+    const expectedSize = index === MAIN_BAR_TOOL_LABELS.length - 1 ? 32 : 42
+    expect(box, "main-bar control box").not.toBeNull()
+    expect(box?.width).toBeCloseTo(expectedSize, 0)
+    expect(box?.height).toBeCloseTo(expectedSize, 0)
+    expect(Math.abs((box?.width ?? 0) - (box?.height ?? 0))).toBeLessThanOrEqual(1)
+  }
+
+  if (!exerciseDrawer) return
+
+  await drawer.click()
+  await expect(drawer).toHaveAttribute("aria-label", "Close navigation")
+  await expect(drawer).toHaveAttribute("aria-expanded", "true")
+  await drawer.click()
+  await expect(drawer).toHaveAttribute("aria-label", "Open navigation")
+  await expect(drawer).toHaveAttribute("aria-expanded", "false")
+}
+
+async function expectDrawerAlignedWithCollapsedSidebar(page: Page) {
+  const drawer = drawerControl(page.locator(".ml-app-topbar .ml-app-bar-drawer-brand"))
+  const frame = page.locator(".ml-app-sidebar-frame")
+  const [drawerBox, frameBox] = await Promise.all([drawer.boundingBox(), frame.boundingBox()])
+
+  expect(drawerBox, "desktop drawer control box").not.toBeNull()
+  expect(frameBox, "collapsed sidebar frame box").not.toBeNull()
+  const drawerCenter = (drawerBox?.x ?? 0) + ((drawerBox?.width ?? 0) / 2)
+  const frameCenter = (frameBox?.x ?? 0) + ((frameBox?.width ?? 0) / 2)
+  expect(Math.abs(drawerCenter - frameCenter)).toBeLessThanOrEqual(1)
+}
+
+async function expectCanonicalSidebarSectionIcons(page: Page) {
+  const sidebar = page.locator(".ml-app-sidebar-frame")
+  const icons = [
+    ["Atmosphere", "lucide-waves"],
+    ["Documentation", "lucide-notebook-pen"],
+    ["Education", "lucide-graduation-cap"],
+    ["Games", "lucide-chess-knight"],
+  ] as const
+
+  for (const [label, iconClass] of icons) {
+    await expect(sidebar.getByRole("button", { name: label }).locator(`svg.${iconClass}`)).toHaveCount(1)
+  }
+}
+
 async function expectWideMobileSidebarBoundary(
   page: Page,
   appBarPosition: WideMobileShellCase["appBarPosition"],
@@ -113,6 +189,8 @@ async function expectWideMobileShellGeometry(page: Page, shellCase: WideMobileSh
   const brand = edgeCluster.getByRole("link", { name: "MassageLab home" })
   const tools = bar.locator(".ml-main-bar-tools")
   const sidebarContainer = page.locator('[data-sidebar-container="true"]')
+  const backdrop = page.getByTestId("wide-mobile-sidebar-backdrop")
+  const appScroll = page.locator(".ml-app-scroll")
   const [barBox, drawerBox, brandBox, toolsBox] = await Promise.all([
     bar.boundingBox(),
     drawer.boundingBox(),
@@ -123,6 +201,7 @@ async function expectWideMobileShellGeometry(page: Page, shellCase: WideMobileSh
   expect(barBox?.x).toBeLessThanOrEqual(1)
   expect(barBox?.width).toBeGreaterThanOrEqual(762)
   expect(barBox?.height).toBeCloseTo(52, 0)
+  await expectStableMainBarControls(page)
   expect(drawerBox, "wide-mobile drawer box").not.toBeNull()
   expect(brandBox, "wide-mobile brand box").not.toBeNull()
   expect(toolsBox, "wide-mobile tools box").not.toBeNull()
@@ -150,15 +229,66 @@ async function expectWideMobileShellGeometry(page: Page, shellCase: WideMobileSh
     expect(gap).toBeLessThanOrEqual(5)
   }
 
-  const initialState = await sidebarContainer.getAttribute("data-state")
-  expect(["collapsed", "expanded"]).toContain(initialState)
+  await expect(sidebarContainer).toHaveAttribute("data-render-mode", "desktop")
+  await expect(sidebarContainer).toHaveAttribute("data-state", "collapsed")
+  await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  await expect(backdrop).toHaveCount(0)
+  const closedContentBox = await appScroll.boundingBox()
+  expect(closedContentBox, "closed wide-mobile content box").not.toBeNull()
   await expectWideMobileSidebarBoundary(page, shellCase.appBarPosition)
+
   await drawer.click()
-  await expect(sidebarContainer).toHaveAttribute(
-    "data-state",
-    initialState === "collapsed" ? "expanded" : "collapsed",
-  )
+  await expect(sidebarContainer).toHaveAttribute("data-state", "expanded")
+  await expect(drawer).toHaveAttribute("aria-expanded", "true")
+  await expect(backdrop).toBeVisible()
+  await expect(backdrop).toHaveAttribute("aria-hidden", "true")
+  await expect(backdrop).not.toHaveAttribute("tabindex")
+  await expect(backdrop).toHaveCSS("position", "fixed")
+  await expectCanonicalSidebarSectionIcons(page)
+  const backdropFilter = await backdrop.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    return styles.getPropertyValue("backdrop-filter") || styles.getPropertyValue("-webkit-backdrop-filter")
+  })
+  expect(backdropFilter).toContain("blur")
+
+  const openContentBox = await appScroll.boundingBox()
+  expect(openContentBox?.x).toBeCloseTo(closedContentBox?.x ?? Number.NaN, 0)
+  expect(openContentBox?.width).toBeCloseTo(closedContentBox?.width ?? Number.NaN, 0)
+  const overlayHitTest = await page.evaluate((drawerEdge) => {
+    const backdropElement = document.querySelector('[data-testid="wide-mobile-sidebar-backdrop"]')
+    const frameElement = document.querySelector(".ml-app-sidebar-frame")
+    const frameRect = frameElement?.getBoundingClientRect()
+    const contentX = drawerEdge === "left" ? window.innerWidth - 40 : 40
+    const contentY = window.innerHeight / 2
+    const frameX = frameRect ? frameRect.x + (frameRect.width / 2) : 0
+    const frameY = frameRect ? frameRect.y + (frameRect.height / 2) : 0
+
+    return {
+      backdropOwnsContent: document.elementFromPoint(contentX, contentY) === backdropElement,
+      frameOwnsSidebar: Boolean(document.elementFromPoint(frameX, frameY)?.closest(".ml-app-sidebar-frame")),
+    }
+  }, shellCase.drawerEdge)
+  expect(overlayHitTest).toEqual({ backdropOwnsContent: true, frameOwnsSidebar: true })
   await expectWideMobileSidebarBoundary(page, shellCase.appBarPosition)
+
+  await drawer.click()
+  await expect(sidebarContainer).toHaveAttribute("data-state", "collapsed")
+  await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  await expect(drawer).toBeFocused()
+  await expect(backdrop).toHaveCount(0)
+
+  await drawer.click()
+  await expect(backdrop).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(sidebarContainer).toHaveAttribute("data-state", "collapsed")
+  await expect(drawer).toBeFocused()
+  await expect(backdrop).toHaveCount(0)
+
+  await drawer.click()
+  await expect(backdrop).toBeVisible()
+  await backdrop.click()
+  await expect(sidebarContainer).toHaveAttribute("data-state", "collapsed")
+  await expect(backdrop).toHaveCount(0)
 }
 
 test("anonymous quick actions stay focused and preserve the full-screen overlay", async ({ page }) => {
@@ -375,6 +505,42 @@ for (const shellCase of [
   })
 }
 
+for (const boundaryCase of [
+  { width: 749, appBarPosition: "bottom", drawerEdge: "left" },
+  { width: 837, appBarPosition: "top", drawerEdge: "right" },
+] as const) {
+  test(`${boundaryCase.width}px keeps the shared main-bar controls stable across the responsive switch`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== desktopProject, "Responsive app-bar controls are covered in desktop Chromium.")
+    await page.setViewportSize({ width: boundaryCase.width, height: 597 })
+    await page.addInitScript((settings) => localStorage.setItem("massage-lab-settings", JSON.stringify(settings)), {
+      appBarPosition: boundaryCase.appBarPosition,
+      sidebarPosition: boundaryCase.drawerEdge,
+      sidebarTriggerPosition: boundaryCase.appBarPosition,
+      themeMode: "dark",
+    })
+    await gotoShell(page, "/music")
+
+    await expectStableMainBarControls(page)
+  })
+}
+
+for (const drawerEdge of ["left", "right"] as const) {
+  test(`774px ${drawerEdge} drawer center aligns with the collapsed sidebar rail`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== desktopProject, "Desktop boundary geometry is covered in desktop Chromium.")
+    await page.setViewportSize({ width: 774, height: 597 })
+    await page.addInitScript((sidebarPosition) => localStorage.setItem("massage-lab-settings", JSON.stringify({
+      appBarPosition: "top",
+      sidebarPosition,
+      sidebarTriggerPosition: "top",
+      themeMode: "dark",
+    })), drawerEdge)
+    await gotoShell(page, "/music")
+
+    await expectDrawerAlignedWithCollapsedSidebar(page)
+    await expectStableMainBarControls(page)
+  })
+}
+
 test("narrow mobile keeps every tool and collapses only the wordmark", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== mobileProject, "Narrow main-bar behavior is covered in mobile Chromium.")
   await page.setViewportSize({ width: 390, height: 844 })
@@ -382,7 +548,9 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
 
   const bar = page.getByRole("navigation", { name: "MassageLab main navigation" })
   const barBox = await bar.boundingBox()
+  const drawer = page.locator(".ml-mobile-main-bar .ml-main-bar-drawer-brand button").first()
   expect(barBox?.height).toBeCloseTo(52, 0)
+  await expectStableMainBarControls(page, false)
   await expect(bar.locator(".ml-app-bar-brand-mark")).toBeVisible()
   await expect(bar.locator(".ml-app-bar-brand-wordmark")).toBeHidden()
   for (const name of ["Open music", "Open clock", "Open quick actions", "Open calendar"]) {
@@ -390,6 +558,13 @@ test("narrow mobile keeps every tool and collapses only the wordmark", async ({ 
   }
   await expect(bar.getByRole("group", { name: "Theme" })).toBeVisible()
   await expect(bar.getByRole("link", { name: "Open music" })).toHaveAttribute("aria-current", "page")
+  await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  await drawer.click()
+  await expect(drawer).toHaveAttribute("aria-expanded", "true")
+  await expect(page.locator('[data-sidebar="sidebar"][data-mobile="true"]')).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(drawer).toHaveAttribute("aria-expanded", "false")
+  await expect(page.locator('[data-sidebar="sidebar"][data-mobile="true"]')).toBeHidden()
 })
 
 test("mobile top placement reserves the top edge and leaves the active music player bottom-based", async ({ page }, testInfo) => {

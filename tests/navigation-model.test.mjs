@@ -90,6 +90,15 @@ describe("Navigation IA model", () => {
     assert.equal(isNavigationRouteActive("/chimer", "/"), false)
   })
 
+  it("uses the approved Lucide icons for the canonical learning sections", () => {
+    const sidebarSource = readFileSync(new URL("../components/sidebar/app-sidebar-client.tsx", import.meta.url), "utf8")
+
+    assert.match(sidebarSource, /atmosphere:\s*Waves/)
+    assert.match(sidebarSource, /documentation:\s*NotebookPen/)
+    assert.match(sidebarSource, /education:\s*GraduationCap/)
+    assert.match(sidebarSource, /games:\s*ChessKnight/)
+  })
+
   it("matches only the approved global tool route families", () => {
     assert.equal(isNavigationRouteActive("/music", "/music"), true)
     assert.equal(isNavigationRouteActive("/music/stations", "/music"), true)

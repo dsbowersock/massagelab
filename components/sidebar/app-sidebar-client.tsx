@@ -18,8 +18,10 @@ import {
   CircleHelp,
   Clock,
   ClipboardList,
+  createLucideIcon,
   Download,
   FileText,
+  GraduationCap,
   Home,
   Info,
   Images,
@@ -32,6 +34,7 @@ import {
   Map,
   MessageSquareText,
   MoreHorizontal,
+  NotebookPen,
   Plus,
   Radio,
   Settings,
@@ -41,6 +44,7 @@ import {
   UserPlus,
   UserRound,
   UsersRound,
+  Waves,
   Wind,
   Wrench,
 } from "lucide-react"
@@ -122,12 +126,22 @@ const routeIcons = {
   Wind,
 } satisfies Record<string, LucideIcon>
 
+// This Lucide release predates ChessKnight, so backport the canonical Lucide
+// node until the app takes a dedicated icon-library upgrade.
+const ChessKnight = createLucideIcon("ChessKnight", [
+  ["path", { d: "M5 20a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z", key: "knight-base" }],
+  ["path", { d: "M16.5 18c1-2 2.5-5 2.5-9a7 7 0 0 0-7-7H6.635a1 1 0 0 0-.768 1.64L7 5l-2.32 5.802a2 2 0 0 0 .95 2.526l2.87 1.456", key: "knight-body" }],
+  ["path", { d: "m15 5 1.425-1.425", key: "knight-ear" }],
+  ["path", { d: "m17 8 1.53-1.53", key: "knight-mane" }],
+  ["path", { d: "M9.713 12.185 7 18", key: "knight-neck" }],
+])
+
 const primaryGroupIcons: Record<string, LucideIcon> = {
   tools: Wrench,
-  atmosphere: Radio,
-  documentation: FileText,
-  education: BookOpen,
-  games: Brain,
+  atmosphere: Waves,
+  documentation: NotebookPen,
+  education: GraduationCap,
+  games: ChessKnight,
   about: Info,
 }
 

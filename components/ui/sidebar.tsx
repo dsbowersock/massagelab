@@ -143,6 +143,24 @@ const SidebarProvider = React.forwardRef<
     const state = open ? "expanded" : "collapsed"
 
     React.useEffect(() => {
+      if (state !== "expanded" || renderMode === "drawer") {
+        return
+      }
+
+      const handleEscape = (event: KeyboardEvent) => {
+        if (event.key !== "Escape") {
+          return
+        }
+
+        event.preventDefault()
+        setOpen(false)
+      }
+
+      window.addEventListener("keydown", handleEscape)
+      return () => window.removeEventListener("keydown", handleEscape)
+    }, [renderMode, setOpen, state])
+
+    React.useEffect(() => {
       if (!shouldCollapseSidebarFromOutsidePointer({
         renderMode,
         state,
@@ -235,7 +253,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile, renderMode } = useSidebar()
+    const { isMobile, state, openMobile, setOpen, setOpenMobile, renderMode } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -287,10 +305,18 @@ const Sidebar = React.forwardRef<
         data-render-mode={renderMode}
         data-side={side}
       >
+        {state === "expanded" ? (
+          <div
+            aria-hidden="true"
+            className="ml-wide-mobile-sidebar-backdrop"
+            data-testid="wide-mobile-sidebar-backdrop"
+            onClick={() => setOpen(false)}
+          />
+        ) : null}
         {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
-            "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
+            "ml-app-sidebar-spacer duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"

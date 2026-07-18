@@ -22,10 +22,11 @@ type MainBarRenderItem = {
 export function MobileMainBar({ user }: { user: SidebarUser }) {
   const { settings } = useSettings()
   const resolvedTheme = useResolvedTheme()
-  const { toggleSidebar } = useSidebar()
+  const { isMobile, openMobile, state, toggleSidebar } = useSidebar()
   const [quickActionsOpen, setQuickActionsOpen] = React.useState(false)
   const quickCreateButtonRef = React.useRef<HTMLButtonElement | null>(null)
   const layout = resolveMainBarLayout(settings)
+  const sidebarOpen = isMobile ? openMobile : state === "expanded"
   const quickCreateControl = (
     <Button
       ref={quickCreateButtonRef}
@@ -47,10 +48,12 @@ export function MobileMainBar({ user }: { user: SidebarUser }) {
       variant={resolvedTheme === "dark" ? "glow" : "default"}
       size="icon"
       className="ml-main-bar-button rounded-full"
-      aria-label="Open navigation"
+      data-sidebar-control="true"
+      aria-expanded={sidebarOpen}
+      aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
       onClick={toggleSidebar}
     >
-      <Menu aria-hidden="true" />
+      <Menu aria-hidden="true" data-icon="menu" />
       <span>More</span>
     </Button>
   )
